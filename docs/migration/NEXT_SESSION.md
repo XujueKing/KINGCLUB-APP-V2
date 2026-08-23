@@ -4,7 +4,7 @@
 
 可以直接复制下面这段：
 
-> 请先完整阅读 `C:\Users\Poplar\Desktop\KINGCLUB-APP-V2\README.md` 以及其中列出的全部迁移文档，再检查 `C:\Users\Poplar\Desktop\KingClub-app` 当前 Git 状态。以 `master / 505d222 / 1.1.37` 为稳定基线，不要恢复 `backup/ai-refactor-20260823` 的未完成首页重构。阅读完成后总结已确认决策、待确认问题和建议的下一步，不要立即大规模改代码。
+> 请先完整阅读 `C:\Users\Poplar\Desktop\KINGCLUB-APP-V2\docs\migration\README.md` 以及其中列出的全部迁移文档，再检查 `C:\Users\Poplar\Desktop\KingClub-app` 当前 Git 状态。以 `master / 505d222 / 1.1.37` 为稳定基线，不要恢复 `backup/ai-refactor-20260823` 的未完成首页重构。阅读完成后总结已确认决策、待确认问题和建议的下一步，不要立即大规模改代码。
 
 ## 必须阅读的文件
 
@@ -63,4 +63,3 @@ backup/ai-refactor-20260823    未完成的 AI 重构备份
 - 数据迁移必须提供校验和回滚脚本。
 - 不把旧客户端传入的金额和用户身份当作可信数据。
 - 不在同一阶段同时切换数据库、服务端接口和全部客户端。
-
