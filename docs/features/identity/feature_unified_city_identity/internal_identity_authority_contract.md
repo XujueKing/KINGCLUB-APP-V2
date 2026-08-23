@@ -164,5 +164,8 @@ x-trace-id
 - **已确认事实**：migration `325` 建立服务凭证元数据/访问审计；migration `326` 建立身份版本、KYC 来源字段、供应幂等、身份 Outbox、权威 Routine 和内部接口 `S260824000401`。
 - **已确认事实**：服务调用使用独立 `ccsop:service-interface:*` HKDF 域；接口固定校验 `kingclub-service + kingclub`，个人敏感原文不会进入幂等表、Outbox、审计或响应。
 - **已确认事实**：代码仓库 `npm run verify` 通过 189 个测试文件、653 项测试、类型检查、构建、migration dry-run 和部署静态检查。
+- **已确认事实**：KingClub 调用端已在 `business/kingclub-v2` 以提交 `dd0f048` 推送；固定调用 `POST /supper-interface + S260824000401`，使用独立服务凭据、加密签名和响应解密。
+- **已确认事实**：KingClub migration `018` 建立本地 `kingclubMember`、`identityProvisioningAttempt`、幂等 begin Routine 和本地原子投影 commit Routine；本地没有 `getGenerateId('U')`。
+- **已确认事实**：KingClub 侧 `npm run verify` 通过 25 个测试文件、103 项测试、类型检查、构建、migration dry-run 和部署静态检查。
 - **待验收**：本机没有 Docker/MySQL 运行环境；migration 实迁、真实双服务凭证、并发创建、KYC 冲突、无物业权限、补偿重试和日志脱敏仍须按服务端 `A033` 集中联调。
 - **当前状态**：接口实现完成但尚未部署启用；文档保持 `Approved for Development`，待 A033 通过后再标记 `Implemented/Accepted`。
