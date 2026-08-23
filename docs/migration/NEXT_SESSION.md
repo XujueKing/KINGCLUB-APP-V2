@@ -57,10 +57,10 @@ ccsop-property-identity-a033/feature/unified-identity-authority-v1
 
 资产盘点、统一身份契约和本地 A033 已完成。下一次工作直接从已批准的[登录、鉴权与会话文档](../features/identity/feature_login_session/README.md)进入服务端实现：
 
-1. 在 `business/kingclub-v2` 增加短信挑战、协议目录、本地登录身份指纹投影和会话时效 migration。
-2. 实现 `K260824000101`～`K260824000106` 执行器/Routine，复用现有物业短信与刷新方案的语义，不复制物业业务代码。
-3. 完成手机号首次/再次登录、跨服务补偿、单设备互踢、Refresh Token 重用和跨 App 隔离自动化测试。
-4. 在空白 MySQL 8.4/Redis 环境重新实迁并联调。
+1. migration `019` 的短信挑战、协议目录、本地登录身份指纹投影、设备登记和会话时效基础已经完成并通过空白 MySQL 8.4 实迁。
+2. 下一步从 migration `020` 开始实现登录/刷新/注销 Routine，同时移植最小短信 Router。
+3. 登记 `K260824000101`～`K260824000106` 的接口分类、紧凑契约、执行器和 Routine 目录，不复制物业业务代码。
+4. 完成手机号首次/再次登录、跨服务补偿、单设备互踢、Refresh Token 重用、跨 App 隔离和 WebSocket 撤销自动化测试。
 
 服务端验收前不创建 Flutter 登录页面；页面还需分别建立独立目录并完成页面规格。
 

@@ -10,7 +10,7 @@
 |---|---|---|
 | Flutter V2 规划仓库 | `C:\Users\Poplar\Desktop\KINGCLUB-APP-V2` | 已确认事实 |
 | KingClub 旧客户端 | `C:\Users\Poplar\Desktop\KingClub-app` | `master / 505d222 / 1.1.37`，审计时干净 |
-| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / 878a1c5`，已推送且工作区干净 |
+| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / b929c21`，已推送且工作区干净 |
 | 旧数据库结构 | `C:\Users\Poplar\Desktop\datebase\nuggets-仅结构.sql` | 仅结构文件，包含 94 张 `k_` 表 |
 
 ## 2. 已确认事实
@@ -103,7 +103,8 @@ ccsop-service + kingclub business line
 - **已确认事实**：KingClub `business/kingclub-v2` 已完成物业身份加密调用端、migration `018`、本地 `kingclubMember`/供应尝试投影和补偿编排。
 - **已确认事实**：KingClub migration `001`～`018` 与物业 migration `001`～`326` 已在隔离 MySQL 8.4 环境真实迁移；A033 双服务幂等联调通过。
 - **已确认事实**：[登录、鉴权与会话](../features/identity/feature_login_session/README.md)和[第一批超级接口契约](../features/foundation/feature_super_interface/interface_contracts_v1.md)已批准开发。
-- **当前建议**：下一批服务端 migration 从 `019` 开始，先完成短信/登录身份投影/协议/会话时效，再实现六个 `K...` 接口和 WebSocket 撤销事件。
+- **已确认事实**：migration `019` 已完成短信挑战、本地登录身份投影、协议/同意、设备登记和会话时效基础；空白 MySQL 8.4 从 `001`～`019` 完整实迁通过。
+- **当前建议**：下一批从 migration `020` 和 Node 执行器开始，移植短信 Router，并实现登录、刷新、当前会话、注销、撤销残留会话六个 `K...` 接口和 WebSocket 撤销事件。
 - **待验收**：生产服务凭据、并发首次注册、KYC 冲突、生产日志以及后续物业正式注册复用仍未验收。
 
 ## 5. 第一阶段工作包
