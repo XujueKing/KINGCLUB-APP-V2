@@ -2,7 +2,7 @@
 
 ## 文档状态
 
-`In Review`。文档已达到技术评审稿，尚未获得产品/视觉确认，不允许创建 Flutter 页面实现。
+`Approved for Development`。2026-08-24 页面职责、状态、接口、安全、线框和验收已完成评审；实际编码仍须等待 Flutter foundation 文档准入。
 
 ## 页面目标
 
@@ -50,3 +50,11 @@
 ## 依赖与不做事项
 
 依赖安全存储、密文网络客户端、会话 Repository、连接状态和路由守卫。该页不请求短信、不展示协议、不连接 WebSocket、不拉取完整个人资料，也不处理首页业务初始化。
+
+## 配套文档
+
+- [状态与错误映射](states.md)
+- [交互与生命周期](interactions.md)
+- [验收标准](acceptance.md)
+- [评审记录](review_record.md)
+- [所属功能](../../README.md)

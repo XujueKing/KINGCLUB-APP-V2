@@ -46,7 +46,7 @@
 
 ## 页面清单
 
-功能评审通过后再建立独立页面目录：启动鉴权页、手机号登录页、验证码页、协议确认页。当前不创建 Flutter 页面目录。
+四个页面均已在本功能的 `pages/` 下建立独立文档目录；文档逐页批准后才允许创建对应 Flutter 代码目录。
 
 ## 相关文档
 
@@ -58,10 +58,10 @@
 
 首批 Flutter 页面评审稿：
 
-- [启动鉴权页](../page_auth_bootstrap/README.md)
-- [手机号登录页](../page_mobile_login/README.md)
-- [验证码页](../page_sms_verification/README.md)
-- [协议确认页](../page_terms_consent/README.md)
+- [启动鉴权页（Approved for Development）](pages/page_auth_bootstrap/README.md)
+- [手机号登录页（In Review）](pages/page_mobile_login/README.md)
+- [验证码页（In Review）](pages/page_sms_verification/README.md)
+- [协议确认页（In Review）](pages/page_terms_consent/README.md)
 
 ## 开发准入
 
@@ -91,4 +91,5 @@
 - **已确认事实**：六个密文超级接口和 KingClub↔物业首次开户/本地投影完整链路已在隔离双库通过，覆盖重放、可信字段拒绝、短信幂等、单设备会话、刷新并发、recent auth 和注销。
 - **已确认事实**：并发物业首次开户只生成一个统一账号；物业不可达时 KingClub 不本地发号；物业成功而本地提交失败的原幂等键补偿已通过。
 - **已确认事实**：验证码错误/过期、手机号/IP 限流、Refresh Token 宽限期外重用、真实 WebSocket 撤销事件与 `4001` 关闭，以及合成 KYC 冲突人工审核均已通过隔离密文联调。
-- **当前状态**：四个 Flutter 登录页面已分别建立独立 `In Review` 文档目录；等待产品/视觉/技术评审，批准前不创建页面代码。
+- **已确认事实**：启动鉴权页已完成状态、错误映射、生命周期、线框、安全和验收评审，状态为 `Approved for Development`；其 Flutter 实现仍等待 Stage 1 foundation 文档批准。
+- **当前状态**：下一页评审手机号登录页；验证码页和协议确认页仍为 `In Review`，未创建任何页面代码。

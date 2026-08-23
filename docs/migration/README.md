@@ -42,6 +42,6 @@
 
 ## 下一步最合理的工作
 
-登录/统一身份的数据库、超级接口、隔离密文主链和异常矩阵已经完成。启动鉴权页、手机号登录页、验证码页和协议确认页已分别建立 `docs/features/identity/page_*` 评审目录。
+登录/统一身份的数据库、超级接口、隔离密文主链和异常矩阵已经完成。启动鉴权页、手机号登录页、验证码页和协议确认页已分别建立 `docs/features/identity/feature_login_session/pages/page_*` 目录；启动鉴权页规格已批准。
 
 下一步按 [NEXT_SESSION.md](NEXT_SESSION.md) 逐页确认交互与视觉方向；页面状态改为 `Approved for Development` 前不创建对应 Flutter 实现。

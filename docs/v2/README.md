@@ -25,10 +25,10 @@
 
 首批页面评审入口：
 
-1. [启动鉴权页](../features/identity/page_auth_bootstrap/README.md)
-2. [手机号登录页](../features/identity/page_mobile_login/README.md)
-3. [验证码页](../features/identity/page_sms_verification/README.md)
-4. [协议确认页](../features/identity/page_terms_consent/README.md)
+1. [启动鉴权页](../features/identity/feature_login_session/pages/page_auth_bootstrap/README.md)
+2. [手机号登录页](../features/identity/feature_login_session/pages/page_mobile_login/README.md)
+3. [验证码页](../features/identity/feature_login_session/pages/page_sms_verification/README.md)
+4. [协议确认页](../features/identity/feature_login_session/pages/page_terms_consent/README.md)
 
 ## 与迁移资料的关系
 
