@@ -35,9 +35,10 @@ anonymous
 2. 完成 ECDH 握手，通过密文调用发送验证码接口。
 3. 服务端按手机号指纹、设备、IP、业务线和场景限流，返回 challengeId 与冷却时间。
 4. 客户端密文提交 challengeId、手机号、验证码、设备信息和已同意协议版本。
-5. 服务端在一个事务内消费挑战、创建/查找统一身份、建立 KingClub 成员、撤销旧 KingClub 会话并签发新凭据。
-6. 客户端原子写入 Keychain/Keystore；只有写入成功后才进入 authenticated。
-7. 客户端调用 `auth.session.me` 复核最小身份和成员状态，再建立 WebSocket。
+5. 服务端消费挑战后，使用幂等内部接口在物业权威库查询/创建统一 `U...`，写手机号身份和真实 KYC 状态占位/摘要。
+6. KingClub 本地事务建立账号投影和成员、撤销旧 KingClub 会话并签发新凭据。
+7. 客户端原子写入 Keychain/Keystore；只有写入成功后才进入 authenticated。
+8. 客户端调用 `auth.session.me` 复核最小身份和成员状态，再建立 WebSocket。
 
 失败时不得保留半套凭据；验证码错误回到 challengeSent，挑战过期回到 anonymous 或重新发送。
 
@@ -107,6 +108,8 @@ unknown
 | Refresh Token 重用 | 撤销 Session/API Key | revoked |
 | 新设备登录 | 新会话成功，旧会话撤销 | 新端 authenticated，旧端 revoked |
 | WebSocket 签名/序号失败 | 丢弃帧并关闭异常连接 | API 会话状态不由 Socket 单独决定 |
+| 物业身份权威接口不可用 | 不在 KingClub 本地发号，返回可重试错误 | authenticating 后回到 challengeSent |
+| 统一身份冲突 | 不自动合并，记录冲突并进入人工处理 | anonymous/人工处理页 |
 
 ## 8. 待评审参数
 

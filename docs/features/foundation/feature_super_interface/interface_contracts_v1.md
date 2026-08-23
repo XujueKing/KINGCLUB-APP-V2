@@ -43,6 +43,26 @@
 
 握手接口没有 userAccount。客户端参数出现 `auth`、`request`、`userAccount`、角色或权限字段时直接拒绝。
 
+## 2.1 服务间统一账号接口
+
+KingClub 短信登录执行器在挑战验证成功后调用物业公共身份模块的 `identity.account.resolve_or_create`。该接口不属于 Flutter 的 `K...` 接口，不暴露公网普通客户端，具体 interfaceId 由物业身份迁移评审后登记。
+
+输入包含服务端已验证手机号、验证证据、真实 KYC 状态/来源、`sourceAppCode=kingclub` 和幂等键。权威库按手机号活动绑定加锁：存在则返回原 `U...`，不存在则原子创建账号、手机号登录身份和 KYC 占位/摘要。
+
+响应至少包含：
+
+```json
+{
+  "userAccount": "U...",
+  "isNewAccount": true,
+  "accountStatus": "active",
+  "kycStatus": "anonymous|pending|verified",
+  "identityVersion": 1
+}
+```
+
+服务间接口必须使用独立凭据、加密载荷、来源允许列表、短超时、幂等、审计和限流。KingClub 不得直接写物业数据库表，也不得在该接口失败时自行生成 `U...`。
+
 ## 3. `K260824000101` auth.sms.send
 
 请求：
@@ -101,13 +121,13 @@
   "expiresAt": "ISO-8601",
   "refreshExpiresAt": "ISO-8601",
   "account": { "userAccount": "opaque", "accountStatus": "active" },
-  "membership": { "appMembershipId": "opaque", "status": "active" },
+  "membership": { "status": "active" },
   "isNewAccount": false,
   "isNewMembership": false
 }
 ```
 
-挑战验证、账号/成员创建、旧 KingClub 会话撤销、新凭据签发和协议记录必须处于同一事务。
+物业权威库的账号写入和 KingClub 本地事务无法组成数据库分布式事务：先幂等取得 `U...`，再创建本地成员和会话；本地失败时用同一幂等键补偿重试。KingClub 本地的成员创建、旧会话撤销、新凭据签发和协议记录必须处于同一事务。
 
 ## 5. `K260824000103` auth.session.refresh
 
@@ -133,12 +153,12 @@
 ```json
 {
   "account": { "userAccount": "opaque", "accountStatus": "active", "kycStatus": "anonymous" },
-  "membership": { "appMembershipId": "opaque", "status": "active", "profileVersion": 1 },
+  "membership": { "status": "active", "profileVersion": 1 },
   "session": { "sessionId": "opaque", "expiresAt": "ISO-8601" }
 }
 ```
 
-不返回手机号、证件材料、API Key、Refresh Token 或内部 `personId`。
+不返回手机号、证件材料、API Key 或 Refresh Token。
 
 ## 7. `K260824000105` auth.session.logout
 
@@ -190,6 +210,8 @@ WebSocket 继续使用 `apiKeyId + sessionId + timestamp + nonce + requestId + c
 | `AUTH_REFRESH_REUSE_DETECTED` | 401 | 检测到旧 Token 重用并已撤销 |
 | `AUTH_REFRESH_CONCURRENT_UPDATE` | 409 | 另一个刷新事务已成功 |
 | `AUTH_RECENT_VERIFICATION_REQUIRED` | 403 | 高风险操作缺少近期验证 |
+| `IDENTITY_AUTHORITY_UNAVAILABLE` | 503 | 统一账号权威接口暂时不可用，不允许本地发号 |
+| `IDENTITY_BINDING_CONFLICT` | 409 | 手机号或实名身份已绑定到冲突账号 |
 
 ## 11. 登记和测试准入
 
@@ -198,4 +220,5 @@ WebSocket 继续使用 `apiKeyId + sessionId + timestamp + nonce + requestId + c
 - [ ] 执行器、Routine、目录和 sourceMigration 一致
 - [ ] 正常、参数错误、权限拒绝、重放、限流、并发和单设备场景均有测试
 - [ ] 接口编号在 migration 评审后正式冻结
+- [ ] 服务间统一账号接口、幂等、占位写入和补偿测试通过
 - [ ] 文档状态更新为 Approved for Development

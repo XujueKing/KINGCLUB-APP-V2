@@ -12,9 +12,9 @@
 7. handshake 密文调用“验证码登录”接口
 8. 服务端原子执行：
    - 消费 challenge
-   - 查找/创建 userAccount
-   - 绑定 userLoginIdentity
-   - 查找/创建 KingClub appMembership
+   - 使用服务间身份接口在物业权威库查找/创建统一 `U... userAccount`
+   - 在权威库写入手机号登录身份和真实 KYC 状态占位/摘要
+   - 在 KingClub 库 upsert 账号投影并查找/创建 `kingclubMember`
    - 生成 apiKey 与 refreshToken
    - 加密保存 apiKey，哈希保存 refreshToken
    - 创建 authSession
@@ -45,3 +45,4 @@
 - 服务端向旧连接发布 `auth.session.revoked` 后关闭旧 WebSocket；旧客户端清除凭据并回到登录页。
 - 单设备唯一范围是 `userAccount + clientAppCode`，物业 App 与 KingClub App 不互相踢下线。
 - WebSocket 收到会话撤销事件后立即停用本地会话，并通过 API 再确认。
+- 物业身份接口不可用时，首次注册不得在 KingClub 本地临时生成 `U...`；返回可重试错误，避免双重发号。
