@@ -47,6 +47,8 @@
 
 KingClub 短信登录执行器在挑战验证成功后调用物业公共身份模块的 `identity.account.resolve_or_create`。该接口不属于 Flutter 的 `K...` 接口，不暴露公网普通客户端，具体 interfaceId 由物业身份迁移评审后登记。
 
+字段级契约、system 服务凭据缺口、权威库事务和错误码见[物业统一账号权威接口契约 V1](../../identity/feature_unified_city_identity/internal_identity_authority_contract.md)。
+
 输入包含服务端已验证手机号、验证证据、真实 KYC 状态/来源、`sourceAppCode=kingclub` 和幂等键。权威库按手机号活动绑定加锁：存在则返回原 `U...`，不存在则原子创建账号、手机号登录身份和 KYC 占位/摘要。
 
 响应至少包含：

@@ -41,6 +41,7 @@
 
 - [账号演进流程](flow.md)
 - [数据模型](data_and_api.md)
+- [物业统一账号权威接口契约 V1](internal_identity_authority_contract.md)
 - [验收标准](acceptance.md)
 
 ## 开发准入

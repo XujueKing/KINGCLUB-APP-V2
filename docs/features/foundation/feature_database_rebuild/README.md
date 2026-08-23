@@ -56,6 +56,7 @@
 - [迁移流程](flow.md)
 - [目标模型与接口影响](data_and_api.md)
 - [KingClub V2 用户数据库表结构草案 V1](database_schema_draft_v1.md)
+- [统一账号与登录基础 migration 实施清单](migration_implementation_plan.md)
 - [验收标准](acceptance.md)
 
 ## 风险
