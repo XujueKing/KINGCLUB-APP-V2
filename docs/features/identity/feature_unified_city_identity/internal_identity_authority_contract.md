@@ -168,5 +168,7 @@ x-trace-id
 - **已确认事实**：KingClub migration `018` 建立本地 `kingclubMember`、`identityProvisioningAttempt`、幂等 begin Routine 和本地原子投影 commit Routine；本地没有 `getGenerateId('U')`。
 - **已确认事实**：KingClub 侧 `npm run verify` 通过 25 个测试文件、103 项测试、类型检查、构建、migration dry-run 和部署静态检查。
 - **已确认事实**：KingClub 提交 `f65e7da` 增加 A033 自动化执行器；当前全量验证为 26 个测试文件、104 项测试通过。
-- **待验收**：本机没有 Docker/MySQL 运行环境；migration 实迁、真实双服务凭证、并发创建、KYC 冲突、无物业权限、补偿重试和日志脱敏仍须按服务端 `A033` 集中联调。
-- **当前状态**：接口实现完成但尚未部署启用；文档保持 `Approved for Development`，待 A033 通过后再标记 `Implemented/Accepted`。
+- **已确认事实**：本地 Docker/WSL2 隔离环境已完成真实 MySQL 实迁与 A033 调用；同一幂等键在物业权威接口和 KingClub 本地编排两层均返回一致结果，本地只创建一个会员投影。
+- **已确认事实**：A033 合成账号在物业库只存在公共账号、手机号登录身份和 anonymous KYC 摘要，已核对的物业成员/组织分配表均无记录。
+- **待验收**：服务器真实凭据、并发首次创建、KYC 冲突和生产日志仍待验收。
+- **当前状态**：代码实现与本地隔离 A033 已通过，但尚未合入/部署到服务器物业实例，因此文档暂不标记 `Accepted`。
