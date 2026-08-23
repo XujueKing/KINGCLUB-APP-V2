@@ -1,6 +1,6 @@
 # 统一账号与登录基础 migration 实施清单
 
-- 文档状态：In Review
+- 文档状态：Approved for Development
 - 原则：先物业权威接口，后 KingClub 本地登录；禁止直接修改已执行 migration
 
 ## 1. 分支策略
@@ -151,9 +151,9 @@ KingClub 当前基线最大 migration 为 017，实际开发按依赖连续编�
 
 ## 8. 开发准入
 
-- [ ] 内部接口契约 Approved for Development
-- [ ] KYC 写入字段、目的和留存期确认
-- [ ] 服务凭据初始化和轮换方案确认
+- [x] 内部接口契约 Approved for Development
+- [x] KYC V1 最小写入边界确认：不传证件图片、人脸或活体材料
+- [x] 服务凭据方案确认：专用凭据 + 加密超级接口 + 防重放 + 轮换
 - [ ] 物业最新 migration 编号重新检查并分配
 - [ ] 两个分支的测试环境和数据库账号准备完成
 - [ ] 回滚开关、告警和人工冲突处理责任人确认
