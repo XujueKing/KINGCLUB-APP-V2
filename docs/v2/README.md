@@ -23,6 +23,13 @@
 5. [../features/README.md](../features/README.md)：功能和页面文档目录规范
 6. [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)：数据库、超级接口、登录鉴权与 WebSocket 第一阶段
 
+首批页面评审入口：
+
+1. [启动鉴权页](../features/identity/page_auth_bootstrap/README.md)
+2. [手机号登录页](../features/identity/page_mobile_login/README.md)
+3. [验证码页](../features/identity/page_sms_verification/README.md)
+4. [协议确认页](../features/identity/page_terms_consent/README.md)
+
 ## 与迁移资料的关系
 
 - 旧版现状与缺陷以 [迁移交接包](../migration/README.md) 为准。

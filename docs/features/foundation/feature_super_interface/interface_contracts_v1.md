@@ -224,11 +224,11 @@ WebSocket 继续使用 `apiKeyId + sessionId + timestamp + nonce + requestId + c
 - [x] `interfaceKey` 和 `interfaceReturn` 已转换为 CCSOP 紧凑契约并由运行时实际校验
 - [x] `interface_type`、`interface_type_relation` 和六个接口完整登记
 - [x] 执行器、Routine、目录和 sourceMigration 一致
-- [ ] 正常、参数错误、权限拒绝、重放、限流、并发和单设备场景均有测试
+- [x] 正常、参数错误、权限拒绝、重放、限流、并发和单设备场景均有服务端/隔离密文测试
 - [x] 接口编号在文档评审后正式冻结
 - [x] 服务间统一账号接口、幂等、占位写入和补偿的隔离 A033 测试通过
 - [x] 文档状态更新为 Approved for Development
 
 尚未勾选项是实现验收项，不再阻塞 migration 与执行器开发。
 
-实现位置：服务端 `business/kingclub-v2 / e086ae1`。六个真实密文 HTTP 接口、双服务正常主链、并发权威开户、物业不可达和本地提交补偿已通过；尚未勾选项继续补限流、绑定冲突和 WebSocket 客户端观测。
+实现位置：服务端 `business/kingclub-v2 / 2638d14`，物业身份分支 `feature/unified-identity-authority-v1 / d8a9c18`。六个真实密文 HTTP 接口、双服务正常主链、并发权威开户、物业不可达、本地提交补偿、限流、Refresh Token 重用、KYC 冲突和 WebSocket 客户端撤销观测均已通过本地隔离验收。

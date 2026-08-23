@@ -2,7 +2,7 @@
 
 - 文档状态：In Progress
 - 审计日期：2026-08-24
-- 当前范围：KingClub 登录/会话密文正常主链已完成，进入异常矩阵验收；旧客户端和旧数据库仍保持只读
+- 当前范围：KingClub 登录/会话密文主链与异常矩阵已完成，进入四个 Flutter 登录页面评审；旧客户端和旧数据库仍保持只读
 
 ## 1. 输入资产
 
@@ -10,7 +10,7 @@
 |---|---|---|
 | Flutter V2 规划仓库 | `C:\Users\Poplar\Desktop\KINGCLUB-APP-V2` | 已确认事实 |
 | KingClub 旧客户端 | `C:\Users\Poplar\Desktop\KingClub-app` | `master / 505d222 / 1.1.37`，审计时干净 |
-| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / e086ae1`，已推送且工作区干净 |
+| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / 2638d14`，已推送 |
 | 旧数据库结构 | `C:\Users\Poplar\Desktop\datebase\nuggets-仅结构.sql` | 仅结构文件，包含 94 张 `k_` 表 |
 
 ## 2. 已确认事实
@@ -98,13 +98,13 @@ ccsop-service + kingclub business line
 
 - **已确认事实**：物业功能分支已实现内部身份超级接口 `S260824000401`、专用服务凭据、幂等供应、身份 Outbox 和 KYC 真实状态规则。
 - **已确认事实**：KingClub `business/kingclub-v2` 已完成物业身份加密调用端、migration `018`、本地 `kingclubMember`/供应尝试投影和补偿编排。
-- **已确认事实**：KingClub migration `001`～`018` 与物业 migration `001`～`326` 已在隔离 MySQL 8.4 环境真实迁移；A033 双服务幂等联调通过。
+- **已确认事实**：KingClub migration `001`～`021` 与物业 migration `001`～`327` 已在隔离 MySQL 8.4 环境真实迁移；A033 幂等、并发、补偿和合成 KYC 冲突联调通过。
 - **已确认事实**：[登录、鉴权与会话](../features/identity/feature_login_session/README.md)和[第一批超级接口契约](../features/foundation/feature_super_interface/interface_contracts_v1.md)已批准开发。
 - **已确认事实**：migration `019` 已完成短信挑战、本地登录身份投影、协议/同意、设备登记和会话时效基础；空白 MySQL 8.4 从 `001`～`019` 完整实迁通过。
 - **已确认事实**：服务端已完成 migration `020/021`、短信 Router、六个 `K...` 接口、五个 Routine、运行时紧凑契约校验和 WebSocket 撤销关闭；本地 `kingclub_v2` 已实迁至 021。
-- **已确认事实**：34 个测试文件、126 项测试和完整质量门禁通过；六个密文接口主链、并发权威开户、物业不可达失败关闭及本地提交失败补偿已通过。
-- **当前建议**：下一批补齐身份绑定冲突、验证码/限流边界、Refresh Token 宽限期外重用和 WebSocket 客户端观测；随后为四个 Flutter 登录页面分别建立文档目录。
-- **待验收**：生产短信/协议/服务凭据、并发首次注册、KYC 冲突、生产日志以及后续物业正式注册复用仍未验收。
+- **已确认事实**：KingClub 35 个测试文件/128 项测试、物业 190 个测试文件/656 项测试及两边完整质量门禁通过；验证码/限流、Refresh Token 重用、真实 WebSocket 撤销观测和 KYC 冲突均已完成。
+- **当前建议**：评审四个 `In Review` Flutter 登录页面文档；批准后先搭建 foundation 与启动鉴权页，仍不进入其他业务页面。
+- **待验收**：生产短信/协议/服务凭据、生产容量、生产日志以及后续物业正式注册复用仍未验收。
 
 ## 5. 第一阶段工作包
 
@@ -114,7 +114,7 @@ ccsop-service + kingclub business line
 4. [WebSocket 实时传输](../features/messaging/feature_realtime_transport/README.md)
 5. [同城统一账号](../features/identity/feature_unified_city_identity/README.md)
 
-五个工作包都通过评审和验收前，不开始 Flutter 登录页或业务页面开发。
+服务端本地开发门禁已通过；四个登录页面文档仍须分别批准，批准前不开始 Flutter 登录页或业务页面开发。
 
 ## 6. 待用户决策
 

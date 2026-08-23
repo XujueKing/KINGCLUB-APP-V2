@@ -56,6 +56,13 @@
 - [物业服务端与 JNGJ-WX 复用审计](property_and_jngj_reuse_audit.md)
 - [验收标准](acceptance.md)
 
+首批 Flutter 页面评审稿：
+
+- [启动鉴权页](../page_auth_bootstrap/README.md)
+- [手机号登录页](../page_mobile_login/README.md)
+- [验证码页](../page_sms_verification/README.md)
+- [协议确认页](../page_terms_consent/README.md)
+
 ## 开发准入
 
 - [x] 首期登录方式已确认：手机号短信验证码
@@ -79,8 +86,9 @@
 - **已确认事实**：migration 019 建立短信供应商/路由、一次性验证码挑战、发送审计、本地手机号指纹投影、协议发布目录、同意证据和设备登记八张表，全部登记数据库目录。
 - **已确认事实**：`authSession` 已分离访问与 Refresh Token 到期时间，增加轮换/重用检测字段和 KingClub 单活动会话唯一键。
 - **已确认事实**：短信 Router、五个登录/会话 Routine、`K260824000101`～`K260824000106`、K 命名空间过滤、运行时紧凑契约校验和 WebSocket 撤销后关闭连接均已实现。
-- **已确认事实**：全量验证通过 34 个测试文件、126 项测试、类型检查、构建、migration dry-run 和部署静态检查；空白 MySQL 8.4 已从 migration 001 完整执行到 021。
+- **已确认事实**：服务端提交 `2638d14` 全量验证通过 35 个测试文件、128 项测试、类型检查、构建、migration dry-run 和部署静态检查；空白 MySQL 8.4 已从 migration 001 完整执行到 021。
 - **已确认事实**：Routine 实际验证覆盖首次登录、刷新轮换、第二设备顶号和旧 Refresh Token 重用撤销；本地 `kingclub_v2` 已增量应用 migration 020。
 - **已确认事实**：六个密文超级接口和 KingClub↔物业首次开户/本地投影完整链路已在隔离双库通过，覆盖重放、可信字段拒绝、短信幂等、单设备会话、刷新并发、recent auth 和注销。
 - **已确认事实**：并发物业首次开户只生成一个统一账号；物业不可达时 KingClub 不本地发号；物业成功而本地提交失败的原幂等键补偿已通过。
-- **当前状态**：下一步补身份绑定冲突、验证码/限流边界、Refresh Token 宽限期外重用和 WebSocket 客户端观测，再进入四个 Flutter 登录页面的独立文档设计。
+- **已确认事实**：验证码错误/过期、手机号/IP 限流、Refresh Token 宽限期外重用、真实 WebSocket 撤销事件与 `4001` 关闭，以及合成 KYC 冲突人工审核均已通过隔离密文联调。
+- **当前状态**：四个 Flutter 登录页面已分别建立独立 `In Review` 文档目录；等待产品/视觉/技术评审，批准前不创建页面代码。

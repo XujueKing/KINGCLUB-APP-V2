@@ -42,6 +42,6 @@
 
 ## 下一步最合理的工作
 
-登录/统一身份的数据库、超级接口、隔离密文主链、并发权威开户和物业不可达失败关闭已经完成。下一步按 [NEXT_SESSION.md](NEXT_SESSION.md) 补身份冲突、验证码/限流边界、Refresh Token 重用和 WebSocket 撤销观测。
+登录/统一身份的数据库、超级接口、隔离密文主链和异常矩阵已经完成。启动鉴权页、手机号登录页、验证码页和协议确认页已分别建立 `docs/features/identity/page_*` 评审目录。
 
-异常矩阵通过后，再为启动鉴权页、手机号登录页、验证码页和协议确认页分别建立 `docs/features/` 页面目录并完成规格；页面文档获批前不创建对应 Flutter 实现。
+下一步按 [NEXT_SESSION.md](NEXT_SESSION.md) 逐页确认交互与视觉方向；页面状态改为 `Approved for Development` 前不创建对应 Flutter 实现。
