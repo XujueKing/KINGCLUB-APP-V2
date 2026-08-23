@@ -13,8 +13,8 @@
 
 - 旧登录会在验证码通过时直接查询或创建 `k_user`，返回用户资料但不创建可信会话。
 - 旧验证码存储在 `g_sms`，5 分钟内取最新记录，没有在客户端可见流程中体现消费、尝试次数和重放控制。
-- 新服务端已有身份表和 API Key 会话表，但没有完整登录发证实现。
-- `auth/session/touch|revoke|rotate` 已实现；refresh token 消费闭环尚未实现。
+- 新服务端已有身份表、API Key 会话表，并已在 migration 020 完成 KingClub 登录发证与 Refresh Token 消费闭环。
+- `auth/session/touch|revoke|rotate` 公版能力仍保留；KingClub 使用独立登录、刷新、查询、注销和撤销其他会话 Routine。
 - 物业服务端分支和 `JNGJ-WX` 已有成熟的握手、登录发证、会话恢复与 WebSocket 接入经验，KingClub 复用协议和工程经验，不复制物业业务代码或小程序平台 API。
 - KingClub 同一账号在 KingClub App 内只允许一个活动设备会话。
 - KingClub 调用物业统一身份时使用服务端专用凭据和超级接口 `S260824000401`，Flutter 不得直接调用。
@@ -75,8 +75,10 @@
 
 ## 实现进度
 
-- **已确认事实**：服务端 `business/kingclub-v2` 提交 `b929c21` 已新增 migration `019_kingclub_login_session_foundation.sql` 并推送。
+- **已确认事实**：服务端 `business/kingclub-v2` 提交 `c21d9bc` 已推送，包含 migration `019` 基础表和 migration `020` 登录/会话执行链。
 - **已确认事实**：migration 019 建立短信供应商/路由、一次性验证码挑战、发送审计、本地手机号指纹投影、协议发布目录、同意证据和设备登记八张表，全部登记数据库目录。
 - **已确认事实**：`authSession` 已分离访问与 Refresh Token 到期时间，增加轮换/重用检测字段和 KingClub 单活动会话唯一键。
-- **已确认事实**：全量验证通过 27 个测试文件、109 项测试、类型检查、构建、migration dry-run 和部署静态检查；空白 MySQL 8.4 已从 migration 001 完整执行到 019。
-- **当前状态**：数据库基础已完成；短信 Router、登录/刷新/注销 Routine、`K260824000101`～`K260824000106` 和 WebSocket 撤销事件尚未实现。
+- **已确认事实**：短信 Router、五个登录/会话 Routine、`K260824000101`～`K260824000106`、K 命名空间过滤、运行时紧凑契约校验和 WebSocket 撤销后关闭连接均已实现。
+- **已确认事实**：全量验证通过 31 个测试文件、120 项测试、类型检查、构建、migration dry-run、部署静态和本地运行时检查；空白 MySQL 8.4 已从 migration 001 完整执行到 020。
+- **已确认事实**：Routine 实际验证覆盖首次登录、刷新轮换、第二设备顶号和旧 Refresh Token 重用撤销；本地 `kingclub_v2` 已增量应用 migration 020。
+- **当前状态**：服务端骨架已完成；下一步是六个密文超级接口的 HTTP 端到端测试、KingClub↔物业完整登录链路联调、生产短信/协议配置和异常矩阵验收。

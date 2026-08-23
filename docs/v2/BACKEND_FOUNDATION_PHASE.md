@@ -2,7 +2,7 @@
 
 - 文档状态：In Progress
 - 审计日期：2026-08-24
-- 当前范围：统一身份本地联调已通过，进入 KingClub 登录/会话服务端实现；旧客户端和旧数据库仍保持只读
+- 当前范围：KingClub 登录/会话服务端骨架已完成，进入密文接口与双服务完整链路验收；旧客户端和旧数据库仍保持只读
 
 ## 1. 输入资产
 
@@ -10,7 +10,7 @@
 |---|---|---|
 | Flutter V2 规划仓库 | `C:\Users\Poplar\Desktop\KINGCLUB-APP-V2` | 已确认事实 |
 | KingClub 旧客户端 | `C:\Users\Poplar\Desktop\KingClub-app` | `master / 505d222 / 1.1.37`，审计时干净 |
-| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / b929c21`，已推送且工作区干净 |
+| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / c21d9bc`，已推送且工作区干净 |
 | 旧数据库结构 | `C:\Users\Poplar\Desktop\datebase\nuggets-仅结构.sql` | 仅结构文件，包含 94 张 `k_` 表 |
 
 ## 2. 已确认事实
@@ -30,20 +30,17 @@
 - 对外统一入口是 `/supper-interface`，支持数据库 Routine 与 adapter 执行器。
 - 已实现 ECDH P-256 握手、AES-256-GCM、HKDF-SHA256、HMAC-SHA256、timestamp/nonce/requestId 防重放。
 - 已存在 `userAccount`、`userLoginIdentity`、`userProfile`、`userKyc`、`userApiKey`、`authSession` 等身份基础表。
-- 已实现会话 touch、revoke、rotate；尚未实现完整的短信挑战、登录/注册、登录成功发证和 refresh token 刷新闭环。
+- 已实现 KingClub 短信挑战、登录/注册发证、Refresh Token 轮换/重用检测、会话查询、注销和撤销其他会话闭环。
 - WebSocket 已支持会话签名、双向密文、消息序号、频道授权、通知确认和通用业务事件队列，但不是完整聊天服务。
-- 当前只注册 `zhuzhou-property` 业务线；KingClub 业务线尚未注册。
+- 已注册 `kingclub` 业务线并将独立实例默认接口命名空间限制为 `K`。
 
-## 3. 当前阻塞项
+## 3. 当前剩余验收项
 
-1. `interfaceKey` 和 `interfaceReturn` 已从数据库读取，但当前执行链没有实际调用参数校验器。
-2. `authPolicy=session` 只验证存在活动会话，没有角色、scope、对象级权限。
-3. 数据库 Routine 当前只收到客户端 `params`，没有服务端注入的可信 `userAccount/sessionId/requestId`；继续沿用会允许客户端伪造账号。
-4. 新服务端没有完成短信验证码存储、尝试次数、登录发证、refresh token 消费和账号注册事务。
-5. 新服务端的 `interface` 元数据查询未按 `businessLine` 过滤；同库部署多业务线存在编号和权限边界风险。
-6. 旧 Routine 接收多个标量参数，而新 `db_routine` 执行器只传入一个 JSON 参数，不能直接搬迁。
-7. 旧 `s_interface`、`k_user`、`g_sms` 与新 `interface`、统一身份表不是同一模型。
-8. WebSocket 当前允许一个会话存在多个连接，尚未定义 KingClub 的重复登录、消息补偿、游标和聊天幂等规则。
+1. 六个 `K...` 接口尚需通过真实握手/API Key 密文的 HTTP 端到端测试，覆盖参数、权限、重放、并发和错误映射。
+2. KingClub 登录执行器与物业 `S260824000401` 已分别实现，但尚需完成“短信验证→权威取号/占位→本地发证”的双服务完整链路自动化。
+3. 生产短信供应商、已审核模板、独立密钥、正式用户协议和隐私政策版本尚未配置。
+4. `authPolicy=session` 的通用角色、scope 和对象级权限仍需在进入业务接口前扩展；第一批会话接口已使用可信上下文和专用执行器收口。
+5. 聊天消息补偿、游标和业务幂等不属于登录闭环，仍在 WebSocket/消息工作包中待设计。
 
 ## 4. 当前建议的目标结构
 
@@ -104,8 +101,10 @@ ccsop-service + kingclub business line
 - **已确认事实**：KingClub migration `001`～`018` 与物业 migration `001`～`326` 已在隔离 MySQL 8.4 环境真实迁移；A033 双服务幂等联调通过。
 - **已确认事实**：[登录、鉴权与会话](../features/identity/feature_login_session/README.md)和[第一批超级接口契约](../features/foundation/feature_super_interface/interface_contracts_v1.md)已批准开发。
 - **已确认事实**：migration `019` 已完成短信挑战、本地登录身份投影、协议/同意、设备登记和会话时效基础；空白 MySQL 8.4 从 `001`～`019` 完整实迁通过。
-- **当前建议**：下一批从 migration `020` 和 Node 执行器开始，移植短信 Router，并实现登录、刷新、当前会话、注销、撤销残留会话六个 `K...` 接口和 WebSocket 撤销事件。
-- **待验收**：生产服务凭据、并发首次注册、KYC 冲突、生产日志以及后续物业正式注册复用仍未验收。
+- **已确认事实**：服务端 `c21d9bc` 已完成 migration `020`、短信 Router、六个 `K...` 接口、五个 Routine、运行时紧凑契约校验和 WebSocket 撤销关闭；本地 `kingclub_v2` 已实迁。
+- **已确认事实**：31 个测试文件、120 项测试和完整质量门禁通过；Routine 冒烟覆盖登录、刷新、顶号与旧 Token 重用撤销，本地运行时检查通过。
+- **当前建议**：下一批建立不含生产秘密的登录 E2E 测试夹具，完成六个密文接口及 KingClub↔物业完整登录链路验收。
+- **待验收**：生产短信/协议/服务凭据、并发首次注册、KYC 冲突、生产日志以及后续物业正式注册复用仍未验收。
 
 ## 5. 第一阶段工作包
 
