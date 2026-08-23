@@ -231,4 +231,4 @@ WebSocket 继续使用 `apiKeyId + sessionId + timestamp + nonce + requestId + c
 
 尚未勾选项是实现验收项，不再阻塞 migration 与执行器开发。
 
-实现位置：服务端 `business/kingclub-v2 / 3b94ce6`。六个真实密文 HTTP 接口和双服务正常主链已通过；尚未勾选项继续补限流、故障注入、绑定冲突和 WebSocket 客户端观测，不能只用 Routine 冒烟代替。
+实现位置：服务端 `business/kingclub-v2 / e086ae1`。六个真实密文 HTTP 接口、双服务正常主链、并发权威开户、物业不可达和本地提交补偿已通过；尚未勾选项继续补限流、绑定冲突和 WebSocket 客户端观测。

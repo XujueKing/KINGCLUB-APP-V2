@@ -55,11 +55,11 @@ ccsop-property-identity-a033/feature/unified-identity-authority-v1
 
 ## 当前推荐下一步
 
-资产盘点、统一身份契约、A033 隔离联调、登录/会话骨架以及六个 K 接口的真实密文主链 E2E 已完成。服务端基线为 `business/kingclub-v2 / 3b94ce6`，已实迁至 migration 021，完整质量门禁为 33 个测试文件、122 项测试。下一次工作继续从[登录、鉴权与会话验收](../features/identity/feature_login_session/acceptance.md)补异常矩阵：
+资产盘点、统一身份契约、A033 隔离联调、六个 K 接口密文主链、并发权威开户、物业不可达失败关闭和本地提交补偿已完成。服务端基线为 `business/kingclub-v2 / e086ae1`，已实迁至 migration 021，完整质量门禁为 34 个测试文件、126 项测试。下一次继续补异常矩阵：
 
-1. 覆盖并发首次开户，确认物业只生成一个 `U...` 且 KingClub 只保留一个有效投影。
-2. 覆盖物业权威超时/不可用、成功后本地提交失败再补偿及身份绑定冲突。
-3. 覆盖验证码错误/超时、手机号/设备/IP 限流边界和 Refresh Token 宽限期外重用。
+1. 设计不含真实实名资料的身份绑定/KYC 冲突隔离数据并验证错误映射。
+2. 覆盖验证码错误/超时以及手机号、设备、IP 限流边界。
+3. 覆盖 Refresh Token 并发宽限期外重用并确认会话撤销。
 4. 使用真实 WebSocket 客户端观测旧设备收到 `auth.session.revoked` 后被关闭。
 5. 异常矩阵通过后，分别建立启动鉴权页、手机号登录页、验证码页和协议确认页的独立页面文档目录；文档批准前不创建 Flutter 页面代码。
 
