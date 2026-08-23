@@ -57,13 +57,13 @@ ccsop-property-identity-a033/feature/unified-identity-authority-v1
 
 资产盘点、统一身份契约、A033 幂等/并发/补偿/KYC 冲突、六个 K 接口密文主链、验证码与限流边界、Refresh Token 重用以及真实 WebSocket 撤销观测均已完成。服务端基线为 `business/kingclub-v2 / 2638d14`，物业身份基线为 `feature/unified-identity-authority-v1 / d8a9c18`；完整质量门禁分别为 35 文件/128 项和 190 文件/656 项测试。
 
-四个 Flutter 登录页面已经归档到 `feature_login_session/pages/`。启动鉴权页已完成正式评审并标记 `Approved for Development`；其余三页仍为 `In Review`。下一次继续：
+四个 Flutter 登录页面已经归档到 `feature_login_session/pages/`。启动鉴权页已批准；手机号页的交互评审已完成，但发现冻结的六个 K 接口缺少未登录协议目录/正文读取能力，因此仍为 `In Review`。下一次继续：
 
-1. 评审手机号页的协议勾选、号码规范化、限流和“未注册自动创建会员”文案。
-2. 评审验证码页的自动提交、重发和安全预览策略。
-3. 评审协议页是否仅在版本缺失/变化时独立展示。
-4. 四页分别改为 `Approved for Development` 后，建立 app_bootstrap、navigation、networking、session/persistence 和 observability 的独立 foundation 文档目录与 ADR。
-5. foundation 文档批准后再创建 Flutter 工程和启动鉴权页代码。
+1. 用户确认新增 `K260824000107 auth.agreements.current`，或指定已有内容服务作为协议目录权威来源。
+2. 冻结协议正文格式/大小限制、版本变化错误码及 challenge 是否保留，并完成服务端/Mock 契约。
+3. 协议目录契约通过后把手机号页改为 `Approved for Development`。
+4. 再评审验证码页的自动提交、重发和安全预览策略，以及协议页的独立展示规则。
+5. 四页批准后建立 app_bootstrap、navigation、networking、session/persistence 和 observability 的独立 foundation 文档目录与 ADR；foundation 批准后才创建 Flutter 代码。
 
 生产短信供应商、正式协议、生产服务凭据和 Flutter 客户端仍未验收。
 

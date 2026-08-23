@@ -2,7 +2,7 @@
 
 ## 文档状态
 
-`In Review`。未批准前不得创建 Flutter 页面实现。
+`In Review`。页面交互与短信发送契约已完成评审，但未登录协议目录读取契约尚未批准/实现，因此不得创建 Flutter 页面实现。
 
 ## 页面目标
 
@@ -43,6 +43,8 @@ KingClub
 
 响应只保留 `challengeId/expiresInSeconds/retryAfterSeconds/maskedMobile`。手机号原文不进入日志、埋点、URL、剪贴板回显或普通本地存储。
 
+页面显示协议及形成 `consents` 前，必须从已批准的未登录协议目录契约取得 `terms/privacy` 当前发布版本、标题、正文引用和内容摘要。现有六个 K 接口没有该读取能力，具体缺口和建议见[协议目录读取契约](../../agreement_catalog_contract.md)。目录不可用时协议区失败关闭，不允许发送验证码。
+
 ## 页面状态、埋点与可访问性
 
 - 状态：`idle`、`invalid_input`、`consent_required`、`submitting`、`rate_limited`、`offline`、`service_error`。
@@ -55,5 +57,8 @@ KingClub
 
 ## 配套文档
 
+- [状态与错误映射](states.md)
+- [交互与生命周期](interactions.md)
 - [验收标准](acceptance.md)
+- [评审记录](review_record.md)
 - [所属功能](../../README.md)
