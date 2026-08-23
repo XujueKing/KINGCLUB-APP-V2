@@ -95,7 +95,7 @@ KingClub 当前基线最大 migration 为 017，实际开发按依赖连续编�
 - 发送验证码。
 - 短信登录：验证挑战 → 调物业权威接口 → KingClub 本地成员/会话事务。
 - Refresh、me、logout、revoke_others。
-- 登记 `K260824000101`～`K260824000106` 及分类树、Routine 目录和接口契约。
+- 登记 `K260824000101`～`K260824000107` 及分类树、Routine 目录和接口契约。
 
 ### K-E 身份事件与 WebSocket
 

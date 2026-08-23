@@ -10,7 +10,7 @@
 |---|---|---|
 | Flutter V2 规划仓库 | `C:\Users\Poplar\Desktop\KINGCLUB-APP-V2` | 已确认事实 |
 | KingClub 旧客户端 | `C:\Users\Poplar\Desktop\KingClub-app` | `master / 505d222 / 1.1.37`，审计时干净 |
-| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / 2638d14`，已推送 |
+| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / d9929ff`，已推送 |
 | 旧数据库结构 | `C:\Users\Poplar\Desktop\datebase\nuggets-仅结构.sql` | 仅结构文件，包含 94 张 `k_` 表 |
 
 ## 2. 已确认事实
@@ -36,11 +36,9 @@
 
 ## 3. 当前剩余验收项
 
-1. 六个 `K...` 接口尚需通过真实握手/API Key 密文的 HTTP 端到端测试，覆盖参数、权限、重放、并发和错误映射。
-2. KingClub 登录执行器与物业 `S260824000401` 已分别实现，但尚需完成“短信验证→权威取号/占位→本地发证”的双服务完整链路自动化。
-3. 生产短信供应商、已审核模板、独立密钥、正式用户协议和隐私政策版本尚未配置。
-4. `authPolicy=session` 的通用角色、scope 和对象级权限仍需在进入业务接口前扩展；第一批会话接口已使用可信上下文和专用执行器收口。
-5. 聊天消息补偿、游标和业务幂等不属于登录闭环，仍在 WebSocket/消息工作包中待设计。
+1. 生产短信供应商、已审核模板、独立密钥、正式用户协议和隐私政策版本尚未配置。
+2. `authPolicy=session` 的通用角色、scope 和对象级权限仍需在进入业务接口前扩展；第一批会话接口已使用可信上下文和专用执行器收口。
+3. 聊天消息补偿、游标和业务幂等不属于登录闭环，仍在 WebSocket/消息工作包中待设计。
 
 ## 4. 当前建议的目标结构
 
@@ -98,14 +96,13 @@ ccsop-service + kingclub business line
 
 - **已确认事实**：物业功能分支已实现内部身份超级接口 `S260824000401`、专用服务凭据、幂等供应、身份 Outbox 和 KYC 真实状态规则。
 - **已确认事实**：KingClub `business/kingclub-v2` 已完成物业身份加密调用端、migration `018`、本地 `kingclubMember`/供应尝试投影和补偿编排。
-- **已确认事实**：KingClub migration `001`～`021` 与物业 migration `001`～`327` 已在隔离 MySQL 8.4 环境真实迁移；A033 幂等、并发、补偿和合成 KYC 冲突联调通过。
+- **已确认事实**：KingClub migration `001`～`022` 与物业 migration `001`～`327` 已在隔离 MySQL 8.4 环境真实迁移；A033 幂等、并发、补偿和合成 KYC 冲突联调通过。
 - **已确认事实**：[登录、鉴权与会话](../features/identity/feature_login_session/README.md)和[第一批超级接口契约](../features/foundation/feature_super_interface/interface_contracts_v1.md)已批准开发。
 - **已确认事实**：migration `019` 已完成短信挑战、本地登录身份投影、协议/同意、设备登记和会话时效基础；空白 MySQL 8.4 从 `001`～`019` 完整实迁通过。
-- **已确认事实**：服务端已完成 migration `020/021`、短信 Router、六个 `K...` 接口、五个 Routine、运行时紧凑契约校验和 WebSocket 撤销关闭；本地 `kingclub_v2` 已实迁至 021。
-- **已确认事实**：KingClub 35 个测试文件/128 项测试、物业 190 个测试文件/656 项测试及两边完整质量门禁通过；验证码/限流、Refresh Token 重用、真实 WebSocket 撤销观测和 KYC 冲突均已完成。
-- **已确认事实**：启动鉴权页规格已批准；手机号登录、验证码和协议确认页仍为 `In Review`。
-- **已确认事实**：手机号页评审发现服务端虽能校验已发布协议版本，但当前六个 K 接口没有向未登录客户端提供协议目录和正文。
-- **当前建议**：先批准并实现 `K260824000107 auth.agreements.current`，再完成手机号页准入；四页批准后完成 foundation 文档与工程骨架，再实现启动鉴权页。
+- **已确认事实**：服务端 `business/kingclub-v2 / d9929ff` 已完成 migration `020～022`、短信 Router、七个 `K...` 接口、五个 Routine、协议目录完整性校验和 WebSocket 撤销关闭；本地 `kingclub_v2` 已实迁至 022。
+- **已确认事实**：KingClub 37 个测试文件/133 项测试、物业 190 个测试文件/656 项测试及两边完整质量门禁通过；验证码/限流、Refresh Token 重用、协议摘要失败关闭、真实 WebSocket 撤销观测和 KYC 冲突均已完成。
+- **已确认事实**：启动鉴权页和手机号登录页规格已批准；验证码和协议确认页仍为 `In Review`。
+- **当前建议**：下一步正式评审验证码页；四页批准后完成 foundation 文档与工程骨架，再实现启动鉴权页。
 - **待验收**：生产短信/协议/服务凭据、生产容量、生产日志以及后续物业正式注册复用仍未验收。
 
 ## 5. 第一阶段工作包

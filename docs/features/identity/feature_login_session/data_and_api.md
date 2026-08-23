@@ -37,6 +37,7 @@
 | `K260824000104` | auth.session.me | session | 返回最小身份与成员状态 |
 | `K260824000105` | auth.session.logout | session | 幂等撤销当前会话 |
 | `K260824000106` | auth.session.revoke_others | session + recent SMS auth | 不允许传 userAccount，撤销 KingClub 残留会话 |
+| `K260824000107` | auth.agreements.current | handshake | 返回当前 terms/privacy 受控 Markdown 与摘要，不含身份字段 |
 
 以上编号在 V1 冻结；详细请求、响应和错误码见[第一批超级接口契约](../../foundation/feature_super_interface/interface_contracts_v1.md)。
 
@@ -56,6 +57,7 @@
 - V1 登录至少要求 `terms` 和 `privacy` 两项当前强制版本；客户端提交其展示版本，服务端不替客户端自动补同意。
 - `consentRecord` 保存用户、协议、版本、摘要、时间、来源 App、设备摘要和请求审计引用；记录追加写且不可静默覆盖。
 - 强制协议升级后，旧会话访问受限业务前进入重新同意流程；该页面需另建功能目录后开发。
+- 未登录客户端通过 K107 读取 `zh-CN` 当前目录；每份正文不超过 256 KiB 且 SHA-256 必须与 `contentDigest` 一致，否则目录整体不可用。
 
 ## 登录响应最小字段
 

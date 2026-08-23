@@ -21,7 +21,7 @@
 
 ## 已批准设计
 
-- 客户端接口冻结为 `K260824000101`～`K260824000106`，页面只依赖语义化 Repository。
+- 客户端接口当前冻结为 `K260824000101`～`K260824000107`，页面只依赖语义化 Repository。
 - 短信验证码有效期 300 秒、重发冷却 60 秒、单挑战最多失败 5 次；手机号每小时最多 5 次、IP 每小时最多 20 次，均允许部署时收紧但不得放宽后无审计。
 - API Key/访问会话有效期 2 小时，Refresh Token 有效期 30 天；剩余 10 分钟进入提前刷新窗口，刷新成功后两者轮换并重新计时。
 - 正常再次登录先查询 KingClub 本地手机号 HMAC 指纹投影；只有首次登录、投影缺失或版本冲突才调用物业身份权威接口。
@@ -54,13 +54,13 @@
 - [登录鉴权状态机](auth_state_machine.md)
 - [数据与接口](data_and_api.md)
 - [物业服务端与 JNGJ-WX 复用审计](property_and_jngj_reuse_audit.md)
-- [未登录协议目录读取契约（待决策）](agreement_catalog_contract.md)
+- [未登录协议目录读取契约（已实现）](agreement_catalog_contract.md)
 - [验收标准](acceptance.md)
 
 首批 Flutter 页面评审稿：
 
 - [启动鉴权页（Approved for Development）](pages/page_auth_bootstrap/README.md)
-- [手机号登录页（In Review）](pages/page_mobile_login/README.md)
+- [手机号登录页（Approved for Development）](pages/page_mobile_login/README.md)
 - [验证码页（In Review）](pages/page_sms_verification/README.md)
 - [协议确认页（In Review）](pages/page_terms_consent/README.md)
 
@@ -86,13 +86,13 @@
 - **已确认事实**：服务端 `business/kingclub-v2` 已完成 migration `019` 基础表、migration `020` 登录/会话执行链及 migration `021` 短信独立幂等契约。
 - **已确认事实**：migration 019 建立短信供应商/路由、一次性验证码挑战、发送审计、本地手机号指纹投影、协议发布目录、同意证据和设备登记八张表，全部登记数据库目录。
 - **已确认事实**：`authSession` 已分离访问与 Refresh Token 到期时间，增加轮换/重用检测字段和 KingClub 单活动会话唯一键。
-- **已确认事实**：短信 Router、五个登录/会话 Routine、`K260824000101`～`K260824000106`、K 命名空间过滤、运行时紧凑契约校验和 WebSocket 撤销后关闭连接均已实现。
+- **已确认事实**：短信 Router、五个登录/会话 Routine、`K260824000101`～`K260824000107`、K 命名空间过滤、运行时紧凑契约校验和 WebSocket 撤销后关闭连接均已实现。
 - **已确认事实**：服务端提交 `2638d14` 全量验证通过 35 个测试文件、128 项测试、类型检查、构建、migration dry-run 和部署静态检查；空白 MySQL 8.4 已从 migration 001 完整执行到 021。
 - **已确认事实**：Routine 实际验证覆盖首次登录、刷新轮换、第二设备顶号和旧 Refresh Token 重用撤销；本地 `kingclub_v2` 已增量应用 migration 020。
-- **已确认事实**：六个密文超级接口和 KingClub↔物业首次开户/本地投影完整链路已在隔离双库通过，覆盖重放、可信字段拒绝、短信幂等、单设备会话、刷新并发、recent auth 和注销。
+- **已确认事实**：七个密文超级接口和 KingClub↔物业首次开户/本地投影完整链路已在隔离环境通过，覆盖协议目录、重放、可信字段拒绝、短信幂等、单设备会话、刷新并发、recent auth 和注销。
 - **已确认事实**：并发物业首次开户只生成一个统一账号；物业不可达时 KingClub 不本地发号；物业成功而本地提交失败的原幂等键补偿已通过。
 - **已确认事实**：验证码错误/过期、手机号/IP 限流、Refresh Token 宽限期外重用、真实 WebSocket 撤销事件与 `4001` 关闭，以及合成 KYC 冲突人工审核均已通过隔离密文联调。
 - **已确认事实**：启动鉴权页已完成状态、错误映射、生命周期、线框、安全和验收评审，状态为 `Approved for Development`；其 Flutter 实现仍等待 Stage 1 foundation 文档批准。
-- **已确认事实**：手机号登录页的号码规范化、协议勾选、短信幂等、限流、防账号枚举、状态和交互已完成评审；现有六个 K 接口缺少未登录协议目录/正文读取能力。
-- **当前建议**：新增 `K260824000107 auth.agreements.current` 读取当前强制协议，用户确认该契约后再完成手机号页开发准入。
-- **当前状态**：手机号登录页保持 `In Review`；验证码页和协议确认页尚未正式评审，未创建任何页面代码。
+- **已确认事实**：用户批准 K107；服务端 `business/kingclub-v2 / d9929ff` 已完成 migration 022、当前协议 Markdown/摘要读取、旧版本拒绝且不消耗短信 challenge 的密文 E2E 和 37 文件/133 项质量门禁。
+- **已确认事实**：手机号登录页的号码规范化、协议勾选、短信幂等、限流、防账号枚举、状态和交互已完成评审，状态为 `Approved for Development`。
+- **当前状态**：下一页评审验证码页；协议确认页仍为 `In Review`，未创建任何页面代码。

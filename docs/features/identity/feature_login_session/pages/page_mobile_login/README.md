@@ -2,7 +2,7 @@
 
 ## 文档状态
 
-`In Review`。页面交互与短信发送契约已完成评审，但未登录协议目录读取契约尚未批准/实现，因此不得创建 Flutter 页面实现。
+`Approved for Development`。页面交互、短信发送和未登录协议目录契约均已完成评审；实际编码仍须等待 Flutter foundation 文档准入。
 
 ## 页面目标
 
@@ -43,7 +43,7 @@ KingClub
 
 响应只保留 `challengeId/expiresInSeconds/retryAfterSeconds/maskedMobile`。手机号原文不进入日志、埋点、URL、剪贴板回显或普通本地存储。
 
-页面显示协议及形成 `consents` 前，必须从已批准的未登录协议目录契约取得 `terms/privacy` 当前发布版本、标题、正文引用和内容摘要。现有六个 K 接口没有该读取能力，具体缺口和建议见[协议目录读取契约](../../agreement_catalog_contract.md)。目录不可用时协议区失败关闭，不允许发送验证码。
+页面显示协议及形成 `consents` 前，必须通过 `K260824000107` 取得 `terms/privacy` 当前发布版本、标题、Markdown 正文和内容摘要，具体见[协议目录读取契约](../../agreement_catalog_contract.md)。目录不可用时协议区失败关闭，不允许发送验证码。
 
 ## 页面状态、埋点与可访问性
 

@@ -16,6 +16,7 @@
 | `K260824000104` | `auth.session.me` | session | 否 |
 | `K260824000105` | `auth.session.logout` | session | 是 |
 | `K260824000106` | `auth.session.revoke_others` | session + recent auth | 是 |
+| `K260824000107` | `auth.agreements.current` | handshake | 否 |
 
 编号只用于 CCSOP 元数据和 SDK 注册。Flutter 页面、Widget、ViewModel 与业务 UseCase 只调用语义方法。
 
@@ -190,6 +191,20 @@ KingClub 短信登录执行器在挑战验证成功后调用物业公共身份�
 
 响应：`revokedCount`、`revokedAt`。每个被撤销会话发布 `auth.session.revoked`。
 
+## 8.1 `K260824000107` auth.agreements.current
+
+请求通过 handshake 密文发送：
+
+```json
+{
+  "clientAppCode": "kingclub",
+  "clientType": "android|ios",
+  "locale": "zh-CN"
+}
+```
+
+响应包含公开 `catalogVersion`、5 分钟缓存截止时间，以及当前强制 `terms/privacy` 的代码、版本、标题、发布时间、SHA-256 摘要、`markdown` 格式和内联正文。单份正文限制 1～256 KiB；标题/正文不完整、摘要不匹配或两份协议不齐时，目录整体失败关闭。请求和响应不包含手机号、账号、设备广告标识或登录凭据。
+
 ## 9. WebSocket 鉴权与撤销事件
 
 WebSocket 继续使用 `apiKeyId + sessionId + timestamp + nonce + requestId + clientId + sign` 建连，服务端必须验证：
@@ -216,13 +231,15 @@ WebSocket 继续使用 `apiKeyId + sessionId + timestamp + nonce + requestId + c
 | `AUTH_REFRESH_REUSE_DETECTED` | 401 | 检测到旧 Token 重用并已撤销 |
 | `AUTH_REFRESH_CONCURRENT_UPDATE` | 409 | 另一个刷新事务已成功 |
 | `AUTH_RECENT_VERIFICATION_REQUIRED` | 403 | 高风险操作缺少近期验证 |
+| `AUTH_CONSENT_VERSION_INVALID` | 409 | 登录提交的协议版本已不是当前发布版本 |
+| `AUTH_AGREEMENT_CATALOG_UNAVAILABLE` | 503 | 当前两份强制协议不完整或正文摘要校验失败 |
 | `IDENTITY_AUTHORITY_UNAVAILABLE` | 503 | 统一账号权威接口暂时不可用，不允许本地发号 |
 | `IDENTITY_BINDING_CONFLICT` | 409 | 手机号或实名身份已绑定到冲突账号 |
 
 ## 11. 登记和测试准入
 
 - [x] `interfaceKey` 和 `interfaceReturn` 已转换为 CCSOP 紧凑契约并由运行时实际校验
-- [x] `interface_type`、`interface_type_relation` 和六个接口完整登记
+- [x] `interface_type`、`interface_type_relation` 和七个接口完整登记
 - [x] 执行器、Routine、目录和 sourceMigration 一致
 - [x] 正常、参数错误、权限拒绝、重放、限流、并发和单设备场景均有服务端/隔离密文测试
 - [x] 接口编号在文档评审后正式冻结
@@ -231,4 +248,4 @@ WebSocket 继续使用 `apiKeyId + sessionId + timestamp + nonce + requestId + c
 
 尚未勾选项是实现验收项，不再阻塞 migration 与执行器开发。
 
-实现位置：服务端 `business/kingclub-v2 / 2638d14`，物业身份分支 `feature/unified-identity-authority-v1 / d8a9c18`。六个真实密文 HTTP 接口、双服务正常主链、并发权威开户、物业不可达、本地提交补偿、限流、Refresh Token 重用、KYC 冲突和 WebSocket 客户端撤销观测均已通过本地隔离验收。
+实现位置：服务端 `business/kingclub-v2 / d9929ff`，物业身份分支 `feature/unified-identity-authority-v1 / d8a9c18`。七个真实密文 HTTP 接口、协议摘要失败关闭、旧协议版本拒绝且短信 challenge 不被消耗、双服务正常主链、并发权威开户、物业不可达、本地提交补偿、限流、Refresh Token 重用、KYC 冲突和 WebSocket 客户端撤销观测均已通过本地隔离验收。
