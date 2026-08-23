@@ -1,6 +1,6 @@
 # KingClub V2 登录鉴权状态机
 
-- 文档状态：In Review
+- 文档状态：Approved for Development
 - 客户端范围：Flutter iOS/Android
 - 服务端范围：`business/kingclub-v2`
 
@@ -35,7 +35,7 @@ anonymous
 2. 完成 ECDH 握手，通过密文调用发送验证码接口。
 3. 服务端按手机号指纹、设备、IP、业务线和场景限流，返回 challengeId 与冷却时间。
 4. 客户端密文提交 challengeId、手机号、验证码、设备信息和已同意协议版本。
-5. 服务端消费挑战后，使用幂等内部接口在物业权威库查询/创建统一 `U...`，写手机号身份和真实 KYC 状态占位/摘要。
+5. 服务端消费挑战后先查询 KingClub 本地手机号指纹投影；未命中或冲突时使用幂等内部超级接口在物业权威库查询/创建统一 `U...`，首次创建时写手机号身份和真实 KYC 状态占位/摘要。
 6. KingClub 本地事务建立账号投影和成员、撤销旧 KingClub 会话并签发新凭据。
 7. 客户端原子写入 Keychain/Keystore；只有写入成功后才进入 authenticated。
 8. 客户端调用 `auth.session.me` 复核最小身份和成员状态，再建立 WebSocket。
@@ -111,9 +111,10 @@ unknown
 | 物业身份权威接口不可用 | 不在 KingClub 本地发号，返回可重试错误 | authenticating 后回到 challengeSent |
 | 统一身份冲突 | 不自动合并，记录冲突并进入人工处理 | anonymous/人工处理页 |
 
-## 8. 待评审参数
+## 8. V1 已批准参数与边界
 
-- Access/API Key TTL、Refresh Token TTL、提前刷新窗口。
-- 验证码 TTL、重发冷却、日限额和最大尝试次数。
-- 新设备顶号是否只显示结果，还是登录前增加提示；安全撤销本身立即生效。
-- 账号冻结、成员受限和 KYC 未完成时的可访问接口白名单。
+- API Key/访问会话 2 小时，Refresh Token 30 天滑动续期，剩余 10 分钟提前刷新。
+- 验证码 300 秒，重发冷却 60 秒，手机号 5 次/小时、IP 20 次/小时，最大失败 5 次。
+- 登录页固定告知单设备规则，不做登录前账号查询或额外确认；仅在新登录成功后顶号。
+- 账号 disabled/deleted/merged 不得登录；成员 suspended/rejected 只允许访问退出、申诉和已批准的受限状态说明接口。
+- KYC anonymous/pending 可完成登录，但涉及实名门槛的业务功能由各功能文档单独定义权限。

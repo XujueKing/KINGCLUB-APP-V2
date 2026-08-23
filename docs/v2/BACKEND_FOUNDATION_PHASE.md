@@ -1,8 +1,8 @@
 # 第一阶段：数据库、超级接口、登录鉴权与 WebSocket
 
-- 文档状态：In Review
+- 文档状态：In Progress
 - 审计日期：2026-08-24
-- 当前范围：只读资产审计与目标方案，不修改服务端、旧客户端或数据库
+- 当前范围：统一身份本地联调已通过，进入 KingClub 登录/会话服务端实现；旧客户端和旧数据库仍保持只读
 
 ## 1. 输入资产
 
@@ -10,7 +10,7 @@
 |---|---|---|
 | Flutter V2 规划仓库 | `C:\Users\Poplar\Desktop\KINGCLUB-APP-V2` | 已确认事实 |
 | KingClub 旧客户端 | `C:\Users\Poplar\Desktop\KingClub-app` | `master / 505d222 / 1.1.37`，审计时干净 |
-| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `main / f543854`，审计时与远程一致 |
+| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / 878a1c5`，已推送且工作区干净 |
 | 旧数据库结构 | `C:\Users\Poplar\Desktop\datebase\nuggets-仅结构.sql` | 仅结构文件，包含 94 张 `k_` 表 |
 
 ## 2. 已确认事实
@@ -97,6 +97,15 @@ ccsop-service + kingclub business line
 - **当前建议**：KingClub 独立库保存相同 `userAccount` 的本地账号投影、KingClub 成员、会话和业务数据；物业公共身份表仍是账号编号、手机号绑定和账号归并的权威源。
 - **当前建议**：未来可把这部分公共身份能力从物业实例抽离，两个 App 的 `userAccount` 无需迁号。
 
+## 4.3 当前实现进度
+
+- **已确认事实**：物业功能分支已实现内部身份超级接口 `S260824000401`、专用服务凭据、幂等供应、身份 Outbox 和 KYC 真实状态规则。
+- **已确认事实**：KingClub `business/kingclub-v2` 已完成物业身份加密调用端、migration `018`、本地 `kingclubMember`/供应尝试投影和补偿编排。
+- **已确认事实**：KingClub migration `001`～`018` 与物业 migration `001`～`326` 已在隔离 MySQL 8.4 环境真实迁移；A033 双服务幂等联调通过。
+- **已确认事实**：[登录、鉴权与会话](../features/identity/feature_login_session/README.md)和[第一批超级接口契约](../features/foundation/feature_super_interface/interface_contracts_v1.md)已批准开发。
+- **当前建议**：下一批服务端 migration 从 `019` 开始，先完成短信/登录身份投影/协议/会话时效，再实现六个 `K...` 接口和 WebSocket 撤销事件。
+- **待验收**：生产服务凭据、并发首次注册、KYC 冲突、生产日志以及后续物业正式注册复用仍未验收。
+
 ## 5. 第一阶段工作包
 
 1. [数据库重建与迁移](../features/foundation/feature_database_rebuild/README.md)
@@ -105,11 +114,9 @@ ccsop-service + kingclub business line
 4. [WebSocket 实时传输](../features/messaging/feature_realtime_transport/README.md)
 5. [同城统一账号](../features/identity/feature_unified_city_identity/README.md)
 
-四个工作包都通过评审和验收前，不开始 Flutter 登录页或业务页面开发。
+五个工作包都通过评审和验收前，不开始 Flutter 登录页或业务页面开发。
 
 ## 6. 待用户决策
 
 1. Flutter 后续是否增加原生微信授权；第一批后台契约先按手机号短信登录设计。
-2. 同一 KingClub 账号在新设备登录前是否增加提示；安全撤销仍建议登录成功后立即生效。
-3. KingClub 已核验的姓名/证件信息允许向物业权威库写入哪些字段、使用目的和保留期；未核验数据只允许写真实状态占位。
-4. 旧聊天记录、钱包余额、金币、订单与实名资料分别需要迁移多少历史范围。
+2. 旧聊天记录、钱包余额、金币、订单与实名资料分别需要迁移多少历史范围。

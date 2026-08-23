@@ -45,15 +45,24 @@ backup/ai-refactor-20260823    未完成的 AI 重构备份
 
 备份分支只用于参考模块化想法，不代表可运行版本。
 
+服务端当前开发分支：
+
+```text
+ccsop-service/business/kingclub-v2             KingClub 独立服务实现
+ccsop-property-identity-a033/feature/unified-identity-authority-v1
+                                                物业统一身份权威接口功能分支
+```
+
 ## 当前推荐下一步
 
-下一次工作最好从服务端和数据库资产盘点开始，而不是先创建 Flutter 页面。需要用户提供或指定：
+资产盘点、统一身份契约和本地 A033 已完成。下一次工作直接从已批准的[登录、鉴权与会话文档](../features/identity/feature_login_session/README.md)进入服务端实现：
 
-- 升级后的服务端源码目录
-- 数据库 Schema/建表 SQL
-- 各 App 名称和业务边界
-- Flutter MVP 必须功能
-- 当前开发团队规模
+1. 在 `business/kingclub-v2` 增加短信挑战、协议目录、本地登录身份指纹投影和会话时效 migration。
+2. 实现 `K260824000101`～`K260824000106` 执行器/Routine，复用现有物业短信与刷新方案的语义，不复制物业业务代码。
+3. 完成手机号首次/再次登录、跨服务补偿、单设备互踢、Refresh Token 重用和跨 App 隔离自动化测试。
+4. 在空白 MySQL 8.4/Redis 环境重新实迁并联调。
+
+服务端验收前不创建 Flutter 登录页面；页面还需分别建立独立目录并完成页面规格。
 
 ## 工作纪律
 

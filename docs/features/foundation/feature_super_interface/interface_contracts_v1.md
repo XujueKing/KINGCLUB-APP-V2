@@ -1,11 +1,11 @@
 # KingClub V2 第一批超级接口契约
 
-- 文档状态：In Review
+- 文档状态：Approved for Development
 - 接口入口：`POST /supper-interface`
-- 编号状态：设计预留，尚未写入 `interface` 表
+- 编号状态：V1 已冻结，待 migration 写入 `interface` 表
 - 业务线：`kingclub`
 
-## 1. 编号与分类建议
+## 1. V1 编号与分类
 
 | interfaceId | 语义名 | 鉴权 | 写操作 |
 |---|---|---|---|
@@ -72,7 +72,7 @@ KingClub 短信登录执行器在挑战验证成功后调用物业公共身份�
 ```json
 {
   "mobile": "normalized by server",
-  "scene": "login",
+  "scene": "login|recent_auth",
   "clientAppCode": "kingclub",
   "clientType": "android|ios",
   "deviceId": "opaque-device-id"
@@ -90,7 +90,7 @@ KingClub 短信登录执行器在挑战验证成功后调用物业公共身份�
 }
 ```
 
-规则：业务线来自部署配置；`clientAppCode` 必须命中允许列表；手机号、设备、IP 和场景多维限流；相同幂等键不得重复发送短信。
+规则：业务线来自部署配置；`clientAppCode` 必须命中允许列表；V1 场景只允许 `login` 和 `recent_auth`；手机号、设备、IP 和场景多维限流；相同幂等键不得重复发送短信。接口对号码是否已注册返回相同外观，避免账号枚举。
 
 ## 4. `K260824000102` auth.sms.login
 
@@ -129,7 +129,7 @@ KingClub 短信登录执行器在挑战验证成功后调用物业公共身份�
 }
 ```
 
-物业权威库的账号写入和 KingClub 本地事务无法组成数据库分布式事务：先幂等取得 `U...`，再创建本地成员和会话；本地失败时用同一幂等键补偿重试。KingClub 本地的成员创建、旧会话撤销、新凭据签发和协议记录必须处于同一事务。
+物业权威库的账号写入和 KingClub 本地事务无法组成数据库分布式事务：验证码先转成短期可消费证明；本地手机号指纹投影未命中时，先登记/复用 provisioning attempt，再在本地事务外幂等取得 `U...`。随后 KingClub 在一个本地事务内消费短信证明、回填非权威手机号指纹投影、创建成员、记录协议、撤销旧会话并签发新凭据。本地失败时使用同一 provisioning 幂等键补偿重试，不回滚物业账号、不重复发号。
 
 ## 5. `K260824000103` auth.session.refresh
 
@@ -180,9 +180,12 @@ KingClub 短信登录执行器在挑战验证成功后调用物业公共身份�
 
 ```json
 {
-  "recentAuthChallengeId": "opaque"
+  "recentAuthChallengeId": "opaque",
+  "code": "six-digits"
 }
 ```
+
+服务端校验 challenge 的 `scene=recent_auth`，并将其手机号 HMAC 指纹与当前可信账号的活动本地登录身份投影匹配；不允许客户端提交 userAccount 或让 challenge 为其他账号授权。验证码证明和撤销动作在同一事务边界内单次消费。
 
 响应：`revokedCount`、`revokedAt`。每个被撤销会话发布 `auth.session.revoked`。
 
@@ -221,6 +224,8 @@ WebSocket 继续使用 `apiKeyId + sessionId + timestamp + nonce + requestId + c
 - [ ] `interface_type`、`interface_type_relation` 和六个接口完整登记
 - [ ] 执行器、Routine、目录和 sourceMigration 一致
 - [ ] 正常、参数错误、权限拒绝、重放、限流、并发和单设备场景均有测试
-- [ ] 接口编号在 migration 评审后正式冻结
+- [x] 接口编号在文档评审后正式冻结
 - [ ] 服务间统一账号接口、幂等、占位写入和补偿测试通过
-- [ ] 文档状态更新为 Approved for Development
+- [x] 文档状态更新为 Approved for Development
+
+尚未勾选项是实现验收项，不再阻塞 migration 与执行器开发。

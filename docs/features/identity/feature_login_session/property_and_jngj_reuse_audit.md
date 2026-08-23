@@ -1,6 +1,6 @@
 # 物业服务端与 JNGJ-WX 认证复用审计
 
-- 文档状态：In Review
+- 文档状态：Reviewed
 - 审计基线：`ccsop-service main / f543854`
 - 参考分支：`business/zhuzhou-property-regulation-v1 / 6678112`
 - 参考客户端：`JNGJ-WX main`
