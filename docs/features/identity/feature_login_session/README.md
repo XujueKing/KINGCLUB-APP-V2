@@ -41,13 +41,15 @@
 ## 相关文档
 
 - [登录流程](flow.md)
+- [登录鉴权状态机](auth_state_machine.md)
 - [数据与接口](data_and_api.md)
+- [物业服务端与 JNGJ-WX 复用审计](property_and_jngj_reuse_audit.md)
 - [验收标准](acceptance.md)
 
 ## 开发准入
 
-- [ ] 首期登录方式已确认
-- [ ] 自动注册规则已确认
+- [x] 首期登录方式已确认：手机号短信验证码
+- [x] 自动注册规则已确认：验证码通过后原子创建平台账号和 KingClub 成员
 - [ ] 协议与隐私版本规则已确认
 - [ ] 会话 TTL 和刷新 TTL 已确认
 - [x] 多设备策略已确认：KingClub App 内单设备在线，不跨 App 互踢

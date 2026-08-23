@@ -36,6 +36,7 @@
 
 - [调用流程](flow.md)
 - [契约与元数据](data_and_api.md)
+- [KingClub V2 第一批超级接口契约](interface_contracts_v1.md)
 - [验收标准](acceptance.md)
 
 ## 开发准入
