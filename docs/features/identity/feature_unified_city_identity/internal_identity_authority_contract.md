@@ -146,7 +146,7 @@ x-trace-id
 - [ ] 当前不存在的手机号并发请求只创建一个 `U...`
 - [ ] 已存在手机号返回原账号，不新增 `userAccount`
 - [ ] 相同幂等键重试结果完全一致
-- [ ] system 服务凭据、加密、签名和防重放测试通过
+- [x] system 服务凭据、加密、签名、独立 HKDF 域和防重放代码测试通过
 - [ ] anonymous/pending 不会生成 verified/current KYC
 - [ ] verified KYC 冲突不会被覆盖
 - [ ] 占位账号没有任何物业业务权限
@@ -157,3 +157,12 @@ x-trace-id
 - **已确认事实**：2026-08-24 用户同意采用专用服务凭据、加密超级接口和本契约默认 KYC 最小化方案，并进入下一步开发。
 - **已确认事实**：V1 不传身份证图片、人脸照片或活体视频。
 - **已确认事实**：只有真实核验通过的实名信息才能写 verified；未核验数据只写 anonymous/pending。
+
+## 12. 实现进度
+
+- **已确认事实**：物业服务功能分支 `feature/unified-identity-authority-v1` 已完成并推送两批实现：`62e48b1`（服务凭证基础）和 `fc7911e`（统一身份权威接口）。
+- **已确认事实**：migration `325` 建立服务凭证元数据/访问审计；migration `326` 建立身份版本、KYC 来源字段、供应幂等、身份 Outbox、权威 Routine 和内部接口 `S260824000401`。
+- **已确认事实**：服务调用使用独立 `ccsop:service-interface:*` HKDF 域；接口固定校验 `kingclub-service + kingclub`，个人敏感原文不会进入幂等表、Outbox、审计或响应。
+- **已确认事实**：代码仓库 `npm run verify` 通过 189 个测试文件、653 项测试、类型检查、构建、migration dry-run 和部署静态检查。
+- **待验收**：本机没有 Docker/MySQL 运行环境；migration 实迁、真实双服务凭证、并发创建、KYC 冲突、无物业权限、补偿重试和日志脱敏仍须按服务端 `A033` 集中联调。
+- **当前状态**：接口实现完成但尚未部署启用；文档保持 `Approved for Development`，待 A033 通过后再标记 `Implemented/Accepted`。
