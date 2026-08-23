@@ -73,6 +73,7 @@ KingClub 短信登录执行器在挑战验证成功后调用物业公共身份�
 {
   "mobile": "normalized by server",
   "scene": "login|recent_auth",
+  "idempotencyKey": "opaque-16-to-128",
   "clientAppCode": "kingclub",
   "clientType": "android|ios",
   "deviceId": "opaque-device-id"
@@ -90,7 +91,7 @@ KingClub 短信登录执行器在挑战验证成功后调用物业公共身份�
 }
 ```
 
-规则：业务线来自部署配置；`clientAppCode` 必须命中允许列表；V1 场景只允许 `login` 和 `recent_auth`；手机号、设备、IP 和场景多维限流；相同幂等键不得重复发送短信。接口对号码是否已注册返回相同外观，避免账号枚举。
+规则：业务线来自部署配置；`clientAppCode` 必须命中允许列表；V1 场景只允许 `login` 和 `recent_auth`；手机号、设备、IP 和场景多维限流；相同 `idempotencyKey` 不得重复发送短信。`requestId` 只用于密文请求防重放，网络重试必须生成新 `requestId` 并复用原 `idempotencyKey`。接口对号码是否已注册返回相同外观，避免账号枚举。
 
 ## 4. `K260824000102` auth.sms.login
 
@@ -230,4 +231,4 @@ WebSocket 继续使用 `apiKeyId + sessionId + timestamp + nonce + requestId + c
 
 尚未勾选项是实现验收项，不再阻塞 migration 与执行器开发。
 
-实现位置：服务端 `business/kingclub-v2 / c21d9bc`。尚未勾选的自动化矩阵需要通过六个真实密文 HTTP 接口和双服务完整登录链路补齐，不能用 Routine 冒烟代替。
+实现位置：服务端 `business/kingclub-v2 / 3b94ce6`。六个真实密文 HTTP 接口和双服务正常主链已通过；尚未勾选项继续补限流、故障注入、绑定冲突和 WebSocket 客户端观测，不能只用 Routine 冒烟代替。

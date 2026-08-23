@@ -2,7 +2,7 @@
 
 - 文档状态：In Progress
 - 审计日期：2026-08-24
-- 当前范围：KingClub 登录/会话服务端骨架已完成，进入密文接口与双服务完整链路验收；旧客户端和旧数据库仍保持只读
+- 当前范围：KingClub 登录/会话密文正常主链已完成，进入异常矩阵验收；旧客户端和旧数据库仍保持只读
 
 ## 1. 输入资产
 
@@ -10,7 +10,7 @@
 |---|---|---|
 | Flutter V2 规划仓库 | `C:\Users\Poplar\Desktop\KINGCLUB-APP-V2` | 已确认事实 |
 | KingClub 旧客户端 | `C:\Users\Poplar\Desktop\KingClub-app` | `master / 505d222 / 1.1.37`，审计时干净 |
-| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / c21d9bc`，已推送且工作区干净 |
+| 新服务端底座 | `C:\Users\Poplar\Desktop\株洲建宁管家\ccsop-service` | `business/kingclub-v2 / 3b94ce6`，已推送且工作区干净 |
 | 旧数据库结构 | `C:\Users\Poplar\Desktop\datebase\nuggets-仅结构.sql` | 仅结构文件，包含 94 张 `k_` 表 |
 
 ## 2. 已确认事实
@@ -101,9 +101,9 @@ ccsop-service + kingclub business line
 - **已确认事实**：KingClub migration `001`～`018` 与物业 migration `001`～`326` 已在隔离 MySQL 8.4 环境真实迁移；A033 双服务幂等联调通过。
 - **已确认事实**：[登录、鉴权与会话](../features/identity/feature_login_session/README.md)和[第一批超级接口契约](../features/foundation/feature_super_interface/interface_contracts_v1.md)已批准开发。
 - **已确认事实**：migration `019` 已完成短信挑战、本地登录身份投影、协议/同意、设备登记和会话时效基础；空白 MySQL 8.4 从 `001`～`019` 完整实迁通过。
-- **已确认事实**：服务端 `c21d9bc` 已完成 migration `020`、短信 Router、六个 `K...` 接口、五个 Routine、运行时紧凑契约校验和 WebSocket 撤销关闭；本地 `kingclub_v2` 已实迁。
-- **已确认事实**：31 个测试文件、120 项测试和完整质量门禁通过；Routine 冒烟覆盖登录、刷新、顶号与旧 Token 重用撤销，本地运行时检查通过。
-- **当前建议**：下一批建立不含生产秘密的登录 E2E 测试夹具，完成六个密文接口及 KingClub↔物业完整登录链路验收。
+- **已确认事实**：服务端已完成 migration `020/021`、短信 Router、六个 `K...` 接口、五个 Routine、运行时紧凑契约校验和 WebSocket 撤销关闭；本地 `kingclub_v2` 已实迁至 021。
+- **已确认事实**：33 个测试文件、122 项测试和完整质量门禁通过；六个真实密文 HTTP 接口及 KingClub↔物业首次开户、本地投影复登、顶号、刷新并发、recent auth 和注销的隔离 E2E 已通过。
+- **当前建议**：下一批补齐并发首次开户、权威不可用、绑定冲突、限流边界和 WebSocket 客户端观测异常矩阵；随后为四个 Flutter 登录页面分别建立文档目录。
 - **待验收**：生产短信/协议/服务凭据、并发首次注册、KYC 冲突、生产日志以及后续物业正式注册复用仍未验收。
 
 ## 5. 第一阶段工作包

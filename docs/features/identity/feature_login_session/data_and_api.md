@@ -40,6 +40,8 @@
 
 以上编号在 V1 冻结；详细请求、响应和错误码见[第一批超级接口契约](../../foundation/feature_super_interface/interface_contracts_v1.md)。
 
+`K260824000101` 的业务 `idempotencyKey` 与传输层 `requestId` 必须分离：前者跨网络重试复用以避免重复发短信，后者每次请求重新生成并用于 nonce/requestId 防重放。
+
 ## 会话字段与时效
 
 - `authSession.expiresDate` 表示访问会话到期时间，默认签发后 2 小时。
