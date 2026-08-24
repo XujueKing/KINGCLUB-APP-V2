@@ -16,7 +16,7 @@ Roadmap 按可验证结果划分，不以页面数量或代码量作为完成标
 
 退出门槛：首个纵向切片的功能规格、页面规格、API 契约和验收用例全部通过评审。
 
-当前 Stage 0 的服务端第一批基础工作见 [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)，本地设计与异常矩阵门禁已经通过。启动鉴权、手机号登录、验证码和协议确认四页文档均已批准；当前进入 [Flutter Foundation](../features/foundation/README.md) 与 [ADR-0001](adr/0001_flutter_foundation_baseline.md) 评审，批准前不创建工程。
+当前 Stage 0 的服务端第一批基础工作见 [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)，本地设计与异常矩阵门禁已经通过。启动鉴权、手机号登录、验证码和协议确认四页文档均已批准；[ADR-0001](adr/0001_flutter_foundation_baseline.md) 已批准并完成 Flutter 3.47.1 本机升级，当前继续评审 [Flutter Foundation](../features/foundation/README.md) 五个模块，全部批准前不创建工程。
 
 ## Stage 1：工程与设计系统底座
 

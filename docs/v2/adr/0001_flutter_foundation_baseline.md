@@ -1,7 +1,8 @@
 # ADR-0001：Flutter Foundation 技术基线
 
-- 状态：`Proposed / In Review`
+- 状态：`Accepted / Approved for Development`
 - 日期：2026-08-24
+- 批准日期：2026-08-24
 - 影响范围：Flutter iOS/Android 工程、全部 feature、CI 与发布链
 
 ## 背景
@@ -10,19 +11,19 @@
 
 ## 已确认事实
 
-- Flutter 官方当前文档反映 `3.44.7`；其受支持移动平台下限为 Android API 24 与 iOS 15。
-- 本机当前为 Flutter `3.41.7 / Dart 3.11.5`，创建工程前需要升级并再次核验。
+- Flutter `3.47` 已进入官方 stable 发布线；本机已升级并固定为 Flutter `3.47.1 / Dart 3.13.1 / DevTools 2.60.0`。
+- Flutter 官方当前发布的移动平台支持矩阵仍以 Android API 24 与 iOS 15 为最低支持版本。
 - Flutter 官方不建议多数 App 使用传统 named routes；复杂深链/多 Navigator 场景建议 Router 包，例如 `go_router`。
 - K101～K107 使用 ECDH/AES/HMAC 超级接口协议；一次性登录响应、请求重放和未知结果不能交给通用 HTTP 自动重试。
 
 官方依据：[Flutter SDK archive](https://docs.flutter.dev/install/archive)、[supported platforms](https://docs.flutter.dev/reference/supported-platforms)、[navigation and routing](https://docs.flutter.dev/ui/navigation)、[Flutter testing](https://docs.flutter.dev/testing/overview)。
 
-## 当前建议
+## 已确认决策
 
-| 决策 | V1 建议 | 原因 |
+| 决策 | V1 基线 | 原因 |
 |---|---|---|
-| Flutter SDK | 升级并固定 `3.44.7 stable` | 与当前官方稳定文档和平台支持矩阵一致 |
-| Dart SDK | 使用 Flutter 3.44.7 随附版本 | 避免 Flutter/Dart 组合漂移 |
+| Flutter SDK | 固定 `3.47.1 stable` | 使用 2026-08-24 实际可用的官方稳定补丁版本 |
+| Dart SDK | 使用 Flutter 3.47.1 随附的 `3.13.1` | 避免 Flutter/Dart 组合漂移 |
 | Android 最低版本 | API 24 | 当前 Flutter 官方支持下限 |
 | iOS 最低版本 | iOS 15 | 当前 Flutter 官方支持下限 |
 | 工程形态 | 单一 App package，feature-first | 首期无需 monorepo，降低构建和发布复杂度 |
@@ -60,14 +61,27 @@ feature data -> networking/session ports -> core adapters
 - 不在 Dio interceptor 中无差别自动重试写请求或 K102。
 - 不让 Widget 逐字段写 Keychain/Keystore。
 - 不在首期拆成多个 Dart package/pub workspace；出现独立发布或编译边界需求后再评审。
-- 不因本机已有 3.41.7 就直接创建落后于当前稳定线的新工程。
+- 不因本机曾安装 3.41.7 就创建落后于当前稳定线的新工程。
 
-## 待用户决策
+## 批准记录
 
-1. 同意升级并固定 Flutter `3.44.7`，Android API 24、iOS 15 作为最低版本。
-2. 同意 Riverpod 3 + codegen 作为唯一状态管理和依赖装配方案。
-3. 同意 `go_router + go_router_builder`、`dio` 和 `flutter_secure_storage`，但全部通过自有端口隔离。
-4. 同意可观测性首期保持供应商中立，后续再选 Sentry 或 Firebase Crashlytics。
-5. 同意先建单一 App package，不启用 pub workspace。
+用户于 2026-08-24 确认以下五项：
 
-上述五项批准且五个 foundation 模块完成评审前，不运行 `flutter create`。
+1. Flutter 跟随当前 stable 并固定为实际安装的 `3.47.1`，Android API 24、iOS 15 作为最低版本。
+2. Riverpod 3 + codegen 作为唯一状态管理和依赖装配方案。
+3. 使用 `go_router + go_router_builder`、`dio` 和 `flutter_secure_storage`，且全部通过自有端口隔离。
+4. 可观测性首期保持供应商中立，后续再选 Sentry 或 Firebase Crashlytics。
+5. 先建单一 App package，不启用 pub workspace。
+
+## 本机环境验证
+
+| 检查项 | 2026-08-24 结果 |
+|---|---|
+| Flutter | `3.47.1 stable`，framework `6655482ec0` |
+| Dart / DevTools | `3.13.1 / 2.60.0` |
+| Android SDK | `36.1`，JDK 21 可识别 |
+| Android licenses | 尚有部分未接受；创建/构建 Android 工程前由用户执行 `flutter doctor --android-licenses` 并审阅接受 |
+| iOS 工具链 | Windows 无法验证；后续必须在 macOS + Xcode 上完成真机构建门禁 |
+| Windows 桌面工具链 | Visual Studio 未安装；本项目不以 Windows 桌面为目标，不阻塞移动端基线 |
+
+ADR 已批准，但五个 foundation 模块完成详细评审前仍不运行 `flutter create`。

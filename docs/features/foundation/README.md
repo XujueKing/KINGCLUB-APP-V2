@@ -16,12 +16,13 @@
 ## 已确认事实
 
 - 四个首批登录页面文档已全部达到 `Approved for Development`。
-- 本机当前安装 Flutter `3.41.7 / Dart 3.11.5`，但 Flutter 官方当前文档基线已是 `3.44.7`。
+- ADR-0001 已批准；本机已升级并固定为 Flutter `3.47.1 stable / Dart 3.13.1`。
+- Android SDK 36.1 与 JDK 21 已识别，但 Android licenses 尚未全部接受；iOS 工具链仍需在 macOS 上验证。
 - 当前仓库不存在 `pubspec.yaml`、`lib/` 或 Android/iOS Flutter 工程，现阶段仍是文档评审。
 
 ## 开发准入
 
 - 五个模块分别达到 `Approved for Development`。
-- ADR-0001 的 SDK、平台下限、状态管理、路由、网络和安全存储选择获得用户确认。
+- ADR-0001 的 SDK、平台下限、状态管理、路由、网络和安全存储选择已获得用户确认。
 - 环境隔离、敏感信息、会话原子提交、路由守卫、重试与日志脱敏规则完成交叉验收。
 - 批准后才运行 `flutter create`；创建工程本身也必须作为独立、可验证提交。

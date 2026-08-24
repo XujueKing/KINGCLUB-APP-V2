@@ -62,21 +62,19 @@ core/shared 不得反向依赖具体 feature
 | 模块 | 责任 | 当前状态 |
 |---|---|---|
 | app_bootstrap | 环境配置、启动顺序、依赖装配 | 当前建议 |
-| navigation | 路由、登录守卫、深链 | 待用户决策具体库 |
+| navigation | 路由、登录守卫、深链 | 已确认 `go_router + go_router_builder` |
 | design_system | 颜色、排版、间距、组件、主题 | 待设计输入 |
 | networking | HTTP、鉴权、重试、错误映射、requestId | 当前建议 |
 | session | 登录态、刷新、退出、设备会话 | 依赖 API v2 |
 | persistence | 安全存储、缓存、草稿、迁移 | 当前建议 |
 | realtime | WebSocket 生命周期、重连、消息分发 | 依赖服务端方案 |
-| observability | 日志、崩溃、性能、业务埋点 | 待用户决策平台 |
+| observability | 日志、崩溃、性能、业务埋点 | 已确认供应商中立端口；具体平台后定 |
 | native_bridge | 支付、推送、媒体、地图、权限 | 待供应商确认 |
 
 ## 5. 状态、路由和依赖注入
 
-- **当前建议**：选择一种可测试、支持异步状态和依赖注入的统一方案，禁止多套状态框架并存。
-- **当前建议**：ADR-0001 建议 Riverpod 3 + codegen 作为唯一状态管理和依赖装配方案，等待用户批准。
-- **当前建议**：路由必须支持登录守卫、参数类型化、深链和页面级埋点。
-- **当前建议**：ADR-0001 建议 `go_router + go_router_builder` 类型化路由，等待用户批准。
+- **已确认事实**：Riverpod 3 + codegen 是唯一状态管理和依赖装配方案，禁止多套状态框架并存。
+- **已确认事实**：采用 `go_router + go_router_builder` 类型化路由，必须支持登录守卫、深链和页面级埋点。
 - **当前建议**：依赖在应用装配层注册，页面不得自行创建 Repository。
 
 ## 6. 数据与接口策略
@@ -108,11 +106,11 @@ core/shared 不得反向依赖具体 feature
 
 ## 9. 尚待确认的架构决策
 
-1. Flutter 最低版本及 Android/iOS 最低系统版本。
-2. 状态管理、路由、网络、序列化和本地数据库选型。
+1. ~~Flutter 最低版本及 Android/iOS 最低系统版本。~~ 已由 ADR-0001 确认为 Flutter 3.47.1、Android API 24、iOS 15。
+2. 序列化和本地数据库选型；状态管理、路由、网络与安全存储已由 ADR-0001 确认。
 3. 设计系统来源、品牌规范以及暗色模式需求。
 4. API v2、聊天、推送、支付和地图供应商的现状。
 5. 多环境、CI/CD、应用签名和发布渠道。
 6. 是否需要离线阅读、弱网队列或多账号能力。
 
-第一批技术选择评审见 [ADR-0001](adr/0001_flutter_foundation_baseline.md)；ADR 与五个 foundation 模块批准前不创建 Flutter 工程。
+第一批技术选择见已批准的 [ADR-0001](adr/0001_flutter_foundation_baseline.md)；五个 foundation 模块批准前不创建 Flutter 工程。

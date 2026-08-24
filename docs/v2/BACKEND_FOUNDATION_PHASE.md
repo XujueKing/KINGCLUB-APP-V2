@@ -2,7 +2,7 @@
 
 - 文档状态：In Progress
 - 审计日期：2026-08-24
-- 当前范围：KingClub 登录/会话密文主链与异常矩阵已完成，进入四个 Flutter 登录页面评审；旧客户端和旧数据库仍保持只读
+- 当前范围：KingClub 登录/会话密文主链、异常矩阵和四个 Flutter 登录页面文档已完成，进入 Flutter Foundation 详细评审；旧客户端和旧数据库仍保持只读
 
 ## 1. 输入资产
 
@@ -103,8 +103,9 @@ ccsop-service + kingclub business line
 - **已确认事实**：KingClub 37 个测试文件/133 项测试、物业 190 个测试文件/656 项测试及两边完整质量门禁通过；验证码/限流、Refresh Token 重用、协议摘要失败关闭、真实 WebSocket 撤销观测和 KYC 冲突均已完成。
 - **已确认事实**：启动鉴权、手机号登录、验证码和协议确认四个首批页面规格均已批准。
 - **已确认事实**：验证码页采用 K102 结果未知时失败关闭；协议确认页采用本地 ConsentSnapshot、由 K102 最终落库。
-- **当前状态**：Flutter app_bootstrap、navigation、networking、session/persistence、observability 五个独立 foundation 目录与 ADR-0001 已建立，均处于 `In Review`。
-- **当前建议**：先批准 SDK/平台与核心依赖基线，再逐个完成 foundation 详细流程和数据契约；全部批准后才创建工程骨架。
+- **已确认事实**：ADR-0001 已批准，本机已升级至 Flutter `3.47.1 stable / Dart 3.13.1`；Android API 24、iOS 15 与核心依赖基线已冻结。
+- **当前状态**：Flutter app_bootstrap、navigation、networking、session/persistence、observability 五个独立 foundation 目录仍处于 `In Review`。
+- **当前建议**：逐个完成 foundation 详细流程和数据契约；全部批准后才创建工程骨架。
 - **待验收**：生产短信/协议/服务凭据、生产容量、生产日志以及后续物业正式注册复用仍未验收。
 
 ## 5. 第一阶段工作包

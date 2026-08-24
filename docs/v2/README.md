@@ -23,7 +23,7 @@
 5. [../features/README.md](../features/README.md)：功能和页面文档目录规范
 6. [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)：数据库、超级接口、登录鉴权与 WebSocket 第一阶段
 7. [Flutter Foundation 功能目录](../features/foundation/README.md)：App 工程创建前的五个技术底座模块
-8. [ADR-0001 Flutter Foundation 技术基线](adr/0001_flutter_foundation_baseline.md)：SDK、平台与核心依赖建议
+8. [ADR-0001 Flutter Foundation 技术基线](adr/0001_flutter_foundation_baseline.md)：已批准的 SDK、平台与核心依赖基线
 
 首批页面评审入口：
 
