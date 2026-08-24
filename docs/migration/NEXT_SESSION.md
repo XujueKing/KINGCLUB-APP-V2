@@ -57,12 +57,12 @@ ccsop-property-identity-a033/feature/unified-identity-authority-v1
 
 资产盘点、统一身份契约、A033 幂等/并发/补偿/KYC 冲突、七个 K 接口密文主链、协议目录完整性、旧协议版本拒绝且不消耗短信 challenge、验证码与限流边界、Refresh Token 重用以及真实 WebSocket 撤销观测均已完成。服务端基线为 `business/kingclub-v2 / d9929ff`，物业身份基线为 `feature/unified-identity-authority-v1 / d8a9c18`；完整质量门禁分别为 37 文件/133 项和 190 文件/656 项测试。
 
-四个 Flutter 登录页面已经归档到 `feature_login_session/pages/`。启动鉴权页和手机号登录页已批准；验证码页完整评审稿已形成但仍为 `In Review`，协议确认页尚待正式评审。下一次继续：
+四个 Flutter 登录页面已经归档到 `feature_login_session/pages/`。启动鉴权页、手机号登录页和验证码页已批准；协议确认页完整评审稿已形成但仍为 `In Review`。下一次继续：
 
-1. 用户批准验证码页九项规则，重点确认 K102 发出后结果未知时重新获取验证码的 V1 失败关闭策略。
-2. 批准后把验证码页更新为 `Approved for Development`。
-3. 评审协议页是否仅在版本缺失/变化时独立展示。
-4. 四页批准后建立 app_bootstrap、navigation、networking、session/persistence 和 observability 的独立 foundation 文档目录与 ADR。
+1. 用户批准协议确认页九项规则，重点确认 readOnly/loginRecovery 两种模式、同意只更新内存快照且最终由 K102 落库。
+2. 批准后把协议确认页更新为 `Approved for Development`，完成首批四页文档准入。
+3. 建立 app_bootstrap、navigation、networking、session/persistence 和 observability 的独立 foundation 文档目录与 ADR。
+4. 评审 Flutter/Android/iOS 最低版本、Riverpod/BLoC、路由、网络和安全存储选型。
 5. foundation 文档批准后才创建 Flutter 工程和启动鉴权页代码。
 
 生产短信供应商、正式协议、生产服务凭据和 Flutter 客户端仍未验收。

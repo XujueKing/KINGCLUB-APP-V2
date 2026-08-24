@@ -16,7 +16,7 @@ Roadmap 按可验证结果划分，不以页面数量或代码量作为完成标
 
 退出门槛：首个纵向切片的功能规格、页面规格、API 契约和验收用例全部通过评审。
 
-当前 Stage 0 的服务端第一批基础工作见 [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)，本地设计与异常矩阵门禁已经通过。启动鉴权页与手机号登录页已批准开发，验证码页等待批准完整评审稿，协议确认页尚待正式评审；四页批准后才进入 Stage 1 工程骨架和对应页面开发。
+当前 Stage 0 的服务端第一批基础工作见 [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)，本地设计与异常矩阵门禁已经通过。启动鉴权页、手机号登录页与验证码页已批准开发，协议确认页等待批准完整评审稿；四页批准后才进入 Stage 1 工程骨架和对应页面开发。
 
 ## Stage 1：工程与设计系统底座
 

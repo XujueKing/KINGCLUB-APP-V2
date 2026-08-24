@@ -61,7 +61,7 @@
 
 - [启动鉴权页（Approved for Development）](pages/page_auth_bootstrap/README.md)
 - [手机号登录页（Approved for Development）](pages/page_mobile_login/README.md)
-- [验证码页（In Review）](pages/page_sms_verification/README.md)
+- [验证码页（Approved for Development）](pages/page_sms_verification/README.md)
 - [协议确认页（In Review）](pages/page_terms_consent/README.md)
 
 ## 开发准入
@@ -95,6 +95,7 @@
 - **已确认事实**：启动鉴权页已完成状态、错误映射、生命周期、线框、安全和验收评审，状态为 `Approved for Development`；其 Flutter 实现仍等待 Stage 1 foundation 文档批准。
 - **已确认事实**：用户批准 K107；服务端 `business/kingclub-v2 / d9929ff` 已完成 migration 022、当前协议 Markdown/摘要读取、旧版本拒绝且不消耗短信 challenge 的密文 E2E 和 37 文件/133 项质量门禁。
 - **已确认事实**：手机号登录页的号码规范化、协议勾选、短信幂等、限流、防账号枚举、状态和交互已完成评审，状态为 `Approved for Development`。
-- **已确认事实**：验证码页的路由隐私、输入、自动提交、双截止时间、重发竞态、协议版本恢复、安全预览和验收稿已完成；只读核对确认 K102 发出后若响应丢失，当前没有一次性凭据重放能力。
-- **当前建议**：V1 对 K102 结果未知采用失败关闭并重新获取验证码，等待用户批准后把验证码页更新为 `Approved for Development`。
-- **当前状态**：协议确认页仍为 `In Review`，未创建任何页面代码。
+- **已确认事实**：用户已批准验证码页九项规则，包括 K102 结果未知时失败关闭并重新获取验证码；页面状态为 `Approved for Development`。
+- **已确认事实**：协议确认页完整评审稿已形成；当前接口只允许 K107 读取目录、K102 在登录事务中记录同意，不存在独立同意写接口。
+- **当前建议**：批准协议确认页的 readOnly/loginRecovery、内存 ConsentSnapshot 和 Markdown 失败关闭等九项规则。
+- **当前状态**：协议确认页保持 `In Review`，未创建 Flutter 工程或任何页面代码。
