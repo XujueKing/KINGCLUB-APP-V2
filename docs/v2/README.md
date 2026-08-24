@@ -24,6 +24,7 @@
 6. [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)：数据库、超级接口、登录鉴权与 WebSocket 第一阶段
 7. [Flutter Foundation 功能目录](../features/foundation/README.md)：App 工程创建前的五个技术底座模块
 8. [ADR-0001 Flutter Foundation 技术基线](adr/0001_flutter_foundation_baseline.md)：已批准的 SDK、平台与核心依赖基线
+9. [App 范围、页面覆盖与 UI 交付门禁](APP_SCOPE_AND_UI_DELIVERY_GATE.md)：本期全量文档、UI Mock 与真实接入覆盖账本
 
 首批页面评审入口：
 
@@ -44,5 +45,6 @@
 - **已确认事实**：V2 使用 Flutter 建设 iOS/Android 客户端。
 - **已确认事实**：旧版微信小程序继续承担稳定业务，并逐步接入 API v2。
 - **当前建议**：Flutter 项目采用 feature-first、领域分块、分层依赖。
-- **当前建议**：先完成一个可验证的纵向业务闭环，再扩展功能覆盖率。
+- **当前建议**：文档与 UI Mock 先覆盖本期确认的全部范围；整 App UI 验收后，真实接入再按可验证的纵向业务闭环逐项推进。
 - **已确认事实**：每个功能或页面必须有独立目录并先完成设计文档，之后才能开发。
+- **已确认事实**：本期 App 全部功能和页面文档批准后，先用 Mock/Fake 完成 UI 和整 App 流程模拟；全局 UI 流程验收前不得连接真实超级接口、WebSocket 或生产 SDK。

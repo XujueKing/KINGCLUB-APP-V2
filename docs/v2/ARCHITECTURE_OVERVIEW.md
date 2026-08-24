@@ -56,6 +56,7 @@ core/shared 不得反向依赖具体 feature
 - **当前建议**：业务代码采用 feature-first，功能内部再按层组织。
 - **当前建议**：跨功能复用必须经过明确评审；不要因两个页面长得相似就提前抽象。
 - **当前建议**：页面不得直接读写 HTTP、数据库、SharedPreferences 或平台通道。
+- **已确认事实**：页面首先依赖 Fake Repository 完成整 App UI 流程模拟；项目达到 `UI Flow Approved` 后，真实 adapter 才能替换 Fake，页面和 application 契约不得因此改写。
 
 ## 4. 核心基础模块
 
@@ -113,4 +114,4 @@ core/shared 不得反向依赖具体 feature
 5. 多环境、CI/CD、应用签名和发布渠道。
 6. 是否需要离线阅读、弱网队列或多账号能力。
 
-第一批技术选择见已批准的 [ADR-0001](adr/0001_flutter_foundation_baseline.md)；五个 foundation 模块批准前不创建 Flutter 工程。
+第一批技术选择见已批准的 [ADR-0001](adr/0001_flutter_foundation_baseline.md)。五个 foundation 只是技术底座门禁；本期全部功能、页面与设计系统文档批准前不创建 Flutter UI 工程，整 App UI Mock 达到 `UI Flow Approved` 前不连接真实服务。

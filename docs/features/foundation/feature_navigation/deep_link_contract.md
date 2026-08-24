@@ -3,6 +3,10 @@
 - 文档状态：`In Review`
 - 原则：外部输入先解析为受控 RouteIntent，永不直接交给 Router
 
+## 0. 当前范围
+
+当前 UI Mock 阶段没有任何已批准的 App Link 或推送跳转目标，因此不实现 `ExternalIntentParser`、`PendingIntentStore` 或推送导航 adapter。本文件只定义未来启用单个目标前必须满足的安全门禁；不能作为现在创建订单、聊天或其他路由的依据。
+
 ## 1. 输入来源
 
 ```text
@@ -16,7 +20,7 @@ push notification action
   -> pending / allow / reject
 ```
 
-V1 只为已配置平台关联文件的 HTTPS Universal/App Link 预留支持，不默认开放自定义 scheme。正式 host、关联文件、签名证书和推送供应商尚未确认，属于发布门禁。
+未来只为已配置平台关联文件的 HTTPS Universal/App Link 开放具体已批准目标，不默认开放自定义 scheme。正式 host、关联文件、签名证书和推送供应商尚未确认。
 
 ## 2. 解析与拒绝规则
 
@@ -38,7 +42,7 @@ V1 只为已配置平台关联文件的 HTTPS Universal/App Link 预留支持，
 
 ## 4. returnTo
 
-`returnTo` 在领域层是 `RouteIntent?`，不是 URL：
+当前登录 UI Mock 的 `returnTo` 固定为空，登录成功只进入 home 语义。未来具体目标页面批准后，`returnTo` 在领域层才可以扩展为 `RouteIntent?`，且不能是 URL：
 
 ```text
 routeType
@@ -54,6 +58,8 @@ dedupeKey
 - 登录完成后重新校验并一次消费；失败进入 home，不把原始目标显示给用户。
 
 ## 5. 冷启动、热启动与去重
+
+以下规则只在首个具体外链/推送目标页面完成文档与 UI Mock 并单独批准后启用；当前实现测试不包含这些场景。
 
 | 场景 | 处理 |
 |---|---|

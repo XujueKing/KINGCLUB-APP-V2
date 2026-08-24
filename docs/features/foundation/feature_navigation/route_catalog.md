@@ -8,10 +8,8 @@
 | 分区 | 会话要求 | 是否允许外部打开 | V1 恢复策略 |
 |---|---|---|---|
 | `bootstrap` | `unknown` | 否 | 每次冷启动固定进入 |
-| `public` | 无 | 仅显式 allowlist | V1 不恢复路由栈 |
 | `authFlow` | `anonymous` 或登录恢复中 | 否 | 仅内存，进程结束即销毁 |
-| `protected` | `authenticated` | 仅显式 allowlist 后复核权限 | 冷启动重新鉴权后重建单一目标 |
-| `restricted` | `restricted` | 否 | 仅批准的状态说明/退出/申诉意图 |
+| `protected` | `authenticated` | 当前不允许 | 冷启动重新鉴权后只进入已批准目标 |
 
 ## 2. 首批冻结路由语义
 
@@ -25,14 +23,13 @@
 
 `HomeRoute` 当前只授权为导航决策中的目标语义；首页实现仍须先建立并批准独立页面目录。导航单元测试使用 fake target，不得因为出现在路由目录就创建占位页面代码。
 
-帮助、申诉、账号受限、订单、聊天和个人中心目前只保留 RouteIntent 类别，不分配可实现 location；对应页面文档批准后才能加入本表。
+订单、聊天、申诉、账号受限、帮助和个人中心当前既不分配 location，也不建立 RouteIntent。对应功能/页面文档与 UI 流程批准后，再通过变更评审加入本表。
 
 ## 3. 仅内存参数
 
 ```text
 AuthEntryContext
-  safeReturnIntent?       已通过 allowlist 的内部意图
-  exitPolicy              exitApp | returnPublicOrigin
+  exitPolicy              V1 固定 exitApp
   noticeCategory?         稳定通用提示，不含服务端原文
 
 LoginFlowRef
@@ -60,13 +57,11 @@ openSmsCode(LoginFlowRef)
 openTermsReadOnly(document)
 openTermsRecovery(LoginFlowRef)
 openHome
-openApprovedProtected(targetId, validatedScalarParams)
-openRestrictedStatus(reasonCategory)
 back
 resetForSessionLoss(noticeCategory)
 ```
 
-`openApprovedProtected` 是 future-facing 端口，只有 route catalog allowlist 已存在时才能解析；未知 targetId 必须拒绝。
+当前不得提前定义通用 future route。新增 RouteIntent 必须与对应功能/页面文档一起评审。
 
 ## 5. 导航动作语义
 
@@ -75,6 +70,6 @@ resetForSessionLoss(noticeCategory)
 | `push` | 同一安全流程内临时查看并返回，例如协议 readOnly | 来源状态仍在内存且允许返回 |
 | `pop(result)` | 返回已知来源 | 禁止依赖 pop 传递凭据或用户对象 |
 | `replace` | mobile→code、code↔consentRecovery 等一次性步骤 | 被替换页面不得由系统返回恢复 |
-| `reset` | 登录成功、注销、撤销、过期、账号受限 | 原栈完全丢弃，只建立一个安全根目标 |
+| `reset` | 登录成功、注销、撤销、过期、账号不可用 | 原栈完全丢弃，只建立 home 或 mobile 安全根目标 |
 
 页面发出 RouteIntent，由唯一 `NavigationCoordinator` 串行决策和执行。页面不得直接调用 `context.go('/...')`、拼接 URI 或持有全局 NavigatorKey。

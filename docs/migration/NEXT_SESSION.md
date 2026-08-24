@@ -57,14 +57,16 @@ ccsop-property-identity-a033/feature/unified-identity-authority-v1
 
 资产盘点、统一身份契约、A033 幂等/并发/补偿/KYC 冲突、七个 K 接口密文主链、协议目录完整性、旧协议版本拒绝且不消耗短信 challenge、验证码与限流边界、Refresh Token 重用以及真实 WebSocket 撤销观测均已完成。服务端基线为 `business/kingclub-v2 / d9929ff`，物业身份基线为 `feature/unified-identity-authority-v1 / d8a9c18`；完整质量门禁分别为 37 文件/133 项和 190 文件/656 项测试。
 
-四个 Flutter 登录页面已经归档到 `feature_login_session/pages/`，并全部达到 `Approved for Development`。ADR-0001 已批准，本机已升级到 Flutter `3.47.1 stable / Dart 3.13.1`。app_bootstrap 已批准开发；navigation 的路由目录、守卫、深链、生命周期和测试计划已经完成，当前为 `In Review`、待用户批准；其余三个 Flutter Foundation 模块仍待详细设计。下一次继续：
+四个 Flutter 登录页面已经归档到 `feature_login_session/pages/`，并全部达到 `Approved for Development`。ADR-0001 已批准，本机已升级到 Flutter `3.47.1 stable / Dart 3.13.1`。app_bootstrap 已批准；navigation 已按当前五个目标语义精简，订单、聊天、申诉、通用 restricted、业务深链和推送跳转不进入当前实现，模块仍为 `In Review`、待用户批准。
 
-1. 用户评审并批准 navigation；批准后进入 networking 的详细 flow/data/测试契约。
-2. 之后依次完成 session/persistence、observability 的详细契约并逐项批准。
-3. 单独建设 design_system 文档目录，确认品牌 Token、亮暗主题、字体、组件和无障碍基线。
-4. 确认正式 applicationId/bundleId、Universal/App Link 域名与关联文件、CI、Android 签名和 macOS/Xcode/TestFlight 可用性。
-5. 由用户审阅并接受 Android SDK licenses；Windows 无法验证的 iOS 构建在 macOS 上补齐。
-6. foundation 与工程创建清单全部批准后，才运行 `flutter create` 并提交空壳工程。
+用户已确认 Flutter 客户端采用全局门禁：本期全部功能/页面文档批准 → 全部 UI Mock → 整 App UI 流程验收 → 真实超级接口/WebSocket/SDK 接入。下一次继续：
+
+1. 首先冻结本期 App 功能/页面总清单与不做清单，建立唯一覆盖账本；未完成范围确认前不继续扩张实现范围。
+2. 用户评审精简后的 navigation；继续完成 networking、session/persistence、observability 和 design_system 文档，但只定义 App 端 port、Fake、设计 Token 和未来真实 adapter 契约。
+3. 为清单内每个功能和页面建立独立目录，逐项完成并批准产品、交互、UI 状态、Mock 场景和验收文档。
+4. 全部功能、页面和设计系统文档批准后，才运行 `flutter create` 并进入纯 UI/Mock 阶段。
+5. UI Mock 覆盖整 App 并经用户验收达到 `UI Flow Approved` 后，才接真实超级接口、WebSocket、支付、推送等。
+6. 发布前确认 applicationId/bundleId、域名、CI、Android 签名、Android licenses 和 macOS/Xcode/TestFlight 环境。
 
 生产短信供应商、正式协议、生产服务凭据和 Flutter 客户端仍未验收。
 

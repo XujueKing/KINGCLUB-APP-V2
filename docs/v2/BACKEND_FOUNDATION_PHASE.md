@@ -106,7 +106,8 @@ ccsop-service + kingclub business line
 - **已确认事实**：ADR-0001 已批准，本机已升级至 Flutter `3.47.1 stable / Dart 3.13.1`；Android API 24、iOS 15 与核心依赖基线已冻结。
 - **已确认事实**：Flutter app_bootstrap 已达到 `Approved for Development`。
 - **当前状态**：navigation 详细设计已完成并处于 `In Review`；networking、session/persistence、observability 仍待详细设计。
-- **当前建议**：逐个完成剩余 foundation 详细流程和数据契约；全部批准后才创建工程骨架。
+- **当前建议**：逐个完成剩余 foundation 详细流程和数据契约；foundation 全部批准仅完成底座文档门禁，仍须等待本期全部功能、页面和设计系统文档批准后才创建工程骨架。
+- **已确认事实**：Flutter 客户端采用“本期全部文档 → 全部 UI Mock → 整 App UI 验收 → 真实接口/SDK 接入”门禁；已完成的服务端契约在 UI 阶段只作为 Fake/Mock 设计依据。
 - **待验收**：生产短信/协议/服务凭据、生产容量、生产日志以及后续物业正式注册复用仍未验收。
 
 ## 5. 第一阶段工作包
@@ -117,7 +118,7 @@ ccsop-service + kingclub business line
 4. [WebSocket 实时传输](../features/messaging/feature_realtime_transport/README.md)
 5. [同城统一账号](../features/identity/feature_unified_city_identity/README.md)
 
-服务端本地开发门禁、四个登录页面文档准入与 app_bootstrap 已通过；其余 Flutter foundation 仍在评审，全部批准前不开始 Flutter 工程或页面开发。
+服务端本地开发门禁、四个登录页面文档准入与 app_bootstrap 已通过；其余 Flutter foundation 仍在评审。即使 foundation 全部批准，也要等待本期全部功能/页面文档完成后才开始 UI；UI 全流程验收前不接真实服务。
 
 ## 6. 待用户决策
 

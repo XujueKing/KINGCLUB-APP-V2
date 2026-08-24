@@ -18,8 +18,19 @@
 4. `docs/v2/ROADMAP.md`
 5. `docs/v2/DOCUMENTATION_FIRST_WORKFLOW.md`
 6. `docs/v2/BACKEND_FOUNDATION_PHASE.md`
+7. `docs/v2/APP_SCOPE_AND_UI_DELIVERY_GATE.md`
 
 任何功能或页面都必须先在 `docs/features/` 下建立独立目录并完成设计文档。未达到文档准入条件时，不得在 `lib/` 下创建对应实现。
+
+Flutter App 必须执行以下全局交付门禁：
+
+1. 先冻结本期 App 功能与页面总清单。
+2. 清单内每个功能和页面分别建立目录、完成设计文档并获得批准。
+3. 文档批准后只允许开发 UI 和 Mock/Fake 数据流程；不得连接真实超级接口、WebSocket、支付、推送或其他生产 SDK。
+4. 使用 Mock/Fake 把本期 App 的全部页面、主流程、异常流程和返回路径完整模拟并完成 UI 验收。
+5. 只有全局 UI Mock 流程验收通过后，才允许按批准契约接入真实接口和 SDK。
+
+`Approved for Development` 对 App 页面只表示允许进入 UI/Mock 阶段，不等于允许真实服务接入。真实接入必须同时满足项目级 `UI Flow Approved` 门禁。
 
 旧版源码位于 `C:\Users\Poplar\Desktop\KingClub-app`。
 
