@@ -1,6 +1,6 @@
 # App Shell Mock/Fake 场景
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 | 场景 ID | 输入 | 预期 |
 |---|---|---|

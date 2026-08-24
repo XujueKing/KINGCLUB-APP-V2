@@ -2,7 +2,7 @@
 
 - Scope ID：`KC-F-002`
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 优先级：P0
 - 已确认技术：`go_router + go_router_builder` 类型化路由
 
@@ -44,7 +44,7 @@
 
 - **已确认事实**：ADR-0001 已批准类型化 go_router，app_bootstrap 已批准 `/auth/bootstrap` 为正式 App Root 唯一初始位置。
 - **当前建议**：采用本目录的最小路由目录、纯守卫决策、内存登录 Flow 和 V1 禁用 Router 栈恢复方案；深链/推送仅保留安全准入规则，不激活目标。
-- **待用户决策**：确认本模块后更新为 `Approved for Development`；未来业务路由仍需各自页面文档批准。
+- **已确认事实**：用户于 2026-08-25 确认继续采用本模块与 Shell IA v1；未来业务路由仍需各自页面文档批准。
 
 ## 配套文档
 

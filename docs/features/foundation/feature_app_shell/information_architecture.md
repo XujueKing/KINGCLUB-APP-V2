@@ -1,6 +1,6 @@
 # 信息架构与入口归属
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 版本：`Shell IA v1`
 
 ## 1. 一级结构

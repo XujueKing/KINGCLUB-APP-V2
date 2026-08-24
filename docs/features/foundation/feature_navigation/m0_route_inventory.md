@@ -1,12 +1,12 @@
 # M0 48 页路由语义库存
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 作用：保证每个冻结页面都有唯一导航语义和主归属；不是可直接实现的最终路由表。
 
 ## 规则
 
 - `active`：已有批准页面文档，可进入最终 RouteData 设计。
-- `global-review`：属于当前 App Shell/全局导航评审包，用户批准后才可激活。
+- `global-review`：全局归属已批准，但具体业务页面仍在 Draft；页面文档批准后才可激活。
 - `reserved`：只保留语义名；对应页面文档批准前不得分配最终 location、参数或实现 RouteIntent。
 - 所有 protected 页面默认禁止外部打开；以后启用 App Link/推送必须逐页变更本表。
 
@@ -21,7 +21,7 @@
 | KC-P-007 | StyleMusicPreferencesRoute | onboarding | reserved |
 | KC-P-008 | DrinkEventPreferencesRoute | onboarding | reserved |
 | KC-P-009 | MembershipReviewStatusRoute | onboarding/review | reserved |
-| KC-P-010 | AppShellRoute | protectedShell container | global-review |
+| KC-P-010 | AppShellRoute | protectedShell container | active |
 | KC-P-011 | HomeRoute | protectedShell/home | global-review |
 | KC-P-012 | SafeScannerRoute | protectedShell overlay | global-review |
 | KC-P-013 | ContentFeedRoute | protectedShell/discover | global-review |

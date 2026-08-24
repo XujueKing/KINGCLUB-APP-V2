@@ -34,12 +34,21 @@
 3. [验证码页](../features/identity/feature_login_session/pages/page_sms_verification/README.md)
 4. [协议确认页](../features/identity/feature_login_session/pages/page_terms_consent/README.md)
 
-当前全局 UI 评审入口：
+已批准的全局 UI 基线：
 
 1. [App Shell 与信息架构](../features/foundation/feature_app_shell/README.md)
 2. [KC-P-010 App Shell 页面线框](../features/foundation/feature_app_shell/pages/page_app_shell/README.md)
 3. [路由与导航](../features/foundation/feature_navigation/README.md)
 4. [Design System v1](../features/foundation/feature_design_system/README.md)
+
+当前业务页面评审入口：
+
+1. [Member Onboarding v1](../features/identity/feature_member_onboarding/README.md)
+2. [实名与成年核验页](../features/identity/feature_member_onboarding/pages/page_real_name_adult_verification/README.md)
+3. [会员形象资料页](../features/identity/feature_member_onboarding/pages/page_membership_image_submission/README.md)
+4. [着装与音乐偏好页](../features/identity/feature_member_onboarding/pages/page_style_music_preferences/README.md)
+5. [酒类与活动偏好页](../features/identity/feature_member_onboarding/pages/page_drink_event_preferences/README.md)
+6. [会员审核状态页](../features/identity/feature_member_onboarding/pages/page_membership_review_status/README.md)
 
 ## 与迁移资料的关系
 

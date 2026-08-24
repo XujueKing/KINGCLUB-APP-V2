@@ -64,7 +64,7 @@ core/shared 不得反向依赖具体 feature
 |---|---|---|
 | app_bootstrap | 环境配置、启动顺序、依赖装配 | 当前建议 |
 | navigation | 路由、登录守卫、深链 | 已确认 `go_router + go_router_builder` |
-| design_system | 颜色、排版、间距、组件、主题 | Design System v1 已形成，In Review |
+| design_system | 颜色、排版、间距、组件、主题 | Design System v1 已批准 |
 | networking | HTTP、鉴权、重试、错误映射、requestId | 当前建议 |
 | session | 登录态、刷新、退出、设备会话 | 依赖 API v2 |
 | persistence | 安全存储、缓存、草稿、迁移 | 当前建议 |
@@ -109,7 +109,7 @@ core/shared 不得反向依赖具体 feature
 
 1. ~~Flutter 最低版本及 Android/iOS 最低系统版本。~~ 已由 ADR-0001 确认为 Flutter 3.47.1、Android API 24、iOS 15。
 2. 序列化和本地数据库选型；状态管理、路由、网络与安全存储已由 ADR-0001 确认。
-3. Design System v1 提议首发采用“黑曜石 + 香槟金”深色主题；等待用户批准，浅色主题后续评审。
+3. ~~设计系统来源、品牌规范以及暗色模式需求。~~ Design System v1 已批准采用“黑曜石 + 香槟金”深色主题，浅色主题后续评审。
 4. API v2、聊天、推送、支付和地图供应商的现状。
 5. 多环境、CI/CD、应用签名和发布渠道。
 6. 是否需要离线阅读、弱网队列或多账号能力。

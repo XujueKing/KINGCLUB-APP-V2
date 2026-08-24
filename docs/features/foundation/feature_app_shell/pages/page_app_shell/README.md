@@ -1,13 +1,13 @@
 # App Shell/底部导航容器
 
 - Scope ID：`KC-P-010`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[App Shell 与全局信息架构](../../README.md)
 - 旧版来源：`pages/index/index` 的外层 Swiper 与动态 `tabData`
 - 路由语义：`AppShellRoute`；自身不是可外部打开的内容页
 - 设计版本：`Shell Wireframe v1`
-- 最后更新：2026-08-24
+- 批准日期：2026-08-25
 
 ## 页面目标
 
@@ -68,4 +68,4 @@
 
 ## 开发门禁
 
-当前仅达到评审条件。用户确认后才能更新为 `Approved for Development`；仍须等待全部 48 页文档批准后才能实现 UI，项目达到 `UI Flow Approved` 前不得连接真实服务。
+本页已达到文档准入；仍须等待全部 48 页文档批准后才能实现 UI，项目达到 `UI Flow Approved` 前不得连接真实服务。

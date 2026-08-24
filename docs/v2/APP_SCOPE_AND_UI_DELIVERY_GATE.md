@@ -46,8 +46,8 @@
 
 | 业务域 | 当前事实 | 下一文档动作 |
 |---|---|---|
-| foundation | App Shell/信息架构、navigation 与 design system 已形成 v1 评审包 | 用户确认全局方案；随后完成其余 foundation 文档 |
-| identity/login | 9 页已冻结；4 页已批准，5 页为 Draft | 设计会员准入与资料初始化 5 页 |
+| foundation | App Shell/信息架构、navigation 与 design system 已批准 | 继续完成 networking、session、observability、Mock Runtime 和原生能力文档 |
+| identity/login | 9 页已冻结；4 个登录页已批准，5 个会员准入页处于评审 | 用户确认 Member Onboarding v1 |
 | home | 首页和安全扫码 2 页已冻结 | 逐页完成设计 |
 | social | 通讯录、好友申请、统一用户主页、备注、权限和黑名单共 8 页已冻结 | 逐功能/页面完成设计 |
 | messaging | 会话、系统通知、稳定单聊共 5 页已冻结 | 完成单聊边界；不得引入 D1 群管理 |
@@ -67,16 +67,16 @@ M0 范围已经完成；M1 文档尚未完成，仍不能开始 UI。
 | Scope ID | 业务域 | 独立功能文档 | docStatus |
 |---|---|---|---|
 | KC-F-001 | foundation | [应用启动](../features/foundation/feature_app_bootstrap/README.md) | Approved for Development |
-| KC-F-002 | foundation | [导航](../features/foundation/feature_navigation/README.md) | In Review |
-| KC-F-003 | foundation | [设计系统](../features/foundation/feature_design_system/README.md) | In Review |
+| KC-F-002 | foundation | [导航](../features/foundation/feature_navigation/README.md) | Approved for Development |
+| KC-F-003 | foundation | [设计系统](../features/foundation/feature_design_system/README.md) | Approved for Development |
 | KC-F-004 | foundation | [网络与超级接口端口](../features/foundation/feature_networking/README.md) | In Review |
 | KC-F-005 | foundation | [会话持久化](../features/foundation/feature_session_persistence/README.md) | In Review |
 | KC-F-006 | foundation | [可观测性](../features/foundation/feature_observability/README.md) | In Review |
-| KC-F-007 | foundation | [App Shell](../features/foundation/feature_app_shell/README.md) | In Review |
+| KC-F-007 | foundation | [App Shell](../features/foundation/feature_app_shell/README.md) | Approved for Development |
 | KC-F-008 | foundation | [Mock Runtime](../features/foundation/feature_mock_runtime/README.md) | Draft |
 | KC-F-009 | foundation | [原生能力与权限](../features/foundation/feature_native_capabilities/README.md) | Draft |
 | KC-F-010 | identity | [登录与鉴权会话](../features/identity/feature_login_session/README.md) | Approved for Development |
-| KC-F-011 | identity | [会员注册与准入](../features/identity/feature_member_onboarding/README.md) | Draft |
+| KC-F-011 | identity | [会员注册与准入](../features/identity/feature_member_onboarding/README.md) | In Review |
 | KC-F-012 | home | [首页聚合](../features/home/feature_home_hub/README.md) | Draft |
 | KC-F-013 | home | [安全扫码分流](../features/home/feature_safe_scanner/README.md) | Draft |
 | KC-F-014 | content | [短视频/作品浏览](../features/content/feature_content_feed/README.md) | Draft |
@@ -109,12 +109,12 @@ M0 范围已经完成；M1 文档尚未完成，仍不能开始 UI。
 | KC-P-002 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [手机号登录页](../features/identity/feature_login_session/pages/page_mobile_login/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | Not Started | Blocked |
 | KC-P-003 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [验证码页](../features/identity/feature_login_session/pages/page_sms_verification/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | Not Started | Blocked |
 | KC-P-004 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [协议确认页](../features/identity/feature_login_session/pages/page_terms_consent/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | Not Started | Blocked |
-| KC-P-005 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [实名与成年核验页](../features/identity/feature_member_onboarding/pages/page_real_name_adult_verification/README.md) | Draft | TBD | TBD | Not Started | Blocked |
-| KC-P-006 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [会员形象资料页](../features/identity/feature_member_onboarding/pages/page_membership_image_submission/README.md) | Draft | TBD | TBD | Not Started | Blocked |
-| KC-P-007 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [着装与音乐偏好页](../features/identity/feature_member_onboarding/pages/page_style_music_preferences/README.md) | Draft | TBD | TBD | Not Started | Blocked |
-| KC-P-008 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [酒类与活动偏好页](../features/identity/feature_member_onboarding/pages/page_drink_event_preferences/README.md) | Draft | TBD | TBD | Not Started | Blocked |
-| KC-P-009 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [会员审核状态页](../features/identity/feature_member_onboarding/pages/page_membership_review_status/README.md) | Draft | TBD | TBD | Not Started | Blocked |
-| KC-P-010 | foundation | [feature_app_shell](../features/foundation/feature_app_shell/README.md) | [App Shell/底部导航容器](../features/foundation/feature_app_shell/pages/page_app_shell/README.md) | In Review | Shell Wireframe v1 | SHELL-M01～M12 | Not Started | Blocked |
+| KC-P-005 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [实名与成年核验页](../features/identity/feature_member_onboarding/pages/page_real_name_adult_verification/README.md) | In Review | Onboarding Wireframe v1 / Step 1 | ONB-M02～04、13～15 | Not Started | Blocked |
+| KC-P-006 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [会员形象资料页](../features/identity/feature_member_onboarding/pages/page_membership_image_submission/README.md) | In Review | Onboarding Wireframe v1 / Step 2 | ONB-M05～06、11、13 | Not Started | Blocked |
+| KC-P-007 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [着装与音乐偏好页](../features/identity/feature_member_onboarding/pages/page_style_music_preferences/README.md) | In Review | Onboarding Wireframe v1 / Step 3 | ONB-M07～08、13～15 | Not Started | Blocked |
+| KC-P-008 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [酒类与活动偏好页](../features/identity/feature_member_onboarding/pages/page_drink_event_preferences/README.md) | In Review | Onboarding Wireframe v1 / Step 4 | ONB-M07～09、13～15 | Not Started | Blocked |
+| KC-P-009 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [会员审核状态页](../features/identity/feature_member_onboarding/pages/page_membership_review_status/README.md) | In Review | Onboarding Wireframe v1 / Review | ONB-M10～14 | Not Started | Blocked |
+| KC-P-010 | foundation | [feature_app_shell](../features/foundation/feature_app_shell/README.md) | [App Shell/底部导航容器](../features/foundation/feature_app_shell/pages/page_app_shell/README.md) | Approved for Development | Shell Wireframe v1 | SHELL-M01～M12 | Not Started | Blocked |
 | KC-P-011 | home | [feature_home_hub](../features/home/feature_home_hub/README.md) | [首页](../features/home/feature_home_hub/pages/page_home/README.md) | Draft | TBD | TBD | Not Started | Blocked |
 | KC-P-012 | home | [feature_safe_scanner](../features/home/feature_safe_scanner/README.md) | [扫码识别与安全分流页](../features/home/feature_safe_scanner/pages/page_safe_scanner/README.md) | Draft | TBD | TBD | Not Started | Blocked |
 | KC-P-013 | content | [feature_content_feed](../features/content/feature_content_feed/README.md) | [短视频/作品流页](../features/content/feature_content_feed/pages/page_content_feed/README.md) | Draft | TBD | TBD | Not Started | Blocked |

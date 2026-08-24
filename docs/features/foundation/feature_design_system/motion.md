@@ -1,6 +1,6 @@
 # 动效规范
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 ## 1. Token
 

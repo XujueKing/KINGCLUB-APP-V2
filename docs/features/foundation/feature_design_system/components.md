@@ -1,6 +1,6 @@
 # 基础组件与状态矩阵
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 ## 1. V1 基础组件
 

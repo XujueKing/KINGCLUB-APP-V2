@@ -105,8 +105,8 @@ ccsop-service + kingclub business line
 - **已确认事实**：验证码页采用 K102 结果未知时失败关闭；协议确认页采用本地 ConsentSnapshot、由 K102 最终落库。
 - **已确认事实**：ADR-0001 已批准，本机已升级至 Flutter `3.47.1 stable / Dart 3.13.1`；Android API 24、iOS 15 与核心依赖基线已冻结。
 - **已确认事实**：Flutter app_bootstrap 已达到 `Approved for Development`。
-- **当前状态**：navigation、App Shell/信息架构和 Design System v1 已完成并处于 `In Review`；networking、session/persistence、observability、Mock Runtime 和原生能力仍待完善或评审。
-- **当前建议**：先确认全局导航、四主目的地 + 中央扫码和深色主题方案，再逐个完成剩余 foundation 详细流程和数据契约；foundation 全部批准仅完成底座文档门禁，仍须等待本期全部功能、页面和设计系统文档批准后才创建工程骨架。
+- **当前状态**：navigation、App Shell/信息架构和 Design System v1 已批准；Member Onboarding v1 五页正在评审。networking、session/persistence、observability、Mock Runtime 和原生能力仍待完善或评审。
+- **当前建议**：确认会员准入五页后，继续逐个完成剩余 foundation 与业务页面文档；foundation 全部批准仅完成底座文档门禁，仍须等待本期全部功能、页面和设计系统文档批准后才创建工程骨架。
 - **已确认事实**：Flutter 客户端采用“本期全部文档 → 全部 UI Mock → 整 App UI 验收 → 真实接口/SDK 接入”门禁；已完成的服务端契约在 UI 阶段只作为 Fake/Mock 设计依据。
 - **待验收**：生产短信/协议/服务凭据、生产容量、生产日志以及后续物业正式注册复用仍未验收。
 

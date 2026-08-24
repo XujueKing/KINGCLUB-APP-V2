@@ -6,15 +6,15 @@
 ## 本轮基础模块
 
 1. [应用启动与环境](feature_app_bootstrap/README.md) — `Approved for Development`
-2. [路由与导航](feature_navigation/README.md) — 详细设计已完成，`In Review`，待用户批准
+2. [路由与导航](feature_navigation/README.md) — `Approved for Development`
 3. [网络与超级接口传输](feature_networking/README.md)
 4. [会话与安全持久化](feature_session_persistence/README.md)
 5. [日志与可观测性](feature_observability/README.md)
 
 M0 全局 UI 基线模块：
 
-6. [设计系统](feature_design_system/README.md) — `Design System v1` 已完成，`In Review`
-7. [App Shell 与全局信息架构](feature_app_shell/README.md) — `Shell IA/Wireframe v1` 已完成，`In Review`
+6. [设计系统](feature_design_system/README.md) — `Design System v1` 已批准
+7. [App Shell 与全局信息架构](feature_app_shell/README.md) — `Shell IA/Wireframe v1` 已批准
 8. [Mock Runtime](feature_mock_runtime/README.md) — `Draft`
 9. [原生能力与权限](feature_native_capabilities/README.md) — `Draft`
 
@@ -26,7 +26,7 @@ M0 全局 UI 基线模块：
 - ADR-0001 已批准；本机已升级并固定为 Flutter `3.47.1 stable / Dart 3.13.1`。
 - Android SDK 36.1 与 JDK 21 已识别，但 Android licenses 尚未全部接受；iOS 工具链仍需在 macOS 上验证。
 - 当前仓库不存在 `pubspec.yaml`、`lib/` 或 Android/iOS Flutter 工程，现阶段仍是文档评审。
-- app_bootstrap 已于 2026-08-24 批准开发；navigation 已补齐 48 页语义库存，App Shell/信息架构和 Design System v1 已形成评审包；这些全局模块当前等待用户批准。networking、session/persistence、observability、Mock Runtime 和原生能力仍需继续完善或评审。
+- app_bootstrap、navigation、App Shell/信息架构和 Design System v1 已批准；48 页导航语义库存已冻结。networking、session/persistence、observability、Mock Runtime 和原生能力仍需继续完善或评审。
 
 ## 开发准入
 

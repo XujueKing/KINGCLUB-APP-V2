@@ -1,6 +1,6 @@
 # 分支栈、返回与生命周期
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 ## 1. 分支栈
 

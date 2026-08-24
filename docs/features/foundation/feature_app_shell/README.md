@@ -1,11 +1,11 @@
 # App Shell 与全局信息架构
 
 - Scope ID：`KC-F-007`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属业务域：`foundation`
 - M0 范围：`In Release Scope`
 - 设计版本：`Shell IA v1`
-- 最后更新：2026-08-24
+- 批准日期：2026-08-25
 
 ## 目标与用户价值
 
@@ -18,7 +18,7 @@
 - D1 完整群管理、D2 作品发布、D3 红包/金币转赠本期暂缓；私人储物柜纳入。
 - 服务端不能动态下发任意客户端路由或改变 Tab 数量。
 
-## 当前建议
+## 已确认方案
 
 采用四个稳定主目的地和一个中央动作：
 
@@ -42,7 +42,7 @@
 
 ## 本期包含
 
-- [KC-P-010 App Shell/底部导航容器](pages/page_app_shell/README.md) — `In Review`
+- [KC-P-010 App Shell/底部导航容器](pages/page_app_shell/README.md) — `Approved for Development`
 - [信息架构与入口归属](information_architecture.md)
 - [分支栈、返回与生命周期](navigation_and_back.md)
 - [Mock/Fake 场景](mock_scenarios.md)
@@ -62,7 +62,7 @@
 - 每个业务分支拥有自己的页面栈和页面状态；Shell 不保存业务 DTO。
 - UI Mock 阶段由 FakeShellState/FakeBadgeSource/FakeSessionView 驱动。
 
-## 待用户确认
+## 已确认决策
 
 1. 四个主目的地固定为“首页、消息、发现、我的”。
 2. 扫码采用底部中央动作，不作为可保活的 Tab。
@@ -71,4 +71,4 @@
 
 ## 开发门禁
 
-当前文档仅达到评审条件。用户批准后本功能和 KC-P-010 才能标记 `Approved for Development`；仍须等待本期 48 页全部文档批准后才能创建 Flutter UI，项目达到 `UI Flow Approved` 前不得连接真实服务。
+本功能与 KC-P-010 已达到文档准入；仍须等待本期 48 页全部文档批准后才能创建 Flutter UI，项目达到 `UI Flow Approved` 前不得连接真实服务。

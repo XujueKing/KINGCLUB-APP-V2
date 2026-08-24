@@ -1,6 +1,6 @@
 # 返回栈、生命周期与恢复
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 范围：Android/iOS 返回行为、进程/前后台变化和导航竞态
 
 ## 1. 首批路由栈规则

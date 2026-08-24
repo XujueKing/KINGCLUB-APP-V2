@@ -1,6 +1,6 @@
 # 会话守卫与重定向
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 输入：粗粒度 `SessionView` 与当前最小 RouteIntent
 
 ## 1. 纯决策边界

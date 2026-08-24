@@ -1,6 +1,6 @@
 # 深链、推送与 returnTo 契约
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 原则：外部输入先解析为受控 RouteIntent，永不直接交给 Router
 
 ## 0. 当前范围

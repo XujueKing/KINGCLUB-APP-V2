@@ -1,6 +1,6 @@
 # Design System v1 Token 基线
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 原则：页面只使用语义 Token；下列色值是 V1 评审基线，不是允许现在编码的常量。
 
 ## 1. 颜色

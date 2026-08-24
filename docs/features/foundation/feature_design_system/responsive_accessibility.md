@@ -1,6 +1,6 @@
 # 响应式与无障碍
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 ## 1. 首发尺寸基线
 
