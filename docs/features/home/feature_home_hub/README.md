@@ -1,7 +1,7 @@
 # 首页聚合
 
 - Scope ID：`KC-F-012`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属业务域：`home`
 - M0 范围：`In Release Scope`
 - 设计版本：`Home Hub v1`
@@ -32,7 +32,7 @@
 
 ## 页面
 
-- [KC-P-011 首页](pages/page_home/README.md) — `In Review`
+- [KC-P-011 首页](pages/page_home/README.md) — `Approved for Development`
 
 ## 配套文档
 
@@ -49,7 +49,9 @@
 - 首页内直接下单、付款、核销、签到或确认入场。
 - 新增门店列表、活动专题详情、全局搜索或通知中心页面。
 
-## 待用户确认
+## 已确认决策
+
+用户于 2026-08-25 回复“按建议确认”，批准以下方案：
 
 1. 首页采用“品牌头部 + 四个核心入口 + 今晚行程 + 精选活动 + 服务提示”的 v1 结构。
 2. 首页不再展示金币、钻石、等级进度和内容瀑布流；它们分别归我的/钱包和发现页。
@@ -59,4 +61,4 @@
 
 ## 开发门禁
 
-本包只定义产品、UI 与 Fake/port 契约。用户批准后才可更新为 `Approved for Development`；全部 48 页文档批准前不得创建 Flutter UI，项目达到 `UI Flow Approved` 前不得连接真实首页接口。
+本包已达到 `Approved for Development`，但只批准未来进入 UI/Mock 阶段。全部 48 页文档批准前不得创建 Flutter UI，项目达到 `UI Flow Approved` 前不得连接真实首页接口。

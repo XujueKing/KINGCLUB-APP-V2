@@ -1,6 +1,6 @@
 # 首页数据、Repository 与 Fake 契约
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 ## 当前建议的 ViewModel
 

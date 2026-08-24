@@ -1,6 +1,6 @@
 # 安全扫码状态机
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 ```text
 idleRationale

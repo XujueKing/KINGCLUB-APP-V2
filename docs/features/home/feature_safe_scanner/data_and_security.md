@@ -1,6 +1,6 @@
 # 扫码数据、安全与 Fake 契约
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 ## 端口分层
 

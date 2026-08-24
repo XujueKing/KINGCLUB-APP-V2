@@ -50,7 +50,7 @@
 5. [酒类与活动偏好页](../features/identity/feature_member_onboarding/pages/page_drink_event_preferences/README.md)
 6. [会员审核状态页](../features/identity/feature_member_onboarding/pages/page_membership_review_status/README.md)
 
-当前业务页面评审入口：
+已批准的首页与扫码页面：
 
 1. [Home Hub v1](../features/home/feature_home_hub/README.md)
 2. [KC-P-011 首页](../features/home/feature_home_hub/pages/page_home/README.md)

@@ -23,8 +23,8 @@
 | KC-P-008 | DrinkEventPreferencesRoute | onboarding | active |
 | KC-P-009 | MembershipReviewStatusRoute | onboarding/review | active |
 | KC-P-010 | AppShellRoute | protectedShell container | active |
-| KC-P-011 | HomeRoute | protectedShell/home | page-review |
-| KC-P-012 | SafeScannerRoute | protectedShell overlay | page-review |
+| KC-P-011 | HomeRoute | protectedShell/home | active |
+| KC-P-012 | SafeScannerRoute | protectedShell overlay | active |
 | KC-P-013 | ContentFeedRoute | protectedShell/discover | global-review |
 | KC-P-014 | ContactsRoute | protectedShell/messages | reserved |
 | KC-P-015 | AddFriendRoute | protectedShell/messages | reserved |

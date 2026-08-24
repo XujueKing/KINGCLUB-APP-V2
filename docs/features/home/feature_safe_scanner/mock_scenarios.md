@@ -1,6 +1,6 @@
 # 安全扫码 Mock/Fake 场景
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 | ID | 场景 | 预期 |
 |---|---|---|

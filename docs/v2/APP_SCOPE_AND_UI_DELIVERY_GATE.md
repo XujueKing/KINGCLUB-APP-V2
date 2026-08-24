@@ -48,7 +48,7 @@
 |---|---|---|
 | foundation | App Shell/信息架构、navigation 与 design system 已批准 | 继续完成 networking、session、observability、Mock Runtime 和原生能力文档 |
 | identity/login | 9 页已冻结；4 个登录页与 5 个会员准入页均已批准 | 保持真实接入阻断，等待全局 UI/Mock 门禁 |
-| home | 首页和安全扫码 2 页已形成完整评审包 | 用户确认 Home Hub v1 与 Safe Scanner v1 |
+| home | 首页和安全扫码 2 页已批准 | 保持真实首页、相机和扫码接口阻断，等待全局 UI/Mock 门禁 |
 | social | 通讯录、好友申请、统一用户主页、备注、权限和黑名单共 8 页已冻结 | 逐功能/页面完成设计 |
 | messaging | 会话、系统通知、稳定单聊共 5 页已冻结 | 完成单聊边界；不得引入 D1 群管理 |
 | content | 短视频浏览 1 页已冻结 | 完成只读内容流；不得引入 D2 发布 |
@@ -77,8 +77,8 @@ M0 范围已经完成；M1 文档尚未完成，仍不能开始 UI。
 | KC-F-009 | foundation | [原生能力与权限](../features/foundation/feature_native_capabilities/README.md) | Draft |
 | KC-F-010 | identity | [登录与鉴权会话](../features/identity/feature_login_session/README.md) | Approved for Development |
 | KC-F-011 | identity | [会员注册与准入](../features/identity/feature_member_onboarding/README.md) | Approved for Development |
-| KC-F-012 | home | [首页聚合](../features/home/feature_home_hub/README.md) | In Review |
-| KC-F-013 | home | [安全扫码分流](../features/home/feature_safe_scanner/README.md) | In Review |
+| KC-F-012 | home | [首页聚合](../features/home/feature_home_hub/README.md) | Approved for Development |
+| KC-F-013 | home | [安全扫码分流](../features/home/feature_safe_scanner/README.md) | Approved for Development |
 | KC-F-014 | content | [短视频/作品浏览](../features/content/feature_content_feed/README.md) | Draft |
 | KC-F-015 | social | [通讯录](../features/social/feature_contacts/README.md) | Draft |
 | KC-F-016 | social | [好友关系](../features/social/feature_friendship/README.md) | Draft |
@@ -115,8 +115,8 @@ M0 范围已经完成；M1 文档尚未完成，仍不能开始 UI。
 | KC-P-008 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [酒类与活动偏好页](../features/identity/feature_member_onboarding/pages/page_drink_event_preferences/README.md) | Approved for Development | Onboarding Wireframe v1 / Step 4 | ONB-M07～09、13～15 | Not Started | Blocked |
 | KC-P-009 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [会员审核状态页](../features/identity/feature_member_onboarding/pages/page_membership_review_status/README.md) | Approved for Development | Onboarding Wireframe v1 / Review | ONB-M10～14 | Not Started | Blocked |
 | KC-P-010 | foundation | [feature_app_shell](../features/foundation/feature_app_shell/README.md) | [App Shell/底部导航容器](../features/foundation/feature_app_shell/pages/page_app_shell/README.md) | Approved for Development | Shell Wireframe v1 | SHELL-M01～M12 | Not Started | Blocked |
-| KC-P-011 | home | [feature_home_hub](../features/home/feature_home_hub/README.md) | [首页](../features/home/feature_home_hub/pages/page_home/README.md) | In Review | Home Wireframe v1 | HOME-M01～M14 | Not Started | Blocked |
-| KC-P-012 | home | [feature_safe_scanner](../features/home/feature_safe_scanner/README.md) | [扫码识别与安全分流页](../features/home/feature_safe_scanner/pages/page_safe_scanner/README.md) | In Review | Safe Scanner Wireframe v1 | SCAN-M01～M16 | Not Started | Blocked |
+| KC-P-011 | home | [feature_home_hub](../features/home/feature_home_hub/README.md) | [首页](../features/home/feature_home_hub/pages/page_home/README.md) | Approved for Development | Home Wireframe v1 | HOME-M01～M14 | Not Started | Blocked |
+| KC-P-012 | home | [feature_safe_scanner](../features/home/feature_safe_scanner/README.md) | [扫码识别与安全分流页](../features/home/feature_safe_scanner/pages/page_safe_scanner/README.md) | Approved for Development | Safe Scanner Wireframe v1 | SCAN-M01～M16 | Not Started | Blocked |
 | KC-P-013 | content | [feature_content_feed](../features/content/feature_content_feed/README.md) | [短视频/作品流页](../features/content/feature_content_feed/pages/page_content_feed/README.md) | Draft | TBD | TBD | Not Started | Blocked |
 | KC-P-014 | social | [feature_contacts](../features/social/feature_contacts/README.md) | [通讯录页](../features/social/feature_contacts/pages/page_contacts/README.md) | Draft | TBD | TBD | Not Started | Blocked |
 | KC-P-015 | social | [feature_friendship](../features/social/feature_friendship/README.md) | [添加好友/扫码页](../features/social/feature_friendship/pages/page_add_friend/README.md) | Draft | TBD | TBD | Not Started | Blocked |

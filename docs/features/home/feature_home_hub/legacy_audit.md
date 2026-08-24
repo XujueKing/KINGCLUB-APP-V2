@@ -1,6 +1,6 @@
 # 旧版首页审计与 V2 取舍
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 审计基线：`KingClub-app / master / 505d222 / 1.1.37`
 
 ## 已确认事实

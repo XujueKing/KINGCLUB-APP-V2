@@ -1,7 +1,7 @@
 # 首页
 
 - Scope ID：`KC-P-011`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[首页聚合](../../README.md)
 - 旧版来源：`pages/index/index` 首页逻辑
@@ -65,4 +65,4 @@
 
 ## 验收
 
-页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。当前仍不得实现 UI 或接真实首页数据。
+页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁，不得接真实首页数据。

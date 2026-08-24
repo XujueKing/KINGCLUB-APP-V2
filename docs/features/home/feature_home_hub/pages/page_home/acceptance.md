@@ -5,6 +5,6 @@
 - [x] 加载、完整、空、局部错误、离线、刷新和会话失效明确
 - [x] 固定入口、HomeAction allowlist 和防重复导航明确
 - [x] Fake 数据、缓存和隐私边界明确
-- [ ] 用户批准 Home Wireframe v1 与模块取舍
+- [x] 用户于 2026-08-25 批准 Home Wireframe v1 与模块取舍
 
-未来 UI Mock 阶段验证 HOME-M01～M14；当前不编码。
+未来 UI Mock 阶段验证 HOME-M01～M14；当前仍受全局文档门禁约束。

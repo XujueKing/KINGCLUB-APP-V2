@@ -62,8 +62,8 @@ ccsop-property-identity-a033/feature/unified-identity-authority-v1
 用户已确认 Flutter 客户端采用全局门禁：本期全部功能/页面文档批准 → 全部 UI Mock → 整 App UI 流程验收 → 真实超级接口/WebSocket/SDK 接入。下一次继续：
 
 1. 用户已于 2026-08-24 按建议确认 [48 页首发基线](../v2/scope/RELEASE_SCOPE_PROPOSAL.md)：46 页普通会员主体 + D4 私人储物柜 2 页。D1 完整群聊、D2 作品发布、D3 红包/金币转赠暂缓；角色后台移出消费者 App。M0 已冻结。
-2. 48 个页面均已建立独立文档目录：四个登录页、Member Onboarding v1 的 KC-P-005～009 与 App Shell 共 10 页已批准；navigation、Design System v1 和“四主目的地 + 中央扫码”也已批准。
-3. 首页 KC-P-011 与安全扫码 KC-P-012 已完成产品、状态、交互、安全、Fake 契约和验收评审包，当前为 `In Review`；用户确认后按 profile → social/messaging → club/commerce → wallet/content 顺序逐项完成。networking、session/persistence、observability 只定义 App 端 port、Fake 和未来 adapter 契约。
+2. 48 个页面均已建立独立文档目录：四个登录页、Member Onboarding v1 的 KC-P-005～009、App Shell、首页与安全扫码共 12 页已批准；navigation、Design System v1 和“四主目的地 + 中央扫码”也已批准。
+3. 下一组按 profile（我的主页、编辑资料、个人二维码）完成产品、状态、交互、安全、Fake 契约和验收文档；随后按 social/messaging → club/commerce → wallet/content 顺序逐项完成。networking、session/persistence、observability 只定义 App 端 port、Fake 和未来 adapter 契约。
 4. 全部功能、页面和设计系统文档批准后，才运行 `flutter create` 并进入纯 UI/Mock 阶段。
 5. UI Mock 覆盖整 App 并经用户验收达到 `UI Flow Approved` 后，才接真实超级接口、WebSocket、支付、推送等。
 6. 发布前确认 applicationId/bundleId、域名、CI、Android 签名、Android licenses 和 macOS/Xcode/TestFlight 环境。

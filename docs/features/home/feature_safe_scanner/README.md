@@ -1,7 +1,7 @@
 # 安全扫码分流
 
 - Scope ID：`KC-F-013`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属业务域：`home`
 - M0 范围：`In Release Scope`
 - 设计版本：`Safe Scanner v1`
@@ -31,7 +31,7 @@
 
 ## 页面
 
-- [KC-P-012 扫码识别与安全分流页](pages/page_safe_scanner/README.md) — `In Review`
+- [KC-P-012 扫码识别与安全分流页](pages/page_safe_scanner/README.md) — `Approved for Development`
 
 ## 配套文档
 
@@ -48,7 +48,9 @@
 - 相册图片识码、连续批量扫码、员工/代理扫码、条形码商品扫描。
 - 真实相机权限、扫码 SDK、超级接口或业务页面接入。
 
-## 待用户确认
+## 已确认决策
+
+用户于 2026-08-25 回复“按建议确认”，批准以下方案：
 
 1. 本期全局扫码只允许好友、桌台点单、入场上下文三类消费者码。
 2. 储物取件码由会员展示、员工端扫描，不在会员 App 执行交付；代理、签到、奖励、付款、核销和加群码均拒绝。
@@ -58,4 +60,4 @@
 
 ## 开发门禁
 
-本包只定义产品、UI 和 Fake/port 契约。用户批准后才可更新为 `Approved for Development`；全部 48 页文档批准前不得创建 Flutter UI，项目达到 `UI Flow Approved` 前不得访问真实相机或扫码解析接口。
+本包已达到 `Approved for Development`，但只批准未来进入 UI/Mock 阶段。全部 48 页文档批准前不得创建 Flutter UI，项目达到 `UI Flow Approved` 前不得访问真实相机或扫码解析接口。
