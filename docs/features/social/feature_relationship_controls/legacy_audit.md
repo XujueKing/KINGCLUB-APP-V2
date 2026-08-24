@@ -1,6 +1,6 @@
 # 关系控制旧版审计
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 | 旧实现 | 风险 | V2 取舍 |
 |---|---|---|

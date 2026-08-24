@@ -1,7 +1,7 @@
 # 添加好友入口页
 
 - Scope ID：`KC-P-015`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属功能：[好友申请与添加](../../README.md)
 - 路由：`AddFriendRoute`，`/social/add`，protectedShell/messages 子路由
 - 设计版本：`Friendship Wireframe v1 / Add`

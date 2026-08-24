@@ -1,7 +1,7 @@
 # 用户主页
 
 - Scope ID：`KC-P-017`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属功能：[统一用户主页](../../README.md)
 - 路由：`UserProfileRoute`，`/social/profile`，`$extra: SocialTargetRef + FriendRequestRef?`
 - 设计版本：`Social User Profile Wireframe v1`

@@ -1,7 +1,7 @@
 # 好友备注页
 
 - Scope ID：`KC-P-019`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属功能：[关系控制](../../README.md)
 - 路由：`FriendRemarkRoute`，`/social/friend/remark`，`$extra: SocialTargetRef`
 - 设计版本：`Relationship Wireframe v1 / Remark`

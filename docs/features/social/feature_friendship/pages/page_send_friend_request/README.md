@@ -1,7 +1,7 @@
 # 发送好友申请页
 
 - Scope ID：`KC-P-018`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属功能：[好友申请与添加](../../README.md)
 - 路由：`SendFriendRequestRoute`，`/social/request/send`，`$extra: SocialTargetRef`
 - 设计版本：`Friendship Wireframe v1 / Send`

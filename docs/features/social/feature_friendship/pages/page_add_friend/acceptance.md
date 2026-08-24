@@ -3,6 +3,6 @@
 - [x] 双入口职责、路由和返回明确
 - [x] 不重复扫码器/二维码、不含搜索和权限请求
 - [x] 防重复、目标不可用、会话失效和无障碍明确
-- [ ] 用户批准 Friendship Wireframe v1 / Add
+- [x] 用户于 2026-08-25 批准 Friendship Wireframe v1 / Add
 
-未来 UI Mock 验证 FRIEND-M01～M03；批准前不得实现页面。
+未来 UI Mock 验证 FRIEND-M01～M03；当前仍受全局文档门禁约束。

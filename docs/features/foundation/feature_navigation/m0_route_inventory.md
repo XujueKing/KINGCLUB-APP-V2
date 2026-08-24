@@ -26,14 +26,14 @@
 | KC-P-011 | HomeRoute | protectedShell/home | active |
 | KC-P-012 | SafeScannerRoute | protectedShell overlay | active |
 | KC-P-013 | ContentFeedRoute | protectedShell/discover | global-review |
-| KC-P-014 | ContactsRoute | protectedShell/messages | page-review |
-| KC-P-015 | AddFriendRoute | protectedShell/messages | page-review |
-| KC-P-016 | FriendRequestsRoute | protectedShell/messages | page-review |
-| KC-P-017 | UserProfileRoute | protectedShell/messages | page-review |
-| KC-P-018 | SendFriendRequestRoute | protectedShell/messages | page-review |
-| KC-P-019 | FriendRemarkRoute | protectedShell/messages | page-review |
-| KC-P-020 | RelationshipPermissionsRoute | protectedShell/messages | page-review |
-| KC-P-021 | BlacklistRoute | protectedShell/messages | page-review |
+| KC-P-014 | ContactsRoute | protectedShell/messages | active |
+| KC-P-015 | AddFriendRoute | protectedShell/messages | active |
+| KC-P-016 | FriendRequestsRoute | protectedShell/messages | active |
+| KC-P-017 | UserProfileRoute | protectedShell/messages | active |
+| KC-P-018 | SendFriendRequestRoute | protectedShell/messages | active |
+| KC-P-019 | FriendRemarkRoute | protectedShell/messages | active |
+| KC-P-020 | RelationshipPermissionsRoute | protectedShell/messages | active |
+| KC-P-021 | BlacklistRoute | protectedShell/messages | active |
 | KC-P-022 | ConversationsRoute | protectedShell/messages | global-review |
 | KC-P-023 | SystemNotificationsRoute | protectedShell/messages | reserved |
 | KC-P-024 | DirectChatRoute | protectedShell/messages | reserved |

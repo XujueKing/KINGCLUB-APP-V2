@@ -28,14 +28,14 @@
 | `SafeScannerRoute` | `/scan` | protectedShell overlay | 仅内存来源分支引用 | 已批准 | 中央动作或首页打开，关闭回来源分支 |
 | `EditProfileRoute` | `/me/edit` | protectedShell/me | 无 | 已批准 | 从我的主页进入；未保存退出需确认 |
 | `PersonalQrRoute` | `/me/qr` | protectedShell/me | 无 | 已批准 | 从我的主页进入；禁止外部打开和路由参数 |
-| `ContactsRoute` | `/messages/contacts` | protectedShell/messages | 无 | In Review | 通讯录子根；页面批准前不可实现 |
-| `AddFriendRoute` | `/social/add` | protectedShell/messages | 无 | In Review | 扫码/个人码固定入口 |
-| `FriendRequestsRoute` | `/social/requests` | protectedShell/messages | 无 | In Review | 收到与发出申请列表 |
-| `UserProfileRoute` | `/social/profile` | protectedShell/messages | `$extra: SocialTargetRef + FriendRequestRef?` | In Review | 统一关系状态页；禁止外部打开 |
-| `SendFriendRequestRoute` | `/social/request/send` | protectedShell/messages | `$extra: SocialTargetRef` | In Review | 仅从已确认目标进入 |
-| `FriendRemarkRoute` | `/social/friend/remark` | protectedShell/messages | `$extra: SocialTargetRef` | In Review | 仅好友可进入 |
-| `RelationshipPermissionsRoute` | `/social/friend/permissions` | protectedShell/messages | `$extra: SocialTargetRef` | In Review | 好友或已拉黑关系可进入 |
-| `BlacklistRoute` | `/social/blacklist` | protectedShell/messages | 无 | In Review | 只列自己主动拉黑的用户 |
+| `ContactsRoute` | `/messages/contacts` | protectedShell/messages | 无 | 已批准 | 通讯录子根 |
+| `AddFriendRoute` | `/social/add` | protectedShell/messages | 无 | 已批准 | 扫码/个人码固定入口 |
+| `FriendRequestsRoute` | `/social/requests` | protectedShell/messages | 无 | 已批准 | 收到与发出申请列表 |
+| `UserProfileRoute` | `/social/profile` | protectedShell/messages | `$extra: SocialTargetRef + FriendRequestRef?` | 已批准 | 统一关系状态页；禁止外部打开 |
+| `SendFriendRequestRoute` | `/social/request/send` | protectedShell/messages | `$extra: SocialTargetRef` | 已批准 | 仅从已确认目标进入 |
+| `FriendRemarkRoute` | `/social/friend/remark` | protectedShell/messages | `$extra: SocialTargetRef` | 已批准 | 仅好友可进入 |
+| `RelationshipPermissionsRoute` | `/social/friend/permissions` | protectedShell/messages | `$extra: SocialTargetRef` | 已批准 | 好友或已拉黑关系可进入 |
+| `BlacklistRoute` | `/social/blacklist` | protectedShell/messages | 无 | 已批准 | 只列自己主动拉黑的用户 |
 
 上述 Shell 目标当前只授权为导航决策语义；实现仍须等待对应页面与全局文档门禁。导航单元测试使用 fake target，不得因为出现在路由目录就创建占位页面代码。
 
@@ -98,7 +98,7 @@ back
 resetForSessionLoss(noticeCategory)
 ```
 
-`selectPrimaryDestination`、`openSafeScanner`、`openEditProfile` 和 `openPersonalQr` 已随对应页面文档批准；仍须等待全部 48 页文档批准后才可在 Flutter UI 中实现。社交 RouteIntent 当前只是随 KC-P-014～021 评审包冻结的候选语义，用户批准前不得实现。当前不得提前定义通用 future route；新增业务 RouteIntent 必须与对应功能/页面文档一起评审。
+上述已有页面对应的 RouteIntent 均已随文档批准；仍须等待全部 48 页文档批准后才可在 Flutter UI 中实现。当前不得提前定义通用 future route；新增业务 RouteIntent 必须与对应功能/页面文档一起评审。
 
 ## 5. 导航动作语义
 

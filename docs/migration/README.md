@@ -44,4 +44,4 @@
 
 登录/统一身份的数据库、超级接口、隔离密文主链和异常矩阵已经完成。启动鉴权页、手机号登录页、验证码页和协议确认页已分别建立 `docs/features/identity/feature_login_session/pages/page_*` 目录，四页规格均已批准。
 
-K107 协议目录权威读取已实现，四个首批登录页面均已通过文档准入。Flutter Foundation ADR、app_bootstrap、navigation、App Shell/信息架构和 Design System v1 已批准，本机已升级至 Flutter 3.47.1。M0 已冻结为 48 个消费者页面；Member Onboarding v1 五页、首页、安全扫码和个人中心三页均已于 2026-08-25 获得批准，社交关系八页评审包已形成并等待用户确认。后续按 [NEXT_SESSION.md](NEXT_SESSION.md) 完成全部功能/页面文档，再统一完成 UI Mock；整 App UI 验收前不连接真实接口或 SDK。
+K107 协议目录权威读取已实现，四个首批登录页面均已通过文档准入。Flutter Foundation ADR、app_bootstrap、navigation、App Shell/信息架构和 Design System v1 已批准，本机已升级至 Flutter 3.47.1。M0 已冻结为 48 个消费者页面；Member Onboarding v1 五页、首页、安全扫码、个人中心三页和社交关系八页均已于 2026-08-25 获得批准。后续按 [NEXT_SESSION.md](NEXT_SESSION.md) 完成全部功能/页面文档，再统一完成 UI Mock；整 App UI 验收前不连接真实接口或 SDK。

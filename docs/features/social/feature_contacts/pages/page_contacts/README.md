@@ -1,7 +1,7 @@
 # 通讯录页
 
 - Scope ID：`KC-P-014`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属功能：[通讯录](../../README.md)
 - 路由：`ContactsRoute`，`/messages/contacts`，protectedShell/messages 子根
 - 设计版本：`Contacts Wireframe v1`

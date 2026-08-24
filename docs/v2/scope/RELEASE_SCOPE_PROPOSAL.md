@@ -30,10 +30,10 @@
 | KC-F-012 | home | [首页聚合](../../features/home/feature_home_hub/README.md) | Approved for Development | 纳入 |
 | KC-F-013 | home | [安全扫码分流](../../features/home/feature_safe_scanner/README.md) | Approved for Development | 纳入 |
 | KC-F-014 | content | [短视频/作品浏览](../../features/content/feature_content_feed/README.md) | Draft | 只读浏览；不含发布 |
-| KC-F-015 | social | [通讯录](../../features/social/feature_contacts/README.md) | In Review | 纳入 |
-| KC-F-016 | social | [好友关系](../../features/social/feature_friendship/README.md) | In Review | 纳入 |
-| KC-F-017 | social | [用户主页](../../features/social/feature_user_profile/README.md) | In Review | 纳入 |
-| KC-F-018 | social | [关系控制](../../features/social/feature_relationship_controls/README.md) | In Review | 纳入 |
+| KC-F-015 | social | [通讯录](../../features/social/feature_contacts/README.md) | Approved for Development | 纳入 |
+| KC-F-016 | social | [好友关系](../../features/social/feature_friendship/README.md) | Approved for Development | 纳入 |
+| KC-F-017 | social | [用户主页](../../features/social/feature_user_profile/README.md) | Approved for Development | 纳入 |
+| KC-F-018 | social | [关系控制](../../features/social/feature_relationship_controls/README.md) | Approved for Development | 纳入 |
 | KC-F-019 | messaging | [会话列表](../../features/messaging/feature_conversation_list/README.md) | Draft | 纳入 |
 | KC-F-020 | messaging | [系统通知](../../features/messaging/feature_system_notifications/README.md) | Draft | 纳入 |
 | KC-F-021 | messaging | [稳定单聊](../../features/messaging/feature_direct_chat/README.md) | Draft | 不含完整群管理 |
@@ -82,14 +82,14 @@
 
 | Scope ID | 页面 | 来源/说明 | docStatus |
 |---|---|---|---|
-| KC-P-014 | 通讯录页 | 拆自旧 `index` | In Review |
-| KC-P-015 | 添加好友入口页 | 旧 `addfriend`，扫码/个人码拆归既有页面 | In Review |
-| KC-P-016 | 好友申请列表页 | 旧 `newfriend` | In Review |
-| KC-P-017 | 用户主页 | 合并 `friendinfo`、`newfriendInfo`、`userInfo` 的状态 | In Review |
-| KC-P-018 | 发送好友申请页 | 旧 `createfriendinfo` | In Review |
-| KC-P-019 | 好友备注页 | 旧 `friendinfo2` | In Review |
-| KC-P-020 | 关系权限页 | 旧 `friendinfo3` | In Review |
-| KC-P-021 | 黑名单页 | 旧 `blacklist` | In Review |
+| KC-P-014 | 通讯录页 | 拆自旧 `index` | Approved for Development |
+| KC-P-015 | 添加好友入口页 | 旧 `addfriend`，扫码/个人码拆归既有页面 | Approved for Development |
+| KC-P-016 | 好友申请列表页 | 旧 `newfriend` | Approved for Development |
+| KC-P-017 | 用户主页 | 合并 `friendinfo`、`newfriendInfo`、`userInfo` 的状态 | Approved for Development |
+| KC-P-018 | 发送好友申请页 | 旧 `createfriendinfo` | Approved for Development |
+| KC-P-019 | 好友备注页 | 旧 `friendinfo2` | Approved for Development |
+| KC-P-020 | 关系权限页 | 旧 `friendinfo3` | Approved for Development |
+| KC-P-021 | 黑名单页 | 旧 `blacklist` | Approved for Development |
 
 ### 3.4 消息（5）
 

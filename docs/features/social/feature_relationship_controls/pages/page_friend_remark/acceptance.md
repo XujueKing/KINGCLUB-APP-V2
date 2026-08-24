@@ -3,6 +3,6 @@
 - [x] 字段、校验、只读信息和隐私边界明确
 - [x] 保存、冲突、结果未知、关系变化和退出确认明确
 - [x] 电话、联系人权限、分组与标签已排除
-- [ ] 用户批准 Relationship Wireframe v1 / Remark
+- [x] 用户于 2026-08-25 批准 Relationship Wireframe v1 / Remark
 
-未来 UI Mock 验证 REL-M01～M03、M11～M12；批准前不得实现页面。
+未来 UI Mock 验证 REL-M01～M03、M11～M12；当前仍受全局文档门禁约束。

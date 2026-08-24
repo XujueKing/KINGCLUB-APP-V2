@@ -3,6 +3,6 @@
 - [x] 列表、搜索、分页、用户主页和解除流程明确
 - [x] 解除不恢复好友、二次确认、幂等和版本规则明确
 - [x] 空态、离线、并发变化、隐私和无障碍明确
-- [ ] 用户批准 Relationship Wireframe v1 / Blacklist
+- [x] 用户于 2026-08-25 批准 Relationship Wireframe v1 / Blacklist
 
-未来 UI Mock 验证 REL-M09～M12；批准前不得实现页面。
+未来 UI Mock 验证 REL-M09～M12；当前仍受全局文档门禁约束。

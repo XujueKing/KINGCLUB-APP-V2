@@ -49,7 +49,7 @@
 | foundation | App Shell/信息架构、navigation 与 design system 已批准 | 继续完成 networking、session、observability、Mock Runtime 和原生能力文档 |
 | identity/login | 9 页已冻结；4 个登录页与 5 个会员准入页均已批准 | 保持真实接入阻断，等待全局 UI/Mock 门禁 |
 | home | 首页和安全扫码 2 页已批准 | 保持真实首页、相机和扫码接口阻断，等待全局 UI/Mock 门禁 |
-| social | 通讯录、好友申请、统一用户主页、备注、权限和黑名单共 8 页评审包已形成 | 用户评审社交关系 v1；保持真实社交接口阻断 |
+| social | 通讯录、好友申请、统一用户主页、备注、权限和黑名单共 8 页已批准 | 保持真实社交接口阻断，等待全局 UI/Mock 门禁 |
 | messaging | 会话、系统通知、稳定单聊共 5 页已冻结 | 完成单聊边界；不得引入 D1 群管理 |
 | content | 短视频浏览 1 页已冻结 | 完成只读内容流；不得引入 D2 发布 |
 | club | AA、VIP 组局、入场、私人储物柜共 9 页已冻结 | 完成状态机和页面设计；员工交付不纳入 |
@@ -80,10 +80,10 @@ M0 范围已经完成；M1 文档尚未完成，仍不能开始 UI。
 | KC-F-012 | home | [首页聚合](../features/home/feature_home_hub/README.md) | Approved for Development |
 | KC-F-013 | home | [安全扫码分流](../features/home/feature_safe_scanner/README.md) | Approved for Development |
 | KC-F-014 | content | [短视频/作品浏览](../features/content/feature_content_feed/README.md) | Draft |
-| KC-F-015 | social | [通讯录](../features/social/feature_contacts/README.md) | In Review |
-| KC-F-016 | social | [好友关系](../features/social/feature_friendship/README.md) | In Review |
-| KC-F-017 | social | [用户主页](../features/social/feature_user_profile/README.md) | In Review |
-| KC-F-018 | social | [关系控制](../features/social/feature_relationship_controls/README.md) | In Review |
+| KC-F-015 | social | [通讯录](../features/social/feature_contacts/README.md) | Approved for Development |
+| KC-F-016 | social | [好友关系](../features/social/feature_friendship/README.md) | Approved for Development |
+| KC-F-017 | social | [用户主页](../features/social/feature_user_profile/README.md) | Approved for Development |
+| KC-F-018 | social | [关系控制](../features/social/feature_relationship_controls/README.md) | Approved for Development |
 | KC-F-019 | messaging | [会话列表](../features/messaging/feature_conversation_list/README.md) | Draft |
 | KC-F-020 | messaging | [系统通知](../features/messaging/feature_system_notifications/README.md) | Draft |
 | KC-F-021 | messaging | [稳定单聊](../features/messaging/feature_direct_chat/README.md) | Draft |
@@ -118,14 +118,14 @@ M0 范围已经完成；M1 文档尚未完成，仍不能开始 UI。
 | KC-P-011 | home | [feature_home_hub](../features/home/feature_home_hub/README.md) | [首页](../features/home/feature_home_hub/pages/page_home/README.md) | Approved for Development | Home Wireframe v1 | HOME-M01～M14 | Not Started | Blocked |
 | KC-P-012 | home | [feature_safe_scanner](../features/home/feature_safe_scanner/README.md) | [扫码识别与安全分流页](../features/home/feature_safe_scanner/pages/page_safe_scanner/README.md) | Approved for Development | Safe Scanner Wireframe v1 | SCAN-M01～M16 | Not Started | Blocked |
 | KC-P-013 | content | [feature_content_feed](../features/content/feature_content_feed/README.md) | [短视频/作品流页](../features/content/feature_content_feed/pages/page_content_feed/README.md) | Draft | TBD | TBD | Not Started | Blocked |
-| KC-P-014 | social | [feature_contacts](../features/social/feature_contacts/README.md) | [通讯录页](../features/social/feature_contacts/pages/page_contacts/README.md) | In Review | Contacts Wireframe v1 | CONTACT-M01～M10 | Not Started | Blocked |
-| KC-P-015 | social | [feature_friendship](../features/social/feature_friendship/README.md) | [添加好友入口页](../features/social/feature_friendship/pages/page_add_friend/README.md) | In Review | Friendship Wireframe v1 / Add | FRIEND-M01～M03 | Not Started | Blocked |
-| KC-P-016 | social | [feature_friendship](../features/social/feature_friendship/README.md) | [好友申请列表页](../features/social/feature_friendship/pages/page_friend_requests/README.md) | In Review | Friendship Wireframe v1 / Requests | FRIEND-M04～M05、M09～M13 | Not Started | Blocked |
-| KC-P-017 | social | [feature_user_profile](../features/social/feature_user_profile/README.md) | [用户主页](../features/social/feature_user_profile/pages/page_user_profile/README.md) | In Review | Social User Profile Wireframe v1 | PROFILE-SOC-M01～M12 | Not Started | Blocked |
-| KC-P-018 | social | [feature_friendship](../features/social/feature_friendship/README.md) | [发送好友申请页](../features/social/feature_friendship/pages/page_send_friend_request/README.md) | In Review | Friendship Wireframe v1 / Send | FRIEND-M06～M07、M10～M13 | Not Started | Blocked |
-| KC-P-019 | social | [feature_relationship_controls](../features/social/feature_relationship_controls/README.md) | [好友备注页](../features/social/feature_relationship_controls/pages/page_friend_remark/README.md) | In Review | Relationship Wireframe v1 / Remark | REL-M01～M03、M11～M12 | Not Started | Blocked |
-| KC-P-020 | social | [feature_relationship_controls](../features/social/feature_relationship_controls/README.md) | [关系权限页](../features/social/feature_relationship_controls/pages/page_relationship_permissions/README.md) | In Review | Relationship Wireframe v1 / Permissions | REL-M04～M08、M10～M12 | Not Started | Blocked |
-| KC-P-021 | social | [feature_relationship_controls](../features/social/feature_relationship_controls/README.md) | [黑名单页](../features/social/feature_relationship_controls/pages/page_blacklist/README.md) | In Review | Relationship Wireframe v1 / Blacklist | REL-M09～M12 | Not Started | Blocked |
+| KC-P-014 | social | [feature_contacts](../features/social/feature_contacts/README.md) | [通讯录页](../features/social/feature_contacts/pages/page_contacts/README.md) | Approved for Development | Contacts Wireframe v1 | CONTACT-M01～M10 | Not Started | Blocked |
+| KC-P-015 | social | [feature_friendship](../features/social/feature_friendship/README.md) | [添加好友入口页](../features/social/feature_friendship/pages/page_add_friend/README.md) | Approved for Development | Friendship Wireframe v1 / Add | FRIEND-M01～M03 | Not Started | Blocked |
+| KC-P-016 | social | [feature_friendship](../features/social/feature_friendship/README.md) | [好友申请列表页](../features/social/feature_friendship/pages/page_friend_requests/README.md) | Approved for Development | Friendship Wireframe v1 / Requests | FRIEND-M04～M05、M09～M13 | Not Started | Blocked |
+| KC-P-017 | social | [feature_user_profile](../features/social/feature_user_profile/README.md) | [用户主页](../features/social/feature_user_profile/pages/page_user_profile/README.md) | Approved for Development | Social User Profile Wireframe v1 | PROFILE-SOC-M01～M12 | Not Started | Blocked |
+| KC-P-018 | social | [feature_friendship](../features/social/feature_friendship/README.md) | [发送好友申请页](../features/social/feature_friendship/pages/page_send_friend_request/README.md) | Approved for Development | Friendship Wireframe v1 / Send | FRIEND-M06～M07、M10～M13 | Not Started | Blocked |
+| KC-P-019 | social | [feature_relationship_controls](../features/social/feature_relationship_controls/README.md) | [好友备注页](../features/social/feature_relationship_controls/pages/page_friend_remark/README.md) | Approved for Development | Relationship Wireframe v1 / Remark | REL-M01～M03、M11～M12 | Not Started | Blocked |
+| KC-P-020 | social | [feature_relationship_controls](../features/social/feature_relationship_controls/README.md) | [关系权限页](../features/social/feature_relationship_controls/pages/page_relationship_permissions/README.md) | Approved for Development | Relationship Wireframe v1 / Permissions | REL-M04～M08、M10～M12 | Not Started | Blocked |
+| KC-P-021 | social | [feature_relationship_controls](../features/social/feature_relationship_controls/README.md) | [黑名单页](../features/social/feature_relationship_controls/pages/page_blacklist/README.md) | Approved for Development | Relationship Wireframe v1 / Blacklist | REL-M09～M12 | Not Started | Blocked |
 | KC-P-022 | messaging | [feature_conversation_list](../features/messaging/feature_conversation_list/README.md) | [会话列表页](../features/messaging/feature_conversation_list/pages/page_conversations/README.md) | Draft | TBD | TBD | Not Started | Blocked |
 | KC-P-023 | messaging | [feature_system_notifications](../features/messaging/feature_system_notifications/README.md) | [系统通知页](../features/messaging/feature_system_notifications/pages/page_system_notifications/README.md) | Draft | TBD | TBD | Not Started | Blocked |
 | KC-P-024 | messaging | [feature_direct_chat](../features/messaging/feature_direct_chat/README.md) | [单聊页](../features/messaging/feature_direct_chat/pages/page_direct_chat/README.md) | Draft | TBD | TBD | Not Started | Blocked |

@@ -1,7 +1,7 @@
 # 统一用户主页
 
 - Scope ID：`KC-F-017`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属业务域：`social`
 - M0 范围：`In Release Scope`
 - 设计版本：`Social User Profile v1`
@@ -17,7 +17,7 @@
 - 旧页面显示/复制永久账号、颜值、收入、粉丝和作品等信息，并在同页混合关注、聊天、好友与分组操作。
 - 本期已移出关注/粉丝详情、作品/动态/相册发布和角色管理；个人中心也已确认隐藏永久账号。
 
-## 当前建议
+## 用户已确认方案
 
 - 只展示 `PublicMemberProfile` 允许字段：头像、公开昵称、认证标识、简介、城市/区域、职业、身高和批准的兴趣偏好。
 - 不展示永久账号、手机号、实名、精确生日/年龄、IP、收入、颜值或内部审核原因。
@@ -27,14 +27,14 @@
 
 ## 页面与文档
 
-- [KC-P-017 用户主页](pages/page_user_profile/README.md) — `In Review`
+- [KC-P-017 用户主页](pages/page_user_profile/README.md) — `Approved for Development`
 - [旧版审计](legacy_audit.md)
 - [状态与导航](flow_and_navigation.md)
 - [数据与 Fake 契约](data_and_api.md)
 - [Mock 场景](mock_scenarios.md)
 - [功能验收](acceptance.md)
 
-## 待用户确认
+## 用户已确认决策（2026-08-25）
 
 1. 三套旧页面合并为一个用户主页，并按权威关系状态改变动作。
 2. 不显示永久账号、手机号、年龄、IP、收入、颜值、关系统计和作品列表。
@@ -42,4 +42,4 @@
 
 ## 开发门禁
 
-用户批准后才可标记文档准入；全部 48 页批准前不创建 Flutter UI，全局 UI Flow Approved 前不得接真实用户资料或关系接口。
+本包已通过文档准入；全部 48 页批准前不创建 Flutter UI，全局 UI Flow Approved 前不得接真实用户资料或关系接口。

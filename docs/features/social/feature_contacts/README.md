@@ -1,7 +1,7 @@
 # 通讯录
 
 - Scope ID：`KC-F-015`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属业务域：`social`
 - M0 范围：`In Release Scope`
 - 设计版本：`Contacts v1`
@@ -18,7 +18,7 @@
 - App Shell 已确认“消息”分支承载通讯录与会话；本期保留好友关系和稳定单聊，不包含完整群聊。
 - 个人中心已确认不展示或复制永久统一账号，好友连接使用短期二维码。
 
-## 当前建议
+## 用户已确认方案
 
 - 通讯录只表示 App 内已经建立的好友，不等同于手机系统通讯录。
 - 顶部固定提供“新的朋友”和“添加好友”；黑名单从页面更多菜单进入，不与正常好友混排。
@@ -28,7 +28,7 @@
 
 ## 页面与文档
 
-- [KC-P-014 通讯录页](pages/page_contacts/README.md) — `In Review`
+- [KC-P-014 通讯录页](pages/page_contacts/README.md) — `Approved for Development`
 - [旧版审计](legacy_audit.md)
 - [流程与导航](flow_and_navigation.md)
 - [数据与 Fake 契约](data_and_api.md)
@@ -41,7 +41,7 @@
 - 会话列表、消息未读聚合和聊天传输；这些由 messaging 域负责。
 - 关注/粉丝列表、群成员目录或运营人员目录。
 
-## 待用户确认
+## 用户已确认决策（2026-08-25）
 
 1. “通讯录”只做 KingClub 好友列表，不读取或上传手机通讯录。
 2. 搜索只匹配公开昵称和自己的好友备注，不支持手机号、实名或永久账号。
@@ -49,4 +49,4 @@
 
 ## 开发门禁
 
-本包只定义 UI、领域和 Fake 契约。用户批准后才可更新为 `Approved for Development`；全部 48 页文档批准前不得创建 Flutter UI，全局 UI Flow Approved 前不得连接真实社交接口。
+本包已通过文档准入，只定义 UI、领域和 Fake 契约。全部 48 页文档批准前不得创建 Flutter UI，全局 UI Flow Approved 前不得连接真实社交接口。

@@ -3,6 +3,6 @@
 - [x] 单列表方向/状态表达、分页和返回明确
 - [x] 处理动作归统一用户主页，列表无误触快捷操作
 - [x] 权威刷新、事件失效、离线和版本不倒退规则明确
-- [ ] 用户批准 Friendship Wireframe v1 / Requests
+- [x] 用户于 2026-08-25 批准 Friendship Wireframe v1 / Requests
 
-未来 UI Mock 验证 FRIEND-M04～M05、M09～M13；批准前不得实现页面。
+未来 UI Mock 验证 FRIEND-M04～M05、M09～M13；当前仍受全局文档门禁约束。

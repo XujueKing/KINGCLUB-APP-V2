@@ -1,6 +1,6 @@
 # 通讯录旧版审计
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 审计基线：`KingClub-app master / 505d222 / 1.1.37`
 
 | 旧实现 | 发现 | V2 取舍 |

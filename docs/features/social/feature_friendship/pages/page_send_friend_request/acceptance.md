@@ -3,6 +3,6 @@
 - [x] 字段、校验、私有备注和目标引用明确
 - [x] 幂等、防重复、结果未知和状态竞态明确
 - [x] 未保存退出、会话失效和安全错误表达明确
-- [ ] 用户批准 Friendship Wireframe v1 / Send
+- [x] 用户于 2026-08-25 批准 Friendship Wireframe v1 / Send
 
-未来 UI Mock 验证 FRIEND-M06～M07、M10～M13；批准前不得实现页面。
+未来 UI Mock 验证 FRIEND-M06～M07、M10～M13；当前仍受全局文档门禁约束。
