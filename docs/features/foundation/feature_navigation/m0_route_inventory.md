@@ -7,6 +7,7 @@
 
 - `active`：已有批准页面文档，可进入最终 RouteData 设计。
 - `global-review`：全局归属已批准，但具体业务页面仍在 Draft；页面文档批准后才可激活。
+- `page-review`：页面评审包已经形成但尚未获用户批准；仍不得实现 RouteData。
 - `reserved`：只保留语义名；对应页面文档批准前不得分配最终 location、参数或实现 RouteIntent。
 - 所有 protected 页面默认禁止外部打开；以后启用 App Link/推送必须逐页变更本表。
 
@@ -16,14 +17,14 @@
 | KC-P-002 | MobileLoginRoute | authFlow | active |
 | KC-P-003 | SmsCodeRoute | authFlow | active |
 | KC-P-004 | TermsConsentRoute | authFlow | active |
-| KC-P-005 | RealNameAdultVerificationRoute | onboarding | reserved |
-| KC-P-006 | MembershipImageSubmissionRoute | onboarding | reserved |
-| KC-P-007 | StyleMusicPreferencesRoute | onboarding | reserved |
-| KC-P-008 | DrinkEventPreferencesRoute | onboarding | reserved |
-| KC-P-009 | MembershipReviewStatusRoute | onboarding/review | reserved |
+| KC-P-005 | RealNameAdultVerificationRoute | onboarding | active |
+| KC-P-006 | MembershipImageSubmissionRoute | onboarding | active |
+| KC-P-007 | StyleMusicPreferencesRoute | onboarding | active |
+| KC-P-008 | DrinkEventPreferencesRoute | onboarding | active |
+| KC-P-009 | MembershipReviewStatusRoute | onboarding/review | active |
 | KC-P-010 | AppShellRoute | protectedShell container | active |
-| KC-P-011 | HomeRoute | protectedShell/home | global-review |
-| KC-P-012 | SafeScannerRoute | protectedShell overlay | global-review |
+| KC-P-011 | HomeRoute | protectedShell/home | page-review |
+| KC-P-012 | SafeScannerRoute | protectedShell overlay | page-review |
 | KC-P-013 | ContentFeedRoute | protectedShell/discover | global-review |
 | KC-P-014 | ContactsRoute | protectedShell/messages | reserved |
 | KC-P-015 | AddFriendRoute | protectedShell/messages | reserved |

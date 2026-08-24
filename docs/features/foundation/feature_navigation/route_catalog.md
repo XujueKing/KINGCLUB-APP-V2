@@ -21,11 +21,11 @@
 | `SmsCodeRoute` | `/auth/code` | authFlow | 必需 `$extra: LoginFlowRef` | 已批准 | K101 明确成功后 replace；无合法 FlowStore 条目则回 mobile |
 | `TermsConsentRoute` | `/auth/consent` | authFlow | 必需 `$extra: ConsentRouteContext` | 已批准 | readOnly 使用 push/pop；loginRecovery 使用 replace |
 | `AppShellRoute` | 容器，无外部 location | protectedShell | 无 | 已批准 | 只在 approved member 下建立四个分支 |
-| `HomeRoute` | `/home` | protectedShell/home | 无 | Draft，仅冻结语义 | 登录后的默认主目的地 |
+| `HomeRoute` | `/home` | protectedShell/home | 无 | In Review | 登录后的默认主目的地 |
 | `ConversationsRoute` | `/messages` | protectedShell/messages | 无 | Draft，仅冻结语义 | 消息分支根 |
 | `ContentFeedRoute` | `/discover` | protectedShell/discover | 无 | Draft，仅冻结语义 | 发现分支根，只读内容 |
 | `MyProfileRoute` | `/me` | protectedShell/me | 无 | Draft，仅冻结语义 | 我的分支根 |
-| `SafeScannerRoute` | `/scan` | protectedShell overlay | 仅内存来源分支引用 | Draft，仅冻结语义 | 中央动作打开，关闭回来源分支 |
+| `SafeScannerRoute` | `/scan` | protectedShell overlay | 仅内存来源分支引用 | In Review | 中央动作或首页打开，关闭回来源分支 |
 
 上述 Shell 目标当前只授权为导航决策语义；实现仍须等待对应页面与全局文档门禁。导航单元测试使用 fake target，不得因为出现在路由目录就创建占位页面代码。
 

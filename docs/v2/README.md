@@ -50,6 +50,13 @@
 5. [酒类与活动偏好页](../features/identity/feature_member_onboarding/pages/page_drink_event_preferences/README.md)
 6. [会员审核状态页](../features/identity/feature_member_onboarding/pages/page_membership_review_status/README.md)
 
+当前业务页面评审入口：
+
+1. [Home Hub v1](../features/home/feature_home_hub/README.md)
+2. [KC-P-011 首页](../features/home/feature_home_hub/pages/page_home/README.md)
+3. [Safe Scanner v1](../features/home/feature_safe_scanner/README.md)
+4. [KC-P-012 扫码识别与安全分流页](../features/home/feature_safe_scanner/pages/page_safe_scanner/README.md)
+
 ## 与迁移资料的关系
 
 - 旧版现状与缺陷以 [迁移交接包](../migration/README.md) 为准。

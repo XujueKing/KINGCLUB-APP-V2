@@ -27,8 +27,8 @@
 | KC-F-009 | foundation | [原生能力与权限](../../features/foundation/feature_native_capabilities/README.md) | Draft | 先定义 Fake/权限状态 |
 | KC-F-010 | identity | [登录与鉴权会话](../../features/identity/feature_login_session/README.md) | Approved for Development | 纳入 |
 | KC-F-011 | identity | [会员注册与准入](../../features/identity/feature_member_onboarding/README.md) | Approved for Development | 纳入 |
-| KC-F-012 | home | [首页聚合](../../features/home/feature_home_hub/README.md) | Draft | 纳入 |
-| KC-F-013 | home | [安全扫码分流](../../features/home/feature_safe_scanner/README.md) | Draft | 纳入 |
+| KC-F-012 | home | [首页聚合](../../features/home/feature_home_hub/README.md) | In Review | 纳入 |
+| KC-F-013 | home | [安全扫码分流](../../features/home/feature_safe_scanner/README.md) | In Review | 纳入 |
 | KC-F-014 | content | [短视频/作品浏览](../../features/content/feature_content_feed/README.md) | Draft | 只读浏览；不含发布 |
 | KC-F-015 | social | [通讯录](../../features/social/feature_contacts/README.md) | Draft | 纳入 |
 | KC-F-016 | social | [好友关系](../../features/social/feature_friendship/README.md) | Draft | 纳入 |
@@ -74,8 +74,8 @@
 
 | Scope ID | 页面 | 来源/说明 | docStatus |
 |---|---|---|---|
-| KC-P-011 | 首页 | 拆自旧 `index` 首页 | Draft |
-| KC-P-012 | 扫码识别与安全分流页 | 好友码、桌码、入场码 allowlist | Draft |
+| KC-P-011 | 首页 | 拆自旧 `index` 首页 | In Review |
+| KC-P-012 | 扫码识别与安全分流页 | 好友码、桌码、入场码 allowlist | In Review |
 | KC-P-013 | 短视频/作品流页 | 旧 `index` 视频 tab + `openVideo` | Draft |
 
 ### 3.3 社交关系（8）
