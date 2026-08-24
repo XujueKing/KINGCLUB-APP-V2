@@ -1,5 +1,7 @@
 # 网络与超级接口传输
 
+- Scope ID：`KC-F-004`
+
 - 文档状态：`In Review`
 - 优先级：P0
 - 当前建议：Dio 只作为底层 HTTP adapter，对 feature 暴露自有语义端口

@@ -1,6 +1,8 @@
 # 登录、鉴权与会话
 
-- 文档状态：Approved for Development
+- Scope ID：`KC-F-010`
+
+- 文档状态：`Approved for Development`
 - 所属业务域：identity
 - 第一批建议方式：手机号短信验证码
 - 最后更新：2026-08-24

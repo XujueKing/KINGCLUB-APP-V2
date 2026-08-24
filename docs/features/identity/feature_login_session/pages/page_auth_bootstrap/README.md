@@ -1,8 +1,11 @@
 # 启动鉴权页
 
+- Scope ID：`KC-P-001`
+- M0 范围：`In Release Scope`
+
 ## 文档状态
 
-`Approved for Development`。2026-08-24 页面职责、状态、接口、安全、线框和验收已完成评审；实际编码仍须等待 Flutter foundation 文档准入。
+`Approved for Development`。2026-08-24 页面职责、状态、接口、安全、线框和验收已完成评审；实际编码仍须等待本期 48 页、foundation 与 design system 全部文档准入。
 
 ## 页面目标
 

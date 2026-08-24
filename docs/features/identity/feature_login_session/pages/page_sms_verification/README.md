@@ -1,8 +1,11 @@
 # 验证码页
 
+- Scope ID：`KC-P-003`
+- M0 范围：`In Release Scope`
+
 ## 文档状态
 
-`Approved for Development`。用户已于 2026-08-24 批准页面九项规则；实际编码仍须等待 Flutter foundation 文档准入。
+`Approved for Development`。用户已于 2026-08-24 批准页面九项规则；实际编码仍须等待本期 48 页、foundation 与 design system 全部文档准入。
 
 ## 页面目标
 

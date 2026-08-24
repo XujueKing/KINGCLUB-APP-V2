@@ -1,5 +1,7 @@
 # 会话与安全持久化
 
+- Scope ID：`KC-F-005`
+
 - 文档状态：`In Review`
 - 优先级：P0
 - 当前建议：自有 SecureStore/SessionRepository 端口，平台 adapter 使用 `flutter_secure_storage`

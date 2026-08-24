@@ -1,6 +1,8 @@
 # WebSocket 实时传输基础
 
-- 文档状态：In Review
+- Scope ID：`KC-F-022`
+
+- 文档状态：`In Review`
 - 所属业务域：messaging / realtime foundation
 - 最后更新：2026-08-24
 
@@ -40,4 +42,3 @@
 - [ ] 聊天补偿游标和消息幂等键已确认
 - [ ] 频道命名与授权模型已确认
 - [ ] 状态更新为 Approved for Development
-

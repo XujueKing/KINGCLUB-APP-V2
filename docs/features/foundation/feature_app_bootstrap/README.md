@@ -1,5 +1,7 @@
 # 应用启动与环境
 
+- Scope ID：`KC-F-001`
+
 - 文档状态：`Approved for Development`
 - 优先级：P0
 - ADR：[Flutter Foundation 技术基线](../../../v2/adr/0001_flutter_foundation_baseline.md)

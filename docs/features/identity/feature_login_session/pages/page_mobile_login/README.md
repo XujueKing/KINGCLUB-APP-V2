@@ -1,8 +1,11 @@
 # 手机号登录页
 
+- Scope ID：`KC-P-002`
+- M0 范围：`In Release Scope`
+
 ## 文档状态
 
-`Approved for Development`。页面交互、短信发送和未登录协议目录契约均已完成评审；实际编码仍须等待 Flutter foundation 文档准入。
+`Approved for Development`。页面交互、短信发送和未登录协议目录契约均已完成评审；实际编码仍须等待本期 48 页、foundation 与 design system 全部文档准入。
 
 ## 页面目标
 

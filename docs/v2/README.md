@@ -25,7 +25,7 @@
 7. [Flutter Foundation 功能目录](../features/foundation/README.md)：App 工程创建前的五个技术底座模块
 8. [ADR-0001 Flutter Foundation 技术基线](adr/0001_flutter_foundation_baseline.md)：已批准的 SDK、平台与核心依赖基线
 9. [App 范围、页面覆盖与 UI 交付门禁](APP_SCOPE_AND_UI_DELIVERY_GATE.md)：本期全量文档、UI Mock 与真实接入覆盖账本
-10. [本期范围评审包](scope/README.md)：旧版 69 路由审计与 46 页首发范围提案
+10. [本期范围评审包](scope/README.md)：旧版 69 路由审计与已冻结的 48 页首发范围
 
 首批页面评审入口：
 

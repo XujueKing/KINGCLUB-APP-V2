@@ -1,5 +1,7 @@
 # 路由与导航
 
+- Scope ID：`KC-F-002`
+
 - 文档状态：`In Review`
 - 优先级：P0
 - 已确认技术：`go_router + go_router_builder` 类型化路由
