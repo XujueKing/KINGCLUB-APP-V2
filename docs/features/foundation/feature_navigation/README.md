@@ -12,7 +12,7 @@
 
 | 分区 | 示例 | 规则 |
 |---|---|---|
-| bootstrap | `/bootstrap` | 唯一冷启动入口，不可被深链直接打开 |
+| bootstrap | `/auth/bootstrap` | 唯一冷启动入口，不可被深链直接打开 |
 | public | 帮助、公开协议 | 无会话可访问，仍受域名/参数白名单 |
 | auth flow | `/auth/mobile|code|consent` | 敏感上下文只用内存 flowId，禁止系统恢复和外部深链 |
 | protected | 首页、订单、消息、个人中心 | 必须经过已复核 SessionState 守卫 |

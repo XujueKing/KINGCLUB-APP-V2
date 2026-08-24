@@ -5,7 +5,7 @@
 
 ## 本轮基础模块
 
-1. [应用启动与环境](feature_app_bootstrap/README.md)
+1. [应用启动与环境](feature_app_bootstrap/README.md) — 详细设计已完成，`In Review`，待用户批准
 2. [路由与导航](feature_navigation/README.md)
 3. [网络与超级接口传输](feature_networking/README.md)
 4. [会话与安全持久化](feature_session_persistence/README.md)
@@ -19,6 +19,7 @@
 - ADR-0001 已批准；本机已升级并固定为 Flutter `3.47.1 stable / Dart 3.13.1`。
 - Android SDK 36.1 与 JDK 21 已识别，但 Android licenses 尚未全部接受；iOS 工具链仍需在 macOS 上验证。
 - 当前仓库不存在 `pubspec.yaml`、`lib/` 或 Android/iOS Flutter 工程，现阶段仍是文档评审。
+- app_bootstrap 已补齐启动编排、三环境配置、失败恢复和测试计划，当前只缺用户批准；其余四个 foundation 模块仍待详细设计。
 
 ## 开发准入
 

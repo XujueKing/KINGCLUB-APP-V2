@@ -25,8 +25,8 @@
 4. `session/persistence`：原子安全存储、凭据版本和清理协议。
 5. `observability`：敏感字段禁止清单与启动埋点出口。
 
-### 当前建议与待用户决策
+### 后续已确认与待决策
 
-- **当前建议**：状态管理优先采用 Riverpod，路由优先采用 `go_router`；具体库和版本在 foundation ADR 中评审，不写入页面领域模型。
-- **待用户决策**：是否接受上述两项作为 Flutter V2 全局默认技术选型。
+- **已确认事实**：ADR-0001 已批准 Riverpod 3 + codegen 与 `go_router + go_router_builder`；页面仍只依赖 application 状态和导航意图，不依赖库内部类型。
+- **已确认事实**：app_bootstrap 详细设计把 `/auth/bootstrap` 冻结为正式 App Root 的唯一内部初始位置，并确保 K103/K104 不阻塞 BootstrapHost 首帧。
 - **待用户决策**：正式 KingClub Logo、品牌底色和启动动画资产；未提供前只允许设计系统占位 Token，不使用临时图片进入发布包。
