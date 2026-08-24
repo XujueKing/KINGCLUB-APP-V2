@@ -46,7 +46,7 @@
 | KC-F-028 | commerce | [订单中心](../../features/commerce/feature_order_center/README.md) | Draft | 纳入；V2 新补 |
 | KC-F-029 | commerce | [支付](../../features/commerce/feature_payment/README.md) | Draft | 纳入 |
 | KC-F-030 | membership_wallet | [资产流水](../../features/membership_wallet/feature_asset_ledger/README.md) | Draft | 只读；不含转赠 |
-| KC-F-031 | profile_settings | [个人中心](../../features/profile_settings/feature_profile_center/README.md) | Draft | 纳入 |
+| KC-F-031 | profile_settings | [个人中心](../../features/profile_settings/feature_profile_center/README.md) | In Review | 纳入 |
 | KC-F-032 | profile_settings | [设置与安全](../../features/profile_settings/feature_settings_security/README.md) | Draft | 纳入 |
 
 以上 32 项均已建立独立功能目录；目录建立只代表进入文档设计队列，不代表允许开发。
@@ -128,9 +128,9 @@
 | Scope ID | 页面 | 来源/说明 | docStatus |
 |---|---|---|---|
 | KC-P-039 | 钱包与资产流水页 | 旧 `mybalance` | Draft |
-| KC-P-040 | 我的主页 | 拆自旧 `index` 我的 tab | Draft |
-| KC-P-041 | 编辑个人资料页 | 旧 `myinfo` | Draft |
-| KC-P-042 | 个人二维码页 | 旧 `mycode` 个人模式 | Draft |
+| KC-P-040 | 我的主页 | 拆自旧 `index` 我的 tab | In Review |
+| KC-P-041 | 编辑个人资料页 | 旧 `myinfo` | In Review |
+| KC-P-042 | 个人二维码页 | 旧 `mycode` 个人模式 | In Review |
 | KC-P-043 | 设置页 | 旧 `setting`，改为客户端固定 allowlist | Draft |
 | KC-P-044 | 支付安全页 | 旧 `modiffypwd` | Draft |
 | KC-P-045 | 账号注销页 | 旧 `del_user_account` | Draft |
