@@ -74,9 +74,9 @@ core/shared 不得反向依赖具体 feature
 ## 5. 状态、路由和依赖注入
 
 - **当前建议**：选择一种可测试、支持异步状态和依赖注入的统一方案，禁止多套状态框架并存。
-- **待用户决策**：Riverpod 或 BLoC/Cubit。
+- **当前建议**：ADR-0001 建议 Riverpod 3 + codegen 作为唯一状态管理和依赖装配方案，等待用户批准。
 - **当前建议**：路由必须支持登录守卫、参数类型化、深链和页面级埋点。
-- **待用户决策**：`go_router` 或其他团队已有标准。
+- **当前建议**：ADR-0001 建议 `go_router + go_router_builder` 类型化路由，等待用户批准。
 - **当前建议**：依赖在应用装配层注册，页面不得自行创建 Repository。
 
 ## 6. 数据与接口策略
@@ -115,3 +115,4 @@ core/shared 不得反向依赖具体 feature
 5. 多环境、CI/CD、应用签名和发布渠道。
 6. 是否需要离线阅读、弱网队列或多账号能力。
 
+第一批技术选择评审见 [ADR-0001](adr/0001_flutter_foundation_baseline.md)；ADR 与五个 foundation 模块批准前不创建 Flutter 工程。

@@ -52,3 +52,6 @@ lib/features/identity/phone_login/presentation/pages/verification_code/
 3. 页面与 API/Mock 契约通过评审后，才创建对应 `lib/features/` 目录。
 4. 功能 README 必须链接所有页面目录；页面必须反向链接所属功能。
 
+## 当前 Foundation 入口
+
+Flutter 工程创建前的技术底座评审见 [foundation/README.md](foundation/README.md)。这些目录是跨功能能力文档，不代表 Flutter 代码已经创建。

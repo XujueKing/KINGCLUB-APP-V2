@@ -2,7 +2,7 @@
 
 ## 文档状态
 
-`In Review`。未批准前不得创建 Flutter 页面实现。
+`Approved for Development`。用户已于 2026-08-24 批准页面九项规则；实际编码仍须等待 Flutter foundation 文档准入。
 
 ## 页面目标
 

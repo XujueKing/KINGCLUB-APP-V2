@@ -101,9 +101,10 @@ ccsop-service + kingclub business line
 - **已确认事实**：migration `019` 已完成短信挑战、本地登录身份投影、协议/同意、设备登记和会话时效基础；空白 MySQL 8.4 从 `001`～`019` 完整实迁通过。
 - **已确认事实**：服务端 `business/kingclub-v2 / d9929ff` 已完成 migration `020～022`、短信 Router、七个 `K...` 接口、五个 Routine、协议目录完整性校验和 WebSocket 撤销关闭；本地 `kingclub_v2` 已实迁至 022。
 - **已确认事实**：KingClub 37 个测试文件/133 项测试、物业 190 个测试文件/656 项测试及两边完整质量门禁通过；验证码/限流、Refresh Token 重用、协议摘要失败关闭、真实 WebSocket 撤销观测和 KYC 冲突均已完成。
-- **已确认事实**：启动鉴权页、手机号登录页和验证码页规格已批准；协议确认页仍为 `In Review`。
-- **已确认事实**：验证码页已批准 K102 结果未知时失败关闭策略；协议确认页完整评审稿已形成，并明确本地确认与 K102 最终同意落库边界。
-- **当前建议**：批准协议确认页九项规则，完成四页准入后再建设 foundation 文档与工程骨架。
+- **已确认事实**：启动鉴权、手机号登录、验证码和协议确认四个首批页面规格均已批准。
+- **已确认事实**：验证码页采用 K102 结果未知时失败关闭；协议确认页采用本地 ConsentSnapshot、由 K102 最终落库。
+- **当前状态**：Flutter app_bootstrap、navigation、networking、session/persistence、observability 五个独立 foundation 目录与 ADR-0001 已建立，均处于 `In Review`。
+- **当前建议**：先批准 SDK/平台与核心依赖基线，再逐个完成 foundation 详细流程和数据契约；全部批准后才创建工程骨架。
 - **待验收**：生产短信/协议/服务凭据、生产容量、生产日志以及后续物业正式注册复用仍未验收。
 
 ## 5. 第一阶段工作包
@@ -114,7 +115,7 @@ ccsop-service + kingclub business line
 4. [WebSocket 实时传输](../features/messaging/feature_realtime_transport/README.md)
 5. [同城统一账号](../features/identity/feature_unified_city_identity/README.md)
 
-服务端本地开发门禁已通过；四个登录页面文档仍须分别批准，批准前不开始 Flutter 登录页或业务页面开发。
+服务端本地开发门禁与四个登录页面文档准入均已通过；Flutter foundation 仍在评审，批准前不开始 Flutter 工程或页面开发。
 
 ## 6. 待用户决策
 
