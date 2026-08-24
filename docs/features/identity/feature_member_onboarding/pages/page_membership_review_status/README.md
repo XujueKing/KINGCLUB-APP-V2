@@ -1,7 +1,7 @@
 # 会员审核状态页
 
 - Scope ID：`KC-P-009`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属功能：[会员注册、资料初始化与准入](../../README.md)
 - 旧版来源：参数化 `success` + `regist5` 结果
 - 路由语义：`MembershipReviewStatusRoute`
@@ -44,4 +44,4 @@
 
 ## 验收
 
-见 [acceptance.md](acceptance.md)。当前仍不得实现 UI 或接真实审核通知。
+见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁，不得接真实审核通知。

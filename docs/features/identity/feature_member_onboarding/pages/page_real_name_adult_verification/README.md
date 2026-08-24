@@ -1,7 +1,7 @@
 # 实名与成年核验页
 
 - Scope ID：`KC-P-005`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属功能：[会员注册、资料初始化与准入](../../README.md)
 - 旧版来源：`regist2`
 - 路由语义：`RealNameAdultVerificationRoute`，onboarding 分区，禁止外部直达
@@ -53,4 +53,4 @@
 
 ## 验收
 
-见 [acceptance.md](acceptance.md)。当前仍不得实现 UI 或接入真实核验。
+见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁，不得接入真实核验。

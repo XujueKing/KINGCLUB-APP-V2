@@ -41,7 +41,7 @@
 3. [路由与导航](../features/foundation/feature_navigation/README.md)
 4. [Design System v1](../features/foundation/feature_design_system/README.md)
 
-当前业务页面评审入口：
+已批准的会员准入页面：
 
 1. [Member Onboarding v1](../features/identity/feature_member_onboarding/README.md)
 2. [实名与成年核验页](../features/identity/feature_member_onboarding/pages/page_real_name_adult_verification/README.md)

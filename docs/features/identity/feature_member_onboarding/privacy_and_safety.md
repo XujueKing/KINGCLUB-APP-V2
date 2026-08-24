@@ -1,6 +1,6 @@
 # 隐私、安全与审核公平性
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 ## 敏感数据
 

@@ -1,6 +1,6 @@
 # 数据、Repository 与待建接口契约
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 契约性质：UI Mock 的批准候选；真实 K 接口尚未编号、登记或实现
 
 ## 1. 页面领域模型

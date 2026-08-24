@@ -1,6 +1,6 @@
 # 会员准入用户流程与导航
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 ## 1. 入口
 

@@ -26,7 +26,7 @@
 | KC-F-008 | foundation | [Mock Runtime](../../features/foundation/feature_mock_runtime/README.md) | Draft | 纳入 |
 | KC-F-009 | foundation | [原生能力与权限](../../features/foundation/feature_native_capabilities/README.md) | Draft | 先定义 Fake/权限状态 |
 | KC-F-010 | identity | [登录与鉴权会话](../../features/identity/feature_login_session/README.md) | Approved for Development | 纳入 |
-| KC-F-011 | identity | [会员注册与准入](../../features/identity/feature_member_onboarding/README.md) | In Review | 纳入 |
+| KC-F-011 | identity | [会员注册与准入](../../features/identity/feature_member_onboarding/README.md) | Approved for Development | 纳入 |
 | KC-F-012 | home | [首页聚合](../../features/home/feature_home_hub/README.md) | Draft | 纳入 |
 | KC-F-013 | home | [安全扫码分流](../../features/home/feature_safe_scanner/README.md) | Draft | 纳入 |
 | KC-F-014 | content | [短视频/作品浏览](../../features/content/feature_content_feed/README.md) | Draft | 只读浏览；不含发布 |
@@ -63,11 +63,11 @@
 | KC-P-002 | 手机号登录页 | 已有 `page_mobile_login` | Approved for Development |
 | KC-P-003 | 验证码页 | 已有 `page_sms_verification` | Approved for Development |
 | KC-P-004 | 协议确认页 | 已有 `page_terms_consent` | Approved for Development |
-| KC-P-005 | 实名与成年核验页 | 旧 `regist2` | In Review |
-| KC-P-006 | 会员形象资料页 | 旧 `regist3` | In Review |
-| KC-P-007 | 着装与音乐偏好页 | 旧 `regist4` | In Review |
-| KC-P-008 | 酒类与活动偏好页 | 旧 `regist5` | In Review |
-| KC-P-009 | 会员审核状态页 | 替代参数化 `success` | In Review |
+| KC-P-005 | 实名与成年核验页 | 旧 `regist2` | Approved for Development |
+| KC-P-006 | 会员形象资料页 | 旧 `regist3` | Approved for Development |
+| KC-P-007 | 着装与音乐偏好页 | 旧 `regist4` | Approved for Development |
+| KC-P-008 | 酒类与活动偏好页 | 旧 `regist5` | Approved for Development |
+| KC-P-009 | 会员审核状态页 | 替代参数化 `success` | Approved for Development |
 | KC-P-010 | App Shell/底部导航容器 | 拆自旧 `index` | Approved for Development |
 
 ### 3.2 首页与内容浏览（3）

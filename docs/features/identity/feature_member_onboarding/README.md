@@ -1,7 +1,7 @@
 # 会员注册、资料初始化与准入
 
 - Scope ID：`KC-F-011`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属业务域：`identity`
 - M0 范围：`In Release Scope`
 - 设计版本：`Member Onboarding v1`
@@ -41,11 +41,11 @@
 
 ## 页面
 
-- [KC-P-005 实名与成年核验](pages/page_real_name_adult_verification/README.md) — `In Review`
-- [KC-P-006 会员形象资料](pages/page_membership_image_submission/README.md) — `In Review`
-- [KC-P-007 着装与音乐偏好](pages/page_style_music_preferences/README.md) — `In Review`
-- [KC-P-008 酒类与活动偏好](pages/page_drink_event_preferences/README.md) — `In Review`
-- [KC-P-009 会员审核状态](pages/page_membership_review_status/README.md) — `In Review`
+- [KC-P-005 实名与成年核验](pages/page_real_name_adult_verification/README.md) — `Approved for Development`
+- [KC-P-006 会员形象资料](pages/page_membership_image_submission/README.md) — `Approved for Development`
+- [KC-P-007 着装与音乐偏好](pages/page_style_music_preferences/README.md) — `Approved for Development`
+- [KC-P-008 酒类与活动偏好](pages/page_drink_event_preferences/README.md) — `Approved for Development`
+- [KC-P-009 会员审核状态](pages/page_membership_review_status/README.md) — `Approved for Development`
 
 ## 配套文档
 
@@ -63,7 +63,9 @@
 - App 内申诉页面；本期只显示批准的客服方式和可重提状态。
 - 真实人脸 SDK、真实媒体上传、真实准入接口或审核 WebSocket 接入。
 
-## 待用户确认
+## 已确认决策
+
+用户于 2026-08-25 回复“按建议确认”，批准以下方案：
 
 1. 继续要求两张会员形象资料：一张清晰正面照、一张近期半身/全身照。
 2. 四类兴趣偏好均允许跳过，不作为会员审核硬门槛。
@@ -73,4 +75,4 @@
 
 ## 开发门禁
 
-当前评审包只定义产品、UI 和 Fake/port 契约。用户批准后才可更新为 `Approved for Development`；仍须等待本期全部 48 页文档准入后才能创建 Flutter UI，项目达到 `UI Flow Approved` 前不得连接真实服务或身份 SDK。
+本评审包已达到 `Approved for Development`，但只批准未来进入 UI/Mock 阶段。仍须等待本期全部 48 页文档准入后才能创建 Flutter UI，项目达到 `UI Flow Approved` 前不得连接真实服务或身份 SDK。
