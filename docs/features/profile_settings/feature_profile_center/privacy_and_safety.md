@@ -1,6 +1,6 @@
 # 个人资料隐私与安全
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 
 ## 数据边界
 

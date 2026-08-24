@@ -24,10 +24,10 @@
 | `HomeRoute` | `/home` | protectedShell/home | 无 | 已批准 | 登录后的默认主目的地 |
 | `ConversationsRoute` | `/messages` | protectedShell/messages | 无 | Draft，仅冻结语义 | 消息分支根 |
 | `ContentFeedRoute` | `/discover` | protectedShell/discover | 无 | Draft，仅冻结语义 | 发现分支根，只读内容 |
-| `MyProfileRoute` | `/me` | protectedShell/me | 无 | In Review | 我的分支根；评审通过前不可实现 |
+| `MyProfileRoute` | `/me` | protectedShell/me | 无 | 已批准 | 我的分支根 |
 | `SafeScannerRoute` | `/scan` | protectedShell overlay | 仅内存来源分支引用 | 已批准 | 中央动作或首页打开，关闭回来源分支 |
-| `EditProfileRoute` | `/me/edit` | protectedShell/me | 无 | In Review | 从我的主页进入；未保存退出需确认 |
-| `PersonalQrRoute` | `/me/qr` | protectedShell/me | 无 | In Review | 从我的主页进入；禁止外部打开和路由参数 |
+| `EditProfileRoute` | `/me/edit` | protectedShell/me | 无 | 已批准 | 从我的主页进入；未保存退出需确认 |
+| `PersonalQrRoute` | `/me/qr` | protectedShell/me | 无 | 已批准 | 从我的主页进入；禁止外部打开和路由参数 |
 
 上述 Shell 目标当前只授权为导航决策语义；实现仍须等待对应页面与全局文档门禁。导航单元测试使用 fake target，不得因为出现在路由目录就创建占位页面代码。
 
@@ -73,7 +73,7 @@ back
 resetForSessionLoss(noticeCategory)
 ```
 
-`selectPrimaryDestination` 和 `openSafeScanner` 已随 Shell/扫码文档批准。`openEditProfile` 和 `openPersonalQr` 当前只是随页面评审包冻结的候选语义，用户批准页面前不得实现。当前不得提前定义通用 future route；新增业务 RouteIntent 必须与对应功能/页面文档一起评审。
+`selectPrimaryDestination`、`openSafeScanner`、`openEditProfile` 和 `openPersonalQr` 已随对应页面文档批准；仍须等待全部 48 页文档批准后才可在 Flutter UI 中实现。当前不得提前定义通用 future route；新增业务 RouteIntent 必须与对应功能/页面文档一起评审。
 
 ## 5. 导航动作语义
 

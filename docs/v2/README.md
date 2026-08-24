@@ -57,7 +57,7 @@
 3. [Safe Scanner v1](../features/home/feature_safe_scanner/README.md)
 4. [KC-P-012 扫码识别与安全分流页](../features/home/feature_safe_scanner/pages/page_safe_scanner/README.md)
 
-当前待用户评审的个人中心页面：
+已批准的个人中心页面：
 
 1. [Profile Center v1](../features/profile_settings/feature_profile_center/README.md)
 2. [KC-P-040 我的主页](../features/profile_settings/feature_profile_center/pages/page_my_profile/README.md)

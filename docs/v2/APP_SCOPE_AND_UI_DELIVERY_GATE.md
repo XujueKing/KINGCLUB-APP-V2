@@ -55,7 +55,7 @@
 | club | AA、VIP 组局、入场、私人储物柜共 9 页已冻结 | 完成状态机和页面设计；员工交付不纳入 |
 | commerce | 点单、确认、订单中心、详情和支付共 5 页已冻结 | 完成订单/支付状态机和页面设计 |
 | membership_wallet | 资产流水 1 页已冻结 | 只读设计；不得引入 D3 资产转赠 |
-| profile_settings | 我的、编辑资料、二维码、设置、安全、注销、关于等 7 页已冻结；前三页评审包已形成 | 评审个人中心 3 页，再设计设置与安全 4 页；账号绑定不纳入 |
+| profile_settings | 个人中心前三页已批准；设置、安全、注销、关于等 4 页已冻结 | 设计设置与安全 4 页；账号绑定不纳入 |
 | operations | 已确认移出消费者首发 | 不建立本期页面目录或路由 |
 
 M0 范围已经完成；M1 文档尚未完成，仍不能开始 UI。
@@ -96,7 +96,7 @@ M0 范围已经完成；M1 文档尚未完成，仍不能开始 UI。
 | KC-F-028 | commerce | [订单中心](../features/commerce/feature_order_center/README.md) | Draft |
 | KC-F-029 | commerce | [支付](../features/commerce/feature_payment/README.md) | Draft |
 | KC-F-030 | membership_wallet | [资产流水](../features/membership_wallet/feature_asset_ledger/README.md) | Draft |
-| KC-F-031 | profile_settings | [个人中心](../features/profile_settings/feature_profile_center/README.md) | In Review |
+| KC-F-031 | profile_settings | [个人中心](../features/profile_settings/feature_profile_center/README.md) | Approved for Development |
 | KC-F-032 | profile_settings | [设置与安全](../features/profile_settings/feature_settings_security/README.md) | Draft |
 
 ## 5. M0 冻结页面覆盖账本
@@ -144,9 +144,9 @@ M0 范围已经完成；M1 文档尚未完成，仍不能开始 UI。
 | KC-P-037 | commerce | [feature_order_center](../features/commerce/feature_order_center/README.md) | [订单详情页](../features/commerce/feature_order_center/pages/page_order_detail/README.md) | Draft | TBD | TBD | Not Started | Blocked |
 | KC-P-038 | commerce | [feature_payment](../features/commerce/feature_payment/README.md) | [支付处理与结果页](../features/commerce/feature_payment/pages/page_payment_result/README.md) | Draft | TBD | TBD | Not Started | Blocked |
 | KC-P-039 | membership_wallet | [feature_asset_ledger](../features/membership_wallet/feature_asset_ledger/README.md) | [钱包与资产流水页](../features/membership_wallet/feature_asset_ledger/pages/page_asset_ledger/README.md) | Draft | TBD | TBD | Not Started | Blocked |
-| KC-P-040 | profile_settings | [feature_profile_center](../features/profile_settings/feature_profile_center/README.md) | [我的主页](../features/profile_settings/feature_profile_center/pages/page_my_profile/README.md) | In Review | Profile Center Wireframe v1 / Me | PROFILE-M01～M04、M16～M18 | Not Started | Blocked |
-| KC-P-041 | profile_settings | [feature_profile_center](../features/profile_settings/feature_profile_center/README.md) | [编辑个人资料页](../features/profile_settings/feature_profile_center/pages/page_edit_profile/README.md) | In Review | Profile Center Wireframe v1 / Edit | PROFILE-M05～M12、M16～M18 | Not Started | Blocked |
-| KC-P-042 | profile_settings | [feature_profile_center](../features/profile_settings/feature_profile_center/README.md) | [个人二维码页](../features/profile_settings/feature_profile_center/pages/page_personal_qr/README.md) | In Review | Profile Center Wireframe v1 / QR | PROFILE-M13～M18 | Not Started | Blocked |
+| KC-P-040 | profile_settings | [feature_profile_center](../features/profile_settings/feature_profile_center/README.md) | [我的主页](../features/profile_settings/feature_profile_center/pages/page_my_profile/README.md) | Approved for Development | Profile Center Wireframe v1 / Me | PROFILE-M01～M04、M16～M18 | Not Started | Blocked |
+| KC-P-041 | profile_settings | [feature_profile_center](../features/profile_settings/feature_profile_center/README.md) | [编辑个人资料页](../features/profile_settings/feature_profile_center/pages/page_edit_profile/README.md) | Approved for Development | Profile Center Wireframe v1 / Edit | PROFILE-M05～M12、M16～M18 | Not Started | Blocked |
+| KC-P-042 | profile_settings | [feature_profile_center](../features/profile_settings/feature_profile_center/README.md) | [个人二维码页](../features/profile_settings/feature_profile_center/pages/page_personal_qr/README.md) | Approved for Development | Profile Center Wireframe v1 / QR | PROFILE-M13～M18 | Not Started | Blocked |
 | KC-P-043 | profile_settings | [feature_settings_security](../features/profile_settings/feature_settings_security/README.md) | [设置页](../features/profile_settings/feature_settings_security/pages/page_settings/README.md) | Draft | TBD | TBD | Not Started | Blocked |
 | KC-P-044 | profile_settings | [feature_settings_security](../features/profile_settings/feature_settings_security/README.md) | [支付安全页](../features/profile_settings/feature_settings_security/pages/page_payment_security/README.md) | Draft | TBD | TBD | Not Started | Blocked |
 | KC-P-045 | profile_settings | [feature_settings_security](../features/profile_settings/feature_settings_security/README.md) | [账号注销页](../features/profile_settings/feature_settings_security/pages/page_account_deletion/README.md) | Draft | TBD | TBD | Not Started | Blocked |

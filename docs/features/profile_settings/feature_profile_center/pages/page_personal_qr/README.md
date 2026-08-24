@@ -1,7 +1,7 @@
 # 个人二维码页
 
 - Scope ID：`KC-P-042`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[个人中心与资料](../../README.md)
 - 旧版来源：`pages/mycode/mycode`
@@ -43,7 +43,7 @@
 ## 二维码契约
 
 - 载荷是服务端签发的随机 `friendInviteToken` 表达，不编码 `userAccount`、手机号、Authorization 或任意网页 URL。
-- 当前建议有效期为 10 分钟；每次刷新撤销或替代前一个 token，服务端消费时仍验证签发人状态、过期和撤销。
+- 已确认有效期为 10 分钟；每次刷新撤销或替代前一个 token，服务端消费时仍验证签发人状态、过期和撤销。
 - 扫描结果只进入好友预览/申请；建立好友关系需要后续明确确认。
 - M0 不保存到相册、不调用系统分享、不复制 payload，也不签发永久码或离线码。
 
@@ -62,4 +62,4 @@
 
 ## 验收
 
-页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。本页当前仅供用户评审。
+页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁。

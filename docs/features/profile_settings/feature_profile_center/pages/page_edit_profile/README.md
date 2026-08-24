@@ -1,7 +1,7 @@
 # 编辑个人资料页
 
 - Scope ID：`KC-P-041`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[个人中心与资料](../../README.md)
 - 旧版来源：`pages/myinfo/myinfo`
@@ -44,7 +44,7 @@
 
 ## 可编辑字段
 
-| 字段 | 当前建议校验 | 说明 |
+| 字段 | 已确认 v1 校验 | 说明 |
 |---|---|---|
 | avatar | 图片类型、尺寸和内容安全由媒体契约约束 | Fake 阶段只模拟选择/裁剪/上传 |
 | nickname | 去首尾空白后 2～24 个字符 | 不接受全空白或控制字符 |
@@ -54,7 +54,7 @@
 | heightCm | 120～230 的整数或空值 | 只作公开资料，不作实名事实 |
 | preferenceOptionIds | 每类 0～1 个稳定 optionId | 到店时段、酒水、音乐、社交四类 |
 
-以上长度和范围是 v1 UI 当前建议，用户批准后冻结；服务端仍需独立执行等价或更严格校验。
+以上长度和范围已冻结为 v1 UI 契约；服务端仍需独立执行等价或更严格校验。
 
 ## 只读与排除字段
 
@@ -70,4 +70,4 @@
 
 ## 验收
 
-页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。本页当前仅供用户评审。
+页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁。

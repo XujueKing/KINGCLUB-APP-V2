@@ -1,7 +1,7 @@
 # 我的主页
 
 - Scope ID：`KC-P-040`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[个人中心与资料](../../README.md)
 - 旧版来源：`pages/index/index` 的“我的”分支
@@ -72,4 +72,4 @@
 
 ## 验收
 
-页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。本页当前仅供用户评审；批准后仍须等待全局 UI/Mock 门禁。
+页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁。

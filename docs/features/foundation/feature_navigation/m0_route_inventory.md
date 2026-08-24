@@ -52,9 +52,9 @@
 | KC-P-037 | OrderDetailRoute | protectedShell/me | reserved |
 | KC-P-038 | PaymentResultRoute | protectedShell overlay | reserved |
 | KC-P-039 | AssetLedgerRoute | protectedShell/me | reserved |
-| KC-P-040 | MyProfileRoute | protectedShell/me | page-review |
-| KC-P-041 | EditProfileRoute | protectedShell/me | page-review |
-| KC-P-042 | PersonalQrRoute | protectedShell/me | page-review |
+| KC-P-040 | MyProfileRoute | protectedShell/me | active |
+| KC-P-041 | EditProfileRoute | protectedShell/me | active |
+| KC-P-042 | PersonalQrRoute | protectedShell/me | active |
 | KC-P-043 | SettingsRoute | protectedShell/me | reserved |
 | KC-P-044 | PaymentSecurityRoute | protectedShell/me | reserved |
 | KC-P-045 | AccountDeletionRoute | protectedShell/me | reserved |

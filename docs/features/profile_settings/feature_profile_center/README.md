@@ -1,7 +1,7 @@
 # 个人中心与资料
 
 - Scope ID：`KC-F-031`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属业务域：`profile_settings`
 - M0 范围：`In Release Scope`
 - 设计版本：`Profile Center v1`
@@ -20,7 +20,7 @@
 - App Shell v1 已确认“我的”分支归属资料、订单、钱包、私人储物柜和设置；代理、员工、财务、账号绑定和群二维码不进入本期。
 - Member Onboarding v1 已确认不展示颜值分/内部标签，偏好使用稳定 optionId，并允许以后在个人资料中修改。
 
-## 当前建议
+## 用户已确认方案
 
 ### 我的主页固定结构
 
@@ -43,9 +43,9 @@
 
 ## 页面
 
-- [KC-P-040 我的主页](pages/page_my_profile/README.md) — `In Review`
-- [KC-P-041 编辑个人资料页](pages/page_edit_profile/README.md) — `In Review`
-- [KC-P-042 个人二维码页](pages/page_personal_qr/README.md) — `In Review`
+- [KC-P-040 我的主页](pages/page_my_profile/README.md) — `Approved for Development`
+- [KC-P-041 编辑个人资料页](pages/page_edit_profile/README.md) — `Approved for Development`
+- [KC-P-042 个人二维码页](pages/page_personal_qr/README.md) — `Approved for Development`
 
 ## 配套文档
 
@@ -64,7 +64,7 @@
 - 个人二维码保存、外部分享、永久有效或离线新签发。
 - 真实资料、媒体上传、二维码签发接口或系统相册/相机权限。
 
-## 待用户确认
+## 用户已确认决策（2026-08-25）
 
 1. “我的”采用资料卡、资料动作、订单/资产/储物柜/设置入口，不保留旧作品/动态/相册和关系统计。
 2. 不显示或复制统一 `U... userAccount`；用户连接主要通过短期个人二维码和通讯录流程。
@@ -75,4 +75,4 @@
 
 ## 开发门禁
 
-本包只定义产品、UI 与 Fake/port 契约。用户批准后才可更新为 `Approved for Development`；全部 48 页文档批准前不得创建 Flutter UI，项目达到 `UI Flow Approved` 前不得连接真实资料、媒体或二维码接口。
+本包已通过文档准入，只定义产品、UI 与 Fake/port 契约。全部 48 页文档批准前不得创建 Flutter UI，项目达到 `UI Flow Approved` 前不得连接真实资料、媒体或二维码接口。

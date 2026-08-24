@@ -1,9 +1,9 @@
 # 个人中心数据、Repository 与 Fake 契约
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 契约性质：UI Mock 候选；真实 K 接口尚未编号、登记或实现
 
-## 当前建议的模型
+## 已确认模型
 
 ```text
 MyProfileSnapshot
