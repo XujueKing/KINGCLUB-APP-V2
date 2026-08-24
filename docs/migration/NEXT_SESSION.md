@@ -61,9 +61,9 @@ ccsop-property-identity-a033/feature/unified-identity-authority-v1
 
 用户已确认 Flutter 客户端采用全局门禁：本期全部功能/页面文档批准 → 全部 UI Mock → 整 App UI 流程验收 → 真实超级接口/WebSocket/SDK 接入。下一次继续：
 
-1. 首先冻结本期 App 功能/页面总清单与不做清单，建立唯一覆盖账本；未完成范围确认前不继续扩张实现范围。
-2. 用户评审精简后的 navigation；继续完成 networking、session/persistence、observability 和 design_system 文档，但只定义 App 端 port、Fake、设计 Token 和未来真实 adapter 契约。
-3. 为清单内每个功能和页面建立独立目录，逐项完成并批准产品、交互、UI 状态、Mock 场景和验收文档。
+1. 旧版 69 个物理路由已完成逐项审计，已形成 [46 页普通会员首发主体与 4 个可选决策包](../v2/scope/RELEASE_SCOPE_PROPOSAL.md)。下一次先由用户确认 D1 完整群聊、D2 作品发布、D3 红包/金币转赠、D4 私人储物柜，以及角色后台是否全部移出消费者 App。
+2. 范围确认后更新唯一覆盖账本并冻结 M0；同时评审精简后的 navigation，继续完成 networking、session/persistence、observability 和 design_system 文档，但只定义 App 端 port、Fake、设计 Token 和未来真实 adapter 契约。
+3. 为最终清单内每个功能和页面建立独立目录，逐项完成并批准产品、交互、UI 状态、Mock 场景和验收文档。
 4. 全部功能、页面和设计系统文档批准后，才运行 `flutter create` 并进入纯 UI/Mock 阶段。
 5. UI Mock 覆盖整 App 并经用户验收达到 `UI Flow Approved` 后，才接真实超级接口、WebSocket、支付、推送等。
 6. 发布前确认 applicationId/bundleId、域名、CI、Android 签名、Android licenses 和 macOS/Xcode/TestFlight 环境。
