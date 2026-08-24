@@ -1,26 +1,33 @@
 # 通讯录页
 
 - Scope ID：`KC-P-014`
-- 文档状态：`Draft`
-- M0 范围：`In Release Scope`
+- 文档状态：`In Review`
 - 所属功能：[通讯录](../../README.md)
-- 旧版来源：`index`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`ContactsRoute`，`/messages/contacts`，protectedShell/messages 子根
+- 设计版本：`Contacts Wireframe v1`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与导航
 
-查找联系人并进入用户主页或单聊。
+查找已有好友，查看新申请或进入添加好友、黑名单和统一用户主页。入口为消息分支顶部“通讯录”；返回由 Shell 处理。联系人使用内存 `SocialTargetRef`，无外部打开。
 
-## 待设计内容
+## 线框
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+```text
+通讯录                         [更多]
+[搜索备注或昵称________________]
+[新的朋友              2] [添加好友]
 
-## 开发门禁
+A
+[头像] Alice / 我的备注                     >
+B
+[头像] Bob                                   >
+                                      A B C … #
+```
 
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
+- 更多菜单仅含“黑名单”；会话列表由消息分支切换器进入。
+- 空态提供“添加好友”，搜索空态提供“清除搜索”。
+- 200% 字体隐藏右侧字母索引并保持列表可滚动；分组标题和认证标识有文字语义。
+- 不显示手机号、账号、实名或在线状态。
 
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

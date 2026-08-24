@@ -3,8 +3,8 @@
 ## 当前 M0 范围
 
 - **已确认事实**：本期消费者 Flutter App 已冻结 48 个逻辑页面，完整账本见 [App 范围、页面覆盖与 UI 交付门禁](../v2/APP_SCOPE_AND_UI_DELIVERY_GATE.md)。
-- 32 个本期功能均已拥有独立目录：9 个为 `Approved for Development`、4 个为 `In Review`、19 个为 `Draft`。
-- 48 个页面均已拥有独立目录：15 页为 `Approved for Development`、其余 33 页为 `Draft`。
+- 32 个本期功能均已拥有独立目录：9 个为 `Approved for Development`、8 个为 `In Review`、15 个为 `Draft`。
+- 48 个页面均已拥有独立目录：15 页为 `Approved for Development`、社交关系 8 页为 `In Review`、其余 25 页为 `Draft`。
 - D1 完整群聊、D2 作品发布、D3 红包/金币转赠以及角色后台未建立本期页面目录。
 - 目录存在只代表进入设计队列，不代表允许开发。
 

@@ -1,26 +1,28 @@
 # 好友申请列表页
 
 - Scope ID：`KC-P-016`
-- 文档状态：`Draft`
-- M0 范围：`In Release Scope`
+- 文档状态：`In Review`
 - 所属功能：[好友申请与添加](../../README.md)
-- 旧版来源：`newfriend`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`FriendRequestsRoute`，`/social/requests`，protectedShell/messages 子路由
+- 设计版本：`Friendship Wireframe v1 / Requests`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-查看待处理和历史好友申请。
+查看收到和发出的好友申请及其权威状态，再进入统一用户主页查看详情或处理。
 
-## 待设计内容
+```text
+[返回]              好友申请             [添加]
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+[头像] 昵称  收到 · 来自当面扫码
+       验证消息预览                    [待处理 >]
+[头像] 昵称  发出 · 2小时前
+       我的验证消息                    [等待中 >]
+[头像] 昵称  收到 · 昨天                 [已拒绝 >]
+```
 
-## 开发门禁
+- 单列表按 `updatedAt` 倒序，以“收到/发出”和状态文字区分，不增加 Tab。
+- 不显示永久账号；来源只展示稳定类别。
+- 列表不提供滑动接受/拒绝，避免误触；处理在用户主页完成。
 
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
-
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

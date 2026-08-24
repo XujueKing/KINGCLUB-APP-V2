@@ -1,26 +1,34 @@
 # 关系权限页
 
 - Scope ID：`KC-P-020`
-- 文档状态：`Draft`
-- M0 范围：`In Release Scope`
+- 文档状态：`In Review`
 - 所属功能：[关系控制](../../README.md)
-- 旧版来源：`friendinfo3/userInfo`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`RelationshipPermissionsRoute`，`/social/friend/permissions`，`$extra: SocialTargetRef`
+- 设计版本：`Relationship Wireframe v1 / Permissions`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-设置作品可见性、仅聊天、删除和拉黑。
+调整与某位好友的交互/内容边界，或明确删除、拉黑及解除拉黑。
 
-## 待设计内容
+```text
+[返回]              关系权限
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+互动范围
+(●) 标准互动
+( ) 仅聊天
 
-## 开发门禁
+内容
+不让对方看我的内容                 [开关]
+不看对方的内容                     [开关]
 
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
+安全
+[加入黑名单 / 解除黑名单]
+[删除好友]
+```
 
+- 置顶、免打扰和聊天记录不在此页。
+- 拉黑提示“终止好友关系、取消待处理申请并禁止消息；解除后不恢复好友”。
+- 删除提示“只解除好友，不自动拉黑”；两者均需明确二次确认。
+
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

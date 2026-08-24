@@ -1,26 +1,30 @@
 # 好友备注页
 
 - Scope ID：`KC-P-019`
-- 文档状态：`Draft`
-- M0 范围：`In Release Scope`
+- 文档状态：`In Review`
 - 所属功能：[关系控制](../../README.md)
-- 旧版来源：`friendinfo2`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`FriendRemarkRoute`，`/social/friend/remark`，`$extra: SocialTargetRef`
+- 设计版本：`Relationship Wireframe v1 / Remark`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-编辑好友备注和仅自己可见的信息。
+设置仅自己可见的好友备注名和说明，并查看关系来源与添加时间。
 
-## 待设计内容
+```text
+[返回]              好友备注                   [保存]
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+备注名（0/24）     [________________]
+说明（0/120）      [________________]
+                    [________________]
 
-## 开发门禁
+更多信息
+来源                当面扫码
+添加时间            2026-08-25
+```
 
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
+- 不提供电话字段、联系人权限、分组或标签。
+- 来源为清洗类别、添加时间为只读；私有备注不展示给对方。
+- 字段有持久标签和计数，200% 字体下可滚动且不被键盘遮挡。
 
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

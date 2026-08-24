@@ -1,26 +1,28 @@
 # 黑名单页
 
 - Scope ID：`KC-P-021`
-- 文档状态：`Draft`
-- M0 范围：`In Release Scope`
+- 文档状态：`In Review`
 - 所属功能：[关系控制](../../README.md)
-- 旧版来源：`blacklist`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`BlacklistRoute`，`/social/blacklist`，protectedShell/messages 子路由
+- 设计版本：`Relationship Wireframe v1 / Blacklist`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-查看黑名单并执行批准的解除或查看操作。
+查看自己主动拉黑的用户，并在理解后果后解除拉黑。
 
-## 待设计内容
+```text
+[返回]              黑名单
+[搜索昵称________________________]
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+[头像] 公开昵称                       [解除]
+       拉黑于 2026-08-20
 
-## 开发门禁
+解除拉黑不会自动恢复好友关系
+```
 
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
+- 列表不显示“添加好友”按钮、永久账号或共同关系。
+- 点击行进入 `blockedByMe` 用户主页；解除按钮必须二次确认。
+- 200% 字体时动作移到下一行；状态不只依赖头像或颜色。
 
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

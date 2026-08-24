@@ -64,6 +64,17 @@
 3. [KC-P-041 编辑个人资料页](../features/profile_settings/feature_profile_center/pages/page_edit_profile/README.md)
 4. [KC-P-042 个人二维码页](../features/profile_settings/feature_profile_center/pages/page_personal_qr/README.md)
 
+当前待用户评审的社交关系页面：
+
+1. [KC-P-014 通讯录页](../features/social/feature_contacts/pages/page_contacts/README.md)
+2. [KC-P-015 添加好友入口页](../features/social/feature_friendship/pages/page_add_friend/README.md)
+3. [KC-P-016 好友申请列表页](../features/social/feature_friendship/pages/page_friend_requests/README.md)
+4. [KC-P-017 用户主页](../features/social/feature_user_profile/pages/page_user_profile/README.md)
+5. [KC-P-018 发送好友申请页](../features/social/feature_friendship/pages/page_send_friend_request/README.md)
+6. [KC-P-019 好友备注页](../features/social/feature_relationship_controls/pages/page_friend_remark/README.md)
+7. [KC-P-020 关系权限页](../features/social/feature_relationship_controls/pages/page_relationship_permissions/README.md)
+8. [KC-P-021 黑名单页](../features/social/feature_relationship_controls/pages/page_blacklist/README.md)
+
 ## 与迁移资料的关系
 
 - 旧版现状与缺陷以 [迁移交接包](../migration/README.md) 为准。
