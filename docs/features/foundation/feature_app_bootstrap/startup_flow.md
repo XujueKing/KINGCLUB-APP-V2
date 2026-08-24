@@ -1,6 +1,6 @@
 # 应用启动编排与状态
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 适用范围：Flutter 进程创建至首帧交接 `/auth/bootstrap`
 
 ## 1. 责任边界

@@ -1,6 +1,6 @@
 # 应用启动与环境
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 优先级：P0
 - ADR：[Flutter Foundation 技术基线](../../../v2/adr/0001_flutter_foundation_baseline.md)
 
@@ -8,7 +8,7 @@
 
 用唯一、可测试的启动编排完成环境读取、错误捕获、依赖装配、安全会话快照和首屏交接。启动失败必须有确定状态，不能用空白页、无限 Splash 或本地用户缓存伪装为已登录。
 
-## 当前建议的启动阶段
+## 已确认的启动阶段
 
 ```text
 P0 Widgets binding + 最小错误 fallback + runApp(BootstrapHost)
@@ -44,8 +44,8 @@ P0 Widgets binding + 最小错误 fallback + runApp(BootstrapHost)
 ## 交付状态
 
 - **已确认事实**：ADR-0001、Flutter 3.47.1、Riverpod 3 + codegen 和单 App package 基线已批准。
-- **当前建议**：采用本目录定义的 P0～P6 编排、三环境不可变配置、单次启动 generation 和关键/非关键初始化边界。
-- **待用户决策**：确认本模块设计后，将文档状态更新为 `Approved for Development`；这不代表其他四个 foundation 模块获批。
+- **已确认事实**：用户于 2026-08-24 批准本目录定义的 P0～P6 编排、三环境不可变配置、单次启动 generation 和关键/非关键初始化边界。
+- **待发布输入**：正式 applicationId/bundleId、域名、签名与 CI 注入值由发布工作包确认；不阻塞模块开发，但确认前禁止产出生产包。
 
 ## 配套文档
 
@@ -54,4 +54,5 @@ P0 Widgets binding + 最小错误 fallback + runApp(BootstrapHost)
 - [失败与恢复矩阵](failure_matrix.md)
 - [测试计划](test_plan.md)
 - [验收标准](acceptance.md)
+- [评审记录](review_record.md)
 - [Foundation 索引](../README.md)

@@ -1,6 +1,6 @@
 # 运行环境配置契约
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 配置来源：受版本控制的 flavor 配置与 CI 注入的非秘密构建值
 
 ## 1. 环境模型

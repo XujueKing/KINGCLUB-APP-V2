@@ -2,7 +2,7 @@
 
 - 文档状态：`In Review`
 - 优先级：P0
-- 当前建议：`go_router + go_router_builder` 类型化路由
+- 已确认技术：`go_router + go_router_builder` 类型化路由
 
 ## 目标
 
@@ -18,7 +18,7 @@
 | protected | 首页、订单、消息、个人中心 | 必须经过已复核 SessionState 守卫 |
 | restricted | 申诉、退出、状态说明 | 成员受限时按明确 allowlist 开放 |
 
-## 当前建议
+## 当前设计
 
 - 使用生成的 RouteData，公开 path/query 参数必须是非敏感、可验证值。
 - 手机号、challenge、验证码、协议快照、Token 和任意用户对象不得进入 URI；只传不可猜测、进程内有效的 flowId。
@@ -27,14 +27,30 @@
 - 会话撤销、过期或账号受限由统一导航协调器执行 replace/reset；各页面不得各写一套跳转。
 - 未知路由、非法参数和被拒深链进入安全兜底页，不回显原始敏感参数。
 
+登录流程的 `loginFlowId` 使用类型化 `$extra` 关联进程内 FlowStore，不进入 location。外部链接、进程恢复或缺少合法 `$extra` 直接打开 `/auth/code|consent` 时必须拒绝并安全回到 `/auth/mobile`。
+
 ## 返回与生命周期
 
 - 登录流程使用受控 replace 栈，成功后不能返回验证码或协议确认页。
 - Android predictive back 使用当前 Flutter/Router 支持方式统一测试；重要退出动作由页面意图确认，不依赖已弃用 API。
 - 进程恢复只恢复公开或已批准的非敏感业务位置；auth flow 永不恢复。
 - 推送/深链冷启动先完成 bootstrap 和会话复核，再消费一次 RouteIntent。
+- 首个移动端版本不启用 Router 路由树状态恢复；所有冷启动从 `/auth/bootstrap` 重新复核。普通页面恢复必须在对应页面文档批准后加入 allowlist。
+
+官方依据：[go_router type-safe routes](https://pub.dev/documentation/go_router/latest/topics/Type-safe%20routes-topic.html)、[go_router_builder `$extra`](https://pub.dev/packages/go_router_builder)、[go_router state restoration](https://pub.dev/documentation/go_router/latest/topics/State%20restoration-topic.html)。精确依赖版本在创建工程时由 Flutter 3.47.1 解析并锁定。
+
+## 交付状态
+
+- **已确认事实**：ADR-0001 已批准类型化 go_router，app_bootstrap 已批准 `/auth/bootstrap` 为正式 App Root 唯一初始位置。
+- **当前建议**：采用本目录的路由目录、纯守卫决策、内存登录 Flow、一次性 RouteIntent、安全深链与 V1 禁用 Router 栈恢复方案。
+- **待用户决策**：确认本模块后更新为 `Approved for Development`；未来业务路由仍需各自页面文档批准。
 
 ## 配套文档
 
+- [V1 路由目录与导航动作](route_catalog.md)
+- [会话守卫与重定向](guard_and_redirect.md)
+- [深链、推送与 returnTo 契约](deep_link_contract.md)
+- [返回栈、生命周期与恢复](lifecycle_and_back.md)
+- [测试计划](test_plan.md)
 - [验收标准](acceptance.md)
 - [Foundation 索引](../README.md)

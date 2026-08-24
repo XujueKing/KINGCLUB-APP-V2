@@ -9,7 +9,7 @@
 - [x] 配置、SecureStore、依赖装配与非关键 SDK 失败矩阵明确
 - [x] 单元、Widget、集成和双端真机测试场景可执行
 - [x] 日志、隐私、灰度和回滚要求明确
-- [ ] 用户批准本模块，状态更新为 `Approved for Development`
+- [x] 用户于 2026-08-24 批准本模块，状态更新为 `Approved for Development`
 
 ## 实现验收
 

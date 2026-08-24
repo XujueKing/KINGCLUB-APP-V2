@@ -104,8 +104,9 @@ ccsop-service + kingclub business line
 - **已确认事实**：启动鉴权、手机号登录、验证码和协议确认四个首批页面规格均已批准。
 - **已确认事实**：验证码页采用 K102 结果未知时失败关闭；协议确认页采用本地 ConsentSnapshot、由 K102 最终落库。
 - **已确认事实**：ADR-0001 已批准，本机已升级至 Flutter `3.47.1 stable / Dart 3.13.1`；Android API 24、iOS 15 与核心依赖基线已冻结。
-- **当前状态**：Flutter app_bootstrap、navigation、networking、session/persistence、observability 五个独立 foundation 目录仍处于 `In Review`。
-- **当前建议**：逐个完成 foundation 详细流程和数据契约；全部批准后才创建工程骨架。
+- **已确认事实**：Flutter app_bootstrap 已达到 `Approved for Development`。
+- **当前状态**：navigation 详细设计已完成并处于 `In Review`；networking、session/persistence、observability 仍待详细设计。
+- **当前建议**：逐个完成剩余 foundation 详细流程和数据契约；全部批准后才创建工程骨架。
 - **待验收**：生产短信/协议/服务凭据、生产容量、生产日志以及后续物业正式注册复用仍未验收。
 
 ## 5. 第一阶段工作包
@@ -116,7 +117,7 @@ ccsop-service + kingclub business line
 4. [WebSocket 实时传输](../features/messaging/feature_realtime_transport/README.md)
 5. [同城统一账号](../features/identity/feature_unified_city_identity/README.md)
 
-服务端本地开发门禁与四个登录页面文档准入均已通过；Flutter foundation 仍在评审，批准前不开始 Flutter 工程或页面开发。
+服务端本地开发门禁、四个登录页面文档准入与 app_bootstrap 已通过；其余 Flutter foundation 仍在评审，全部批准前不开始 Flutter 工程或页面开发。
 
 ## 6. 待用户决策
 
