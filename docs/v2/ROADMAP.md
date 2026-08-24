@@ -32,7 +32,7 @@ Roadmap 按可验证结果划分，不以页面数量或代码量作为完成标
 
 退出门槛：本期清单内所有功能和页面均达到 `Approved for Development`；未完成一项也不得开始 Flutter UI。
 
-当前服务端基础与登录页面资料见 [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)。[ADR-0001](adr/0001_flutter_foundation_baseline.md) 和 app_bootstrap 已批准，navigation 正在评审；Flutter 工程尚未创建。
+当前服务端基础与登录页面资料见 [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)。[ADR-0001](adr/0001_flutter_foundation_baseline.md) 和 app_bootstrap 已批准；navigation、App Shell/信息架构和 Design System v1 正在评审，Flutter 工程尚未创建。
 
 ## Stage 2：全 App UI 与 Mock 流程
 

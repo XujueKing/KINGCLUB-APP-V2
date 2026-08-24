@@ -34,6 +34,13 @@
 3. [验证码页](../features/identity/feature_login_session/pages/page_sms_verification/README.md)
 4. [协议确认页](../features/identity/feature_login_session/pages/page_terms_consent/README.md)
 
+当前全局 UI 评审入口：
+
+1. [App Shell 与信息架构](../features/foundation/feature_app_shell/README.md)
+2. [KC-P-010 App Shell 页面线框](../features/foundation/feature_app_shell/pages/page_app_shell/README.md)
+3. [路由与导航](../features/foundation/feature_navigation/README.md)
+4. [Design System v1](../features/foundation/feature_design_system/README.md)
+
 ## 与迁移资料的关系
 
 - 旧版现状与缺陷以 [迁移交接包](../migration/README.md) 为准。

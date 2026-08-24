@@ -12,7 +12,9 @@
 | `/auth/code` | 销毁 PendingSmsLogin 与验证码，replace mobile | session 原子提交 + K104 后 reset 目标 |
 | `/auth/consent` readOnly | pop 回 mobile，保留同 generation 表单 | pop，无服务端同意写入 |
 | `/auth/consent` loginRecovery | 返回前确认退出；确认后销毁流程并 replace mobile | replace code，重新输入验证码 |
-| `/home` 根页 | 按平台根页规范退出/后台，不回 auth flow | 后续页面文档批准后再定义出口 |
+| Shell 分支子页 | pop 当前分支 | 页面批准的下一目标 |
+| 非首页分支根 | 切换到首页根 | 继续留在 Shell |
+| `/home` 根页 | 按平台根页规范退出/后台，不回 auth flow | 页面批准的下一目标 |
 
 页面只发 `BackIntent`，由 application/navigation 协调器完成流程销毁和栈动作；禁止 Widget 先 pop 再异步清理敏感状态。
 
@@ -35,6 +37,7 @@
 - 首个移动端版本不为 `GoRouter/MaterialApp.router` 启用路由树 restoration，冷启动固定从 `/auth/bootstrap` 重建。
 - auth flow、`$extra`、FlowStore 和通用 notice 永不持久化。
 - 页面内部非敏感 UI 状态如滚动位置，只有对应页面文档批准后才能使用 Flutter 页面级 restoration。
+- 四个 Shell 分支只在当前进程内保活；进程重启不恢复选中 Tab 或子页栈。
 - 未来启用 Router restoration 必须新增 ADR/本模块变更：逐路由 allowlist、脱敏序列化、版本迁移、注销清理和双端恢复测试缺一不可。
 
 ## 5. Router 异常

@@ -9,7 +9,8 @@
 |---|---|---|---|
 | `bootstrap` | `unknown` | 否 | 每次冷启动固定进入 |
 | `authFlow` | `anonymous` 或登录恢复中 | 否 | 仅内存，进程结束即销毁 |
-| `protected` | `authenticated` | 当前不允许 | 冷启动重新鉴权后只进入已批准目标 |
+| `onboarding` | `authenticated`，会员未完成准入 | 否 | 冷启动复核后进入权威步骤/审核状态 |
+| `protectedShell` | `authenticated + membership approved` | 当前不允许 | 冷启动重新鉴权后进入首页根 |
 
 ## 2. 首批冻结路由语义
 
@@ -19,11 +20,16 @@
 | `MobileLoginRoute` | `/auth/mobile` | authFlow | 可选内存 `AuthEntryContext` | 已批准 | 匿名入口；不得回到 bootstrap |
 | `SmsCodeRoute` | `/auth/code` | authFlow | 必需 `$extra: LoginFlowRef` | 已批准 | K101 明确成功后 replace；无合法 FlowStore 条目则回 mobile |
 | `TermsConsentRoute` | `/auth/consent` | authFlow | 必需 `$extra: ConsentRouteContext` | 已批准 | readOnly 使用 push/pop；loginRecovery 使用 replace |
-| `HomeRoute` | `/home` | protected | 无 | 未批准，仅冻结语义 | K104 复核后的默认目标；对应页面批准前不得实现 builder/page |
+| `AppShellRoute` | 容器，无外部 location | protectedShell | 无 | In Review | 只在 approved member 下建立四个分支 |
+| `HomeRoute` | `/home` | protectedShell/home | 无 | Draft，仅冻结语义 | 登录后的默认主目的地 |
+| `ConversationsRoute` | `/messages` | protectedShell/messages | 无 | Draft，仅冻结语义 | 消息分支根 |
+| `ContentFeedRoute` | `/discover` | protectedShell/discover | 无 | Draft，仅冻结语义 | 发现分支根，只读内容 |
+| `MyProfileRoute` | `/me` | protectedShell/me | 无 | Draft，仅冻结语义 | 我的分支根 |
+| `SafeScannerRoute` | `/scan` | protectedShell overlay | 仅内存来源分支引用 | Draft，仅冻结语义 | 中央动作打开，关闭回来源分支 |
 
-`HomeRoute` 当前只授权为导航决策中的目标语义；首页实现仍须先建立并批准独立页面目录。导航单元测试使用 fake target，不得因为出现在路由目录就创建占位页面代码。
+上述 Shell 目标当前只授权为导航决策语义；实现仍须等待对应页面与全局文档门禁。导航单元测试使用 fake target，不得因为出现在路由目录就创建占位页面代码。
 
-订单、聊天、申诉、账号受限、帮助和个人中心当前既不分配 location，也不建立 RouteIntent。对应功能/页面文档与 UI 流程批准后，再通过变更评审加入本表。
+48 页的语义名、主归属和准入状态见 [M0 路由语义库存](m0_route_inventory.md)。除本表首批全局目标外，其余页面在各自文档批准前不分配 location、不建立可执行 RouteIntent。
 
 ## 3. 仅内存参数
 
@@ -57,11 +63,13 @@ openSmsCode(LoginFlowRef)
 openTermsReadOnly(document)
 openTermsRecovery(LoginFlowRef)
 openHome
+selectPrimaryDestination(home | messages | discover | me)
+openSafeScanner(OriginBranchRef)
 back
 resetForSessionLoss(noticeCategory)
 ```
 
-当前不得提前定义通用 future route。新增 RouteIntent 必须与对应功能/页面文档一起评审。
+`selectPrimaryDestination` 和 `openSafeScanner` 只有 Shell 文档批准后才能实现。当前不得提前定义通用 future route；新增业务 RouteIntent 必须与对应功能/页面文档一起评审。
 
 ## 5. 导航动作语义
 

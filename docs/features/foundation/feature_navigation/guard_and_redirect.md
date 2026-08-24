@@ -19,13 +19,15 @@ SessionCoordinator 完成副作用和状态转换
 
 ## 2. 守卫矩阵
 
-| SessionView | bootstrap | authFlow | protected home 语义 |
-|---|---|---|---|
-| `unknown/validating/refreshing` | allow | hold | hold |
-| `anonymous` | redirect mobile | allow（上下文有效） | redirect mobile |
-| `authenticated` | redirect home | redirect home | allow |
-| `restricted` | redirect mobile notice | reject/redirect mobile | reject/redirect mobile |
-| `revoked/expired` | hold，等待 session 层清理 | hold | reject |
+| SessionView | bootstrap | authFlow | onboarding/review | protected Shell |
+|---|---|---|---|---|
+| `unknown/validating/refreshing` | allow | hold | hold | hold |
+| `anonymous` | redirect mobile | allow（上下文有效） | redirect mobile | redirect mobile |
+| `authenticated + onboarding` | redirect currentStep | redirect currentStep | allow approved step | reject to currentStep |
+| `authenticated + pending/rejected/suspended` | redirect review | redirect review | allow review | reject to review |
+| `authenticated + approved` | redirect home | redirect home | reject to home | allow |
+| `restricted` | redirect mobile notice | reject/redirect mobile | reject/redirect mobile | reject/redirect mobile |
+| `revoked/expired` | hold，等待 session 层清理 | hold | reject | reject |
 
 `revoked/expired` 不直接等同 anonymous：必须等 SessionCoordinator 阻止新请求、停止 realtime 重连并完成本地清理后，再发布 anonymous 和通用 notice。
 
@@ -47,7 +49,7 @@ reject(safeFallback, stableReason)
 
 | 事件 | 前置副作用所有者 | 导航结果 |
 |---|---|---|
-| 登录成功且 K104 通过 | session/application | `reset` 到 home |
+| 登录成功且 K104 通过 | session/application | 按权威 membership reset 到 currentStep、review 或 home |
 | 主动本地退出完成 | session/realtime | `reset` 到 mobile，可带远端结果未知通用 notice |
 | 新设备顶号/撤销 | session/realtime | `reset` 到 mobile，notice=`signedInElsewhere|sessionRevoked` |
 | Refresh Token 重用 | session/realtime | `reset` 到 mobile，notice=`securitySessionReset` |
