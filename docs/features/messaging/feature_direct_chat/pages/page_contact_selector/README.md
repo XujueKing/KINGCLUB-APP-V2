@@ -1,26 +1,31 @@
 # 联系人选择页
 
 - Scope ID：`KC-P-026`
-- 文档状态：`Draft`
-- M0 范围：`In Release Scope`
+- 文档状态：`Approved for Development`
 - 所属功能：[稳定单聊](../../README.md)
-- 旧版来源：`select-chat/chat_more_select`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`ContactSelectorRoute`，`/messages/select-contact`，`$extra: ShareIntentRef`
+- 设计版本：`Direct Chat Wireframe v1 / Selector`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-为消息转发和组局邀请选择联系人。
+为一条转发消息或已批准业务卡片选择一个好友，预览目标后明确确认发送。
 
-## 待设计内容
+```text
+[取消]              选择联系人
+[搜索备注或昵称____________________________]
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+[头像] 好友备注                                  >
+[头像] 好友昵称                                  >
 
-## 开发门禁
+选择后确认层：
+发送给 [头像] 好友备注
+[转发消息/业务卡片清洗预览]
+[取消]                                      [发送]
+```
 
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
+- 只列当前允许单聊的好友，一次只能选一个；不支持多选、群发或群会话。
+- ShareIntentRef 只在内存中存在且有过期时间，不把原消息/订单完整对象放路由。
+- 业务卡片发送前重新验证对象状态；转发创建清洗副本，不泄露原始 payload。
 
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

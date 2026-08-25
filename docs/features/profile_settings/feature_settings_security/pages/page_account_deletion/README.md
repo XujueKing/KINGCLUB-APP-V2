@@ -1,26 +1,25 @@
 # 账号注销页
 
 - Scope ID：`KC-P-045`
-- 文档状态：`Draft`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[设置与账号安全](../../README.md)
 - 旧版来源：`del_user_account`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`AccountDeletionRoute`，`/me/settings/delete-account`
+- 设计版本：`Settings Wireframe v1 / Deletion`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 线框
 
-说明影响、完成确认并发起账号注销。
+```text
+[返回]            注销 KingClub
+仅注销 KingClub；物业账号与物业数据不受影响
+[影响与依法留存摘要]
+[资格检查]
+✓ 无未结订单
+! 余额待处理                         [去钱包]
+! 私人储物未取                       [去处理]
+[完成短信验证并永久注销]
+```
 
-## 待设计内容
-
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
-
-## 开发门禁
-
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
-
+“退出登录”与“永久注销”明确区分。状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

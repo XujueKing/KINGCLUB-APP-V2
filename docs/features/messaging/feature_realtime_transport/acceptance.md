@@ -11,3 +11,5 @@
 - [ ] 重复 eventId/messageId 不产生重复业务结果
 - [x] 会话撤销后 HTTP 与 WebSocket 均失效（服务端隔离 E2E；Flutter 行为待实现）
 - [ ] 代理、应用和审计日志不记录签名、密钥或完整敏感查询串
+- [x] 单连接、后台恢复、ChannelRef、eventId/clientMessageId 和 HTTP 权威边界已形成评审契约
+- [ ] 用户确认 RT-M01～M12、后台不常驻、协商心跳和隐私推送策略

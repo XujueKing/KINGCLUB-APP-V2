@@ -1,26 +1,31 @@
 # 支付处理与结果页
 
 - Scope ID：`KC-P-038`
-- 文档状态：`Draft`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[支付处理与结果](../../README.md)
 - 旧版来源：`pay`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`PaymentResultRoute`，`/commerce/payment`，`$extra: PaymentIntentRef | PaymentAttemptRef`
+- 设计版本：`Payment Wireframe v1`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-展示服务端/支付回调确认的支付状态和恢复动作。
+```text
+[关闭]              支付
+订单摘要
+应付金额                         ¥268.00
+[支付方式（服务端可用列表）]
+                                  [确认支付]
 
-## 待设计内容
+结果变体：
+[处理中] 正在向服务端确认，请勿重复支付
+[成功]   支付已确认              [查看订单]
+[取消]   本次支付已取消          [稍后支付]
+[失败]   未完成扣款              [重试]
+[待确认] 暂无法确认结果          [查看订单]
+```
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+成功状态必须带“服务端已确认”语义；不能仅依据绿色对勾、SDK 文案或路由参数。
 
-## 开发门禁
-
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
-
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

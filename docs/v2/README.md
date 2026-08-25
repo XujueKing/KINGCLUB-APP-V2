@@ -75,6 +75,54 @@
 7. [KC-P-020 关系权限页](../features/social/feature_relationship_controls/pages/page_relationship_permissions/README.md)
 8. [KC-P-021 黑名单页](../features/social/feature_relationship_controls/pages/page_blacklist/README.md)
 
+已批准的消息页面与实时传输端口：
+
+1. [KC-P-022 会话列表页](../features/messaging/feature_conversation_list/pages/page_conversations/README.md)
+2. [KC-P-023 系统通知页](../features/messaging/feature_system_notifications/pages/page_system_notifications/README.md)
+3. [KC-P-024 单聊页](../features/messaging/feature_direct_chat/pages/page_direct_chat/README.md)
+4. [KC-P-025 单聊详情页](../features/messaging/feature_direct_chat/pages/page_direct_chat_details/README.md)
+5. [KC-P-026 联系人选择页](../features/messaging/feature_direct_chat/pages/page_contact_selector/README.md)
+6. [KC-F-022 WebSocket 实时传输基础](../features/messaging/feature_realtime_transport/README.md)
+
+已批准的一起玩 AA 页面：
+
+1. [KC-P-027 一起玩 AA 预订页](../features/club/feature_aa_reservation/pages/page_aa_reservations/README.md)
+2. [KC-P-028 AA 卡座套餐详情页](../features/club/feature_aa_reservation/pages/page_aa_package_detail/README.md)
+3. [KC-P-029 AA 确认订单页](../features/club/feature_aa_reservation/pages/page_aa_order_confirmation/README.md)
+4. [KC-F-023 一起玩 AA 功能契约](../features/club/feature_aa_reservation/README.md)
+
+已批准的 VIP 组局页面：
+
+1. [KC-P-030 VIP 组局列表/详情页](../features/club/feature_vip_party/pages/page_vip_party_detail/README.md)
+2. [KC-P-031 VIP 组局创建页](../features/club/feature_vip_party/pages/page_vip_party_create/README.md)
+3. [KC-P-032 局长组局管理页](../features/club/feature_vip_party/pages/page_vip_party_management/README.md)
+4. [KC-F-024 VIP 组局功能契约](../features/club/feature_vip_party/README.md)
+
+已批准的入场凭证页面：
+
+1. [KC-P-033 入场凭证页](../features/club/feature_admission_ticket/pages/page_admission_ticket/README.md)
+2. [KC-F-025 入场凭证功能契约](../features/club/feature_admission_ticket/README.md)
+
+已批准的商业功能页面：
+
+1. [KC-P-034 扫码点单商品/购物车页](../features/commerce/feature_scan_ordering/pages/page_scan_ordering_cart/README.md)
+2. [KC-P-035 点单确认页](../features/commerce/feature_scan_ordering/pages/page_scan_order_confirmation/README.md)
+3. [KC-P-036 订单中心页](../features/commerce/feature_order_center/pages/page_order_center/README.md)
+4. [KC-P-037 订单详情页](../features/commerce/feature_order_center/pages/page_order_detail/README.md)
+5. [KC-P-038 支付处理与结果页](../features/commerce/feature_payment/pages/page_payment_result/README.md)
+
+已批准的内容与资产页面：
+
+1. [KC-P-013 短视频/作品流页](../features/content/feature_content_feed/pages/page_content_feed/README.md)
+2. [KC-P-039 钱包与资产流水页](../features/membership_wallet/feature_asset_ledger/pages/page_asset_ledger/README.md)
+
+当前待用户评审的设置与安全页面：
+
+1. [KC-P-043 设置页](../features/profile_settings/feature_settings_security/pages/page_settings/README.md)
+2. [KC-P-044 支付安全页](../features/profile_settings/feature_settings_security/pages/page_payment_security/README.md)
+3. [KC-P-045 账号注销页](../features/profile_settings/feature_settings_security/pages/page_account_deletion/README.md)
+4. [KC-P-046 关于与法律文档页](../features/profile_settings/feature_settings_security/pages/page_about_legal/README.md)
+
 ## 与迁移资料的关系
 
 - 旧版现状与缺陷以 [迁移交接包](../migration/README.md) 为准。

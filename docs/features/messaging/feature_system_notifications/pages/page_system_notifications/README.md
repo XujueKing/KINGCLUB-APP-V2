@@ -1,26 +1,31 @@
 # 系统通知页
 
 - Scope ID：`KC-P-023`
-- 文档状态：`Draft`
-- M0 范围：`In Release Scope`
+- 文档状态：`Approved for Development`
 - 所属功能：[系统通知](../../README.md)
-- 旧版来源：`sysmessage`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`SystemNotificationsRoute`，`/messages/system`，protectedShell/messages 子路由
+- 设计版本：`System Notifications Wireframe v1`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-查看系统通知并安全进入批准的业务目标。
+查看可信的通知摘要、管理已读状态，并在允许时进入对应业务页面复核。
 
-## 待设计内容
+```text
+[返回]              系统通知              [全部已读]
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+[账号安全] 登录状态已更新             未读 · 10:20
+           请确认是否为本人操作              [展开]
 
-## 开发门禁
+[订单支付] 订单状态已变化                  昨天
+           前往订单详情查看最新结果             [查看]
 
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
+[平台通知] 服务维护提醒                    周一
+           预计维护时间……
+```
 
+- 卡片用固定类别、纯文本和稳定状态，不渲染任意 HTML。
+- 通知里的金额/结果不是账本或订单事实；动作目标重新加载权威数据。
+- “全部已读”只影响阅读状态，不删除记录。
+
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

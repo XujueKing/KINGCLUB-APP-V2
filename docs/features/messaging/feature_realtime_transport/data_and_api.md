@@ -29,6 +29,18 @@
 | C→S | notification.unread.list | 当前底座未读补偿 |
 | C→S | business.event.publish | 通用业务事件入口，不等同聊天发送成功 |
 
+## 消息域候选事件
+
+| 方向 | eventType | 作用 |
+|---|---|---|
+| S→C | conversation.invalidated | 会话摘要可能变化，触发 cursor 补拉 |
+| S→C | notification.invalidated | 通知可能变化，触发 cursor 补拉 |
+| S→C | message.persisted | 持久消息已存在，可按 messageId/version 合并 |
+| S→C | message.delivery.changed | 送达/已读状态可能变化 |
+| S→C | session.revoked | 停止重连并进入会话失效流程 |
+
+所有事件必须含稳定 `eventId`、`occurredAt` 和业务版本/游标；不得把消息正文、媒体 URL 或用户账号当频道名或诊断字段。未知事件失败关闭并按游标补拉。
+
 ## 聊天扩展前置
 
 后续聊天功能必须另外定义：
@@ -39,3 +51,4 @@
 - 重复发送和乱序处理
 - 撤回、删除、引用、附件和群成员权限
 
+单聊 v1 已在 `feature_direct_chat` 冻结前五项的客户端语义；真实服务端契约仍需后续 OpenAPI/WebSocket schema 评审。

@@ -29,25 +29,25 @@
 | KC-F-011 | identity | [会员注册与准入](../../features/identity/feature_member_onboarding/README.md) | Approved for Development | 纳入 |
 | KC-F-012 | home | [首页聚合](../../features/home/feature_home_hub/README.md) | Approved for Development | 纳入 |
 | KC-F-013 | home | [安全扫码分流](../../features/home/feature_safe_scanner/README.md) | Approved for Development | 纳入 |
-| KC-F-014 | content | [短视频/作品浏览](../../features/content/feature_content_feed/README.md) | Draft | 只读浏览；不含发布 |
+| KC-F-014 | content | [短视频/作品浏览](../../features/content/feature_content_feed/README.md) | Approved for Development | 只读浏览；不含发布 |
 | KC-F-015 | social | [通讯录](../../features/social/feature_contacts/README.md) | Approved for Development | 纳入 |
 | KC-F-016 | social | [好友关系](../../features/social/feature_friendship/README.md) | Approved for Development | 纳入 |
 | KC-F-017 | social | [用户主页](../../features/social/feature_user_profile/README.md) | Approved for Development | 纳入 |
 | KC-F-018 | social | [关系控制](../../features/social/feature_relationship_controls/README.md) | Approved for Development | 纳入 |
-| KC-F-019 | messaging | [会话列表](../../features/messaging/feature_conversation_list/README.md) | Draft | 纳入 |
-| KC-F-020 | messaging | [系统通知](../../features/messaging/feature_system_notifications/README.md) | Draft | 纳入 |
-| KC-F-021 | messaging | [稳定单聊](../../features/messaging/feature_direct_chat/README.md) | Draft | 不含完整群管理 |
-| KC-F-022 | messaging | [实时传输端口](../../features/messaging/feature_realtime_transport/README.md) | In Review | 仅文档和 Fake |
-| KC-F-023 | club | [一起玩 AA](../../features/club/feature_aa_reservation/README.md) | Draft | 纳入 |
-| KC-F-024 | club | [VIP 组局](../../features/club/feature_vip_party/README.md) | Draft | 纳入 |
-| KC-F-025 | club | [入场凭证](../../features/club/feature_admission_ticket/README.md) | Draft | 纳入 |
-| KC-F-026 | club | [私人储物柜](../../features/club/feature_private_storage/README.md) | Draft | 纳入（D4 已确认） |
-| KC-F-027 | commerce | [扫码点单](../../features/commerce/feature_scan_ordering/README.md) | Draft | 纳入 |
-| KC-F-028 | commerce | [订单中心](../../features/commerce/feature_order_center/README.md) | Draft | 纳入；V2 新补 |
-| KC-F-029 | commerce | [支付](../../features/commerce/feature_payment/README.md) | Draft | 纳入 |
-| KC-F-030 | membership_wallet | [资产流水](../../features/membership_wallet/feature_asset_ledger/README.md) | Draft | 只读；不含转赠 |
+| KC-F-019 | messaging | [会话列表](../../features/messaging/feature_conversation_list/README.md) | Approved for Development | 纳入 |
+| KC-F-020 | messaging | [系统通知](../../features/messaging/feature_system_notifications/README.md) | Approved for Development | 纳入 |
+| KC-F-021 | messaging | [稳定单聊](../../features/messaging/feature_direct_chat/README.md) | Approved for Development | 不含完整群管理 |
+| KC-F-022 | messaging | [实时传输端口](../../features/messaging/feature_realtime_transport/README.md) | Approved for Development | 仅文档和 Fake |
+| KC-F-023 | club | [一起玩 AA](../../features/club/feature_aa_reservation/README.md) | Approved for Development | 纳入 |
+| KC-F-024 | club | [VIP 组局](../../features/club/feature_vip_party/README.md) | Approved for Development | 纳入 |
+| KC-F-025 | club | [入场凭证](../../features/club/feature_admission_ticket/README.md) | Approved for Development | 纳入 |
+| KC-F-026 | club | [私人储物柜](../../features/club/feature_private_storage/README.md) | In Review | 纳入（D4 已确认） |
+| KC-F-027 | commerce | [扫码点单](../../features/commerce/feature_scan_ordering/README.md) | Approved for Development | 纳入 |
+| KC-F-028 | commerce | [订单中心](../../features/commerce/feature_order_center/README.md) | Approved for Development | 纳入；V2 新补 |
+| KC-F-029 | commerce | [支付](../../features/commerce/feature_payment/README.md) | Approved for Development | 纳入 |
+| KC-F-030 | membership_wallet | [资产流水](../../features/membership_wallet/feature_asset_ledger/README.md) | Approved for Development | 只读；不含转赠 |
 | KC-F-031 | profile_settings | [个人中心](../../features/profile_settings/feature_profile_center/README.md) | Approved for Development | 纳入 |
-| KC-F-032 | profile_settings | [设置与安全](../../features/profile_settings/feature_settings_security/README.md) | Draft | 纳入 |
+| KC-F-032 | profile_settings | [设置与安全](../../features/profile_settings/feature_settings_security/README.md) | Approved for Development | 纳入 |
 
 以上 32 项均已建立独立功能目录；目录建立只代表进入文档设计队列，不代表允许开发。
 
@@ -76,7 +76,7 @@
 |---|---|---|---|
 | KC-P-011 | 首页 | 拆自旧 `index` 首页 | Approved for Development |
 | KC-P-012 | 扫码识别与安全分流页 | 好友码、桌码、入场码 allowlist | Approved for Development |
-| KC-P-013 | 短视频/作品流页 | 旧 `index` 视频 tab + `openVideo` | Draft |
+| KC-P-013 | 短视频/作品流页 | 旧 `index` 视频 tab + `openVideo` | Approved for Development |
 
 ### 3.3 社交关系（8）
 
@@ -95,53 +95,53 @@
 
 | Scope ID | 页面 | 来源/说明 | docStatus |
 |---|---|---|---|
-| KC-P-022 | 会话列表页 | 拆自旧 `index` | Draft |
-| KC-P-023 | 系统通知页 | 旧 `sysmessage` | Draft |
-| KC-P-024 | 单聊页 | 从旧 `chat` 收敛首发消息类型 | Draft |
-| KC-P-025 | 单聊详情页 | 从旧 `chat_more` 收敛 | Draft |
-| KC-P-026 | 联系人选择页 | 转发消息、发送组局邀请 | Draft |
+| KC-P-022 | 会话列表页 | 拆自旧 `index` | Approved for Development |
+| KC-P-023 | 系统通知页 | 旧 `sysmessage` | Approved for Development |
+| KC-P-024 | 单聊页 | 从旧 `chat` 收敛首发消息类型 | Approved for Development |
+| KC-P-025 | 单聊详情页 | 从旧 `chat_more` 收敛 | Approved for Development |
+| KC-P-026 | 联系人选择页 | 转发消息、发送批准业务卡片 | Approved for Development |
 
 ### 3.5 到店、组局与入场（7）
 
 | Scope ID | 页面 | 来源/说明 | docStatus |
 |---|---|---|---|
-| KC-P-027 | 一起玩 AA 预订页 | 旧 `Choose` | Draft |
-| KC-P-028 | AA 卡座套餐详情页 | 旧 `order` | Draft |
-| KC-P-029 | AA 确认订单页 | 旧 `order2` | Draft |
-| KC-P-030 | VIP 组局列表/详情页 | 旧 `Choose2` | Draft |
-| KC-P-031 | VIP 组局创建页 | 旧 `vip-order` | Draft |
-| KC-P-032 | 局长组局管理页 | 旧 `order-manage` | Draft |
-| KC-P-033 | 入场凭证页 | 旧 `ticket` | Draft |
+| KC-P-027 | 一起玩 AA 预订页 | 旧 `Choose` | Approved for Development |
+| KC-P-028 | AA 卡座套餐详情页 | 旧 `order` | Approved for Development |
+| KC-P-029 | AA 确认订单页 | 旧 `order2` | Approved for Development |
+| KC-P-030 | VIP 组局列表/详情页 | 旧 `Choose2` | Approved for Development |
+| KC-P-031 | VIP 组局创建页 | 旧 `vip-order` | Approved for Development |
+| KC-P-032 | 局长组局管理页 | 旧 `order-manage` | Approved for Development |
+| KC-P-033 | 入场凭证页 | 旧 `ticket` | Approved for Development |
 
 ### 3.6 点单、订单与支付（5）
 
 | Scope ID | 页面 | 来源/说明 | docStatus |
 |---|---|---|---|
-| KC-P-034 | 扫码点单商品/购物车页 | 旧 `shoping` | Draft |
-| KC-P-035 | 点单确认页 | 旧 `shoping2` | Draft |
-| KC-P-036 | 订单中心页 | V2 新补：统一查看 AA、组局和点单订单 | Draft |
-| KC-P-037 | 订单详情页 | 合并消费者 `shoping3` 等状态，不复用管理详情 | Draft |
-| KC-P-038 | 支付处理与结果页 | 重构旧 `pay`，禁止客户端确认金额/成功 | Draft |
+| KC-P-034 | 扫码点单商品/购物车页 | 旧 `shoping` | Approved for Development |
+| KC-P-035 | 点单确认页 | 旧 `shoping2` | Approved for Development |
+| KC-P-036 | 订单中心页 | V2 新补：统一查看 AA、组局和点单订单 | Approved for Development |
+| KC-P-037 | 订单详情页 | 合并消费者 `shoping3` 等状态，不复用管理详情 | Approved for Development |
+| KC-P-038 | 支付处理与结果页 | 重构旧 `pay`，禁止客户端确认金额/成功 | Approved for Development |
 
 ### 3.7 钱包、个人与设置（8）
 
 | Scope ID | 页面 | 来源/说明 | docStatus |
 |---|---|---|---|
-| KC-P-039 | 钱包与资产流水页 | 旧 `mybalance` | Draft |
+| KC-P-039 | 钱包与资产流水页 | 旧 `mybalance` | Approved for Development |
 | KC-P-040 | 我的主页 | 拆自旧 `index` 我的 tab | Approved for Development |
 | KC-P-041 | 编辑个人资料页 | 旧 `myinfo` | Approved for Development |
 | KC-P-042 | 个人二维码页 | 旧 `mycode` 个人模式 | Approved for Development |
-| KC-P-043 | 设置页 | 旧 `setting`，改为客户端固定 allowlist | Draft |
-| KC-P-044 | 支付安全页 | 旧 `modiffypwd` | Draft |
-| KC-P-045 | 账号注销页 | 旧 `del_user_account` | Draft |
-| KC-P-046 | 关于与法律文档页 | 合并 `about` 与只读协议查看 | Draft |
+| KC-P-043 | 设置页 | 旧 `setting`，改为客户端固定 allowlist | Approved for Development |
+| KC-P-044 | 支付安全页 | 旧 `modiffypwd` | Approved for Development |
+| KC-P-045 | 账号注销页 | 旧 `del_user_account` | Approved for Development |
+| KC-P-046 | 关于与法律文档页 | 合并 `about` 与只读协议查看 | Approved for Development |
 
 ### 3.8 私人储物柜（2）
 
 | Scope ID | 页面 | 来源/说明 | docStatus |
 |---|---|---|---|
-| KC-P-047 | 私人储物柜页 | 拆自旧 `index` 储物柜 tab | Draft |
-| KC-P-048 | 存酒/物品取件码页 | 旧 `savecode`；员工交付不在会员 App | Draft |
+| KC-P-047 | 私人储物柜页 | 拆自旧 `index` 储物柜 tab | In Review |
+| KC-P-048 | 存酒/物品取件码页 | 旧 `savecode`；员工交付不在会员 App | In Review |
 
 ## 4. 可选包确认结果
 

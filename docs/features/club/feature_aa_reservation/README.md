@@ -1,34 +1,62 @@
 # 一起玩 AA 预订
 
 - Scope ID：`KC-F-023`
-
-- 文档状态：`Draft`
+- 文档状态：`Approved for Development`
 - 所属业务域：`club`
 - M0 范围：`In Release Scope`
-- 最后更新：2026-08-24
+- 设计版本：`AA Reservation v1`
+- 最后更新：2026-08-25
 
 ## 目标与用户价值
 
-完成 AA 场次查询、卡座套餐选择和确认订单。
+让已通过会员审核的成年人按服务端开放日期查看 AA 场次和套餐，获得可解释的权威报价，在库存短时占位内确认订单，再进入统一支付流程。
 
-## 本期包含
+## 已确认事实
 
-- [KC-P-027 一起玩 AA 预订页](pages/page_aa_reservations/README.md) — `Draft`
-- [KC-P-028 AA 卡座套餐详情页](pages/page_aa_package_detail/README.md) — `Draft`
-- [KC-P-029 AA 确认订单页](pages/page_aa_order_confirmation/README.md) — `Draft`
+- 旧版主链为 `Choose → order → order2 → pay`，另外从已支付预订进入 `ticket`。
+- 旧客户端按年龄直接减 180/120/60 元，并在本地组合优惠券、金币、余额、赠券、经验和信用分。
+- 旧版把订单 JSON、`userAccount` 和 `gender` 放入路由，把客户端金额作为支付请求字段。
+- 旧页面固定显示 20:30/21:00～04:00，同时数据库过程又以 04:00 切业务日，存在文案和权威时间不一致。
+- 本期已纳入统一订单中心 KC-P-036、订单详情 KC-P-037、支付 KC-P-038 和入场凭证 KC-P-033，但这些页面仍待单独设计。
+
+## 当前建议
+
+- 预订资格：登录有效、会员审核通过、成年且账号可用；具体资格由服务端返回，不由客户端从生日、性别或本地资料推导。
+- 每位会员每个 `serviceDate` 最多拥有一个 `pendingPayment | confirmed` 的 AA 席位；仅为本人预订一席，服务端并发约束兜底。
+- 营业时间、销售截止时间、库存、套餐、限制、优惠和退款规则全部来自版本化服务端投影。
+- 取消旧版“颜值分”展示和自动筛选；不在消费者界面展示同桌会员头像、性别占位或精确构成。
+- 取消客户端按性别赠券和硬编码年龄减价。若保留活动优惠，必须由服务端活动规则返回资格、说明和价格明细。
+- “一键随机选座”改为“系统推荐套餐”，仍必须经过套餐详情和订单确认，不得一键下单。
+- 列表与详情不锁库存；用户在确认提交时由服务端原子创建短时席位占位和待支付订单。
+- KC-P-029 只确认报价和抵扣；真正拉起支付、处理中、成功/失败复核归 KC-P-038。
+
+## 页面与文档
+
+- [KC-P-027 一起玩 AA 预订页](pages/page_aa_reservations/README.md) — `Approved for Development`
+- [KC-P-028 AA 卡座套餐详情页](pages/page_aa_package_detail/README.md) — `Approved for Development`
+- [KC-P-029 AA 确认订单页](pages/page_aa_order_confirmation/README.md) — `Approved for Development`
+- [旧版审计](legacy_audit.md)
+- [流程与导航](flow_and_navigation.md)
+- [状态机](state_machine.md)
+- [数据与 Fake 契约](data_and_api.md)
+- [价格、库存与安全](pricing_inventory_security.md)
+- [Mock 场景](mock_scenarios.md)
+- [功能验收](acceptance.md)
 
 ## 本期不包含
 
-客户端不计算可信价格或确认支付成功。
+- 多人代订、自由选桌、组长建局、拼桌群聊、候补、转让、退款自助处理。
+- 在 AA 页面直接完成支付、显示支付成功或生成入场二维码。
+- 真实超级接口、支付 SDK、推送或实时库存接入。
 
-## 待设计内容
+## 已确认决策
 
-- 用户角色、入口、前置条件、主流程和异常流程
-- 业务规则、状态机、权限和跨页面导航
-- UI 线框/设计版本、全部页面状态和 Mock 场景
-- Repository/port、API 或临时 Mock 契约
-- 隐私、安全、埋点、测试、灰度与回滚
+1. 同意每人每个营业日只允许一条待支付或已确认 AA 预订，且只订本人一席。
+2. 同意移除消费者界面的“颜值分”、同桌头像/性别占位和按性别赠券；活动优惠统一由服务端规则返回。
+3. 同意“系统推荐套餐”也必须经过详情和确认，不提供真正的一键下单。
+4. 同意 KC-P-029 只创建短时占位和待支付订单，支付过程与最终结果统一交给 KC-P-038。
+5. 同意已支付后的取消/退款本期不在 AA 页面自助处理，后续在订单模块确定客服或退款流程。
 
 ## 开发门禁
 
-本目录建立只表示进入文档设计队列。功能与所属页面全部达到 `Approved for Development` 前不得开发；本期 48 页全部文档批准前不得创建 Flutter UI，整 App 达到 `UI Flow Approved` 前不得连接真实服务。
+本功能已达到文档准入；全部 48 页批准前不创建 Flutter UI，全局 `UI Flow Approved` 前不接真实预订、库存、资产或支付服务。

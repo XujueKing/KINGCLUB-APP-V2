@@ -1,26 +1,25 @@
 # 订单中心页
 
 - Scope ID：`KC-P-036`
-- 文档状态：`Draft`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[消费者订单中心](../../README.md)
-- 旧版来源：`V2 new`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 旧版来源：旧订单入口整合
+- 路由：`OrderCenterRoute`，`/commerce/orders`
+- 设计版本：`Order Center Wireframe v1 / List`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-按状态和业务类型查看本人订单。
+```text
+[返回]              我的订单
+[全部] [待支付] [进行中] [已完成/售后]
+[类型标签] 标题                         [状态]
+场次/桌位摘要
+¥268 · 8月25日 20:30             [查看详情]
+...
+```
 
-## 待设计内容
+状态以文字+颜色双编码；列表卡不承载取消等高风险写操作。
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
-
-## 开发门禁
-
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
-
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

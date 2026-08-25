@@ -1,26 +1,30 @@
 # 点单确认页
 
 - Scope ID：`KC-P-035`
-- 文档状态：`Draft`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[扫码点单](../../README.md)
 - 旧版来源：`shoping2`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`ScanOrderConfirmationRoute`，`/commerce/ordering/confirm`，`$extra: QuoteRef`
+- 设计版本：`Scan Ordering Wireframe v1 / Confirmation`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-确认服务端计价、优惠和支付方式。
+核对服务端报价、桌位和商品，明确提交后创建待支付订单。
 
-## 待设计内容
+```text
+[返回]              确认点单
+门店名 · A08桌 · 报价剩余 04:32
+[商品明细]
+商品小计                         ¥300
+优惠                            -¥32
+应付金额                         ¥268
+[价格或库存变化提示区]
+[返回修改]                    [提交订单]
+```
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+- 不在本页让用户手填余额、金币或现金分摊；支付方式由支付流程基于权威 PaymentIntent 决定。
+- 主按钮提交时明确“提交订单”，不能提前写“支付成功”。
 
-## 开发门禁
-
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
-
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

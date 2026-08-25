@@ -1,26 +1,29 @@
 # 扫码点单商品/购物车页
 
 - Scope ID：`KC-P-034`
-- 文档状态：`Draft`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[扫码点单](../../README.md)
 - 旧版来源：`shoping`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`ScanOrderingCartRoute`，`/commerce/ordering`，`$extra: OrderingContextRef`
+- 设计版本：`Scan Ordering Wireframe v1 / Cart`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-选择商品、数量并查看非权威预估。
+确认当前门店/桌位，浏览商品并编辑购物车。
 
-## 待设计内容
+```text
+[返回]  门店名 · A08桌                    [订单]
+[桌位已验证 · 本场次有效]
+[分类栏]  酒水  小食  套餐
+[商品图] 名称/规格/服务端展示价    [- 1 +]
+...
+[购物车 3件]   预估 ¥268              [去确认]
+```
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+- “预估”必须明确；不展示客户端声称的优惠后最终价。
+- 商品不可售、限购和目录更新必须在原位置说明。
+- 200% 字体下底部操作条不遮挡商品和错误信息。
 
-## 开发门禁
-
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
-
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

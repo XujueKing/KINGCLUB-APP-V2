@@ -1,26 +1,26 @@
 # 关于与法律文档页
 
 - Scope ID：`KC-P-046`
-- 文档状态：`Draft`
+- 文档状态：`Approved for Development`
 - M0 范围：`In Release Scope`
 - 所属功能：[设置与账号安全](../../README.md)
 - 旧版来源：`about/aggreement`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`AboutLegalRoute`，`/me/settings/about`，可选 `$extra: DocumentRef`
+- 设计版本：`Settings Wireframe v1 / About & Legal`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 线框
 
-查看版本、备案、联系方式及只读法律文档。
+```text
+[返回]             关于 KingClub
+[Logo] KingClub  v2.x.x (build xx)
+用户协议                         >
+隐私政策                         >
+第三方 SDK/权限说明               >
+账号注销与数据处理说明             >
+运营主体 / 联系方式 / 备案信息
 
-## 待设计内容
+文档阅读态：标题 · 版本 · 生效日期 · 正文
+```
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
-
-## 开发门禁
-
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
-
+目录与正文来自权威 DocumentRef；版本号来自构建元数据。状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

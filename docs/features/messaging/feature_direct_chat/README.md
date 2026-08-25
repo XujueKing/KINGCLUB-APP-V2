@@ -1,34 +1,51 @@
 # 稳定单聊
 
 - Scope ID：`KC-F-021`
-
-- 文档状态：`Draft`
+- 文档状态：`Approved for Development`
 - 所属业务域：`messaging`
 - M0 范围：`In Release Scope`
-- 最后更新：2026-08-24
+- 设计版本：`Direct Chat v1`
+- 最后更新：2026-08-25
 
 ## 目标与用户价值
 
-提供文本、图片、视频、引用和转发的稳定单聊闭环。
+为已经建立好友关系的两位会员提供可补偿、可重试、不会重复发送的文本和媒体单聊，并支持必要的会话设置与单人转发。
 
-## 本期包含
+## 已确认事实
 
-- [KC-P-024 单聊页](pages/page_direct_chat/README.md) — `Draft`
-- [KC-P-025 单聊详情页](pages/page_direct_chat_details/README.md) — `Draft`
-- [KC-P-026 联系人选择页](pages/page_contact_selector/README.md) — `Draft`
+- 旧 `chat` 先用时间戳插入本地消息，再经 HTTP/推送发送并另外发裸 WebSocket 提示，失败状态和幂等边界不完整。
+- 旧媒体上传 URL 拼接账号和会话 ID，使用共享 Authorization；删除/撤回多为本地修改。
+- 旧聊天混入群申请、红包、金币、礼物、充值和支付，均不属于本期稳定单聊。
+- 旧 `chat_more` 同时承担单聊和完整群管理；后者已暂缓。
 
-## 本期不包含
+## 当前建议
 
-完整群聊、红包和金币转赠本期暂缓。
+- M0 消息类型：文本/emoji、图片、短视频、引用、转发副本、批准的业务卡片、系统提示和撤回占位。
+- 不包含语音、文件、位置、红包、金币、礼物、收藏、群消息和批量转发。
+- HTTP/API 持久化结果是权威；WebSocket 只做实时事件。发送使用稳定 `clientMessageId`，失败重试复用同一 ID。
+- 消息状态：`queued | uploading | sending | sent | delivered | read | failed | revoked`；服务端不支持的送达/已读能力不得伪造。
+- 只有 friendship 状态可发送；删除好友或拉黑后历史只读，输入区禁用。
+- 联系人选择只允许单个好友/单聊目标，不支持多选群发。
 
-## 待设计内容
+## 页面与文档
 
-- 用户角色、入口、前置条件、主流程和异常流程
-- 业务规则、状态机、权限和跨页面导航
-- UI 线框/设计版本、全部页面状态和 Mock 场景
-- Repository/port、API 或临时 Mock 契约
-- 隐私、安全、埋点、测试、灰度与回滚
+- [KC-P-024 单聊页](pages/page_direct_chat/README.md) — `Approved for Development`
+- [KC-P-025 单聊详情页](pages/page_direct_chat_details/README.md) — `Approved for Development`
+- [KC-P-026 联系人选择页](pages/page_contact_selector/README.md) — `Approved for Development`
+- [旧版审计](legacy_audit.md)
+- [消息状态机与导航](flow_and_navigation.md)
+- [数据与 Fake 契约](data_and_api.md)
+- [隐私与安全](privacy_and_safety.md)
+- [Mock 场景](mock_scenarios.md)
+- [功能验收](acceptance.md)
+
+## 已确认决策
+
+1. 首发消息类型按上述最小集合，语音、文件、红包、金币、礼物、收藏和批量转发暂缓。
+2. 只允许好友发消息；关系结束后保留只读历史但禁用发送。
+3. 单聊详情包含免打扰、置顶、聊天记录搜索、关系权限和“为我清空记录”；不做聊天背景。
+4. 联系人选择一次只选择一个好友，转发/业务卡片发送前必须二次确认。
 
 ## 开发门禁
 
-本目录建立只表示进入文档设计队列。功能与所属页面全部达到 `Approved for Development` 前不得开发；本期 48 页全部文档批准前不得创建 Flutter UI，整 App 达到 `UI Flow Approved` 前不得连接真实服务。
+本功能已达到文档准入；全部 48 页批准前不创建 Flutter UI，全局 UI Flow Approved 前不接真实消息、媒体、WebSocket、推送或业务分享接口。

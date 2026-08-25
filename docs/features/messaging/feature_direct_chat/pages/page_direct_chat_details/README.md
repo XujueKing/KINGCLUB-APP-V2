@@ -1,26 +1,31 @@
 # 单聊详情页
 
 - Scope ID：`KC-P-025`
-- 文档状态：`Draft`
-- M0 范围：`In Release Scope`
+- 文档状态：`Approved for Development`
 - 所属功能：[稳定单聊](../../README.md)
-- 旧版来源：`chat_more`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`DirectChatDetailsRoute`，`/messages/chat/details`，`$extra: ConversationRef`
+- 设计版本：`Direct Chat Wireframe v1 / Details`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-管理免打扰、背景入口和本地记录清理等单聊设置。
+查看对方、调整当前单聊设置、搜索聊天记录，或为自己清空记录。
 
-## 待设计内容
+```text
+[返回]              单聊详情
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+[头像] 好友备注 / 公开昵称                    >
 
-## 开发门禁
+消息免打扰                              [开关]
+置顶聊天                                [开关]
+搜索聊天记录                                >
+关系权限                                    >
 
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
+[为我清空聊天记录]
+```
 
+- 不含群成员、加减成员、群二维码、群公告、群管理、聊天背景或退出群聊。
+- 搜索在当前页面进入内嵌 search mode，不新增逻辑页面；只搜索本人仍可见的文本投影。
+- clearForMe 对当前用户隐藏服务端游标之前的历史，对方不受影响；不可恢复，需二次确认。
+
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

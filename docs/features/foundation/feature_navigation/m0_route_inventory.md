@@ -25,7 +25,7 @@
 | KC-P-010 | AppShellRoute | protectedShell container | active |
 | KC-P-011 | HomeRoute | protectedShell/home | active |
 | KC-P-012 | SafeScannerRoute | protectedShell overlay | active |
-| KC-P-013 | ContentFeedRoute | protectedShell/discover | global-review |
+| KC-P-013 | ContentFeedRoute | protectedShell/discover | page-approved |
 | KC-P-014 | ContactsRoute | protectedShell/messages | active |
 | KC-P-015 | AddFriendRoute | protectedShell/messages | active |
 | KC-P-016 | FriendRequestsRoute | protectedShell/messages | active |
@@ -34,33 +34,33 @@
 | KC-P-019 | FriendRemarkRoute | protectedShell/messages | active |
 | KC-P-020 | RelationshipPermissionsRoute | protectedShell/messages | active |
 | KC-P-021 | BlacklistRoute | protectedShell/messages | active |
-| KC-P-022 | ConversationsRoute | protectedShell/messages | global-review |
-| KC-P-023 | SystemNotificationsRoute | protectedShell/messages | reserved |
-| KC-P-024 | DirectChatRoute | protectedShell/messages | reserved |
-| KC-P-025 | DirectChatDetailsRoute | protectedShell/messages | reserved |
-| KC-P-026 | ContactSelectorRoute | protectedShell/messages overlay | reserved |
-| KC-P-027 | AaReservationsRoute | protectedShell/home | reserved |
-| KC-P-028 | AaPackageDetailRoute | protectedShell/home | reserved |
-| KC-P-029 | AaOrderConfirmationRoute | protectedShell/home | reserved |
-| KC-P-030 | VipPartyDetailRoute | protectedShell/home | reserved |
-| KC-P-031 | VipPartyCreateRoute | protectedShell/home | reserved |
-| KC-P-032 | VipPartyManagementRoute | protectedShell/home | reserved |
-| KC-P-033 | AdmissionTicketRoute | protectedShell/home | reserved |
-| KC-P-034 | ScanOrderingCartRoute | protectedShell overlay/home | reserved |
-| KC-P-035 | ScanOrderConfirmationRoute | protectedShell overlay/home | reserved |
-| KC-P-036 | OrderCenterRoute | protectedShell/me | reserved |
-| KC-P-037 | OrderDetailRoute | protectedShell/me | reserved |
-| KC-P-038 | PaymentResultRoute | protectedShell overlay | reserved |
-| KC-P-039 | AssetLedgerRoute | protectedShell/me | reserved |
+| KC-P-022 | ConversationsRoute | protectedShell/messages | page-approved |
+| KC-P-023 | SystemNotificationsRoute | protectedShell/messages | page-approved |
+| KC-P-024 | DirectChatRoute | protectedShell/messages | page-approved |
+| KC-P-025 | DirectChatDetailsRoute | protectedShell/messages | page-approved |
+| KC-P-026 | ContactSelectorRoute | protectedShell/messages overlay | page-approved |
+| KC-P-027 | AaReservationsRoute | protectedShell/home | page-approved |
+| KC-P-028 | AaPackageDetailRoute | protectedShell/home | page-approved |
+| KC-P-029 | AaOrderConfirmationRoute | protectedShell/home | page-approved |
+| KC-P-030 | VipPartyDetailRoute | protectedShell/home | page-approved |
+| KC-P-031 | VipPartyCreateRoute | protectedShell/home | page-approved |
+| KC-P-032 | VipPartyManagementRoute | protectedShell/home | page-approved |
+| KC-P-033 | AdmissionTicketRoute | protectedShell/home | page-approved |
+| KC-P-034 | ScanOrderingCartRoute | protectedShell overlay/home | page-approved |
+| KC-P-035 | ScanOrderConfirmationRoute | protectedShell overlay/home | page-approved |
+| KC-P-036 | OrderCenterRoute | protectedShell/me | page-approved |
+| KC-P-037 | OrderDetailRoute | protectedShell/me | page-approved |
+| KC-P-038 | PaymentResultRoute | protectedShell overlay | page-approved |
+| KC-P-039 | AssetLedgerRoute | protectedShell/me | page-approved |
 | KC-P-040 | MyProfileRoute | protectedShell/me | active |
 | KC-P-041 | EditProfileRoute | protectedShell/me | active |
 | KC-P-042 | PersonalQrRoute | protectedShell/me | active |
-| KC-P-043 | SettingsRoute | protectedShell/me | reserved |
-| KC-P-044 | PaymentSecurityRoute | protectedShell/me | reserved |
-| KC-P-045 | AccountDeletionRoute | protectedShell/me | reserved |
-| KC-P-046 | AboutLegalRoute | protectedShell/me | reserved |
-| KC-P-047 | PrivateStorageRoute | protectedShell/me | reserved |
-| KC-P-048 | StoragePickupCodeRoute | protectedShell/me | reserved |
+| KC-P-043 | SettingsRoute | protectedShell/me | page-approved |
+| KC-P-044 | PaymentSecurityRoute | protectedShell/me | page-approved |
+| KC-P-045 | AccountDeletionRoute | protectedShell/me | page-approved |
+| KC-P-046 | AboutLegalRoute | protectedShell/me | page-approved |
+| KC-P-047 | PrivateStorageRoute | protectedShell/me | page-review |
+| KC-P-048 | StoragePickupCodeRoute | protectedShell/me | page-review |
 
 ## 参数与对象权限
 

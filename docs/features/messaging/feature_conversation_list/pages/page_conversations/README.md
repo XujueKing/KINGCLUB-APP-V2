@@ -1,26 +1,35 @@
 # 会话列表页
 
 - Scope ID：`KC-P-022`
-- 文档状态：`Draft`
-- M0 范围：`In Release Scope`
+- 文档状态：`Approved for Development`
 - 所属功能：[会话列表](../../README.md)
-- 旧版来源：`index`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`ConversationsRoute`，`/messages`，protectedShell/messages 分支根
+- 设计版本：`Conversations Wireframe v1`
+- 最后更新：2026-08-25
 
-## 页面目标
+## 用户任务与线框
 
-查找和进入单聊会话。
+查看系统通知和单聊摘要，识别未读消息并进入正确会话。
 
-## 待设计内容
+```text
+消息
+[消息] [通讯录]                     [添加好友]
+[搜索会话名称____________________________]
 
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
+[KINGCLUB] 系统通知              3   10:20
+           订单状态已更新
 
-## 开发门禁
+置顶
+[头像] 好友备注                    2   09:10
+       [图片]
 
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
+最近
+[头像] 好友昵称                    ·   昨天
+       你收到一条新消息
+```
 
+- 列表只含系统通知和单聊；免打扰未读用非数字弱提示，普通未读显示 1～99+。
+- 右滑/更多提供无障碍等价菜单：“标记已读/未读”“从列表隐藏”。
+- 不显示在线状态、手机号、账号或完整消息正文。
+
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

@@ -1,26 +1,16 @@
 # 存酒/物品取件码页
 
 - Scope ID：`KC-P-048`
-- 文档状态：`Draft`
-- M0 范围：`In Release Scope`
+- 文档状态：`In Review`
 - 所属功能：[私人储物柜](../../README.md)
-- 旧版来源：`savecode`
-- 路由语义：待 navigation 评审
-- 最后更新：2026-08-24
+- 路由：`StoragePickupCodeRoute`，`/me/storage/pickup`，`$extra: StorageItemRef`
+- 设计版本：`Private Storage Wireframe v1 / Pickup`
 
-## 页面目标
+```text
+[返回] 取件凭证
+名称 · 数量/剩余量 · 有效状态
+[动态二维码] 00:24 后更新
+仅向工作人员出示，请勿截图分享
+```
 
-展示可失效、可核销的会员取件凭证。
-
-## 待设计内容
-
-- 入口、成功出口、取消/返回和非法参数处理
-- 信息架构、组件、视觉层级和多尺寸规则
-- 加载、成功、空、错误、离线、无权限、会话失效状态
-- 交互、校验、防重复提交、弹窗和无障碍
-- Mock/Fake 场景、数据字段、埋点和验收用例
-
-## 开发门禁
-
-当前仅建立独立页面文档目录，尚未完成设计。状态达到 `Approved for Development` 且本期全部页面文档通过前，不得创建对应 Flutter UI；项目达到 `UI Flow Approved` 前不得连接真实超级接口、WebSocket 或 SDK。
-
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

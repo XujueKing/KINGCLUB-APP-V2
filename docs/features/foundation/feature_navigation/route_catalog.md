@@ -22,8 +22,8 @@
 | `TermsConsentRoute` | `/auth/consent` | authFlow | 必需 `$extra: ConsentRouteContext` | 已批准 | readOnly 使用 push/pop；loginRecovery 使用 replace |
 | `AppShellRoute` | 容器，无外部 location | protectedShell | 无 | 已批准 | 只在 approved member 下建立四个分支 |
 | `HomeRoute` | `/home` | protectedShell/home | 无 | 已批准 | 登录后的默认主目的地 |
-| `ConversationsRoute` | `/messages` | protectedShell/messages | 无 | Draft，仅冻结语义 | 消息分支根 |
-| `ContentFeedRoute` | `/discover` | protectedShell/discover | 无 | Draft，仅冻结语义 | 发现分支根，只读内容 |
+| `ConversationsRoute` | `/messages` | protectedShell/messages | 无 | 已批准 | 消息分支根；仍受 48 页全局门禁约束 |
+| `ContentFeedRoute` | `/discover` | protectedShell/discover | 无 | 已批准 | 发现分支根，只读内容 |
 | `MyProfileRoute` | `/me` | protectedShell/me | 无 | 已批准 | 我的分支根 |
 | `SafeScannerRoute` | `/scan` | protectedShell overlay | 仅内存来源分支引用 | 已批准 | 中央动作或首页打开，关闭回来源分支 |
 | `EditProfileRoute` | `/me/edit` | protectedShell/me | 无 | 已批准 | 从我的主页进入；未保存退出需确认 |
@@ -36,6 +36,29 @@
 | `FriendRemarkRoute` | `/social/friend/remark` | protectedShell/messages | `$extra: SocialTargetRef` | 已批准 | 仅好友可进入 |
 | `RelationshipPermissionsRoute` | `/social/friend/permissions` | protectedShell/messages | `$extra: SocialTargetRef` | 已批准 | 好友或已拉黑关系可进入 |
 | `BlacklistRoute` | `/social/blacklist` | protectedShell/messages | 无 | 已批准 | 只列自己主动拉黑的用户 |
+| `SystemNotificationsRoute` | `/messages/system` | protectedShell/messages | 无 | 已批准 | 固定系统通知入口 |
+| `DirectChatRoute` | `/messages/chat` | protectedShell/messages | `$extra: ConversationRef` | 已批准 | 单聊历史；禁止外部打开 |
+| `DirectChatDetailsRoute` | `/messages/chat/details` | protectedShell/messages | `$extra: ConversationRef` | 已批准 | 单聊设置与内嵌搜索 |
+| `ContactSelectorRoute` | `/messages/select-contact` | protectedShell/messages overlay | `$extra: ShareIntentRef` | 已批准 | 单人转发/业务卡片确认 |
+| `AaReservationsRoute` | `/club/aa` | protectedShell/home | 无 | 已批准 | AA 营业日、已有预订与套餐列表 |
+| `AaPackageDetailRoute` | `/club/aa/package` | protectedShell/home | `$extra: AaOfferRef` | 已批准 | 权威套餐投影；禁止外部打开 |
+| `AaOrderConfirmationRoute` | `/club/aa/confirm` | protectedShell/home | `$extra: AaQuoteRef` | 已批准 | 权威报价确认；禁止外部打开 |
+| `VipPartyDetailRoute` | `/club/parties` | protectedShell/home | 可选 `$extra: PartyRef` | 已批准 | 公开列表与受控详情；禁止外部任意打开私有局 |
+| `VipPartyCreateRoute` | `/club/parties/create` | protectedShell/home | `$extra: ServiceDayRef` | 已批准 | 组局草稿与权威报价 |
+| `VipPartyManagementRoute` | `/club/parties/manage` | protectedShell/home | `$extra: PartyRef` | 已批准 | 仅当前局长；禁止外部打开 |
+| `AdmissionTicketRoute` | `/club/admission` | protectedShell/home | `$extra: AdmissionRef + ScanContextRef?` | 已批准 | 本人动态凭证或受控离场确认；禁止外部打开 |
+| `ScanOrderingCartRoute` | `/commerce/ordering` | protectedShell overlay/home | `$extra: OrderingContextRef` | 已批准 | 仅从已验证安全扫码上下文进入 |
+| `ScanOrderConfirmationRoute` | `/commerce/ordering/confirm` | protectedShell overlay/home | `$extra: QuoteRef` | 已批准 | 短时报价确认；禁止订单 JSON |
+| `OrderCenterRoute` | `/commerce/orders` | protectedShell/me | 无 | 已批准 | 当前会话本人的消费者订单 |
+| `OrderDetailRoute` | `/commerce/orders/detail` | protectedShell/me | `$extra: OrderRef` | 已批准 | 权威重读订单；禁止外部打开 |
+| `PaymentResultRoute` | `/commerce/payment` | protectedShell overlay | `$extra: PaymentIntentRef | PaymentAttemptRef` | 已批准 | 支付交接、确认与恢复；禁止结果参数 |
+| `AssetLedgerRoute` | `/me/assets` | protectedShell/me | 无 | 已批准 | 当前会话本人 KingClub 资产，只读 |
+| `SettingsRoute` | `/me/settings` | protectedShell/me | 无 | 已批准 | 固定 allowlist 设置入口 |
+| `PaymentSecurityRoute` | `/me/settings/payment-security` | protectedShell/me | 无 | 已批准 | 支付 PIN 设置/修改/重置 |
+| `AccountDeletionRoute` | `/me/settings/delete-account` | protectedShell/me | 无 | 已批准 | 仅 KingClub membership 注销 |
+| `AboutLegalRoute` | `/me/settings/about` | protectedShell/me | 可选 `$extra: DocumentRef` | 已批准 | 关于目录或受控法律文档 |
+| `PrivateStorageRoute` | `/me/storage` | protectedShell/me | 无 | In Review | 本人存酒和物品 |
+| `StoragePickupCodeRoute` | `/me/storage/pickup` | protectedShell/me | `$extra: StorageItemRef` | In Review | 本人动态取件凭证 |
 
 上述 Shell 目标当前只授权为导航决策语义；实现仍须等待对应页面与全局文档门禁。导航单元测试使用 fake target，不得因为出现在路由目录就创建占位页面代码。
 
@@ -64,6 +87,80 @@ SocialTargetRef
 
 FriendRequestRef
   requestRefId            不透明、仅进程内申请引用
+  generation              会话世代
+
+ConversationRef
+  refId                   不透明、仅进程内会话引用
+  generation              会话世代
+
+ShareIntentRef
+  refId                   不透明、仅进程内分享引用
+  generation              会话世代
+  kind                    forward | businessCard
+  expiresAt               强制过期时间
+
+AaOfferRef
+  refId                   不透明、仅进程内套餐引用
+  generation              会话世代
+  expiresAt               列表快照过期时间
+
+AaQuoteRef
+  refId                   不透明、仅进程内报价引用
+  generation              会话世代
+  quoteRevision           权威报价版本
+  expiresAt               强制过期时间
+
+ServiceDayRef
+  refId                   不透明、仅进程内营业日引用
+  generation              会话世代
+  expiresAt               强制过期时间
+
+PartyRef
+  refId                   不透明、仅进程内组局引用，可在 Store 绑定邀请授权
+  generation              会话世代
+
+AdmissionRef
+  refId                   不透明、仅进程内本人凭证引用
+  generation              会话世代
+  expiresAt?              来源上下文过期时间
+
+ScanContextRef
+  refId                   安全扫码解析后的受控上下文引用
+  generation              会话世代
+  kind                    admissionContext
+  expiresAt               强制过期时间
+
+OrderingContextRef
+  refId                   安全扫码解析后的短时点单上下文
+  generation              会话世代
+  expiresAt               强制过期时间
+
+QuoteRef
+  refId                   服务端报价不透明引用
+  generation              会话世代
+  quoteRevision           报价版本
+  expiresAt               强制过期时间
+
+OrderRef
+  refId                   当前用户订单的不透明引用
+  generation              会话世代
+
+PaymentIntentRef
+  refId                   服务端支付意图不透明引用
+  generation              会话世代
+  expiresAt               强制过期时间
+
+PaymentAttemptRef
+  refId                   已创建支付尝试的不透明引用
+  generation              会话世代
+
+DocumentRef
+  refId                   权威协议目录中的不透明文档引用
+  generation              会话世代
+  version                 明确文档版本
+
+StorageItemRef
+  refId                   本人储物的不透明引用
   generation              会话世代
 ```
 
@@ -94,11 +191,34 @@ openSendFriendRequest(SocialTargetRef)
 openFriendRemark(SocialTargetRef)
 openRelationshipPermissions(SocialTargetRef)
 openBlacklist
+openSystemNotifications
+openDirectChat(ConversationRef)
+openDirectChatDetails(ConversationRef)
+openContactSelector(ShareIntentRef)
+openAaReservations
+openAaPackageDetail(AaOfferRef)
+openAaOrderConfirmation(AaQuoteRef)
+openVipPartyDetail(PartyRef?)
+openVipPartyCreate(ServiceDayRef)
+openVipPartyManagement(PartyRef)
+openAdmissionTicket(AdmissionRef, ScanContextRef?)
+openScanOrderingCart(OrderingContextRef)
+openScanOrderConfirmation(QuoteRef)
+openOrderCenter
+openOrderDetail(OrderRef)
+openPayment(PaymentIntentRef | PaymentAttemptRef)
+openAssetLedger
+openSettings
+openPaymentSecurity
+openAccountDeletion
+openAboutLegal(DocumentRef?)
+openPrivateStorage
+openStoragePickupCode(StorageItemRef)
 back
 resetForSessionLoss(noticeCategory)
 ```
 
-上述已有页面对应的 RouteIntent 均已随文档批准；仍须等待全部 48 页文档批准后才可在 Flutter UI 中实现。当前不得提前定义通用 future route；新增业务 RouteIntent 必须与对应功能/页面文档一起评审。
+已批准页面对应的 RouteIntent 仍须等待全部 48 页文档批准后才可在 Flutter UI 中实现。消息、AA、VIP Party、Admission、商业功能、ContentFeed 与 AssetLedger RouteIntent 已获得文档批准；设置与安全 RouteIntent 当前随 KC-P-043～046 评审包冻结为候选语义，均受全局门禁约束。当前不得提前定义通用 future route；新增业务 RouteIntent 必须与对应功能/页面文档一起评审。
 
 ## 5. 导航动作语义
 
