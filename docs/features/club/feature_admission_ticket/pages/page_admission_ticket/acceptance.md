@@ -7,4 +7,4 @@
 - [x] 会话失效、防重复、结果未知、隐私和无障碍明确
 - [x] 用户于 2026-08-25 批准 `Admission Credential Wireframe v1`
 
-未来 UI Mock 验证 TICKET-M01～M20；仍须等待全部 48 页文档批准后才可实现页面。
+UI Mock 阶段验证 TICKET-M01～M20；全局文档门禁已满足，可以实现页面 Fake 流程。

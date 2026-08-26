@@ -1,7 +1,8 @@
 # 存酒/物品取件码页
 
 - Scope ID：`KC-P-048`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
+- 批准日期：2026-08-26
 - 所属功能：[私人储物柜](../../README.md)
 - 路由：`StoragePickupCodeRoute`，`/me/storage/pickup`，`$extra: StorageItemRef`
 - 设计版本：`Private Storage Wireframe v1 / Pickup`

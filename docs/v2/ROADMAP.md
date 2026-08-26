@@ -32,7 +32,7 @@ Roadmap 按可验证结果划分，不以页面数量或代码量作为完成标
 
 退出门槛：本期清单内所有功能和页面均达到 `Approved for Development`；未完成一项也不得开始 Flutter UI。
 
-当前服务端基础与登录页面资料见 [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)。本期已有 46/48 页文档批准，设置与安全已归档；私人储物柜最后两页评审包已形成；Flutter 工程尚未创建。
+当前服务端基础与登录页面资料见 [BACKEND_FOUNDATION_PHASE.md](BACKEND_FOUNDATION_PHASE.md)。Flutter 工程、登录四页、会员准入五页、首页、安全扫码、只读内容流、通讯录、基础 Fake 与 App Shell 已创建，共 14/48 页进入过实现。用户于 2026-08-26 批准 `Legacy Home Replica v1` 的整体布局与五 Tab 语义；随后要求首页各组件内容也先完成复刻文档。因此 KC-P-011 当前暂停在 `Component Content v1 / In Review`，确认组件内容后再继续首页 UI，其余真实接入门禁不变。
 
 ## Stage 2：全 App UI 与 Mock 流程
 

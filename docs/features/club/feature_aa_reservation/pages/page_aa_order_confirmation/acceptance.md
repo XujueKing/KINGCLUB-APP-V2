@@ -7,4 +7,4 @@
 - [x] 幂等、结果未知对账、返回、会话失效和隐私明确
 - [x] 用户批准 `AA Reservation Wireframe v1 / Confirmation`
 
-未来 UI Mock 验证 AA-M09～M20；当前仍须等待全部 48 页文档批准后才能实现页面。
+UI Mock 阶段验证 AA-M09～M20；全局文档门禁已满足，可以实现页面 Fake 流程。

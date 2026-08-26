@@ -1,10 +1,23 @@
 # 日志与可观测性验收
 
-- [ ] operational/crash/product 三类信号端口分离
-- [ ] 每类事件都有版本化 allowlist schema 和字段上限
+## 文档准入
+
+- [x] operational/crash/product 三类信号端口分离
+- [x] 版本化 allowlist、字段上限和默认拒绝策略明确
+- [x] 手机号、验证码、Token、证件、正文和完整对象禁止采集
+- [x] runId、requestId/traceId 的用途与边界明确
+- [x] 有界离线队列、TTL、环境隔离、清理和降级目标明确
+- [x] UI 阶段只用 Fake，第三方 SDK 与产品分析保持关闭
+- [x] 测试、隐私、厂商失败和回滚边界明确
+- [x] 用户于 2026-08-26批准本模块，状态更新为 `Approved for Development`
+
+## 实现与真实接入验收
+
 - [ ] 自动测试扫描手机号、验证码、Token、证件和正文泄漏
-- [ ] 启动、导航、网络、登录和会话关键路径可用 requestId/traceId 关联
+- [ ] 启动、导航、网络、登录和会话路径可用 requestId/traceId 关联
 - [ ] 离线队列有容量、TTL、环境隔离和清理策略
+- [ ] Fake 探针能断言事件 schema、顺序和禁止字段
 - [ ] 厂商 SDK 失败不阻塞启动或业务主流程
-- [ ] 产品分析在隐私与运营方案批准前保持关闭
-- [ ] 用户批准 ADR-0001 与本模块，状态更新为 `Approved for Development`
+- [ ] 产品分析只有在隐私与运营方案批准后才能启用
+
+实现项在相应阶段执行；当前批准不代表任何生产监控或分析 SDK 已启用。

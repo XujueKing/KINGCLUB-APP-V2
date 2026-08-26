@@ -5,7 +5,7 @@
 
 ## 文档状态
 
-`Approved for Development`。用户已于 2026-08-24 批准页面九项规则；实际编码仍须等待本期 48 页、foundation 与 design system 全部文档准入。
+`Approved for Development`。用户已于 2026-08-24 批准页面九项规则；全局文档门禁已于 2026-08-26 满足，可进入 UI/Mock 实现。
 
 ## 页面目标
 

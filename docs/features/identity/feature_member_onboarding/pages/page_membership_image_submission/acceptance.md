@@ -6,4 +6,4 @@
 - [x] FakeMediaPicker/FakeUpload 契约明确
 - [x] 用户于 2026-08-25 确认两张照片要求与公开审核文案
 
-未来 UI Mock 阶段验证 ONB-M05、M06、M11、M13；当前仍受全局文档门禁约束。
+当前 UI Mock 正在验证 ONB-M05、M06、M11、M13；全部通过前保持 `In Progress`。

@@ -9,4 +9,4 @@
 - [x] PARTY-M01～M24 覆盖三页主流程与异常
 - [x] 用户批准 `VIP Party v1` 及五项产品决策
 
-批准只表示文档达到 UI/Mock 准入；仍须等待全部 48 页批准，真实服务接入仍须等待项目级 `UI Flow Approved`。
+文档全局门禁已满足，可以进入 UI/Mock；真实服务接入仍须等待项目级 `UI Flow Approved`。

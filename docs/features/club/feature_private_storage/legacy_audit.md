@@ -1,6 +1,6 @@
 # 私人储物柜旧版审计
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 基线：`KingClub-app / master / 505d222`
 
 | 旧行为 | 风险 | V2 |

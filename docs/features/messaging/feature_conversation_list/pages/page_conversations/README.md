@@ -4,8 +4,9 @@
 - 文档状态：`Approved for Development`
 - 所属功能：[会话列表](../../README.md)
 - 路由：`ConversationsRoute`，`/messages`，protectedShell/messages 分支根
-- 设计版本：`Conversations Wireframe v1`
-- 最后更新：2026-08-25
+- 设计版本：`Legacy Conversations Replica v1`
+- UI 状态：`Implemented & Device Verified`（2026-08-26，离线 Mock）
+- 最后更新：2026-08-26
 
 ## 用户任务与线框
 
@@ -33,3 +34,10 @@
 - 不显示在线状态、手机号、账号或完整消息正文。
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。
+
+## 当前复刻决策
+
+- 用户于 2026-08-26 提供旧版聊天截图，确认保留现有通讯录主体，并在顶部相邻增加 `聊天` 选项。
+- 当前 UI 以 [旧版聊天列表 UI 复刻规范](legacy_ui_replication.md) 为准；原线框作为后续扩展场景保留。
+- 本轮只使用固定 Fake 会话，不连接 WebSocket、超级接口或真实消息存储。
+- Android API 37 模拟器已验证通讯录/聊天双向切换、置顶折叠、Fake 会话预览和消息底栏选中态；验收截图见 [android_chat_mock_latest.png](android_chat_mock_latest.png)。

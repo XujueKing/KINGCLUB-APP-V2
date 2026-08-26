@@ -7,4 +7,4 @@
 - [x] 隐私、模糊余量、无障碍和埋点边界明确
 - [x] 用户批准 `AA Reservation Wireframe v1 / Landing`
 
-未来 UI Mock 验证 AA-M01～M05、M08、M16～M20；当前仍须等待全部 48 页文档批准后才能实现页面。
+UI Mock 阶段验证 AA-M01～M05、M08、M16～M20；全局文档门禁已满足，可以实现页面 Fake 流程。

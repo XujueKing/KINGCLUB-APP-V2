@@ -7,4 +7,4 @@
 - [x] 隐私和无障碍边界明确
 - [x] 用户于 2026-08-25 批准 `Order Center Wireframe v1 / Detail`
 
-未来 UI Mock 验证 ORDERS-M07～M18；仍须等待全部 48 页文档批准后才可实现页面。
+UI Mock 阶段验证 ORDERS-M07～M18；全局文档门禁已满足，可以实现页面 Fake 流程。

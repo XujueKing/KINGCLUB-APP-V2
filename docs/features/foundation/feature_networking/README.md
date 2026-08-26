@@ -2,7 +2,7 @@
 
 - Scope ID：`KC-F-004`
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 优先级：P0
 - 当前建议：Dio 只作为底层 HTTP adapter，对 feature 暴露自有语义端口
 
@@ -50,3 +50,15 @@ Feature Repository
 - [验收标准](acceptance.md)
 - [第一批超级接口契约](../feature_super_interface/interface_contracts_v1.md)
 - [Foundation 索引](../README.md)
+
+## UI/Mock 阶段边界
+
+- UI 阶段只提供 `FakeSuperInterfaceClient`、可控延迟、取消和稳定错误分类；不得创建真实域名、握手或密文传输 adapter。
+- Fake 必须复现成功、超时、断网、结果未知、业务拒绝和会话失效，不伪造“已接通服务端”的证据。
+- 真实 Dio、ECDH、AES-GCM/HMAC 与证书策略仅在项目达到 `UI Flow Approved` 后实现并执行契约测试。
+
+## 交付状态
+
+- **已确认事实**：页面和 domain 只依赖语义端口，`interfaceId`、Dio 与密文封装均留在未来 data adapter。
+- **已确认事实**：用户于 2026-08-26 同意按“全 App UI/Fake 先行、真实接入后置”边界准入本模块。
+- **待真实接入验证**：握手测试向量、生产证书、真实错误映射、弱网与密文重放测试不属于当前文档/UI 门禁。

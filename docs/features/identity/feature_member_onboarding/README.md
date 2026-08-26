@@ -75,4 +75,4 @@
 
 ## 开发门禁
 
-本评审包已达到 `Approved for Development`，但只批准未来进入 UI/Mock 阶段。仍须等待本期全部 48 页文档准入后才能创建 Flutter UI，项目达到 `UI Flow Approved` 前不得连接真实服务或身份 SDK。
+本评审包已达到 `Approved for Development`，全局文档门禁也已满足，可进入 UI/Mock 阶段；项目达到 `UI Flow Approved` 前不得连接真实服务或身份 SDK。

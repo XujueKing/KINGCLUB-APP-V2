@@ -7,4 +7,4 @@
 - [x] 返回草稿、迟到响应、隐私和无障碍明确
 - [x] 用户批准 `VIP Party Wireframe v1 / Create`
 
-未来 UI Mock 验证 PARTY-M10～M15、M22～M24；当前仍须等待全部 48 页文档批准后才能实现页面。
+UI Mock 阶段验证 PARTY-M10～M15、M22～M24；全局文档门禁已满足，可以实现页面 Fake 流程。

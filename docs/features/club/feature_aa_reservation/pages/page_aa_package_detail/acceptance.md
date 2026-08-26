@@ -7,4 +7,4 @@
 - [x] 创建报价、防重复、返回恢复和无障碍明确
 - [x] 用户批准 `AA Reservation Wireframe v1 / Package`
 
-未来 UI Mock 验证 AA-M06～M08、M17～M20；当前仍须等待全部 48 页文档批准后才能实现页面。
+UI Mock 阶段验证 AA-M06～M08、M17～M20；全局文档门禁已满足，可以实现页面 Fake 流程。

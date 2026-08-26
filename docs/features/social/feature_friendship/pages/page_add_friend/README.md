@@ -4,8 +4,8 @@
 - 文档状态：`Approved for Development`
 - 所属功能：[好友申请与添加](../../README.md)
 - 路由：`AddFriendRoute`，`/social/add`，protectedShell/messages 子路由
-- 设计版本：`Friendship Wireframe v1 / Add`
-- 最后更新：2026-08-25
+- 设计版本：`Friendship Wireframe v1 / Add / Legacy Add Friend Replica v1`
+- 最后更新：2026-08-26
 
 ## 用户任务与线框
 
@@ -28,3 +28,7 @@
 - 两张动作卡在 200% 字体下纵向扩展，说明和动作名均可读。
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。
+
+## 2026-08-26 旧版复刻变更
+
+用户要求继续按旧版复刻；本轮以 [旧版“添加朋友”UI 复刻规范](legacy_ui_replication.md) 为准，恢复旧版扫一扫菜单、页面内大号二维码和 Fake 会员码。二维码不含真实身份载荷。

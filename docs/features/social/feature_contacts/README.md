@@ -6,6 +6,7 @@
 - M0 范围：`In Release Scope`
 - 设计版本：`Contacts v1`
 - 最后更新：2026-08-25
+- UI 状态：`In Progress`（2026-08-26，离线 Mock）
 
 ## 目标与用户价值
 
@@ -49,4 +50,4 @@
 
 ## 开发门禁
 
-本包已通过文档准入，只定义 UI、领域和 Fake 契约。全部 48 页文档批准前不得创建 Flutter UI，全局 UI Flow Approved 前不得连接真实社交接口。
+本包已通过文档准入，且全部 48 页文档已批准；当前已进入 UI/Mock 实现。全局 `UI Flow Approved` 前不得连接真实社交接口或系统通讯录能力。

@@ -8,4 +8,4 @@
 - [x] TICKET-M01～M20 覆盖完整 UI/Fake 流程
 - [x] 用户于 2026-08-25 批准 `Admission Credential v1` 及五项产品决策
 
-批准只表示文档达到 UI/Mock 准入；仍须等待全部 48 页批准，真实验票、扫码和原生安全能力接入仍受项目级 `UI Flow Approved` 门禁约束。
+文档全局门禁已满足，可以进入 UI/Mock；真实验票、扫码和原生安全能力接入仍受项目级 `UI Flow Approved` 门禁约束。

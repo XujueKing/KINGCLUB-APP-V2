@@ -1,11 +1,11 @@
 # 私人储物柜
 
 - Scope ID：`KC-F-026`
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 所属业务域：`club`
 - M0 范围：`In Release Scope`
-- 设计版本：`Private Storage v1`
-- 最后更新：2026-08-25
+- 设计版本：`Private Storage v1 / Legacy Private Storage Replica v1`
+- 批准日期：2026-08-26
 
 ## 目标
 
@@ -29,8 +29,8 @@
 
 ## 文档
 
-- [KC-P-047 私人储物柜页](pages/page_private_storage/README.md) — `In Review`
-- [KC-P-048 存酒/物品取件码页](pages/page_storage_pickup_code/README.md) — `In Review`
+- [KC-P-047 私人储物柜页](pages/page_private_storage/README.md) — `Approved for Development`
+- [KC-P-048 存酒/物品取件码页](pages/page_storage_pickup_code/README.md) — `Approved for Development`
 - [旧版审计](legacy_audit.md)
 - [安全与 Fake 契约](security_and_api.md)
 - [Mock 场景](mock_scenarios.md)
@@ -40,7 +40,7 @@
 
 员工扫码交付 UI、库房管理、代领/转赠、续期、争议处理、真实接口/扫码/推送能力。
 
-## 待用户确认
+## 已确认决策
 
 1. 存酒和物品统一在储物柜中分类展示。
 2. 不显示内部库位、员工姓名和永久 storedId。
@@ -48,6 +48,8 @@
 4. 只有授权员工可核销，消费者不能自行宣布取件成功。
 5. 离线不提供永久备用码，由工作人员人工核验。
 
+用户于 2026-08-26确认以上方案。
+
 ## 门禁
 
-用户批准后才准入；全局 `UI Flow Approved` 前不接真实储物、凭证或员工核销能力。
+本功能与两页均已达到文档准入；全局 `UI Flow Approved` 前不接真实储物、凭证或员工核销能力。

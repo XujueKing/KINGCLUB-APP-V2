@@ -105,8 +105,8 @@ ccsop-service + kingclub business line
 - **已确认事实**：验证码页采用 K102 结果未知时失败关闭；协议确认页采用本地 ConsentSnapshot、由 K102 最终落库。
 - **已确认事实**：ADR-0001 已批准，本机已升级至 Flutter `3.47.1 stable / Dart 3.13.1`；Android API 24、iOS 15 与核心依赖基线已冻结。
 - **已确认事实**：Flutter app_bootstrap 已达到 `Approved for Development`。
-- **当前状态**：本期已有 46/48 页文档批准，设置与安全已归档；私人储物柜最后两页评审包已形成。networking、session/persistence、observability、Mock Runtime 和原生能力仍待完善或评审。
-- **当前建议**：先完成私人储物柜评审，再收尾剩余 foundation 文档；foundation 全部批准仅完成底座文档门禁，仍须等待本期全部功能、页面和设计系统文档批准后才创建工程骨架。
+- **当前状态**：本期 48/48 页、32/32 功能与全部 Foundation 文档已于 2026-08-26 达到准入。Flutter 工程、Design System、类型化路由、登录四页、会员准入五页、基础 Fake 与 App Shell 已创建；真实 networking、session、安全存储、可观测 SDK 与原生能力 adapter 继续保持阻断。
+- **当前建议**：文档全局门禁已满足；下一步创建可验证的 Flutter 工程骨架，只装配 UI/Fake 所需依赖与端口，不创建真实 adapter。
 - **已确认事实**：Flutter 客户端采用“本期全部文档 → 全部 UI Mock → 整 App UI 验收 → 真实接口/SDK 接入”门禁；已完成的服务端契约在 UI 阶段只作为 Fake/Mock 设计依据。
 - **待验收**：生产短信/协议/服务凭据、生产容量、生产日志以及后续物业正式注册复用仍未验收。
 
@@ -118,7 +118,7 @@ ccsop-service + kingclub business line
 4. [WebSocket 实时传输](../features/messaging/feature_realtime_transport/README.md)
 5. [同城统一账号](../features/identity/feature_unified_city_identity/README.md)
 
-服务端本地开发门禁、四个登录页面文档准入与 app_bootstrap 已通过；其余 Flutter foundation 仍在评审。即使 foundation 全部批准，也要等待本期全部功能/页面文档完成后才开始 UI；UI 全流程验收前不接真实服务。
+服务端本地开发门禁与 Flutter 文档全局准入均已通过。下一步允许开始 UI/Mock；UI 全流程验收前不接真实服务。
 
 ## 6. 待用户决策
 

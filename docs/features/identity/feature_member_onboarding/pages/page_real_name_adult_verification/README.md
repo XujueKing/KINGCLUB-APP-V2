@@ -53,4 +53,4 @@
 
 ## 验收
 
-见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁，不得接入真实核验。
+见 [acceptance.md](acceptance.md)。当前只实现合成数据与 Fake 核验 UI；不得接入真实核验。

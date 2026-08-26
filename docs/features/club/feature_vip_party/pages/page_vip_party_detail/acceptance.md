@@ -7,4 +7,4 @@
 - [x] 无成员公开泄露、无任意外链邀请和无障碍明确
 - [x] 用户批准 `VIP Party Wireframe v1 / Browse`
 
-未来 UI Mock 验证 PARTY-M01～M09、M21～M24；当前仍须等待全部 48 页文档批准后才能实现页面。
+UI Mock 阶段验证 PARTY-M01～M09、M21～M24；全局文档门禁已满足，可以实现页面 Fake 流程。

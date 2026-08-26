@@ -7,4 +7,4 @@
 - [x] 无障碍、隐私和埋点边界明确
 - [x] 用户于 2026-08-25 批准 `Scan Ordering Wireframe v1 / Cart`
 
-未来 UI Mock 验证 ORDERING-M01～M12、M19～M20；仍须等待全部 48 页文档批准后才可实现页面。
+UI Mock 阶段验证 ORDERING-M01～M12、M19～M20；全局文档门禁已满足，可以实现页面 Fake 流程。

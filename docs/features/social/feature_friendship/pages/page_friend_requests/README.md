@@ -4,8 +4,8 @@
 - 文档状态：`Approved for Development`
 - 所属功能：[好友申请与添加](../../README.md)
 - 路由：`FriendRequestsRoute`，`/social/requests`，protectedShell/messages 子路由
-- 设计版本：`Friendship Wireframe v1 / Requests`
-- 最后更新：2026-08-25
+- 设计版本：`Friendship Wireframe v1 / Requests / Legacy Friend Requests Replica v1`
+- 最后更新：2026-08-26
 
 ## 用户任务与线框
 
@@ -26,3 +26,7 @@
 - 列表不提供滑动接受/拒绝，避免误触；处理在用户主页完成。
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。
+
+## 2026-08-26 旧版复刻变更
+
+本轮按 [旧版“新的朋友”UI 复刻规范](legacy_ui_replication.md) 开发离线 UI Mock。首屏使用 2 条 Fake 申请与通讯录入口角标保持一致；不接真实服务。

@@ -6,6 +6,7 @@
 - M0 范围：`In Release Scope`
 - 设计版本：`Safe Scanner v1`
 - 最后更新：2026-08-25
+- UI 状态：`In Progress`（2026-08-26，离线 Mock）
 
 ## 目标与用户价值
 
@@ -60,4 +61,4 @@
 
 ## 开发门禁
 
-本包已达到 `Approved for Development`，但只批准未来进入 UI/Mock 阶段。全部 48 页文档批准前不得创建 Flutter UI，项目达到 `UI Flow Approved` 前不得访问真实相机或扫码解析接口。
+本包已达到 `Approved for Development`，且全部 48 页文档已批准；当前已进入 UI/Mock 实现。项目达到 `UI Flow Approved` 前不得访问真实相机、系统相机权限、扫码插件或扫码解析接口。

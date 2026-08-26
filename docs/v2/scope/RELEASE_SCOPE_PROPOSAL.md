@@ -19,15 +19,15 @@
 | KC-F-001 | foundation | [应用启动](../../features/foundation/feature_app_bootstrap/README.md) | Approved for Development | 纳入 |
 | KC-F-002 | foundation | [导航](../../features/foundation/feature_navigation/README.md) | Approved for Development | 纳入 |
 | KC-F-003 | foundation | [设计系统](../../features/foundation/feature_design_system/README.md) | Approved for Development | 纳入 |
-| KC-F-004 | foundation | [网络与超级接口端口](../../features/foundation/feature_networking/README.md) | In Review | 仅文档和 Fake |
-| KC-F-005 | foundation | [会话持久化](../../features/foundation/feature_session_persistence/README.md) | In Review | 仅文档和 Fake |
-| KC-F-006 | foundation | [可观测性](../../features/foundation/feature_observability/README.md) | In Review | 仅文档和 Fake |
+| KC-F-004 | foundation | [网络与超级接口端口](../../features/foundation/feature_networking/README.md) | Approved for Development | 仅端口和 Fake |
+| KC-F-005 | foundation | [会话持久化](../../features/foundation/feature_session_persistence/README.md) | Approved for Development | 仅端口和 Fake |
+| KC-F-006 | foundation | [可观测性](../../features/foundation/feature_observability/README.md) | Approved for Development | 仅端口和 Fake |
 | KC-F-007 | foundation | [App Shell](../../features/foundation/feature_app_shell/README.md) | Approved for Development | 纳入 |
-| KC-F-008 | foundation | [Mock Runtime](../../features/foundation/feature_mock_runtime/README.md) | Draft | 纳入 |
-| KC-F-009 | foundation | [原生能力与权限](../../features/foundation/feature_native_capabilities/README.md) | Draft | 先定义 Fake/权限状态 |
+| KC-F-008 | foundation | [Mock Runtime](../../features/foundation/feature_mock_runtime/README.md) | Approved for Development | 纳入 |
+| KC-F-009 | foundation | [原生能力与权限](../../features/foundation/feature_native_capabilities/README.md) | Approved for Development | 先实现 Fake/权限状态 |
 | KC-F-010 | identity | [登录与鉴权会话](../../features/identity/feature_login_session/README.md) | Approved for Development | 纳入 |
 | KC-F-011 | identity | [会员注册与准入](../../features/identity/feature_member_onboarding/README.md) | Approved for Development | 纳入 |
-| KC-F-012 | home | [首页聚合](../../features/home/feature_home_hub/README.md) | Approved for Development | 纳入 |
+| KC-F-012 | home | [首页聚合](../../features/home/feature_home_hub/README.md) | Approved for Development | 纳入；先复刻旧版 UI |
 | KC-F-013 | home | [安全扫码分流](../../features/home/feature_safe_scanner/README.md) | Approved for Development | 纳入 |
 | KC-F-014 | content | [短视频/作品浏览](../../features/content/feature_content_feed/README.md) | Approved for Development | 只读浏览；不含发布 |
 | KC-F-015 | social | [通讯录](../../features/social/feature_contacts/README.md) | Approved for Development | 纳入 |
@@ -41,7 +41,7 @@
 | KC-F-023 | club | [一起玩 AA](../../features/club/feature_aa_reservation/README.md) | Approved for Development | 纳入 |
 | KC-F-024 | club | [VIP 组局](../../features/club/feature_vip_party/README.md) | Approved for Development | 纳入 |
 | KC-F-025 | club | [入场凭证](../../features/club/feature_admission_ticket/README.md) | Approved for Development | 纳入 |
-| KC-F-026 | club | [私人储物柜](../../features/club/feature_private_storage/README.md) | In Review | 纳入（D4 已确认） |
+| KC-F-026 | club | [私人储物柜](../../features/club/feature_private_storage/README.md) | Approved for Development | 纳入（D4 已确认） |
 | KC-F-027 | commerce | [扫码点单](../../features/commerce/feature_scan_ordering/README.md) | Approved for Development | 纳入 |
 | KC-F-028 | commerce | [订单中心](../../features/commerce/feature_order_center/README.md) | Approved for Development | 纳入；V2 新补 |
 | KC-F-029 | commerce | [支付](../../features/commerce/feature_payment/README.md) | Approved for Development | 纳入 |
@@ -49,7 +49,7 @@
 | KC-F-031 | profile_settings | [个人中心](../../features/profile_settings/feature_profile_center/README.md) | Approved for Development | 纳入 |
 | KC-F-032 | profile_settings | [设置与安全](../../features/profile_settings/feature_settings_security/README.md) | Approved for Development | 纳入 |
 
-以上 32 项均已建立独立功能目录；目录建立只代表进入文档设计队列，不代表允许开发。
+以上 32 项均已建立独立功能目录；目录建立只代表进入文档设计队列，不代表允许开发。KC-F-012 的旧版 UI 与五 Tab 复刻规范已于 2026-08-26 获用户确认。
 
 ## 3. 本期 48 个逻辑页面
 
@@ -74,7 +74,7 @@
 
 | Scope ID | 页面 | 来源/说明 | docStatus |
 |---|---|---|---|
-| KC-P-011 | 首页 | 拆自旧 `index` 首页 | Approved for Development |
+| KC-P-011 | 首页 | 拆自旧 `index` 首页；先复刻旧版 UI | Approved for Development |
 | KC-P-012 | 扫码识别与安全分流页 | 好友码、桌码、入场码 allowlist | Approved for Development |
 | KC-P-013 | 短视频/作品流页 | 旧 `index` 视频 tab + `openVideo` | Approved for Development |
 
@@ -140,8 +140,8 @@
 
 | Scope ID | 页面 | 来源/说明 | docStatus |
 |---|---|---|---|
-| KC-P-047 | 私人储物柜页 | 拆自旧 `index` 储物柜 tab | In Review |
-| KC-P-048 | 存酒/物品取件码页 | 旧 `savecode`；员工交付不在会员 App | In Review |
+| KC-P-047 | 私人储物柜页 | 拆自旧 `index` 储物柜 tab | Approved for Development |
+| KC-P-048 | 存酒/物品取件码页 | 旧 `savecode`；员工交付不在会员 App | Approved for Development |
 
 ## 4. 可选包确认结果
 

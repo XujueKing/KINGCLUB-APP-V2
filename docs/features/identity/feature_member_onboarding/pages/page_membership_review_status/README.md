@@ -44,4 +44,4 @@
 
 ## 验收
 
-见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁，不得接真实审核通知。
+见 [acceptance.md](acceptance.md)。当前只实现本地审核状态切换，不得接真实审核通知。

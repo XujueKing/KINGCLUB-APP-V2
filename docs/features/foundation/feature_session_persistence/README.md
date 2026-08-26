@@ -2,7 +2,7 @@
 
 - Scope ID：`KC-F-005`
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 优先级：P0
 - 当前建议：自有 SecureStore/SessionRepository 端口，平台 adapter 使用 `flutter_secure_storage`
 
@@ -52,3 +52,15 @@ minimal account + membership snapshot
 - [验收标准](acceptance.md)
 - [登录状态机](../../identity/feature_login_session/auth_state_machine.md)
 - [Foundation 索引](../README.md)
+
+## UI/Mock 阶段边界
+
+- UI 阶段使用进程内 `FakeSessionRepository` 和虚构 `SessionView`，不持久化真实 API Key、Refresh Token 或用户资料。
+- Fake 可以模拟冷启动候选、刷新、撤销、过期、受限和清理失败，但不得把本地状态当作服务端认证事实。
+- `flutter_secure_storage`、Keychain/Keystore、备份排除和卸载残留策略仅在 `UI Flow Approved` 后进入真实 adapter 与真机验证。
+
+## 交付状态
+
+- **已确认事实**：页面只能读取脱敏 `SessionView`，会话秘密由唯一 `SessionCoordinator` 和 Repository 端口管理。
+- **已确认事实**：用户于 2026-08-26 同意按 Fake 会话先行、平台安全存储后置的边界准入本模块。
+- **待真实接入验证**：原子 generation、平台加密存储、备份排除、卸载残留和 K103 轮换需在真实接入阶段验证。

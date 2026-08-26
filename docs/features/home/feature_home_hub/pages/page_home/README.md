@@ -6,12 +6,12 @@
 - 所属功能：[首页聚合](../../README.md)
 - 旧版来源：`pages/index/index` 首页逻辑
 - 路由语义：`HomeRoute`，`/home`，protectedShell/home 分支根
-- 设计版本：`Home Wireframe v1`
-- 最后更新：2026-08-25
+- 设计版本：`Legacy Home Replica v1 / Component Content v1`
+- 最后更新：2026-08-26
 
 ## 用户任务
 
-快速确认当前到店语境和最近行程，并在不浏览复杂菜单的情况下进入 AA、VIP、入场或扫码主任务。
+先忠实复刻旧微信小程序首页的视觉与主要 Mock 交互，让旧用户在 Flutter App 中获得熟悉的首页体验；复刻验收后再单独评审改版。
 
 ## 入口、出口与返回
 
@@ -20,42 +20,28 @@
 - 出口：批准的类型化 RouteIntent；未知活动动作不得导航。
 - 返回：首页为分支根，不返回登录或准入；系统返回由 Shell 处理。
 
-## 线框
+## 当前复刻方案
 
-```text
-[KINGCLUB]                       [当前门店/城市]
-晚上好，会员昵称
-
-[一起玩 AA] [VIP 组局]
-[入场凭证]  [安全扫码]
-
-今晚行程
-[状态 · 时间 · 标题                         >]
-
-精选活动
-[活动卡片] [活动卡片]
-
-[服务提示 / 更新时间]
--------------------------------
-首页  消息   [扫码]  发现  我的
-```
+- 完整视觉、素材、布局、Fake 数据与验收规则见 [旧版首页 UI 复刻规范](legacy_ui_replication.md)。
+- 每个组件内部内容、字段、图片文案和点击流程见 [首页组件内容复刻总表](components/README.md)。该内容包已获批准。
+- 用户于 2026-08-26 撤回“先做新版首页”的实施顺序，要求先复刻旧版 UI，再考虑改版。
+- 原 `Home Wireframe v1` 作为历史设计结论保留，不再作为当前实现依据。
 
 ## 视觉与布局
 
-- 使用 Design System v1 黑曜石背景与香槟金强调色；金色只强调主动作/状态，不作为大段正文。
-- 四个核心入口在 360px 宽度保持 2×2；200% 字体时允许纵向扩展，不截断任务名称。
-- 精选活动图片使用固定比例和语义占位；减少动态效果时停止自动轮播。
-- 页面不复制底部导航；线框中的底栏由 App Shell 提供。
+- 使用旧版纯黑背景、香槟金资产区、三联入口、两列海报瀑布流和悬浮胶囊底栏。
+- 页面不绘制手机外框和微信宿主控件；底栏仍由 App Shell 提供，并复刻旧版五 Tab 视觉与语义。
+- 360～430dp 宽度保持原比例；200% 字体时核心动作仍须可达。
 
 ## 页面组成
 
 | 区域 | 内容 |
 |---|---|
-| Brand Header | 品牌、问候、非敏感当前门店/城市 |
-| Primary Actions | AA、VIP、入场、扫码固定入口 |
-| Upcoming Journey | 最相关的一条行程或空态 |
-| Featured Cards | 0～5 个受控运营卡片 |
-| Service Notice | 可选稳定类别提示与更新时间 |
+| Legacy Member Header | Logo、认证、等级、EXP、金币、钻石、进度条 |
+| Hero Banner | 旧版比例的运营轮播图 |
+| Legacy Quick Actions | 一起玩、组局玩、扫码三联入口 |
+| Promotion Masonry | 两列运营海报流 |
+| Legacy Shell Navigation | 五图标悬浮胶囊底栏 |
 
 ## 数据与隐私
 
@@ -65,4 +51,4 @@
 
 ## 验收
 
-页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁，不得接真实首页数据。
+页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。整体布局、组件内容与旧版五 Tab 语义已经确认，当前恢复 UI/Mock 开发；真实首页数据继续阻断。

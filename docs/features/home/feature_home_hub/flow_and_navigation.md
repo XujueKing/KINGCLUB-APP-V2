@@ -1,6 +1,6 @@
 # 首页流程与导航
 
-- 文档状态：`Approved for Development`
+- 文档状态：`In Review`
 
 ## 前置条件
 
@@ -16,9 +16,9 @@
 进入/恢复 HomeRoute
   -> 立即显示骨架或合格缓存
   -> FakeHomeHubRepository.getSnapshot()
-      -> ready：渲染入口、行程、精选和服务提示
-      -> partial：保留可用模块，失败模块内联重试
-      -> empty：保留核心入口，显示无行程/无精选
+      -> ready：渲染会员头部、Banner、三联入口和运营内容流
+      -> partial：保留可用组件，单张图片/组件内联失败
+      -> empty：保留会员头部与三联入口，显示无运营内容
       -> fatal：保留 Shell，显示全页重试
 ```
 
@@ -28,9 +28,9 @@
 |---|---|---|
 | 一起玩 AA | `openAaReservations` | 页面批准前只保留 Fake 意图 |
 | VIP 组局 | `openVipParty` | 进入列表/详情语义，具体页批准后激活 |
-| 入场凭证 | `openAdmissionTicket` | 不在首页生成或核销凭证 |
-| 安全扫码 | `openSafeScanner(origin=home)` | 与 Shell 中央扫码同一状态机 |
-| 精选活动 | `executeHomeAction(action)` | 仅客户端枚举 allowlist |
+| 安全扫码 | `openSafeScanner(origin=home)` | 只由首页三联入口发起；中央爱心仍是内容 Tab |
+| Banner | `openCampaignPreview(id)` | 展开受控 Fake 内容面板，不打开任意 URL |
+| 运营内容卡 | `openPromotionPreview(id)` | 展开受控 Fake 内容面板并恢复原滚动位置 |
 | 重选首页 Tab | `PrimaryDestinationReselected` | 滚动到顶，不隐式刷新 |
 
 ## 返回和生命周期
@@ -46,9 +46,9 @@
 none
 openAaReservations
 openVipParty
-openAdmissionTicket
 openSafeScanner
-selectPrimaryDestination(discover | me)
+openCampaignPreview(campaignId)
+openPromotionPreview(promotionId)
 ```
 
 未知、过期或当前版本未批准的动作显示“此内容暂不可用”，不得回退为动态 URL。

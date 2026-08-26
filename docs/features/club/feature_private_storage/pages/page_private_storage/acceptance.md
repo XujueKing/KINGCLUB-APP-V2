@@ -3,4 +3,4 @@
 - [x] 分类、数量、有效期和状态层级明确
 - [x] 空、错误、离线、过期与受限状态明确
 - [x] 不展示内部库位、员工或永久编号
-- [ ] 用户批准 `Private Storage Wireframe v1 / List`
+- [x] 用户于 2026-08-26批准 `Private Storage Wireframe v1 / List`

@@ -45,4 +45,4 @@
 
 ## 验收
 
-见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁。
+见 [acceptance.md](acceptance.md)。当前使用版本化 Fake 目录实现 UI，真实目录仍保持阻断。

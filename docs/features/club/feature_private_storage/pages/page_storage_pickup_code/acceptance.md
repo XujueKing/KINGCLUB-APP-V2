@@ -3,4 +3,4 @@
 - [x] 动态码、倒计时、部分/全部交付状态明确
 - [x] 后台遮盖、离线、重放与结果未知明确
 - [x] 员工核销、消费者只展示边界明确
-- [ ] 用户批准 `Private Storage Wireframe v1 / Pickup`
+- [x] 用户于 2026-08-26批准 `Private Storage Wireframe v1 / Pickup`

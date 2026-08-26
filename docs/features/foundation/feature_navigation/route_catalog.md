@@ -218,7 +218,7 @@ back
 resetForSessionLoss(noticeCategory)
 ```
 
-已批准页面对应的 RouteIntent 仍须等待全部 48 页文档批准后才可在 Flutter UI 中实现。消息、AA、VIP Party、Admission、商业功能、ContentFeed 与 AssetLedger RouteIntent 已获得文档批准；设置与安全 RouteIntent 当前随 KC-P-043～046 评审包冻结为候选语义，均受全局门禁约束。当前不得提前定义通用 future route；新增业务 RouteIntent 必须与对应功能/页面文档一起评审。
+全部 48 页已批准，对应 RouteIntent 可在 Flutter UI/Mock 中实现。消息、AA、VIP Party、Admission、商业功能、ContentFeed、AssetLedger、设置与安全及私人储物柜 RouteIntent 均已完成文档准入。当前不得提前定义通用 future route；新增业务 RouteIntent 必须与对应功能/页面文档一起评审。
 
 ## 5. 导航动作语义
 

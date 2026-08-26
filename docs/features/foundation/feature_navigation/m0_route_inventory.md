@@ -59,8 +59,8 @@
 | KC-P-044 | PaymentSecurityRoute | protectedShell/me | page-approved |
 | KC-P-045 | AccountDeletionRoute | protectedShell/me | page-approved |
 | KC-P-046 | AboutLegalRoute | protectedShell/me | page-approved |
-| KC-P-047 | PrivateStorageRoute | protectedShell/me | page-review |
-| KC-P-048 | StoragePickupCodeRoute | protectedShell/me | page-review |
+| KC-P-047 | PrivateStorageRoute | protectedShell/me | page-approved |
+| KC-P-048 | StoragePickupCodeRoute | protectedShell/me | page-approved |
 
 ## 参数与对象权限
 

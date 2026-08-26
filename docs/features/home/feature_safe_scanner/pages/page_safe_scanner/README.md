@@ -8,6 +8,7 @@
 - 路由语义：`SafeScannerRoute`，`/scan`，protectedShell overlay，禁止外部直达
 - 设计版本：`Safe Scanner Wireframe v1`
 - 最后更新：2026-08-25
+- UI 状态：`In Progress`（2026-08-26，离线 Mock）
 
 ## 用户任务
 
@@ -56,6 +57,13 @@
 - 埋点记录来源类别、权限结果、允许类型/失败类别和耗时桶，不含 payload、图像或业务 ID。
 - App 切到后台立即停止预览；任务切换缩略图保护策略在原生能力文档中统一评审。
 
+## 当前实现记录
+
+- 已实现 `/scan` 类型化全屏路由，并由 Shell 中央入口和首页入口共用。
+- 已实现用途说明、Fake 权限选择、Fake 取景器、补光灯 UI、识别中、三类 allowlist 成功意图、拒绝/过期/离线异常与重新扫码。
+- 允许结果只向 Shell 返回类型化内存意图；目标业务页尚未实现时显示明确提示，不创建真实好友、订单或核销动作。
+- Android API 37 模拟器已验证打开、识别、关闭与返回原首页状态；Widget 测试已覆盖好友资料安全意图。
+
 ## 验收
 
-状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁，不声明权限或接入真实扫码能力。
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。文档已批准并进入 UI/Mock 实现；仍须等待项目级 `UI Flow Approved`，不声明系统权限或接入真实扫码能力。

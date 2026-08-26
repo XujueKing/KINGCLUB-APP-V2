@@ -45,4 +45,4 @@
 
 ## 验收
 
-见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁，不得调用真实提交接口。
+见 [acceptance.md](acceptance.md)。当前只实现 Fake 提交与审核跳转，不得调用真实提交接口。

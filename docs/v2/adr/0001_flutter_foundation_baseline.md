@@ -84,4 +84,4 @@ feature data -> networking/session ports -> core adapters
 | iOS 工具链 | Windows 无法验证；后续必须在 macOS + Xcode 上完成真机构建门禁 |
 | Windows 桌面工具链 | Visual Studio 未安装；本项目不以 Windows 桌面为目标，不阻塞移动端基线 |
 
-ADR 已批准，但五个 foundation 模块以及本期全部功能、页面和设计系统文档完成评审前仍不运行 `flutter create`。工程创建后先完成全 App UI Mock；项目达到 `UI Flow Approved` 前不连接真实接口、WebSocket 或生产 SDK。
+ADR、九个 Foundation 模块、本期 32 个功能、48 个页面和设计系统文档均已于 2026-08-26 完成准入，`flutter create` 已按 Android/iOS 单 App package 基线执行。当前先完成全 App UI Mock；项目达到 `UI Flow Approved` 前不连接真实接口、WebSocket 或生产 SDK。

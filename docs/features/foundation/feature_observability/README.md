@@ -2,7 +2,7 @@
 
 - Scope ID：`KC-F-006`
 
-- 文档状态：`In Review`
+- 文档状态：`Approved for Development`
 - 优先级：P0
 - 当前建议：先定义供应商中立端口，后续再选择崩溃/性能平台
 
@@ -50,3 +50,15 @@ approved attributes
 
 - [验收标准](acceptance.md)
 - [Foundation 索引](../README.md)
+
+## UI/Mock 阶段边界
+
+- UI 阶段只实现内存/控制台型 `FakeOperationalLogger` 与测试探针；不得初始化第三方崩溃、性能或产品分析 SDK。
+- Mock 事件只能使用纯虚构数据和 allowlist 字段，并支持测试中断言“禁止字段从未出现”。
+- 厂商选择、隐私同意、采样、上传和生产数据保留期在 `UI Flow Approved` 后独立评审。
+
+## 交付状态
+
+- **已确认事实**：operational、crash/performance 与 product analytics 使用独立端口和独立启用策略。
+- **已确认事实**：用户于 2026-08-26 同意供应商中立、默认拒绝字段、UI 阶段不启用第三方 SDK的方案。
+- **待真实接入验证**：供应商 SDK、隐私文本、采样率、上传失败与生产保留策略不属于当前文档/UI 门禁。

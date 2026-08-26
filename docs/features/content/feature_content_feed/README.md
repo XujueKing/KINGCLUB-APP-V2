@@ -6,6 +6,7 @@
 - M0 范围：`In Release Scope`
 - 设计版本：`Read-only Content Feed v1`
 - 最后更新：2026-08-25
+- UI 状态：`In Progress`（2026-08-26，离线 Mock）
 
 ## 目标与用户价值
 
@@ -55,4 +56,4 @@
 
 ## 开发门禁
 
-用户已于 2026-08-25 批准本版本；全部 48 页批准前不创建 Flutter UI，全局 `UI Flow Approved` 前不接真实内容、媒体/CDN 或播放器能力。
+用户已于 2026-08-25 批准本版本，且全部 48 页文档已批准；当前已进入 UI/Mock 实现。全局 `UI Flow Approved` 前不接真实内容、媒体/CDN 或播放器能力。
