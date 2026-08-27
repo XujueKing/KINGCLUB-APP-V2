@@ -10,11 +10,15 @@ class LegacyClubScaffold extends StatelessWidget {
     required this.title,
     required this.onBack,
     required this.child,
+    this.showMockLabel = true,
+    this.onTitleLongPress,
   });
 
   final String title;
   final VoidCallback onBack;
   final Widget child;
+  final bool showMockLabel;
+  final VoidCallback? onTitleLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -49,25 +53,30 @@ class LegacyClubScaffold extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: legacyGold,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Positioned(
-                      right: 18,
+                    GestureDetector(
+                      key: const ValueKey('legacy-club-title'),
+                      onLongPress: onTitleLongPress,
                       child: Text(
-                        'UI MOCK',
-                        style: TextStyle(
-                          color: Color(0x66C9B69E),
-                          fontSize: 9,
-                          letterSpacing: 1.2,
+                        title,
+                        style: const TextStyle(
+                          color: legacyGold,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
+                    if (showMockLabel)
+                      const Positioned(
+                        right: 18,
+                        child: Text(
+                          'UI MOCK',
+                          style: TextStyle(
+                            color: Color(0x66C9B69E),
+                            fontSize: 9,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

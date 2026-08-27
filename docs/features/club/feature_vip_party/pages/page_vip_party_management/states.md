@@ -18,3 +18,13 @@
 | `sessionInvalid` | 清理 PartyRef、成员与邀请并 reset |
 
 未知 allowedAction 不生成按钮；未知状态只读降级。
+
+## Fake 成员样例
+
+| 行 | 状态 | 允许动作 |
+|---|---|---|
+| 局长 | `confirmed/host` | 仅显示“局长” |
+| 已付款成员 | `confirmed` | 只读“已确认”，不可移除 |
+| 未付款占位 | `acceptedPendingPayment` | 二次确认后“释放占位” |
+| 已发送邀请 | `invited` | 二次确认后“撤销邀请” |
+| 空位 | `empty` | 单选好友并二次确认“邀请” |

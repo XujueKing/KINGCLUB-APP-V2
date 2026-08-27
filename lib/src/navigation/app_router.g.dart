@@ -22,6 +22,11 @@ List<RouteBase> get $appRoutes => [
   $safeScannerRoute,
   $aaReservationsRoute,
   $vipPartyRoute,
+  $admissionTicketRoute,
+  $scanOrderingCartRoute,
+  $scanOrderConfirmationRoute,
+  $orderCenterRoute,
+  $paymentResultRoute,
 ];
 
 RouteBase get $authBootstrapRoute => GoRouteData.$route(
@@ -438,6 +443,18 @@ RouteBase get $vipPartyRoute => GoRouteData.$route(
   path: '/club/parties',
   hasOverriddenOnExit: false,
   factory: $VipPartyRoute._fromState,
+  routes: [
+    GoRouteData.$route(
+      path: 'create',
+      hasOverriddenOnExit: false,
+      factory: $VipPartyCreateRoute._fromState,
+    ),
+    GoRouteData.$route(
+      path: 'manage',
+      hasOverriddenOnExit: false,
+      factory: $VipPartyManagementRoute._fromState,
+    ),
+  ],
 );
 
 mixin $VipPartyRoute on GoRouteData {
@@ -458,6 +475,228 @@ mixin $VipPartyRoute on GoRouteData {
 
   @override
   void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $VipPartyCreateRoute on GoRouteData {
+  static VipPartyCreateRoute _fromState(GoRouterState state) =>
+      VipPartyCreateRoute(state.uri.queryParameters['date']!);
+
+  VipPartyCreateRoute get _self => this as VipPartyCreateRoute;
+
+  @override
+  String get location => GoRouteData.$location(
+    '/club/parties/create',
+    queryParams: {'date': _self.date},
+  );
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $VipPartyManagementRoute on GoRouteData {
+  static VipPartyManagementRoute _fromState(GoRouterState state) =>
+      const VipPartyManagementRoute();
+
+  @override
+  String get location => GoRouteData.$location('/club/parties/manage');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $admissionTicketRoute => GoRouteData.$route(
+  path: '/club/admission',
+  hasOverriddenOnExit: false,
+  factory: $AdmissionTicketRoute._fromState,
+);
+
+mixin $AdmissionTicketRoute on GoRouteData {
+  static AdmissionTicketRoute _fromState(GoRouterState state) =>
+      const AdmissionTicketRoute();
+
+  @override
+  String get location => GoRouteData.$location('/club/admission');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $scanOrderingCartRoute => GoRouteData.$route(
+  path: '/commerce/ordering',
+  hasOverriddenOnExit: false,
+  factory: $ScanOrderingCartRoute._fromState,
+);
+
+mixin $ScanOrderingCartRoute on GoRouteData {
+  static ScanOrderingCartRoute _fromState(GoRouterState state) =>
+      const ScanOrderingCartRoute();
+
+  @override
+  String get location => GoRouteData.$location('/commerce/ordering');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $scanOrderConfirmationRoute => GoRouteData.$route(
+  path: '/commerce/ordering/confirm',
+  hasOverriddenOnExit: false,
+  factory: $ScanOrderConfirmationRoute._fromState,
+);
+
+mixin $ScanOrderConfirmationRoute on GoRouteData {
+  static ScanOrderConfirmationRoute _fromState(GoRouterState state) =>
+      ScanOrderConfirmationRoute(state.extra as FakeOrderingQuote?);
+
+  ScanOrderConfirmationRoute get _self => this as ScanOrderConfirmationRoute;
+
+  @override
+  String get location => GoRouteData.$location('/commerce/ordering/confirm');
+
+  @override
+  void go(BuildContext context) => context.go(location, extra: _self.$extra);
+
+  @override
+  Future<T?> push<T>(BuildContext context) =>
+      context.push<T>(location, extra: _self.$extra);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location, extra: _self.$extra);
+
+  @override
+  void replace(BuildContext context) =>
+      context.replace(location, extra: _self.$extra);
+}
+
+RouteBase get $orderCenterRoute => GoRouteData.$route(
+  path: '/commerce/orders',
+  hasOverriddenOnExit: false,
+  factory: $OrderCenterRoute._fromState,
+  routes: [
+    GoRouteData.$route(
+      path: 'detail',
+      hasOverriddenOnExit: false,
+      factory: $OrderDetailRoute._fromState,
+    ),
+  ],
+);
+
+mixin $OrderCenterRoute on GoRouteData {
+  static OrderCenterRoute _fromState(GoRouterState state) =>
+      const OrderCenterRoute();
+
+  @override
+  String get location => GoRouteData.$location('/commerce/orders');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $OrderDetailRoute on GoRouteData {
+  static OrderDetailRoute _fromState(GoRouterState state) =>
+      OrderDetailRoute(state.extra as FakeOrderRef?);
+
+  OrderDetailRoute get _self => this as OrderDetailRoute;
+
+  @override
+  String get location => GoRouteData.$location('/commerce/orders/detail');
+
+  @override
+  void go(BuildContext context) => context.go(location, extra: _self.$extra);
+
+  @override
+  Future<T?> push<T>(BuildContext context) =>
+      context.push<T>(location, extra: _self.$extra);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location, extra: _self.$extra);
+
+  @override
+  void replace(BuildContext context) =>
+      context.replace(location, extra: _self.$extra);
+}
+
+RouteBase get $paymentResultRoute => GoRouteData.$route(
+  path: '/commerce/payment',
+  hasOverriddenOnExit: false,
+  factory: $PaymentResultRoute._fromState,
+);
+
+mixin $PaymentResultRoute on GoRouteData {
+  static PaymentResultRoute _fromState(GoRouterState state) =>
+      PaymentResultRoute(state.extra as FakePaymentIntentRef?);
+
+  PaymentResultRoute get _self => this as PaymentResultRoute;
+
+  @override
+  String get location => GoRouteData.$location('/commerce/payment');
+
+  @override
+  void go(BuildContext context) => context.go(location, extra: _self.$extra);
+
+  @override
+  Future<T?> push<T>(BuildContext context) =>
+      context.push<T>(location, extra: _self.$extra);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location, extra: _self.$extra);
+
+  @override
+  void replace(BuildContext context) =>
+      context.replace(location, extra: _self.$extra);
 }
 
 // **************************************************************************
@@ -506,4 +745,4 @@ final class AppRouterProvider
   }
 }
 
-String _$appRouterHash() => r'8f07216d1821792c525383e5cc037b628ac81471';
+String _$appRouterHash() => r'43a7bf200863a0a2d9e9d55992c7a6a70bd9dcad';

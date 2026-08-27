@@ -6,3 +6,12 @@
 - [x] 用户于 2026-08-25 批准 Relationship Wireframe v1 / Permissions
 
 未来 UI Mock 验证 REL-M04～M08、M10～M12；当前仍受全局文档门禁约束。
+
+## UI Mock 实现
+
+- [x] 旧版互动范围、内容开关、黑名单和删除联系人 UI 已完成
+- [x] 拉黑、删除的独立二次确认和取消路径已完成
+- [x] 破坏性结果可回传用户主页并原子替换关系动作
+- [x] 全部状态仅使用 Fake，不访问真实关系或消息服务
+- [x] Android 截图 `android_relationship_permissions.png` 已归档
+- [ ] 获得旧版同状态运行截图后完成最终 1:1 视觉验收

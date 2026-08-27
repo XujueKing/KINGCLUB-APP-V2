@@ -15,3 +15,12 @@
 | `sessionInvalid` | 清空并 reset |
 
 ACK、isRead 和业务状态互相独立；未知 action/category 必须失败关闭。
+
+## UI Mock 联动状态
+
+| 状态 | UI/动作 |
+|---|---|
+| `threeUnread` | 三张卡片有未读边框/红点，会话行显示 `3` |
+| `partialRead` | 展开一张后剩余数递减，会话行返回后显示剩余数量 |
+| `allRead` | 全部卡片移除未读强调，会话行不显示红点 |
+| `reopenPreserved` | 当前 App Shell 生命周期内再次进入时保留剩余未读数 |

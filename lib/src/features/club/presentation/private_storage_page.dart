@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'storage_pickup_code_page.dart';
+
 const _storageGold = Color(0xFFC9B69E);
 
 enum _StorageCategory { wine, item }
@@ -64,6 +66,26 @@ class _PrivateStoragePageState extends State<PrivateStoragePage> {
                 style: TextStyle(color: Color(0x55FFFFFF), fontSize: 12),
               ),
               const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  key: const ValueKey('storage-open-pickup-demo'),
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const StoragePickupCodePage(),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _storageGold,
+                    side: const BorderSide(color: _storageGold),
+                  ),
+                  child: const Text('查看取件凭证演示'),
+                ),
+              ),
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(

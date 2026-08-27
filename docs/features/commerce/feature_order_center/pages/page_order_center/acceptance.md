@@ -6,5 +6,26 @@
 - [x] 列表不执行高风险写操作
 - [x] 隐私、会话切换和无障碍明确
 - [x] 用户于 2026-08-25 批准 `Order Center Wireframe v1 / List`
+- [x] 2026-08-27 确认使用旧版 `mybalance` 列表节奏和 `shoping3` 订单信息层级组合成统一消费者订单中心
+- [x] 列表卡仅查看详情，不放置取消、支付、退款或核销写操作
 
 UI Mock 阶段验证 ORDERS-M01～M06、M16～M18；全局文档门禁已满足，可以实现页面 Fake 流程。
+
+## 2026-08-27 Android UI Mock 验收记录
+
+- [x] `/commerce/orders` 可独立打开，并维持旧版黑金列表视觉
+- [x] 全部订单混排扫描点单、VIP 组局、一起玩 AA 与售后订单
+- [x] `全部 / 待支付 / 进行中 / 完成·售后` 筛选可操作
+- [x] 下拉刷新、游标加载更多、加载失败重试与到底提示均为本地 Fake 流程
+- [x] 离线缓存、事件待刷新、未知状态、空列表、错误和会话失效均有独立状态
+- [x] 列表详情入口只传递不透明 `OrderRef`，没有取消、支付、退款或核销写操作
+- [x] Android `1080 × 2400` 默认态和待支付筛选态无溢出、遮挡或底部碰撞
+- [x] `flutter analyze` 无问题
+- [x] 完整 Flutter 测试：87 项全部通过
+
+实机截图：
+
+- `screenshots/android_order_center_v2.png`
+- `screenshots/android_order_center_pending_v2.png`
+
+由于旧版不存在同状态的统一订单中心运行截图，本页只能验证旧版结构组合和 Android 实机质量，不能声明像素级复刻通过。

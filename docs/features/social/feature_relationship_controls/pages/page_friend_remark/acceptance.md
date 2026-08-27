@@ -6,3 +6,12 @@
 - [x] 用户于 2026-08-25 批准 Relationship Wireframe v1 / Remark
 
 未来 UI Mock 验证 REL-M01～M03、M11～M12；当前仍受全局文档门禁约束。
+
+## UI Mock 实现
+
+- [x] 旧版朋友资料双分组 UI 已完成
+- [x] 备注名 24 字、说明 120 字编辑弹层已完成
+- [x] 电话、联系人权限、分组与标签未进入页面
+- [x] Fake 修改结果可回传用户主页且不持久化
+- [x] Android 截图 `android_friend_remark.png` 已归档
+- [ ] 获得旧版同状态运行截图后完成最终 1:1 视觉验收

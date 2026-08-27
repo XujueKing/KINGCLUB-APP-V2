@@ -279,6 +279,12 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                     const SizedBox(height: 14),
                     _quickActions(context),
+                    const SizedBox(height: 8),
+                    _LegacyBlacklistEntry(
+                      onTap: () => widget.onIntent(
+                        const ContactRouteIntent(ContactIntentKind.blacklist),
+                      ),
+                    ),
                     const SizedBox(height: 14),
                     if (_state == ContactsDemoState.offlineCached)
                       const _StatusBanner(
@@ -543,6 +549,49 @@ class _QuickActionCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LegacyBlacklistEntry extends StatelessWidget {
+  const _LegacyBlacklistEntry({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0x0EC9B69E),
+      child: InkWell(
+        key: const ValueKey('contacts-blacklist'),
+        onTap: onTap,
+        child: SizedBox(
+          height: 58,
+          child: Row(
+            children: [
+              const SizedBox(width: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: Image.asset(
+                  'assets/legacy/friendship/blacklist.png',
+                  width: 42,
+                  height: 42,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Text(
+                  '黑名单',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0x99C9B69E)),
+              const SizedBox(width: 10),
+            ],
+          ),
         ),
       ),
     );

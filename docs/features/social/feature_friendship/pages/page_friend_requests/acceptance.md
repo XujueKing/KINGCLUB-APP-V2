@@ -12,5 +12,8 @@
 - [x] 详情、接受、拒绝和本地状态更新可演示
 - [x] Android 模拟器截图通过，自动测试通过
 - [x] 未接超级接口、WebSocket 或真实好友关系
+- [x] 接受后显示“已添加好友”完成提醒并保留本地已添加状态
+- [x] 完成提醒及已添加记录均可进入对应好友单聊
+- [x] 单聊首条为好友建立系统提醒，随后才展示聊天记录
 
-证据：[android_friend_requests_latest.png](android_friend_requests_latest.png)。
+证据：[申请列表](android_friend_requests_latest.png)、[好友添加完成提醒](android_friend_accepted_prompt.png)。

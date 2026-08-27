@@ -1,0 +1,287 @@
+import 'package:flutter/material.dart';
+
+class AboutLegalPage extends StatefulWidget {
+  const AboutLegalPage({super.key});
+
+  @override
+  State<AboutLegalPage> createState() => _AboutLegalPageState();
+}
+
+class _LegalDocument {
+  const _LegalDocument({
+    required this.title,
+    required this.version,
+    required this.effectiveDate,
+    required this.sections,
+  });
+  final String title;
+  final String version;
+  final String effectiveDate;
+  final List<(String, String)> sections;
+}
+
+class _AboutLegalPageState extends State<AboutLegalPage> {
+  static const _gold = Color(0xFFC9B69E);
+  static const _muted = Color(0xFFAAA096);
+  _LegalDocument? _document;
+
+  static const _documents = [
+    _LegalDocument(
+      title: 'KING CLUB 会员服务协议',
+      version: 'UI-MOCK-1',
+      effectiveDate: '待权威目录确认',
+      sections: [
+        ('引言', '欢迎使用 KingClub。此处仅展示文档阅读版式与返回流程，不构成正式协议文本。'),
+        ('一、服务范围', 'KingClub 为成年会员提供同城社交、到店活动与相关会员服务。正式范围以发布时权威协议为准。'),
+        ('二、账号与会员', '用户应妥善保管账号凭据，并遵守平台规则。正式权利义务以权威 DocumentRef 为准。'),
+      ],
+    ),
+    _LegalDocument(
+      title: 'KingClub 隐私政策',
+      version: 'UI-MOCK-1',
+      effectiveDate: '待权威目录确认',
+      sections: [
+        ('一、信息处理说明', '本页只用于模拟隐私政策的标题、版本、生效日期和正文阅读状态。'),
+        ('二、你的权利', '正式版本将说明访问、更正、删除、撤回授权和注销等权利及操作渠道。'),
+        ('三、联系我们', '正式联系方式将在发布前由权威文档目录提供。'),
+      ],
+    ),
+    _LegalDocument(
+      title: '第三方 SDK 与权限说明',
+      version: 'UI-MOCK-1',
+      effectiveDate: '待权威目录确认',
+      sections: [
+        ('说明', '正式清单将列出 SDK 名称、开发者、使用目的、数据类型、权限与隐私政策链接。'),
+        ('当前阶段', 'UI Mock 阶段未接入支付、推送、定位或其他生产 SDK。'),
+      ],
+    ),
+    _LegalDocument(
+      title: '账号注销与数据处理说明',
+      version: 'UI-MOCK-1',
+      effectiveDate: '待权威目录确认',
+      sections: [
+        ('注销范围', '仅注销 KingClub 会员和业务资料，不注销物业共享身份或物业账号。'),
+        ('依法留存', '交易、安全和争议处理所需数据可能依法保留至规定期限。'),
+        ('不可恢复', '正式注销完成后，不能通过客户端恢复已删除的 KingClub 资料和权益。'),
+      ],
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: _document == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _document = null);
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _AboutHeader(
+                title: _document?.title ?? '关于 KingClub',
+                onBack: _handleBack,
+              ),
+              Expanded(
+                child: _document == null ? _catalog() : _reader(_document!),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _catalog() {
+    return ListView(
+      key: const ValueKey('about-legal-catalog'),
+      padding: const EdgeInsets.fromLTRB(28, 32, 28, 36),
+      children: [
+        Center(
+          child: Image.asset(
+            'assets/legacy/home/logo_2.png',
+            width: 126,
+            fit: BoxFit.contain,
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Text(
+          'KingClub',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 23,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 5),
+        const Text(
+          'V2 1.0.0 (1)',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _muted, fontSize: 12),
+        ),
+        const SizedBox(height: 28),
+        const Text(
+          '感谢使用 KingClub。会员需阅读并遵守以下协议、政策及数据处理说明。',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _muted, height: 1.6, fontSize: 13),
+        ),
+        const SizedBox(height: 28),
+        ...List.generate(
+          _documents.length,
+          (index) => InkWell(
+            key: ValueKey('about-legal-document-$index'),
+            onTap: () => setState(() => _document = _documents[index]),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 60),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Color(0x22C9B69E))),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _documents[index].title,
+                      style: const TextStyle(color: _gold, fontSize: 15),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: _muted),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 28),
+        const Text(
+          '技术支持：548627@qq.com',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _muted, fontSize: 12),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '软件开发商：湖南领美网络科技有限公司',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _muted, fontSize: 12),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '备案与版权信息发布前复核',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Color(0xFF6A6259), fontSize: 11),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'UI Mock，正式内容以权威文档目录为准',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Color(0xFF554D44), fontSize: 11),
+        ),
+      ],
+    );
+  }
+
+  Widget _reader(_LegalDocument document) {
+    return ListView(
+      key: ValueKey('about-legal-reader-${document.title}'),
+      padding: const EdgeInsets.fromLTRB(30, 24, 30, 52),
+      children: [
+        Text(
+          '《${document.title}》',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          '版本：${document.version}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: _muted, fontSize: 12),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          '生效日期：${document.effectiveDate}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: _muted, fontSize: 12),
+        ),
+        const SizedBox(height: 28),
+        ...document.sections.expand(
+          (section) => [
+            Text(
+              section.$1,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              section.$2,
+              style: const TextStyle(
+                color: Color(0xFFCCCCCC),
+                fontSize: 15,
+                height: 1.75,
+              ),
+            ),
+            const SizedBox(height: 26),
+          ],
+        ),
+        const Text(
+          '本页为 UI Mock，不是正式法律文本。',
+          style: TextStyle(color: Color(0xFF6A6259), fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  void _handleBack() {
+    if (_document != null) {
+      setState(() => _document = null);
+    } else {
+      Navigator.pop(context);
+    }
+  }
+}
+
+class _AboutHeader extends StatelessWidget {
+  const _AboutHeader({required this.title, required this.onBack});
+  final String title;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 62,
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onBack,
+            icon: const Icon(
+              Icons.arrow_back_ios_new,
+              color: Color(0xFFC9B69E),
+              size: 21,
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFC9B69E),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 48),
+        ],
+      ),
+    );
+  }
+}

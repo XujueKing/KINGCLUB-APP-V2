@@ -76,11 +76,26 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
-                child: KingBrandMark(compact: true),
+                child: Semantics(
+                  label: 'King club',
+                  header: true,
+                  image: true,
+                  child: const SizedBox(
+                    key: ValueKey('mobile-login-brand-logo'),
+                    width: 190,
+                    height: 108,
+                    child: Image(
+                      image: AssetImage('assets/legacy/home/logo_2.png'),
+                      fit: BoxFit.contain,
+                      alignment: Alignment.centerLeft,
+                      excludeFromSemantics: true,
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 52),
+              const SizedBox(height: 36),
               Text('手机号登录', style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 8),
               Text(

@@ -18,3 +18,16 @@
 | `sessionInvalid` | 清空草稿、报价、幂等键并 reset |
 
 报价 revision、规则 snapshot 或 generation 变化后，旧同意状态不得复用。
+
+## Fake 场景入口
+
+| 场景 | 可见结果 |
+|---|---|
+| `ready` | 默认旧版表单、有效报价、可创建 |
+| `quoteChanged` | 展示旧/新金额差异，规则勾选清空 |
+| `quoteExpired` | 底部按钮变为刷新报价，刷新后恢复 |
+| `inventoryConflict` | 桌位冲突提示，保留套餐与人数，要求重选桌位 |
+| `offline` | 显示离线提示，选择、重报价和创建全部禁用 |
+| `resultUnknown` | 提交后显示对账中说明，只允许用原幂等键继续查询 |
+
+这些状态均为本地 Fake；页面不得把“待支付”展示成“已付款”。

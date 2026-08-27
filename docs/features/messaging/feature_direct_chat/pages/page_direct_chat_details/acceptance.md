@@ -3,6 +3,16 @@
 - [x] 用户入口、免打扰、置顶、内嵌搜索、关系权限和清空明确
 - [x] 群设置、聊天背景和退出群聊已排除
 - [x] 版本冲突、结果未知、clear cursor 和迟到分页规则明确
-- [ ] 用户批准 Direct Chat Wireframe v1 / Details
+- [x] 用户批准按旧版页面进行 UI/Fake 复刻
+
+## UI Mock 实现验收（2026-08-27）
+
+- [x] 旧版头像区、分组列表、绿色开关和清空记录操作已实现
+- [x] 查找聊天内容、关系权限、置顶/免打扰和二次确认可演示
+- [x] 群管理、聊天背景和真实会话写操作未引入
+- [x] Android 1080×2400 无溢出或遮挡
+- [ ] 等待旧版运行截图后完成最终 1:1 视觉验收
+
+实现证据：[android_direct_chat_details.png](android_direct_chat_details.png)。
 
 未来 UI Mock 验证 CHAT-M14～M16、M18；批准前不得实现页面。

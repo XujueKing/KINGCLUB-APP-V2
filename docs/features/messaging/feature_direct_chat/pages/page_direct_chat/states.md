@@ -13,5 +13,8 @@
 | `partialError` | 保留历史 + 局部重试 |
 | `fatalError` | 重试/返回 |
 | `sessionInvalid` | 清空草稿/媒体/历史并 reset |
+| `draftWithQuote` | 输入栏上方显示引用摘要与关闭按钮 |
+| `mediaPreview` | 黑底全屏显示本地图片/视频静态预览，可关闭 |
+| `confirmDeleteOrRecall` | 二次确认，不确认不改变消息 |
 
 messageId/clientMessageId 去重；消息版本和 serverSequence 不倒退；旧 generation 不得恢复正文。

@@ -18,4 +18,11 @@
 | `fatalError` | 重试/返回 |
 | `sessionInvalid` | 清理 PartyRef/InviteRef/成员数据并 reset |
 
+## 旧版复刻呈现
+
+- `listReady` 使用旧版黑金桌卡、粉色席位格、套餐价格和二维码布局。
+- `detailViewer/detailParticipant/detailHost` 均在选中桌卡下方展开洋红成员区，不跳新页面。
+- `offlineCached/full/locked/live/completed` 保留桌卡和日期作为只读上下文，操作按钮替换为明确状态。
+- `listEmpty` 保留日期、预定新卡座入口、规则和营业时间，不制造空白黑屏。
+
 未知 party/membership 状态安全只读，不默认展示加入或成员名单。

@@ -6,6 +6,7 @@
 - 路由：`DirectChatDetailsRoute`，`/messages/chat/details`，`$extra: ConversationRef`
 - 设计版本：`Direct Chat Wireframe v1 / Details`
 - 最后更新：2026-08-25
+- UI 状态：`UI Mock Implemented（2026-08-27）`
 
 ## 用户任务与线框
 
@@ -27,5 +28,9 @@
 - 不含群成员、加减成员、群二维码、群公告、群管理、聊天背景或退出群聊。
 - 搜索在当前页面进入内嵌 search mode，不新增逻辑页面；只搜索本人仍可见的文本投影。
 - clearForMe 对当前用户隐藏服务端游标之前的历史，对方不受影响；不可恢复，需二次确认。
+
+## 旧版 UI 复刻
+
+UI/Mock 实现以[旧版聊天详情 UI 复刻规范](legacy_ui_replication.md)为准，保留旧版分组设置列表和开关样式，并删除不属于本期单聊的群管理与聊天背景入口。
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

@@ -6,5 +6,10 @@
 - [x] 幂等、结果未知、字段错误、离线与会话失效明确
 - [x] 返回草稿、迟到响应、隐私和无障碍明确
 - [x] 用户批准 `VIP Party Wireframe v1 / Create`
+- [x] 已依据旧版 `vip-order` 冻结 `VIP Party Legacy Replica v2 / Create`
+- [x] 旧版分组、字段顺序、金色选择块、开关和底部付款栏均有明确映射
+- [x] 明确删除颜值、年龄、性别比例、非局长创建和客户端手工抵扣
+- [ ] Android 同尺寸主状态与旧版运行态截图完成并排视觉验收（Android 实现截图已完成，缺旧版运行态）
+- [x] PARTY-M10～M15、M22～M24 Widget/Fake 核心流程通过
 
 UI Mock 阶段验证 PARTY-M10～M15、M22～M24；全局文档门禁已满足，可以实现页面 Fake 流程。

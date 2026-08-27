@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'edit_profile_page.dart';
+import 'personal_qr_page.dart';
+import 'settings_page.dart';
+
 class MyProfilePage extends StatefulWidget {
   const MyProfilePage({super.key});
 
@@ -436,35 +440,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   void _showQr() {
-    _showSheet(
-      title: '我的二维码',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 190,
-            height: 190,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.qr_code_2, size: 164, color: Colors.black),
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            '杨嘉琪  ·  K45600000199',
-            style: TextStyle(color: Colors.white),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '当前为 UI Mock，二维码不含真实身份凭证。',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: _muted),
-          ),
-        ],
-      ),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const PersonalQrPage()));
   }
 
   void _showLevel() {
@@ -532,119 +509,22 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   void _showSettings() {
-    const entries = [
-      ('支付安全', Icons.shield_outlined),
-      ('账号与安全', Icons.person_outline),
-      ('通知权限', Icons.notifications_none),
-      ('清理缓存', Icons.cleaning_services_outlined),
-      ('关于与法律', Icons.info_outline),
-      ('账号注销', Icons.no_accounts_outlined),
-      ('退出登录', Icons.logout),
-    ];
-    _showSheet(
-      title: '设置',
-      child: Column(
-        children: entries
-            .map(
-              (entry) => ListTile(
-                key: ValueKey('my-profile-setting-${entry.$1}'),
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(entry.$2, color: _warmWhite),
-                title: Text(
-                  entry.$1,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                trailing: const Icon(Icons.chevron_right, color: _muted),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showSheet(
-                    title: entry.$1,
-                    child: const Padding(
-                      padding: EdgeInsets.only(bottom: 24),
-                      child: Text(
-                        '当前为离线 UI Mock，已完成页面流程模拟，不会修改真实账号或系统设置。',
-                        style: TextStyle(color: _muted),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            )
-            .toList(),
-      ),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const SettingsPage()));
   }
 
   Future<void> _showEditProfile() async {
-    final nickname = TextEditingController(text: _nickname);
-    final signature = TextEditingController(text: _signature);
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF171411),
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          22,
-          16,
-          22,
-          MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                '编辑主页',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Row(
-                children: [
-                  CircleAvatar(radius: 28, backgroundColor: Color(0xFFF4F0E9)),
-                  SizedBox(width: 14),
-                  Expanded(
-                    child: Text('头像按当前确认保持空白', style: TextStyle(color: _muted)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: nickname,
-                decoration: const InputDecoration(labelText: '昵称'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: signature,
-                decoration: const InputDecoration(labelText: '个性签名'),
-                maxLength: 40,
-              ),
-              const SizedBox(height: 8),
-              FilledButton(
-                key: const ValueKey('my-profile-edit-save'),
-                onPressed: () {
-                  setState(() {
-                    if (nickname.text.trim().isNotEmpty) {
-                      _nickname = nickname.text.trim();
-                    }
-                    _signature = signature.text.trim();
-                  });
-                  Navigator.pop(sheetContext);
-                },
-                child: const Text('保存 Fake 资料'),
-              ),
-            ],
-          ),
-        ),
+    final result = await Navigator.of(context).push<EditableProfileResult>(
+      MaterialPageRoute<EditableProfileResult>(
+        builder: (_) =>
+            EditProfilePage(nickname: _nickname, signature: _signature),
       ),
     );
-    nickname.dispose();
-    signature.dispose();
+    if (result == null || !mounted) return;
+    setState(() {
+      _nickname = result.nickname;
+      _signature = result.signature;
+    });
   }
 
   void _showSheet({required String title, required Widget child}) {

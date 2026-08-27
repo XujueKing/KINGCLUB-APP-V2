@@ -3,6 +3,16 @@
 - [x] 单选、搜索、确认层、取消和成功返回明确
 - [x] ShareIntentRef、清洗预览、重新校验和幂等发送明确
 - [x] 多选、群发、群会话和完整业务对象路由已排除
-- [ ] 用户批准 Direct Chat Wireframe v1 / Selector
+- [x] 用户批准按旧版页面进行 UI/Fake 复刻
+
+## UI Mock 实现验收（2026-08-27）
+
+- [x] 旧版顶部栏、搜索条、头像名单、单选和底部动作区已实现
+- [x] 搜索、排序、单选、发送确认和取消返回均为 Fake 流程
+- [x] 多选、群发、真实账号和真实消息发送未引入
+- [x] Android 1080×2400 无溢出或遮挡
+- [ ] 等待旧版运行截图后完成最终 1:1 视觉验收
+
+实现证据：[android_contact_selector.png](android_contact_selector.png)。
 
 未来 UI Mock 验证 CHAT-M08～M09、M17～M18；批准前不得实现页面。

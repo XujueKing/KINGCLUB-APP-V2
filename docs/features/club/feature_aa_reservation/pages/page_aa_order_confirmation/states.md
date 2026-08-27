@@ -2,20 +2,20 @@
 
 | 状态 | UI/动作 |
 |---|---|
-| `initialLoading` | 订单与价格骨架，提交禁用 |
+| `initialLoading` | 独立加载内容替换订单与金额；底部显示 `-- / 加载中`，提交禁用，Fake 完成加载后进入 `quoteReady` |
 | `quoteReady` | 最新报价、抵扣、规则和提交按钮 |
-| `requoteLoading` | 保留旧明细但标记刷新中，禁止提交 |
-| `quoteChanged` | 展示差异并要求重新确认规则/金额 |
-| `quoteExpired` | 禁止提交，刷新报价或返回详情 |
+| `requoteLoading` | 保留旧明细并显示“正在重新计算报价”，抵扣、同意与提交锁定；新报价返回前不提前改变金额 |
+| `quoteChanged` | 一次性展示新抵扣/实付金额与“报价已更新”，清除规则勾选；用户可关闭提示后重新确认 |
+| `quoteExpired` | 粉金警示条说明报价已失效；抵扣、规则和提交禁用，只允许刷新报价或返回详情 |
 | `submitting` | 全屏级防重复，返回需提示正在确认 |
-| `resultUnknown` | 对账中，只允许继续查询或安全离开 |
+| `resultUnknown` | 粉金内联状态说明结果待确认并禁止重复提交/支付；只允许使用同一幂等键继续查询或安全离开 |
 | `pendingPayment` | 展示席位占位到期时间并进入 KC-P-038 |
-| `confirmedNoCash` | 0 元/全额抵扣后服务端确认，进入订单详情 |
-| `soldOut` | 不自动换套餐，返回列表刷新 |
-| `duplicateActiveReservation` | 展示已有订单并提供查看入口 |
-| `ineligible` | 展示稳定原因并退出写流程 |
-| `offline` | 禁止创建/重报价；可返回 |
-| `invalidRef` | 清除报价引用并返回详情/列表 |
-| `sessionInvalid` | 清空报价、抵扣和幂等上下文并 reset |
+| `confirmedNoCash` | 显示实付 `¥0.00` 与“确认预订”；服务端/Fake 确认后进入订单详情，不调用或宣称支付成功 |
+| `soldOut` | 内联说明未创建订单且不会扣款；底部提交锁定，不自动换套餐，只能返回列表刷新 |
+| `duplicateActiveReservation` | 内联展示已有 Fake 订单编号、待支付和占位时间；底部提交锁定，提供返回查看入口 |
+| `ineligible` | 内联显示会员资格已变化、本次未创建订单且未扣款；锁定写操作并返回 AA 列表 |
+| `offline` | 保留当前报价作为只读缓存；禁止创建/重报价，可恢复联网或返回 |
+| `invalidRef` | 安全全页状态替换业务内容，清除报价、抵扣、金额、同意和提交上下文；只允许返回套餐详情 |
+| `sessionInvalid` | 用安全全页状态替换业务内容，清空报价、抵扣、规则同意和幂等上下文；返回键与主按钮均 reset 手机号登录 |
 
 离开再回来必须重读 quote/order；不能仅凭本地倒计时恢复可提交状态。

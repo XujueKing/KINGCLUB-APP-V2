@@ -5,9 +5,14 @@ const _legacyMuted = Color(0xFFAAA29A);
 const _legacyLine = Color(0xFF1A1611);
 
 class FriendRequestsPage extends StatefulWidget {
-  const FriendRequestsPage({super.key, required this.onOpenAddFriend});
+  const FriendRequestsPage({
+    super.key,
+    required this.onOpenAddFriend,
+    required this.onOpenChat,
+  });
 
   final VoidCallback onOpenAddFriend;
+  final ValueChanged<String> onOpenChat;
 
   @override
   State<FriendRequestsPage> createState() => _FriendRequestsPageState();
@@ -64,9 +69,9 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
     );
   }
 
-  void _showRequest(int index) {
+  Future<void> _showRequest(int index) async {
     final request = _requests[index];
-    showModalBottomSheet<void>(
+    final resolution = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: const Color(0xFF171411),
       shape: const RoundedRectangleBorder(
@@ -100,7 +105,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
                     Expanded(
                       child: OutlinedButton(
                         key: const ValueKey('friend-request-reject'),
-                        onPressed: () => _resolve(index, '已拒绝', sheetContext),
+                        onPressed: () => Navigator.pop(sheetContext, '已拒绝'),
                         child: const Text('拒绝'),
                       ),
                     ),
@@ -108,11 +113,20 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
                     Expanded(
                       child: FilledButton(
                         key: const ValueKey('friend-request-accept'),
-                        onPressed: () => _resolve(index, '已验证', sheetContext),
+                        onPressed: () => Navigator.pop(sheetContext, '已添加'),
                         child: const Text('接受'),
                       ),
                     ),
                   ],
+                )
+              else if (request.status == '已添加')
+                FilledButton(
+                  key: const ValueKey('friend-request-message'),
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    widget.onOpenChat(request.name);
+                  },
+                  child: const Text('发消息'),
                 )
               else
                 Text(
@@ -131,11 +145,51 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
         ),
       ),
     );
+    if (!mounted || resolution == null) return;
+    setState(() => request.status = resolution);
+    if (resolution == '已添加') await _showFriendAccepted(request.name);
   }
 
-  void _resolve(int index, String status, BuildContext sheetContext) {
-    setState(() => _requests[index].status = status);
-    Navigator.pop(sheetContext);
+  Future<void> _showFriendAccepted(String name) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF171411),
+        icon: const Icon(
+          Icons.check_circle,
+          color: Color(0xFF29B463),
+          size: 44,
+        ),
+        title: const Text('已添加好友'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '你已添加了$name，现在可以开始聊天了。',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _legacyMuted),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const ValueKey('friend-accepted-message'),
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  widget.onOpenChat(name);
+                },
+                child: const Text('发消息'),
+              ),
+            ),
+            TextButton(
+              key: const ValueKey('friend-accepted-done'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('完成'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

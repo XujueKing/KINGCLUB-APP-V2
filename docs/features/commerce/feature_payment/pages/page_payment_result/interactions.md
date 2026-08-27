@@ -13,3 +13,13 @@
 | 会话失效 | 清引用并登录 reset |
 
 返回键在 handingOff/verifying 时需说明仍在确认；不能诱导重复付款。
+
+## Fake 演示约定
+
+- “确认支付”第一次点击立即锁定，快速双击不能创建第二个 Fake attempt。
+- 交接和验证阶段返回时弹出说明；选择返回订单只结束页面展示，不取消业务订单或原 attempt。
+- provider success 仅改变页面为“服务端确认中”；之后由 Fake reconcile 决定成功或待确认。
+- provider cancel 显示“本次支付已取消，订单仍待支付”；不自动取消订单。
+- 明确失败时“安全重试”先回到新的 Fake 意图准备态；pending/unknown 只允许查询原 attempt 或查看订单。
+- 离线状态保留只读订单摘要，不创建 attempt；恢复网络后重新加载意图。
+- 标题长按场景入口仅供 UI Mock 演示，不进入生产信息架构。

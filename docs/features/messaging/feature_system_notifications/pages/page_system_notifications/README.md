@@ -5,7 +5,8 @@
 - 所属功能：[系统通知](../../README.md)
 - 路由：`SystemNotificationsRoute`，`/messages/system`，protectedShell/messages 子路由
 - 设计版本：`System Notifications Wireframe v1`
-- 最后更新：2026-08-25
+- 最后更新：2026-08-27
+- UI 状态：`UI Mock Implemented（2026-08-27）`
 
 ## 用户任务与线框
 
@@ -27,5 +28,17 @@
 - 卡片用固定类别、纯文本和稳定状态，不渲染任意 HTML。
 - 通知里的金额/结果不是账本或订单事实；动作目标重新加载权威数据。
 - “全部已读”只影响阅读状态，不删除记录。
+
+## 旧版 UI 复刻
+
+UI/Mock 实现以[旧版系统消息 UI 复刻规范](legacy_ui_replication.md)为准，保留旧版黑红背景与明细卡片层级，同时遵守新通知契约的隐私和权威状态边界。
+
+## 会话未读联动 Mock（2026-08-27）
+
+- 系统消息页接收会话列表当前的 Fake 未读总数，初始化每张卡片的已读状态。
+- 展开一张未读卡片后，仅该卡片变为已读，并把剩余未读数同步回 KING CLUB 会话行。
+- “全部已读”把当前三张 Fake 卡片全部设为已读，并将会话行未读数清零。
+- 仅进入页面、折叠已读卡片或返回列表不会额外改变未读数。
+- 联动状态仅由 App Shell 当前内存持有；App 重启后恢复初始 Fake 数据。
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。
