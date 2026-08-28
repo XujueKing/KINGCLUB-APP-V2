@@ -29,6 +29,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('确认订单'), findsOneWidget);
     expect(find.text('立即付款'), findsOneWidget);
+    expect(find.bySemanticsLabel('优惠券，未选择'), findsOneWidget);
+    expect(find.bySemanticsLabel('金币兑换，可用50金币'), findsOneWidget);
+    expect(find.bySemanticsLabel('余额，可用¥38.00'), findsOneWidget);
 
     await tester.tap(find.byType(Checkbox).first);
     await tester.pump();

@@ -6,8 +6,9 @@
 - 所属功能：[个人中心与资料](../../README.md)
 - 旧版来源：`pages/myinfo/myinfo`
 - 路由语义：`EditProfileRoute`，`/me/edit`，protectedShell/me 子路由
-- 设计版本：`Profile Center Wireframe v1 / Edit`
-- 最后更新：2026-08-25
+- 设计版本：`Legacy Edit Profile Replica v2 / Complete Fake Flow`
+- UI Mock 状态：`Implemented`
+- 最后更新：2026-08-28
 
 ## 用户任务
 
@@ -70,4 +71,4 @@
 
 ## 验收
 
-页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。文档已批准；仍须等待全局 UI/Mock 门禁。
+页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。离线 UI Mock 已完成；真实资料、媒体和目录接口仍受项目级 `UI Flow Approved` 门禁阻止。

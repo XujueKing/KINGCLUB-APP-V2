@@ -37,7 +37,7 @@
 - 首个移动端版本不为 `GoRouter/MaterialApp.router` 启用路由树 restoration，冷启动固定从 `/auth/bootstrap` 重建。
 - auth flow、`$extra`、FlowStore 和通用 notice 永不持久化。
 - 页面内部非敏感 UI 状态如滚动位置，只有对应页面文档批准后才能使用 Flutter 页面级 restoration。
-- 四个 Shell 分支只在当前进程内保活；进程重启不恢复选中 Tab 或子页栈。
+- 五个 Shell 分支只在当前进程内保活；进程重启不恢复选中 Tab 或子页栈。
 - 未来启用 Router restoration 必须新增 ADR/本模块变更：逐路由 allowlist、脱敏序列化、版本迁移、注销清理和双端恢复测试缺一不可。
 
 ## 5. Router 异常

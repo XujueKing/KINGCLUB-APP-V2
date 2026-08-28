@@ -31,6 +31,7 @@
 - Initial implementation showed a large left-aligned contacts title, subtitle, test icon and more icon; these were the user's reported P1 mismatch.
 - Fix applied: replaced that region with the approved old-version header structure and kept the contacts body unchanged.
 - Post-fix evidence: `android_contacts_legacy_header_latest.png`; no actionable P0/P1/P2 issue remains.
+- 2026-08-28 accessibility pass found a P2 13 px bottom overflow in both shortcut cards at 200% text scale. Fix applied: shortcut cards now use a text-scale-aware minimum height. Post-fix widget evidence confirms no overflow; the approved normal-scale header and body composition are unchanged.
 
 ## Implementation Checklist
 
@@ -40,6 +41,7 @@
 - [x] Contacts/chat switching
 - [x] Existing contacts body preserved
 - [x] Static analysis and widget tests
+- [x] 200% text-scale layout and scrollability
 
 ## Follow-up Polish
 

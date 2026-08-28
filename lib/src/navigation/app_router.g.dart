@@ -19,6 +19,13 @@ List<RouteBase> get $appRoutes => [
   $appShellRoute,
   $contentFeedRoute,
   $contactsRoute,
+  $addFriendRoute,
+  $friendRequestsRoute,
+  $userProfileRoute,
+  $sendFriendRequestRoute,
+  $friendRemarkRoute,
+  $relationshipPermissionsRoute,
+  $blacklistRoute,
   $safeScannerRoute,
   $aaReservationsRoute,
   $vipPartyRoute,
@@ -27,6 +34,10 @@ List<RouteBase> get $appRoutes => [
   $scanOrderConfirmationRoute,
   $orderCenterRoute,
   $paymentResultRoute,
+  $assetLedgerRoute,
+  $editProfileRoute,
+  $personalQrRoute,
+  $settingsRoute,
 ];
 
 RouteBase get $authBootstrapRoute => GoRouteData.$route(
@@ -381,6 +392,214 @@ mixin $ContactsRoute on GoRouteData {
   void replace(BuildContext context) => context.replace(location);
 }
 
+RouteBase get $addFriendRoute => GoRouteData.$route(
+  path: '/social/add',
+  hasOverriddenOnExit: false,
+  factory: $AddFriendRoute._fromState,
+);
+
+mixin $AddFriendRoute on GoRouteData {
+  static AddFriendRoute _fromState(GoRouterState state) =>
+      const AddFriendRoute();
+
+  @override
+  String get location => GoRouteData.$location('/social/add');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $friendRequestsRoute => GoRouteData.$route(
+  path: '/social/requests',
+  hasOverriddenOnExit: false,
+  factory: $FriendRequestsRoute._fromState,
+);
+
+mixin $FriendRequestsRoute on GoRouteData {
+  static FriendRequestsRoute _fromState(GoRouterState state) =>
+      const FriendRequestsRoute();
+
+  @override
+  String get location => GoRouteData.$location('/social/requests');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $userProfileRoute => GoRouteData.$route(
+  path: '/social/profile',
+  hasOverriddenOnExit: false,
+  factory: $UserProfileRoute._fromState,
+);
+
+mixin $UserProfileRoute on GoRouteData {
+  static UserProfileRoute _fromState(GoRouterState state) =>
+      UserProfileRoute(state.extra as UserProfileRouteArgs);
+
+  UserProfileRoute get _self => this as UserProfileRoute;
+
+  @override
+  String get location => GoRouteData.$location('/social/profile');
+
+  @override
+  void go(BuildContext context) => context.go(location, extra: _self.$extra);
+
+  @override
+  Future<T?> push<T>(BuildContext context) =>
+      context.push<T>(location, extra: _self.$extra);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location, extra: _self.$extra);
+
+  @override
+  void replace(BuildContext context) =>
+      context.replace(location, extra: _self.$extra);
+}
+
+RouteBase get $sendFriendRequestRoute => GoRouteData.$route(
+  path: '/social/request/send',
+  hasOverriddenOnExit: false,
+  factory: $SendFriendRequestRoute._fromState,
+);
+
+mixin $SendFriendRequestRoute on GoRouteData {
+  static SendFriendRequestRoute _fromState(GoRouterState state) =>
+      SendFriendRequestRoute(state.extra as SendFriendRequestRouteArgs);
+
+  SendFriendRequestRoute get _self => this as SendFriendRequestRoute;
+
+  @override
+  String get location => GoRouteData.$location('/social/request/send');
+
+  @override
+  void go(BuildContext context) => context.go(location, extra: _self.$extra);
+
+  @override
+  Future<T?> push<T>(BuildContext context) =>
+      context.push<T>(location, extra: _self.$extra);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location, extra: _self.$extra);
+
+  @override
+  void replace(BuildContext context) =>
+      context.replace(location, extra: _self.$extra);
+}
+
+RouteBase get $friendRemarkRoute => GoRouteData.$route(
+  path: '/social/friend/remark',
+  hasOverriddenOnExit: false,
+  factory: $FriendRemarkRoute._fromState,
+);
+
+mixin $FriendRemarkRoute on GoRouteData {
+  static FriendRemarkRoute _fromState(GoRouterState state) =>
+      FriendRemarkRoute(state.extra as FriendRemarkRouteArgs);
+
+  FriendRemarkRoute get _self => this as FriendRemarkRoute;
+
+  @override
+  String get location => GoRouteData.$location('/social/friend/remark');
+
+  @override
+  void go(BuildContext context) => context.go(location, extra: _self.$extra);
+
+  @override
+  Future<T?> push<T>(BuildContext context) =>
+      context.push<T>(location, extra: _self.$extra);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location, extra: _self.$extra);
+
+  @override
+  void replace(BuildContext context) =>
+      context.replace(location, extra: _self.$extra);
+}
+
+RouteBase get $relationshipPermissionsRoute => GoRouteData.$route(
+  path: '/social/friend/permissions',
+  hasOverriddenOnExit: false,
+  factory: $RelationshipPermissionsRoute._fromState,
+);
+
+mixin $RelationshipPermissionsRoute on GoRouteData {
+  static RelationshipPermissionsRoute _fromState(GoRouterState state) =>
+      RelationshipPermissionsRoute(
+        state.extra as RelationshipPermissionsRouteArgs,
+      );
+
+  RelationshipPermissionsRoute get _self =>
+      this as RelationshipPermissionsRoute;
+
+  @override
+  String get location => GoRouteData.$location('/social/friend/permissions');
+
+  @override
+  void go(BuildContext context) => context.go(location, extra: _self.$extra);
+
+  @override
+  Future<T?> push<T>(BuildContext context) =>
+      context.push<T>(location, extra: _self.$extra);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location, extra: _self.$extra);
+
+  @override
+  void replace(BuildContext context) =>
+      context.replace(location, extra: _self.$extra);
+}
+
+RouteBase get $blacklistRoute => GoRouteData.$route(
+  path: '/social/blacklist',
+  hasOverriddenOnExit: false,
+  factory: $BlacklistRoute._fromState,
+);
+
+mixin $BlacklistRoute on GoRouteData {
+  static BlacklistRoute _fromState(GoRouterState state) =>
+      const BlacklistRoute();
+
+  @override
+  String get location => GoRouteData.$location('/social/blacklist');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
 RouteBase get $safeScannerRoute => GoRouteData.$route(
   path: '/scan',
   hasOverriddenOnExit: false,
@@ -697,6 +916,201 @@ mixin $PaymentResultRoute on GoRouteData {
   @override
   void replace(BuildContext context) =>
       context.replace(location, extra: _self.$extra);
+}
+
+RouteBase get $assetLedgerRoute => GoRouteData.$route(
+  path: '/me/assets',
+  hasOverriddenOnExit: false,
+  factory: $AssetLedgerRoute._fromState,
+);
+
+mixin $AssetLedgerRoute on GoRouteData {
+  static AssetLedgerRoute _fromState(GoRouterState state) =>
+      AssetLedgerRoute(state.extra as AssetLedgerType?);
+
+  AssetLedgerRoute get _self => this as AssetLedgerRoute;
+
+  @override
+  String get location => GoRouteData.$location('/me/assets');
+
+  @override
+  void go(BuildContext context) => context.go(location, extra: _self.$extra);
+
+  @override
+  Future<T?> push<T>(BuildContext context) =>
+      context.push<T>(location, extra: _self.$extra);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location, extra: _self.$extra);
+
+  @override
+  void replace(BuildContext context) =>
+      context.replace(location, extra: _self.$extra);
+}
+
+RouteBase get $editProfileRoute => GoRouteData.$route(
+  path: '/me/edit',
+  hasOverriddenOnExit: false,
+  factory: $EditProfileRoute._fromState,
+);
+
+mixin $EditProfileRoute on GoRouteData {
+  static EditProfileRoute _fromState(GoRouterState state) =>
+      EditProfileRoute(state.extra as EditProfileRouteArgs);
+
+  EditProfileRoute get _self => this as EditProfileRoute;
+
+  @override
+  String get location => GoRouteData.$location('/me/edit');
+
+  @override
+  void go(BuildContext context) => context.go(location, extra: _self.$extra);
+
+  @override
+  Future<T?> push<T>(BuildContext context) =>
+      context.push<T>(location, extra: _self.$extra);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location, extra: _self.$extra);
+
+  @override
+  void replace(BuildContext context) =>
+      context.replace(location, extra: _self.$extra);
+}
+
+RouteBase get $personalQrRoute => GoRouteData.$route(
+  path: '/me/qr',
+  hasOverriddenOnExit: false,
+  factory: $PersonalQrRoute._fromState,
+);
+
+mixin $PersonalQrRoute on GoRouteData {
+  static PersonalQrRoute _fromState(GoRouterState state) =>
+      const PersonalQrRoute();
+
+  @override
+  String get location => GoRouteData.$location('/me/qr');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $settingsRoute => GoRouteData.$route(
+  path: '/me/settings',
+  hasOverriddenOnExit: false,
+  factory: $SettingsRoute._fromState,
+  routes: [
+    GoRouteData.$route(
+      path: 'payment-security',
+      hasOverriddenOnExit: false,
+      factory: $PaymentSecurityRoute._fromState,
+    ),
+    GoRouteData.$route(
+      path: 'delete-account',
+      hasOverriddenOnExit: false,
+      factory: $AccountDeletionRoute._fromState,
+    ),
+    GoRouteData.$route(
+      path: 'about',
+      hasOverriddenOnExit: false,
+      factory: $AboutLegalRoute._fromState,
+    ),
+  ],
+);
+
+mixin $SettingsRoute on GoRouteData {
+  static SettingsRoute _fromState(GoRouterState state) => const SettingsRoute();
+
+  @override
+  String get location => GoRouteData.$location('/me/settings');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $PaymentSecurityRoute on GoRouteData {
+  static PaymentSecurityRoute _fromState(GoRouterState state) =>
+      const PaymentSecurityRoute();
+
+  @override
+  String get location => GoRouteData.$location('/me/settings/payment-security');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $AccountDeletionRoute on GoRouteData {
+  static AccountDeletionRoute _fromState(GoRouterState state) =>
+      const AccountDeletionRoute();
+
+  @override
+  String get location => GoRouteData.$location('/me/settings/delete-account');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $AboutLegalRoute on GoRouteData {
+  static AboutLegalRoute _fromState(GoRouterState state) =>
+      const AboutLegalRoute();
+
+  @override
+  String get location => GoRouteData.$location('/me/settings/about');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
 }
 
 // **************************************************************************

@@ -7,7 +7,8 @@
 - 旧版来源：`pages/index/index` 首页逻辑
 - 路由语义：`HomeRoute`，`/home`，protectedShell/home 分支根
 - 设计版本：`Legacy Home Replica v1 / Component Content v1`
-- 最后更新：2026-08-26
+- UI 状态：`UI Mock Implemented`
+- 最后更新：2026-08-28
 
 ## 用户任务
 
@@ -51,4 +52,4 @@
 
 ## 验收
 
-页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。整体布局、组件内容与旧版五 Tab 语义已经确认，当前恢复 UI/Mock 开发；真实首页数据继续阻断。
+页面状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。`HOME-M01～M14` 已完成 UI/Fake 实现与回归，Android 截图和操作证据见 [ui-audit.md](ui-audit.md)；真实首页数据继续阻断。

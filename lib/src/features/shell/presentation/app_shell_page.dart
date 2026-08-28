@@ -10,8 +10,17 @@ import '../../home/presentation/home_page.dart';
 import '../../messaging/presentation/conversations_page.dart';
 import '../../messaging/presentation/direct_chat_page.dart';
 import '../../messaging/presentation/system_notifications_page.dart';
+import '../../membership_wallet/presentation/asset_ledger_page.dart';
+import '../../profile_settings/presentation/edit_profile_page.dart';
 import '../../profile_settings/presentation/my_profile_page.dart';
 import '../../scanner/presentation/safe_scanner_page.dart';
+
+enum AppShellDemoState {
+  ready,
+  offline,
+  sessionTransition,
+  membershipTransition,
+}
 
 class AppShellPage extends StatefulWidget {
   const AppShellPage({
@@ -20,6 +29,19 @@ class AppShellPage extends StatefulWidget {
     required this.onOpenTogether,
     required this.onOpenParty,
     this.onOpenOrdering,
+    this.onOpenAssets,
+    this.onOpenEditProfile,
+    this.onOpenPersonalQr,
+    this.onOpenSettings,
+    this.onSessionResetRequested,
+    this.onOpenFriendRequests,
+    this.onOpenAddFriend,
+    this.onOpenBlacklist,
+    this.onOpenUserProfile,
+    this.onOpenContentAuthor,
+    this.onMembershipReviewRequested,
+    this.onDestinationReselected,
+    this.initialDemoState = AppShellDemoState.ready,
     this.initialIndex = 0,
     this.initialSystemUnreadCount = 3,
     this.initialFriendUnreadCount = 2,
@@ -33,6 +55,23 @@ class AppShellPage extends StatefulWidget {
   final VoidCallback onOpenTogether;
   final VoidCallback onOpenParty;
   final VoidCallback? onOpenOrdering;
+  final ValueChanged<AssetLedgerType>? onOpenAssets;
+  final Future<EditableProfileResult?> Function(
+    String nickname,
+    String signature,
+  )?
+  onOpenEditProfile;
+  final VoidCallback? onOpenPersonalQr;
+  final VoidCallback? onOpenSettings;
+  final VoidCallback? onSessionResetRequested;
+  final VoidCallback? onOpenFriendRequests;
+  final VoidCallback? onOpenAddFriend;
+  final VoidCallback? onOpenBlacklist;
+  final ValueChanged<String>? onOpenUserProfile;
+  final ValueChanged<String>? onOpenContentAuthor;
+  final VoidCallback? onMembershipReviewRequested;
+  final ValueChanged<int>? onDestinationReselected;
+  final AppShellDemoState initialDemoState;
   final int initialIndex;
   final int initialSystemUnreadCount;
   final int initialFriendUnreadCount;
@@ -47,6 +86,8 @@ class _AppShellPageState extends State<AppShellPage> {
   int _messagesPageIndex = 0;
   late int _systemNotificationsUnread;
   late int _friendConversationUnread;
+  late AppShellDemoState _shellState;
+  int _homeReselectSignal = 0;
 
   static const _destinations = [
     _ShellDestination('首页', 'tabBar_home.png', 'tabBar_home_a.png'),
@@ -62,10 +103,11 @@ class _AppShellPageState extends State<AppShellPage> {
     _selectedIndex = widget.initialIndex.clamp(0, _destinations.length - 1);
     _systemNotificationsUnread = widget.initialSystemUnreadCount.clamp(0, 9999);
     _friendConversationUnread = widget.initialFriendUnreadCount.clamp(0, 9999);
+    _shellState = widget.initialDemoState;
   }
 
   Future<void> _openScanner() async {
-    if (_scannerOpening) return;
+    if (_scannerOpening || _navigationLocked) return;
     _scannerOpening = true;
     final destination = await widget.onOpenScanner(context, _selectedIndex);
     if (!mounted) return;
@@ -78,63 +120,138 @@ class _AppShellPageState extends State<AppShellPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      extendBody: true,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          HomePage(
-            onOpenTogether: widget.onOpenTogether,
-            onOpenParty: widget.onOpenParty,
-            onOpenScanner: _openScanner,
-          ),
-          IndexedStack(
-            index: _messagesPageIndex,
-            children: [
-              ContactsPage(
-                active: _selectedIndex == 1 && _messagesPageIndex == 0,
-                onOpenChat: () => setState(() => _messagesPageIndex = 1),
-                onIntent: _handleContactIntent,
-              ),
-              ConversationsPage(
-                active: _selectedIndex == 1 && _messagesPageIndex == 1,
-                systemUnreadCount: _systemNotificationsUnread,
-                initialFriendUnreadCount: _friendConversationUnread,
-                onFriendUnreadChanged: (count) {
-                  if (!mounted || count == _friendConversationUnread) return;
-                  setState(() => _friendConversationUnread = count);
-                },
-                onOpenContacts: () => setState(() => _messagesPageIndex = 0),
-                onAddFriend: _openAddFriend,
-                onOpenSystemNotifications: _openSystemNotifications,
-                onOpenDirectChat: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const DirectChatPage(),
-                  ),
+    return PopScope(
+      canPop: _selectedIndex == 0 || _navigationLocked,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _selectedIndex == 0 || _navigationLocked) return;
+        setState(() => _selectedIndex = 0);
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        extendBody: true,
+        body: Stack(
+          children: [
+            IndexedStack(
+              index: _selectedIndex,
+              children: [
+                HomePage(
+                  reselectSignal: _homeReselectSignal,
+                  onOpenTogether: widget.onOpenTogether,
+                  onOpenParty: widget.onOpenParty,
+                  onOpenScanner: _openScanner,
+                  onSessionResetRequested: widget.onSessionResetRequested,
                 ),
+                IndexedStack(
+                  index: _messagesPageIndex,
+                  children: [
+                    ContactsPage(
+                      active: _selectedIndex == 1 && _messagesPageIndex == 0,
+                      onOpenChat: () => setState(() => _messagesPageIndex = 1),
+                      onIntent: _handleContactIntent,
+                      onSessionResetRequested: widget.onSessionResetRequested,
+                    ),
+                    ConversationsPage(
+                      active: _selectedIndex == 1 && _messagesPageIndex == 1,
+                      systemUnreadCount: _systemNotificationsUnread,
+                      initialFriendUnreadCount: _friendConversationUnread,
+                      onFriendUnreadChanged: (count) {
+                        if (!mounted || count == _friendConversationUnread) {
+                          return;
+                        }
+                        setState(() => _friendConversationUnread = count);
+                      },
+                      onOpenContacts: () =>
+                          setState(() => _messagesPageIndex = 0),
+                      onAddFriend: _openAddFriend,
+                      onOpenSystemNotifications: _openSystemNotifications,
+                      onOpenDirectChat: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const DirectChatPage(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                ContentFeedPage(
+                  active: _selectedIndex == 2,
+                  onOpenAuthor: (targetRef) {
+                    if (widget.onOpenContentAuthor != null) {
+                      widget.onOpenContentAuthor!(targetRef);
+                    } else {
+                      _showIntent('作者主页安全意图');
+                    }
+                  },
+                  onReturnHome: () => setState(() => _selectedIndex = 0),
+                  onSessionResetRequested: widget.onSessionResetRequested,
+                ),
+                const PrivateStoragePage(),
+                MyProfilePage(
+                  onOpenAssets: widget.onOpenAssets,
+                  onOpenEditProfile: widget.onOpenEditProfile,
+                  onOpenPersonalQr: widget.onOpenPersonalQr,
+                  onOpenSettings: widget.onOpenSettings,
+                  onSessionResetRequested: widget.onSessionResetRequested,
+                ),
+              ],
+            ),
+            if (_shellState == AppShellDemoState.offline)
+              _OfflineBanner(
+                onDismissed: () =>
+                    setState(() => _shellState = AppShellDemoState.ready),
               ),
-            ],
+            if (_shellState == AppShellDemoState.sessionTransition)
+              _ShellTransitionOverlay(
+                key: const ValueKey('shell-session-transition'),
+                icon: Icons.lock_reset_rounded,
+                title: '正在安全退出',
+                message: '本地会话与页面状态将被清理，然后返回手机号登录。',
+                actionLabel: '返回登录',
+                onAction: widget.onSessionResetRequested,
+              ),
+            if (_shellState == AppShellDemoState.membershipTransition)
+              _ShellTransitionOverlay(
+                key: const ValueKey('shell-membership-transition'),
+                icon: Icons.verified_user_outlined,
+                title: '会员状态已更新',
+                message: '当前业务页面已停止使用，请返回会员审核状态页查看。',
+                actionLabel: '查看审核状态',
+                onAction: widget.onMembershipReviewRequested,
+              ),
+          ],
+        ),
+        bottomNavigationBar: IgnorePointer(
+          ignoring: _navigationLocked,
+          child: _LegacyBottomBar(
+            selectedIndex: _selectedIndex,
+            messageUnreadCount:
+                _systemNotificationsUnread + _friendConversationUnread,
+            destinations: _destinations,
+            onSelected: _selectDestination,
           ),
-          ContentFeedPage(
-            active: _selectedIndex == 2,
-            onOpenAuthor: (_) => _showIntent('作者主页安全意图'),
-          ),
-          const PrivateStoragePage(),
-          const MyProfilePage(),
-        ],
-      ),
-      bottomNavigationBar: _LegacyBottomBar(
-        selectedIndex: _selectedIndex,
-        messageUnreadCount:
-            _systemNotificationsUnread + _friendConversationUnread,
-        destinations: _destinations,
-        onSelected: (index) {
-          if (_selectedIndex == index) return;
-          setState(() => _selectedIndex = index);
-        },
+        ),
       ),
     );
+  }
+
+  bool get _navigationLocked =>
+      _shellState == AppShellDemoState.sessionTransition ||
+      _shellState == AppShellDemoState.membershipTransition;
+
+  void _selectDestination(int index) {
+    if (_navigationLocked) return;
+    if (_selectedIndex != index) {
+      setState(() => _selectedIndex = index);
+      return;
+    }
+
+    if (index == 1 && _messagesPageIndex != 0) {
+      setState(() => _messagesPageIndex = 0);
+      return;
+    }
+    if (index == 0) {
+      setState(() => _homeReselectSignal += 1);
+    }
+    widget.onDestinationReselected?.call(index);
   }
 
   void _showIntent(String label) {
@@ -160,6 +277,10 @@ class _AppShellPageState extends State<AppShellPage> {
   void _handleContactIntent(ContactRouteIntent intent) {
     switch (intent.kind) {
       case ContactIntentKind.friendRequests:
+        if (widget.onOpenFriendRequests != null) {
+          widget.onOpenFriendRequests!();
+          return;
+        }
         Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
             builder: (_) => FriendRequestsPage(
@@ -175,6 +296,10 @@ class _AppShellPageState extends State<AppShellPage> {
       case ContactIntentKind.addFriend:
         _openAddFriend();
       case ContactIntentKind.blacklist:
+        if (widget.onOpenBlacklist != null) {
+          widget.onOpenBlacklist!();
+          return;
+        }
         Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
             builder: (_) => BlacklistPage(
@@ -193,6 +318,10 @@ class _AppShellPageState extends State<AppShellPage> {
           ),
         );
       case ContactIntentKind.userProfile:
+        if (widget.onOpenUserProfile != null) {
+          widget.onOpenUserProfile!(intent.targetRef ?? 'contact-chenxi');
+          return;
+        }
         Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
             builder: (_) => UserProfilePage(
@@ -204,6 +333,10 @@ class _AppShellPageState extends State<AppShellPage> {
   }
 
   void _openAddFriend() {
+    if (widget.onOpenAddFriend != null) {
+      widget.onOpenAddFriend!();
+      return;
+    }
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (pageContext) => AddFriendPage(
@@ -239,6 +372,102 @@ class _AppShellPageState extends State<AppShellPage> {
     }
     ScaffoldMessenger.of(pageContext).showSnackBar(
       SnackBar(content: Text('已生成${destination.label}安全分流意图；当前为 UI Mock。')),
+    );
+  }
+}
+
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner({required this.onDismissed});
+
+  final VoidCallback onDismissed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Semantics(
+          liveRegion: true,
+          label: '当前网络不可用，页面状态已保留',
+          child: Container(
+            key: const ValueKey('shell-offline-banner'),
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+            decoration: BoxDecoration(
+              color: const Color(0xF52B251E),
+              border: Border.all(color: const Color(0xFF8D7A62)),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: const [
+                BoxShadow(color: Colors.black54, blurRadius: 12),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off_rounded, size: 20),
+                const SizedBox(width: 9),
+                const Flexible(child: Text('网络不可用，当前页面状态已保留')),
+                const SizedBox(width: 4),
+                IconButton(
+                  key: const ValueKey('shell-offline-dismiss'),
+                  tooltip: '关闭网络提示',
+                  onPressed: onDismissed,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShellTransitionOverlay extends StatelessWidget {
+  const _ShellTransitionOverlay({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: const Color(0xF0000000),
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 64, color: const Color(0xFFD4BEA0)),
+                  const SizedBox(height: 18),
+                  Text(title, style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 10),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(onPressed: onAction, child: Text(actionLabel)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

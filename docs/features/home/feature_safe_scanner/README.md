@@ -5,8 +5,8 @@
 - 所属业务域：`home`
 - M0 范围：`In Release Scope`
 - 设计版本：`Safe Scanner v1`
-- 最后更新：2026-08-25
-- UI 状态：`In Progress`（2026-08-26，离线 Mock）
+- 最后更新：2026-08-28
+- UI 状态：`UI Mock Implemented`
 
 ## 目标与用户价值
 
@@ -62,3 +62,5 @@
 ## 开发门禁
 
 本包已达到 `Approved for Development`，且全部 48 页文档已批准；当前已进入 UI/Mock 实现。项目达到 `UI Flow Approved` 前不得访问真实相机、系统相机权限、扫码插件或扫码解析接口。
+
+2026-08-28 已完成 SCAN-M01～M16 的离线 UI/Fake 实现、安全边界回归和 Android 设备验收，证据见 [页面 UI 审计](pages/page_safe_scanner/ui-audit.md)。

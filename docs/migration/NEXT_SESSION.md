@@ -64,7 +64,7 @@ ccsop-property-identity-a033/feature/unified-identity-authority-v1
 1. 用户已于 2026-08-24 按建议确认 [48 页首发基线](../v2/scope/RELEASE_SCOPE_PROPOSAL.md)：46 页普通会员主体 + D4 私人储物柜 2 页。D1 完整群聊、D2 作品发布、D3 红包/金币转赠暂缓；角色后台移出消费者 App。M0 已冻结。
 2. 48 个页面均已建立独立文档目录并达到 `Approved for Development`；32 个功能、九个 Foundation 模块、navigation、Design System v1、“四主目的地 + 中央扫码”和实时传输 port 也已批准。
 3. 私人储物柜、networking、session/persistence、observability、Mock Runtime 和原生能力已于 2026-08-26 完成最后文档准入；后三类真实 adapter/SDK 仍保持阻断。
-4. 文档全局门禁已满足，`flutter create` 已完成；Design System、类型化路由、登录四页、会员准入五页、首页、安全扫码、只读发现作品流、通讯录、App Shell 和基础 Fake 已进入实现，共 14/48 页。正常旅程可从手机号一直走到 Shell；扫码、发现和通讯录均可演示离线 Fake 主状态和异常恢复，继续补齐其余页面 UI。
+4. 文档全局门禁已满足，`flutter create` 已完成；截至 2026-08-28，28/48 页达到 `UI Mock Implemented`。一起玩 AA 的列表、套餐详情与确认订单已完成 Android 视觉、异常矩阵及 15 项专项自动化验收；继续按冻结清单补齐其余页面，真实接入仍保持阻断。
 5. `flutter analyze` 与 6 条 Widget 测试已通过；Android API 37 模拟器、Debug APK 和实机 UI 截图已经验证。Gradle 9.3.1 使用带官方 SHA-256 校验的国内镜像下载。
 6. UI Mock 覆盖整 App 并经用户验收达到 `UI Flow Approved` 后，才接真实超级接口、WebSocket、支付、推送等。
 7. 发布前确认 applicationId/bundleId、域名、CI、Android 签名、Android licenses 和 macOS/Xcode/TestFlight 环境。

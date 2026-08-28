@@ -5,8 +5,8 @@
 - 所属业务域：`content`
 - M0 范围：`In Release Scope`
 - 设计版本：`Read-only Content Feed v1`
-- 最后更新：2026-08-25
-- UI 状态：`In Progress`（2026-08-26，离线 Mock）
+- 最后更新：2026-08-28
+- UI 状态：`UI Mock Implemented`（2026-08-28，离线 Mock 已正式验收）
 
 ## 目标与用户价值
 
@@ -32,7 +32,7 @@
 
 ## 页面与文档
 
-- [KC-P-013 短视频/作品流页](pages/page_content_feed/README.md) — `Approved for Development`
+- [KC-P-013 短视频/作品流页](pages/page_content_feed/README.md) — `UI Mock Implemented`
 - [旧版审计](legacy_audit.md)
 - [浏览与播放状态](flow_and_playback.md)
 - [内容安全与隐私](content_safety_privacy.md)
@@ -56,4 +56,4 @@
 
 ## 开发门禁
 
-用户已于 2026-08-25 批准本版本，且全部 48 页文档已批准；当前已进入 UI/Mock 实现。全局 `UI Flow Approved` 前不接真实内容、媒体/CDN 或播放器能力。
+用户已于 2026-08-25 批准本版本，且全部 48 页文档已批准；KC-P-013 离线 UI/Mock 已于 2026-08-28 正式验收。全局 `UI Flow Approved` 前不接真实内容、媒体/CDN 或播放器能力。

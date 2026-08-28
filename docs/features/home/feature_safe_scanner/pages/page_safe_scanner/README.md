@@ -7,8 +7,8 @@
 - 旧版来源：`pages/index/index`、`pages/addfriend/addfriend`
 - 路由语义：`SafeScannerRoute`，`/scan`，protectedShell overlay，禁止外部直达
 - 设计版本：`Safe Scanner Wireframe v1`
-- 最后更新：2026-08-25
-- UI 状态：`In Progress`（2026-08-26，离线 Mock）
+- 最后更新：2026-08-28
+- UI 状态：`UI Mock Implemented`
 
 ## 用户任务
 
@@ -63,7 +63,9 @@
 - 已实现用途说明、Fake 权限选择、Fake 取景器、补光灯 UI、识别中、三类 allowlist 成功意图、拒绝/过期/离线异常与重新扫码。
 - 允许结果只向 Shell 返回类型化内存意图；目标业务页尚未实现时显示明确提示，不创建真实好友、订单或核销动作。
 - Android API 37 模拟器已验证打开、识别、关闭与返回原首页状态；Widget 测试已覆盖好友资料安全意图。
+- 已补齐 SingleFlight、解析中关闭后迟到结果失效、会话失效、前后台暂停与补光灯自动关闭。
+- 13 组专项测试已覆盖 SCAN-M01～M16，设备截图与审计见 [ui-audit.md](ui-audit.md)。
 
 ## 验收
 
-状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。文档已批准并进入 UI/Mock 实现；仍须等待项目级 `UI Flow Approved`，不声明系统权限或接入真实扫码能力。
+状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。页面已达到 `UI Mock Implemented`；仍须等待项目级 `UI Flow Approved`，不声明系统权限或接入真实扫码能力。

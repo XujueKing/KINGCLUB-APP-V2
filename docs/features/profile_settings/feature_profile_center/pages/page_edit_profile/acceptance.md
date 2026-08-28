@@ -11,10 +11,14 @@
 
 ## UI Mock 验收
 
-- [ ] PROFILE-M05～M12、M16～M18 可重复演示
-- [ ] 头像上传与资料 commit 分开表达，失败不会误报成功
-- [ ] 冲突不会静默覆盖，结果未知不会盲目重复提交
-- [ ] 字段标签、错误、进度、200% 字体和键盘遮挡场景通过
-- [ ] 不访问真实媒体、目录或资料接口
+- [x] PROFILE-M05～M12、M16～M18 可通过字段操作和长按标题场景面板重复演示
+- [x] 头像选择取消、权限拒绝、格式/上传/commit 失败分开表达且不会误报成功
+- [x] 冲突不会静默覆盖，结果未知先查询收敛，快速重复保存只产生一个逻辑提交
+- [x] 字段标签、字段级错误、保存进度、可滚动键盘场景和 200% 字体无溢出
+- [x] 不访问真实媒体、目录或资料接口，不读取系统相册
 
-文档已批准；仍受全局文档与 UI/Mock 门禁约束。
+自动化证据：`test/edit_profile_flow_test.dart` 8 项、`test/profile_row_alignment_test.dart` 3 项通过；项目全量 132 项通过，`flutter analyze` 无问题。
+
+设备证据：[顶部与字段列表](android_edit_profile_v2.png)、[偏好与保存按钮](android_edit_profile_bottom_v2.png)、[右侧固定箭头列](android_edit_profile_aligned_v2.png)。
+
+离线 UI Mock 已完成；真实接入仍受项目级 `UI Flow Approved` 门禁约束。

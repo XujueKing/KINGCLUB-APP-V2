@@ -6,7 +6,7 @@
 - M0 范围：`In Release Scope`
 - 设计版本：`Contacts v1`
 - 最后更新：2026-08-25
-- UI 状态：`In Progress`（2026-08-26，离线 Mock）
+- UI 状态：`UI Mock Implemented`（2026-08-28，离线 Mock）
 
 ## 目标与用户价值
 

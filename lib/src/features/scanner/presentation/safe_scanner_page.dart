@@ -14,6 +14,17 @@ enum SafeScanDestination {
   final String label;
 }
 
+enum SafeScannerDemoState {
+  rationale,
+  cameraActive,
+  permissionDenied,
+  permissionPermanentlyDenied,
+  unsupported,
+  expiredOrUsed,
+  recoverableError,
+  sessionInvalid,
+}
+
 enum _ScannerViewState {
   rationale,
   requestingPermission,
@@ -25,6 +36,7 @@ enum _ScannerViewState {
   expiredOrUsed,
   recoverableError,
   navigating,
+  sessionInvalid,
 }
 
 enum _PermissionOutcome { allowed, denied, permanentlyDenied }
@@ -34,27 +46,111 @@ class SafeScannerPage extends StatefulWidget {
     super.key,
     required this.onClose,
     required this.onResolved,
+    this.onSessionResetRequested,
+    this.initialState = SafeScannerDemoState.rationale,
+    this.fakeDelay = const Duration(milliseconds: 450),
   });
 
   final VoidCallback onClose;
   final ValueChanged<SafeScanDestination> onResolved;
+  final VoidCallback? onSessionResetRequested;
+  final SafeScannerDemoState initialState;
+  final Duration fakeDelay;
 
   @override
   State<SafeScannerPage> createState() => _SafeScannerPageState();
 }
 
-class _SafeScannerPageState extends State<SafeScannerPage> {
-  _ScannerViewState _state = _ScannerViewState.rationale;
+class _SafeScannerPageState extends State<SafeScannerPage>
+    with WidgetsBindingObserver {
+  late _ScannerViewState _state;
   _PermissionOutcome _permissionOutcome = _PermissionOutcome.allowed;
   SafeScanDestination? _destination;
   bool _torchEnabled = false;
   bool _showTestScenarios = false;
+  bool _cameraPaused = false;
+  bool _requesting = false;
+  bool _resolving = false;
+  bool _closed = false;
+  bool _navigationEmitted = false;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _state = _viewStateFor(widget.initialState);
+  }
+
+  @override
+  void didUpdateWidget(covariant SafeScannerPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialState != oldWidget.initialState) {
+      _invalidateAttempt();
+      _state = _viewStateFor(widget.initialState);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
+    if (state == AppLifecycleState.resumed) {
+      if (_cameraPaused) setState(() => _cameraPaused = false);
+      return;
+    }
+    if (_state == _ScannerViewState.cameraActive && !_cameraPaused) {
+      setState(() {
+        _cameraPaused = true;
+        _torchEnabled = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _invalidateAttempt();
+    super.dispose();
+  }
+
+  _ScannerViewState _viewStateFor(
+    SafeScannerDemoState state,
+  ) => switch (state) {
+    SafeScannerDemoState.rationale => _ScannerViewState.rationale,
+    SafeScannerDemoState.cameraActive => _ScannerViewState.cameraActive,
+    SafeScannerDemoState.permissionDenied => _ScannerViewState.permissionDenied,
+    SafeScannerDemoState.permissionPermanentlyDenied =>
+      _ScannerViewState.permissionPermanentlyDenied,
+    SafeScannerDemoState.unsupported => _ScannerViewState.unsupported,
+    SafeScannerDemoState.expiredOrUsed => _ScannerViewState.expiredOrUsed,
+    SafeScannerDemoState.recoverableError => _ScannerViewState.recoverableError,
+    SafeScannerDemoState.sessionInvalid => _ScannerViewState.sessionInvalid,
+  };
+
+  void _invalidateAttempt() {
+    _generation += 1;
+    _requesting = false;
+    _resolving = false;
+    _torchEnabled = false;
+    _destination = null;
+  }
+
+  void _close() {
+    if (_closed) return;
+    _closed = true;
+    _invalidateAttempt();
+    widget.onClose();
+  }
 
   Future<void> _requestPermission() async {
+    if (_requesting || _closed) return;
+    _requesting = true;
+    final generation = ++_generation;
     setState(() => _state = _ScannerViewState.requestingPermission);
-    await Future<void>.delayed(const Duration(milliseconds: 450));
-    if (!mounted) return;
+    await Future<void>.delayed(widget.fakeDelay);
+    if (!mounted || _closed || generation != _generation) return;
     setState(() {
+      _requesting = false;
       _state = switch (_permissionOutcome) {
         _PermissionOutcome.allowed => _ScannerViewState.cameraActive,
         _PermissionOutcome.denied => _ScannerViewState.permissionDenied,
@@ -68,14 +164,18 @@ class _SafeScannerPageState extends State<SafeScannerPage> {
     SafeScanDestination? destination,
     _ScannerViewState? failure,
   }) async {
+    if (_resolving || _closed || _cameraPaused) return;
+    _resolving = true;
+    final generation = ++_generation;
     setState(() {
       _torchEnabled = false;
       _destination = destination;
       _state = _ScannerViewState.capturedResolving;
     });
-    await Future<void>.delayed(const Duration(milliseconds: 650));
-    if (!mounted) return;
+    await Future<void>.delayed(widget.fakeDelay);
+    if (!mounted || _closed || generation != _generation) return;
     setState(() {
+      _resolving = false;
       _state = destination == null
           ? (failure ?? _ScannerViewState.unsupported)
           : _ScannerViewState.navigating;
@@ -83,10 +183,18 @@ class _SafeScannerPageState extends State<SafeScannerPage> {
   }
 
   void _resumeScanning() {
+    _invalidateAttempt();
     setState(() {
-      _destination = null;
       _state = _ScannerViewState.cameraActive;
+      _cameraPaused = false;
+      _navigationEmitted = false;
     });
+  }
+
+  void _emitResolved() {
+    if (_navigationEmitted || _closed || _destination == null) return;
+    _navigationEmitted = true;
+    widget.onResolved(_destination!);
   }
 
   @override
@@ -96,7 +204,7 @@ class _SafeScannerPageState extends State<SafeScannerPage> {
       backgroundColor: KingColors.canvas,
       appBar: AppBar(
         leading: IconButton(
-          onPressed: widget.onClose,
+          onPressed: _close,
           tooltip: '关闭扫码',
           icon: const Icon(Icons.close),
         ),
@@ -127,10 +235,13 @@ class _SafeScannerPageState extends State<SafeScannerPage> {
                     state: _state,
                     torchEnabled: _torchEnabled,
                     destination: _destination,
+                    cameraPaused: _cameraPaused,
                   ),
                   const SizedBox(height: 22),
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 220),
                     child: _buildControls(context),
                   ),
                 ],
@@ -199,7 +310,7 @@ class _SafeScannerPageState extends State<SafeScannerPage> {
             _requestPermission();
           },
           secondaryLabel: '返回原页面',
-          onSecondary: widget.onClose,
+          onSecondary: _close,
         );
       case _ScannerViewState.permissionPermanentlyDenied:
         return _ControlPanel(
@@ -213,7 +324,7 @@ class _SafeScannerPageState extends State<SafeScannerPage> {
             _requestPermission();
           },
           secondaryLabel: '返回原页面',
-          onSecondary: widget.onClose,
+          onSecondary: _close,
         );
       case _ScannerViewState.unsupported:
         return _failurePanel(
@@ -244,9 +355,18 @@ class _SafeScannerPageState extends State<SafeScannerPage> {
           title: destination.label,
           message: '已生成受控页面意图，不携带二维码原文，也不会直接执行加好友、下单或核销。',
           primaryLabel: '进入${destination.label}',
-          onPrimary: () => widget.onResolved(destination),
+          onPrimary: _emitResolved,
           secondaryLabel: '继续扫码',
           onSecondary: _resumeScanning,
+        );
+      case _ScannerViewState.sessionInvalid:
+        return _ControlPanel(
+          key: const ValueKey('session-invalid'),
+          eyebrow: '会话已终止',
+          title: '登录状态已失效',
+          message: '扫码画面和本次识别内容已清理，请返回登录。',
+          primaryLabel: '返回登录',
+          onPrimary: widget.onSessionResetRequested ?? _close,
         );
     }
   }
@@ -265,7 +385,7 @@ class _SafeScannerPageState extends State<SafeScannerPage> {
       primaryLabel: '重新扫码',
       onPrimary: _resumeScanning,
       secondaryLabel: '返回原页面',
-      onSecondary: widget.onClose,
+      onSecondary: _close,
     );
   }
 }
@@ -275,15 +395,17 @@ class _ScannerViewport extends StatelessWidget {
     required this.state,
     required this.torchEnabled,
     required this.destination,
+    required this.cameraPaused,
   });
 
   final _ScannerViewState state;
   final bool torchEnabled;
   final SafeScanDestination? destination;
+  final bool cameraPaused;
 
   @override
   Widget build(BuildContext context) {
-    final active = state == _ScannerViewState.cameraActive;
+    final active = state == _ScannerViewState.cameraActive && !cameraPaused;
     final resolving = state == _ScannerViewState.capturedResolving;
     final success = state == _ScannerViewState.navigating;
     return AspectRatio(
@@ -309,9 +431,12 @@ class _ScannerViewport extends StatelessWidget {
               ],
               if (!active || resolving)
                 ColoredBox(color: Colors.black.withValues(alpha: 0.38)),
+              if (cameraPaused) const ColoredBox(color: Color(0xAA000000)),
               Center(
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 220),
                   child: switch (state) {
                     _ScannerViewState.rationale => const _ViewportMessage(
                       icon: Icons.security_outlined,
@@ -340,12 +465,22 @@ class _ScannerViewport extends StatelessWidget {
                         icon: Icons.cloud_off_outlined,
                         label: '校验暂不可用',
                       ),
+                    _ScannerViewState.sessionInvalid => const _ViewportMessage(
+                      icon: Icons.lock_outline,
+                      label: '会话已失效',
+                    ),
                     _ScannerViewState.navigating => _ViewportMessage(
                       icon: Icons.verified_user_outlined,
                       label: destination!.label,
                       color: KingColors.success,
                     ),
-                    _ScannerViewState.cameraActive => const SizedBox.shrink(),
+                    _ScannerViewState.cameraActive =>
+                      cameraPaused
+                          ? const _ViewportMessage(
+                              icon: Icons.pause_circle_outline,
+                              label: '扫码已暂停',
+                            )
+                          : const SizedBox.shrink(),
                   },
                 ),
               ),
@@ -507,32 +642,39 @@ class _ControlPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          eyebrow,
-          style: Theme.of(context).textTheme.labelLarge
-              ?.copyWith(color: KingColors.brand, letterSpacing: 1.8),
-        ),
-        const SizedBox(height: 8),
-        Text(title, style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 8),
-        Text(message, style: Theme.of(context).textTheme.bodySmall),
-        if (busy) ...[
-          const SizedBox(height: 18),
-          const LinearProgressIndicator(),
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            eyebrow,
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: KingColors.brand, letterSpacing: 1.8),
+          ),
+          const SizedBox(height: 8),
+          Text(title, style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 8),
+          Text(message, style: Theme.of(context).textTheme.bodySmall),
+          if (busy) ...[
+            const SizedBox(height: 18),
+            const LinearProgressIndicator(),
+          ],
+          if (primaryLabel != null) ...[
+            const SizedBox(height: 20),
+            FilledButton(onPressed: onPrimary, child: Text(primaryLabel!)),
+          ],
+          if (secondaryLabel != null) ...[
+            const SizedBox(height: 10),
+            OutlinedButton(
+              onPressed: onSecondary,
+              child: Text(secondaryLabel!),
+            ),
+          ],
+          if (footer != null) ...[const SizedBox(height: 16), footer!],
         ],
-        if (primaryLabel != null) ...[
-          const SizedBox(height: 20),
-          FilledButton(onPressed: onPrimary, child: Text(primaryLabel!)),
-        ],
-        if (secondaryLabel != null) ...[
-          const SizedBox(height: 10),
-          OutlinedButton(onPressed: onSecondary, child: Text(secondaryLabel!)),
-        ],
-        if (footer != null) ...[const SizedBox(height: 16), footer!],
-      ],
+      ),
     );
   }
 }

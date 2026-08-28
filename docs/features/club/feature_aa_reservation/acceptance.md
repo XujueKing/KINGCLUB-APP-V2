@@ -10,3 +10,14 @@
 - [x] 用户批准 `AA Reservation v1` 及五项产品决策
 
 文档全局门禁已满足，可以进入 UI/Mock。真实库存、超级接口、资产和支付接入继续受项目级 `UI Flow Approved` 门禁约束。
+
+## UI/Mock 验收（2026-08-28）
+
+- [x] KC-P-027～029 的列表、套餐详情、订单确认与 Fake 待支付主流程已在 Android `1080×2400` 验证
+- [x] AA-M01～M20 已由 `test/aa_reservation_flow_test.dart` 的 15 项专项测试覆盖
+- [x] 报价变化、售罄、重复预订、结果未知、资格变化、离线、会话失效、无效引用与零元确认均有稳定恢复路径
+- [x] 三个抵扣复选框已补充 Android 读屏标签，规则复选框已有完整语义
+- [x] `flutter analyze` 0 问题；完整 Widget 回归 `246/246` 通过
+- [x] 全流程保持本地 Fake；未调用超级接口、WebSocket、库存、资产或支付 SDK
+
+验收证据见 [2026-08-28 AA UI/Mock 审计](qa/2026-08-28/audit.md)。KC-P-027～029 状态更新为 `UI Mock Implemented`，真实接入仍为 `Blocked`。

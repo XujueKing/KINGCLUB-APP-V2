@@ -6,5 +6,11 @@
 - [x] 作者导航只传 SocialTargetRef，位置与媒体隐私明确
 - [x] 首发只读且不出现发布/互动写入口
 - [x] 用户于 2026-08-25 批准 `Content Feed Wireframe v1`
+- [x] FEED-M01～M20 对应的正常、加载、空态、错误、刷新、分页、弱网和安全退出路径均已实现为离线 Fake
+- [x] 作者入口只传 `SocialTargetRef`；作者不可见、内容下架和会话失效均使用安全通用状态
+- [x] 200% 字体、App 后台暂停、离开分支暂停和会话清理均有 Widget 回归测试
+- [x] 2026-08-28：Android API 37、1080×2400 设备语义布局核对通过
+- [x] 2026-08-28：`flutter analyze` 通过，项目全量 215 项 Flutter 测试通过
+- [x] 2026-08-28：KC-P-013 离线 UI/Mock 正式验收为 `UI Mock Implemented`
 
-UI Mock 阶段验证 FEED-M01～M20；全局文档门禁已满足，可以实现页面 Fake 流程。
+KC-P-013 的离线 UI/Mock 功能流程已通过；严格视觉对照仍因缺少旧版同状态运行截图而阻塞，且项目级 `UI Flow Approved` 前不得接入真实内容、CDN、播放器或用户服务。

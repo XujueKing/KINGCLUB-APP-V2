@@ -1,8 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+enum PaymentSecurityScenario {
+  statusSet,
+  statusNotSet,
+  wrongOldPin,
+  locked,
+  resultUnknown,
+  sessionInvalid,
+}
+
 class PaymentSecurityPage extends StatefulWidget {
-  const PaymentSecurityPage({super.key});
+  const PaymentSecurityPage({
+    super.key,
+    this.initialScenario = PaymentSecurityScenario.statusSet,
+    this.onBack,
+    this.onSessionResetRequested,
+  });
+
+  final PaymentSecurityScenario initialScenario;
+  final VoidCallback? onBack;
+  final VoidCallback? onSessionResetRequested;
 
   @override
   State<PaymentSecurityPage> createState() => _PaymentSecurityPageState();
@@ -15,6 +33,7 @@ enum _PinFlowStep {
   enterNew,
   confirmNew,
   success,
+  resultUnknown,
 }
 
 class _PaymentSecurityPageState extends State<PaymentSecurityPage>
@@ -26,11 +45,18 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
   _PinFlowStep _step = _PinFlowStep.overview;
   String _firstPin = '';
   String? _error;
+  late PaymentSecurityScenario _scenario;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scenario = widget.initialScenario;
+    if (_scenario == PaymentSecurityScenario.sessionInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showSessionInvalid(),
+      );
+    }
   }
 
   @override
@@ -54,7 +80,8 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
           children: [
             _SecurityHeader(
               title: '支付安全',
-              onBack: () => Navigator.pop(context),
+              onBack: _finishBack,
+              onTitleLongPress: _showScenarioPanel,
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -83,6 +110,11 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
           action: '下一步',
           onSubmit: () {
             if (!_validatePin()) return;
+            if (_scenario == PaymentSecurityScenario.wrongOldPin) {
+              _controller.clear();
+              setState(() => _error = '原 PIN 错误，还可尝试 2 次');
+              return;
+            }
             _goTo(_PinFlowStep.enterNew);
           },
           footer: TextButton(
@@ -131,7 +163,11 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
               return;
             }
             _clearSensitiveInput();
-            setState(() => _step = _PinFlowStep.success);
+            setState(
+              () => _step = _scenario == PaymentSecurityScenario.resultUnknown
+                  ? _PinFlowStep.resultUnknown
+                  : _PinFlowStep.success,
+            );
           },
         );
       case _PinFlowStep.success:
@@ -155,16 +191,40 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
               style: TextStyle(color: _muted),
             ),
             const SizedBox(height: 38),
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('返回设置'),
+            FilledButton(onPressed: _finishBack, child: const Text('返回设置')),
+          ],
+        );
+      case _PinFlowStep.resultUnknown:
+        return Column(
+          key: const ValueKey('payment-pin-result-unknown'),
+          children: [
+            const SizedBox(height: 70),
+            const Icon(Icons.sync_problem_outlined, color: _gold, size: 76),
+            const SizedBox(height: 26),
+            const Text(
+              '修改结果确认中',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
             ),
+            const SizedBox(height: 12),
+            const Text(
+              '敏感输入已清理。请勿重复设置，系统将使用原操作标识继续查询结果。',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _muted, height: 1.5),
+            ),
+            const SizedBox(height: 38),
+            FilledButton(onPressed: _finishBack, child: const Text('返回设置')),
           ],
         );
     }
   }
 
   Widget _overview() {
+    final locked = _scenario == PaymentSecurityScenario.locked;
+    final notSet = _scenario == PaymentSecurityScenario.statusNotSet;
     return Column(
       key: const ValueKey('payment-pin-overview'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -176,23 +236,33 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0x334A4035)),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.shield_outlined, color: _gold, size: 38),
-              SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '支付 PIN 已设置',
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    '用于余额、金币等敏感支付确认',
-                    style: TextStyle(color: _muted, fontSize: 12),
-                  ),
-                ],
+              Icon(
+                locked ? Icons.lock_clock_outlined : Icons.shield_outlined,
+                color: locked ? const Color(0xFFE06B6B) : _gold,
+                size: 38,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      locked
+                          ? '支付 PIN 已锁定'
+                          : notSet
+                          ? '支付 PIN 未设置'
+                          : '支付 PIN 已设置',
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      locked ? '请稍后再试，锁定时间以服务端为准（Fake）' : '用于余额、金币等敏感支付确认',
+                      style: const TextStyle(color: _muted, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -205,8 +275,18 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
             backgroundColor: _gold,
             foregroundColor: const Color(0xFF241B13),
           ),
-          onPressed: () => _goTo(_PinFlowStep.verifyOld),
-          child: const Text('修改支付 PIN'),
+          onPressed: locked
+              ? null
+              : () => _goTo(
+                  notSet ? _PinFlowStep.verifySms : _PinFlowStep.verifyOld,
+                ),
+          child: Text(
+            locked
+                ? '暂时无法操作'
+                : notSet
+                ? '设置支付 PIN'
+                : '修改支付 PIN',
+          ),
         ),
         const SizedBox(height: 12),
         OutlinedButton(
@@ -216,7 +296,7 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
             foregroundColor: _gold,
             side: const BorderSide(color: Color(0xFF4A4035)),
           ),
-          onPressed: () => _goTo(_PinFlowStep.verifySms),
+          onPressed: locked ? null : () => _goTo(_PinFlowStep.verifySms),
           child: const Text('忘记 PIN，短信验证后重设'),
         ),
         const SizedBox(height: 26),
@@ -259,6 +339,8 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
           obscureText: obscure,
           enableSuggestions: false,
           autocorrect: false,
+          enableInteractiveSelection: false,
+          autofillHints: const <String>[],
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -330,13 +412,107 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
   void _clearSensitiveInput() {
     _controller.clear();
     _firstPin = '';
+    _error = null;
+  }
+
+  Future<void> _showScenarioPanel() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF171411),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
+          children: [
+            const Text(
+              '支付安全 UI Mock 场景',
+              style: TextStyle(
+                color: _gold,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (final scenario in PaymentSecurityScenario.values)
+              ListTile(
+                key: ValueKey('payment-scenario-${scenario.name}'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  _scenarioLabel(scenario),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                trailing: scenario == _scenario
+                    ? const Icon(Icons.check, color: _gold)
+                    : null,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _clearSensitiveInput();
+                  setState(() {
+                    _scenario = scenario;
+                    _step = _PinFlowStep.overview;
+                  });
+                  if (scenario == PaymentSecurityScenario.sessionInvalid) {
+                    _showSessionInvalid();
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _scenarioLabel(PaymentSecurityScenario scenario) => switch (scenario) {
+    PaymentSecurityScenario.statusSet => '已设置',
+    PaymentSecurityScenario.statusNotSet => '未设置 · 短信重设',
+    PaymentSecurityScenario.wrongOldPin => '原 PIN 错误',
+    PaymentSecurityScenario.locked => '服务端锁定',
+    PaymentSecurityScenario.resultUnknown => '提交结果未知',
+    PaymentSecurityScenario.sessionInvalid => '会话失效',
+  };
+
+  Future<void> _showSessionInvalid() async {
+    _clearSensitiveInput();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('payment-session-dialog'),
+        title: const Text('登录状态已失效'),
+        content: const Text('支付 PIN 输入和页面内存状态已清理，请重新登录。'),
+        actions: [
+          FilledButton(
+            key: const ValueKey('payment-session-confirm'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) widget.onSessionResetRequested?.call();
+  }
+
+  void _finishBack() {
+    _clearSensitiveInput();
+    if (widget.onBack != null) {
+      widget.onBack!();
+    } else {
+      Navigator.maybePop(context);
+    }
   }
 }
 
 class _SecurityHeader extends StatelessWidget {
-  const _SecurityHeader({required this.title, required this.onBack});
+  const _SecurityHeader({
+    required this.title,
+    required this.onBack,
+    required this.onTitleLongPress,
+  });
   final String title;
   final VoidCallback onBack;
+  final VoidCallback onTitleLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -353,13 +529,17 @@ class _SecurityHeader extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Center(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: Color(0xFFC9B69E),
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
+            child: GestureDetector(
+              key: const ValueKey('payment-security-title'),
+              onLongPress: onTitleLongPress,
+              child: Center(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFFC9B69E),
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

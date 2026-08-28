@@ -12,6 +12,8 @@ class FriendRemarkResult {
   final String description;
 }
 
+enum FriendRemarkScenario { ready, readOnly, saveError, sessionInvalid }
+
 class FriendRemarkPage extends StatefulWidget {
   const FriendRemarkPage({
     super.key,
@@ -19,12 +21,20 @@ class FriendRemarkPage extends StatefulWidget {
     required this.initialRemark,
     required this.signature,
     this.initialDescription = '周末一起听现场，也喜欢摄影和旅行',
+    this.initialScenario = FriendRemarkScenario.ready,
+    this.onBack,
+    this.onSaved,
+    this.onSessionResetRequested,
   });
 
   final String targetRef;
   final String initialRemark;
   final String initialDescription;
   final String signature;
+  final FriendRemarkScenario initialScenario;
+  final VoidCallback? onBack;
+  final ValueChanged<FriendRemarkResult>? onSaved;
+  final VoidCallback? onSessionResetRequested;
 
   @override
   State<FriendRemarkPage> createState() => _FriendRemarkPageState();
@@ -33,12 +43,19 @@ class FriendRemarkPage extends StatefulWidget {
 class _FriendRemarkPageState extends State<FriendRemarkPage> {
   late String _remark;
   late String _description;
+  late FriendRemarkScenario _scenario;
 
   @override
   void initState() {
     super.initState();
     _remark = widget.initialRemark;
     _description = widget.initialDescription;
+    _scenario = widget.initialScenario;
+    if (_scenario == FriendRemarkScenario.sessionInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showSessionInvalid(),
+      );
+    }
   }
 
   @override
@@ -50,29 +67,42 @@ class _FriendRemarkPageState extends State<FriendRemarkPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _LegacyTitleBar(title: '朋友资料', onBack: _popPage),
+            if (_scenario != FriendRemarkScenario.ready)
+              _ScenarioBanner(
+                text: switch (_scenario) {
+                  FriendRemarkScenario.readOnly => '当前离线，仅可查看已缓存资料',
+                  FriendRemarkScenario.saveError => '保存会失败：用于验收草稿保留',
+                  FriendRemarkScenario.sessionInvalid => '登录状态已失效，编辑已停用',
+                  FriendRemarkScenario.ready => '',
+                },
+              ),
             const _SectionLabel('备注'),
             _LegacyInfoRow(
               key: const ValueKey('friend-remark-name'),
               label: '备注名',
               value: _remark,
-              onTap: () => _editField(
-                title: '备注名',
-                value: _remark,
-                maxLength: 24,
-                onSaved: (value) => setState(() => _remark = value),
-              ),
+              onTap: _canEdit
+                  ? () => _editField(
+                      title: '备注名',
+                      value: _remark,
+                      maxLength: 24,
+                      onSaved: (value) => setState(() => _remark = value),
+                    )
+                  : null,
             ),
             _LegacyInfoRow(
               key: const ValueKey('friend-remark-description'),
               label: '说明',
               value: _description,
-              onTap: () => _editField(
-                title: '说明',
-                value: _description,
-                maxLength: 120,
-                maxLines: 4,
-                onSaved: (value) => setState(() => _description = value),
-              ),
+              onTap: _canEdit
+                  ? () => _editField(
+                      title: '说明',
+                      value: _description,
+                      maxLength: 120,
+                      maxLines: 4,
+                      onSaved: (value) => setState(() => _description = value),
+                    )
+                  : null,
             ),
             const _SectionLabel('更多信息'),
             _LegacyInfoRow(label: '签名', value: widget.signature),
@@ -85,11 +115,47 @@ class _FriendRemarkPageState extends State<FriendRemarkPage> {
     );
   }
 
+  bool get _canEdit =>
+      _scenario == FriendRemarkScenario.ready ||
+      _scenario == FriendRemarkScenario.saveError;
+
   void _popPage() {
-    Navigator.pop(
-      context,
-      FriendRemarkResult(remark: _remark, description: _description),
+    final result = FriendRemarkResult(
+      remark: _remark,
+      description: _description,
     );
+    if (_scenario == FriendRemarkScenario.saveError) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('保存失败，修改内容仍保留在当前页面')));
+      return;
+    }
+    if (widget.onSaved != null) widget.onSaved!(result);
+    if (widget.onBack != null) {
+      widget.onBack!();
+    } else {
+      Navigator.pop(context, result);
+    }
+  }
+
+  Future<void> _showSessionInvalid() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('friend-remark-session-dialog'),
+        title: const Text('登录状态已失效'),
+        content: const Text('已停止编辑朋友资料，请重新登录。'),
+        actions: [
+          FilledButton(
+            key: const ValueKey('friend-remark-session-confirm'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) widget.onSessionResetRequested?.call();
   }
 
   Future<void> _editField({
@@ -183,6 +249,24 @@ class _FriendRemarkPageState extends State<FriendRemarkPage> {
     );
     if (result != null) onSaved(result);
   }
+}
+
+class _ScenarioBanner extends StatelessWidget {
+  const _ScenarioBanner({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('friend-remark-scenario-banner'),
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 9),
+    color: const Color(0xFF241F19),
+    child: Text(
+      text,
+      textAlign: TextAlign.center,
+      style: const TextStyle(color: _legacyGold, fontSize: 12),
+    ),
+  );
 }
 
 class _LegacyTitleBar extends StatelessWidget {

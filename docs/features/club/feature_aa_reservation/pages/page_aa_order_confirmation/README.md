@@ -7,7 +7,7 @@
 - 旧版来源：`order2`
 - 路由：`AaOrderConfirmationRoute`，`/club/aa/confirm`，`$extra: AaQuoteRef`
 - 设计版本：`AA Reservation Legacy Replica v2 / Confirmation`
-- 最后更新：2026-08-27
+- 最后更新：2026-08-28
 
 ## 用户任务与旧版版式
 
@@ -54,6 +54,7 @@
 - 零元确认：[android_aa_zero_cash.png](android_aa_zero_cash.png)
 - 零元确认结果：[android_aa_zero_cash_confirmed.png](android_aa_zero_cash_confirmed.png)
 - 点击“立即付款”只显示本地 Fake 待支付订单，不调用微信支付、超级接口或任何生产服务。
+- 本轮验收截图：[确认订单](../../qa/2026-08-28/03-confirm.png)、[Fake 待支付结果](../../qa/2026-08-28/04-fake-result.png)；抵扣项同时补齐 Android 读屏标签。
 
 ## 报价失效 Fake 状态补充
 

@@ -6,6 +6,7 @@
 - M0 范围：`In Release Scope`
 - 设计版本：`Legacy Shell Replica v1`
 - 批准日期：2026-08-26
+- UI 状态：`UI Mock Implemented`（2026-08-28，离线 Mock 已正式验收）
 
 ## 目标与用户价值
 
@@ -42,7 +43,7 @@
 
 ## 本期包含
 
-- [KC-P-010 App Shell/底部导航容器](pages/page_app_shell/README.md) — `Approved for Development`
+- [KC-P-010 App Shell/底部导航容器](pages/page_app_shell/README.md) — `UI Mock Implemented`
 - [信息架构与入口归属](information_architecture.md)
 - [分支栈、返回与生命周期](navigation_and_back.md)
 - [Mock/Fake 场景](mock_scenarios.md)
@@ -73,4 +74,4 @@
 
 ## 开发门禁
 
-本功能、KC-P-010 与其余 47 页均已达到文档准入，可以创建 Flutter UI/Fake；项目达到 `UI Flow Approved` 前不得连接真实服务。
+本功能与 KC-P-010 离线 UI/Mock 已于 2026-08-28 正式验收；项目达到 `UI Flow Approved` 前不得连接真实服务。

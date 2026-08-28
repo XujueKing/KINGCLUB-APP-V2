@@ -1,7 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 const _gold = Color(0xFFC9B69E);
 const _darkBrown = Color(0xFF422E19);
+
+enum HomeDemoState {
+  ready,
+  initialLoading,
+  verifiedMember,
+  longNickname,
+  unspecifiedGender,
+  largeBalance,
+  emptyPromotion,
+  partialImageError,
+  offlineCached,
+  fatalError,
+  articleCard,
+  videoCard,
+  sessionInvalid,
+}
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -9,24 +27,114 @@ class HomePage extends StatefulWidget {
     required this.onOpenTogether,
     required this.onOpenParty,
     required this.onOpenScanner,
+    this.onSessionResetRequested,
+    this.initialState = HomeDemoState.ready,
+    this.reselectSignal = 0,
   });
 
   final VoidCallback onOpenTogether;
   final VoidCallback onOpenParty;
   final VoidCallback onOpenScanner;
+  final VoidCallback? onSessionResetRequested;
+  final HomeDemoState initialState;
+  final int reselectSignal;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  final _scrollController = ScrollController();
   bool _refreshing = false;
+  bool _actionOpening = false;
+  Timer? _actionTimer;
+  late HomeDemoState _state;
+
+  @override
+  void initState() {
+    super.initState();
+    _state = widget.initialState;
+    if (_state == HomeDemoState.sessionInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showSessionReset());
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialState != oldWidget.initialState) {
+      _state = widget.initialState;
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
+      if (_state == HomeDemoState.sessionInvalid) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _showSessionReset(),
+        );
+      }
+    }
+    if (widget.reselectSignal != oldWidget.reselectSignal &&
+        _scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _actionTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Future<void> _refresh() async {
     if (_refreshing) return;
     setState(() => _refreshing = true);
     await Future<void>.delayed(const Duration(milliseconds: 650));
-    if (mounted) setState(() => _refreshing = false);
+    if (mounted) {
+      setState(() {
+        _refreshing = false;
+        if (_state == HomeDemoState.fatalError ||
+            _state == HomeDemoState.offlineCached) {
+          _state = HomeDemoState.ready;
+        }
+      });
+    }
+  }
+
+  void _runAction(VoidCallback action) {
+    if (_actionOpening) return;
+    _actionOpening = true;
+    action();
+    _actionTimer?.cancel();
+    _actionTimer = Timer(const Duration(milliseconds: 300), () {
+      _actionOpening = false;
+    });
+  }
+
+  Future<void> _showSessionReset() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('登录状态已失效'),
+        content: const Text('首页已停止使用，将清理本地页面状态并返回手机号登录。'),
+        actions: [
+          FilledButton(
+            key: const ValueKey('home-session-reset'),
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              widget.onSessionResetRequested?.call();
+            },
+            child: const Text('返回登录'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showMock(String label) async {
@@ -108,6 +216,67 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_state == HomeDemoState.fatalError) {
+      return ColoredBox(
+        color: Colors.black,
+        child: SafeArea(
+          bottom: false,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(28, 28, 28, 110),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cloud_off_rounded, size: 58, color: _gold),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '首页暂时无法显示',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '当前为离线 Fake 错误，不会显示技术异常原文。',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0x99FFFFFF)),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    key: const ValueKey('home-fatal-retry'),
+                    onPressed: () =>
+                        setState(() => _state = HomeDemoState.ready),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _gold,
+                      foregroundColor: Colors.black,
+                    ),
+                    child: const Text('重试'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final loading = _state == HomeDemoState.initialLoading;
+    final empty = _state == HomeDemoState.emptyPromotion;
+    final offline = _state == HomeDemoState.offlineCached;
+    final member = switch (_state) {
+      HomeDemoState.verifiedMember => const _MemberPresentation(verified: true),
+      HomeDemoState.longNickname => const _MemberPresentation(
+        nickname: '这是一个用于验证安全截断的很长昵称',
+      ),
+      HomeDemoState.unspecifiedGender => const _MemberPresentation(
+        genderAsset: null,
+      ),
+      HomeDemoState.largeBalance => const _MemberPresentation(
+        gold: '12.8万',
+        diamond: '9.9万',
+        progress: 1,
+      ),
+      _ => const _MemberPresentation(),
+    };
+
     return ColoredBox(
       color: Colors.black,
       child: SafeArea(
@@ -117,23 +286,64 @@ class _HomePageState extends State<HomePage> {
           color: Colors.black,
           backgroundColor: _gold,
           child: CustomScrollView(
+            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 122),
                 sliver: SliverList.list(
                   children: [
-                    const _MemberHeader(),
+                    _MemberHeader(presentation: member),
+                    if (offline) ...[
+                      const SizedBox(height: 8),
+                      const _HomeStatusBanner(
+                        icon: Icons.wifi_off_rounded,
+                        label: '离线内容 · 最近更新 5 分钟前',
+                      ),
+                    ],
+                    if (_refreshing) ...[
+                      const SizedBox(height: 8),
+                      const _HomeStatusBanner(
+                        icon: Icons.refresh_rounded,
+                        label: '正在刷新，当前内容继续保留',
+                        busy: true,
+                      ),
+                    ],
                     const SizedBox(height: 18),
-                    _HeroBanner(onTap: () => _showMock('兼职探店品鉴官')),
-                    const SizedBox(height: 10),
+                    if (!empty) ...[
+                      _HeroBanner(
+                        loading: loading,
+                        imageError: _state == HomeDemoState.partialImageError,
+                        onTap: () => _showMock('兼职探店品鉴官'),
+                        onRetry: () =>
+                            setState(() => _state = HomeDemoState.ready),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     _QuickActions(
-                      onTogether: widget.onOpenTogether,
-                      onParty: widget.onOpenParty,
-                      onScan: widget.onOpenScanner,
+                      onTogether: () => _runAction(widget.onOpenTogether),
+                      onParty: () => _runAction(widget.onOpenParty),
+                      onScan: () => _runAction(widget.onOpenScanner),
                     ),
                     const SizedBox(height: 10),
-                    _PromotionGrid(onTap: _showMock),
+                    if (empty)
+                      _EmptyPromotions(
+                        onRestore: () =>
+                            setState(() => _state = HomeDemoState.ready),
+                      )
+                    else
+                      _PromotionGrid(
+                        loading: loading,
+                        imageError: _state == HomeDemoState.partialImageError,
+                        mode: _state == HomeDemoState.articleCard
+                            ? _PromotionMode.article
+                            : _state == HomeDemoState.videoCard
+                            ? _PromotionMode.video
+                            : _PromotionMode.poster,
+                        onTap: _showMock,
+                        onRecover: () =>
+                            setState(() => _state = HomeDemoState.ready),
+                      ),
                   ],
                 ),
               ),
@@ -145,77 +355,162 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+class _MemberPresentation {
+  const _MemberPresentation({
+    this.nickname = '青铜',
+    this.gold = '50',
+    this.diamond = '0',
+    this.progress = .5,
+    this.verified = false,
+    this.genderAsset = 'assets/legacy/home/man4.png',
+  });
+
+  final String nickname;
+  final String gold;
+  final String diamond;
+  final double progress;
+  final bool verified;
+  final String? genderAsset;
+}
+
 class _MemberHeader extends StatelessWidget {
-  const _MemberHeader();
+  const _MemberHeader({required this.presentation});
+
+  final _MemberPresentation presentation;
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final height = 68.0 + ((textScale - 1).clamp(0, 2) * 12);
+    const logoWidth = 102.0;
+    const legacyScale = logoWidth / 140;
+    const logoHeight = logoWidth * 213 / 400;
+    const contentLeft = logoWidth + (20 * legacyScale);
+    const contentWidth = 360 * legacyScale;
+    const topRowHeight = 22 * legacyScale;
+    const assetTopGap = 6 * legacyScale;
+    const assetHeight = 26 * legacyScale;
+    const progressTopGap = 15 * legacyScale;
+    const progressHeight = 4 * legacyScale;
+    const contentHeight =
+        topRowHeight +
+        assetTopGap +
+        assetHeight +
+        progressTopGap +
+        progressHeight;
+
     return SizedBox(
-      height: 68,
-      child: Row(
+      height: height,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          const Image(
-            image: AssetImage('assets/legacy/home/logo_2.png'),
-            width: 102,
-            fit: BoxFit.contain,
+          Positioned(
+            left: 0,
+            top: (height - logoHeight) / 2,
+            width: logoWidth,
+            height: logoHeight,
+            child: const Image(
+              key: ValueKey('home-member-logo'),
+              image: AssetImage('assets/legacy/home/logo_2.png'),
+              fit: BoxFit.contain,
+            ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Text(
-                      '青铜',
-                      style: TextStyle(
-                        color: _gold,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(width: 4),
-                    Icon(Icons.male, size: 13, color: _gold),
-                    SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'L-0 EXP:50',
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: _gold,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+          Positioned(
+            left: contentLeft,
+            top: (height - contentHeight) / 2,
+            width: contentWidth,
+            child: MediaQuery.withClampedTextScaling(
+              maxScaleFactor: 1.25,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: topRowHeight,
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            presentation.nickname,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _gold,
+                              fontSize: 22 * legacyScale,
+                              fontWeight: FontWeight.w600,
+                              height: 1,
+                            ),
+                          ),
                         ),
-                      ),
+                        SizedBox(width: 10 * legacyScale),
+                        SizedBox(
+                          width: 14 * legacyScale,
+                          child: presentation.genderAsset == null
+                              ? Semantics(label: '未指定性别')
+                              : Image.asset(
+                                  presentation.genderAsset!,
+                                  fit: BoxFit.fitWidth,
+                                ),
+                        ),
+                        SizedBox(width: 10 * legacyScale),
+                        Flexible(
+                          child: Text(
+                            'L-0 EXP:50',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _gold,
+                              fontSize: 20 * legacyScale,
+                              fontWeight: FontWeight.normal,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                        if (presentation.verified) ...[
+                          SizedBox(width: 10 * legacyScale),
+                          Image.asset(
+                            'assets/legacy/home/bigV.png',
+                            width: 16 * legacyScale,
+                            fit: BoxFit.fitWidth,
+                          ),
+                          SizedBox(width: 10 * legacyScale),
+                        ],
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                const Row(
-                  children: [
-                    _AssetPill(
-                      image: 'assets/legacy/home/gold.png',
-                      value: '50',
-                    ),
-                    SizedBox(width: 8),
-                    _AssetPill(
-                      image: 'assets/legacy/home/diamond.png',
-                      value: '0',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 7),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: const LinearProgressIndicator(
-                    value: .5,
-                    minHeight: 4,
-                    color: _gold,
-                    backgroundColor: Color(0x33C9B69E),
                   ),
-                ),
-              ],
+                  SizedBox(height: assetTopGap),
+                  SizedBox(
+                    height: assetHeight,
+                    child: Row(
+                      children: [
+                        _AssetPill(
+                          image: 'assets/legacy/home/gold.png',
+                          value: presentation.gold,
+                          iconWidth: 24 * legacyScale,
+                          scale: legacyScale,
+                        ),
+                        SizedBox(width: 15 * legacyScale),
+                        _AssetPill(
+                          image: 'assets/legacy/home/diamond.png',
+                          value: presentation.diamond,
+                          iconWidth: 28 * legacyScale,
+                          scale: legacyScale,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: progressTopGap),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2 * legacyScale),
+                    child: LinearProgressIndicator(
+                      key: const ValueKey('home-member-progress'),
+                      value: presentation.progress.clamp(0, 1),
+                      minHeight: progressHeight,
+                      color: _gold,
+                      backgroundColor: const Color(0x33C9B69E),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -225,107 +520,183 @@ class _MemberHeader extends StatelessWidget {
 }
 
 class _AssetPill extends StatelessWidget {
-  const _AssetPill({required this.image, required this.value});
+  const _AssetPill({
+    required this.image,
+    required this.value,
+    required this.iconWidth,
+    required this.scale,
+  });
 
   final String image;
   final String value;
+  final double iconWidth;
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
+    final assetName = image.endsWith('gold.png') ? 'gold' : 'diamond';
     return Container(
-      width: 88,
-      height: 20,
+      key: ValueKey('home-member-asset-$assetName'),
+      width: 120 * scale,
+      height: 26 * scale,
       decoration: BoxDecoration(
-        color: const Color(0x332E2922),
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0x33C9B69E),
+        borderRadius: BorderRadius.circular(13 * scale),
       ),
       child: Row(
         children: [
-          Image.asset(image, width: 20, height: 20),
+          Image.asset(
+            image,
+            width: iconWidth,
+            height: image.endsWith('gold.png') ? 24 * scale : null,
+            fit: BoxFit.contain,
+          ),
           Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: _gold, fontSize: 11),
+            child: Padding(
+              padding: EdgeInsets.only(left: 20 * scale, right: 10 * scale),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: _gold,
+                    fontSize: 20 * scale,
+                    height: 1,
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 7),
         ],
       ),
     );
   }
 }
 
-class _HeroBanner extends StatelessWidget {
-  const _HeroBanner({required this.onTap});
+class _HeroBanner extends StatefulWidget {
+  const _HeroBanner({
+    required this.onTap,
+    required this.loading,
+    required this.imageError,
+    required this.onRetry,
+  });
 
   final VoidCallback onTap;
+  final bool loading;
+  final bool imageError;
+  final VoidCallback onRetry;
+
+  @override
+  State<_HeroBanner> createState() => _HeroBannerState();
+}
+
+class _HeroBannerState extends State<_HeroBanner> {
+  final _controller = PageController();
+  Timer? _timer;
+  int _index = 0;
+  bool? _motionDisabled;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disabled = MediaQuery.disableAnimationsOf(context);
+    if (_motionDisabled == disabled) return;
+    _motionDisabled = disabled;
+    _timer?.cancel();
+    if (!disabled && !widget.loading && !widget.imageError) {
+      _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+        if (!mounted || !_controller.hasClients) return;
+        _controller.animateToPage(
+          (_index + 1) % 2,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _HeroBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.loading != oldWidget.loading ||
+        widget.imageError != oldWidget.imageError) {
+      _motionDisabled = null;
+      didChangeDependencies();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      button: true,
-      label: '招募兼职探店品鉴官',
+      button: !widget.imageError,
+      label: widget.imageError ? '运营 Banner 加载失败' : '招募兼职探店品鉴官',
       child: GestureDetector(
-        onTap: onTap,
+        onTap: widget.imageError ? null : widget.onTap,
         child: AspectRatio(
           aspectRatio: 2.1,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.asset(
-                  'assets/legacy/home/mock_hero_recruitment.png',
-                  fit: BoxFit.cover,
-                ),
-                const Positioned(
-                  left: 20,
-                  bottom: 15,
-                  child: Opacity(
-                    opacity: .72,
-                    child: Image(
-                      image: AssetImage('assets/legacy/home/logo_2.png'),
-                      width: 76,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 14,
-                  bottom: 16,
-                  child: Transform.rotate(
-                    angle: -.035,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 5,
+            child: widget.imageError
+                ? _BannerError(onRetry: widget.onRetry)
+                : Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      PageView(
+                        key: const ValueKey('home-banner-pages'),
+                        controller: _controller,
+                        onPageChanged: (value) =>
+                            setState(() => _index = value),
+                        children: const [
+                          _RecruitmentBanner(),
+                          _RecruitmentBanner(alternate: true),
+                        ],
                       ),
-                      color: const Color(0xFF9A6339),
-                      child: const Text(
-                        '招募兼职探店品鉴官',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
+                      Positioned(
+                        bottom: 7,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            2,
+                            (index) => Container(
+                              key: ValueKey(
+                                'home-banner-indicator-$index-${index == _index}',
+                              ),
+                              width: 5,
+                              height: 5,
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              decoration: BoxDecoration(
+                                color: index == _index
+                                    ? _gold
+                                    : const Color(0x60C9B69E),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      if (widget.loading)
+                        const ColoredBox(
+                          color: Color(0x99000000),
+                          child: Center(
+                            child: SizedBox(
+                              width: 120,
+                              child: LinearProgressIndicator(),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-                const Positioned(
-                  right: 15,
-                  bottom: 3,
-                  child: Text(
-                    'RECRUITING PART-TIME WORKERS',
-                    style: TextStyle(
-                      color: Color(0xFFD8C9B6),
-                      fontSize: 8,
-                      letterSpacing: .3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
@@ -333,7 +704,92 @@ class _HeroBanner extends StatelessWidget {
   }
 }
 
-class _QuickActions extends StatelessWidget {
+class _RecruitmentBanner extends StatelessWidget {
+  const _RecruitmentBanner({this.alternate = false});
+
+  final bool alternate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          alternate
+              ? 'assets/legacy/home/mock_poster_music.png'
+              : 'assets/legacy/home/mock_hero_recruitment.png',
+          fit: BoxFit.cover,
+          alignment: alternate ? Alignment.center : Alignment.center,
+        ),
+        Positioned(
+          left: 20,
+          bottom: 15,
+          child: Opacity(
+            opacity: .72,
+            child: Image.asset('assets/legacy/home/logo_2.png', width: 76),
+          ),
+        ),
+        Positioned(
+          right: 14,
+          bottom: 16,
+          child: Transform.rotate(
+            angle: -.035,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              color: const Color(0xFF9A6339),
+              child: Text(
+                alternate ? '周末音乐现场' : '招募兼职探店品鉴官',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 15,
+          bottom: 3,
+          child: Text(
+            alternate ? 'KINGCLUB LIVE MUSIC' : 'RECRUITING PART-TIME WORKERS',
+            style: const TextStyle(
+              color: Color(0xFFD8C9B6),
+              fontSize: 8,
+              letterSpacing: .3,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BannerError extends StatelessWidget {
+  const _BannerError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: const Color(0xFF18140F),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.image_not_supported_outlined, color: _gold),
+            const SizedBox(height: 6),
+            const Text('运营图片暂不可用'),
+            TextButton(onPressed: onRetry, child: const Text('查看文字详情')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActions extends StatefulWidget {
   const _QuickActions({
     required this.onTogether,
     required this.onParty,
@@ -345,134 +801,369 @@ class _QuickActions extends StatelessWidget {
   final VoidCallback onScan;
 
   @override
+  State<_QuickActions> createState() => _QuickActionsState();
+}
+
+class _QuickActionsState extends State<_QuickActions> {
+  Timer? _shineClock;
+  int _elapsedMilliseconds = 0;
+  bool? _motionDisabled;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disabled = MediaQuery.disableAnimationsOf(context);
+    if (_motionDisabled == disabled) return;
+    _motionDisabled = disabled;
+    _shineClock?.cancel();
+    _elapsedMilliseconds = 0;
+    if (disabled) return;
+
+    // The three legacy CSS animations are created with the same DOM row and
+    // therefore share a time origin. One clock prevents per-card timer drift.
+    const frame = Duration(milliseconds: 33);
+    _shineClock = Timer.periodic(frame, (timer) {
+      if (!mounted || _motionDisabled == true) return;
+      setState(() {
+        _elapsedMilliseconds = timer.tick * frame.inMilliseconds;
+      });
+    });
+  }
+
+  double? _progress() {
+    if (_motionDisabled == true) return null;
+    const period = Duration(seconds: 4);
+    return (_elapsedMilliseconds % period.inMilliseconds) /
+        period.inMilliseconds;
+  }
+
+  @override
+  void dispose() {
+    _shineClock?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 76,
-      child: Row(
-        children: [
-          Expanded(
-            flex: 10,
-            child: _LegacyAction(
-              title: '一起玩',
-              subtitle: 'TOGETHER PLAY',
-              backgroundAsset: 'assets/legacy/home/H01.png',
-              onTap: onTogether,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The legacy row is 680rpx wide after its 35rpx outer margins:
+        // 246 + 14 + 246 + 14 + 160. Scale the complete row as one unit so
+        // card proportions and text baselines cannot drift independently.
+        final scale = constraints.maxWidth / 680;
+        final largeWidth = 246 * scale;
+        final scanWidth = 160 * scale;
+        final height = 140 * scale;
+        final gap = 14 * scale;
+
+        return SizedBox(
+          height: height,
+          child: Row(
+            children: [
+              SizedBox(
+                width: largeWidth,
+                child: _LegacyAction(
+                  actionId: 'together',
+                  title: '一起玩',
+                  subtitle: 'TOGETHER PLAY',
+                  backgroundAsset: 'assets/legacy/home/H01.png',
+                  scale: scale,
+                  shineProgress: _progress(),
+                  shineRowWidth: constraints.maxWidth,
+                  shineCardOffset: 0,
+                  onTap: widget.onTogether,
+                ),
+              ),
+              SizedBox(width: gap),
+              SizedBox(
+                width: largeWidth,
+                child: _LegacyAction(
+                  actionId: 'party',
+                  title: '组局玩',
+                  subtitle: 'EXCLUSIVE SEATS',
+                  backgroundAsset: 'assets/legacy/home/H02.png',
+                  scale: scale,
+                  shineProgress: _progress(),
+                  shineRowWidth: constraints.maxWidth,
+                  shineCardOffset: largeWidth + gap,
+                  onTap: widget.onParty,
+                ),
+              ),
+              SizedBox(width: gap),
+              SizedBox(
+                width: scanWidth,
+                child: _LegacyAction(
+                  actionId: 'scan',
+                  title: '',
+                  subtitle: 'SCAN QR',
+                  backgroundAsset: 'assets/legacy/home/qrcode2.png',
+                  foregroundAsset: 'assets/legacy/home/qrcode3.png',
+                  scale: scale,
+                  shineProgress: _progress(),
+                  shineRowWidth: constraints.maxWidth,
+                  shineCardOffset: (largeWidth * 2) + (gap * 2),
+                  onTap: widget.onScan,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 10,
-            child: _LegacyAction(
-              title: '组局玩',
-              subtitle: 'EXCLUSIVE SEATS',
-              backgroundAsset: 'assets/legacy/home/H02.png',
-              onTap: onParty,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 6,
-            child: _LegacyAction(
-              title: '',
-              subtitle: 'SCAN QR',
-              backgroundAsset: 'assets/legacy/home/qrcode2.png',
-              foregroundAsset: 'assets/legacy/home/qrcode3.png',
-              onTap: onScan,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
-class _LegacyAction extends StatelessWidget {
+class _LegacyAction extends StatefulWidget {
   const _LegacyAction({
+    required this.actionId,
     required this.title,
     required this.subtitle,
     required this.backgroundAsset,
+    required this.scale,
+    required this.shineProgress,
+    required this.shineRowWidth,
+    required this.shineCardOffset,
     required this.onTap,
     this.foregroundAsset,
   });
 
+  final String actionId;
   final String title;
   final String subtitle;
   final String backgroundAsset;
+  final double scale;
+  final double? shineProgress;
+  final double shineRowWidth;
+  final double shineCardOffset;
   final String? foregroundAsset;
   final VoidCallback onTap;
 
   @override
+  State<_LegacyAction> createState() => _LegacyActionState();
+}
+
+class _LegacyActionState extends State<_LegacyAction> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final scale = widget.scale;
+    final isScan = widget.foregroundAsset != null;
+
     return Semantics(
       button: true,
-      label: title.isEmpty ? '扫码' : title,
+      label: isScan
+          ? '扫码，${widget.subtitle}'
+          : '${widget.title}，${widget.subtitle}',
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Ink(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              gradient: const RadialGradient(
-                center: Alignment(-.6, -.6),
-                radius: 1.6,
-                colors: [Color(0xFFB8A289), Color(0xFF7E6951)],
+        child: AnimatedOpacity(
+          key: ValueKey('home-quick-opacity-${widget.actionId}'),
+          opacity: _pressed ? .7 : 1,
+          duration: const Duration(milliseconds: 80),
+          child: InkWell(
+            key: ValueKey('home-quick-${widget.actionId}'),
+            onTap: widget.onTap,
+            onHighlightChanged: (value) {
+              if (_pressed != value) setState(() => _pressed = value);
+            },
+            borderRadius: BorderRadius.circular(15 * scale),
+            splashFactory: NoSplash.splashFactory,
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15 * scale),
+                gradient: const RadialGradient(
+                  center: Alignment(-.6, -.6),
+                  radius: 1.6,
+                  colors: [Color(0xFFB8A289), Color(0xFF7E6951)],
+                ),
               ),
-            ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Positioned(
-                  left: -8,
-                  top: -10,
-                  child: Opacity(
-                    opacity: .12,
-                    child: Image.asset(backgroundAsset, width: 72, height: 72),
-                  ),
-                ),
-                if (foregroundAsset != null)
-                  Align(
-                    alignment: const Alignment(0, -.25),
-                    child: Image.asset(foregroundAsset!, width: 29, height: 29),
-                  )
-                else
-                  Align(
-                    alignment: const Alignment(.35, -.12),
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        color: _darkBrown,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15 * scale),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _legacyBackground(scale, isScan),
+                    if (widget.shineProgress case final progress?)
+                      CustomPaint(
+                        key: ValueKey('home-quick-shine-${widget.actionId}'),
+                        painter: _LegacyShinePainter(
+                          progress: progress,
+                          rowWidth: widget.shineRowWidth,
+                          cardOffset: widget.shineCardOffset,
+                        ),
                       ),
-                    ),
-                  ),
-                Align(
-                  alignment: const Alignment(.25, .68),
-                  child: Text(
-                    subtitle,
-                    maxLines: 1,
-                    style: const TextStyle(
-                      color: _darkBrown,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                    if (isScan) _scanContent(scale) else _textContent(scale),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _legacyBackground(double scale, bool isScan) {
+    final position = switch (widget.actionId) {
+      'together' => (left: -20 * scale, top: -15 * scale, size: 126 * scale),
+      'party' => (left: -50 * scale, top: -20 * scale, size: 140 * scale),
+      _ => (left: -65 * scale, top: -15 * scale, size: 110 * scale),
+    };
+
+    final image = Opacity(
+      opacity: .1,
+      child: Image.asset(
+        widget.backgroundAsset,
+        width: position.size,
+        height: position.size,
+        fit: BoxFit.fill,
+      ),
+    );
+
+    return Positioned(
+      left: position.left,
+      top: position.top,
+      child: isScan
+          ? Transform.rotate(angle: .7853981634, child: image)
+          : image,
+    );
+  }
+
+  Widget _textContent(double scale) {
+    return Padding(
+      padding: EdgeInsets.only(right: 30 * scale),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 6 * scale),
+            child: Text(
+              widget.title,
+              maxLines: 1,
+              textScaler: TextScaler.noScaling,
+              style: TextStyle(
+                color: _darkBrown,
+                fontSize: 38 * scale,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+              ),
+            ),
+          ),
+          Text(
+            widget.subtitle,
+            maxLines: 1,
+            textScaler: TextScaler.noScaling,
+            style: TextStyle(
+              color: _darkBrown,
+              fontSize: 20 * scale,
+              fontWeight: FontWeight.w400,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _scanContent(double scale) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 6 * scale),
+          child: Image.asset(
+            widget.foregroundAsset!,
+            width: 40 * scale,
+            height: 40 * scale,
+          ),
+        ),
+        Text(
+          widget.subtitle,
+          maxLines: 1,
+          textScaler: TextScaler.noScaling,
+          style: TextStyle(
+            color: _darkBrown,
+            fontSize: 20 * scale,
+            fontWeight: FontWeight.w400,
+            height: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
+class _LegacyShinePainter extends CustomPainter {
+  const _LegacyShinePainter({
+    required this.progress,
+    required this.rowWidth,
+    required this.cardOffset,
+  });
+
+  final double progress;
+  final double rowWidth;
+  final double cardOffset;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Every card paints a clipped segment of the same row-space highlight.
+    // The center moves linearly across the complete row, so there is one band
+    // and one constant speed even while it crosses the black card gaps.
+    final bandWidth = rowWidth * .60;
+    final layerSize = Size(bandWidth, size.height * 3);
+    final layerRect = Rect.fromCenter(
+      center: Offset.zero,
+      width: layerSize.width,
+      height: layerSize.height,
+    );
+    final paint = Paint()
+      ..shader = const LinearGradient(
+        // The gradient axis stays horizontal; rotating the 200% layer by 30°
+        // makes the visible highlight itself diagonal. Combining the WXSS
+        // gradient angle with the rotation produced a near-vertical stripe.
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        stops: [.25, .5, .75],
+        colors: [Colors.transparent, Color(0x4DFFFFFF), Colors.transparent],
+      ).createShader(layerRect);
+
+    canvas.save();
+    canvas.translate(-cardOffset, 0);
+    final centerX = -bandWidth + (progress * (rowWidth + (bandWidth * 2)));
+    canvas.translate(centerX, size.height / 2);
+    canvas.rotate(.5235987756);
+    canvas.drawRect(layerRect, paint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _LegacyShinePainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.rowWidth != rowWidth ||
+      oldDelegate.cardOffset != cardOffset;
+}
+
+enum _PromotionMode { poster, article, video }
+
 class _PromotionGrid extends StatelessWidget {
-  const _PromotionGrid({required this.onTap});
+  const _PromotionGrid({
+    required this.onTap,
+    required this.loading,
+    required this.imageError,
+    required this.mode,
+    required this.onRecover,
+  });
 
   final ValueChanged<String> onTap;
+  final bool loading;
+  final bool imageError;
+  final _PromotionMode mode;
+  final VoidCallback onRecover;
 
   @override
   Widget build(BuildContext context) {
@@ -482,21 +1173,31 @@ class _PromotionGrid extends StatelessWidget {
         Expanded(
           child: Column(
             children: [
-              _PosterCard(
-                asset: 'assets/legacy/home/mock_poster_handsome.png',
-                title: '谁是最帅小哥哥',
-                display: 'HANDSOME\nMAN',
-                tag: '投稿有奖',
-                onTap: () => onTap('最帅小哥哥活动'),
-              ),
+              if (mode == _PromotionMode.article)
+                _ArticlePromotionCard(onTap: () => onTap('最帅小哥哥活动'))
+              else if (mode == _PromotionMode.video)
+                const _VideoPromotionCard()
+              else
+                _PosterCard(
+                  asset: 'assets/legacy/home/mock_poster_handsome.png',
+                  title: '谁是最帅小哥哥',
+                  display: 'HANDSOME\nMAN',
+                  tag: '投稿有奖',
+                  loading: loading,
+                  onTap: () => onTap('最帅小哥哥活动'),
+                ),
               const SizedBox(height: 8),
-              _PosterCard(
-                asset: 'assets/legacy/home/mock_poster_birthday.png',
-                title: '生日有礼',
-                display: '解锁小姐姐哥哥特权',
-                palette: const Color(0xFFA82F61),
-                onTap: () => onTap('生日有礼'),
-              ),
+              if (imageError)
+                _PromotionImageError(title: '生日有礼', onRetry: onRecover)
+              else
+                _PosterCard(
+                  asset: 'assets/legacy/home/mock_poster_birthday.png',
+                  title: '生日有礼',
+                  display: '解锁小姐姐哥哥特权',
+                  palette: const Color(0xFFA82F61),
+                  loading: loading,
+                  onTap: () => onTap('生日有礼'),
+                ),
             ],
           ),
         ),
@@ -510,6 +1211,7 @@ class _PromotionGrid extends StatelessWidget {
                 display: '男女会员 1:1\n随机组局',
                 tag: '新玩法',
                 palette: const Color(0xFFFFB1D6),
+                loading: loading,
                 onTap: () => onTap('AI 卡颜局'),
               ),
               const SizedBox(height: 8),
@@ -517,6 +1219,7 @@ class _PromotionGrid extends StatelessWidget {
                 asset: 'assets/legacy/home/mock_poster_music.png',
                 title: '玩音乐能赚钱',
                 display: 'PLAY MUSIC',
+                loading: loading,
                 onTap: () => onTap('玩音乐能赚钱'),
               ),
             ],
@@ -535,6 +1238,7 @@ class _PosterCard extends StatelessWidget {
     required this.onTap,
     this.tag,
     this.palette = const Color(0xFFE7D5B9),
+    this.loading = false,
   });
 
   final String asset;
@@ -543,6 +1247,7 @@ class _PosterCard extends StatelessWidget {
   final String? tag;
   final Color palette;
   final VoidCallback onTap;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -619,9 +1324,269 @@ class _PosterCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (loading)
+                  const ColoredBox(
+                    color: Color(0x66000000),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArticlePromotionCard extends StatelessWidget {
+  const _ArticlePromotionCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '图文内容，谁是最帅小哥哥，阿澈发布，128 次浏览',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(7),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: const Color(0xFF17130F),
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AspectRatio(
+                aspectRatio: .82,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(7),
+                  ),
+                  child: Image.asset(
+                    'assets/legacy/home/mock_poster_handsome.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(10, 9, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '谁是最帅小哥哥',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    SizedBox(height: 7),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 10,
+                          backgroundColor: Color(0xFF3A3026),
+                          child: Text('阿', style: TextStyle(fontSize: 9)),
+                        ),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '阿澈',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Color(0x99FFFFFF),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.visibility_outlined, size: 12),
+                        SizedBox(width: 3),
+                        Text('128', style: TextStyle(fontSize: 10)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VideoPromotionCard extends StatefulWidget {
+  const _VideoPromotionCard();
+
+  @override
+  State<_VideoPromotionCard> createState() => _VideoPromotionCardState();
+}
+
+class _VideoPromotionCardState extends State<_VideoPromotionCard> {
+  bool _playing = false;
+  bool _muted = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '视频内容，${_playing ? '正在播放' : '已暂停'}，${_muted ? '静音' : '有声'}',
+      child: AspectRatio(
+        aspectRatio: .72,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(7),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/legacy/home/mock_poster_music.png',
+                fit: BoxFit.cover,
+              ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Color(0xCC000000)],
+                  ),
+                ),
+              ),
+              Center(
+                child: IconButton.filledTonal(
+                  key: const ValueKey('home-video-toggle'),
+                  tooltip: _playing ? '暂停' : '播放',
+                  onPressed: () => setState(() => _playing = !_playing),
+                  icon: Icon(
+                    _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 10,
+                bottom: 10,
+                child: Text(_playing ? '正在播放' : '默认暂停'),
+              ),
+              Positioned(
+                right: 6,
+                bottom: 4,
+                child: IconButton(
+                  key: const ValueKey('home-video-sound'),
+                  tooltip: _muted ? '开启声音' : '静音',
+                  onPressed: () => setState(() => _muted = !_muted),
+                  icon: Icon(
+                    _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PromotionImageError extends StatelessWidget {
+  const _PromotionImageError({required this.title, required this.onRetry});
+
+  final String title;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '$title 图片加载失败',
+      child: AspectRatio(
+        aspectRatio: .72,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFF17130F),
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: const Color(0x557E6951)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.image_not_supported_outlined, color: _gold),
+              const SizedBox(height: 8),
+              Text(title),
+              TextButton(onPressed: onRetry, child: const Text('查看文字详情')),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyPromotions extends StatelessWidget {
+  const _EmptyPromotions({required this.onRestore});
+
+  final VoidCallback onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('home-empty-promotions'),
+      height: 220,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0B09),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.event_busy_outlined, size: 42, color: _gold),
+          const SizedBox(height: 10),
+          const Text('暂无运营内容'),
+          const SizedBox(height: 12),
+          OutlinedButton(onPressed: onRestore, child: const Text('恢复 Fake 内容')),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeStatusBanner extends StatelessWidget {
+  const _HomeStatusBanner({
+    required this.icon,
+    required this.label,
+    this.busy = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      label: label,
+      child: Container(
+        key: ValueKey('home-status-$label'),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1611),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0x667E6951)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 17, color: _gold),
+            const SizedBox(width: 8),
+            Expanded(child: Text(label, style: const TextStyle(fontSize: 12))),
+            if (busy) ...[
+              const SizedBox(width: 8),
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ],
         ),
       ),
     );

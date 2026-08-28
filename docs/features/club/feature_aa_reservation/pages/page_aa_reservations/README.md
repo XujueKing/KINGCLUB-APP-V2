@@ -7,7 +7,7 @@
 - 旧版来源：`Choose`
 - 路由：`AaReservationsRoute`，`/club/aa`
 - 设计版本：`AA Reservation Legacy Replica v2 / Landing`
-- 最后更新：2026-08-27
+- 最后更新：2026-08-28
 
 ## 用户任务与旧版版式
 
@@ -49,6 +49,7 @@
 - 离线快照：[android_aa_offline.png](android_aa_offline.png)
 - 无可推荐套餐：[android_aa_no_recommendation.png](android_aa_no_recommendation.png)
 - 当前仍缺旧版运行时同状态截图，因此像素级对照结论保持 `blocked`；本次以 `Choose.wxml/.wxss` 与现有旧版入口截图为源码级视觉依据。
+- 本轮验收截图：[2026-08-28 列表主状态](../../qa/2026-08-28/01-list.png)；主入口、日期条、推荐入口、套餐卡与售罄灰态均在当前构建重新验证。
 
 ## 异常与已有预订 Fake 状态补充
 

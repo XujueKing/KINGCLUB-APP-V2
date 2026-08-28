@@ -11,10 +11,12 @@
 
 ## UI Mock 验收
 
-- [ ] PROFILE-M13～M18 可重复演示
-- [ ] 除 `ready` 外所有状态均不可扫描，刷新失败不恢复旧码
-- [ ] App 后台显示隐私遮罩，回前台重新校验有效期
-- [ ] 日志、埋点、路由、缓存和错误报告不含 token
-- [ ] 不访问真实签发、刷新或撤销接口
+- [x] PROFILE-M13～M18 可重复演示
+- [x] 除 `ready` 外所有状态均不可扫描，刷新失败不恢复旧码
+- [x] App 后台显示隐私遮罩，回前台重新生成短期码
+- [x] 页面、路由、缓存和错误状态不展示 token 或永久账号
+- [x] 不访问真实签发、刷新或撤销接口
 
-文档已批准；仍受全局文档与 UI/Mock 门禁约束。
+设备证据：[Android 个人二维码页](screenshots/android_personal_qr_v2.png)。自动化证据：`test/personal_qr_flow_test.dart` 9 项；项目全量 172 项通过，`flutter analyze` 无问题。
+
+UI Mock 验收通过；真实二维码接口仍受项目级 `UI Flow Approved` 门禁约束。

@@ -9,10 +9,15 @@ enum ContentFeedDemoState {
   initialLoading,
   empty,
   initialError,
+  refreshing,
+  loadingMore,
+  loadMoreError,
   buffering,
   mediaError,
   unavailable,
+  authorUnavailable,
   posterOnly,
+  sessionInvalid,
 }
 
 class ContentFeedPage extends StatefulWidget {
@@ -20,10 +25,16 @@ class ContentFeedPage extends StatefulWidget {
     super.key,
     required this.active,
     required this.onOpenAuthor,
+    this.initialState = ContentFeedDemoState.initialLoading,
+    this.onReturnHome,
+    this.onSessionResetRequested,
   });
 
   final bool active;
   final ValueChanged<String> onOpenAuthor;
+  final ContentFeedDemoState initialState;
+  final VoidCallback? onReturnHome;
+  final VoidCallback? onSessionResetRequested;
 
   @override
   State<ContentFeedPage> createState() => _ContentFeedPageState();
@@ -32,7 +43,7 @@ class ContentFeedPage extends StatefulWidget {
 class _ContentFeedPageState extends State<ContentFeedPage>
     with WidgetsBindingObserver {
   final _pageController = PageController();
-  ContentFeedDemoState _state = ContentFeedDemoState.initialLoading;
+  late ContentFeedDemoState _state;
   int _currentIndex = 0;
   bool _muted = true;
   bool _paused = true;
@@ -75,7 +86,16 @@ class _ContentFeedPageState extends State<ContentFeedPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.active) unawaited(_loadFirst());
+    _state = widget.initialState;
+    _loadedOnce = _state != ContentFeedDemoState.initialLoading;
+    _paused = _state != ContentFeedDemoState.content || !widget.active;
+    if (_state == ContentFeedDemoState.sessionInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showSessionInvalid(),
+      );
+    } else if (widget.active && !_loadedOnce) {
+      unawaited(_loadFirst());
+    }
   }
 
   @override
@@ -113,12 +133,38 @@ class _ContentFeedPageState extends State<ContentFeedPage>
     });
   }
 
+  Future<void> _showSessionInvalid() async {
+    _paused = true;
+    _currentIndex = 0;
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('content-feed-session-dialog'),
+        title: const Text('登录状态已失效'),
+        content: const Text('已停止播放并清除当前作品引用，请重新登录。'),
+        actions: [
+          FilledButton(
+            key: const ValueKey('content-feed-session-confirm'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) widget.onSessionResetRequested?.call();
+  }
+
   void _setScenario(ContentFeedDemoState value) {
     Navigator.pop(context);
     setState(() {
       _state = value;
       _paused = value != ContentFeedDemoState.content;
     });
+    if (value == ContentFeedDemoState.sessionInvalid) {
+      _showSessionInvalid();
+    }
   }
 
   void _showScenarios() {
@@ -148,10 +194,18 @@ class _ContentFeedPageState extends State<ContentFeedPage>
                   _scenarioChip('首屏加载', ContentFeedDemoState.initialLoading),
                   _scenarioChip('空内容', ContentFeedDemoState.empty),
                   _scenarioChip('加载失败', ContentFeedDemoState.initialError),
+                  _scenarioChip('刷新中', ContentFeedDemoState.refreshing),
+                  _scenarioChip('加载更多', ContentFeedDemoState.loadingMore),
+                  _scenarioChip('分页失败', ContentFeedDemoState.loadMoreError),
                   _scenarioChip('缓冲中', ContentFeedDemoState.buffering),
                   _scenarioChip('媒体失败', ContentFeedDemoState.mediaError),
                   _scenarioChip('内容下架', ContentFeedDemoState.unavailable),
+                  _scenarioChip(
+                    '作者不可见',
+                    ContentFeedDemoState.authorUnavailable,
+                  ),
                   _scenarioChip('低流量模式', ContentFeedDemoState.posterOnly),
+                  _scenarioChip('会话失效', ContentFeedDemoState.sessionInvalid),
                 ],
               ),
             ],
@@ -207,6 +261,8 @@ class _ContentFeedPageState extends State<ContentFeedPage>
         message: '稍后再来看看，或返回首页浏览今晚活动。',
         actionLabel: '刷新 Fake 内容',
         onAction: _loadFirst,
+        secondaryActionLabel: widget.onReturnHome == null ? null : '返回首页',
+        onSecondaryAction: widget.onReturnHome,
       ),
       ContentFeedDemoState.initialError => _FeedCenteredState(
         icon: Icons.cloud_off_outlined,
@@ -215,6 +271,11 @@ class _ContentFeedPageState extends State<ContentFeedPage>
         actionLabel: '重新加载',
         onAction: _loadFirst,
       ),
+      ContentFeedDemoState.sessionInvalid => const _FeedCenteredState(
+        icon: Icons.lock_reset_outlined,
+        title: '登录状态已失效',
+        message: '作品引用已清除，当前没有媒体实例在播放。',
+      ),
       _ => PageView.builder(
         controller: _pageController,
         scrollDirection: Axis.vertical,
@@ -222,7 +283,8 @@ class _ContentFeedPageState extends State<ContentFeedPage>
         onPageChanged: (index) => setState(() {
           _currentIndex = index;
           _paused = !widget.active;
-          if (_state != ContentFeedDemoState.posterOnly) {
+          if (_state != ContentFeedDemoState.posterOnly &&
+              _state != ContentFeedDemoState.authorUnavailable) {
             _state = ContentFeedDemoState.content;
           }
         }),
@@ -234,7 +296,7 @@ class _ContentFeedPageState extends State<ContentFeedPage>
           state: _state,
           onTogglePlayback: () => setState(() => _paused = !_paused),
           onToggleMuted: () => setState(() => _muted = !_muted),
-          onOpenAuthor: () => widget.onOpenAuthor(_items[index].authorRef),
+          onOpenAuthor: () => _openAuthor(_items[index].authorRef),
           onRetry: () => setState(() {
             _state = ContentFeedDemoState.content;
             _paused = false;
@@ -244,6 +306,16 @@ class _ContentFeedPageState extends State<ContentFeedPage>
     };
   }
 
+  void _openAuthor(String authorRef) {
+    if (_state == ContentFeedDemoState.authorUnavailable) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('作者资料暂不可见')));
+      return;
+    }
+    widget.onOpenAuthor(authorRef);
+  }
+
   Widget _topBar(BuildContext context) {
     return Positioned(
       left: 18,
@@ -251,10 +323,14 @@ class _ContentFeedPageState extends State<ContentFeedPage>
       top: 10,
       child: Row(
         children: [
-          Text(
-            '发现',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              shadows: const [Shadow(blurRadius: 12, color: Colors.black)],
+          GestureDetector(
+            key: const ValueKey('content-feed-title'),
+            onLongPress: _showScenarios,
+            child: Text(
+              '发现',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                shadows: const [Shadow(blurRadius: 12, color: Colors.black)],
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -271,15 +347,6 @@ class _ContentFeedPageState extends State<ContentFeedPage>
             ),
           ),
           const Spacer(),
-          IconButton.filledTonal(
-            onPressed: _showScenarios,
-            tooltip: 'UI 测试场景',
-            icon: const Icon(Icons.science_outlined),
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.black45,
-              foregroundColor: KingColors.brandStrong,
-            ),
-          ),
         ],
       ),
     );
@@ -315,6 +382,9 @@ class _ContentCard extends StatelessWidget {
     final mediaError = state == ContentFeedDemoState.mediaError;
     final buffering = state == ContentFeedDemoState.buffering;
     final posterOnly = state == ContentFeedDemoState.posterOnly;
+    final refreshing = state == ContentFeedDemoState.refreshing;
+    final loadingMore = state == ContentFeedDemoState.loadingMore;
+    final loadMoreError = state == ContentFeedDemoState.loadMoreError;
 
     return Semantics(
       label: _semanticLabel(buffering, mediaError, unavailable, posterOnly),
@@ -390,10 +460,47 @@ class _ContentCard extends StatelessWidget {
                   label: '低流量 · 封面模式',
                 ),
               ),
+            if (refreshing)
+              const Positioned(
+                left: 18,
+                right: 18,
+                top: 76,
+                child: _FeedStatusBanner(
+                  icon: Icons.refresh_rounded,
+                  label: '正在刷新，当前作品已暂停',
+                  busy: true,
+                ),
+              ),
+            if (loadingMore)
+              const Positioned(
+                left: 18,
+                right: 18,
+                top: 76,
+                child: _FeedStatusBanner(
+                  icon: Icons.expand_more_rounded,
+                  label: '正在加载更多作品',
+                  busy: true,
+                ),
+              ),
+            if (loadMoreError)
+              Positioned(
+                left: 18,
+                right: 18,
+                top: 76,
+                child: _FeedStatusBanner(
+                  icon: Icons.sync_problem_outlined,
+                  label: '更多作品加载失败，当前作品仍可浏览',
+                  actionLabel: '重试',
+                  onAction: onRetry,
+                ),
+              ),
             Positioned(
               left: 20,
               right: 18,
-              bottom: 22,
+              // The shell deliberately draws its floating legacy navigation
+              // over the body. Keep every feed action above that 64dp bar,
+              // its 14dp safe-area margin, and the visual breathing room.
+              bottom: 100,
               child: _ContentDetails(
                 content: content,
                 muted: muted,
@@ -423,6 +530,12 @@ class _ContentCard extends StatelessWidget {
         ? '正在缓冲'
         : posterOnly
         ? '封面模式，未播放'
+        : state == ContentFeedDemoState.refreshing
+        ? '正在刷新，已暂停'
+        : state == ContentFeedDemoState.loadingMore
+        ? '正在加载更多'
+        : state == ContentFeedDemoState.loadMoreError
+        ? '更多内容加载失败'
         : paused || !active
         ? '已暂停'
         : '正在播放';
@@ -654,6 +767,8 @@ class _FeedCenteredState extends StatelessWidget {
     this.busy = false,
     this.actionLabel,
     this.onAction,
+    this.secondaryActionLabel,
+    this.onSecondaryAction,
   });
 
   final IconData icon;
@@ -662,6 +777,8 @@ class _FeedCenteredState extends StatelessWidget {
   final bool busy;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? secondaryActionLabel;
+  final VoidCallback? onSecondaryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -688,6 +805,62 @@ class _FeedCenteredState extends StatelessWidget {
               const SizedBox(height: 22),
               FilledButton(onPressed: onAction, child: Text(actionLabel!)),
             ],
+            if (secondaryActionLabel != null) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: onSecondaryAction,
+                child: Text(secondaryActionLabel!),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FeedStatusBanner extends StatelessWidget {
+  const _FeedStatusBanner({
+    required this.icon,
+    required this.label,
+    this.busy = false,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool busy;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.72),
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: KingColors.brandStrong),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: KingColors.textPrimary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            if (busy)
+              const SizedBox.square(
+                dimension: 17,
+                child: CircularProgressIndicator(strokeWidth: 1.6),
+              ),
+            if (actionLabel != null)
+              TextButton(onPressed: onAction, child: Text(actionLabel!)),
           ],
         ),
       ),

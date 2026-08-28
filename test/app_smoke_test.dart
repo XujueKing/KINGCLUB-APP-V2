@@ -118,14 +118,19 @@ void main() {
     expect(find.bySemanticsLabel('私人储物柜，标签'), findsOneWidget);
     expect(find.bySemanticsLabel('我的，标签'), findsOneWidget);
 
-    await tester.tap(find.text('一起玩'));
+    // The legacy 140rpx action row can sit behind the floating bottom bar in
+    // Flutter's short default test viewport. Scroll it into the unobscured
+    // area and target the card itself instead of a text glyph.
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -180));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('home-quick-together')));
     await tester.pumpAndSettle();
     expect(find.text('一起玩AA预定'), findsOneWidget);
     expect(find.text('一键随机选座'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('组局玩'));
+    await tester.tap(find.byKey(const ValueKey('home-quick-party')));
     await tester.pumpAndSettle();
     expect(find.text('VIP组局'), findsOneWidget);
     expect(find.text('预定一个新卡座'), findsOneWidget);
@@ -1089,7 +1094,8 @@ void main() {
     expect(find.text('扫一扫'), findsOneWidget);
     expect(find.text('扫描二维码名片'), findsOneWidget);
     expect(find.byKey(const ValueKey('add-friend-fake-qr')), findsOneWidget);
-    expect(find.text('我的会员码：K45600000199'), findsOneWidget);
+    expect(find.text('我的短期好友二维码'), findsOneWidget);
+    expect(find.textContaining('K45600000199'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('add-friend-scan')));
     await tester.pump();
@@ -1195,22 +1201,30 @@ void main() {
     expect(find.text('河南省 · 安阳市'), findsOneWidget);
     expect(find.text('木系灵根'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('my-profile-tab-作品')));
+    final worksTab = find.byKey(const ValueKey('my-profile-tab-作品'));
+    await tester.ensureVisible(worksTab);
+    await tester.tap(worksTab);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('my-profile-content-0')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('my-profile-tab-相册')));
+    final albumTab = find.byKey(const ValueKey('my-profile-tab-相册'));
+    await tester.ensureVisible(albumTab);
+    await tester.tap(albumTab);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('my-profile-content-2')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('my-profile-qr')));
+    final qrEntry = find.byKey(const ValueKey('my-profile-qr'));
+    await tester.ensureVisible(qrEntry);
+    await tester.tap(qrEntry);
     await tester.pumpAndSettle();
     expect(find.text('我的二维码'), findsOneWidget);
-    expect(find.textContaining('不含真实身份凭证'), findsOneWidget);
+    expect(find.textContaining('不包含你的永久账号'), findsOneWidget);
     expect(find.textContaining('有效期'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('personal-qr-back')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('my-profile-settings')));
+    final settingsEntry = find.byKey(const ValueKey('my-profile-settings'));
+    await tester.ensureVisible(settingsEntry);
+    await tester.tap(settingsEntry);
     await tester.pumpAndSettle();
     expect(find.text('支付安全'), findsOneWidget);
     expect(find.text('账号注销'), findsOneWidget);

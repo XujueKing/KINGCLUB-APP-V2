@@ -1,11 +1,31 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
+import '../../membership_wallet/presentation/asset_ledger_page.dart';
 import 'edit_profile_page.dart';
 import 'personal_qr_page.dart';
 import 'settings_page.dart';
 
 class MyProfilePage extends StatefulWidget {
-  const MyProfilePage({super.key});
+  const MyProfilePage({
+    super.key,
+    this.onOpenAssets,
+    this.onOpenEditProfile,
+    this.onOpenPersonalQr,
+    this.onOpenSettings,
+    this.onSessionResetRequested,
+  });
+
+  final ValueChanged<AssetLedgerType>? onOpenAssets;
+  final Future<EditableProfileResult?> Function(
+    String nickname,
+    String signature,
+  )?
+  onOpenEditProfile;
+  final VoidCallback? onOpenPersonalQr;
+  final VoidCallback? onOpenSettings;
+  final VoidCallback? onSessionResetRequested;
 
   @override
   State<MyProfilePage> createState() => _MyProfilePageState();
@@ -17,28 +37,44 @@ class _MyProfilePageState extends State<MyProfilePage> {
   int _selectedTab = 1;
   String _nickname = '杨嘉琪';
   String _signature = '';
+  double _layoutWidth = 393;
+
+  double get _legacyScale => _layoutWidth / 750;
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Colors.black,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 118),
-        child: Stack(
-          children: [
-            _buildCover(),
-            _buildProfilePanel(),
-            _buildTopTools(),
-            _buildIdentity(),
-          ],
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final constrainedWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        _layoutWidth = math.min(
+          constrainedWidth,
+          MediaQuery.sizeOf(context).width,
+        );
+        return ColoredBox(
+          color: Colors.black,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 118),
+            child: Stack(
+              children: [
+                _buildCover(),
+                _buildProfilePanel(),
+                _buildTopTools(),
+                _buildIdentity(),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildCover() {
+    final scale = _legacyScale;
     return SizedBox(
-      height: 318,
+      key: const ValueKey('my-profile-cover'),
+      height: 540 * scale,
       width: double.infinity,
       child: Image.asset(
         'assets/legacy/profile/my_profile_skyline_v1.png',
@@ -49,33 +85,49 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   Widget _buildTopTools() {
+    final legacyScale = _legacyScale;
+    final iconSize = 40 * legacyScale;
+    final tapWidth = 80 * legacyScale;
+    final tapHeight = 42 * legacyScale;
     return Positioned(
-      left: 16,
+      left: 20 * legacyScale,
       right: 16,
-      top: MediaQuery.paddingOf(context).top + 20,
+      top: MediaQuery.paddingOf(context).top + 5,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            key: const ValueKey('my-profile-top-tools'),
+            padding: EdgeInsets.fromLTRB(
+              20 * legacyScale,
+              10 * legacyScale,
+              10 * legacyScale,
+              10 * legacyScale,
+            ),
             decoration: BoxDecoration(
-              color: const Color(0xA6000000),
-              borderRadius: BorderRadius.circular(24),
+              color: const Color(0x50000000),
+              borderRadius: BorderRadius.circular(30 * legacyScale),
             ),
             child: Row(
               children: [
                 _assetTool(
                   key: const ValueKey('my-profile-qr'),
+                  imageKey: const ValueKey('my-profile-qr-image'),
                   asset: 'menu_barcode.png',
                   label: '个人二维码',
+                  iconSize: iconSize,
+                  tapWidth: tapWidth,
+                  tapHeight: tapHeight,
                   onTap: _showQr,
                 ),
-                const SizedBox(width: 13),
                 _assetTool(
                   key: const ValueKey('my-profile-settings'),
+                  imageKey: const ValueKey('my-profile-settings-image'),
                   asset: 'ic_setting.png',
                   label: '设置',
+                  iconSize: iconSize,
+                  tapWidth: tapWidth,
+                  tapHeight: tapHeight,
                   onTap: _showSettings,
                 ),
               ],
@@ -94,7 +146,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
                   'EXP：0',
                   style: TextStyle(
                     color: _warmWhite,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -107,40 +160,53 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
   Widget _assetTool({
     required Key key,
+    required Key imageKey,
     required String asset,
     required String label,
+    required double iconSize,
+    required double tapWidth,
+    required double tapHeight,
     required VoidCallback onTap,
   }) {
     return Semantics(
       label: label,
       button: true,
-      child: InkResponse(
+      child: SizedBox(
         key: key,
-        onTap: onTap,
-        radius: 22,
-        child: Image.asset(
-          'assets/legacy/profile/$asset',
-          width: 29,
-          height: 29,
-          color: _warmWhite,
-          fit: BoxFit.contain,
+        width: tapWidth,
+        height: tapHeight,
+        child: InkResponse(
+          onTap: onTap,
+          radius: tapWidth / 2,
+          child: Center(
+            child: Image.asset(
+              'assets/legacy/profile/$asset',
+              key: imageKey,
+              width: iconSize,
+              height: iconSize,
+              color: _warmWhite,
+              fit: BoxFit.contain,
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildIdentity() {
+    final scale = _legacyScale;
     return Positioned(
-      left: 28,
-      right: 22,
-      top: 238,
+      key: const ValueKey('my-profile-identity'),
+      left: 50 * scale,
+      right: 42 * scale,
+      top: 400 * scale,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             key: const ValueKey('my-profile-empty-avatar'),
-            width: 96,
-            height: 96,
+            width: 180 * scale,
+            height: 180 * scale,
             decoration: BoxDecoration(
               color: const Color(0xFFF4F0E9),
               shape: BoxShape.circle,
@@ -150,11 +216,12 @@ class _MyProfilePageState extends State<MyProfilePage> {
               ],
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 30 * scale),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+            child: Transform.translate(
+              offset: Offset(0, -10 * scale),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -165,9 +232,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 23,
+                            fontSize: 20,
                             height: 1,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -182,8 +249,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
                         '青铜 L-0',
                         style: TextStyle(
                           color: _warmWhite,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],
@@ -196,13 +263,18 @@ class _MyProfilePageState extends State<MyProfilePage> {
                       children: [
                         const Text(
                           '账号：K45600000199',
-                          style: TextStyle(color: _muted, fontSize: 13),
+                          style: TextStyle(
+                            color: _muted,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
                         const SizedBox(width: 5),
                         Image.asset(
                           'assets/legacy/profile/copy.png',
                           width: 14,
                           height: 14,
+                          color: _muted,
                         ),
                       ],
                     ),
@@ -217,17 +289,19 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   Widget _buildProfilePanel() {
+    final scale = _legacyScale;
     return Container(
-      margin: const EdgeInsets.only(top: 293),
+      key: const ValueKey('my-profile-panel'),
+      margin: EdgeInsets.only(top: 540 * scale),
       constraints: BoxConstraints(
         minHeight: MediaQuery.sizeOf(context).height > 226
             ? MediaQuery.sizeOf(context).height - 226
             : 0,
       ),
-      padding: const EdgeInsets.fromLTRB(22, 68, 22, 120),
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        gradient: RadialGradient(
+      padding: EdgeInsets.fromLTRB(20 * scale, 60 * scale, 20 * scale, 120),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30 * scale)),
+        gradient: const RadialGradient(
           center: Alignment.topCenter,
           radius: 1.12,
           colors: [Color(0xFF352F26), Color(0xFF0D0C0A), Colors.black],
@@ -238,7 +312,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildStats(),
-          const SizedBox(height: 25),
+          SizedBox(height: 26 * scale),
           _buildAssets(),
           if (_signature.isNotEmpty) ...[
             const SizedBox(height: 18),
@@ -257,11 +331,13 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   Widget _buildStats() {
+    final scale = _legacyScale;
     const stats = [('获赞', '0'), ('关注', '0'), ('互关', '0'), ('粉丝', '0')];
     return Row(
       children: [
         ...stats.map(
-          (item) => Expanded(
+          (item) => SizedBox(
+            width: 104 * scale,
             child: InkWell(
               key: ValueKey('my-profile-stat-${item.$1}'),
               onTap: () => _showEmptyList(item.$1),
@@ -271,8 +347,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
                     item.$2,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -280,8 +356,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
                     item.$1,
                     style: const TextStyle(
                       color: _warmWhite,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
@@ -289,10 +365,10 @@ class _MyProfilePageState extends State<MyProfilePage> {
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        const Spacer(),
         SizedBox(
-          width: 112,
-          height: 42,
+          width: 212 * scale,
+          height: 70 * scale,
           child: FilledButton(
             key: const ValueKey('my-profile-edit'),
             style: FilledButton.styleFrom(
@@ -306,10 +382,11 @@ class _MyProfilePageState extends State<MyProfilePage> {
             onPressed: _showEditProfile,
             child: const Text(
               '编辑主页',
-              style: TextStyle(fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
           ),
         ),
+        SizedBox(width: 24 * scale),
       ],
     );
   }
@@ -319,21 +396,26 @@ class _MyProfilePageState extends State<MyProfilePage> {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _assetChip('余额：¥ 0.00', null, '我的余额'),
-        _assetChip('50', 'gold.png', '金币'),
-        _assetChip('0', 'diamond.png', '钻石'),
+        _assetChip('余额：¥ 0.00', null, '我的余额', AssetLedgerType.cashBalance),
+        _assetChip('50', 'gold.png', '金币', AssetLedgerType.goldCoin),
+        _assetChip('0', 'diamond.png', '钻石', AssetLedgerType.diamond),
       ],
     );
   }
 
-  Widget _assetChip(String text, String? asset, String title) {
+  Widget _assetChip(
+    String text,
+    String? asset,
+    String title,
+    AssetLedgerType type,
+  ) {
     return Material(
       color: const Color(0xA6000000),
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         key: ValueKey('my-profile-asset-$title'),
         borderRadius: BorderRadius.circular(20),
-        onTap: () => _showAsset(title, text),
+        onTap: () => _showAsset(type),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
           child: Row(
@@ -351,8 +433,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
                 text,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -376,8 +458,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
                 tag,
                 style: const TextStyle(
                   color: _muted,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
@@ -402,8 +484,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
                   tabs[index],
                   style: TextStyle(
                     color: selected ? Colors.white : _muted,
-                    fontSize: 16,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    fontSize: selected ? 17 : 14.5,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
                 if (selected && index == 1)
@@ -440,8 +522,17 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   void _showQr() {
-    Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const PersonalQrPage()));
+    if (widget.onOpenPersonalQr != null) {
+      widget.onOpenPersonalQr!();
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PersonalQrPage(
+          onSessionResetRequested: widget.onSessionResetRequested,
+        ),
+      ),
+    );
   }
 
   void _showLevel() {
@@ -484,42 +575,39 @@ class _MyProfilePageState extends State<MyProfilePage> {
     );
   }
 
-  void _showAsset(String title, String value) {
-    _showSheet(
-      title: title,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            '当前为离线 UI Mock，不会产生真实资产变化。',
-            style: TextStyle(color: _muted),
-          ),
-        ],
+  void _showAsset(AssetLedgerType type) {
+    if (widget.onOpenAssets != null) {
+      widget.onOpenAssets!(type);
+      return;
+    }
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => AssetLedgerPage(initialType: type),
       ),
     );
   }
 
   void _showSettings() {
+    if (widget.onOpenSettings != null) {
+      widget.onOpenSettings!();
+      return;
+    }
     Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => const SettingsPage()));
   }
 
   Future<void> _showEditProfile() async {
-    final result = await Navigator.of(context).push<EditableProfileResult>(
-      MaterialPageRoute<EditableProfileResult>(
-        builder: (_) =>
-            EditProfilePage(nickname: _nickname, signature: _signature),
-      ),
-    );
+    final result = widget.onOpenEditProfile != null
+        ? await widget.onOpenEditProfile!(_nickname, _signature)
+        : await Navigator.of(context).push<EditableProfileResult>(
+            MaterialPageRoute<EditableProfileResult>(
+              builder: (_) => EditProfilePage(
+                nickname: _nickname,
+                signature: _signature,
+                onSessionResetRequested: widget.onSessionResetRequested,
+              ),
+            ),
+          );
     if (result == null || !mounted) return;
     setState(() {
       _nickname = result.nickname;

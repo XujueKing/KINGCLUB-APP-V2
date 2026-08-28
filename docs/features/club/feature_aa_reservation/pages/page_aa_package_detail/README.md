@@ -7,7 +7,7 @@
 - 旧版来源：`order`
 - 路由：`AaPackageDetailRoute`，`/club/aa/package`，`$extra: AaOfferRef`
 - 设计版本：`AA Reservation Legacy Replica v2 / Package`
-- 最后更新：2026-08-27
+- 最后更新：2026-08-28
 
 ## 用户任务与旧版版式
 
@@ -46,6 +46,7 @@
 - 新价格已确认：[android_aa_package_price_acknowledged.png](android_aa_package_price_acknowledged.png)
 - 刷新后售罄：[android_aa_package_sold_out.png](android_aa_package_sold_out.png)
 - “抢订”只进入本地 Fake 确认订单，不创建真实 quote 或库存占位。
+- 本轮验收截图：[2026-08-28 套餐详情主状态](../../qa/2026-08-28/02-package.png)；品牌素材、套餐内容、价格说明、固定底栏与返回路径均在当前构建重新验证。
 
 ## 刷新异常 Fake 状态补充
 

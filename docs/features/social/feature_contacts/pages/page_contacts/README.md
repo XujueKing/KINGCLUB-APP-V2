@@ -5,8 +5,8 @@
 - 所属功能：[通讯录](../../README.md)
 - 路由：`ContactsRoute`，`/messages/contacts`，protectedShell/messages 子根
 - 设计版本：`Contacts Wireframe v1 / Legacy Contacts Header v1`
-- 最后更新：2026-08-26
-- UI 状态：`Implemented & Device Verified`（2026-08-26，离线 Mock）
+- 最后更新：2026-08-28
+- UI 状态：`UI Mock Implemented & Device Verified`（离线 Mock）
 
 ## 用户任务与导航
 
@@ -43,5 +43,7 @@ B
 - Android API 37 模拟器已验证列表、索引和英文昵称搜索；Widget 测试覆盖搜索隐私边界、添加好友与用户主页意图。
 - 新增顶部聊天入口后再次完成设备验证，通讯录主体未改；截图见 [android_contacts_chat_toggle_latest.png](android_contacts_chat_toggle_latest.png)。
 - 旧版顶部栏复刻已完成设备验收；最新截图见 [android_contacts_legacy_header_latest.png](android_contacts_legacy_header_latest.png)。
+- 2026-08-28 正式验收补齐七组独立自动场景；修复 200% 字体下快捷入口卡片底部溢出，并确认搜索不匹配手机号或永久账号。
+- 会话失效会清除好友快照和搜索词、停用顶部写入口并交给全局登录重置；未连接真实社交接口。
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

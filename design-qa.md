@@ -155,6 +155,94 @@ final result: blocked
 
 ---
 
+# Design QA — Legacy Edit Profile
+
+- Source visual truth: old Mini Program `pages/myinfo/myinfo` at `master / 505d222 / 1.1.37`, plus the approved KC-P-041 replication specification; a same-state old runtime screenshot is unavailable.
+- Implementation screenshots: `docs/features/profile_settings/feature_profile_center/pages/page_edit_profile/android_edit_profile_v2.png`, `android_edit_profile_bottom_v2.png` and `android_edit_profile_aligned_v2.png`.
+- Viewport: Android Medium Phone, `1080 × 2400`; platform status and home chrome excluded from app-owned layout judgment.
+
+## Verified result
+
+- The old black canvas, warm-gold centered title, left return key, empty centered avatar, thin dividers and two-column information rows are retained.
+- All approved public fields and preference rows are scroll-reachable; the bottom save action remains clear of Android navigation.
+- Long-pressing the title exposes repeatable Fake conflict, unknown-result, save-error, catalog-expiry and session-invalid states without adding permanent debug chrome.
+- Avatar cancellation/permission/upload failure, field validation, unsaved-return confirmation, single-flight save and 200% text scaling are covered without real media or server access.
+- The user-identified alignment defect is corrected: right-side values use the remaining width and every chevron occupies the same fixed `24dp` column. The settings page uses the same rule.
+- `flutter analyze` is clean; 11 focused edit/alignment tests and the full 132-test suite pass.
+
+## Remaining blocker
+
+- [P2] Exact old-runtime pixel fidelity cannot be certified until a matching archived `pages/myinfo/myinfo` screenshot is available for normalized side-by-side comparison.
+
+final result: blocked
+
+---
+
+# Design QA — Legacy Asset Ledger
+
+- source visual truth path: old Mini Program `C:\Users\Poplar\Desktop\KingClub-app\pages\mybalance\mybalance.wxml` and `mybalance.wxss` at `master / 505d222 / 1.1.37`; no same-state full old-runtime screenshot is available
+- implementation screenshots:
+  - `docs/features/membership_wallet/feature_asset_ledger/pages/page_asset_ledger/screenshots/android_asset_ledger_v2.png`
+  - `docs/features/membership_wallet/feature_asset_ledger/pages/page_asset_ledger/screenshots/android_asset_ledger_gold_v2.png`
+- source pixels / CSS size / density: unavailable because the old runtime image is missing
+- implementation pixels: `1080 × 2400`; Android API 37 emulator; native device-density capture; logical viewport approximately `411 × 891`
+- states: balance ledger and gold-coin ledger
+- normalization: Android status/navigation chrome was excluded from app-owned layout judgment; exact density normalization against the old Mini Program is impossible without a runtime capture
+
+## Full-view comparison evidence
+
+- The implementation retains the visible old source structure: `#0e090c` canvas, centered “账单记录” title, equal asset tabs, gold selection underline, left year selector, right income/expense summary and compact full-width ledger rows.
+- The old order tab is intentionally absent under the approved product boundary; V2 adds three independent authoritative summary cards above the legacy tabs without displaying a cross-unit total.
+- The final Android captures show all three cards, tabs, period summary, rows, amounts and footer without overflow, clipping or system-navigation collision.
+- A same-state source/implementation image pair cannot be composed because the old WXML/WXSS is structural evidence rather than a rendered source image.
+
+## Focused comparison evidence
+
+- Fonts and typography: the centered title, larger selected tab, compact row title/time and right-aligned large amount preserve the old hierarchy; exact Mini Program font rasterization remains unverified.
+- Spacing and layout rhythm: equal summary cards, 48dp tab strip, 64dp period row, circular leading icons and low-opacity dividers create the same dense vertical rhythm without cramped text.
+- Colors and visual tokens: background `#0e090c`, muted `#CCC` text, translucent white metadata/dividers and `#ffb400` positive/selected emphasis map directly to the old stylesheet.
+- Image quality and asset fidelity: the existing legacy gold and diamond raster assets are reused directly and remain sharp; the balance symbol and state controls use one Material icon family because no matching old balance raster exists.
+- Copy and content: each entry pairs sign with “已入账/处理中/已冲正/状态更新中”; the page omits all out-of-scope write actions and does not expose technical refs.
+- Icons and states: balance, coin and diamond states have consistent optical size; summary failure, empty, offline, pagination failure and session reset retain practical tap targets and safe recovery.
+
+## Findings
+
+- [P2] Exact old-runtime pixel fidelity remains blocked.
+  - Location: complete `mybalance`-derived asset ledger.
+  - Evidence: final balance and coin implementation captures exist, but no same-state old Mini Program screenshot can be placed beside them.
+  - Impact: structure, palette, density, assets, content and Android rendering are verified, but subtle rpx-to-dp spacing and font metrics cannot be certified pixel-accurate.
+  - Fix: capture the archived old `mybalance` balance and coin states at a known viewport, normalize the app-owned regions and rerun the side-by-side comparison.
+
+## Comparison history
+
+- Pass 1: the first Android render exposed a P2 horizontal crop—the third summary card extended beyond the right edge.
+- Fix: replaced the horizontally scrolling fixed-width summary cards with one responsive equal-width row and added scale-down protection for values.
+- Pass 2 evidence: `android_asset_ledger_v2.png` and `android_asset_ledger_gold_v2.png` show all three cards fully inside the `1080 × 2400` viewport with no text or icon collision.
+- Pass 3: the user identified that the return control was absent. The header `SizedBox` had no explicit width, so its `Stack` collapsed to the centered title and clipped both positioned side controls.
+- Fix: the header now uses `width: double.infinity`; final balance and coin captures show the return control and right-side `UI MOCK` marker inside the viewport, while a dedicated widget test verifies the return callback.
+- Source-fidelity remains blocked solely by the missing same-state old runtime image.
+
+## Implementation checklist
+
+- [x] Old black-brown ledger structure and gold selection treatment
+- [x] Separate balance, coin and diamond summaries with no total
+- [x] Stable year filter, refresh, cursor append and retry
+- [x] Pending, reversed, frozen, offline, unknown and session-invalid states
+- [x] Ordinary in-page expansion and opaque order navigation
+- [x] No recharge, withdrawal, transfer, exchange or payment allocation
+- [x] Android balance and coin evidence captures
+- [x] Thirteen dedicated asset-ledger tests, including visible/clickable back navigation
+- [x] `flutter analyze` clean and full Flutter suite: 121 tests passed
+- [ ] Same-state old Mini Program screenshot and normalized side-by-side comparison
+
+## Follow-up Polish
+
+- Tune only exact Mini Program font metrics and rpx spacing after an equivalent old-runtime capture becomes available.
+
+final result: blocked
+
+---
+
 # Design QA — Legacy Payment Processing and Result
 
 - source visual truth path: old Mini Program `C:\Users\Poplar\Desktop\KingClub-app\pages\pay\pay.wxml`, `pay.wxss`, `pages\success\success.wxml`, `success.wxss` and the original `images\success2.png` / `images\WEIPAY.png` assets at `master / 505d222 / 1.1.37`; no same-state full old-runtime screenshot is available

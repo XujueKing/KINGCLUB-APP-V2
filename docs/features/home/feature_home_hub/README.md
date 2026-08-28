@@ -5,7 +5,7 @@
 - 所属业务域：`home`
 - M0 范围：`In Release Scope`
 - 设计版本：`Legacy Home Replica v1 / Component Content v1`
-- 最后更新：2026-08-26
+- 最后更新：2026-08-28
 
 ## 目标与用户价值
 
@@ -67,3 +67,5 @@
 ## 开发门禁
 
 用户已于 2026-08-26 确认 [旧版首页 UI 复刻规范](pages/page_home/legacy_ui_replication.md)、旧版五 Tab 语义和 [首页组件内容复刻总表](pages/page_home/components/README.md)，当前恢复 UI/Mock 开发；项目达到 `UI Flow Approved` 前仍不得连接真实首页接口。
+
+2026-08-28 已完成 `HOME-M01～M14` 的 Flutter UI/Fake 实现、自动化回归和 Android 设备审查，页面状态为 `UI Mock Implemented`。严格参考图像素对比仍见 [design-qa.md](pages/page_home/design-qa.md)。

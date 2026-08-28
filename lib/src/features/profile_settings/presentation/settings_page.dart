@@ -4,8 +4,33 @@ import 'about_legal_page.dart';
 import 'account_deletion_page.dart';
 import 'payment_security_page.dart';
 
+enum SettingsScenario {
+  normal,
+  capabilityFailure,
+  notificationDisabled,
+  logoutUnknown,
+  sessionInvalid,
+}
+
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({
+    super.key,
+    this.initialScenario = SettingsScenario.normal,
+    this.onBack,
+    this.onOpenPaymentSecurity,
+    this.onOpenAccountDeletion,
+    this.onOpenAboutLegal,
+    this.onLogoutCompleted,
+    this.onSessionResetRequested,
+  });
+
+  final SettingsScenario initialScenario;
+  final VoidCallback? onBack;
+  final VoidCallback? onOpenPaymentSecurity;
+  final VoidCallback? onOpenAccountDeletion;
+  final VoidCallback? onOpenAboutLegal;
+  final VoidCallback? onLogoutCompleted;
+  final VoidCallback? onSessionResetRequested;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -15,6 +40,7 @@ class _SettingsPageState extends State<SettingsPage> {
   static const _gold = Color(0xFFC9B69E);
   static const _muted = Color(0xFF8B8174);
   String _cache = '12.8 MB';
+  late SettingsScenario _scenario;
 
   static const _entries = [
     ('payment', '支付安全', '支付密码与验证', Icons.shield_outlined),
@@ -23,6 +49,17 @@ class _SettingsPageState extends State<SettingsPage> {
     ('about', '关于与法律', 'KingClub V2', Icons.info_outline),
     ('deletion', '账号注销', '', Icons.no_accounts_outlined),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _scenario = widget.initialScenario;
+    if (_scenario == SettingsScenario.sessionInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showSessionInvalid(),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,21 +74,25 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   IconButton(
                     key: const ValueKey('settings-back'),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _finishBack,
                     icon: const Icon(
                       Icons.arrow_back_ios_new,
                       color: _gold,
                       size: 21,
                     ),
                   ),
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        '设置',
-                        style: TextStyle(
-                          color: _gold,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: GestureDetector(
+                      key: const ValueKey('settings-title'),
+                      onLongPress: _showScenarioPanel,
+                      child: const Center(
+                        child: Text(
+                          '设置',
+                          style: TextStyle(
+                            color: _gold,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
@@ -64,6 +105,14 @@ class _SettingsPageState extends State<SettingsPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 24, 18, 20),
                 children: [
+                  if (_scenario == SettingsScenario.capabilityFailure) ...[
+                    const _SettingsNotice(
+                      key: ValueKey('settings-capability-failure'),
+                      icon: Icons.cloud_off_outlined,
+                      text: '部分能力状态暂时无法读取，固定安全入口仍可使用。',
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                   ..._entries.map((entry) => _settingRow(entry)),
                   const SizedBox(height: 50),
                   OutlinedButton(
@@ -95,7 +144,12 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _settingRow((String, String, String, IconData) entry) {
-    final info = entry.$1 == 'cache' ? _cache : entry.$3;
+    final info = entry.$1 == 'cache'
+        ? _cache
+        : entry.$1 == 'notification' &&
+              _scenario == SettingsScenario.notificationDisabled
+        ? '已关闭'
+        : entry.$3;
     return InkWell(
       key: ValueKey('settings-${entry.$1}'),
       borderRadius: BorderRadius.circular(28),
@@ -111,17 +165,29 @@ class _SettingsPageState extends State<SettingsPage> {
             Icon(entry.$4, color: _gold, size: 22),
             const SizedBox(width: 15),
             Text(entry.$2, style: const TextStyle(color: _gold, fontSize: 16)),
-            const Spacer(),
-            if (info.isNotEmpty)
-              Flexible(
-                child: Text(
-                  info,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: _muted, fontSize: 12),
-                ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: info.isEmpty
+                    ? const SizedBox.shrink()
+                    : Text(
+                        info,
+                        maxLines: 1,
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: _muted, fontSize: 12),
+                      ),
               ),
-            const SizedBox(width: 8),
-            const Icon(Icons.chevron_right, color: _muted, size: 21),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              key: ValueKey('settings-arrow-${entry.$1}'),
+              width: 24,
+              child: const Center(
+                child: Icon(Icons.chevron_right, color: _muted, size: 21),
+              ),
+            ),
           ],
         ),
       ),
@@ -131,6 +197,18 @@ class _SettingsPageState extends State<SettingsPage> {
   void _openFakeChild(String title) {
     if (title == '通知权限') {
       _showNotificationStatus();
+      return;
+    }
+    if (title == '支付安全' && widget.onOpenPaymentSecurity != null) {
+      widget.onOpenPaymentSecurity!();
+      return;
+    }
+    if (title == '账号注销' && widget.onOpenAccountDeletion != null) {
+      widget.onOpenAccountDeletion!();
+      return;
+    }
+    if (title == '关于与法律' && widget.onOpenAboutLegal != null) {
+      widget.onOpenAboutLegal!();
       return;
     }
     final Widget page = switch (title) {
@@ -147,15 +225,19 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('通知权限'),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('系统通知：已允许（Fake）'),
-            SizedBox(height: 10),
-            Text('消息通知、活动提醒和订单状态最终由手机系统设置控制。'),
-            SizedBox(height: 10),
-            Text('当前不会读取或修改真实系统权限。'),
+            Text(
+              _scenario == SettingsScenario.notificationDisabled
+                  ? '系统通知：已关闭（Fake）'
+                  : '系统通知：已允许（Fake）',
+            ),
+            const SizedBox(height: 10),
+            const Text('消息通知、活动提醒和订单状态最终由手机系统设置控制。'),
+            const SizedBox(height: 10),
+            const Text('当前不会读取或修改真实系统权限。'),
           ],
         ),
         actions: [
@@ -221,8 +303,141 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
     if (confirmed == true && mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('已完成 Fake 注销流程')));
+      if (_scenario == SettingsScenario.logoutUnknown) {
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            key: const ValueKey('settings-logout-unknown-dialog'),
+            title: const Text('远端结果暂未确认'),
+            content: const Text('本机凭据和敏感内存已安全清理。下次登录时将重新校验远端会话。'),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('知道了'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('已完成 Fake 注销流程')));
+      }
+      if (mounted) widget.onLogoutCompleted?.call();
     }
+  }
+
+  Future<void> _showScenarioPanel() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF171411),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
+          children: [
+            const Text(
+              '设置 UI Mock 场景',
+              style: TextStyle(
+                color: _gold,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text('长按标题可再次切换。', style: TextStyle(color: _muted)),
+            const SizedBox(height: 10),
+            for (final scenario in SettingsScenario.values)
+              ListTile(
+                key: ValueKey('settings-scenario-${scenario.name}'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  _scenarioLabel(scenario),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                trailing: scenario == _scenario
+                    ? const Icon(Icons.check, color: _gold)
+                    : null,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  setState(() => _scenario = scenario);
+                  if (scenario == SettingsScenario.sessionInvalid) {
+                    _showSessionInvalid();
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _scenarioLabel(SettingsScenario scenario) => switch (scenario) {
+    SettingsScenario.normal => '正常设置',
+    SettingsScenario.capabilityFailure => '能力加载失败',
+    SettingsScenario.notificationDisabled => '通知已关闭',
+    SettingsScenario.logoutUnknown => '退出远端结果未知',
+    SettingsScenario.sessionInvalid => '会话失效',
+  };
+
+  Future<void> _showSessionInvalid() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('settings-session-dialog'),
+        title: const Text('登录状态已失效'),
+        content: const Text('设置页内的临时状态已清理，请重新登录。'),
+        actions: [
+          FilledButton(
+            key: const ValueKey('settings-session-confirm'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    widget.onSessionResetRequested?.call();
+  }
+
+  void _finishBack() {
+    if (widget.onBack != null) {
+      widget.onBack!();
+    } else {
+      Navigator.maybePop(context);
+    }
+  }
+}
+
+class _SettingsNotice extends StatelessWidget {
+  const _SettingsNotice({super.key, required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF171411),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF3A3026)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: _SettingsPageState._gold, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Color(0xFFB8ADA0), height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

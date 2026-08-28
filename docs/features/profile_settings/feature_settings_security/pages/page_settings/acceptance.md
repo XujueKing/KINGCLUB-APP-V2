@@ -6,4 +6,11 @@
 - [x] 禁止动态路由与敏感埋点
 - [x] 用户于 2026-08-25 批准 `Settings Wireframe v1 / Hub`
 
-未来 UI Mock 验证 SETTINGS-M01～M06、M22；批准前不得实现页面。
+## UI Mock 验收
+
+- [x] 固定菜单、通知权限、清理缓存、子页面入口和注销确认可离线演示
+- [x] 能力加载失败、通知关闭、退出成功、远端退出结果未知和会话失效可重复演示
+- [x] 辅助文字统一右对齐，五行箭头使用同一固定列，不随文字长度漂移
+- [x] 不读取真实系统权限、不清理真实缓存、不清除真实凭证
+
+设备证据：[设置页正式验收](screenshots/android_settings_formal_v2.png)。自动化证据：`test/settings_flow_test.dart` 7 项、`test/profile_row_alignment_test.dart`；项目全量 172 项通过，`flutter analyze` 无问题。

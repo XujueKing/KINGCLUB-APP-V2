@@ -1,7 +1,7 @@
 # Legacy Home Replica v1 视觉 QA
 
-- 日期：2026-08-26
-- 当前结果：`blocked`（等待用户视觉验收）
+- 日期：2026-08-28
+- 当前结果：`blocked`（功能性 UI Mock 已验收；严格像素并排对比待补）
 - 参考：用户提供的旧版微信小程序首页截图
 - 实现基线：`test/goldens/home_legacy_393x852.png`
 - Android 实现截图：`qa/android_home_1080x2400.png`
@@ -16,6 +16,9 @@
 - 393×852 Golden 无布局溢出；Flutter analyze 和 Widget 测试通过。
 - Android 37 语义树确认全部首屏元素与五个 Tab 已渲染并具备点击区域。
 - Android 37 模拟器冷重启后已成功捕获完整设备实现截图，页面不再黑屏。
+- 2026-08-28 新增设备默认态、运营详情和滚动区截图，见 [ui-audit.md](ui-audit.md)。
+- HOME-M01～M14、360～430dp、200% 文字和减少动画均已自动化覆盖。
+- 三联入口字体、比例、旧 PNG、按压态和 3/6/9 秒连续流光已完成独立复核，结果见 [components/component_quick_actions/design-qa.md](components/component_quick_actions/design-qa.md)。
 
 ## 黑屏排查记录
 
@@ -26,12 +29,12 @@
 
 ## 当前阻断
 
-- 用户尚未确认本轮设备画面与旧版首页的视觉差异是否可接受。
+- 原参考截图未作为当前审计的本地源文件保留，无法按同视口生成参考图 + 实现图的组合对比证据。
 
 ## 下一次 QA
 
-1. 用户直接在已打开的 Android Studio 模拟器检查当前首页。
-2. 根据反馈修正顶部比例、Banner 高度、入口宽度、海报裁切和底栏安全距离。
-3. 用户确认后把本文件最终状态改为 `passed`。
+1. 若需严格 1:1 像素验收，将原参考图保存到本页 `qa/reference/` 下。
+2. 用同视口并排对比后，修正可见差异并重新捕获。
+3. 像素对比通过后把本文件最终状态改为 `passed`。
 
-当前 `blocked` 只阻止标记 `UI Mock Implemented`，不影响继续进行用户现场视觉反馈和细节修正；真实接口仍不得接入。
+当前 `blocked` 只阻止严格像素验收和项目级 `UI Flow Approved`，不撤销已完成的 `UI Mock Implemented`；真实接口仍不得接入。

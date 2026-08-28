@@ -1052,6 +1052,7 @@ class _DeductionRow extends StatelessWidget {
           children: [
             Checkbox(
               value: selected,
+              semanticLabel: '$title，$detail',
               activeColor: legacyPink,
               checkColor: Colors.black,
               side: const BorderSide(color: Color(0xFFB9AEA4)),

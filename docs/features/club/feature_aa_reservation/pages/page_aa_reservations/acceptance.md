@@ -7,4 +7,4 @@
 - [x] 隐私、模糊余量、无障碍和埋点边界明确
 - [x] 用户批准 `AA Reservation Wireframe v1 / Landing`
 
-UI Mock 阶段验证 AA-M01～M05、M08、M16～M20；全局文档门禁已满足，可以实现页面 Fake 流程。
+AA-M01～M05、M08、M16～M20 已完成专项自动化与 Android 截图验收；页面状态为 `UI Mock Implemented`，真实接入保持 `Blocked`。

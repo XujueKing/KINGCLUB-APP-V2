@@ -44,4 +44,4 @@
 
 登录/统一身份的数据库、超级接口、隔离密文主链和异常矩阵已经完成。启动鉴权页、手机号登录页、验证码页和协议确认页已分别建立 `docs/features/identity/feature_login_session/pages/page_*` 目录，四页规格均已批准。
 
-K107 协议目录权威读取已实现，四个首批登录页面均已通过文档准入。Flutter Foundation ADR 与九个底座模块、App Shell/信息架构和 Design System v1 已批准，本机已升级至 Flutter 3.47.1。M0 已冻结为 48 个消费者页面；KC-P-001～048、32 个功能与全部 Foundation 文档已于 2026-08-26 达到准入。Flutter 移动端工程、Design System v1、类型化路由、登录四页、会员准入五页、首页、安全扫码、只读发现作品流、通讯录、基础 Fake 与 App Shell 已开始实现，共 14/48 页；整 App UI 验收前不连接真实接口或 SDK。
+K107 协议目录权威读取已实现，四个首批登录页面均已通过文档准入。Flutter Foundation ADR 与九个底座模块、App Shell/信息架构和 Design System v1 已批准，本机已升级至 Flutter 3.47.1。M0 已冻结为 48 个消费者页面；KC-P-001～048、32 个功能与全部 Foundation 文档已于 2026-08-26 达到准入。截至 2026-08-28，28/48 页达到 `UI Mock Implemented`，一起玩 AA 三页已完成 Android 视觉与 15 项专项自动化验收；整 App UI 验收前不连接真实接口或 SDK。

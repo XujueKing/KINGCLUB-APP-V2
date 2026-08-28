@@ -7,7 +7,7 @@
 - 旧版来源：`pages/index/index` 的“我的”分支
 - 路由语义：`MyProfileRoute`，`/me`，protectedShell/me 分支根
 - 设计版本：`Profile Center Wireframe v1 / Me / Legacy My Profile Replica v1`
-- 最后更新：2026-08-26
+- 最后更新：2026-08-28
 
 ## 用户任务
 
@@ -23,6 +23,15 @@
 ## 视觉基准
 
 页面按 [旧版完整 UI 复刻规范](legacy_ui_replication.md) 和用户截图实现；不再使用此前的 Profile Center Wireframe v1 卡片式线框。
+
+### 左上工具栏精确规格
+
+- 用户于 2026-08-28 提供原版局部裁片，要求二维码与设置图标的大小、点击区和间距按旧版重做。
+- 权威源码为旧版 `index.wxml` 的 `setupStyle bg`：只显示 `menu_barcode.png` 与 `ic_setting.png`，消费者 App 不显示经营管理图标。
+- 两枚图标显示尺寸均为 `40×40rpx`；不得因为源文件分别为 `50×50`、`63×63` 像素而显示成不同大小。
+- 每枚图标外层点击区为 `80rpx` 宽、`42rpx` 高，图标在点击区居中；相邻图标中心间距严格为 `80rpx`，即图标显示宽度的 2 倍。
+- 黑色胶囊外层采用旧版 `left 20rpx / right 10rpx / vertical 10rpx` 内边距、`30rpx` 圆角；按 `页面宽度 / 750` 动态换算，在 393dp 视口中图标约 `21dp`、中心间距约 `42dp`、胶囊宽约 `100dp`。
+- 点击热区随旧版点击区扩大，但二维码与设置原有 Fake 路由语义不变。
 
 ## 页面组成
 

@@ -10,13 +10,17 @@ const _legacyPanel = Color(0x151C1814);
 const _legacyLine = Color(0x161C1814);
 
 enum UserProfileRelationship {
+  self,
   friend,
   stranger,
   incomingPending,
   outgoingPending,
   blockedByMe,
   offlineCached,
+  previewExpired,
+  partial,
   unavailable,
+  sessionInvalid,
 }
 
 class UserProfilePage extends StatefulWidget {
@@ -24,10 +28,24 @@ class UserProfilePage extends StatefulWidget {
     super.key,
     required this.targetRef,
     this.initialRelationship = UserProfileRelationship.friend,
+    this.onBack,
+    this.onOpenSelfProfile,
+    this.onOpenChat,
+    this.onOpenSendRequest,
+    this.onOpenFriendRemark,
+    this.onOpenPermissions,
+    this.onSessionResetRequested,
   });
 
   final String targetRef;
   final UserProfileRelationship initialRelationship;
+  final VoidCallback? onBack;
+  final VoidCallback? onOpenSelfProfile;
+  final ValueChanged<String>? onOpenChat;
+  final ValueChanged<String>? onOpenSendRequest;
+  final ValueChanged<String>? onOpenFriendRemark;
+  final ValueChanged<String>? onOpenPermissions;
+  final VoidCallback? onSessionResetRequested;
 
   @override
   State<UserProfilePage> createState() => _UserProfilePageState();
@@ -45,6 +63,19 @@ class _UserProfilePageState extends State<UserProfilePage> {
   void initState() {
     super.initState();
     _relationship = widget.initialRelationship;
+    if (_relationship == UserProfileRelationship.sessionInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showSessionInvalid(),
+      );
+    }
+    if (_relationship == UserProfileRelationship.self) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.onOpenSelfProfile != null) {
+          widget.onOpenSelfProfile!();
+        }
+      });
+    }
   }
 
   @override
@@ -56,7 +87,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _LegacyBackButton(onPressed: () => Navigator.maybePop(context)),
+            _LegacyBackButton(onPressed: _back),
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 46),
@@ -69,7 +100,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
             _LegacyMenuRow(
               key: const ValueKey('user-profile-details'),
               label: '朋友资料',
-              onTap: _relationship == UserProfileRelationship.unavailable
+              onTap:
+                  _relationship == UserProfileRelationship.unavailable ||
+                      _relationship == UserProfileRelationship.previewExpired ||
+                      _relationship == UserProfileRelationship.sessionInvalid
                   ? null
                   : () => _openFriendRemark(profile),
             ),
@@ -97,7 +131,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
     UserProfileRelationship.incomingPending => '新的朋友',
     UserProfileRelationship.outgoingPending => '好友申请',
     UserProfileRelationship.offlineCached => '本地缓存',
+    UserProfileRelationship.previewExpired => '临时预览已过期',
+    UserProfileRelationship.partial => '资料部分加载失败',
     UserProfileRelationship.unavailable => '资料已不可用',
+    UserProfileRelationship.sessionInvalid => '登录状态已失效',
+    UserProfileRelationship.self => '我的主页',
     _ => '通讯录',
   };
 
@@ -124,8 +162,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
           height: 29,
           color: _legacyGold,
         ),
-        onTap: () =>
-            _showLocalResult('已打开与 ${_profile.displayName} 的 Fake 会话入口'),
+        onTap: () {
+          if (widget.onOpenChat != null) {
+            widget.onOpenChat!(widget.targetRef);
+          } else {
+            _showLocalResult('已打开与 ${_profile.displayName} 的 Fake 会话入口');
+          }
+        },
       ),
       UserProfileRelationship.stranger => _LegacyActionRow(
         key: const ValueKey('user-profile-add'),
@@ -143,23 +186,43 @@ class _UserProfilePageState extends State<UserProfilePage> {
       UserProfileRelationship.blockedByMe => _LegacyActionRow(
         key: const ValueKey('user-profile-unblock'),
         label: '解除拉黑',
-        onTap: () {
-          setState(() => _relationship = UserProfileRelationship.stranger);
-          _showLocalResult('已在本地演示中解除拉黑');
-        },
+        onTap: _confirmUnblock,
       ),
       UserProfileRelationship.offlineCached => const _LegacyActionRow(
         key: ValueKey('user-profile-offline'),
         label: '当前离线，仅可查看资料',
       ),
+      UserProfileRelationship.previewExpired => const _LegacyActionRow(
+        key: ValueKey('user-profile-preview-expired'),
+        label: '临时资料预览已过期',
+      ),
+      UserProfileRelationship.partial => _LegacyActionRow(
+        key: const ValueKey('user-profile-partial'),
+        label: '部分资料加载失败，点击重试',
+        onTap: () =>
+            setState(() => _relationship = UserProfileRelationship.stranger),
+      ),
       UserProfileRelationship.unavailable => const _LegacyActionRow(
         key: ValueKey('user-profile-unavailable'),
         label: '该用户暂时无法访问',
+      ),
+      UserProfileRelationship.sessionInvalid => const _LegacyActionRow(
+        key: ValueKey('user-profile-session-invalid'),
+        label: '登录状态已失效',
+      ),
+      UserProfileRelationship.self => _LegacyActionRow(
+        key: const ValueKey('user-profile-self'),
+        label: '这是你自己的主页',
+        onTap: widget.onOpenSelfProfile,
       ),
     };
   }
 
   Future<void> _sendRequest() async {
+    if (widget.onOpenSendRequest != null) {
+      widget.onOpenSendRequest!(widget.targetRef);
+      return;
+    }
     final result = await Navigator.of(context).push<SendFriendRequestResult>(
       MaterialPageRoute<SendFriendRequestResult>(
         builder: (_) => SendFriendRequestPage(
@@ -193,6 +256,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> _openFriendRemark(_FakePublicProfile profile) async {
+    if (widget.onOpenFriendRemark != null) {
+      widget.onOpenFriendRemark!(widget.targetRef);
+      return;
+    }
     final result = await Navigator.of(context).push<FriendRemarkResult>(
       MaterialPageRoute<FriendRemarkResult>(
         builder: (_) => FriendRemarkPage(
@@ -209,6 +276,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> _openRelationshipPermissions(_FakePublicProfile profile) async {
+    if (widget.onOpenPermissions != null) {
+      widget.onOpenPermissions!(widget.targetRef);
+      return;
+    }
     final result = await Navigator.of(context).push<RelationshipChangeResult>(
       MaterialPageRoute<RelationshipChangeResult>(
         builder: (_) => RelationshipPermissionsPage(
@@ -225,6 +296,60 @@ class _UserProfilePageState extends State<UserProfilePage> {
         RelationshipChangeResult.deleted => UserProfileRelationship.stranger,
       };
     });
+  }
+
+  Future<void> _confirmUnblock() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF171411),
+        title: const Text('解除黑名单'),
+        content: const Text('解除后不会自动恢复好友关系，需要重新发送好友申请。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            key: const ValueKey('user-profile-confirm-unblock'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('确认解除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _relationship = UserProfileRelationship.stranger);
+    _showLocalResult('已解除拉黑；双方仍不是好友');
+  }
+
+  Future<void> _showSessionInvalid() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('user-profile-session-dialog'),
+        title: const Text('登录状态已失效'),
+        content: const Text('已停止资料操作，请重新登录。'),
+        actions: [
+          FilledButton(
+            key: const ValueKey('user-profile-session-confirm'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) widget.onSessionResetRequested?.call();
+  }
+
+  void _back() {
+    if (widget.onBack != null) {
+      widget.onBack!();
+    } else {
+      Navigator.maybePop(context);
+    }
   }
 }
 

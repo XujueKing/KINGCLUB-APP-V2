@@ -5,7 +5,7 @@
 - 所属业务域：`club`
 - M0 范围：`In Release Scope`
 - 设计版本：`AA Reservation Legacy Replica v2`
-- 最后更新：2026-08-27
+- 最后更新：2026-08-28
 
 ## 目标与用户价值
 
@@ -39,9 +39,9 @@
 
 ## 页面与文档
 
-- [KC-P-027 一起玩 AA 预订页](pages/page_aa_reservations/README.md) — `Approved for Development`
-- [KC-P-028 AA 卡座套餐详情页](pages/page_aa_package_detail/README.md) — `Approved for Development`
-- [KC-P-029 AA 确认订单页](pages/page_aa_order_confirmation/README.md) — `Approved for Development`
+- [KC-P-027 一起玩 AA 预订页](pages/page_aa_reservations/README.md) — `UI Mock Implemented`
+- [KC-P-028 AA 卡座套餐详情页](pages/page_aa_package_detail/README.md) — `UI Mock Implemented`
+- [KC-P-029 AA 确认订单页](pages/page_aa_order_confirmation/README.md) — `UI Mock Implemented`
 - [旧版审计](legacy_audit.md)
 - [流程与导航](flow_and_navigation.md)
 - [状态机](state_machine.md)
@@ -66,4 +66,4 @@
 
 ## 开发门禁
 
-本功能已达到文档准入；全部 48 页批准前不创建 Flutter UI，全局 `UI Flow Approved` 前不接真实预订、库存、资产或支付服务。
+本功能已于 2026-08-28 完成 UI/Mock 主流程、异常矩阵与 Android 视觉验收；全局 `UI Flow Approved` 前仍不接真实预订、库存、资产或支付服务。

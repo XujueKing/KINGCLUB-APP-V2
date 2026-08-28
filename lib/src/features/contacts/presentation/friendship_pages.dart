@@ -1,28 +1,55 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 const _legacyGold = Color(0xFFC9B69E);
 const _legacyMuted = Color(0xFFAAA29A);
 const _legacyLine = Color(0xFF1A1611);
+
+enum FriendRequestsScenario {
+  ready,
+  empty,
+  partialError,
+  offlineCached,
+  sessionInvalid,
+}
 
 class FriendRequestsPage extends StatefulWidget {
   const FriendRequestsPage({
     super.key,
     required this.onOpenAddFriend,
     required this.onOpenChat,
+    this.initialScenario = FriendRequestsScenario.ready,
+    this.onBack,
+    this.onSessionResetRequested,
   });
 
   final VoidCallback onOpenAddFriend;
   final ValueChanged<String> onOpenChat;
+  final FriendRequestsScenario initialScenario;
+  final VoidCallback? onBack;
+  final VoidCallback? onSessionResetRequested;
 
   @override
   State<FriendRequestsPage> createState() => _FriendRequestsPageState();
 }
 
 class _FriendRequestsPageState extends State<FriendRequestsPage> {
+  late FriendRequestsScenario _scenario;
   final _requests = <_FriendRequest>[
     _FriendRequest('林晓悦', '想认识一下，一起参加周末活动', '10:36', '待查看'),
     _FriendRequest('阿澈', '我是通过扫一扫添加的', '昨天', '待查看'),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _scenario = widget.initialScenario;
+    if (_scenario == FriendRequestsScenario.sessionInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showSessionInvalid(),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +61,8 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
           children: [
             _LegacyFriendHeader(
               title: '新的朋友',
-              onBack: () => Navigator.pop(context),
+              onBack: _finishBack,
+              onTitleLongPress: _showScenarioPanel,
               trailing: IconButton(
                 key: const ValueKey('friend-requests-add'),
                 tooltip: '添加好友',
@@ -48,25 +76,169 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
               ),
             ),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.only(bottom: 24),
-                itemCount: _requests.length,
-                separatorBuilder: (_, _) =>
-                    const Divider(height: 1, color: _legacyLine),
-                itemBuilder: (context, index) {
-                  final request = _requests[index];
-                  return _RequestTile(
-                    key: ValueKey('friend-request-$index'),
-                    request: request,
-                    onTap: () => _showRequest(index),
-                  );
-                },
-              ),
+              child: _scenario == FriendRequestsScenario.empty
+                  ? _emptyState()
+                  : ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      itemCount: _requests.length + (_hasStatusBanner ? 1 : 0),
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1, color: _legacyLine),
+                      itemBuilder: (context, index) {
+                        if (_hasStatusBanner && index == 0) {
+                          return _statusBanner();
+                        }
+                        final request =
+                            _requests[index - (_hasStatusBanner ? 1 : 0)];
+                        return _RequestTile(
+                          key: ValueKey(
+                            'friend-request-${index - (_hasStatusBanner ? 1 : 0)}',
+                          ),
+                          request: request,
+                          onTap:
+                              _scenario == FriendRequestsScenario.offlineCached
+                              ? null
+                              : () => _showRequest(
+                                  index - (_hasStatusBanner ? 1 : 0),
+                                ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  bool get _hasStatusBanner =>
+      _scenario == FriendRequestsScenario.partialError ||
+      _scenario == FriendRequestsScenario.offlineCached;
+
+  Widget _statusBanner() {
+    final offline = _scenario == FriendRequestsScenario.offlineCached;
+    return Container(
+      key: ValueKey('friend-requests-${offline ? 'offline' : 'partial-error'}'),
+      margin: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xFF171411),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            offline ? Icons.cloud_off_outlined : Icons.sync_problem_outlined,
+            color: _legacyGold,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              offline ? '当前离线，仅展示本地只读申请记录' : '刷新部分失败，已保留现有申请记录',
+              style: const TextStyle(color: _legacyMuted, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return Center(
+      key: const ValueKey('friend-requests-empty'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.person_add_alt_1_outlined,
+            color: _legacyGold,
+            size: 54,
+          ),
+          const SizedBox(height: 16),
+          const Text('暂无新的好友申请', style: TextStyle(color: _legacyMuted)),
+          const SizedBox(height: 14),
+          TextButton(
+            onPressed: widget.onOpenAddFriend,
+            child: const Text('添加好友'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showScenarioPanel() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF171411),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(
+              title: Text(
+                '好友申请 UI Mock 场景',
+                style: TextStyle(color: _legacyGold),
+              ),
+            ),
+            for (final scenario in FriendRequestsScenario.values)
+              ListTile(
+                key: ValueKey('friend-requests-scenario-${scenario.name}'),
+                title: Text(
+                  _scenarioLabel(scenario),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                trailing: scenario == _scenario
+                    ? const Icon(Icons.check, color: _legacyGold)
+                    : null,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  setState(() => _scenario = scenario);
+                  if (scenario == FriendRequestsScenario.sessionInvalid) {
+                    _showSessionInvalid();
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _scenarioLabel(FriendRequestsScenario scenario) => switch (scenario) {
+    FriendRequestsScenario.ready => '正常申请列表',
+    FriendRequestsScenario.empty => '空列表',
+    FriendRequestsScenario.partialError => '分页 / 刷新部分失败',
+    FriendRequestsScenario.offlineCached => '离线只读缓存',
+    FriendRequestsScenario.sessionInvalid => '会话失效',
+  };
+
+  Future<void> _showSessionInvalid() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('friend-requests-session-dialog'),
+        title: const Text('登录状态已失效'),
+        content: const Text('申请列表和临时处理状态已清理，请重新登录。'),
+        actions: [
+          FilledButton(
+            key: const ValueKey('friend-requests-session-confirm'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) widget.onSessionResetRequested?.call();
+  }
+
+  void _finishBack() {
+    if (widget.onBack != null) {
+      widget.onBack!();
+    } else {
+      Navigator.maybePop(context);
+    }
   }
 
   Future<void> _showRequest(int index) async {
@@ -193,10 +365,42 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
   }
 }
 
-class AddFriendPage extends StatelessWidget {
-  const AddFriendPage({super.key, required this.onOpenScanner});
+enum AddFriendScenario { ready, destinationUnavailable, sessionInvalid }
+
+class AddFriendPage extends StatefulWidget {
+  const AddFriendPage({
+    super.key,
+    required this.onOpenScanner,
+    this.onOpenPersonalQr,
+    this.initialScenario = AddFriendScenario.ready,
+    this.onBack,
+    this.onSessionResetRequested,
+  });
 
   final Future<void> Function() onOpenScanner;
+  final VoidCallback? onOpenPersonalQr;
+  final AddFriendScenario initialScenario;
+  final VoidCallback? onBack;
+  final VoidCallback? onSessionResetRequested;
+
+  @override
+  State<AddFriendPage> createState() => _AddFriendPageState();
+}
+
+class _AddFriendPageState extends State<AddFriendPage> {
+  late AddFriendScenario _scenario;
+  bool _navigationPending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scenario = widget.initialScenario;
+    if (_scenario == AddFriendScenario.sessionInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showSessionInvalid(),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -208,11 +412,12 @@ class AddFriendPage extends StatelessWidget {
           children: [
             _LegacyFriendHeader(
               title: '添加朋友',
-              onBack: () => Navigator.pop(context),
+              onBack: _finishBack,
+              onTitleLongPress: _showScenarioPanel,
             ),
             InkWell(
               key: const ValueKey('add-friend-scan'),
-              onTap: onOpenScanner,
+              onTap: _openScanner,
               child: Container(
                 height: 82,
                 padding: const EdgeInsets.symmetric(horizontal: 36),
@@ -256,28 +461,37 @@ class AddFriendPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 62),
-            Container(
-              key: const ValueKey('add-friend-fake-qr'),
-              width: 226,
-              height: 226,
-              padding: const EdgeInsets.all(10),
-              color: Colors.white,
-              child: const Icon(
-                Icons.qr_code_2,
-                color: Colors.black,
-                size: 206,
+            InkWell(
+              key: const ValueKey('add-friend-personal-qr'),
+              onTap: widget.onOpenPersonalQr,
+              child: Container(
+                key: const ValueKey('add-friend-fake-qr'),
+                width: 226,
+                height: 226,
+                padding: const EdgeInsets.all(10),
+                color: Colors.white,
+                child: QrImageView(
+                  data: 'KINGCLUB_UI_MOCK_INVALID_FRIEND_INVITE',
+                  padding: EdgeInsets.zero,
+                  embeddedImage: const AssetImage(
+                    'assets/legacy/home/logo_2.png',
+                  ),
+                  embeddedImageStyle: const QrEmbeddedImageStyle(
+                    size: Size(36, 36),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 12),
             const Text(
-              '我的会员码：K45600000199',
+              '我的短期好友二维码',
               style: TextStyle(color: _legacyMuted, fontSize: 14),
             ),
             const SizedBox(height: 8),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 32),
               child: Text(
-                '当前为 Fake 二维码，不含真实账号凭证',
+                '点击可查看完整二维码 · 不含永久账号或登录凭证',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Color(0xFF615B55), fontSize: 12),
               ),
@@ -287,17 +501,100 @@ class AddFriendPage extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _openScanner() async {
+    if (_navigationPending) return;
+    if (_scenario == AddFriendScenario.destinationUnavailable) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('扫码入口暂时不可用，请稍后重试')));
+      return;
+    }
+    setState(() => _navigationPending = true);
+    try {
+      await widget.onOpenScanner();
+    } finally {
+      if (mounted) setState(() => _navigationPending = false);
+    }
+  }
+
+  Future<void> _showScenarioPanel() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF171411),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(
+              title: Text(
+                '添加好友 UI Mock 场景',
+                style: TextStyle(color: _legacyGold),
+              ),
+            ),
+            for (final scenario in AddFriendScenario.values)
+              ListTile(
+                key: ValueKey('add-friend-scenario-${scenario.name}'),
+                title: Text(switch (scenario) {
+                  AddFriendScenario.ready => '正常双入口',
+                  AddFriendScenario.destinationUnavailable => '目标页面不可用',
+                  AddFriendScenario.sessionInvalid => '会话失效',
+                }, style: const TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  setState(() => _scenario = scenario);
+                  if (scenario == AddFriendScenario.sessionInvalid) {
+                    _showSessionInvalid();
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSessionInvalid() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('add-friend-session-dialog'),
+        title: const Text('登录状态已失效'),
+        content: const Text('页面临时状态已清理，请重新登录。'),
+        actions: [
+          FilledButton(
+            key: const ValueKey('add-friend-session-confirm'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) widget.onSessionResetRequested?.call();
+  }
+
+  void _finishBack() {
+    if (widget.onBack != null) {
+      widget.onBack!();
+    } else {
+      Navigator.maybePop(context);
+    }
+  }
 }
 
 class _LegacyFriendHeader extends StatelessWidget {
   const _LegacyFriendHeader({
     required this.title,
     required this.onBack,
+    this.onTitleLongPress,
     this.trailing,
   });
 
   final String title;
   final VoidCallback onBack;
+  final VoidCallback? onTitleLongPress;
   final Widget? trailing;
 
   @override
@@ -321,12 +618,19 @@ class _LegacyFriendHeader extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+          GestureDetector(
+            key: ValueKey('friend-page-title-$title'),
+            onLongPress: onTitleLongPress,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
           if (trailing != null) Positioned(right: 14, child: trailing!),
@@ -340,7 +644,7 @@ class _RequestTile extends StatelessWidget {
   const _RequestTile({super.key, required this.request, required this.onTap});
 
   final _FriendRequest request;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

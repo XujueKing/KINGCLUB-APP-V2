@@ -41,11 +41,15 @@ class ContactsPage extends StatefulWidget {
     required this.active,
     required this.onIntent,
     this.onOpenChat,
+    this.initialState = ContactsDemoState.initialLoading,
+    this.onSessionResetRequested,
   });
 
   final bool active;
   final ValueChanged<ContactRouteIntent> onIntent;
   final VoidCallback? onOpenChat;
+  final ContactsDemoState initialState;
+  final VoidCallback? onSessionResetRequested;
 
   @override
   State<ContactsPage> createState() => _ContactsPageState();
@@ -54,7 +58,7 @@ class ContactsPage extends StatefulWidget {
 class _ContactsPageState extends State<ContactsPage> {
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
-  ContactsDemoState _state = ContactsDemoState.initialLoading;
+  late ContactsDemoState _state;
   String _query = '';
   bool _loadedOnce = false;
   bool _refreshing = false;
@@ -71,7 +75,15 @@ class _ContactsPageState extends State<ContactsPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.active) unawaited(_loadFirst());
+    _state = widget.initialState;
+    _loadedOnce = _state != ContactsDemoState.initialLoading;
+    if (_state == ContactsDemoState.sessionInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showSessionInvalid(),
+      );
+    } else if (widget.active && !_loadedOnce) {
+      unawaited(_loadFirst());
+    }
   }
 
   @override
@@ -90,6 +102,30 @@ class _ContactsPageState extends State<ContactsPage> {
       _loadedOnce = true;
       _state = ContactsDemoState.ready;
     });
+  }
+
+  Future<void> _showSessionInvalid() async {
+    _searchController.clear();
+    _searchDebounce?.cancel();
+    _query = '';
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('contacts-session-dialog'),
+        title: const Text('登录状态已失效'),
+        content: const Text('好友快照和搜索词已清除，请重新登录。'),
+        actions: [
+          FilledButton(
+            key: const ValueKey('contacts-session-confirm'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) widget.onSessionResetRequested?.call();
   }
 
   Future<void> _refresh() async {
@@ -167,9 +203,11 @@ class _ContactsPageState extends State<ContactsPage> {
             left: 17,
             child: IconButton(
               tooltip: '添加好友',
-              onPressed: () => widget.onIntent(
-                const ContactRouteIntent(ContactIntentKind.addFriend),
-              ),
+              onPressed: _state == ContactsDemoState.sessionInvalid
+                  ? null
+                  : () => widget.onIntent(
+                      const ContactRouteIntent(ContactIntentKind.addFriend),
+                    ),
               icon: const Icon(
                 Icons.add_circle_outline,
                 color: _legacyGold,
@@ -193,7 +231,9 @@ class _ContactsPageState extends State<ContactsPage> {
                 ),
               ),
               TextButton(
-                onPressed: widget.onOpenChat,
+                onPressed: _state == ContactsDemoState.sessionInvalid
+                    ? null
+                    : widget.onOpenChat,
                 child: const Text(
                   '聊天',
                   style: TextStyle(color: Color(0x66C9B69E), fontSize: 16),
@@ -473,11 +513,12 @@ class _QuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.5;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        height: 92,
+        constraints: BoxConstraints(minHeight: largeText ? 116 : 92),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: KingColors.surface,

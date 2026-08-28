@@ -1,7 +1,27 @@
 import 'package:flutter/material.dart';
 
+enum AboutLegalScenario {
+  catalog,
+  offlineCached,
+  offlineExpired,
+  invalidRef,
+  loadingError,
+  sessionInvalid,
+}
+
 class AboutLegalPage extends StatefulWidget {
-  const AboutLegalPage({super.key});
+  const AboutLegalPage({
+    super.key,
+    this.initialScenario = AboutLegalScenario.catalog,
+    this.initialDocumentIndex,
+    this.onBack,
+    this.onSessionResetRequested,
+  });
+
+  final AboutLegalScenario initialScenario;
+  final int? initialDocumentIndex;
+  final VoidCallback? onBack;
+  final VoidCallback? onSessionResetRequested;
 
   @override
   State<AboutLegalPage> createState() => _AboutLegalPageState();
@@ -24,6 +44,7 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
   static const _gold = Color(0xFFC9B69E);
   static const _muted = Color(0xFFAAA096);
   _LegalDocument? _document;
+  late AboutLegalScenario _scenario;
 
   static const _documents = [
     _LegalDocument(
@@ -68,6 +89,23 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _scenario = widget.initialScenario;
+    final index = widget.initialDocumentIndex;
+    if (index != null && index >= 0 && index < _documents.length) {
+      _document = _documents[index];
+    } else if (index != null) {
+      _scenario = AboutLegalScenario.invalidRef;
+    }
+    if (_scenario == AboutLegalScenario.sessionInvalid) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showSessionInvalid(),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: _document == null,
@@ -82,9 +120,32 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
               _AboutHeader(
                 title: _document?.title ?? '关于 KingClub',
                 onBack: _handleBack,
+                onTitleLongPress: _showScenarioPanel,
               ),
               Expanded(
-                child: _document == null ? _catalog() : _reader(_document!),
+                child: _document != null
+                    ? _reader(_document!)
+                    : switch (_scenario) {
+                        AboutLegalScenario.offlineExpired => _failureState(
+                          key: 'offline-expired',
+                          icon: Icons.cloud_off_outlined,
+                          title: '离线缓存已过期',
+                          detail: '为避免展示失效法律文本，请联网后重新获取权威目录。',
+                        ),
+                        AboutLegalScenario.invalidRef => _failureState(
+                          key: 'invalid-ref',
+                          icon: Icons.link_off_outlined,
+                          title: '文档引用无效',
+                          detail: '该文档不在当前可见的权威目录中，已拒绝打开。',
+                        ),
+                        AboutLegalScenario.loadingError => _failureState(
+                          key: 'loading-error',
+                          icon: Icons.error_outline,
+                          title: '法律文档暂时无法加载',
+                          detail: '必需文档不会以空白正文代替，请稍后重试。',
+                        ),
+                        _ => _catalog(),
+                      },
               ),
             ],
           ),
@@ -98,6 +159,14 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
       key: const ValueKey('about-legal-catalog'),
       padding: const EdgeInsets.fromLTRB(28, 32, 28, 36),
       children: [
+        if (_scenario == AboutLegalScenario.offlineCached) ...[
+          const _AboutNotice(
+            key: ValueKey('about-offline-cached'),
+            icon: Icons.offline_pin_outlined,
+            text: '当前离线，展示已校验的可信缓存。正文将标记版本与生效日期。',
+          ),
+          const SizedBox(height: 22),
+        ],
         Center(
           child: Image.asset(
             'assets/legacy/home/logo_2.png',
@@ -185,6 +254,14 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
       key: ValueKey('about-legal-reader-${document.title}'),
       padding: const EdgeInsets.fromLTRB(30, 24, 30, 52),
       children: [
+        if (_scenario == AboutLegalScenario.offlineCached) ...[
+          const _AboutNotice(
+            key: ValueKey('about-reader-offline-cached'),
+            icon: Icons.offline_pin_outlined,
+            text: '离线缓存 · 已校验版本',
+          ),
+          const SizedBox(height: 20),
+        ],
         Text(
           '《${document.title}》',
           textAlign: TextAlign.center,
@@ -241,15 +318,147 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
     if (_document != null) {
       setState(() => _document = null);
     } else {
-      Navigator.pop(context);
+      if (widget.onBack != null) {
+        widget.onBack!();
+      } else {
+        Navigator.maybePop(context);
+      }
     }
+  }
+
+  Widget _failureState({
+    required String key,
+    required IconData icon,
+    required String title,
+    required String detail,
+  }) {
+    return Center(
+      key: ValueKey('about-$key'),
+      child: Padding(
+        padding: const EdgeInsets.all(34),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: _gold, size: 66),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              detail,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _muted, height: 1.5),
+            ),
+            const SizedBox(height: 26),
+            OutlinedButton(
+              key: const ValueKey('about-retry'),
+              onPressed: () => setState(() {
+                _scenario = AboutLegalScenario.catalog;
+                _document = null;
+              }),
+              child: const Text('重新加载 Fake 目录'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showScenarioPanel() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF171411),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
+          children: [
+            const Text(
+              '关于与法律 UI Mock 场景',
+              style: TextStyle(
+                color: _gold,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (final scenario in AboutLegalScenario.values)
+              ListTile(
+                key: ValueKey('about-scenario-${scenario.name}'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  _scenarioLabel(scenario),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                trailing: scenario == _scenario
+                    ? const Icon(Icons.check, color: _gold)
+                    : null,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  setState(() {
+                    _scenario = scenario;
+                    _document = null;
+                  });
+                  if (scenario == AboutLegalScenario.sessionInvalid) {
+                    _showSessionInvalid();
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _scenarioLabel(AboutLegalScenario scenario) => switch (scenario) {
+    AboutLegalScenario.catalog => '权威目录',
+    AboutLegalScenario.offlineCached => '离线可信缓存',
+    AboutLegalScenario.offlineExpired => '离线缓存过期',
+    AboutLegalScenario.invalidRef => '无效 DocumentRef',
+    AboutLegalScenario.loadingError => '目录加载失败',
+    AboutLegalScenario.sessionInvalid => '会话失效',
+  };
+
+  Future<void> _showSessionInvalid() async {
+    _document = null;
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('about-session-dialog'),
+        title: const Text('登录状态已失效'),
+        content: const Text('页面内的临时文档引用已清理，请重新登录。'),
+        actions: [
+          FilledButton(
+            key: const ValueKey('about-session-confirm'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) widget.onSessionResetRequested?.call();
   }
 }
 
 class _AboutHeader extends StatelessWidget {
-  const _AboutHeader({required this.title, required this.onBack});
+  const _AboutHeader({
+    required this.title,
+    required this.onBack,
+    required this.onTitleLongPress,
+  });
   final String title;
   final VoidCallback onBack;
+  final VoidCallback onTitleLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -266,20 +475,59 @@ class _AboutHeader extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Center(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFFC9B69E),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+            child: GestureDetector(
+              key: const ValueKey('about-legal-title'),
+              onLongPress: onTitleLongPress,
+              child: Center(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFC9B69E),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 48),
+        ],
+      ),
+    );
+  }
+}
+
+class _AboutNotice extends StatelessWidget {
+  const _AboutNotice({super.key, required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF171411),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF4A4035)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFFC9B69E), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Color(0xFFAAA096),
+                fontSize: 12,
+                height: 1.45,
+              ),
+            ),
+          ),
         ],
       ),
     );

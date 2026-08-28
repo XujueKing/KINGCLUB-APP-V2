@@ -28,7 +28,7 @@
 | NAV-U10 | notice/诊断序列化 | 无 flowId、账号、手机号、sessionId 或服务端原文 |
 | NAV-U11 | 未有页面文档却增加 route/intent | route catalog 审计失败 |
 | NAV-U12 | membership onboarding/pending/approved × Shell | 分别进入 currentStep/review/home，无循环 |
-| NAV-U13 | 四分支切换、重按与中央扫码 | 分支栈保留；扫码不成为第五分支 |
+| NAV-U13 | 五分支切换、重按与首页扫码入口 | 分支状态保留；扫码不成为第六分支 |
 | NAV-U14 | 服务端返回未知 Tab/location | 丢弃，不改变客户端路由目录 |
 
 ## 3. Widget/Router 集成测试
@@ -40,7 +40,7 @@
 - 登录成功、注销、新设备顶号、Refresh Token 重用和到期均 reset 全栈。
 - 未知 location 和缺失 `$extra` 不出现 go_router 默认错误内容。
 - Router diagnostics 在 prod 关闭，不打印 location extra。
-- Shell 四分支进程内状态隔离；注销/撤销/会员失效销毁所有分支。
+- Shell 五分支进程内状态隔离；注销/撤销/会员失效销毁所有分支。
 
 ## 4. 双端集成场景
 

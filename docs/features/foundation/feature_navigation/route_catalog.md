@@ -20,7 +20,7 @@
 | `MobileLoginRoute` | `/auth/mobile` | authFlow | 可选内存 `AuthEntryContext` | 已批准 | 匿名入口；不得回到 bootstrap |
 | `SmsCodeRoute` | `/auth/code` | authFlow | 必需 `$extra: LoginFlowRef` | 已批准 | K101 明确成功后 replace；无合法 FlowStore 条目则回 mobile |
 | `TermsConsentRoute` | `/auth/consent` | authFlow | 必需 `$extra: ConsentRouteContext` | 已批准 | readOnly 使用 push/pop；loginRecovery 使用 replace |
-| `AppShellRoute` | 容器，无外部 location | protectedShell | 无 | 已批准 | 只在 approved member 下建立四个分支 |
+| `AppShellRoute` | 容器，无外部 location | protectedShell | 无 | 已批准 | 只在 approved member 下建立五个固定分支 |
 | `HomeRoute` | `/home` | protectedShell/home | 无 | 已批准 | 登录后的默认主目的地 |
 | `ConversationsRoute` | `/messages` | protectedShell/messages | 无 | 已批准 | 消息分支根；仍受 48 页全局门禁约束 |
 | `ContentFeedRoute` | `/discover` | protectedShell/discover | 无 | 已批准 | 发现分支根，只读内容 |
