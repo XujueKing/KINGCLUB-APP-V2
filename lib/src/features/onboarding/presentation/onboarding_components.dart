@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../core/design_system/king_theme.dart';
 
+@immutable
+class PreferenceOption {
+  const PreferenceOption({required this.id, required this.label});
+
+  final String id;
+  final String label;
+}
+
 class OnboardingScaffold extends StatelessWidget {
   const OnboardingScaffold({
     super.key,
@@ -75,7 +83,7 @@ class PreferenceSection extends StatelessWidget {
   });
 
   final String title;
-  final List<String> options;
+  final List<PreferenceOption> options;
   final Set<String> selected;
   final ValueChanged<String> onChanged;
 
@@ -90,12 +98,31 @@ class PreferenceSection extends StatelessWidget {
           spacing: 10,
           runSpacing: 10,
           children: options.map((option) {
-            final isSelected = selected.contains(option);
+            final isSelected = selected.contains(option.id);
             return FilterChip(
-              label: Text(option),
+              key: ValueKey('preference-${option.id}'),
+              label: Text(option.label, textAlign: TextAlign.center),
               selected: isSelected,
-              showCheckmark: true,
-              onSelected: (_) => onChanged(option),
+              showCheckmark: false,
+              backgroundColor: KingColors.surface,
+              selectedColor: KingColors.brandStrong,
+              labelStyle: TextStyle(
+                color: isSelected
+                    ? KingColors.onBrand
+                    : KingColors.textSecondary,
+                fontSize: 14,
+                height: 1.2,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+              side: BorderSide(
+                color: isSelected ? KingColors.brandStrong : KingColors.border,
+                width: isSelected ? 1.2 : 1,
+              ),
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+              onSelected: (_) => onChanged(option.id),
             );
           }).toList(),
         ),

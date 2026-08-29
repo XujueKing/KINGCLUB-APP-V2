@@ -5,8 +5,8 @@
 - 所属功能：[会员注册、资料初始化与准入](../../README.md)
 - 旧版来源：`regist5`
 - 路由语义：`DrinkEventPreferencesRoute`
-- 设计版本：`Onboarding Wireframe v1 / Step 4 / Pill Actions`
-- 最后更新：2026-08-28
+- 设计版本：`Onboarding Wireframe v2 / Step 4 / Adaptive Pill Catalog`
+- 最后更新：2026-08-30
 
 ## 用户任务
 
@@ -41,6 +41,11 @@
 - 两个提交按钮共用单一 SingleFlight 和 idempotencyKey；按钮 loading 保持原宽度。
 - 提交前服务端检查实名、两张图片、目录版本和申请状态；客户端不自行宣布完整。
 - 不因酒类选择推导饮酒资格；成年结论来自实名核验，所有页面仍遵循理性饮酒文案。
+- Fake 目录必须完整覆盖旧版 regist5 的 8 项酒类、8 项活动，并补充 V2 常用分类；当前展示标签为：
+  - 酒类：无酒精、威士忌、白兰地、伏特加、红葡萄酒、白葡萄酒、日本清酒、香槟、鸡尾酒、啤酒。
+  - 活动：高级小礼服舞会、Cosplay 化妆舞会、明星见面会、网红狂欢舞会、校园社团专场、车友会专场、韩式小清新 Party、怀旧经典专场、现场音乐、DJ 主题夜、酒类品鉴、好友聚会。
+- 每个选项使用稳定的 Fake optionId；展示标签不作为业务主键。
+- 选项沿用 Step 3 的自适应流式胶囊，统一高度、自然换行、无前置圆圈的黑金选中态，不复刻旧版固定两列网格。
 - “提交会员申请”主按钮使用完整胶囊圆角，与 Step 1～3 的主操作保持一致。
 - 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)。
 

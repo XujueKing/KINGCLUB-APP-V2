@@ -5,8 +5,8 @@
 - 所属功能：[会员注册、资料初始化与准入](../../README.md)
 - 旧版来源：`regist4`
 - 路由语义：`StyleMusicPreferencesRoute`
-- 设计版本：`Onboarding Wireframe v1 / Step 3 / Pill Actions`
-- 最后更新：2026-08-28
+- 设计版本：`Onboarding Wireframe v2 / Step 3 / Adaptive Pill Catalog`
+- 最后更新：2026-08-30
 
 ## 用户任务
 
@@ -40,7 +40,12 @@
 - 选项来自版本化目录，UI 不硬编码旧中文字符串为业务主键。
 - 多选顺序不代表排名；V1 不设置最少/最多数量，服务端可返回受控上限。
 - 目录刷新后停用项不可新选；已失效选择以提示方式移除，不静默换成其他项。
-- 旧版 HOUSE、TECHNO、HIP-HOP 等仅作为 Fake 目录参考，最终文字由运营确认。
+- Fake 目录必须完整覆盖旧版 regist4 的 8 项着装、8 项音乐，并补充 V2 常用分类；当前展示标签为：
+  - 着装：高级酒会小礼服、韩式现代时尚风、小清新、纯欲风、洛丽塔风、国风汉服、COSPLAY、痞帅风、简约通勤、街头潮流、复古风、运动休闲。
+  - 音乐：HOUSE、TECHNO、BOUNCE、PSY TRANCE、TRANCE、HIP-HOP、DUBSTEP、BIG ROOM、R&B、流行、现场乐队。
+- 每个选项使用稳定的 Fake optionId；中文/英文展示标签不作为业务主键。
+- 选项采用左对齐的自适应流式胶囊：统一高度，按文案自然宽度排列，长标签自动占更宽空间；不复刻旧版固定两列网格。
+- 胶囊必须保持黑金主题，未选中为深色底/金灰描边，选中为金色底/深色文字；胶囊前方不显示圆圈、勾选或其他状态图标。
 - “下一步”主按钮使用完整胶囊圆角，与注册流程其他主操作保持一致。
 - 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)。
 

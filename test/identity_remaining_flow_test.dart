@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/core/mock/mock_runtime.dart';
 import 'package:kingclub/src/features/auth/presentation/sms_verification_page.dart';
+import 'package:kingclub/src/features/onboarding/presentation/drink_event_preferences_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/membership_review_status_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/style_music_preferences_page.dart';
 
@@ -75,11 +76,19 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('简约'));
+    expect(find.text('高级酒会小礼服'), findsOneWidget);
+    expect(find.text('韩式现代时尚风'), findsOneWidget);
+    expect(find.text('BOUNCE'), findsOneWidget);
+    expect(find.text('BIG ROOM'), findsOneWidget);
+
+    await tester.tap(find.text('简约通勤'));
+    await tester.ensureVisible(find.text('HOUSE'));
     await tester.tap(find.text('HOUSE'));
     await tester.pump();
     expect(
-      tester.widget<FilterChip>(find.widgetWithText(FilterChip, '简约')).selected,
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, '简约通勤'))
+          .selected,
       isTrue,
     );
     expect(find.textContaining('Mock'), findsNothing);
@@ -88,6 +97,54 @@ void main() {
     await tester.tap(find.text('下一步'));
     await tester.pump(const Duration(milliseconds: 700));
     expect(continued, isTrue);
+  });
+
+  testWidgets('drink and event catalog keeps legacy choices and selections', (
+    tester,
+  ) async {
+    final runtime = MockRuntime();
+    final flowId = runtime.startOnboarding();
+    var submitted = false;
+
+    await tester.pumpWidget(
+      _app(
+        runtime,
+        DrinkEventPreferencesPage(
+          flowId: flowId,
+          onBack: () {},
+          onSubmitted: () => submitted = true,
+          onInvalidFlow: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('白兰地'), findsOneWidget);
+    expect(find.text('日本清酒'), findsOneWidget);
+    expect(find.text('高级小礼服舞会'), findsOneWidget);
+    expect(find.text('怀旧经典专场'), findsOneWidget);
+
+    await tester.tap(find.text('白兰地'));
+    await tester.ensureVisible(find.text('高级小礼服舞会'));
+    await tester.tap(find.text('高级小礼服舞会'));
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, '白兰地'))
+          .selected,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, '高级小礼服舞会'))
+          .selected,
+      isTrue,
+    );
+
+    await tester.ensureVisible(find.text('提交会员申请'));
+    await tester.tap(find.text('提交会员申请'));
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(submitted, isTrue);
   });
 
   testWidgets('review status keeps every formal state actionable', (

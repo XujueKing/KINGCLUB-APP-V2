@@ -12,6 +12,37 @@ final result: passed
 
 ---
 
+# Design QA — Onboarding Expanded Preference Catalog v2
+
+- source visual truth: 用户于 2026-08-30 提供的 V2 步骤 3/4 截图用于页面结构与黑金主题；旧版 `C:\Users\Poplar\Desktop\KingClub-app\pages\regist4`、`regist5` 用于目录内容；用户明确要求不复刻旧版固定两列排版
+- implementation screenshots: `docs/features/identity/feature_member_onboarding/pages/page_style_music_preferences/audit/2026-08-30-expanded-catalog/01-style-music-top.png`、`03-style-music-selected.png`；`docs/features/identity/feature_member_onboarding/pages/page_drink_event_preferences/audit/2026-08-30-expanded-catalog/01-drink-event-top.png`、`02-drink-event-selected.png`、`03-drink-event-bottom.png`
+- viewport: Android emulator `1080 × 2400 px`
+- state: 步骤 3/4 默认目录、选中状态与底部操作区域
+
+## Fidelity surfaces
+
+- Fonts and typography: 沿用 V2 已批准中文/英文字阶；所有长标签保持 14dp 正常字号并完整显示。
+- Spacing and layout rhythm: 统一高度的内容自适应胶囊以 10dp 横纵间距流式排列；长标签自然占宽，未使用旧版固定两列。
+- Colors and visual tokens: 深黑背景、深棕胶囊、金灰描边和香槟金选中态均来自 King 主题，无粉色。
+- Image quality and asset fidelity: 本页面没有业务图片资产；偏好胶囊不使用前置图标。
+- Copy and content: 旧版 regist4/regist5 的四组 8 项目录全部保留，并分别扩充为 12/11/10/12 项。
+
+## Comparison history
+
+- P1 fixed: V2 原目录仅各 6 项，遗漏旧版多个明确偏好。
+- P2 fixed: 已移除偏好胶囊前方的圆形状态位；选择只改变背景、描边和文字颜色，版式更紧凑。
+- Post-fix Android 证据显示长标签无截断、选择状态无跳位、主操作与审核说明均可到达。
+
+## Verification
+
+- `flutter analyze`: passed.
+- `flutter test test/identity_remaining_flow_test.dart`: 4/4 passed.
+- `flutter test test/onboarding_preferences_visual_test.dart`: 2/2 passed.
+
+final result: passed
+
+---
+
 # Design QA — AA 已选座定位凭证 v1
 
 - source visual truth path: 用户于 2026-08-29 当前会话提供的已选座列表卡与完整凭证截图，以及稳定源码 `C:\Users\Poplar\Desktop\KingClub-app\pages\Choose`、`pages\ticket`
