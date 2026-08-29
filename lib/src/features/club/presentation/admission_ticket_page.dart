@@ -17,10 +17,21 @@ enum AdmissionTicketScenario {
   privacyCovered,
 }
 
+class FakeAdmissionRef {
+  const FakeAdmissionRef(this.opaqueId);
+
+  final String opaqueId;
+}
+
 class AdmissionTicketPage extends StatefulWidget {
-  const AdmissionTicketPage({super.key, required this.onBack});
+  const AdmissionTicketPage({
+    super.key,
+    required this.onBack,
+    this.admissionRef,
+  });
 
   final VoidCallback onBack;
+  final FakeAdmissionRef? admissionRef;
 
   @override
   State<AdmissionTicketPage> createState() => _AdmissionTicketPageState();
@@ -34,17 +45,17 @@ class _AdmissionTicketPageState extends State<AdmissionTicketPage>
   int _seconds = 24;
   int _tokenVersion = 1;
   bool _exitSubmitting = false;
+  late final _AdmissionTicketProjection _projection;
 
-  bool get _showsQr =>
-      _scenario == AdmissionTicketScenario.readyToEnter ||
-      _scenario == AdmissionTicketScenario.checkedOutReentryAllowed;
+  bool get _showsQr => _scenario == AdmissionTicketScenario.readyToEnter;
 
   String get _fakeToken =>
-      'KC-FAKE-ADMISSION-V$_tokenVersion-20260827-V8-${_tokenVersion * 7919}';
+      'KC-FAKE-ADMISSION-V$_tokenVersion-${_projection.tokenScope}-${_tokenVersion * 7919}';
 
   @override
   void initState() {
     super.initState();
+    _projection = _projectionForRef(widget.admissionRef);
     WidgetsBinding.instance.addObserver(this);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!_showsQr || !mounted) return;
@@ -186,9 +197,9 @@ class _AdmissionTicketPageState extends State<AdmissionTicketPage>
       ),
       child: Column(
         children: [
-          const Text(
-            'VIP 区 V8',
-            style: TextStyle(
+          Text(
+            _projection.zoneLabel,
+            style: const TextStyle(
               color: legacyPink,
               fontSize: 34,
               fontWeight: FontWeight.w700,
@@ -200,18 +211,18 @@ class _AdmissionTicketPageState extends State<AdmissionTicketPage>
             style: TextStyle(color: legacyPink, fontSize: 11, letterSpacing: 2),
           ),
           const SizedBox(height: 7),
-          const Text(
-            '08月27日 20:30 - 次日04:00',
-            style: TextStyle(color: legacyPink, fontSize: 13),
+          Text(
+            _projection.sessionTime,
+            style: const TextStyle(color: legacyPink, fontSize: 13),
           ),
           const SizedBox(height: 14),
           _StatusPill(scenario: _scenario),
           const SizedBox(height: 18),
           _buildCredentialArea(),
           const SizedBox(height: 18),
-          const Text(
-            '星光香槟套餐',
-            style: TextStyle(
+          Text(
+            _projection.packageName,
+            style: const TextStyle(
               color: legacyPink,
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -287,7 +298,9 @@ class _AdmissionTicketPageState extends State<AdmissionTicketPage>
               padding: const EdgeInsets.all(13),
               color: legacyPink,
               child: QrImageView(
-                key: ValueKey('admission-qr-v$_tokenVersion'),
+                key: ValueKey(
+                  'admission-qr-${_projection.tokenScope}-v$_tokenVersion',
+                ),
                 data: _fakeToken,
                 version: QrVersions.auto,
                 backgroundColor: legacyPink,
@@ -591,4 +604,39 @@ class _StatusPill extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AdmissionTicketProjection {
+  const _AdmissionTicketProjection({
+    required this.zoneLabel,
+    required this.sessionTime,
+    required this.packageName,
+    required this.tokenScope,
+  });
+
+  final String zoneLabel;
+  final String sessionTime;
+  final String packageName;
+  final String tokenScope;
+}
+
+const _defaultAdmissionProjection = _AdmissionTicketProjection(
+  zoneLabel: 'VIP 区 V8',
+  sessionTime: '08月27日 20:30 - 次日04:00',
+  packageName: '星光香槟套餐',
+  tokenScope: '20260827-V8',
+);
+
+const _a6AdmissionProjection = _AdmissionTicketProjection(
+  zoneLabel: 'VIP 区 A6',
+  sessionTime: '08月28日 20:30 - 次日04:00',
+  packageName: '星光香槟套餐',
+  tokenScope: '20260828-A6',
+);
+
+_AdmissionTicketProjection _projectionForRef(FakeAdmissionRef? ref) {
+  if (ref?.opaqueId.contains('vip-a6') ?? false) {
+    return _a6AdmissionProjection;
+  }
+  return _defaultAdmissionProjection;
 }

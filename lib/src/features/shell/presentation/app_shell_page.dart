@@ -12,6 +12,7 @@ import '../../messaging/presentation/direct_chat_page.dart';
 import '../../messaging/presentation/system_notifications_page.dart';
 import '../../membership_wallet/presentation/asset_ledger_page.dart';
 import '../../profile_settings/presentation/edit_profile_page.dart';
+import '../../profile_settings/data/profile_cover_store.dart';
 import '../../profile_settings/presentation/my_profile_page.dart';
 import '../../scanner/presentation/safe_scanner_page.dart';
 
@@ -33,7 +34,9 @@ class AppShellPage extends StatefulWidget {
     this.onOpenEditProfile,
     this.onOpenPersonalQr,
     this.onOpenSettings,
+    this.onOpenOrders,
     this.onSessionResetRequested,
+    this.profileCoverStore,
     this.onOpenFriendRequests,
     this.onOpenAddFriend,
     this.onOpenBlacklist,
@@ -59,11 +62,14 @@ class AppShellPage extends StatefulWidget {
   final Future<EditableProfileResult?> Function(
     String nickname,
     String signature,
+    String coverAsset,
   )?
   onOpenEditProfile;
   final VoidCallback? onOpenPersonalQr;
   final VoidCallback? onOpenSettings;
+  final VoidCallback? onOpenOrders;
   final VoidCallback? onSessionResetRequested;
+  final ProfileCoverStore? profileCoverStore;
   final VoidCallback? onOpenFriendRequests;
   final VoidCallback? onOpenAddFriend;
   final VoidCallback? onOpenBlacklist;
@@ -190,7 +196,9 @@ class _AppShellPageState extends State<AppShellPage> {
                   onOpenEditProfile: widget.onOpenEditProfile,
                   onOpenPersonalQr: widget.onOpenPersonalQr,
                   onOpenSettings: widget.onOpenSettings,
+                  onOpenOrders: widget.onOpenOrders,
                   onSessionResetRequested: widget.onSessionResetRequested,
+                  coverStore: widget.profileCoverStore,
                 ),
               ],
             ),

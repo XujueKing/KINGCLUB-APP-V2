@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../club/presentation/legacy_club_components.dart';
 
@@ -65,46 +66,62 @@ class ScanOrderingCartPage extends StatefulWidget {
 class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   static const _products = <_OrderingProduct>[
     _OrderingProduct(
-      id: 'champagne',
+      id: 'hennessy-xo',
       category: '酒水',
-      subcategory: '香槟',
-      name: '星光香槟',
-      detail: '香槟 750ml · 含冰桶与香槟杯',
-      price: 688,
-      originalPrice: 788,
-      asset: 'assets/legacy/ordering/product_champagne_v1.png',
+      subcategory: '畅饮套餐',
+      name: '轩尼诗XO',
+      englishName: 'Hennessy XO',
+      specs: '750ML',
+      price: 3380,
+      originalPrice: 3380,
+      asset: 'assets/legacy/ordering/hennessy_xo.png',
       limit: 2,
     ),
     _OrderingProduct(
-      id: 'whisky',
+      id: 'chivas-12',
       category: '酒水',
       subcategory: '威士忌',
-      name: '金标威士忌',
-      detail: '威士忌 700ml · 配软饮与冰块',
-      price: 498,
-      originalPrice: 568,
-      asset: 'assets/legacy/ordering/product_whisky_v1.png',
+      name: '芝华士12年',
+      englishName: 'CHIVAS REGAL 12 YEARS',
+      specs: '750ML',
+      price: 330,
+      originalPrice: 330,
+      asset: 'assets/legacy/ordering/chivas_12.png',
       limit: 3,
     ),
     _OrderingProduct(
-      id: 'fruit',
-      category: '小吃',
-      subcategory: '果盘',
-      name: '缤纷鲜果盘',
-      detail: '时令鲜果 · 4–6人份',
-      price: 88,
-      originalPrice: 108,
-      asset: 'assets/legacy/ordering/product_fruit_platter_v1.png',
+      id: 'hennessy-vsop',
+      category: '酒水',
+      subcategory: '白兰地',
+      name: '轩尼诗VSOP',
+      englishName: 'Hennessy VSOP',
+      specs: '750ML',
+      price: 1240,
+      originalPrice: 1240,
+      asset: 'assets/legacy/ordering/hennessy_vsop.png',
+      limit: 4,
+    ),
+    _OrderingProduct(
+      id: 'absolut-vodka',
+      category: '酒水',
+      subcategory: '伏特加',
+      name: '瑞典绝对伏特加',
+      englishName: 'Absolut Vodka',
+      specs: '750ML',
+      price: 498,
+      originalPrice: 498,
+      asset: 'assets/legacy/ordering/absolut_vodka.png',
       limit: 4,
     ),
   ];
 
   final _searchController = TextEditingController();
-  final Map<String, int> _quantities = {};
+  final Map<String, int> _quantities = {'hennessy-xo': 1, 'chivas-12': 1};
   ScanOrderingScenario _scenario = ScanOrderingScenario.ready;
   String _category = '酒水';
-  String _subcategory = '全部';
+  String _subcategory = '畅饮套餐';
   bool _quoting = false;
+  bool _cartPanelOpen = false;
 
   @override
   void dispose() {
@@ -138,8 +155,12 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       final matchesQuery =
           query.isEmpty ||
           product.name.toLowerCase().contains(query) ||
-          product.detail.toLowerCase().contains(query);
-      return matchesCategory && matchesSubcategory && matchesQuery;
+          product.englishName.toLowerCase().contains(query) ||
+          product.specs.toLowerCase().contains(query);
+      final showLegacyInitialList = _category == '酒水' && _subcategory == '畅饮套餐';
+      return matchesCategory &&
+          (showLegacyInitialList || matchesSubcategory) &&
+          matchesQuery;
     }).toList();
   }
 
@@ -147,19 +168,24 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildSearchHeader(),
-            _buildStoreHeader(),
-            _buildCategoryTabs(),
-            ...switch (_scenarioBanner) {
-              final banner? => [banner],
-              null => const <Widget>[],
-            },
-            Expanded(child: _buildCatalog()),
-          ],
-        ),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                _buildSearchHeader(),
+                _buildStoreHeader(),
+                _buildCategoryTabs(),
+                ...switch (_scenarioBanner) {
+                  final banner? => [banner],
+                  null => const <Widget>[],
+                },
+                Expanded(child: _buildCatalog()),
+              ],
+            ),
+          ),
+          if (_cartPanelOpen) _buildCartOverlay(),
+        ],
       ),
       bottomNavigationBar: SafeArea(top: false, child: _buildCartBar()),
     );
@@ -167,34 +193,40 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
 
   Widget _buildSearchHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 12, 4),
+      padding: const EdgeInsets.fromLTRB(14, 10, 24, 8),
       child: Row(
         children: [
-          IconButton(
-            key: const ValueKey('ordering-back'),
-            tooltip: '返回',
-            onPressed: widget.onBack,
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: legacyGold,
-              size: 22,
+          SizedBox(
+            width: 42,
+            height: 48,
+            child: IconButton(
+              key: const ValueKey('ordering-back'),
+              tooltip: '返回',
+              onPressed: widget.onBack,
+              padding: EdgeInsets.zero,
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFFF0ECE7),
+                size: 25,
+              ),
             ),
           ),
+          const SizedBox(width: 8),
           Expanded(
             child: SizedBox(
-              height: 40,
+              height: 48,
               child: TextField(
                 key: const ValueKey('ordering-search'),
                 controller: _searchController,
                 onChanged: (_) => setState(() {}),
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: const TextStyle(color: Color(0xFFD8D3CD), fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: '搜索酒水、小吃',
-                  hintStyle: const TextStyle(color: Color(0xFF81776D)),
+                  hintText: '搜一搜你想要的饮品',
+                  hintStyle: const TextStyle(color: Color(0xFF5D5A57)),
                   prefixIcon: const Icon(
                     Icons.search_rounded,
-                    size: 20,
-                    color: legacyGold,
+                    size: 21,
+                    color: Color(0xFF575653),
                   ),
                   suffixIcon: _searchController.text.isEmpty
                       ? null
@@ -211,30 +243,23 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                           ),
                         ),
                   filled: true,
-                  fillColor: const Color(0xFF181512),
+                  fillColor: const Color(0xFF191919),
                   contentPadding: EdgeInsets.zero,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: const BorderSide(color: Color(0xFF4A4137)),
+                    borderRadius: BorderRadius.circular(7),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: const BorderSide(color: Color(0xFF4A4137)),
+                    borderRadius: BorderRadius.circular(7),
+                    borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: const BorderSide(color: legacyGold),
+                    borderRadius: BorderRadius.circular(7),
+                    borderSide: const BorderSide(color: Color(0xFF4D443A)),
                   ),
                 ),
               ),
             ),
-          ),
-          TextButton(
-            key: const ValueKey('ordering-orders'),
-            onPressed:
-                widget.onOpenOrders ??
-                () => showFakeResult(context, '已打开本人点单记录'),
-            child: const Text('订单', style: TextStyle(color: legacyGold)),
           ),
         ],
       ),
@@ -247,89 +272,54 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       behavior: HitTestBehavior.opaque,
       onLongPress: _showScenarioPicker,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 9, 18, 14),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(28, 10, 26, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: legacyGold),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF4C402F), Color(0xFF15100A)],
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Image.asset(
+                  'assets/legacy/home/logo_2.png',
+                  width: 52,
+                  height: 34,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.centerLeft,
                 ),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                'K',
-                style: TextStyle(
-                  color: legacyGold,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
                     'KINGBAR 湖南工大店',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Color(0xFFE8DED1),
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_outlined,
-                        size: 14,
-                        color: Color(0xFF8F8377),
-                      ),
-                      SizedBox(width: 3),
-                      Expanded(
-                        child: Text(
-                          '泰山路·中心广场 2F',
-                          style: TextStyle(
-                            color: Color(0xFF8F8377),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2B2116),
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: const Color(0xFF655541)),
-              ),
-              child: const Column(
-                children: [
-                  Text(
-                    'V8',
-                    style: TextStyle(
-                      color: legacyGold,
-                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFF1EEEA),
                       fontSize: 16,
+                      height: 1,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  Text(
-                    '桌位已验证',
-                    style: TextStyle(color: Color(0xFF9D8F7E), fontSize: 9),
-                  ),
-                ],
+                ),
+                const SizedBox(width: 8),
+                SvgPicture.asset(
+                  'assets/legacy/ordering/table_888.svg',
+                  key: ValueKey('ordering-table-888'),
+                  width: 78,
+                  height: 34,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.centerRight,
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '株洲市天元区金华路瀚水栗源1栋102',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Color(0xFF4B4947),
+                fontSize: 12,
+                height: 1.1,
               ),
             ),
           ],
@@ -340,46 +330,50 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
 
   Widget _buildCategoryTabs() {
     return Container(
-      height: 48,
+      height: 56,
       decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: Color(0xFF221D18)),
-          bottom: BorderSide(color: Color(0xFF221D18)),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFF312F2D), width: .7)),
       ),
       child: Row(
-        children: ['酒水', '饮料', '小吃'].map((label) {
-          final selected = _category == label;
-          return Expanded(
-            child: InkWell(
-              key: ValueKey('ordering-category-$label'),
-              onTap: () => setState(() {
-                _category = label;
-                _subcategory = '全部';
-              }),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: selected ? legacyGold : const Color(0xFF756B61),
-                      fontSize: 15,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          const SizedBox(width: 4),
+          ...['酒水', '饮料', '小吃'].map((label) {
+            final selected = _category == label;
+            return SizedBox(
+              width: 80,
+              child: InkWell(
+                key: ValueKey('ordering-category-$label'),
+                onTap: () => setState(() {
+                  _category = label;
+                  _subcategory = label == '酒水' ? '畅饮套餐' : '全部';
+                }),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: selected
+                            ? const Color(0xFFEAE7E3)
+                            : const Color(0xFF6E6B68),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: selected ? 24 : 0,
-                    height: 2,
-                    color: legacyGold,
-                  ),
-                ],
+                    const SizedBox(height: 9),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: selected ? 36 : 0,
+                      height: 3,
+                      color: const Color(0xFFFFB400),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }),
+        ],
       ),
     );
   }
@@ -441,7 +435,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     }
     final products = _visibleProducts;
     final subcategories = switch (_category) {
-      '酒水' => const ['全部', '香槟', '威士忌'],
+      '酒水' => const ['畅饮套餐', '威士忌', '白兰地', '伏特加', '香槟', '红葡萄酒', '清酒', '鸡尾酒'],
       '饮料' => const ['全部', '软饮', '果汁'],
       _ => const ['全部', '果盘', '热食'],
     };
@@ -449,9 +443,15 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          width: 82,
-          color: const Color(0xFF11100E),
+          width: 75,
+          decoration: const BoxDecoration(
+            color: Colors.black,
+            border: Border(
+              right: BorderSide(color: Color(0xFF332E29), width: .7),
+            ),
+          ),
           child: ListView.builder(
+            padding: EdgeInsets.zero,
             itemCount: subcategories.length,
             itemBuilder: (context, index) {
               final label = subcategories[index];
@@ -460,22 +460,37 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                 key: ValueKey('ordering-subcategory-$label'),
                 onTap: () => setState(() => _subcategory = label),
                 child: Container(
-                  height: 58,
+                  constraints: const BoxConstraints(minHeight: 74),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: selected ? Colors.black : Colors.transparent,
+                    color: selected
+                        ? const Color(0xFFC9B69E)
+                        : Colors.transparent,
+                    borderRadius: selected
+                        ? const BorderRadius.horizontal(
+                            right: Radius.circular(5),
+                          )
+                        : BorderRadius.zero,
                     border: Border(
-                      left: BorderSide(
-                        color: selected ? legacyGold : Colors.transparent,
-                        width: 3,
+                      bottom: BorderSide(
+                        color: selected
+                            ? const Color(0x33C9B69E)
+                            : const Color(0xFF24211F),
+                        width: .7,
                       ),
                     ),
                   ),
                   child: Text(
-                    label,
+                    _legacyCategoryLabel(label),
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: selected ? legacyGold : const Color(0xFF7C736A),
-                      fontSize: 13,
+                      color: selected
+                          ? const Color(0xFF1B1510)
+                          : const Color(0xFFDDD8D2),
+                      fontSize: selected ? 16 : 15,
+                      height: 1.2,
+                      fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
                     ),
                   ),
                 ),
@@ -491,10 +506,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   subtitle: '可切换分类或修改搜索词',
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
+                  padding: const EdgeInsets.fromLTRB(8, 5, 10, 80),
                   itemCount: products.length,
-                  separatorBuilder: (_, _) =>
-                      const Divider(height: 20, color: Color(0xFF211D18)),
+                  separatorBuilder: (_, _) => const SizedBox(height: 2),
                   itemBuilder: (context, index) =>
                       _buildProductCard(products[index]),
                 ),
@@ -503,109 +517,142 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     );
   }
 
+  String _legacyCategoryLabel(String label) {
+    if (label.length == 4) {
+      return '${label.substring(0, 2)}\n${label.substring(2)}';
+    }
+    if (label.length == 6) {
+      return '${label.substring(0, 3)}\n${label.substring(3)}';
+    }
+    return label;
+  }
+
   Widget _buildProductCard(_OrderingProduct product) {
     final quantity = _quantities[product.id] ?? 0;
     final soldOut =
-        _scenario == ScanOrderingScenario.soldOut && product.id == 'whisky';
+        _scenario == ScanOrderingScenario.soldOut && product.id == 'chivas-12';
     final limitReached = quantity >= product.limit;
     return Semantics(
       container: true,
       label: '${product.name}，价格 ${product.price} 元，已选 $quantity 件',
       child: SizedBox(
-        height: 116,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Image.asset(
+        height: 176,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 17),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Image.asset(
                 product.asset,
-                width: 104,
-                height: 104,
-                fit: BoxFit.cover,
+                width: 109,
+                height: 138,
+                fit: BoxFit.contain,
                 color: soldOut ? const Color(0x77000000) : null,
                 colorBlendMode: soldOut ? BlendMode.darken : null,
               ),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFFE8DED1),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    product.detail,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF81776D),
-                      fontSize: 11,
-                      height: 1.4,
-                    ),
-                  ),
-                  const Spacer(),
-                  Row(
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 138,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '¥${product.price}',
-                        style: const TextStyle(
-                          color: Color(0xFFFFB400),
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            product.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFE8DED1),
+                              fontSize: 18,
+                              height: 1.12,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          Text(
+                            product.englishName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFC9B69E),
+                              fontSize: 16,
+                              height: 1.22,
+                            ),
+                          ),
+                          Text(
+                            product.specs,
+                            style: const TextStyle(
+                              color: Color(0xFFC9B69E),
+                              fontSize: 16,
+                              height: 1.18,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '¥${product.originalPrice}',
-                        style: const TextStyle(
-                          color: Color(0xFF665D54),
-                          fontSize: 11,
-                          decoration: TextDecoration.lineThrough,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                const TextSpan(
+                                  text: '¥ ',
+                                  style: TextStyle(
+                                    color: Color(0xFFC9B69E),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: '${product.price}',
+                                  style: const TextStyle(
+                                    color: Color(0xFFE8E3DD),
+                                    fontSize: 21,
+                                    height: 1,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          if (soldOut)
+                            const Text(
+                              '已售罄',
+                              key: ValueKey('ordering-sold-out'),
+                              style: TextStyle(color: Color(0xFF8C8177)),
+                            )
+                          else
+                            _QuantityControl(
+                              productId: product.id,
+                              quantity: quantity,
+                              canDecrease: _canEdit && quantity > 0,
+                              canIncrease: _canEdit && !limitReached,
+                              onDecrease: () => _changeQuantity(product, -1),
+                              onIncrease: () => _changeQuantity(product, 1),
+                            ),
+                        ],
                       ),
-                      const Spacer(),
-                      if (soldOut)
-                        const Text(
-                          '已售罄',
-                          key: ValueKey('ordering-sold-out'),
-                          style: TextStyle(color: Color(0xFF8C8177)),
-                        )
-                      else
-                        _QuantityControl(
-                          productId: product.id,
-                          quantity: quantity,
-                          canDecrease: _canEdit && quantity > 0,
-                          canIncrease: _canEdit && !limitReached,
-                          onDecrease: () => _changeQuantity(product, -1),
-                          onIncrease: () => _changeQuantity(product, 1),
+                      if (limitReached ||
+                          (_scenario == ScanOrderingScenario.limitReached &&
+                              product.id == 'hennessy-xo'))
+                        Text(
+                          '每桌限购 ${product.limit} 份',
+                          key: const ValueKey('ordering-limit-message'),
+                          style: const TextStyle(
+                            color: Color(0xFFFFC96E),
+                            fontSize: 10,
+                          ),
                         ),
                     ],
                   ),
-                  if (limitReached ||
-                      (_scenario == ScanOrderingScenario.limitReached &&
-                          product.id == 'champagne'))
-                    Text(
-                      '每桌限购 ${product.limit} 份',
-                      key: const ValueKey('ordering-limit-message'),
-                      style: const TextStyle(
-                        color: Color(0xFFFFC96E),
-                        fontSize: 10,
-                      ),
-                    ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -615,8 +662,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     final enabled = _canEdit && _itemCount > 0 && !_quoting;
     return Container(
       key: const ValueKey('ordering-cart-bar'),
-      height: 74,
-      padding: const EdgeInsets.fromLTRB(18, 8, 12, 10),
+      height: 80,
+      padding: const EdgeInsets.fromLTRB(22, 10, 18, 10),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -633,30 +680,25 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2117),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF64533E)),
-                  ),
-                  child: const Icon(
-                    Icons.shopping_bag_rounded,
-                    color: legacyGold,
-                    size: 27,
+                Opacity(
+                  opacity: _itemCount > 0 ? 1 : .4,
+                  child: Image.asset(
+                    'assets/legacy/ordering/shopping_bag.png',
+                    width: 54,
+                    height: 48,
+                    fit: BoxFit.contain,
                   ),
                 ),
                 if (_itemCount > 0)
                   Positioned(
-                    right: -5,
-                    top: -5,
+                    right: -4,
+                    top: 6,
                     child: Container(
                       key: const ValueKey('ordering-cart-badge'),
-                      constraints: const BoxConstraints(minWidth: 20),
+                      constraints: const BoxConstraints(minWidth: 25),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 5,
-                        vertical: 2,
+                        vertical: 4,
                       ),
                       decoration: const BoxDecoration(
                         color: Color(0xFFFFB400),
@@ -667,7 +709,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                         '$_itemCount',
                         style: const TextStyle(
                           color: Colors.black,
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -676,34 +718,47 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _itemCount == 0 ? '购物袋是空的' : '预估 ¥$_total',
-                  key: const ValueKey('ordering-estimate'),
-                  style: TextStyle(
-                    color: _itemCount == 0
-                        ? const Color(0xFF7D746B)
-                        : const Color(0xFFFFB400),
-                    fontSize: _itemCount == 0 ? 13 : 19,
-                    fontWeight: FontWeight.w800,
+            child: Text.rich(
+              key: const ValueKey('ordering-estimate'),
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '合计 ¥ ',
+                    style: TextStyle(
+                      color: _itemCount > 0
+                          ? const Color(0xFF8E867E)
+                          : const Color(0xFF56514C),
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-                if (_itemCount > 0)
-                  const Text(
-                    '最终价格以确认页报价为准',
-                    style: TextStyle(color: Color(0xFF756B61), fontSize: 9),
+                  TextSpan(
+                    text: _itemCount > 0 ? _total.toStringAsFixed(0) : '0',
+                    style: TextStyle(
+                      color: _itemCount > 0
+                          ? const Color(0xFFE1D3C1)
+                          : const Color(0xFF5A554F),
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-              ],
+                  TextSpan(
+                    text: '.00',
+                    style: TextStyle(
+                      color: _itemCount > 0
+                          ? const Color(0xFF8E867E)
+                          : const Color(0xFF56514C),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           SizedBox(
-            width: 104,
-            height: 48,
+            width: 112,
+            height: 50,
             child: FilledButton(
               key: const ValueKey('ordering-confirm'),
               onPressed: enabled ? _requestFakeQuote : null,
@@ -712,9 +767,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                 foregroundColor: const Color(0xFF1C150E),
                 disabledBackgroundColor: const Color(0xFF332E28),
                 disabledForegroundColor: const Color(0xFF756B61),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                shape: const StadiumBorder(),
               ),
               child: _quoting
                   ? const SizedBox.square(
@@ -725,8 +778,11 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                       ),
                     )
                   : const Text(
-                      '去确认',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                      '去结算',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
             ),
           ),
@@ -764,7 +820,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
           .map(
             (product) => FakeOrderingQuoteItem(
               name: product.name,
-              detail: product.detail,
+              detail: '${product.englishName} · ${product.specs}',
               asset: product.asset,
               quantity: _quantities[product.id]!,
               unitPrice: product.price,
@@ -788,7 +844,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
             const Icon(Icons.receipt_long_rounded, color: legacyGold, size: 38),
             const SizedBox(height: 12),
             const Text(
-              'Fake 报价已生成',
+              '报价已生成',
               style: TextStyle(
                 color: Color(0xFFF3E9DC),
                 fontSize: 19,
@@ -802,7 +858,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
             ),
             const SizedBox(height: 8),
             const Text(
-              '确认页 KC-P-035 将在下一页接续；本次未调用真实接口或支付。',
+              '请在下一页核对商品和金额后确认。',
               textAlign: TextAlign.center,
               style: TextStyle(color: Color(0xFF9C9186), fontSize: 12),
             ),
@@ -813,173 +869,222 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   }
 
   Future<void> _showCartSheet() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          final selected = _products
-              .where((product) => (_quantities[product.id] ?? 0) > 0)
-              .toList();
-          return SafeArea(
-            top: false,
+    setState(() => _cartPanelOpen = true);
+  }
+
+  Widget _buildCartOverlay() {
+    final selected = _products
+        .where((product) => (_quantities[product.id] ?? 0) > 0)
+        .toList();
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          GestureDetector(
+            key: const ValueKey('ordering-cart-scrim'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _cartPanelOpen = false),
+            child: Container(color: const Color(0xB3000000)),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
             child: Container(
               key: const ValueKey('ordering-cart-sheet'),
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * .68,
-              ),
+              height: 470,
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 18),
               decoration: const BoxDecoration(
-                color: Color(0xFF0E0C0A),
+                color: Color(0xFF94826C),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(18, 16, 12, 14),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF94826C),
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(16),
-                      ),
-                    ),
+                  SizedBox(
+                    height: 54,
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.shopping_bag_rounded,
-                          color: Color(0xFF241B12),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '已选商品（$_itemCount）',
+                        const _LegacySelectionMark(selected: true),
+                        const SizedBox(width: 10),
+                        Text.rich(
+                          key: const ValueKey('ordering-cart-select-all'),
+                          TextSpan(
+                            children: [
+                              const TextSpan(text: '全选'),
+                              TextSpan(
+                                text: '(共$_itemCount件商品)',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
                           style: const TextStyle(
                             color: Color(0xFF211910),
-                            fontWeight: FontWeight.w800,
                             fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const Spacer(),
                         TextButton.icon(
                           key: const ValueKey('ordering-clear-cart'),
                           onPressed: () async {
-                            final clear = await _confirmClear(sheetContext);
+                            final clear = await _confirmClear(context);
                             if (clear != true || !mounted) return;
-                            setState(_quantities.clear);
-                            if (sheetContext.mounted) {
-                              Navigator.pop(sheetContext);
-                            }
+                            setState(() {
+                              _quantities.clear();
+                              _cartPanelOpen = false;
+                            });
                           },
                           icon: const Icon(
                             Icons.delete_outline_rounded,
-                            size: 18,
+                            size: 21,
                           ),
-                          label: const Text('清空'),
+                          label: const Text('清空购物袋'),
                           style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF32261B),
+                            foregroundColor: const Color(0xFF2C2218),
+                            textStyle: const TextStyle(fontSize: 15),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      itemCount: selected.length,
-                      separatorBuilder: (_, _) => const Divider(
-                        height: 1,
-                        indent: 76,
-                        color: Color(0xFF28231E),
-                      ),
-                      itemBuilder: (context, index) {
-                        final product = selected[index];
-                        final quantity = _quantities[product.id] ?? 0;
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(3),
-                                child: Image.asset(
-                                  product.asset,
-                                  width: 52,
-                                  height: 52,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      product.name,
-                                      style: const TextStyle(
-                                        color: Color(0xFFE5DACD),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    Text(
-                                      '¥${product.price}',
-                                      style: const TextStyle(
-                                        color: Color(0xFFFFB400),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              _QuantityControl(
-                                productId: 'sheet-${product.id}',
-                                quantity: quantity,
-                                canDecrease: _canEdit,
-                                canIncrease:
-                                    _canEdit && quantity < product.limit,
-                                onDecrease: () {
-                                  _changeQuantity(product, -1);
-                                  setSheetState(() {});
-                                  if ((_quantities[product.id] ?? 0) == 0 &&
-                                      _itemCount == 0) {
-                                    Navigator.pop(sheetContext);
-                                  }
-                                },
-                                onIncrease: () {
-                                  _changeQuantity(product, 1);
-                                  setSheetState(() {});
-                                },
-                              ),
-                            ],
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF090806),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Column(
+                      children: [
+                        for (var index = 0; index < selected.length; index++)
+                          _buildCartPanelItem(
+                            selected[index],
+                            showDivider: index < selected.length - 1,
                           ),
-                        );
-                      },
+                      ],
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+                  const SizedBox(height: 10),
+                  Container(
+                    height: 68,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xAAC9B69E),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
                     child: Row(
                       children: [
                         const Text(
-                          '合计（预估）',
-                          style: TextStyle(color: Color(0xFF9C9186)),
+                          '商品总价',
+                          style: TextStyle(
+                            color: Color(0xFF181205),
+                            fontSize: 17,
+                          ),
                         ),
                         const Spacer(),
                         Text(
-                          '¥$_total',
+                          '¥ ${_total.toStringAsFixed(0)}.00',
                           style: const TextStyle(
-                            color: Color(0xFFFFB400),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 20,
+                            color: Color(0xFF181205),
+                            fontSize: 18,
                           ),
                         ),
                       ],
                     ),
                   ),
+                  const Spacer(),
                 ],
               ),
             ),
-          );
-        },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCartPanelItem(
+    _OrderingProduct product, {
+    required bool showDivider,
+  }) {
+    final quantity = _quantities[product.id] ?? 0;
+    return Container(
+      height: 112,
+      decoration: BoxDecoration(
+        border: showDivider
+            ? const Border(
+                bottom: BorderSide(color: Color(0xFF2A251F), width: .8),
+              )
+            : null,
+      ),
+      child: Row(
+        children: [
+          const _LegacySelectionMark(selected: true),
+          const SizedBox(width: 8),
+          Image.asset(
+            product.asset,
+            width: 58,
+            height: 88,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFE8DED1),
+                    fontSize: 16,
+                    height: 1.15,
+                  ),
+                ),
+                Text(
+                  product.englishName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF94826C),
+                    fontSize: 12,
+                    height: 1.25,
+                  ),
+                ),
+                Text(
+                  product.specs,
+                  style: const TextStyle(
+                    color: Color(0xFF94826C),
+                    fontSize: 12,
+                    height: 1.25,
+                  ),
+                ),
+                Text(
+                  '¥ ${product.price}',
+                  style: const TextStyle(
+                    color: Color(0xFFE2D7C8),
+                    fontSize: 16,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _QuantityControl(
+            productId: 'sheet-${product.id}',
+            quantity: quantity,
+            canDecrease: _canEdit,
+            canIncrease: _canEdit && quantity < product.limit,
+            onDecrease: () {
+              _changeQuantity(product, -1);
+              if (_itemCount == 0) {
+                setState(() => _cartPanelOpen = false);
+              }
+            },
+            onIncrease: () => _changeQuantity(product, 1),
+          ),
+        ],
       ),
     );
   }
@@ -990,7 +1095,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1713),
         title: const Text('清空购物袋？'),
-        content: const Text('只会清理当前门店和桌位的 Fake 草稿。'),
+        content: const Text('只会清理当前门店和桌位的已选商品。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -1015,7 +1120,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
           shrinkWrap: true,
           children: [
             const ListTile(
-              title: Text('点单页 Fake 场景'),
+              title: Text('点单页验收场景'),
               subtitle: Text('仅用于 UI 验收，长按门店区域再次打开'),
             ),
             for (final scenario in ScanOrderingScenario.values)
@@ -1040,11 +1145,11 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       _scenario = selected;
       if (selected == ScanOrderingScenario.restoredDraft &&
           _quantities.isEmpty) {
-        _quantities['champagne'] = 1;
-        _quantities['fruit'] = 1;
+        _quantities['hennessy-xo'] = 1;
+        _quantities['chivas-12'] = 1;
       }
       if (selected == ScanOrderingScenario.limitReached) {
-        _quantities['champagne'] = 2;
+        _quantities['hennessy-xo'] = 2;
       }
     });
   }
@@ -1062,13 +1167,36 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   };
 }
 
+class _LegacySelectionMark extends StatelessWidget {
+  const _LegacySelectionMark({required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected ? const Color(0xFFC9B69E) : Colors.black,
+        border: Border.all(color: const Color(0xFFC9B69E), width: 1.5),
+      ),
+      child: selected
+          ? const Icon(Icons.check_rounded, size: 15, color: Color(0xFF211910))
+          : null,
+    );
+  }
+}
+
 class _OrderingProduct {
   const _OrderingProduct({
     required this.id,
     required this.category,
     required this.subcategory,
     required this.name,
-    required this.detail,
+    required this.englishName,
+    required this.specs,
     required this.price,
     required this.originalPrice,
     required this.asset,
@@ -1079,7 +1207,8 @@ class _OrderingProduct {
   final String category;
   final String subcategory;
   final String name;
-  final String detail;
+  final String englishName;
+  final String specs;
   final int price;
   final int originalPrice;
   final String asset;
@@ -1116,11 +1245,11 @@ class _QuantityControl extends StatelessWidget {
             onTap: onDecrease,
           ),
           SizedBox(
-            width: 30,
+            width: 27,
             child: Text(
               '$quantity',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFFE0D4C5), fontSize: 14),
+              style: const TextStyle(color: Color(0xFFE0D4C5), fontSize: 13),
             ),
           ),
         ],
@@ -1159,8 +1288,8 @@ class _RoundQuantityButton extends StatelessWidget {
         onTap: enabled ? onTap : null,
         customBorder: const CircleBorder(),
         child: Container(
-          width: 28,
-          height: 28,
+          width: filled ? 25 : 23,
+          height: filled ? 25 : 23,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: filled
@@ -1170,16 +1299,16 @@ class _RoundQuantityButton extends StatelessWidget {
                 ? null
                 : Border.all(
                     color: enabled
-                        ? const Color(0xFFC9B69E)
+                        ? const Color(0xFFFFB400)
                         : const Color(0xFF39332D),
                   ),
           ),
           child: Icon(
             icon,
-            size: 17,
+            size: 16,
             color: filled
                 ? (enabled ? Colors.black : const Color(0xFF6D655E))
-                : (enabled ? legacyGold : const Color(0xFF6D655E)),
+                : (enabled ? const Color(0xFFFFB400) : const Color(0xFF6D655E)),
           ),
         ),
       ),

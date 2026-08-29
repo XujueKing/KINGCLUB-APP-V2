@@ -5,7 +5,7 @@
 | `initialLoading` | 标题、日期与卡片骨架，禁用操作 |
 | `readyAvailable` | 日期、可订套餐、推荐入口 |
 | `readyWithPendingPayment` | 顶部待支付卡；同日新订禁用 |
-| `readyWithConfirmed` | 顶部已确认卡；同日新订禁用 |
+| `readyWithConfirmed` | 顶部旧版紫色定位卡；整卡进入二维码凭证页；同日新订禁用 |
 | `salesNotOpen` | 开售时间说明，无购买按钮 |
 | `salesClosed` | 截止说明与其他日期入口 |
 | `emptyNoSession` | 当日无 AA 场次 |

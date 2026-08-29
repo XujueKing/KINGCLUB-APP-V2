@@ -227,7 +227,7 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
                           onPressed: () => _showRules(context),
                           child: const Text(
                             '查看',
-                            style: TextStyle(color: legacyPink),
+                            style: TextStyle(color: legacyGold),
                           ),
                         ),
                       ],
@@ -543,7 +543,7 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
                   index == selected
                       ? Icons.radio_button_checked_rounded
                       : Icons.radio_button_off_rounded,
-                  color: index == selected ? legacyPink : legacyGold,
+                  color: legacyGold,
                 ),
                 onTap: () => Navigator.pop(context, index),
               ),
@@ -575,7 +575,7 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
       _scenario = VipPartyCreateScenario.ready;
       _termsAccepted = false;
     });
-    showFakeResult(context, 'Fake 报价已刷新');
+    showFakeResult(context, '报价已刷新');
   }
 
   Future<void> _submit() async {
@@ -586,21 +586,18 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
     if (_scenario == VipPartyCreateScenario.resultUnknown) {
       await _resultDialog(
         title: '创建结果确认中',
-        message: '网络响应中断，已保留原幂等键并进行 Fake 对账；不会重复创建。',
+        message: '网络响应中断，系统正在确认创建结果；请勿重复提交，不会重复创建。',
       );
       return;
     }
     if (_hostDue == 0) {
-      await _resultDialog(
-        title: 'Fake 组局创建成功',
-        message: '本地 Fake 组局已确认，当前实付 ¥0.00，没有拉起支付。',
-      );
+      await _resultDialog(title: '组局创建成功', message: '组局席位已确认，当前实付 ¥0.00，无需支付。');
       return;
     }
     await _resultDialog(
-      title: '已生成 Fake 待支付意图',
+      title: '待支付订单已生成',
       message:
-          '局长待支付 ¥${_hostDue.toStringAsFixed(2)}，席位模拟保留 10 分钟。\n\n真实支付尚未接入，本次不会扣款，也不会显示已付款。',
+          '局长待支付 ¥${_hostDue.toStringAsFixed(2)}，席位将保留 10 分钟，请在有效期内完成支付；支付成功前不会标记为已付款。',
     );
   }
 
@@ -617,7 +614,7 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('知道了', style: TextStyle(color: legacyPink)),
+            child: const Text('知道了', style: TextStyle(color: legacyGold)),
           ),
         ],
       ),
@@ -663,7 +660,7 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
                   option == _scenario
                       ? Icons.radio_button_checked_rounded
                       : Icons.radio_button_off_rounded,
-                  color: option == _scenario ? legacyPink : legacyGold,
+                  color: legacyGold,
                 ),
                 onTap: () => Navigator.pop(context, option),
               ),

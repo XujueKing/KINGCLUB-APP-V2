@@ -13,5 +13,6 @@
 - [x] 离线可信缓存展示版本和生效日期，缓存过期拒绝展示正文
 - [x] 无效 DocumentRef 与目录加载失败不会替换为空白法律正文
 - [x] 会话失效清理临时引用，不执行 HTML、任意 scheme 或真实外链
+- [x] 目录、阅读和重试页面使用正式发布占位文案，不在正常路径展示 Fake、Mock 或测试阶段说明
 
 设备证据：[Android 关于与法律页](screenshots/android_about_legal_v2.png)。自动化证据：`test/about_legal_flow_test.dart` 9 项；项目全量 172 项通过，`flutter analyze` 无问题。

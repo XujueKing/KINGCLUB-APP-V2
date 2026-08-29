@@ -5,8 +5,8 @@
 - 所属功能：[会员注册、资料初始化与准入](../../README.md)
 - 旧版来源：`regist4`
 - 路由语义：`StyleMusicPreferencesRoute`
-- 设计版本：`Onboarding Wireframe v1 / Step 3`
-- 最后更新：2026-08-25
+- 设计版本：`Onboarding Wireframe v1 / Step 3 / Pill Actions`
+- 最后更新：2026-08-28
 
 ## 用户任务
 
@@ -41,6 +41,7 @@
 - 多选顺序不代表排名；V1 不设置最少/最多数量，服务端可返回受控上限。
 - 目录刷新后停用项不可新选；已失效选择以提示方式移除，不静默换成其他项。
 - 旧版 HOUSE、TECHNO、HIP-HOP 等仅作为 Fake 目录参考，最终文字由运营确认。
+- “下一步”主按钮使用完整胶囊圆角，与注册流程其他主操作保持一致。
 - 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)。
 
 ## 验收

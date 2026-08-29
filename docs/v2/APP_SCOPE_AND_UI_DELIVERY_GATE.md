@@ -1,6 +1,6 @@
 # App 范围、页面覆盖与 UI 交付门禁
 
-- 文档状态：`M1 Documentation Approved — UI Mock In Progress`
+- 文档状态：`M2 Change In Progress — Chat Extensions Added, Awaiting Revalidation`
 - 决策日期：2026-08-24
 - 作用：作为本期 Flutter App 是否允许进入 UI、是否允许真实接入的唯一覆盖账本
 
@@ -42,7 +42,7 @@
 
 ## 3. 当前覆盖状态
 
-旧版 69 个物理路由已经完成逐项审计，详见 [本期范围评审包](scope/README.md)。用户已于 2026-08-24 确认“46 个普通会员主体页面 + D4 私人储物柜 2 页”，本期共冻结 48 页。D1 完整群聊、D2 作品发布、D3 红包/金币转赠暂缓，角色后台与旧平台页面移出消费者 App。
+旧版 69 个物理路由已经完成逐项审计，详见 [本期范围评审包](scope/README.md)。用户已于 2026-08-24 确认“46 个普通会员主体页面 + D4 私人储物柜 2 页”，本期共冻结 48 页。2026-08-29 用户进一步确认在 KC-P-024 内恢复 D3 的红包、金币和礼物 UI/Mock，但不新增页面、不接真实资产交易；D1 完整群聊、D2 作品发布、D3 真实交易仍暂缓，角色后台与旧平台页面移出消费者 App。
 
 | 业务域 | 当前事实 | 下一文档动作 |
 |---|---|---|
@@ -50,7 +50,7 @@
 | identity/login | 9 页已冻结并批准；4 个登录页与 5 个会员准入页 UI Mock 均已进入实现 | 补全 AUTH/ONB 全部异常状态与多尺寸验收 |
 | home | 首页旧版 UI 与五 Tab 复刻规范已批准；安全扫码仍为首页入口 | 开始复刻 UI；保持真实首页、相机和扫码接口阻断 |
 | social | 8 页已批准；通讯录进入 UI Mock 实现 | 继续好友申请与关系页面 UI；保持真实社交接口阻断 |
-| messaging | 会话、系统通知、稳定单聊共 5 页及实时传输 port 已批准 | 保持真实消息服务阻断；不得引入 D1 群管理 |
+| messaging | 会话、系统通知、稳定单聊共 5 页、实时传输 port 与聊天扩展 UI/Mock 已批准 | 补齐 KC-F-033 UI 与回归；保持真实消息/资产服务阻断，不得引入 D1 群管理 |
 | content | 短视频浏览 1 页已批准并进入 UI Mock 实现 | 保持真实内容/媒体能力阻断；不得引入 D2 发布 |
 | club | AA、VIP 组局、入场凭证与私人储物柜共 9 页均已批准 | 后续按 UI 批次实现；员工交付不纳入 |
 | commerce | 点单、确认、订单中心、详情和支付共 5 页已批准 | 保持真实订单/支付能力阻断，等待全局门禁 |
@@ -60,9 +60,11 @@
 
 M0 范围与 M1 文档全局门禁已经完成；Flutter UI/Mock 已于 2026-08-26 开始，真实接入仍保持 `Blocked`。
 
+截至 2026-08-29，冻结范围 48/48 页均已达到 `UI Mock Implemented`，J01～J07 已完成自动化与 Android 真机阶段验收；追加的五阶段技术验收已完成 294/294 自动化、200% 字体和系统返回复验，没有剩余 P0/P1/P2 UI 阻断项。项目已达到用户 `UI Flow Approved` 决策的技术前置条件，但尚未获得用户明确批准，因此所有真实接入继续保持 `Blocked`。证据见 [2026-08-29 全局 UI 收口审计](../features/foundation/feature_mock_runtime/audit/2026-08-29-global-closure/README.md)与[五阶段 UI 验收](../features/foundation/feature_mock_runtime/audit/2026-08-29-ui-flow-approval/README.md)。
+
 ## 4. M0 冻结功能覆盖账本
 
-以下 32 项全部为 `inReleaseScope=true`，并已建立独立目录。功能状态不等同于页面状态；只有功能与其名下全部页面均批准后，才计入 M1 完成。
+以下 33 项全部为 `inReleaseScope=true`，并已建立独立目录。功能状态不等同于页面状态；只有功能与其名下全部页面均批准后，才计入 M1 完成。
 
 | Scope ID | 业务域 | 独立功能文档 | docStatus |
 |---|---|---|---|
@@ -98,6 +100,7 @@ M0 范围与 M1 文档全局门禁已经完成；Flutter UI/Mock 已于 2026-08-
 | KC-F-030 | membership_wallet | [资产流水](../features/membership_wallet/feature_asset_ledger/README.md) | Approved for Development |
 | KC-F-031 | profile_settings | [个人中心](../features/profile_settings/feature_profile_center/README.md) | Approved for Development |
 | KC-F-032 | profile_settings | [设置与安全](../features/profile_settings/feature_settings_security/README.md) | Approved for Development |
+| KC-F-033 | messaging | [聊天扩展面板与礼物 Mock](../features/messaging/feature_chat_extensions/README.md) | Approved for Development |
 
 ## 5. M0 冻结页面覆盖账本
 
@@ -105,15 +108,15 @@ M0 范围与 M1 文档全局门禁已经完成；Flutter UI/Mock 已于 2026-08-
 
 | Scope ID | 业务域 | 功能文档 | 页面文档 | docStatus | designVersion | mockScenarios | uiStatus | integrationStatus |
 |---|---|---|---|---|---|---|---|---|
-| KC-P-001 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [启动鉴权页](../features/identity/feature_login_session/pages/page_auth_bootstrap/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | In Progress | Blocked |
-| KC-P-002 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [手机号登录页](../features/identity/feature_login_session/pages/page_mobile_login/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | In Progress | Blocked |
-| KC-P-003 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [验证码页](../features/identity/feature_login_session/pages/page_sms_verification/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | In Progress | Blocked |
-| KC-P-004 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [协议确认页](../features/identity/feature_login_session/pages/page_terms_consent/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | In Progress | Blocked |
-| KC-P-005 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [实名与成年核验页](../features/identity/feature_member_onboarding/pages/page_real_name_adult_verification/README.md) | Approved for Development | Onboarding Wireframe v1 / Step 1 | ONB-M02～04、13～15 | In Progress | Blocked |
-| KC-P-006 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [会员形象资料页](../features/identity/feature_member_onboarding/pages/page_membership_image_submission/README.md) | Approved for Development | Onboarding Wireframe v1 / Step 2 | ONB-M05～06、11、13 | In Progress | Blocked |
-| KC-P-007 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [着装与音乐偏好页](../features/identity/feature_member_onboarding/pages/page_style_music_preferences/README.md) | Approved for Development | Onboarding Wireframe v1 / Step 3 | ONB-M07～08、13～15 | In Progress | Blocked |
-| KC-P-008 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [酒类与活动偏好页](../features/identity/feature_member_onboarding/pages/page_drink_event_preferences/README.md) | Approved for Development | Onboarding Wireframe v1 / Step 4 | ONB-M07～09、13～15 | In Progress | Blocked |
-| KC-P-009 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [会员审核状态页](../features/identity/feature_member_onboarding/pages/page_membership_review_status/README.md) | Approved for Development | Onboarding Wireframe v1 / Review | ONB-M10～14 | In Progress | Blocked |
+| KC-P-001 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [启动鉴权页](../features/identity/feature_login_session/pages/page_auth_bootstrap/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | UI Mock Implemented | Blocked |
+| KC-P-002 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [手机号登录页](../features/identity/feature_login_session/pages/page_mobile_login/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | UI Mock Implemented | Blocked |
+| KC-P-003 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [验证码页](../features/identity/feature_login_session/pages/page_sms_verification/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | UI Mock Implemented | Blocked |
+| KC-P-004 | identity | [feature_login_session](../features/identity/feature_login_session/README.md) | [协议确认页](../features/identity/feature_login_session/pages/page_terms_consent/README.md) | Approved for Development | Auth Wireframe v1 | 已定义（页面文档） | UI Mock Implemented | Blocked |
+| KC-P-005 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [实名与成年核验页](../features/identity/feature_member_onboarding/pages/page_real_name_adult_verification/README.md) | Approved for Development | Onboarding Wireframe v1 / Step 1 | ONB-M02～04、13～15 已自动化覆盖 | UI Mock Implemented | Blocked |
+| KC-P-006 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [会员形象资料页](../features/identity/feature_member_onboarding/pages/page_membership_image_submission/README.md) | Approved for Development | Onboarding Wireframe v1 / Step 2 | ONB-M05～06、11、13 | UI Mock Implemented | Blocked |
+| KC-P-007 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [着装与音乐偏好页](../features/identity/feature_member_onboarding/pages/page_style_music_preferences/README.md) | Approved for Development | Onboarding Wireframe v1 / Step 3 | ONB-M07～08、13～15 | UI Mock Implemented | Blocked |
+| KC-P-008 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [酒类与活动偏好页](../features/identity/feature_member_onboarding/pages/page_drink_event_preferences/README.md) | Approved for Development | Onboarding Wireframe v1 / Step 4 | ONB-M07～09、13～15 | UI Mock Implemented | Blocked |
+| KC-P-009 | identity | [feature_member_onboarding](../features/identity/feature_member_onboarding/README.md) | [会员审核状态页](../features/identity/feature_member_onboarding/pages/page_membership_review_status/README.md) | Approved for Development | Onboarding Wireframe v1 / Review | ONB-M10～14 | UI Mock Implemented | Blocked |
 | KC-P-010 | foundation | [feature_app_shell](../features/foundation/feature_app_shell/README.md) | [App Shell/底部导航容器](../features/foundation/feature_app_shell/pages/page_app_shell/README.md) | Approved for Development | Legacy Shell Replica v1 | SHELL-M01～M12 | UI Mock Implemented | Blocked |
 | KC-P-011 | home | [feature_home_hub](../features/home/feature_home_hub/README.md) | [首页](../features/home/feature_home_hub/pages/page_home/README.md) | Approved for Development | Legacy Home Replica v1 / Component Content v1 | HOME-M01～M14 已自动化覆盖 | UI Mock Implemented | Blocked |
 | KC-P-012 | home | [feature_safe_scanner](../features/home/feature_safe_scanner/README.md) | [扫码识别与安全分流页](../features/home/feature_safe_scanner/pages/page_safe_scanner/README.md) | Approved for Development | Safe Scanner Wireframe v1 | SCAN-M01～M16 已自动化覆盖 | UI Mock Implemented | Blocked |
@@ -134,15 +137,15 @@ M0 范围与 M1 文档全局门禁已经完成；Flutter UI/Mock 已于 2026-08-
 | KC-P-027 | club | [feature_aa_reservation](../features/club/feature_aa_reservation/README.md) | [一起玩 AA 预订页](../features/club/feature_aa_reservation/pages/page_aa_reservations/README.md) | Approved for Development | AA Reservation Legacy Replica v2 / Landing | AA-M01～M05、M08、M16～M20 已自动化与 Android 验收 | UI Mock Implemented | Blocked |
 | KC-P-028 | club | [feature_aa_reservation](../features/club/feature_aa_reservation/README.md) | [AA 卡座套餐详情页](../features/club/feature_aa_reservation/pages/page_aa_package_detail/README.md) | Approved for Development | AA Reservation Legacy Replica v2 / Package | AA-M06～M08、M17～M20 已自动化与 Android 验收 | UI Mock Implemented | Blocked |
 | KC-P-029 | club | [feature_aa_reservation](../features/club/feature_aa_reservation/README.md) | [AA 确认订单页](../features/club/feature_aa_reservation/pages/page_aa_order_confirmation/README.md) | Approved for Development | AA Reservation Legacy Replica v2 / Confirmation | AA-M09～M20 已自动化与 Android 验收 | UI Mock Implemented | Blocked |
-| KC-P-030 | club | [feature_vip_party](../features/club/feature_vip_party/README.md) | [VIP 组局列表/详情页](../features/club/feature_vip_party/pages/page_vip_party_detail/README.md) | Approved for Development | VIP Party Legacy Replica v2 / Browse | PARTY-M01～M09、M21～M24 | In Progress | Blocked |
-| KC-P-031 | club | [feature_vip_party](../features/club/feature_vip_party/README.md) | [VIP 组局创建页](../features/club/feature_vip_party/pages/page_vip_party_create/README.md) | Approved for Development | VIP Party Legacy Replica v2 / Create | PARTY-M10～M15、M22～M24 | In Progress | Blocked |
-| KC-P-032 | club | [feature_vip_party](../features/club/feature_vip_party/README.md) | [局长组局管理页](../features/club/feature_vip_party/pages/page_vip_party_management/README.md) | Approved for Development | VIP Party Wireframe v1 / Management | PARTY-M16～M24 | Not Started | Blocked |
-| KC-P-033 | club | [feature_admission_ticket](../features/club/feature_admission_ticket/README.md) | [入场凭证页](../features/club/feature_admission_ticket/pages/page_admission_ticket/README.md) | Approved for Development | Admission Credential Wireframe v1 | TICKET-M01～M20 | Not Started | Blocked |
-| KC-P-034 | commerce | [feature_scan_ordering](../features/commerce/feature_scan_ordering/README.md) | [扫码点单商品/购物车页](../features/commerce/feature_scan_ordering/pages/page_scan_ordering_cart/README.md) | Approved for Development | Scan Ordering Wireframe v1 / Cart | ORDERING-M01～M12、M19～M20 | Not Started | Blocked |
-| KC-P-035 | commerce | [feature_scan_ordering](../features/commerce/feature_scan_ordering/README.md) | [点单确认页](../features/commerce/feature_scan_ordering/pages/page_scan_order_confirmation/README.md) | Approved for Development | Scan Ordering Wireframe v1 / Confirmation | ORDERING-M11～M20 | Not Started | Blocked |
-| KC-P-036 | commerce | [feature_order_center](../features/commerce/feature_order_center/README.md) | [订单中心页](../features/commerce/feature_order_center/pages/page_order_center/README.md) | Approved for Development | Order Center Wireframe v1 / List | ORDERS-M01～M06、M16～M18 | Not Started | Blocked |
-| KC-P-037 | commerce | [feature_order_center](../features/commerce/feature_order_center/README.md) | [订单详情页](../features/commerce/feature_order_center/pages/page_order_detail/README.md) | Approved for Development | Order Center Wireframe v1 / Detail | ORDERS-M07～M18 | Not Started | Blocked |
-| KC-P-038 | commerce | [feature_payment](../features/commerce/feature_payment/README.md) | [支付处理与结果页](../features/commerce/feature_payment/pages/page_payment_result/README.md) | Approved for Development | Payment Wireframe v1 | PAY-M01～M20 | Not Started | Blocked |
+| KC-P-030 | club | [feature_vip_party](../features/club/feature_vip_party/README.md) | [VIP 组局列表/详情页](../features/club/feature_vip_party/pages/page_vip_party_detail/README.md) | Approved for Development | VIP Party Legacy Replica v2 / Browse | PARTY-M01～M09、M21～M24 已自动化与 Android 真机验收 | UI Mock Implemented | Blocked |
+| KC-P-031 | club | [feature_vip_party](../features/club/feature_vip_party/README.md) | [VIP 组局创建页](../features/club/feature_vip_party/pages/page_vip_party_create/README.md) | Approved for Development | VIP Party Legacy Replica v2 / Create | PARTY-M10～M15、M22～M24 已自动化验收 | UI Mock Implemented | Blocked |
+| KC-P-032 | club | [feature_vip_party](../features/club/feature_vip_party/README.md) | [局长组局管理页](../features/club/feature_vip_party/pages/page_vip_party_management/README.md) | Approved for Development | Legacy Replica v2 / Consumer Host Management | PARTY-M16～M24 已自动化与 Android 真机验收 | UI Mock Implemented | Blocked |
+| KC-P-033 | club | [feature_admission_ticket](../features/club/feature_admission_ticket/README.md) | [入场凭证页](../features/club/feature_admission_ticket/pages/page_admission_ticket/README.md) | Approved for Development | Legacy Ticket Replica v2 / Dynamic Credential | TICKET-M01～M20 已自动化与 Android 真机验收 | UI Mock Implemented | Blocked |
+| KC-P-034 | commerce | [feature_scan_ordering](../features/commerce/feature_scan_ordering/README.md) | [扫码点单商品/购物车页](../features/commerce/feature_scan_ordering/pages/page_scan_ordering_cart/README.md) | Approved for Development | Legacy Shoping Replica v2 / Cart | ORDERING-M01～M12、M19～M20 已自动化与 Android 真机验收 | UI Mock Implemented | Blocked |
+| KC-P-035 | commerce | [feature_scan_ordering](../features/commerce/feature_scan_ordering/README.md) | [点单确认页](../features/commerce/feature_scan_ordering/pages/page_scan_order_confirmation/README.md) | Approved for Development | Legacy Shoping2 Replica v2 / Confirmation | ORDERING-M11～M20 已自动化与 Android 真机验收 | UI Mock Implemented | Blocked |
+| KC-P-036 | commerce | [feature_order_center](../features/commerce/feature_order_center/README.md) | [订单中心页](../features/commerce/feature_order_center/pages/page_order_center/README.md) | Approved for Development | Legacy Orders Consolidation v2 / List | ORDERS-M01～M06、M16～M18 已自动化与 Android 真机验收 | UI Mock Implemented | Blocked |
+| KC-P-037 | commerce | [feature_order_center](../features/commerce/feature_order_center/README.md) | [订单详情页](../features/commerce/feature_order_center/pages/page_order_detail/README.md) | Approved for Development | Legacy Order Detail v2 / Fake Flow | ORDERS-M07～M18 已自动化与 Android 真机验收 | UI Mock Implemented | Blocked |
+| KC-P-038 | commerce | [feature_payment](../features/commerce/feature_payment/README.md) | [支付处理与结果页](../features/commerce/feature_payment/pages/page_payment_result/README.md) | Approved for Development | Legacy Payment Result v2 / Fake Orchestration | PAY-M01～M20 已自动化与 Android 真机验收 | UI Mock Implemented | Blocked |
 | KC-P-039 | membership_wallet | [feature_asset_ledger](../features/membership_wallet/feature_asset_ledger/README.md) | [钱包与资产流水页](../features/membership_wallet/feature_asset_ledger/pages/page_asset_ledger/README.md) | Approved for Development | Legacy Asset Ledger Replica v2 / Read-only Fake Flow | ASSET-M01～M20 | UI Mock Implemented | Blocked |
 | KC-P-040 | profile_settings | [feature_profile_center](../features/profile_settings/feature_profile_center/README.md) | [我的主页](../features/profile_settings/feature_profile_center/pages/page_my_profile/README.md) | Approved for Development | Legacy My Profile Replica v1 | PROFILE-M01～M04、M16～M18 | UI Mock Implemented | Blocked |
 | KC-P-041 | profile_settings | [feature_profile_center](../features/profile_settings/feature_profile_center/README.md) | [编辑个人资料页](../features/profile_settings/feature_profile_center/pages/page_edit_profile/README.md) | Approved for Development | Legacy Edit Profile Replica v2 / Complete Fake Flow | PROFILE-M05～M12、M16～M18 | UI Mock Implemented | Blocked |
@@ -151,8 +154,8 @@ M0 范围与 M1 文档全局门禁已经完成；Flutter UI/Mock 已于 2026-08-
 | KC-P-044 | profile_settings | [feature_settings_security](../features/profile_settings/feature_settings_security/README.md) | [支付安全页](../features/profile_settings/feature_settings_security/pages/page_payment_security/README.md) | Approved for Development | Settings Wireframe v1 / Payment PIN | SETTINGS-M07～M12、M22 | UI Mock Implemented | Blocked |
 | KC-P-045 | profile_settings | [feature_settings_security](../features/profile_settings/feature_settings_security/README.md) | [账号注销页](../features/profile_settings/feature_settings_security/pages/page_account_deletion/README.md) | Approved for Development | Settings Wireframe v1 / Deletion | SETTINGS-M13～M18、M22 | UI Mock Implemented | Blocked |
 | KC-P-046 | profile_settings | [feature_settings_security](../features/profile_settings/feature_settings_security/README.md) | [关于与法律文档页](../features/profile_settings/feature_settings_security/pages/page_about_legal/README.md) | Approved for Development | Settings Wireframe v1 / About & Legal | SETTINGS-M19～M22 | UI Mock Implemented | Blocked |
-| KC-P-047 | club | [feature_private_storage](../features/club/feature_private_storage/README.md) | [私人储物柜页](../features/club/feature_private_storage/pages/page_private_storage/README.md) | Approved for Development | Private Storage Wireframe v1 / List | STORAGE-M01～M07 | Not Started | Blocked |
-| KC-P-048 | club | [feature_private_storage](../features/club/feature_private_storage/README.md) | [存酒/物品取件码页](../features/club/feature_private_storage/pages/page_storage_pickup_code/README.md) | Approved for Development | Private Storage Wireframe v1 / Pickup | STORAGE-M08～M16 | Not Started | Blocked |
+| KC-P-047 | club | [feature_private_storage](../features/club/feature_private_storage/README.md) | [私人储物柜页](../features/club/feature_private_storage/pages/page_private_storage/README.md) | Approved for Development | Private Storage Legacy Replica v1 / List | STORAGE-M01～M07 已自动化与 Android 真机验收 | UI Mock Implemented | Blocked |
+| KC-P-048 | club | [feature_private_storage](../features/club/feature_private_storage/README.md) | [存酒/物品取件码页](../features/club/feature_private_storage/pages/page_storage_pickup_code/README.md) | Approved for Development | Private Storage Wireframe v1 / Pickup | STORAGE-M08～M16 已自动化与 Android 真机验收 | UI Mock Implemented | Blocked |
 
 ## 6. 进入 UI 的全局条件
 

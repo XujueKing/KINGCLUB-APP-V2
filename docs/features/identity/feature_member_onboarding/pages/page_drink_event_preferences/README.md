@@ -5,8 +5,8 @@
 - 所属功能：[会员注册、资料初始化与准入](../../README.md)
 - 旧版来源：`regist5`
 - 路由语义：`DrinkEventPreferencesRoute`
-- 设计版本：`Onboarding Wireframe v1 / Step 4`
-- 最后更新：2026-08-25
+- 设计版本：`Onboarding Wireframe v1 / Step 4 / Pill Actions`
+- 最后更新：2026-08-28
 
 ## 用户任务
 
@@ -41,8 +41,11 @@
 - 两个提交按钮共用单一 SingleFlight 和 idempotencyKey；按钮 loading 保持原宽度。
 - 提交前服务端检查实名、两张图片、目录版本和申请状态；客户端不自行宣布完整。
 - 不因酒类选择推导饮酒资格；成年结论来自实名核验，所有页面仍遵循理性饮酒文案。
+- “提交会员申请”主按钮使用完整胶囊圆角，与 Step 1～3 的主操作保持一致。
 - 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)。
 
 ## 验收
+
+UI Mock 的状态流转说明必须位于“提交会员申请”和“跳过偏好并提交”两个正式操作之后，不得插入偏好选择与主按钮之间。
 
 见 [acceptance.md](acceptance.md)。当前只实现 Fake 提交与审核跳转，不得调用真实提交接口。

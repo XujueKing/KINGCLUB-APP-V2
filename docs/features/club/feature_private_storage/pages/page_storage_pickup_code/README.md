@@ -4,7 +4,7 @@
 - 文档状态：`Approved for Development`
 - 批准日期：2026-08-26
 - 所属功能：[私人储物柜](../../README.md)
-- 路由：`StoragePickupCodeRoute`，`/me/storage/pickup`，`$extra: StorageItemRef`
+- 页面入口：由私人储物柜页通过受控页面内导航打开；当前不注册独立 GoRouter 路由
 - 设计版本：`Private Storage Wireframe v1 / Pickup`
 
 ```text
@@ -15,3 +15,11 @@
 ```
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。
+
+## 2026-08-29 J07 全局流程验收补充
+
+- 取件页长按标题仅在 Preview/UI 验收构建中打开本地场景选择器；正式正常路径不显示测试入口或测试文案。
+- 场景选择器必须覆盖正常轮换、部分交付、已取出、暂停、离线、明确过期、重放拒绝和核验结果未知。
+- 明确过期、重放拒绝、结果未知、离线、暂停和已取出状态均不得保留可扫描图案。
+- 后台立即遮盖当前图案，回前台签发新一代 Fake 凭证；不得恢复后台前的视觉码。
+- 重放拒绝只提示凭证已使用或失效并允许重新签发，不得再次减少剩余量或显示重复成功。

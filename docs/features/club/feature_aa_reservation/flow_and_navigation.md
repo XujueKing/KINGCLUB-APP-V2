@@ -14,7 +14,7 @@ Home / Order Center
   -> 确认规则 + 幂等提交
   -> pendingPayment + expiresAt
   -> PaymentRoute(PaymentIntentRef) [KC-P-038，待其批准]
-  -> OrderDetailRoute(OrderRef) / AdmissionTicketRoute(AdmissionRef)
+  -> OrderDetailRoute(OrderRef) / AaPositioningCardRoute(AdmissionRef)
 ```
 
 ## 返回与恢复
@@ -31,7 +31,7 @@ Home / Order Center
 | 权威状态 | 动作 |
 |---|---|
 | `pendingPayment` 且未过期 | 继续支付；若 KC-P-038 尚未批准，Mock 阶段展示“支付流程待开放” |
-| `confirmed` | 进入订单详情；到可入场时再进入 KC-P-033 |
+| `confirmed` | AA 列表直接显示旧版紫色定位卡；点击整卡进入 `AaPositioningCardRoute` |
 | `completed` | 进入订单详情只读 |
 | `expired | cancelled` | 显示结果与刷新入口，不占用当天名额 |
 | 未知新状态 | 安全只读，刷新/联系客服，不猜测动作 |
@@ -49,3 +49,4 @@ AdmissionRef     refId, generation, expiresAt?
 - 路由只传进程内不透明引用，不传日期、账号、性别、套餐 JSON、库存或金额。
 - 暂不开放外部深链。通知进入订单/票据时必须先通过业务 API 重读对象。
 - 下游页面未批准前，RouteIntent 只作为契约占位，不创建页面或通用成功页。
+- AA 定位凭证页只消费不透明 `AdmissionRef`；本地 Mock 使用固定投影，二维码内容不包含手机号、姓名或可复用生产凭据。

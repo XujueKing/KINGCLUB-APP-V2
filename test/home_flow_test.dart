@@ -153,7 +153,8 @@ void main() {
     final scrollable = find.byType(CustomScrollView);
     await tester.drag(scrollable, const Offset(0, -280));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(semanticsLabel('生日有礼'));
+    await tester.drag(scrollable, const Offset(0, -260));
+    await tester.pumpAndSettle();
     final controller = tester.widget<CustomScrollView>(scrollable).controller!;
     final before = controller.offset;
     await tester.tap(semanticsLabel('生日有礼'));
@@ -168,6 +169,9 @@ void main() {
   testWidgets('member variants use legacy images and stay bounded', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     bool asset(String name, Widget widget) =>
         widget is Image &&
         widget.image is AssetImage &&
@@ -195,6 +199,11 @@ void main() {
     final progressRect = tester.getRect(
       find.byKey(const ValueKey('home-member-progress')),
     );
+    final viewportWidth = MediaQuery.sizeOf(
+      tester.element(find.byType(HomePage)),
+    ).width;
+    expect(logoRect.width / viewportWidth, closeTo(140 / 750, .001));
+    expect(logoRect.height / logoRect.width, closeTo(213 / 400, .001));
     expect(progressRect.width / logoRect.width, closeTo(360 / 140, .01));
     expect(goldRect.width / logoRect.width, closeTo(120 / 140, .01));
     expect(goldRect.height / logoRect.width, closeTo(26 / 140, .01));
@@ -218,9 +227,61 @@ void main() {
     expect(find.text('9.9万'), findsOneWidget);
   });
 
+  testWidgets('member header shrinks and stays pinned while ads scroll', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(home());
+    await tester.pump();
+
+    const headerKey = ValueKey('home-member-persistent-header');
+    const logoKey = ValueKey('home-member-logo');
+    final expandedHeader = tester.getRect(find.byKey(headerKey));
+    final expandedLogo = tester.getRect(find.byKey(logoKey));
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
+    await tester.pumpAndSettle();
+
+    final compactHeader = tester.getRect(find.byKey(headerKey));
+    final compactLogo = tester.getRect(find.byKey(logoKey));
+    final shadowFinder = find.byKey(
+      const ValueKey('home-sticky-actions-shadow'),
+    );
+    final pinnedActions = tester.getRect(shadowFinder);
+    final shadow = tester.widget<Container>(shadowFinder);
+    expect(compactHeader.top, closeTo(expandedHeader.top, .1));
+    expect(compactHeader.height, lessThan(expandedHeader.height));
+    expect(compactLogo.width, lessThan(expandedLogo.width));
+    expect(compactLogo.bottom, lessThanOrEqualTo(compactHeader.bottom));
+    expect(pinnedActions.top, closeTo(compactHeader.bottom, .1));
+    expect((shadow.decoration! as BoxDecoration).boxShadow, isNotEmpty);
+    expect(find.text('一起玩'), findsOneWidget);
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -240));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(shadowFinder).top, closeTo(pinnedActions.top, .1));
+
+    tester
+        .widget<CustomScrollView>(find.byType(CustomScrollView))
+        .controller!
+        .jumpTo(0);
+    await tester.pump();
+    expect(
+      tester.getRect(find.byKey(headerKey)).height,
+      closeTo(expandedHeader.height, .1),
+    );
+    expect(
+      tester.getRect(find.byKey(logoKey)).width,
+      closeTo(expandedLogo.width, .1),
+    );
+  });
+
   testWidgets('loading empty partial offline and fatal states recover', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(home(state: HomeDemoState.initialLoading));
     await tester.pump();
     expect(find.byType(LinearProgressIndicator), findsWidgets);
@@ -240,7 +301,7 @@ void main() {
     await tester.pumpWidget(home(state: HomeDemoState.partialImageError));
     await tester.pump();
     expect(semanticsLabel('运营 Banner 加载失败'), findsOneWidget);
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -520));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
     await tester.pump();
     expect(semanticsLabel('生日有礼 图片加载失败'), findsOneWidget);
     tester
@@ -352,6 +413,55 @@ void main() {
       );
     },
   );
+
+  testWidgets('banner loops only to the left and rejects rightward paging', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(home());
+    await tester.pump();
+
+    final pages = find.byKey(const ValueKey('home-banner-pages'));
+    PageController controller() => tester.widget<PageView>(pages).controller!;
+
+    expect(controller().page, 10000);
+    expect(
+      find.byKey(const ValueKey('home-banner-original-recruitment')),
+      findsWidgets,
+    );
+    expect(
+      find.byKey(const ValueKey('home-banner-original-childrens-day')),
+      findsNothing,
+    );
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(controller().page, 10001);
+    expect(
+      find.byKey(const ValueKey('home-banner-original-childrens-day')),
+      findsWidgets,
+    );
+    expect(
+      find.byKey(const ValueKey('home-banner-indicator-1-true')),
+      findsOneWidget,
+    );
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(controller().page, 10002);
+    expect(
+      find.byKey(const ValueKey('home-banner-indicator-0-true')),
+      findsOneWidget,
+    );
+
+    await tester.drag(pages, const Offset(-240, 0));
+    await tester.pumpAndSettle();
+    expect(controller().page, 10003);
+
+    await tester.drag(pages, const Offset(240, 0));
+    await tester.pumpAndSettle();
+    expect(controller().page, 10003);
+  });
 
   for (final size in [
     const Size(360, 800),

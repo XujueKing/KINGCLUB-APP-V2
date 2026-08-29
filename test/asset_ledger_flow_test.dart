@@ -63,6 +63,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('asset-tab-order')));
     await tester.pump();
     expect(find.text('星光香槟套餐'), findsOneWidget);
+    expect(find.text('支出 ¥68.00 · 30枚  收入 ¥0.00'), findsOneWidget);
+    expect(find.textContaining('¥68.30'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('asset-tab-goldCoin')));
     await tester.pump();
@@ -73,6 +75,20 @@ void main() {
     await tester.pump();
     expect(find.text('会员等级奖励'), findsOneWidget);
     expect(find.text('+8 枚'), findsOneWidget);
+    expect(find.textContaining('¥'), findsNothing);
+  });
+
+  testWidgets('金币抵扣关联888号桌已支付订单', (tester) async {
+    FakeOrderRef? opened;
+    await tester.pumpWidget(subject(onOpenOrder: (value) => opened = value));
+
+    await tester.tap(find.byKey(const ValueKey('asset-tab-goldCoin')));
+    await tester.pump();
+    expect(find.text('-30 枚'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey('asset-entry-ledger-coin-spend')),
+    );
+    expect(opened?.opaqueId, 'order-scan-888-paid-0829');
   });
 
   testWidgets('未启用钻石时不显示假零占位', (tester) async {
@@ -117,7 +133,7 @@ void main() {
     expect(find.text('活动奖励冲正'), findsOneWidget);
   });
 
-  testWidgets('普通流水只在当前页展开 Fake 摘要', (tester) async {
+  testWidgets('普通流水只在当前页展开正式摘要', (tester) async {
     await tester.pumpWidget(
       subject(scenario: AssetLedgerScenario.ordinaryExpanded),
     );
@@ -126,7 +142,9 @@ void main() {
       find.byKey(const ValueKey('asset-entry-ledger-balance-refund')),
     );
     await tester.pump();
-    expect(find.text('退款已由 Fake 服务端确认入账。'), findsOneWidget);
+    expect(find.text('退款已确认并计入余额。'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
+    expect(find.textContaining('Mock'), findsNothing);
   });
 
   testWidgets('关联订单仅发出不透明 FakeOrderRef', (tester) async {
@@ -136,7 +154,7 @@ void main() {
     await tester.tap(
       find.byKey(const ValueKey('asset-entry-ledger-order-spend')),
     );
-    expect(opened?.opaqueId, 'order-scan-v8-0827');
+    expect(opened?.opaqueId, 'order-aa-v2-0826');
   });
 
   testWidgets('加载更多失败保留列表并可安全重试', (tester) async {

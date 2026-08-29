@@ -689,16 +689,21 @@ class _ContentDetails extends StatelessWidget {
         Semantics(
           button: true,
           label: muted ? '当前静音，点击开启声音' : '当前有声，点击静音',
-          child: FilledButton.tonalIcon(
-            onPressed: posterOnly ? null : onToggleMuted,
-            icon: Icon(
-              muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-            ),
-            label: Text(muted ? '静音' : '有声'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 44),
-              backgroundColor: Colors.black54,
-              foregroundColor: KingColors.textPrimary,
+          child: ExcludeSemantics(
+            child: IconButton.filledTonal(
+              key: const ValueKey('content-feed-audio-toggle'),
+              onPressed: posterOnly ? null : onToggleMuted,
+              icon: Icon(
+                muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+              ),
+              style: IconButton.styleFrom(
+                minimumSize: const Size.square(48),
+                padding: const EdgeInsets.all(12),
+                backgroundColor: Colors.black54,
+                foregroundColor: KingColors.textPrimary,
+                disabledBackgroundColor: Colors.black38,
+                disabledForegroundColor: KingColors.textSecondary,
+              ),
             ),
           ),
         ),

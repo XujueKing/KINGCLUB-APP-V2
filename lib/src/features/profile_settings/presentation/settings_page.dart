@@ -129,11 +129,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: const Text('注销登录'),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    '当前为离线 UI Mock，不会修改真实账号或系统设置。',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Color(0xFF554D44), fontSize: 11),
-                  ),
                 ],
               ),
             ),
@@ -153,7 +148,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return InkWell(
       key: ValueKey('settings-${entry.$1}'),
       borderRadius: BorderRadius.circular(28),
-      onTap: entry.$1 == 'cache' ? _clearCache : () => _openFakeChild(entry.$2),
+      onTap: entry.$1 == 'cache' ? _clearCache : () => _openChild(entry.$2),
       child: Container(
         constraints: const BoxConstraints(minHeight: 62),
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -194,7 +189,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _openFakeChild(String title) {
+  void _openChild(String title) {
     if (title == '通知权限') {
       _showNotificationStatus();
       return;
@@ -231,13 +226,11 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             Text(
               _scenario == SettingsScenario.notificationDisabled
-                  ? '系统通知：已关闭（Fake）'
-                  : '系统通知：已允许（Fake）',
+                  ? '系统通知已关闭'
+                  : '系统通知已允许',
             ),
             const SizedBox(height: 10),
             const Text('消息通知、活动提醒和订单状态最终由手机系统设置控制。'),
-            const SizedBox(height: 10),
-            const Text('当前不会读取或修改真实系统权限。'),
           ],
         ),
         actions: [
@@ -248,9 +241,9 @@ class _SettingsPageState extends State<SettingsPage> {
           FilledButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('UI Mock：未打开真实系统设置')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('请前往手机系统设置管理通知权限')));
             },
             child: const Text('打开系统设置'),
           ),
@@ -264,7 +257,7 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('清理缓存'),
-        content: Text('将清理 $_cache 本地 Fake 缓存，不影响账号资料。'),
+        content: Text('将清理 $_cache 本地缓存，不影响账号资料。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -280,7 +273,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (confirmed == true && mounted) {
       setState(() => _cache = '0 B');
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Fake 缓存已清理')));
+          .showSnackBar(const SnackBar(content: Text('缓存已清理')));
     }
   }
 
@@ -289,7 +282,7 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('确认注销登录？'),
-        content: const Text('UI Mock 不会清除真实登录信息。'),
+        content: const Text('退出后需要重新验证手机号才能登录。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -320,7 +313,7 @@ class _SettingsPageState extends State<SettingsPage> {
         );
       } else {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('已完成 Fake 注销流程')));
+            .showSnackBar(const SnackBar(content: Text('已退出登录')));
       }
       if (mounted) widget.onLogoutCompleted?.call();
     }

@@ -1,3 +1,21 @@
+# Design QA — Profile Asset Pills Equal Height v9
+
+- source visual truth: 用户当前会话提供的余额、金币、钻石与“我的订单”同排局部截图
+- implementation screenshot: `audit/2026-08-29-equal-pills/01-equal-height-pills.png`
+- viewport: Android emulator `1080 × 2400 px`，约 `432 × 960 dp`
+- state: 我的主页 / 动态 Tab / 四个资产入口同排
+- typography: 原有 14dp 字阶保留；“我的订单”继续以深色粗体强调，其他资产保持白色中等字重。
+- spacing and layout: 四个胶囊统一固定为 `34dp` 高，水平内边距同为 `11dp`，取消各自纵向 Padding 推导；宽度仅随内容变化。
+- colors: 三个资产入口保持半透明黑色，“我的订单”保持香槟金实底，未改变黑金主题。
+- image quality: 金币、钻石使用原始旧版 PNG；订单图标继续使用现有 Material 图标。
+- copy: `余额：¥ 0.00 / 50 / 0 / 我的订单` 保持不变。
+- automated evidence: widget test directly measured all four keyed controls at `34.0dp`.
+- findings: no actionable P0/P1/P2 mismatch remains in the requested row.
+
+final result: passed
+
+---
+
 # Design QA — Legacy My Profile Replica v1
 
 - 视觉真值：用户于 2026-08-26 提供的旧版“我的”完整首屏截图（580×1200，含设备框）
@@ -40,3 +58,28 @@
 - 新增 `my_profile_header_layout_test.dart`；当前页面专项测试 3/3 通过。
 
 final result: blocked
+
+## 2026-08-29 “我的订单”入口专项验收
+
+- 用户要求：在“我的”页面新增订单入口，点击进入现有订单中心。
+- 视觉位置：跟随余额、金币、钻石资产胶囊同行，不覆盖头图、统计、标签和作品页签。
+- 视觉规格：深色胶囊、香槟金订单图标、暖白文字，最小点击高度 `44dp`。
+- 真机证据：[1080×2400 完整返回链路](audit/2026-08-29-orders-entry/04-back-to-my.png)。
+- 交互结果：“我的 → 我的订单 → AA 订单详情 → 订单中心 → 我的”通路正常，返回后仍保持“我的”Tab。
+- 工程校验：入口专项测试、App Shell 8 项流程测试均通过；`flutter analyze` 0 问题。
+
+final result: passed
+
+---
+
+## 2026-08-29 内容页签箭头专项验收
+
+- source visual truth：用户在当前会话提供的“动态选中”与“作品选中”局部截图。
+- implementation screenshots：项目根目录 `.tmp-profile-tabs-dynamic-final.png`、`.tmp-profile-tabs-works-final.png`。
+- viewport：Android 模拟器 `1080 × 2400 px`。
+- 动态选中：`动态` 加粗并显示唯一的小箭头。
+- 作品选中：`作品` 加粗，三个页签均不显示箭头。
+- 相册状态由同一条件分支和自动化用例覆盖，选中时同样不显示箭头。
+- `test/app_smoke_test.dart` 已覆盖作品、动态、相册三次切换。
+
+final result: passed

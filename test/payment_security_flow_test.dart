@@ -52,6 +52,8 @@ void main() {
       '246810',
     );
     expect(find.byKey(const ValueKey('payment-pin-success')), findsOneWidget);
+    expect(find.text('新的支付 PIN 已生效，请妥善保管。'), findsOneWidget);
+    expect(find.textContaining('Mock'), findsNothing);
   });
 
   testWidgets('not-set status requires fake SMS verification first', (

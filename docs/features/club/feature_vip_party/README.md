@@ -35,7 +35,7 @@
 
 - [KC-P-030 VIP 组局列表/详情页](pages/page_vip_party_detail/README.md) — `Approved for Development`
 - [KC-P-031 VIP 组局创建页](pages/page_vip_party_create/README.md) — `Approved for Development`
-- [KC-P-032 局长组局管理页](pages/page_vip_party_management/README.md) — `Approved for Development`
+- [KC-P-032 局长组局管理页](pages/page_vip_party_management/README.md) — `UI Mock Implemented / Android Device Verified`
 - [旧版审计](legacy_audit.md)
 - [流程与导航](flow_and_navigation.md)
 - [状态机](state_machine.md)

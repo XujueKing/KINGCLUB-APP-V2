@@ -1,18 +1,21 @@
 # 局长组局管理页
 
 - Scope ID：`KC-P-032`
-- 文档状态：`Approved for Development`
+- 文档状态：`UI Mock Implemented / Android Device Verified`
 - M0 范围：`In Release Scope`
 - 所属功能：[VIP 组局](../../README.md)
 - 旧版来源：`order-manage`
-- 路由：`VipPartyManagementRoute`，`/club/parties/manage`，`$extra: PartyRef`
+- 路由：`VipPartyManagementRoute`，`/club/parties/manage`
 - 设计版本：`Legacy Replica v2 / Consumer Host Management`
-- 最后更新：2026-08-27
+- 最后更新：2026-08-29
+
+当前 UI Mock 使用固定 Fake 组局投影；真实接入阶段仍必须由已批准的 `PartyRef` 恢复具体组局上下文，不得依赖页面内固定数据。
 
 ## 旧版视觉复刻边界
 
 - 顶部沿用旧版 `order-manage`：居中卡座名称、返回按钮，以及“概况 / 账单 / 成员”三段切换；选中项使用金色下划线。
 - 页面背景沿用旧版深黑棕色，信息行使用低透明白色分隔线，主文字灰白，主要状态和按钮使用粉色/金色。
+- 2026-08-29 真机验收修订：消费者端局长管理页统一为黑金主题，不再使用粉色；邀请按钮、女性标识和本地状态选择均改用香槟金体系，红色只保留欠款等风险语义。
 - 概况保留桌位、营业日、人数、最低消费、已付/待付摘要、局长资料、招募状态和下单时间。
 - 账单仅展示消费者可见的套餐及支付汇总，不显示员工商品确认开关，不提供追加点单，待 KC-P-034 单独批准。
 - 成员沿用旧版圆形头像、昵称、状态和右侧动作布局；空位为“等待中…”并提供单人邀请。
@@ -50,3 +53,5 @@
 - 本轮 UI Mock 不展示点单入口；KC-P-034 批准后再按旧版账单结构补入。
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。
+
+真机证据见 [2026-08-29 Android 验收](audit/2026-08-29-device/README.md)，视觉结论见 [design-qa.md](design-qa.md)。

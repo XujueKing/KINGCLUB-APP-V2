@@ -9,6 +9,7 @@
 MyProfileSnapshot
   profileVersion
   avatarRef?
+  coverRef?
   nickname
   bio?
   membershipBadge            approved，不暴露审核内部标签
@@ -19,6 +20,7 @@ MyProfileSnapshot
 EditableProfile
   profileVersion
   avatarRef?
+  coverRef?
   nickname
   bio?
   cityOptionId?
@@ -43,6 +45,8 @@ abstract interface ProfileRepository
   getProfileCatalogs(locale)
   createAvatarUploadIntent(metadata)
   commitAvatar(mediaRef, profileVersion)
+  createCoverUploadIntent(metadata)
+  commitCover(mediaRef, profileVersion)
   updateProfile(ProfilePatch, profileVersion, idempotencyKey)
 
 abstract interface FriendInviteRepository
@@ -60,6 +64,7 @@ abstract interface ProfileMediaPicker
 - `ProfilePatch` 使用稳定字段名，不接动态 index；服务端忽略客户端未批准字段并返回新 `profileVersion`。
 - 保存使用 SingleFlight + idempotencyKey；版本冲突重新拉取，并让用户选择保留本地草稿或采用新版本。
 - 头像 intent/commit 与资料 patch 分离；commit 成功后清理临时媒体，结果未知先查资料版本。
+- 封面与头像采用相同的受控媒体边界；当前 `coverAsset` 可承载系统相册返回的设备本地引用，仅用于本次运行期预览，不等同于未来上传后由服务端签发的真实 `coverRef`。
 - 偏好复用 Onboarding 的 optionId/catalogVersion，不维护第二套中文字符串主键。
 
 ## Fake 契约

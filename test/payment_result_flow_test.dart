@@ -31,14 +31,19 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
   }
 
-  testWidgets('准备态展示 Fake 权威金额和服务端方式列表', (tester) async {
+  testWidgets('准备态展示权威金额和服务端方式列表', (tester) async {
     await tester.pumpWidget(subject());
 
-    expect(find.text('¥1156.00'), findsOneWidget);
+    expect(find.text('¥3680.00'), findsOneWidget);
+    expect(find.text('KINGBAR 湖南工大店'), findsOneWidget);
+    expect(find.textContaining('888号桌'), findsOneWidget);
     expect(find.text('微信支付'), findsOneWidget);
     expect(find.text('余额支付'), findsOneWidget);
     expect(find.text('服务端未开放此方式'), findsOneWidget);
     expect(find.byKey(const ValueKey('payment-confirm')), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
+    expect(find.textContaining('PaymentIntent'), findsNothing);
+    expect(find.textContaining('provider'), findsNothing);
   });
 
   testWidgets('快速重复点击只创建一个 Fake attempt', (tester) async {
@@ -56,13 +61,39 @@ void main() {
   });
 
   testWidgets('provider success 仍经验证后显示服务端已确认', (tester) async {
-    await tester.pumpWidget(subject());
+    FakeOrderRef? opened;
+    await tester.pumpWidget(subject(onOpenOrder: (value) => opened = value));
     await tester.tap(find.byKey(const ValueKey('payment-confirm')));
     await finishProviderFlow(tester);
 
     expect(find.text('支付已确认'), findsOneWidget);
-    expect(find.textContaining('Fake 服务端已确认'), findsOneWidget);
+    expect(find.textContaining('服务器已确认 ¥3680.00'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
     expect(find.byKey(const ValueKey('payment-view-order')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('payment-view-order')));
+    expect(opened?.opaqueId, 'order-scan-888-paid-0829');
+  });
+
+  testWidgets('横屏支付成功态可滚动到达查看订单且无溢出', (tester) async {
+    tester.view.physicalSize = const Size(2400, 1080);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      subject(scenario: PaymentResultScenario.alreadySucceeded),
+    );
+
+    expect(tester.takeException(), isNull);
+    final action = find.byKey(const ValueKey('payment-view-order'));
+    await tester.scrollUntilVisible(
+      action,
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(action, findsOneWidget);
+    expect(find.text('SHANGHAI · ZHUZHOU'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('provider success 但服务端 pending 不显示成功', (tester) async {

@@ -8,6 +8,7 @@ part of 'app_router.dart';
 
 List<RouteBase> get $appRoutes => [
   $authBootstrapRoute,
+  $legacyWelcomeRoute,
   $mobileLoginRoute,
   $smsCodeRoute,
   $termsConsentRoute,
@@ -28,6 +29,7 @@ List<RouteBase> get $appRoutes => [
   $blacklistRoute,
   $safeScannerRoute,
   $aaReservationsRoute,
+  $aaPositioningCardRoute,
   $vipPartyRoute,
   $admissionTicketRoute,
   $scanOrderingCartRoute,
@@ -52,6 +54,33 @@ mixin $AuthBootstrapRoute on GoRouteData {
 
   @override
   String get location => GoRouteData.$location('/auth/bootstrap');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $legacyWelcomeRoute => GoRouteData.$route(
+  path: '/auth/welcome',
+  hasOverriddenOnExit: false,
+  factory: $LegacyWelcomeRoute._fromState,
+);
+
+mixin $LegacyWelcomeRoute on GoRouteData {
+  static LegacyWelcomeRoute _fromState(GoRouterState state) =>
+      const LegacyWelcomeRoute();
+
+  @override
+  String get location => GoRouteData.$location('/auth/welcome');
 
   @override
   void go(BuildContext context) => context.go(location);
@@ -658,6 +687,33 @@ mixin $AaReservationsRoute on GoRouteData {
   void replace(BuildContext context) => context.replace(location);
 }
 
+RouteBase get $aaPositioningCardRoute => GoRouteData.$route(
+  path: '/club/aa/positioning-card',
+  hasOverriddenOnExit: false,
+  factory: $AaPositioningCardRoute._fromState,
+);
+
+mixin $AaPositioningCardRoute on GoRouteData {
+  static AaPositioningCardRoute _fromState(GoRouterState state) =>
+      const AaPositioningCardRoute();
+
+  @override
+  String get location => GoRouteData.$location('/club/aa/positioning-card');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
 RouteBase get $vipPartyRoute => GoRouteData.$route(
   path: '/club/parties',
   hasOverriddenOnExit: false,
@@ -751,23 +807,27 @@ RouteBase get $admissionTicketRoute => GoRouteData.$route(
 
 mixin $AdmissionTicketRoute on GoRouteData {
   static AdmissionTicketRoute _fromState(GoRouterState state) =>
-      const AdmissionTicketRoute();
+      AdmissionTicketRoute(state.extra as FakeAdmissionRef?);
+
+  AdmissionTicketRoute get _self => this as AdmissionTicketRoute;
 
   @override
   String get location => GoRouteData.$location('/club/admission');
 
   @override
-  void go(BuildContext context) => context.go(location);
+  void go(BuildContext context) => context.go(location, extra: _self.$extra);
 
   @override
-  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+  Future<T?> push<T>(BuildContext context) =>
+      context.push<T>(location, extra: _self.$extra);
 
   @override
   void pushReplacement(BuildContext context) =>
-      context.pushReplacement(location);
+      context.pushReplacement(location, extra: _self.$extra);
 
   @override
-  void replace(BuildContext context) => context.replace(location);
+  void replace(BuildContext context) =>
+      context.replace(location, extra: _self.$extra);
 }
 
 RouteBase get $scanOrderingCartRoute => GoRouteData.$route(

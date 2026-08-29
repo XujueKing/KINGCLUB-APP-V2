@@ -37,6 +37,8 @@
 - mobile→code 为 replace；code 返回执行流程销毁后建立新的 mobile 根。
 - mobile→consent readOnly 使用 push/pop 并保持表单 generation。
 - code→consent loginRecovery→code 使用 replace 且验证码输入清空。
+- welcome、mobile 与 onboarding 的 Android 系统返回必须执行批准的受控目标；连续返回不出现空 Router、黑屏或默认错误页。
+- onboarding identity→mobile→welcome 连续系统返回后仍保持唯一可见页面；review 根页系统返回不恢复已提交步骤。
 - 登录成功、注销、新设备顶号、Refresh Token 重用和到期均 reset 全栈。
 - 未知 location 和缺失 `$extra` 不出现 go_router 默认错误内容。
 - Router diagnostics 在 prod 关闭，不打印 location extra。

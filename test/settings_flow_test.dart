@@ -51,7 +51,7 @@ void main() {
     expect(paymentOpened, isTrue);
   });
 
-  testWidgets('notification disabled directs only to fake system settings', (
+  testWidgets('notification disabled gives a formal system-settings handoff', (
     tester,
   ) async {
     await tester.pumpWidget(_frame(SettingsScenario.notificationDisabled));
@@ -59,10 +59,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('settings-notification')));
     await tester.pumpAndSettle();
-    expect(find.text('系统通知：已关闭（Fake）'), findsOneWidget);
+    expect(find.text('系统通知已关闭'), findsOneWidget);
     await tester.tap(find.text('打开系统设置'));
     await tester.pumpAndSettle();
-    expect(find.text('UI Mock：未打开真实系统设置'), findsOneWidget);
+    expect(find.text('请前往手机系统设置管理通知权限'), findsOneWidget);
   });
 
   testWidgets('clear cache does not remove the session', (tester) async {
@@ -73,7 +73,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('0 B'), findsOneWidget);
-    expect(find.text('Fake 缓存已清理'), findsOneWidget);
+    expect(find.text('缓存已清理'), findsOneWidget);
     expect(find.byKey(const ValueKey('settings-logout')), findsOneWidget);
   });
 
@@ -93,7 +93,7 @@ void main() {
     await tester.pump();
 
     expect(completed, isTrue);
-    expect(find.text('已完成 Fake 注销流程'), findsOneWidget);
+    expect(find.text('已退出登录'), findsOneWidget);
   });
 
   testWidgets('unknown remote logout still performs local safe logout', (

@@ -42,7 +42,20 @@ void main() {
         onOpenAuthor: (value) => authorRef = value,
       ),
     );
-    expect(find.text('静音'), findsOneWidget);
+    expect(find.text('静音'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('content-feed-audio-toggle')),
+      findsOneWidget,
+    );
+    final audioSemantics = tester.widget<Semantics>(
+      find
+          .ancestor(
+            of: find.byKey(const ValueKey('content-feed-audio-toggle')),
+            matching: find.byType(Semantics),
+          )
+          .first,
+    );
+    expect(audioSemantics.properties.label, '当前静音，点击开启声音');
     expect(find.text('发布'), findsNothing);
     expect(find.text('点赞'), findsNothing);
     expect(find.text('评论'), findsNothing);
@@ -108,8 +121,8 @@ void main() {
     var authorOpenCount = 0;
     await tester.pumpWidget(_app(ContentFeedDemoState.posterOnly));
     expect(find.text('低流量 · 封面模式'), findsOneWidget);
-    final muteButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, '静音'),
+    final muteButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey('content-feed-audio-toggle')),
     );
     expect(muteButton.onPressed, isNull);
 
@@ -130,14 +143,10 @@ void main() {
     expect(find.text('已暂停'), findsOneWidget);
 
     await tester.pumpWidget(_app(ContentFeedDemoState.content));
-    tester.binding.handleAppLifecycleStateChanged(
-      AppLifecycleState.paused,
-    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     await tester.pump();
     expect(find.text('已暂停'), findsOneWidget);
-    tester.binding.handleAppLifecycleStateChanged(
-      AppLifecycleState.resumed,
-    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
   });
 
   testWidgets('200 percent text remains inside a scrollable feed', (

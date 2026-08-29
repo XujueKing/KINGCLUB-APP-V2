@@ -32,7 +32,7 @@
 
 ## 页面与文档
 
-- [KC-P-033 入场凭证页](pages/page_admission_ticket/README.md) — `Approved for Development`
+- [KC-P-033 入场凭证页](pages/page_admission_ticket/README.md) — `UI Mock Implemented / Android Device Verified`
 - [旧版审计](legacy_audit.md)
 - [状态与进出场流程](flow_and_state.md)
 - [数据与 Fake 契约](data_and_api.md)

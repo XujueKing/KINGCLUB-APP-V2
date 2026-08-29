@@ -5,7 +5,7 @@
 | `loading` | 无，显示状态骨架 |
 | `pendingReview` | 刷新状态、退出登录 |
 | `changesRequired` | 补充指定资料 |
-| `approved` | 进入 KingClub |
+| `approved` | 仅进入 KingClub；无刷新、无退出 |
 | `rejectedResubmittable` | 到期后重新申请 |
 | `rejectedFinal` | 联系客服（若配置）、退出登录 |
 | `suspended` | 查看说明、联系客服（若配置）、退出登录 |

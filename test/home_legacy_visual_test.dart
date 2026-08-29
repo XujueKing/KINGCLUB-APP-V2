@@ -5,8 +5,10 @@ import 'package:kingclub/src/features/shell/presentation/app_shell_page.dart';
 
 void main() {
   testWidgets('legacy home visual baseline', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(393, 852));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, 852);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
 
     await tester.pumpWidget(
       MaterialApp(

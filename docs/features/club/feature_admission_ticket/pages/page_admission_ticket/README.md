@@ -1,13 +1,15 @@
 # 入场凭证页
 
 - Scope ID：`KC-P-033`
-- 文档状态：`Approved for Development`
+- 文档状态：`UI Mock Implemented / Android Device Verified`
 - M0 范围：`In Release Scope`
 - 所属功能：[入场凭证](../../README.md)
 - 旧版来源：`ticket`
-- 路由：`AdmissionTicketRoute`，`/club/admission`，`$extra: AdmissionRef + ScanContextRef?`
-- 设计版本：`Legacy Ticket Replica v2 / Dynamic Credential`
-- 最后更新：2026-08-27
+- 路由：`AdmissionTicketRoute`，`/club/admission`
+- 设计版本：`Legacy Ticket Replica v3 / Order-bound Credential`
+- 最后更新：2026-08-29
+
+当前 UI Mock 使用固定 Fake 凭证投影；真实接入阶段仍必须由已批准的 `AdmissionRef + ScanContextRef?` 恢复具体凭证及受控离场上下文。
 
 ## 旧版视觉复刻与安全升级
 
@@ -48,3 +50,18 @@ VIP 区 V8 · 星光香槟套餐
 - 200% 字体下二维码保持可扫描尺寸，其他信息纵向滚动，操作不遮挡状态。
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。
+
+真机证据见 [2026-08-29 Android 验收](audit/2026-08-29-device/README.md)，视觉结论见 [design-qa.md](design-qa.md)。
+
+## 2026-08-29 订单绑定凭证 v3
+
+**已确认事实**
+
+- 从 A6 卡座搭子局订单点击“查看凭证”时，当前 v2 页面错误回退到固定的 V8 / 08月27日凭证。
+- 凭证必须与来源订单一致：`A6 卡座 / 08月28日 20:30 / 星光香槟套餐`。
+- 路由只传递不透明 Fake `AdmissionRef`，页面内再恢复受控凭证投影；不传整份订单对象或二维码 token。
+
+**UI Mock 准入**
+
+- 保留旧版 `ticket` 的粉紫票面、动态码和全部安全状态，本轮只修正凭证与订单的投影绑定。
+- 直接打开凭证页时仍使用 V8 默认 Fake 投影，便于独立视觉验收。

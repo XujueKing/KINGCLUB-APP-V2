@@ -60,7 +60,7 @@ class AuthBootstrapPage extends ConsumerWidget {
                       const KingStatusCard(
                         icon: Icons.error_outline,
                         title: '暂时无法启动',
-                        message: '请稍后重试。Mock 模式不会连接真实服务。',
+                        message: '请检查网络连接后重试。',
                         color: KingColors.danger,
                       ),
                       const SizedBox(height: 16),

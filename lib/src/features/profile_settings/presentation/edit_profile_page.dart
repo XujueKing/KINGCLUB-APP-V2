@@ -1,13 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+
+import 'cover_adjust_page.dart';
+import 'profile_image_ref.dart';
+
+const kDefaultProfileCoverAsset =
+    'assets/legacy/profile/my_profile_skyline_v1.png';
+
+class ProfileCoverOption {
+  const ProfileCoverOption({required this.label, required this.asset});
+
+  final String label;
+  final String asset;
+}
+
+const kProfileCoverOptions = <ProfileCoverOption>[
+  ProfileCoverOption(label: '城市夜景', asset: kDefaultProfileCoverAsset),
+  ProfileCoverOption(
+    label: 'KingClub 招募',
+    asset: 'assets/legacy/home/mock_hero_recruitment.png',
+  ),
+  ProfileCoverOption(
+    label: '音乐现场',
+    asset: 'assets/legacy/home/mock_poster_music.png',
+  ),
+];
 
 class EditableProfileResult {
   const EditableProfileResult({
     required this.nickname,
     required this.signature,
+    required this.coverAsset,
   });
 
   final String nickname;
   final String signature;
+  final String coverAsset;
 }
 
 enum EditProfileMockSaveOutcome {
@@ -22,17 +51,23 @@ class EditProfilePage extends StatefulWidget {
   const EditProfilePage({
     required this.nickname,
     required this.signature,
+    this.coverAsset = kDefaultProfileCoverAsset,
     this.onBack,
     this.onSaved,
     this.onSessionResetRequested,
+    this.pickCoverImage,
+    this.adjustCoverImage,
     super.key,
   });
 
   final String nickname;
   final String signature;
+  final String coverAsset;
   final VoidCallback? onBack;
   final ValueChanged<EditableProfileResult>? onSaved;
   final VoidCallback? onSessionResetRequested;
+  final Future<String?> Function()? pickCoverImage;
+  final Future<String?> Function(String imagePath)? adjustCoverImage;
 
   @override
   State<EditProfilePage> createState() => _EditProfilePageState();
@@ -44,6 +79,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   late String _nickname;
   late String _signature;
+  late String _coverAsset;
   String _city = '河南省 · 安阳市';
   String _occupation = '自由职业';
   String _height = '168 cm';
@@ -61,108 +97,230 @@ class _EditProfilePageState extends State<EditProfilePage> {
     super.initState();
     _nickname = widget.nickname;
     _signature = widget.signature;
+    _coverAsset = widget.coverAsset;
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !_dirty,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _confirmDiscard();
-      },
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _LegacyHeader(
-                title: '我的个人信息',
-                onBack: _handleBack,
-                onTitleLongPress: _showMockScenarios,
-              ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(30, 28, 30, 30),
-                  children: [
-                    if (_statusMessage != null) ...[
-                      _StatusBanner(
-                        message: _statusMessage!,
-                        onDismiss: () => setState(() => _statusMessage = null),
-                      ),
-                      const SizedBox(height: 22),
-                    ],
-                    Center(
-                      child: InkWell(
-                        key: const ValueKey('edit-profile-empty-avatar'),
-                        borderRadius: BorderRadius.circular(58),
-                        onTap: _showAvatarNotice,
-                        child: Container(
-                          width: 108,
-                          height: 108,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0ECE5),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 34),
-                    _row('昵称', _nickname, keyName: 'nickname'),
-                    _row(
-                      '个性签名',
-                      _signature.isEmpty ? '未填写' : _signature,
-                      keyName: 'signature',
-                      maxLength: 40,
-                    ),
-                    _row('所在城市', _city, keyName: 'city', maxLength: 30),
-                    _row(
-                      '职业',
-                      _occupation,
-                      keyName: 'occupation',
-                      maxLength: 40,
-                    ),
-                    _row('身高', _height, keyName: 'height'),
-                    const _SectionLabel('兴趣偏好'),
-                    _row('常去时段', _activeTime, keyName: 'activeTime'),
-                    _row('音乐偏好', _music, keyName: 'music'),
-                    _row('饮酒偏好', _drink, keyName: 'drink'),
-                    _row('组局偏好', _party, keyName: 'party'),
-                    const SizedBox(height: 34),
-                    FilledButton(
-                      key: const ValueKey('edit-profile-save'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                        backgroundColor: _gold,
-                        foregroundColor: const Color(0xFF241B13),
-                      ),
-                      onPressed: _saving ? null : _save,
-                      child: _saving
-                          ? const SizedBox.square(
-                              dimension: 22,
-                              child: CircularProgressIndicator(
-                                key: ValueKey('edit-profile-saving'),
-                                strokeWidth: 2.4,
-                                color: Color(0xFF241B13),
-                              ),
-                            )
-                          : const Text(
-                              '保存',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      '当前为离线 UI Mock，资料不会上传服务器。',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: _muted, fontSize: 12),
-                    ),
-                  ],
+    final baseTheme = Theme.of(context);
+    final blackGoldTheme = baseTheme.copyWith(
+      colorScheme: const ColorScheme.dark(
+        primary: _gold,
+        onPrimary: Color(0xFF20170F),
+        secondary: _gold,
+        onSecondary: Color(0xFF20170F),
+        surface: Color(0xFF171411),
+        onSurface: Color(0xFFF1EAE0),
+        error: Color(0xFFD87369),
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: Color(0xFF171411),
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: TextStyle(
+          color: _gold,
+          fontSize: 21,
+          fontWeight: FontWeight.w700,
+        ),
+        contentTextStyle: TextStyle(color: Color(0xFFD9D0C5), height: 1.45),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF0E0C0A),
+        counterStyle: const TextStyle(color: _muted),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0x66756A5E)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _gold, width: 1.4),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: _gold,
+          foregroundColor: const Color(0xFF20170F),
+          shape: const StadiumBorder(),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: _gold),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Color(0xFF171411),
+        surfaceTintColor: Colors.transparent,
+      ),
+    );
+    return Theme(
+      data: blackGoldTheme,
+      child: PopScope(
+        canPop: !_dirty,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _confirmDiscard();
+        },
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: SafeArea(
+            child: Column(
+              children: [
+                _LegacyHeader(
+                  title: '我的个人信息',
+                  onBack: _handleBack,
+                  onTitleLongPress: _showMockScenarios,
                 ),
-              ),
-            ],
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(30, 28, 30, 30),
+                    children: [
+                      if (_statusMessage != null) ...[
+                        _StatusBanner(
+                          message: _statusMessage!,
+                          onDismiss: () =>
+                              setState(() => _statusMessage = null),
+                        ),
+                        const SizedBox(height: 22),
+                      ],
+                      _buildMediaHeader(),
+                      const SizedBox(height: 22),
+                      _row('昵称', _nickname, keyName: 'nickname'),
+                      _row(
+                        '个性签名',
+                        _signature.isEmpty ? '未填写' : _signature,
+                        keyName: 'signature',
+                        maxLength: 40,
+                      ),
+                      _row('所在城市', _city, keyName: 'city', maxLength: 30),
+                      _row(
+                        '职业',
+                        _occupation,
+                        keyName: 'occupation',
+                        maxLength: 40,
+                      ),
+                      _row('身高', _height, keyName: 'height'),
+                      const _SectionLabel('兴趣偏好'),
+                      _row('常去时段', _activeTime, keyName: 'activeTime'),
+                      _row('音乐偏好', _music, keyName: 'music'),
+                      _row('饮酒偏好', _drink, keyName: 'drink'),
+                      _row('组局偏好', _party, keyName: 'party'),
+                      const SizedBox(height: 34),
+                      FilledButton(
+                        key: const ValueKey('edit-profile-save'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: _gold,
+                          foregroundColor: const Color(0xFF241B13),
+                        ),
+                        onPressed: _saving ? null : _save,
+                        child: _saving
+                            ? const SizedBox.square(
+                                dimension: 22,
+                                child: CircularProgressIndicator(
+                                  key: ValueKey('edit-profile-saving'),
+                                  strokeWidth: 2.4,
+                                  color: Color(0xFF241B13),
+                                ),
+                              )
+                            : const Text(
+                                '保存',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMediaHeader() {
+    return SizedBox(
+      height: 168,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 132,
+            child: Material(
+              key: const ValueKey('edit-profile-cover-preview'),
+              color: const Color(0xFF171411),
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: Ink.image(
+                image: profileImageProvider(_coverAsset),
+                fit: BoxFit.cover,
+                child: InkWell(
+                  key: const ValueKey('edit-profile-cover'),
+                  onTap: _showCoverPicker,
+                  child: Align(
+                    alignment: Alignment.bottomRight,
+                    child: Container(
+                      margin: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xD91A1510),
+                        border: Border.all(color: const Color(0x99C9B69E)),
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x88000000), blurRadius: 12),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.photo_outlined, color: _gold, size: 15),
+                          SizedBox(width: 4),
+                          Text(
+                            '更换封面',
+                            style: TextStyle(
+                              color: Color(0xFFF1EAE0),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Center(
+              child: Semantics(
+                label: '头像暂未设置',
+                image: true,
+                child: Container(
+                  key: const ValueKey('edit-profile-empty-avatar'),
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0ECE5),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _gold, width: 2),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0xAA000000), blurRadius: 14),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -248,22 +406,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFFFBAFDA),
-          title: Text(
-            '修改$label',
-            style: const TextStyle(color: Color(0xFF8E075C)),
-          ),
+          key: ValueKey('edit-profile-dialog-$keyName'),
+          title: Text('修改$label'),
           content: TextField(
             key: ValueKey('edit-profile-input-$keyName'),
             controller: controller,
             autofocus: true,
             maxLength: maxLength,
-            style: const TextStyle(color: Colors.black87),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white,
-              errorText: error,
-            ),
+            style: const TextStyle(color: Color(0xFFF1EAE0)),
+            decoration: InputDecoration(errorText: error),
           ),
           actions: [
             TextButton(
@@ -361,6 +512,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final result = EditableProfileResult(
       nickname: _nickname,
       signature: _signature,
+      coverAsset: _coverAsset,
     );
     if (widget.onSaved != null) {
       widget.onSaved!(result);
@@ -369,55 +521,49 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  Future<void> _showAvatarNotice() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF171411),
-      builder: (sheetContext) => SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 20, 22, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                '头像 Fake 流程',
-                style: TextStyle(
-                  color: _gold,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                ),
+  Future<void> _showCoverPicker() async {
+    String? selected;
+    try {
+      selected = widget.pickCoverImage != null
+          ? await widget.pickCoverImage!()
+          : (await ImagePicker().pickImage(
+              source: ImageSource.gallery,
+              imageQuality: 92,
+              requestFullMetadata: false,
+            ))?.path;
+    } on PlatformException {
+      if (!mounted) return;
+      setState(() => _statusMessage = '无法读取相册图片，请检查相册权限后重试。');
+      return;
+    }
+    final selectedReference = selected;
+    if (selectedReference == null || !mounted) {
+      return;
+    }
+    String? adjustedReference;
+    try {
+      adjustedReference = widget.adjustCoverImage != null
+          ? await widget.adjustCoverImage!(selectedReference)
+          : await Navigator.of(context).push<String>(
+              MaterialPageRoute<String>(
+                builder: (_) => CoverAdjustPage(imagePath: selectedReference),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                '头像按当前确认保持空白，不会读取真实相册。',
-                style: TextStyle(color: _muted),
-              ),
-              const SizedBox(height: 12),
-              _mockAction(
-                sheetContext,
-                key: 'avatar-cancelled',
-                label: '模拟：取消选择',
-                message: '已取消头像选择，其他草稿未变更。',
-              ),
-              _mockAction(
-                sheetContext,
-                key: 'avatar-permission-denied',
-                label: '模拟：相册权限被拒绝',
-                message: '未获得相册权限，可继续编辑其他资料。',
-              ),
-              _mockAction(
-                sheetContext,
-                key: 'avatar-upload-failed',
-                label: '模拟：格式/上传/Commit 失败',
-                message: '头像处理失败，仅头像受影响，其他草稿已保留。',
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+            );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _statusMessage = '封面调整失败，请重新选择图片。');
+      return;
+    }
+    if (adjustedReference == null ||
+        adjustedReference == _coverAsset ||
+        !mounted) {
+      return;
+    }
+    setState(() {
+      _coverAsset = adjustedReference!;
+      _dirty = true;
+      _statusMessage = '新封面已预览，保存后将显示在我的主页。';
+    });
   }
 
   void _handleBack() {
@@ -433,7 +579,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('放弃修改？'),
-        content: const Text('尚未保存的 Fake 资料将丢失。'),
+        content: const Text('尚未保存的资料将丢失。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -455,24 +601,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     } else {
       Navigator.pop(context);
     }
-  }
-
-  Widget _mockAction(
-    BuildContext sheetContext, {
-    required String key,
-    required String label,
-    required String message,
-  }) {
-    return ListTile(
-      key: ValueKey('edit-profile-$key'),
-      contentPadding: EdgeInsets.zero,
-      title: Text(label, style: const TextStyle(color: Colors.white)),
-      trailing: const Icon(Icons.chevron_right, color: _muted),
-      onTap: () {
-        Navigator.pop(sheetContext);
-        setState(() => _statusMessage = message);
-      },
-    );
   }
 
   Future<void> _showMockScenarios() async {
@@ -554,7 +682,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       builder: (dialogContext) => AlertDialog(
         key: const ValueKey('edit-profile-version-conflict'),
         title: const Text('资料已发生变化'),
-        content: const Text('服务端 Fake 版本更新，不会静默覆盖。'),
+        content: const Text('资料已在其他位置更新，为避免覆盖，请选择如何处理。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -575,7 +703,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _nickname = widget.nickname;
         _signature = widget.signature;
         _dirty = false;
-        _statusMessage = '已重新加载最新 Fake 资料。';
+        _statusMessage = '已重新加载最新资料。';
       } else {
         _statusMessage = '已保留当前草稿，可手动调整后再保存。';
       }
@@ -588,7 +716,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       builder: (dialogContext) => AlertDialog(
         key: const ValueKey('edit-profile-result-unknown'),
         title: const Text('保存结果待确认'),
-        content: const Text('不会盲目重复提交，可先查询最新 Fake 版本。'),
+        content: const Text('请勿重复提交，可先查询最新资料确认保存结果。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),

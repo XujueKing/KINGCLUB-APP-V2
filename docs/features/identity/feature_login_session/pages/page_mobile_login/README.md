@@ -2,68 +2,73 @@
 
 - Scope ID：`KC-P-002`
 - M0 范围：`In Release Scope`
-
-## 文档状态
-
-`Approved for Development`。页面交互、短信发送和未登录协议目录契约均已完成评审；全局文档门禁已于 2026-08-26 满足，可进入 UI/Mock 实现。
+- 文档状态：`Approved for Development`
+- UI 阶段：只允许 Flutter UI/Mock，不接真实短信或登录接口
+- 旧版来源：`C:\Users\Poplar\Desktop\KingClub-app\pages\regist`
+- 视觉基准：用户于 2026-08-28 提供的旧版登录截图
 
 ## 页面目标
 
-让用户输入中国大陆手机号、阅读协议入口并请求登录验证码。注册与登录保持同一外观，禁止通过提示泄露号码是否已注册。
+直接复刻旧版 `pages/regist` 登录页：在同一页输入手机号、获取验证码、输入验证码并点击底部 `NEXT` 完成离线 Fake 登录。注册与登录保持同一外观，禁止通过提示泄露号码是否已注册。
 
-## 品牌视觉
+## 视觉契约
 
-- **已确认事实（2026-08-27）**：登录页顶部使用旧版酒吧 `King club` 手写体 Logo，不再使用圆形 `K` 与 `KINGCLUB` 字标组合。
-- Logo 使用项目原版透明素材 `assets/legacy/home/logo_2.png`，在纯黑背景上呈香槟金/黑金效果；不得改成粉色、白色或重新绘制字体。
-- Logo 左对齐，完整显示且保持原始宽高比，不裁切、不拉伸、不增加底板、描边、阴影或发光。
-- 本次只替换品牌标识，不改变手机号登录的字段、文案、交互和 Mock 流程。
+- 本页以旧版截图和 `pages/regist` WXML/WXSS 为唯一视觉基准，不再沿用 V2 登录卡片布局。
+- 顶部使用旧版金色透明 `logo_2.png`，宽 `220rpx`（约视口宽的 `29.33%`），保持原始宽高比。
+- 表单宽 `600rpx`（约视口宽的 `80%`）；输入框和按钮高 `90rpx`，圆角 `45rpx`。
+- 手机号框使用旧版香槟金径向色阶；验证码行左侧输入区占 `350/600`，右侧获取按钮占 `250/600`。
+- 底部使用深棕色 `NEXT` 按钮和 `SHANGHAI . ZHUZHOU` 原文。
+- App 保留系统状态栏与返回导航，不复刻微信右上角宿主胶囊。
+- 页面不显示 V2 协议行、账户说明卡、大标题或可见 UI 测试说明。
 
 ## 路由与导航
 
-- **当前建议**：路由名 `/auth/mobile`；可选内存参数 `returnTo`，必须经过路由白名单校验。
-- 启动鉴权失效、用户主动登录或受保护路由守卫可进入。
-- 请求成功后进入 `/auth/code`，只传内存中的 `challengeId`、脱敏手机号、过期/重发秒数和已验证的 `returnTo`；不得把手机号或 challenge 放入 URL。
-- 系统返回键：若无已认证页面可退则提示退出应用；不得退回启动鉴权页。
+- 路由为 `/auth/mobile`，由旧版欢迎封面页进入。
+- 短信请求成功后仍停留本页，内存保留 `challengeId`。
+- `NEXT` 验证成功后直接进入实名与成年核验；手机号、challenge 和验证码不放入 URL。
+- 顶部返回键回到旧版欢迎封面页。
 
 ## 信息架构与线框
 
 ```text
-[返回/关闭]              [帮助]
-[金色 King club 手写体 Logo]
-手机号登录
-[+86] [请输入手机号____________]
-[获取验证码]
-[ ] 我已阅读并同意《用户协议》《隐私政策》
-号码未注册时将自动创建 KingClub 会员
+[<]
+                 [金色 King club Logo]
+
+Mobile Phone:
+[手机号_____________________________________]
+Code:
+[输入验证码____________][获取验证码]
+
+
+[                         NEXT                         ]
+                 SHANGHAI . ZHUZHOU
 ```
 
-协议链接可独立打开只读页面；返回后保留手机号和勾选状态。输入框支持粘贴、清除和数字键盘，不读取通讯录。
+协议已在前一页同意。两个输入框均使用数字键盘，不读取通讯录。键盘弹出时表单可滚动，底部 NEXT 不得被永久遮挡。
 
 ## 校验与交互
 
-- 输入时去除空格和连字符；提交时由客户端做 11 位大陆手机号格式初筛，服务端仍是最终权威。
-- 未勾选协议时点击按钮，不请求接口；就地高亮协议区并提供可访问性说明。
-- 提交期间禁用重复点击；网络重试复用业务 `idempotencyKey`，每次密文请求生成新 requestId。
-- `K260824000101` 成功后立即导航验证码页；无论号码是否存在，页面文案和响应外观一致。
-- 限流时按 `retryAfterSeconds` 禁用按钮并显示统一倒计时；服务端错误不得直接显示堆栈或内部码。
+- 手机号输入时去除空格和连字符；请求验证码前做 11 位大陆手机号格式初筛。
+- 请求期间禁用重复点击；成功后开始 60 秒重发倒计时，不跳转新页。
+- 验证码为 6 位数字；未获取 challenge 或验证码不完整时 NEXT 为禁用态。
+- 离线 Fake：`888888` 通过，`111111` 错误，`222222` 结果未知，`333333` 过期。
+- 限流、离线、错误和过期用页内文本反馈，不改变旧版主布局。
 
 ## API 映射
 
-调用 `K260824000101 auth.sms.request`：`mobile` 来自规范化输入；`scene=login`；`clientAppCode=kingclub`；`clientType/deviceId` 来自可信应用上下文；`idempotencyKey` 由本次用户动作生成。
+- 获取验证码调用 `K260824000101 auth.sms.request`：`mobile`、`scene=login`、`clientAppCode=kingclub`、`clientType/deviceId`、`idempotencyKey`。
+- NEXT 在真实接入阶段调用已批准的验证码登录契约；当前仅调用 `MockRuntime.verifyCode`。
+- 响应仅在内存保留 `challengeId/expiresInSeconds/retryAfterSeconds/maskedMobile`；手机号和验证码不进入日志、埋点、URL 或普通本地存储。
 
-响应只保留 `challengeId/expiresInSeconds/retryAfterSeconds/maskedMobile`。手机号原文不进入日志、埋点、URL、剪贴板回显或普通本地存储。
+## 状态、埋点与可访问性
 
-页面显示协议及形成 `consents` 前，必须通过 `K260824000107` 取得 `terms/privacy` 当前发布版本、标题、Markdown 正文和内容摘要，具体见[协议目录读取契约](../../agreement_catalog_contract.md)。目录不可用时协议区失败关闭，不允许发送验证码。
-
-## 页面状态、埋点与可访问性
-
-- 状态：`idle`、`invalid_input`、`consent_required`、`submitting`、`rate_limited`、`offline`、`service_error`。
-- 埋点：`mobile_login_view/request/result/agreement_open`，手机号只记录“格式是否有效”，不得记录原文或哈希。
-- 错误信息使用文本与图标双重表达；输入标签不依赖 placeholder；键盘弹出时按钮和协议可滚动可见；触控区不小于 44×44。
+- 状态：`idle`、`invalid_mobile`、`requesting_code`、`code_ready`、`verifying`、`invalid_code`、`rate_limited`、`offline`、`service_error`。
+- 手机号只记录“格式是否有效”，不记录原文或哈希。
+- 输入框有可读标签，返回、获取验证码和 NEXT 点击区不小于 44×44。
 
 ## 不做事项
 
-本页不校验验证码、不签发会话、不要求实名、不展示注册状态，也不实现微信、密码或游客登录；这些能力必须独立评审。
+本页不要求实名、不展示注册状态，也不实现微信、密码或游客登录。
 
 ## 配套文档
 

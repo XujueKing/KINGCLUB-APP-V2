@@ -43,15 +43,43 @@ void main() {
   testWidgets('复刻旧版确认页且移除客户端资产分摊', (tester) async {
     await tester.pumpWidget(subject());
 
-    expect(find.text('确认点单'), findsOneWidget);
-    expect(find.text('KINGBAR 湖南工大店'), findsNWidgets(2));
+    expect(find.text('提交订单'), findsNWidgets(2));
+    expect(find.text('KINGBAR 湖南工大店'), findsOneWidget);
     expect(find.text('星光香槟'), findsOneWidget);
     expect(find.text('金标威士忌'), findsOneWidget);
     expect(find.text('应付金额'), findsOneWidget);
-    expect(find.text('提交订单'), findsOneWidget);
     expect(find.text('立即支付'), findsNothing);
     expect(find.textContaining('金币兑换'), findsNothing);
     expect(find.textContaining('余额（'), findsNothing);
+    expect(find.textContaining('Fake'), findsNothing);
+    expect(find.textContaining('QuoteRef'), findsNothing);
+  });
+
+  testWidgets('商品更多控制沿用旧版显示与隐藏文案', (tester) async {
+    await tester.pumpWidget(subject());
+
+    expect(find.text('隐藏更多（共2件物品）'), findsOneWidget);
+    expect(find.text('金标威士忌'), findsOneWidget);
+    final firstItem = tester.widget<Container>(
+      find.byKey(const ValueKey('order-item-星光香槟')),
+    );
+    final lastItem = tester.widget<Container>(
+      find.byKey(const ValueKey('order-item-金标威士忌')),
+    );
+    expect(firstItem.decoration, isNotNull);
+    expect(lastItem.decoration, isNull);
+
+    await tester.tap(find.byKey(const ValueKey('order-toggle-items')));
+    await tester.pump();
+
+    expect(find.text('显示更多（共2件物品）'), findsOneWidget);
+    expect(find.text('金标威士忌'), findsNothing);
+    expect(
+      tester
+          .widget<Container>(find.byKey(const ValueKey('order-item-星光香槟')))
+          .decoration,
+      isNull,
+    );
   });
 
   testWidgets('提交只生成一个 Fake 待支付订单意图', (tester) async {
@@ -117,7 +145,21 @@ void main() {
   testWidgets('返回修改保留强类型出口', (tester) async {
     var modified = false;
     await tester.pumpWidget(subject(onModify: () => modified = true));
-    await tester.tap(find.byKey(const ValueKey('order-modify')));
+    await tester.tap(find.byTooltip('返回'));
     expect(modified, isTrue);
+  });
+
+  testWidgets('无路由回调时使用正式待支付结果文案', (tester) async {
+    await tester.pumpWidget(subject());
+
+    await tester.tap(find.byKey(const ValueKey('order-submit')));
+    await tester.pump(const Duration(milliseconds: 650));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.text('待支付订单已创建'), findsOneWidget);
+    expect(find.text('应付¥1156'), findsOneWidget);
+    expect(find.text('订单已创建，请前往订单中心继续完成支付。'), findsOneWidget);
+    expect(find.textContaining('fake-order'), findsNothing);
+    expect(find.textContaining('Fake'), findsNothing);
   });
 }

@@ -289,13 +289,31 @@ class _HomePageState extends State<HomePage> {
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _HomeStickyHeaderDelegate(
+                  presentation: member,
+                  textScale: MediaQuery.textScalerOf(context).scale(1),
+                  viewportWidth: MediaQuery.sizeOf(context).width,
+                  showHero: !empty,
+                  hero: _HeroBanner(
+                    loading: loading,
+                    imageError: _state == HomeDemoState.partialImageError,
+                    onTap: () => _showMock('兼职探店品鉴官'),
+                    onRetry: () => setState(() => _state = HomeDemoState.ready),
+                  ),
+                  quickActions: _QuickActions(
+                    onTogether: () => _runAction(widget.onOpenTogether),
+                    onParty: () => _runAction(widget.onOpenParty),
+                    onScan: () => _runAction(widget.onOpenScanner),
+                  ),
+                ),
+              ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 122),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 230),
                 sliver: SliverList.list(
                   children: [
-                    _MemberHeader(presentation: member),
                     if (offline) ...[
-                      const SizedBox(height: 8),
                       const _HomeStatusBanner(
                         icon: Icons.wifi_off_rounded,
                         label: '离线内容 · 最近更新 5 分钟前',
@@ -309,23 +327,6 @@ class _HomePageState extends State<HomePage> {
                         busy: true,
                       ),
                     ],
-                    const SizedBox(height: 18),
-                    if (!empty) ...[
-                      _HeroBanner(
-                        loading: loading,
-                        imageError: _state == HomeDemoState.partialImageError,
-                        onTap: () => _showMock('兼职探店品鉴官'),
-                        onRetry: () =>
-                            setState(() => _state = HomeDemoState.ready),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    _QuickActions(
-                      onTogether: () => _runAction(widget.onOpenTogether),
-                      onParty: () => _runAction(widget.onOpenParty),
-                      onScan: () => _runAction(widget.onOpenScanner),
-                    ),
-                    const SizedBox(height: 10),
                     if (empty)
                       _EmptyPromotions(
                         onRestore: () =>
@@ -373,26 +374,147 @@ class _MemberPresentation {
   final String? genderAsset;
 }
 
-class _MemberHeader extends StatelessWidget {
-  const _MemberHeader({required this.presentation});
+class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _HomeStickyHeaderDelegate({
+    required this.presentation,
+    required this.textScale,
+    required this.viewportWidth,
+    required this.showHero,
+    required this.hero,
+    required this.quickActions,
+  });
 
   final _MemberPresentation presentation;
+  final double textScale;
+  final double viewportWidth;
+  final bool showHero;
+  final Widget hero;
+  final Widget quickActions;
+
+  double get _scaleExtra => (textScale - 1).clamp(0, 2) * 12;
+  double get _contentWidth => viewportWidth - 32;
+  double get _expandedMemberExtent => 86 + _scaleExtra;
+  double get _compactMemberExtent => 56 + (_scaleExtra * 2 / 3);
+  double get _heroHeight => showHero ? _contentWidth * 417 / 690 : 0;
+  double get _quickHeight => _contentWidth * 140 / 680;
+  double get _shadowExtent => 8;
+  double get _expandedHeroTop => _expandedMemberExtent - 20;
+  double get _expandedQuickTop =>
+      _expandedHeroTop + (showHero ? _heroHeight + 10 : 0);
+
+  @override
+  double get maxExtent => _expandedQuickTop + _quickHeight + _shadowExtent;
+
+  @override
+  double get minExtent => _compactMemberExtent + _quickHeight + _shadowExtent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final collapseOffset = shrinkOffset.clamp(0.0, maxExtent - minExtent);
+    final progress = collapseOffset / (maxExtent - minExtent);
+    final memberTop = 12 - (8 * progress);
+    final memberBottom = 6 - (2 * progress);
+    final memberExtent =
+        _expandedMemberExtent -
+        ((_expandedMemberExtent - _compactMemberExtent) * progress);
+    final quickTop = _expandedQuickTop - collapseOffset;
+    final heroTop = _expandedHeroTop - collapseOffset;
+
+    return ColoredBox(
+      key: const ValueKey('home-sticky-header'),
+      color: Colors.black,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (showHero)
+            Positioned(
+              left: 16,
+              right: 16,
+              top: heroTop,
+              height: _heroHeight,
+              child: hero,
+            ),
+          Positioned(
+            key: const ValueKey('home-member-persistent-header'),
+            left: 0,
+            right: 0,
+            top: 0,
+            height: memberExtent,
+            child: ColoredBox(
+              color: Colors.black,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, memberTop, 16, memberBottom),
+                child: _MemberHeader(
+                  presentation: presentation,
+                  compactProgress: progress,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: quickTop,
+            height: _quickHeight + _shadowExtent,
+            child: Container(
+              key: const ValueKey('home-sticky-actions-shadow'),
+              padding: EdgeInsets.fromLTRB(16, 0, 16, _shadowExtent),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: .78 * progress),
+                    blurRadius: 16,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 7),
+                  ),
+                ],
+              ),
+              child: quickActions,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _HomeStickyHeaderDelegate oldDelegate) =>
+      oldDelegate.presentation != presentation ||
+      oldDelegate.textScale != textScale ||
+      oldDelegate.viewportWidth != viewportWidth ||
+      oldDelegate.showHero != showHero ||
+      oldDelegate.hero != hero ||
+      oldDelegate.quickActions != quickActions;
+}
+
+class _MemberHeader extends StatelessWidget {
+  const _MemberHeader({required this.presentation, this.compactProgress = 0});
+
+  final _MemberPresentation presentation;
+  final double compactProgress;
 
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final height = 68.0 + ((textScale - 1).clamp(0, 2) * 12);
-    const logoWidth = 102.0;
-    const legacyScale = logoWidth / 140;
-    const logoHeight = logoWidth * 213 / 400;
-    const contentLeft = logoWidth + (20 * legacyScale);
-    const contentWidth = 360 * legacyScale;
-    const topRowHeight = 22 * legacyScale;
-    const assetTopGap = 6 * legacyScale;
-    const assetHeight = 26 * legacyScale;
-    const progressTopGap = 15 * legacyScale;
-    const progressHeight = 4 * legacyScale;
-    const contentHeight =
+    final progress = compactProgress.clamp(0.0, 1.0);
+    final height = 68.0 - (20 * progress) + ((textScale - 1).clamp(0, 2) * 12);
+    final legacyScale =
+        (MediaQuery.sizeOf(context).width / 750) * (1 - (.38 * progress));
+    final logoWidth = 140 * legacyScale;
+    final logoHeight = logoWidth * 213 / 400;
+    final contentLeft = logoWidth + (20 * legacyScale);
+    final contentWidth = 360 * legacyScale;
+    final topRowHeight = 22 * legacyScale;
+    final assetTopGap = 6 * legacyScale;
+    final assetHeight = 26 * legacyScale;
+    final progressTopGap = 15 * legacyScale;
+    final progressHeight = 4 * legacyScale;
+    final contentHeight =
         topRowHeight +
         assetTopGap +
         assetHeight +
@@ -400,6 +522,7 @@ class _MemberHeader extends StatelessWidget {
         progressHeight;
 
     return SizedBox(
+      key: const ValueKey('home-member-header'),
       height: height,
       child: Stack(
         clipBehavior: Clip.none,
@@ -433,7 +556,7 @@ class _MemberHeader extends StatelessWidget {
                             presentation.nickname,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: _gold,
                               fontSize: 22 * legacyScale,
                               fontWeight: FontWeight.w600,
@@ -457,7 +580,7 @@ class _MemberHeader extends StatelessWidget {
                             'L-0 EXP:50',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: _gold,
                               fontSize: 20 * legacyScale,
                               fontWeight: FontWeight.normal,
@@ -593,8 +716,11 @@ class _HeroBanner extends StatefulWidget {
 }
 
 class _HeroBannerState extends State<_HeroBanner> {
-  final _controller = PageController();
+  static const _initialVirtualPage = 10000;
+
+  final _controller = PageController(initialPage: _initialVirtualPage);
   Timer? _timer;
+  int _virtualIndex = _initialVirtualPage;
   int _index = 0;
   bool? _motionDisabled;
 
@@ -609,7 +735,7 @@ class _HeroBannerState extends State<_HeroBanner> {
       _timer = Timer.periodic(const Duration(seconds: 4), (_) {
         if (!mounted || !_controller.hasClients) return;
         _controller.animateToPage(
-          (_index + 1) % 2,
+          _virtualIndex + 1,
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
         );
@@ -642,65 +768,88 @@ class _HeroBannerState extends State<_HeroBanner> {
       child: GestureDetector(
         onTap: widget.imageError ? null : widget.onTap,
         child: AspectRatio(
-          aspectRatio: 2.1,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: widget.imageError
-                ? _BannerError(onRetry: widget.onRetry)
-                : Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      PageView(
-                        key: const ValueKey('home-banner-pages'),
-                        controller: _controller,
-                        onPageChanged: (value) =>
-                            setState(() => _index = value),
-                        children: const [
-                          _RecruitmentBanner(),
-                          _RecruitmentBanner(alternate: true),
-                        ],
+          aspectRatio: 690 / 417,
+          child: widget.imageError
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: _BannerError(onRetry: widget.onRetry),
+                )
+              : Stack(
+                  clipBehavior: Clip.none,
+                  fit: StackFit.expand,
+                  children: [
+                    PageView.builder(
+                      key: const ValueKey('home-banner-pages'),
+                      controller: _controller,
+                      clipBehavior: Clip.none,
+                      physics: const _LeftOnlyPageScrollPhysics(),
+                      onPageChanged: (value) => setState(() {
+                        _virtualIndex = value;
+                        _index = value % 2;
+                      }),
+                      itemBuilder: (context, index) =>
+                          _RecruitmentBanner(alternate: index.isOdd),
+                    ),
+                    Positioned(
+                      bottom: 7,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          2,
+                          (index) => Container(
+                            key: ValueKey(
+                              'home-banner-indicator-$index-${index == _index}',
+                            ),
+                            width: 5,
+                            height: 5,
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            decoration: BoxDecoration(
+                              color: index == _index
+                                  ? _gold
+                                  : const Color(0x60C9B69E),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
                       ),
-                      Positioned(
-                        bottom: 7,
-                        left: 0,
-                        right: 0,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            2,
-                            (index) => Container(
-                              key: ValueKey(
-                                'home-banner-indicator-$index-${index == _index}',
-                              ),
-                              width: 5,
-                              height: 5,
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              decoration: BoxDecoration(
-                                color: index == _index
-                                    ? _gold
-                                    : const Color(0x60C9B69E),
-                                shape: BoxShape.circle,
+                    ),
+                    if (widget.loading)
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: const ColoredBox(
+                            color: Color(0x99000000),
+                            child: Center(
+                              child: SizedBox(
+                                width: 120,
+                                child: LinearProgressIndicator(),
                               ),
                             ),
                           ),
                         ),
                       ),
-                      if (widget.loading)
-                        const ColoredBox(
-                          color: Color(0x99000000),
-                          child: Center(
-                            child: SizedBox(
-                              width: 120,
-                              child: LinearProgressIndicator(),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-          ),
+                  ],
+                ),
         ),
       ),
     );
+  }
+}
+
+class _LeftOnlyPageScrollPhysics extends PageScrollPhysics {
+  const _LeftOnlyPageScrollPhysics({super.parent});
+
+  @override
+  _LeftOnlyPageScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _LeftOnlyPageScrollPhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
+    if (offset > 0) return 0;
+    return super.applyPhysicsToUserOffset(position, offset);
   }
 }
 
@@ -711,56 +860,18 @@ class _RecruitmentBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(
-          alternate
-              ? 'assets/legacy/home/mock_poster_music.png'
-              : 'assets/legacy/home/mock_hero_recruitment.png',
-          fit: BoxFit.cover,
-          alignment: alternate ? Alignment.center : Alignment.center,
-        ),
-        Positioned(
-          left: 20,
-          bottom: 15,
-          child: Opacity(
-            opacity: .72,
-            child: Image.asset('assets/legacy/home/logo_2.png', width: 76),
-          ),
-        ),
-        Positioned(
-          right: 14,
-          bottom: 16,
-          child: Transform.rotate(
-            angle: -.035,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              color: const Color(0xFF9A6339),
-              child: Text(
-                alternate ? '周末音乐现场' : '招募兼职探店品鉴官',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: 15,
-          bottom: 3,
-          child: Text(
-            alternate ? 'KINGCLUB LIVE MUSIC' : 'RECRUITING PART-TIME WORKERS',
-            style: const TextStyle(
-              color: Color(0xFFD8C9B6),
-              fontSize: 8,
-              letterSpacing: .3,
-            ),
-          ),
-        ),
-      ],
+    final asset = alternate
+        ? 'assets/legacy/home/legacy_banner_childrens_day.png'
+        : 'assets/legacy/home/legacy_banner_recruitment.png';
+
+    return Image.asset(
+      asset,
+      key: ValueKey(
+        'home-banner-original-${alternate ? 'childrens-day' : 'recruitment'}',
+      ),
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      filterQuality: FilterQuality.high,
     );
   }
 }
@@ -862,6 +973,7 @@ class _QuickActionsState extends State<_QuickActions> {
             children: [
               SizedBox(
                 width: largeWidth,
+                height: height,
                 child: _LegacyAction(
                   actionId: 'together',
                   title: '一起玩',
@@ -877,6 +989,7 @@ class _QuickActionsState extends State<_QuickActions> {
               SizedBox(width: gap),
               SizedBox(
                 width: largeWidth,
+                height: height,
                 child: _LegacyAction(
                   actionId: 'party',
                   title: '组局玩',
@@ -892,6 +1005,7 @@ class _QuickActionsState extends State<_QuickActions> {
               SizedBox(width: gap),
               SizedBox(
                 width: scanWidth,
+                height: height,
                 child: _LegacyAction(
                   actionId: 'scan',
                   title: '',

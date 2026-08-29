@@ -38,6 +38,9 @@ dependencies:
   riverpod_annotation: ^4.0.6
   go_router: ^18.0.0
   qr_flutter: ^4.1.0
+  flutter_svg: ^2.2.3
+  image_picker: ^1.2.3
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -66,13 +69,27 @@ flutter:
 
   assets:
     - assets/legacy/home/
+    - assets/legacy/onboarding/
     - assets/legacy/navigation/
     - assets/legacy/storage/
     - assets/legacy/profile/
     - assets/legacy/friendship/
     - assets/legacy/friendship/blacklist.png
     - assets/legacy/ordering/
+    - assets/legacy/ordering/hennessy_xo.png
+    - assets/legacy/ordering/chivas_12.png
+    - assets/legacy/ordering/hennessy_vsop.png
+    - assets/legacy/ordering/absolut_vodka.png
+    - assets/legacy/ordering/shopping_bag.png
     - assets/legacy/payment/
+    - assets/legacy/aa/
+    - assets/legacy/aa/positioningCard.png
+    - assets/legacy/aa/man.png
+    - assets/legacy/aa/man2.png
+    - assets/legacy/aa/woman.png
+    - assets/legacy/aa/kingLogo.png
+    - assets/legacy/aa/qrcode2.png
+    - assets/legacy/messaging/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

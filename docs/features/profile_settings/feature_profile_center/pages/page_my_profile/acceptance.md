@@ -14,6 +14,7 @@
 - [x] 获赞、关注、互关、粉丝及编辑主页入口完成。
 - [x] 余额、金币、钻石及旧版标签完成。
 - [x] 作品、动态、相册三项可切换，默认动态且内容区保持截图空白状态。
+- [x] 小下箭头只在“动态”选中时显示；“作品”或“相册”选中时不显示箭头。
 - [x] 二维码、设置、EXP、统计、资产、账号复制和编辑主页均有可返回 Fake 交互。
 - [x] 底部“我的”选中，微信宿主胶囊未带入 App。
 - [x] Android API 37 / 1080×2400 模拟器实机截图通过。
@@ -40,3 +41,28 @@
 - [ ] Android 新截图经用户确认后再恢复页面视觉通过状态。
 
 验收证据：[android_my_profile_header_layout_v2.png](screenshots/android_my_profile_header_layout_v2.png)。
+
+## 2026-08-29 我的订单入口
+
+- [x] 资产服务区域新增“我的订单”胶囊按钮，不覆盖旧版资料内容
+- [x] 点击只触发订单中心路由，不传订单、金额或账号对象
+- [x] 订单中心返回后仍停留在“我的”Tab
+- [x] 缺少外部路由回调时提供正式降级反馈，不显示 Fake/Mock 说明
+- [x] Android 1080 × 2400 真机完成“我的 → 我的订单 → 详情 → 返回”验收
+- [x] “我的订单”使用香槟金实底突出，且胶囊高度与余额、金币、钻石完全一致
+- [x] 四个资产入口使用同一固定高度约束，而不是各自内容高度或纵向 Padding 推导
+
+验收证据：
+
+- [我的页面订单入口](audit/2026-08-29-orders-entry/01-my-orders-entry.png)
+- [订单中心](audit/2026-08-29-orders-entry/02-order-center.png)
+- [AA 订单详情](audit/2026-08-29-orders-entry/03-aa-order-detail.png)
+- [返回“我的”保持 Tab](audit/2026-08-29-orders-entry/04-back-to-my.png)
+
+## 2026-08-29 封面编辑联动
+
+- [x] 编辑主页保存新封面后，“我的”页面立即更新且资料文字叠放关系不变
+- [x] 放弃编辑或取消封面选择时主页封面不变
+- [x] 封面联动仅使用本地 Mock 资源，不访问相册、上传或真实资料接口
+
+验收证据：[`../page_edit_profile/audit/2026-08-29-black-gold-cover/README.md`](../page_edit_profile/audit/2026-08-29-black-gold-cover/README.md)

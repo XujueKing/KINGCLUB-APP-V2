@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/app.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
+import 'package:kingclub/src/core/mock/mock_runtime.dart';
+import 'package:kingclub/src/features/auth/presentation/auth_bootstrap_page.dart';
+import 'package:kingclub/src/features/auth/presentation/terms_consent_page.dart';
 import 'package:kingclub/src/features/club/presentation/private_storage_page.dart';
 import 'package:kingclub/src/features/club/presentation/storage_pickup_code_page.dart';
 import 'package:kingclub/src/features/content/presentation/content_feed_page.dart';
@@ -29,20 +32,156 @@ import 'package:kingclub/src/features/scanner/presentation/safe_scanner_page.dar
 import 'package:kingclub/src/features/shell/presentation/app_shell_page.dart';
 
 void main() {
-  testWidgets('anonymous bootstrap opens mobile login', (tester) async {
+  testWidgets('auth bootstrap error uses production facing copy', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          bootstrapOutcomeProvider.overrideWith(
+            (ref) => Future<BootstrapOutcome>.error(Exception('offline')),
+          ),
+        ],
+        child: MaterialApp(
+          home: AuthBootstrapPage(onAnonymous: () {}, onAuthenticated: () {}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('暂时无法启动'), findsOneWidget);
+    expect(find.text('请检查网络连接后重试。'), findsOneWidget);
+    expect(find.textContaining('Mock'), findsNothing);
+    expect(find.textContaining('真实服务'), findsNothing);
+  });
+
+  testWidgets('terms page keeps technical placeholder labels out of UI', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TermsConsentPage(
+          initialAgreement: AgreementKind.terms,
+          onClose: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('用户协议'), findsOneWidget);
+    expect(find.text('隐私政策'), findsOneWidget);
+    expect(find.textContaining('Mock'), findsNothing);
+    expect(find.textContaining('测试模式'), findsNothing);
+    expect(find.text('协议正文以正式发布版本为准。'), findsOneWidget);
+
+    await tester.tap(find.text('隐私政策'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('KingClub 隐私政策'), findsOneWidget);
+  });
+
+  testWidgets('anonymous bootstrap opens legacy welcome then login', (
+    tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: KingClubApp()));
     expect(find.text('正在安全检查登录状态'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 950));
     await tester.pumpAndSettle();
 
-    expect(find.text('手机号登录'), findsOneWidget);
-    expect(find.text('获取验证码'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('mobile-login-brand-logo')),
+      find.byKey(const ValueKey('legacy-welcome-background')),
       findsOneWidget,
     );
-    expect(find.text('KINGCLUB'), findsNothing);
+    expect(find.byKey(const ValueKey('legacy-welcome-logo')), findsOneWidget);
+    expect(find.text('BUSINESS HOURS'), findsOneWidget);
+    expect(find.text('20:30-04:00'), findsOneWidget);
+    expect(find.text('Mobile Phone:'), findsNothing);
+    final welcomeNext = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('legacy-welcome-next')),
+    );
+    expect(welcomeNext.onPressed, isNull);
+    await tester.tap(find.byKey(const ValueKey('legacy-welcome-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('legacy-welcome-next')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mobile Phone:'), findsOneWidget);
+    expect(find.text('Code:'), findsOneWidget);
+    expect(find.text('获取验证码'), findsOneWidget);
+    expect(find.text('SHANGHAI . ZHUZHOU'), findsOneWidget);
+    final loginLogo = find.byKey(const ValueKey('mobile-login-brand-logo'));
+    expect(loginLogo, findsOneWidget);
+    expect(
+      tester.getCenter(loginLogo).dx,
+      moreOrLessEquals(tester.getCenter(find.byType(Scaffold)).dx, epsilon: 1),
+    );
+    final loginContent = find.byKey(const ValueKey('mobile-login-content'));
+    expect(loginContent, findsOneWidget);
+    expect(
+      tester.getCenter(loginContent).dx,
+      moreOrLessEquals(tester.getCenter(find.byType(Scaffold)).dx, epsilon: 1),
+    );
+    expect(find.text('UI 测试说明'), findsNothing);
+    expect(find.text('我已阅读并同意'), findsNothing);
+  });
+
+  testWidgets('system back never empties the auth onboarding router', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: KingClubApp()));
+    await tester.pump(const Duration(milliseconds: 950));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('legacy-welcome-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('legacy-welcome-next')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('mobile-login-phone-field')),
+        matching: find.byType(EditableText),
+      ),
+      '13800000003',
+    );
+    await tester.tap(find.text('获取验证码'));
+    await tester.pump(const Duration(milliseconds: 750));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('mobile-login-code-field')),
+        matching: find.byType(EditableText),
+      ),
+      '888888',
+    );
+    await tester.pump();
+    final mobileNext = find.byKey(const ValueKey('mobile-login-next'));
+    await tester.ensureVisible(mobileNext);
+    await tester.pumpAndSettle();
+    await tester.tap(mobileNext);
+    await tester.pump(const Duration(milliseconds: 850));
+    await tester.pumpAndSettle();
+    expect(find.text('步骤 1/4'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Mobile Phone:'), findsOneWidget);
+    expect(find.byType(Scaffold), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('legacy-welcome-background')),
+      findsOneWidget,
+    );
+    expect(find.byType(Scaffold), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('legacy-welcome-background')),
+      findsOneWidget,
+    );
+    expect(find.byType(Scaffold), findsOneWidget);
   });
 
   testWidgets('mock sms and onboarding flow reaches the app shell', (
@@ -52,35 +191,124 @@ void main() {
     await tester.pump(const Duration(milliseconds: 950));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(EditableText), '13800000000');
-    await tester.tap(find.byType(Checkbox));
+    await tester.tap(find.byKey(const ValueKey('legacy-welcome-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('legacy-welcome-next')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('mobile-login-phone-field')),
+        matching: find.byType(EditableText),
+      ),
+      '13800000000',
+    );
     await tester.tap(find.text('获取验证码'));
     await tester.pump(const Duration(milliseconds: 750));
     await tester.pumpAndSettle();
+    final codeField = find.descendant(
+      of: find.byKey(const ValueKey('mobile-login-code-field')),
+      matching: find.byType(TextField),
+    );
+    expect(tester.widget<TextField>(codeField).decoration?.hintText, '输入验证码');
+    await tester.tap(codeField);
+    await tester.pump();
+    expect(tester.widget<TextField>(codeField).decoration?.hintText, isNull);
 
-    expect(find.text('输入验证码'), findsOneWidget);
-    expect(find.text('UI 测试验证码'), findsOneWidget);
-
-    await tester.enterText(find.byType(EditableText), '888888');
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('mobile-login-code-field')),
+        matching: find.byType(EditableText),
+      ),
+      '888888',
+    );
+    await tester.pump();
+    final mobileNext = find.byKey(const ValueKey('mobile-login-next'));
+    await tester.ensureVisible(mobileNext);
+    await tester.pumpAndSettle();
+    await tester.tap(mobileNext);
     await tester.pump(const Duration(milliseconds: 850));
     await tester.pumpAndSettle();
 
-    expect(find.text('实名与成年核验'), findsOneWidget);
+    expect(find.text('步骤 1/4'), findsOneWidget);
+    expect(find.text('未满18岁未成年人\n不得饮酒注册会员'), findsOneWidget);
+    expect(find.text('姓名'), findsNothing);
+    expect(find.text('证件号码'), findsNothing);
+    expect(find.text('NAME:'), findsOneWidget);
+    expect(find.text('ID CARD:'), findsOneWidget);
+    final nameFieldSize = tester.getSize(
+      find.byKey(const ValueKey('real-name-name-field')),
+    );
+    expect(nameFieldSize.width, moreOrLessEquals(420, epsilon: 1));
+    expect(nameFieldSize.height, moreOrLessEquals(52, epsilon: 1));
+    expect(
+      tester.getCenter(find.text('NAME:')).dx,
+      moreOrLessEquals(
+        tester.getCenter(find.byKey(const ValueKey('real-name-name-field'))).dx,
+        epsilon: 1,
+      ),
+    );
+    expect(
+      tester.getCenter(find.text('ID CARD:')).dx,
+      moreOrLessEquals(
+        tester.getCenter(find.byKey(const ValueKey('real-name-id-field'))).dx,
+        epsilon: 1,
+      ),
+    );
+    expect(find.text('合成数据演示'), findsNothing);
+    expect(find.textContaining('中华人民共和国未成年人保护法'), findsNothing);
+    expect(find.textContaining('我已阅读并同意：本人已满18周岁'), findsOneWidget);
 
-    await tester.tap(find.byType(Checkbox));
-    await tester.tap(find.text('开始 Fake 核验'));
+    final idField = find.byKey(const ValueKey('real-name-id-field'));
+    expect(tester.widget<TextField>(idField).decoration?.hintText, '请输入证件号码');
+    await tester.tap(idField);
+    await tester.pump();
+    expect(tester.widget<TextField>(idField).decoration?.hintText, isEmpty);
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('real-name-name-field')),
+        matching: find.byType(EditableText),
+      ),
+      '测试会员',
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('real-name-id-field')),
+        matching: find.byType(EditableText),
+      ),
+      '430102199001011234',
+    );
+    expect(find.text('开始 Fake 核验'), findsNothing);
+    final verifyButton = find.byKey(const ValueKey('real-name-verify-button'));
+    final identityTextField = find.byKey(const ValueKey('real-name-id-field'));
+    expect(tester.widget<TextField>(identityTextField).obscureText, isFalse);
+    expect(find.byKey(const ValueKey('real-name-id-visibility')), findsNothing);
+    final adultConsent = find.byKey(
+      const ValueKey('real-name-notice-checkbox'),
+    );
+    expect(adultConsent, findsOneWidget);
+    expect(tester.widget<FilledButton>(verifyButton).onPressed, isNotNull);
+    await tester.tap(adultConsent);
+    await tester.pump();
+    await tester.ensureVisible(verifyButton);
+    await tester.tap(verifyButton);
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
     expect(find.text('完善会员形象资料'), findsOneWidget);
+    expect(find.text('请添加两张近期清晰照片，仅用于会员审核。'), findsOneWidget);
+    expect(find.textContaining('Mock'), findsNothing);
+    expect(find.textContaining('合成示例'), findsNothing);
     await tester.tap(find.text('点击添加').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('使用合成示例图'));
+    await tester.tap(find.text('从相册选择'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('点击添加').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('使用合成示例图'));
+    await tester.tap(find.text('从相册选择'));
     await tester.pumpAndSettle();
+    expect(find.text('已添加'), findsNWidgets(2));
     await tester.tap(find.text('下一步'));
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
@@ -92,18 +320,47 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('完善兴趣偏好'), findsOneWidget);
+    expect(find.text('提交后将进入会员审核流程，最终结果请以审核状态页显示为准。'), findsOneWidget);
+    expect(find.textContaining('Mock 只模拟'), findsNothing);
+    final drinkNotice = find.byKey(const ValueKey('drink-event-review-notice'));
     await tester.ensureVisible(find.text('跳过偏好并提交'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(drinkNotice).dy,
+      greaterThan(tester.getBottomLeft(find.text('跳过偏好并提交')).dy),
+    );
     await tester.tap(find.text('跳过偏好并提交'));
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
     expect(find.text('会员申请审核中'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('membership-review-brand-logo')),
+      findsNothing,
+    );
+    final reviewContent = find.byKey(
+      const ValueKey('membership-review-content'),
+    );
+    expect(reviewContent, findsOneWidget);
+    expect(
+      tester.getCenter(reviewContent).dx,
+      moreOrLessEquals(tester.getCenter(find.byType(Scaffold)).dx, epsilon: 1),
+    );
+    expect(find.text('KINGCLUB'), findsNothing);
+    await tester.ensureVisible(find.text('UI 测试场景'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.text('UI 测试场景')).dy,
+      greaterThan(tester.getBottomLeft(find.text('退出登录')).dy),
+    );
     await tester.tap(find.text('UI 测试场景'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('已通过'));
     await tester.tap(find.text('已通过'));
     await tester.pump();
     await tester.ensureVisible(find.text('进入 KingClub'));
+    expect(find.text('刷新状态'), findsNothing);
+    expect(find.text('退出登录'), findsNothing);
     await tester.tap(find.text('进入 KingClub'));
     await tester.pumpAndSettle();
 
@@ -141,14 +398,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 950));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(EditableText), '13800000001');
-    await tester.tap(find.byType(Checkbox));
+    await tester.tap(find.byKey(const ValueKey('legacy-welcome-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('legacy-welcome-next')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('mobile-login-phone-field')),
+        matching: find.byType(EditableText),
+      ),
+      '13800000001',
+    );
     await tester.tap(find.text('获取验证码'));
     await tester.pump(const Duration(milliseconds: 750));
     await tester.pumpAndSettle();
 
     expect(find.text('请求过于频繁，请 60 秒后重试'), findsOneWidget);
-    expect(find.text('手机号登录'), findsOneWidget);
+    expect(find.text('手机号登录'), findsNothing);
   });
 
   testWidgets('safe scanner emits only an approved fake route intent', (
@@ -205,7 +471,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('NEON 阿澈'), findsOneWidget);
-    expect(find.text('静音'), findsOneWidget);
+    expect(find.text('静音'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('content-feed-audio-toggle')),
+      findsOneWidget,
+    );
     expect(find.text('发布'), findsNothing);
     expect(find.text('点赞'), findsNothing);
     expect(find.text('评论'), findsNothing);
@@ -887,6 +1157,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('卡座搭子'), findsOneWidget);
+    final messageList = tester.widget<ListView>(
+      find.byKey(const ValueKey('direct-chat-message-list')),
+    );
+    expect(
+      messageList.keyboardDismissBehavior,
+      ScrollViewKeyboardDismissBehavior.onDrag,
+    );
+    expect(messageList.scrollCacheExtent?.value, 640);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('direct-chat-input')))
+          .textInputAction,
+      TextInputAction.send,
+    );
+    final chatInput = tester.widget<TextField>(
+      find.byKey(const ValueKey('direct-chat-input')),
+    );
+    expect(
+      (chatInput.decoration?.focusedBorder as OutlineInputBorder).borderSide,
+      BorderSide.none,
+    );
     expect(find.text('你已添加了卡座搭子，现在可以开始聊天了。'), findsOneWidget);
     expect(
       tester.getTopLeft(find.text('你已添加了卡座搭子，现在可以开始聊天了。')).dy,
@@ -897,6 +1188,13 @@ void main() {
       '失败',
     );
     await tester.pump();
+    final enabledSend = tester.widget<TextButton>(
+      find.byKey(const ValueKey('direct-chat-send')),
+    );
+    expect(
+      enabledSend.style?.backgroundColor?.resolve(<WidgetState>{}),
+      const Color(0xFF07C160),
+    );
     await tester.tap(find.byKey(const ValueKey('direct-chat-send')));
     await tester.pumpAndSettle();
     expect(find.text('发送失败，重试'), findsOneWidget);
@@ -913,9 +1211,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('direct-chat-attachments')));
+    final input = find.byKey(const ValueKey('direct-chat-input'));
+    final attachments = find.byKey(const ValueKey('direct-chat-attachments'));
+    await tester.tap(attachments);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('图片'));
+    expect(find.text('照片'), findsOneWidget);
+    await tester.tap(input);
+    await tester.pump();
+    expect(find.text('照片'), findsNothing);
+    await tester.tap(attachments);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(input).focusNode?.hasFocus, isFalse);
+    await tester.tap(find.text('照片'));
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
     expect(
@@ -931,6 +1238,96 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('direct-chat-close-media')));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('direct chat restores legacy extensions and gift mock', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: KingTheme.dark, home: const DirectChatPage()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('direct-chat-attachments')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('direct-chat-attachment-panel')),
+      findsOneWidget,
+    );
+    expect(find.text('照片'), findsOneWidget);
+    expect(find.text('拍照'), findsOneWidget);
+    expect(find.text('金币'), findsOneWidget);
+    expect(find.text('红包'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('direct-chat-gifts')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('direct-chat-attachment-panel')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('direct-chat-gift-panel')),
+      findsOneWidget,
+    );
+    expect(find.text('推荐'), findsOneWidget);
+    expect(find.text('场景特效'), findsOneWidget);
+    expect(find.text('爱意表达'), findsOneWidget);
+    expect(find.text('装饰互动'), findsOneWidget);
+    expect(find.text('501'), findsOneWidget);
+
+    final affordableGift = find.byKey(const ValueKey('direct-chat-gift-5'));
+    await tester.ensureVisible(affordableGift);
+    await tester.pumpAndSettle();
+    await tester.tap(affordableGift);
+    await tester.pump();
+    final giftSend = find.byKey(const ValueKey('direct-chat-gift-send-5'));
+    await tester.ensureVisible(giftSend);
+    await tester.tap(giftSend);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('direct-chat-gift-message')),
+      findsOneWidget,
+    );
+    expect(find.text('天鹅之梦'), findsOneWidget);
+  });
+
+  testWidgets('direct chat keeps long and burst messages stable', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: KingTheme.dark, home: const DirectChatPage()),
+    );
+    await tester.pumpAndSettle();
+
+    final input = find.byKey(const ValueKey('direct-chat-input'));
+    final send = find.byKey(const ValueKey('direct-chat-send'));
+    final longText = List<String>.filled(180, '长').join();
+
+    await tester.enterText(input, longText);
+    await tester.pump();
+    final inputHeight = tester.getSize(input).height;
+    expect(inputHeight, greaterThan(48));
+    expect(inputHeight, lessThanOrEqualTo(132));
+    expect(tester.widget<TextField>(input).maxLines, 4);
+    await tester.tap(send);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text(longText), findsOneWidget);
+    expect(tester.getSize(find.text(longText)).width, lessThanOrEqualTo(252));
+    expect(tester.takeException(), isNull);
+
+    for (var index = 1; index <= 10; index++) {
+      await tester.enterText(input, '连续消息 $index');
+      await tester.pump();
+      await tester.tap(send);
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(find.text('连续消息 $index'), findsOneWidget);
+    }
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(find.text('连续消息 10'), findsOneWidget);
+    expect(tester.widget<TextField>(input).focusNode?.hasFocus, isTrue);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('direct chat copies a local text message', (tester) async {
@@ -1134,8 +1531,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('storage-empty-info')));
     await tester.pumpAndSettle();
     expect(find.text('当前没有可展示的物品'), findsOneWidget);
-    expect(find.textContaining('不会查询服务器'), findsOneWidget);
-    expect(find.text('查看取件凭证演示'), findsOneWidget);
+    expect(find.textContaining('有效存酒或物品'), findsOneWidget);
+    expect(find.text('查看取件凭证'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
+    expect(find.textContaining('Mock'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('storage-open-pickup-demo')));
     await tester.pumpAndSettle();
@@ -1143,6 +1542,7 @@ void main() {
     expect(find.text('ITEM PICKUP CODE'), findsOneWidget);
     expect(find.text('轩尼诗 VSOP'), findsOneWidget);
     expect(find.textContaining('秒后自动更新'), findsOneWidget);
+    expect(find.textContaining('UI Mock'), findsNothing);
   });
 
   testWidgets('storage pickup code covers offline and partial states', (
@@ -1200,17 +1600,36 @@ void main() {
     expect(find.text('颜值：148'), findsOneWidget);
     expect(find.text('河南省 · 安阳市'), findsOneWidget);
     expect(find.text('木系灵根'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('my-profile-dynamic-arrow')),
+      findsOneWidget,
+    );
 
     final worksTab = find.byKey(const ValueKey('my-profile-tab-作品'));
     await tester.ensureVisible(worksTab);
     await tester.tap(worksTab);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('my-profile-content-0')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('my-profile-dynamic-arrow')),
+      findsNothing,
+    );
     final albumTab = find.byKey(const ValueKey('my-profile-tab-相册'));
     await tester.ensureVisible(albumTab);
     await tester.tap(albumTab);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('my-profile-content-2')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('my-profile-dynamic-arrow')),
+      findsNothing,
+    );
+    final activityTab = find.byKey(const ValueKey('my-profile-tab-动态'));
+    await tester.tap(activityTab);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('my-profile-dynamic-arrow')),
+      findsOneWidget,
+    );
 
     final qrEntry = find.byKey(const ValueKey('my-profile-qr'));
     await tester.ensureVisible(qrEntry);
@@ -1229,6 +1648,94 @@ void main() {
     expect(find.text('支付安全'), findsOneWidget);
     expect(find.text('账号注销'), findsOneWidget);
     expect(find.text('注销登录'), findsOneWidget);
+  });
+
+  testWidgets('my profile order entry opens the shared order center intent', (
+    tester,
+  ) async {
+    var opened = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KingTheme.dark,
+        home: Scaffold(body: MyProfilePage(onOpenOrders: () => opened = true)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final orders = find.byKey(const ValueKey('my-profile-orders'));
+    await tester.scrollUntilVisible(
+      orders,
+      180,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(orders);
+    expect(opened, isTrue);
+  });
+
+  testWidgets('my profile asset and order pills have identical heights', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KingTheme.dark,
+        home: const Scaffold(body: MyProfilePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final keys = [
+      const ValueKey('my-profile-asset-我的余额'),
+      const ValueKey('my-profile-asset-金币'),
+      const ValueKey('my-profile-asset-钻石'),
+      const ValueKey('my-profile-orders'),
+    ];
+    final heights = keys
+        .map((key) => tester.getSize(find.byKey(key)).height)
+        .toList();
+
+    expect(heights, everyElement(34));
+  });
+
+  testWidgets('my profile applies a saved local cover immediately', (
+    tester,
+  ) async {
+    String? receivedCover;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KingTheme.dark,
+        home: Scaffold(
+          body: MyProfilePage(
+            onOpenEditProfile: (nickname, signature, coverAsset) async {
+              receivedCover = coverAsset;
+              return const EditableProfileResult(
+                nickname: '杨嘉琪',
+                signature: '',
+                coverAsset: 'assets/legacy/home/mock_poster_music.png',
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final edit = find.byKey(const ValueKey('my-profile-edit'));
+    await tester.ensureVisible(edit);
+    await tester.pumpAndSettle();
+    await tester.tap(edit);
+    await tester.pumpAndSettle();
+    expect(receivedCover, kDefaultProfileCoverAsset);
+
+    final coverImage = tester.widget<Image>(
+      find.descendant(
+        of: find.byKey(const ValueKey('my-profile-cover')),
+        matching: find.byType(Image),
+      ),
+    );
+    expect(
+      (coverImage.image as AssetImage).assetName,
+      'assets/legacy/home/mock_poster_music.png',
+    );
   });
 
   testWidgets('profile internal pages keep legacy offline interactions', (
@@ -1311,7 +1818,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('payment-pin-submit-confirm')));
     await tester.pumpAndSettle();
     expect(find.text('支付 PIN 修改成功'), findsOneWidget);
-    expect(find.textContaining('未修改真实支付凭据'), findsOneWidget);
+    expect(find.text('新的支付 PIN 已生效，请妥善保管。'), findsOneWidget);
   });
 
   testWidgets('account deletion uses preflight, reauth and final phrase', (
@@ -1346,10 +1853,10 @@ void main() {
     );
     await tester.tap(find.text('确认永久注销'));
     await tester.pumpAndSettle();
-    expect(find.text('Fake 注销流程已完成'), findsOneWidget);
+    expect(find.text('KingClub 账号已注销'), findsOneWidget);
   });
 
-  testWidgets('about catalog opens a local fake legal document', (
+  testWidgets('about catalog opens a pre-release legal document', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -1363,7 +1870,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('about-legal-document-0')));
     await tester.pumpAndSettle();
     expect(find.text('《KING CLUB 会员服务协议》'), findsOneWidget);
-    expect(find.text('版本：UI-MOCK-1'), findsOneWidget);
-    expect(find.textContaining('不是正式法律文本'), findsOneWidget);
+    expect(find.text('版本：预发布版'), findsOneWidget);
+    expect(find.text('文档内容以正式发布版本为准。'), findsOneWidget);
   });
 }

@@ -7,6 +7,8 @@ import 'order_center_page.dart';
 
 enum OrderDetailScenario {
   awaitingPayment,
+  scanConfirmed,
+  aaConfirmed,
   confirmed,
   completed,
   refunding,
@@ -64,6 +66,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       onBack: widget.onBack,
       showMockLabel: false,
       onTitleLongPress: _showScenarioPicker,
+      titleFontSize: 16,
+      titleFontWeight: FontWeight.w400,
+      headerHeight: 52,
       child: switch (_scenario) {
         OrderDetailScenario.invalidRef => _buildSafeError(),
         OrderDetailScenario.sessionInvalid => _buildSessionInvalid(),
@@ -85,7 +90,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             child: ListView(
               key: const ValueKey('order-detail-scroll'),
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 110),
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 110),
               children: [
                 _buildStatusCard(presentation),
                 const SizedBox(height: 10),
@@ -109,7 +114,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     return Container(
       key: const ValueKey('order-detail-status'),
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
       decoration: BoxDecoration(
         color: const Color(0xFF15110E),
         borderRadius: BorderRadius.circular(8),
@@ -144,8 +149,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   data.statusLabel,
                   style: TextStyle(
                     color: data.statusColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -182,11 +187,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       key: const ValueKey('order-detail-info'),
       child: Column(
         children: [
-          _DetailRow(label: '订单', value: data.title, emphasized: true),
-          _DetailRow(label: '门店', value: 'KING CLUB · 建宁店'),
-          _DetailRow(label: '桌位', value: data.table),
-          _DetailRow(label: '下单时间', value: data.createdAt),
-          _DetailRow(label: '订单编号', value: 'KC••••$_maskedSuffix'),
+          _DetailRow(label: '订单：', value: data.title),
+          _DetailRow(label: '订单日期：', value: _displayOrderDate(data.createdAt)),
+          _DetailRow(label: '桌号：', value: data.table),
+          _DetailRow(label: '订单编号：', value: 'KC••••$_maskedSuffix'),
         ],
       ),
     );
@@ -198,15 +202,17 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '商品明细',
+          Text(
+            data.title == _scanConfirmedPresentation.title
+                ? 'KINGBAR 湖南工大店'
+                : 'KING CLUB · 建宁店',
             style: TextStyle(
               color: Color(0xFF181205),
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           ...data.items.map(_buildProductRow),
         ],
       ),
@@ -214,23 +220,18 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   Widget _buildProductRow(_FakeOrderLine item) {
+    final detailParts = item.spec.startsWith('AA ')
+        ? <String>[item.spec]
+        : item.spec.split(' · ');
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 9),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x16000000))),
+        border: Border(bottom: BorderSide(color: Color(0x1A181205))),
       ),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: Image.asset(
-              item.asset,
-              width: 58,
-              height: 72,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 12),
+          Image.asset(item.asset, width: 44, height: 70, fit: BoxFit.contain),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,43 +240,48 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   item.name,
                   style: const TextStyle(
                     color: Color(0xFF181205),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    height: 1.15,
                   ),
                 ),
-                const SizedBox(height: 4),
+                for (final part in detailParts)
+                  Text(
+                    part,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF6E604F),
+                      fontSize: 11,
+                      height: 1.25,
+                    ),
+                  ),
                 Text(
-                  item.spec,
+                  '单价 ¥${item.unitPrice}.00',
                   style: const TextStyle(
                     color: Color(0xFF6E604F),
                     fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '单价 ¥${item.unitPrice}',
-                  style: const TextStyle(
-                    color: Color(0xFF6E604F),
-                    fontSize: 11,
+                    height: 1.25,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '数量 × ${item.quantity}',
-                style: const TextStyle(color: Color(0xFF6E604F), fontSize: 10),
+                '数量 x ${item.quantity}',
+                style: const TextStyle(color: Color(0xFF6E604F), fontSize: 11),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 7),
               Text(
                 '小计 ¥${item.subtotal}',
                 style: const TextStyle(
                   color: Color(0xFF181205),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ],
@@ -301,14 +307,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               strong: true,
               refund: true,
             ),
-          const SizedBox(height: 6),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '金额为 Fake 权威详情投影，客户端未参与计算',
-              style: TextStyle(color: Color(0xFF796A58), fontSize: 9),
-            ),
-          ),
         ],
       ),
     );
@@ -435,7 +433,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       ),
       _ when _cancelledLocally => (
         Icons.check_circle_outline_rounded,
-        'Fake 订单已取消，未发生真实退款',
+        '订单已取消，状态已更新',
       ),
       _ => null,
     };
@@ -496,8 +494,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF201A15),
+        actionsAlignment: MainAxisAlignment.center,
+        actionsOverflowAlignment: OverflowBarAlignment.center,
         title: const Text('确认取消订单？'),
-        content: const Text('此处只演示 Fake 取消流程，不代表退款或付款已经完成。'),
+        content: const Text('取消后订单将关闭，无法继续支付。是否确认取消？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -546,7 +546,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     if (widget.onPaymentIntent case final callback?) {
       callback(ref);
     } else {
-      showFakeResult(context, '已生成继续支付意图 $ref');
+      _showActionFeedback('支付页面暂时无法打开，请稍后重试');
     }
   }
 
@@ -555,7 +555,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     if (widget.onAdmission case final callback?) {
       callback(ref);
     } else {
-      showFakeResult(context, '已生成入场凭证意图 $ref');
+      _showActionFeedback('入场凭证暂时无法打开，请稍后重试');
     }
   }
 
@@ -563,8 +563,14 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     if (widget.onContactSupport case final callback?) {
       callback(widget.orderRef);
     } else {
-      showFakeResult(context, '已生成客服支持意图');
+      _showActionFeedback('客服入口正在准备中，请稍后重试');
     }
+  }
+
+  void _showActionFeedback(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showScenarioPicker() {
@@ -602,6 +608,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   String get _maskedSuffix {
+    if (_presentation.title == _scanConfirmedPresentation.title) return '0829';
+    if (_scenario == OrderDetailScenario.aaConfirmed) return 'AA29';
     if (_presentation.title == _confirmedPresentation.title) return '0828';
     if (_presentation.title == _completedPresentation.title) return '0826';
     if (_presentation.title == _refundingPresentation.title) return '0825';
@@ -611,10 +619,20 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     return raw.substring(raw.length > 4 ? raw.length - 4 : 0).toUpperCase();
   }
 
+  String _displayOrderDate(String createdAt) {
+    final date = createdAt.split(' ').first.split('-');
+    if (date.length != 3) return createdAt.split(' ').first;
+    return '${date[0]}/${int.parse(date[1])}/${int.parse(date[2])}';
+  }
+
   _OrderDetailPresentation get _presentation {
-    if (_cancelledLocally) return _cancelledPresentation;
+    if (_cancelledLocally) return _cancelledAwaitingPaymentPresentation;
     if (_conflictResolved) return _confirmedPresentation;
     return switch (_scenario) {
+      OrderDetailScenario.scanConfirmed => _scanConfirmedPresentation,
+      OrderDetailScenario.aaConfirmed => _aaConfirmedPresentationFor(
+        widget.orderRef.opaqueId,
+      ),
       OrderDetailScenario.confirmed => _confirmedPresentation,
       OrderDetailScenario.completed => _completedPresentation,
       OrderDetailScenario.refunding => _refundingPresentation,
@@ -635,11 +653,17 @@ class _LegacyOrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
       decoration: BoxDecoration(
         color: legacyGold,
         borderRadius: BorderRadius.circular(8),
-        boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: child,
     );
@@ -647,38 +671,33 @@ class _LegacyOrderCard extends StatelessWidget {
 }
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow({
-    required this.label,
-    required this.value,
-    this.emphasized = false,
-  });
+  const _DetailRow({required this.label, required this.value});
 
   final String label;
   final String value;
-  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 72,
-            child: Text(
-              label,
-              style: const TextStyle(color: Color(0xFF6E604F), fontSize: 12),
-            ),
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF181205), fontSize: 14),
           ),
+          const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: const Color(0xFF181205),
-                fontSize: emphasized ? 14 : 12,
-                fontWeight: emphasized ? FontWeight.w700 : FontWeight.w500,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: Color(0xFF181205),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
             ),
           ),
@@ -705,15 +724,15 @@ class _MoneyRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final prefix = amount < 0 ? '-¥' : '¥';
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: strong ? 7 : 4),
+      padding: EdgeInsets.symmetric(vertical: strong ? 6 : 3),
       child: Row(
         children: [
           Text(
             label,
             style: TextStyle(
               color: const Color(0xFF4C4033),
-              fontSize: strong ? 14 : 12,
-              fontWeight: strong ? FontWeight.w700 : FontWeight.w400,
+              fontSize: strong ? 16 : 13,
+              fontWeight: strong ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
           const Spacer(),
@@ -721,8 +740,8 @@ class _MoneyRow extends StatelessWidget {
             '$prefix${amount.abs()}',
             style: TextStyle(
               color: refund ? const Color(0xFF76520B) : const Color(0xFF181205),
-              fontSize: strong ? 20 : 13,
-              fontWeight: strong ? FontWeight.w800 : FontWeight.w500,
+              fontSize: strong ? 22 : 13,
+              fontWeight: strong ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
         ],
@@ -975,6 +994,23 @@ const _scanItems = <_FakeOrderLine>[
   ),
 ];
 
+const _paidScanItems = <_FakeOrderLine>[
+  _FakeOrderLine(
+    name: '轩尼诗XO',
+    spec: 'Hennessy XO · 750ML',
+    unitPrice: 3380,
+    quantity: 1,
+    asset: 'assets/legacy/ordering/hennessy_xo.png',
+  ),
+  _FakeOrderLine(
+    name: '芝华士12年',
+    spec: 'CHIVAS REGAL 12 YEARS · 750ML',
+    unitPrice: 330,
+    quantity: 1,
+    asset: 'assets/legacy/ordering/chivas_12.png',
+  ),
+];
+
 const _awaitingPaymentPresentation = _OrderDetailPresentation(
   type: '扫码点单',
   title: 'KINGBAR V8 桌点单',
@@ -992,6 +1028,59 @@ const _awaitingPaymentPresentation = _OrderDetailPresentation(
   canPay: true,
   canCancel: true,
 );
+
+const _scanConfirmedPresentation = _OrderDetailPresentation(
+  type: '扫码点单',
+  title: 'KINGBAR 湖南工大店',
+  table: '888号桌',
+  createdAt: '2026-08-29 20:18',
+  statusLabel: '已支付',
+  statusHint: '支付已确认，商品将按 888号桌 安排出品',
+  statusColor: Color(0xFF72DDB2),
+  items: _paidScanItems,
+  originalAmount: 3710,
+  discount: 30,
+  paidAmount: 3680,
+  refundAmount: 0,
+  timeline: [('支付已确认', '刚刚'), ('订单已创建', '20:18'), ('扫码进入 888 桌', '20:16')],
+);
+
+_OrderDetailPresentation _aaConfirmedPresentationFor(String orderRef) {
+  final match = RegExp(r'aa-v5-paid-r([0-7])').firstMatch(orderRef);
+  final mask = int.tryParse(match?.group(1) ?? '') ?? 0;
+  final deduction =
+      (mask & 1 != 0 ? 20 : 0) +
+      (mask & 2 != 0 ? 8 : 0) +
+      (mask & 4 != 0 ? 20 : 0);
+  final paidAmount = 268 - deduction;
+  return _OrderDetailPresentation(
+    type: '一起玩AA',
+    title: 'KING CLUB AA预订',
+    table: 'V5 卡座 · 08月29日 20:30',
+    createdAt: '2026-08-29 21:54',
+    statusLabel: '已确认',
+    statusHint: '支付已确认，V5 卡座本人席位已经保留',
+    statusColor: const Color(0xFF72DDB2),
+    items: [
+      _FakeOrderLine(
+        name: '3880卡座套餐',
+        spec: 'AA 预订 · 本人 1 席',
+        unitPrice: paidAmount,
+        quantity: 1,
+        asset: 'assets/legacy/aa/package_3880_v1.png',
+      ),
+    ],
+    originalAmount: 268,
+    discount: deduction,
+    paidAmount: paidAmount,
+    refundAmount: 0,
+    timeline: const [
+      ('支付已确认', '刚刚'),
+      ('预订已提交', '21:54'),
+      ('已选择 V5 卡座', '21:52'),
+    ],
+  );
+}
 
 const _confirmedPresentation = _OrderDetailPresentation(
   type: 'VIP组局',
@@ -1016,6 +1105,22 @@ const _confirmedPresentation = _OrderDetailPresentation(
   refundAmount: 0,
   timeline: [('席位已确认', '18:44'), ('支付已确认', '18:43'), ('订单已创建', '18:42')],
   canViewAdmission: true,
+);
+
+const _cancelledAwaitingPaymentPresentation = _OrderDetailPresentation(
+  type: '扫码点单',
+  title: 'KINGBAR V8 桌点单',
+  table: 'V8 卡座',
+  createdAt: '2026-08-27 20:18',
+  statusLabel: '已取消',
+  statusHint: '订单已经取消，无法继续支付',
+  statusColor: Color(0xFFAAA199),
+  items: _scanItems,
+  originalAmount: 1216,
+  discount: 60,
+  paidAmount: 1156,
+  refundAmount: 0,
+  timeline: [('订单已取消', '刚刚'), ('订单已创建', '20:18'), ('扫码进入 V8 桌', '20:16')],
 );
 
 const _completedPresentation = _OrderDetailPresentation(
@@ -1140,6 +1245,8 @@ const _unknownPresentation = _OrderDetailPresentation(
 
 OrderDetailScenario _scenarioForRef(FakeOrderRef ref) {
   final id = ref.opaqueId;
+  if (id.contains('scan-888-paid')) return OrderDetailScenario.scanConfirmed;
+  if (id.contains('aa-v5-paid')) return OrderDetailScenario.aaConfirmed;
   if (id.contains('vip-a6')) return OrderDetailScenario.confirmed;
   if (id.contains('aa-v2')) return OrderDetailScenario.completed;
   if (id.contains('fruit')) return OrderDetailScenario.refunding;
@@ -1151,6 +1258,8 @@ OrderDetailScenario _scenarioForRef(FakeOrderRef ref) {
 
 String _scenarioLabel(OrderDetailScenario scenario) => switch (scenario) {
   OrderDetailScenario.awaitingPayment => '待支付',
+  OrderDetailScenario.scanConfirmed => '扫码点单 · 已支付',
+  OrderDetailScenario.aaConfirmed => 'AA 预订 · 已确认',
   OrderDetailScenario.confirmed => '已确认 / 查看凭证',
   OrderDetailScenario.completed => '已完成',
   OrderDetailScenario.refunding => '退款中',

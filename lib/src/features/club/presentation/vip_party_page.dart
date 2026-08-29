@@ -97,7 +97,7 @@ class _VipPartyPageState extends State<VipPartyPage> {
               actionsEnabled: !_offline,
               joined: _joinedParties.contains(index),
               onInvite: (slot) =>
-                  showFakeResult(context, '已生成第${slot + 1}个位置的单人 Fake 邀请'),
+                  showFakeResult(context, '已向第${slot + 1}个位置发送单人邀请'),
               onJoin: () => _confirmJoin(index),
               onTicket: widget.onOpenTicket,
               onManage: widget.onManageParty,
@@ -105,7 +105,7 @@ class _VipPartyPageState extends State<VipPartyPage> {
           ],
           const SizedBox(height: 22),
           const Text(
-            '规则：【组局玩】由开台会员先预定卡座和酒水套餐，可设置参加人数，并选择公开AA凑人数或邀请制模式。局长可维护组局成员，但所有费用和赔付在本阶段均为 Fake。\n\n请注意穿着精致、文明饮酒并尊重同桌会员。',
+            '规则：【组局玩】由开台会员先预定卡座和酒水套餐，可设置参加人数，并选择公开AA凑人数或邀请制模式。局长可维护组局成员；费用、赔付与退款以提交订单时确认的规则为准。\n\n请注意穿着精致、文明饮酒并尊重同桌会员。',
             style: TextStyle(
               color: Color(0x66FFFFFF),
               fontSize: 12,
@@ -154,7 +154,7 @@ class _VipPartyPageState extends State<VipPartyPage> {
         content: Text(
           '${party.table} · ${party.name}\n'
           '${sponsored ? '局长请客，本人应付 ¥0.00' : '成员各付 ¥${party.price}.00'}\n\n'
-          '请文明饮酒、尊重同桌会员；确认后将占用一个 Fake 席位。',
+          '请文明饮酒、尊重同桌会员；确认后将占用一个席位。',
           style: const TextStyle(color: Color(0xFFD8C8B8), height: 1.6),
         ),
         actions: [
@@ -176,17 +176,17 @@ class _VipPartyPageState extends State<VipPartyPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1A1511),
-        title: Text(sponsored ? 'Fake 加入成功' : '已生成 Fake 待支付意图'),
+        title: Text(sponsored ? '加入成功' : '待支付订单已生成'),
         content: Text(
           sponsored
-              ? '已确认一个本地 Fake 席位，实付 ¥0.00，没有拉起支付。'
-              : '席位模拟保留 10 分钟，待支付 ¥${party.price}.00。\n\n真实支付模块尚未接入，本次不会扣款。',
+              ? '席位已确认，本次实付 ¥0.00，无需支付。'
+              : '席位将保留 10 分钟，待支付 ¥${party.price}.00，请在有效期内完成支付。',
           style: const TextStyle(color: Color(0xFFD8C8B8), height: 1.6),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('知道了', style: TextStyle(color: legacyPink)),
+            child: const Text('知道了', style: TextStyle(color: legacyGold)),
           ),
         ],
       ),
@@ -224,7 +224,9 @@ class _VipPartyPageState extends State<VipPartyPage> {
                     option == _scenario
                         ? Icons.radio_button_checked_rounded
                         : Icons.radio_button_off_rounded,
-                    color: option == _scenario ? legacyPink : legacyGold,
+                    color: option == _scenario
+                        ? legacyGold
+                        : const Color(0xFF6E604F),
                   ),
                   onTap: () => Navigator.pop(context, option),
                 ),
@@ -338,13 +340,15 @@ class _PartyCard extends StatelessWidget {
                                   height: 22,
                                   decoration: BoxDecoration(
                                     color: index < filled
-                                        ? legacyPink
-                                        : const Color(0x33FBAFDA),
+                                        ? legacyGold
+                                        : const Color(0xFF332B22),
                                     borderRadius: BorderRadius.circular(2),
                                   ),
                                   child: Icon(
                                     index.isEven ? Icons.male : Icons.female,
-                                    color: const Color(0xAA3A1830),
+                                    color: index < filled
+                                        ? const Color(0xFF21180F)
+                                        : const Color(0xFF8D7B65),
                                     size: 15,
                                   ),
                                 ),
@@ -412,7 +416,7 @@ class _PartyCard extends StatelessWidget {
                 : CrossFadeState.showFirst,
             firstChild: const SizedBox(width: double.infinity),
             secondChild: Container(
-              color: legacyMagenta,
+              color: const Color(0xFF15110E),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               child: Column(
                 children: [
@@ -421,7 +425,7 @@ class _PartyCard extends StatelessWidget {
                       height: 52,
                       decoration: const BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: Color(0x44470F24)),
+                          bottom: BorderSide(color: Color(0x665C4C3A)),
                         ),
                       ),
                       child: Row(
@@ -437,7 +441,7 @@ class _PartyCard extends StatelessWidget {
                           ),
                           LegacyClubButton(
                             label: '管理组局',
-                            light: true,
+                            goldFill: true,
                             onPressed: actionsEnabled ? onManage : null,
                           ),
                         ],
@@ -449,17 +453,17 @@ class _PartyCard extends StatelessWidget {
                       height: 58,
                       decoration: const BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: Color(0x44470F24)),
+                          bottom: BorderSide(color: Color(0x665C4C3A)),
                         ),
                       ),
                       child: Row(
                         children: [
                           CircleAvatar(
                             radius: 19,
-                            backgroundColor: const Color(0x55FBAFDA),
+                            backgroundColor: const Color(0xFF2D251D),
                             child: Icon(
                               index.isEven ? Icons.male : Icons.female,
-                              color: legacyPink,
+                              color: legacyGold,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -481,13 +485,13 @@ class _PartyCard extends StatelessWidget {
                           if (index == 0 && party.role == _PartyRole.host)
                             const Text(
                               '局长',
-                              style: TextStyle(color: legacyPink),
+                              style: TextStyle(color: legacyGold),
                             )
                           else if (index >= filled &&
                               party.role == _PartyRole.host)
                             LegacyClubButton(
                               label: '邀请',
-                              light: true,
+                              goldFill: true,
                               onPressed: actionsEnabled
                                   ? () => onInvite(index)
                                   : null,
@@ -497,7 +501,7 @@ class _PartyCard extends StatelessWidget {
                               !joined)
                             LegacyClubButton(
                               label: filled >= party.total ? '已满员' : '申请加入',
-                              light: true,
+                              goldFill: true,
                               onPressed: actionsEnabled && filled < party.total
                                   ? onJoin
                                   : null,

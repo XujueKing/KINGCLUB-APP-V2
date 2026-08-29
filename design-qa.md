@@ -1,3 +1,56 @@
+# Design QA — Profile Asset Pills Equal Height v9
+
+- source visual truth: 用户当前会话提供的四个资产胶囊局部截图
+- implementation screenshot: `docs/features/profile_settings/feature_profile_center/pages/page_my_profile/audit/2026-08-29-equal-pills/01-equal-height-pills.png`
+- viewport: Android emulator `1080 × 2400 px`, approximately `432 × 960 dp`
+- state: 我的主页 / 四个资产入口同排
+- evidence: 余额、金币、钻石和“我的订单”均由固定 `34dp` 高度约束；自动化直接测量四个控件高度全部为 `34.0`，Android 截图显示顶线和底线一致。
+- fidelity surfaces: 原有字体、黑金配色、旧版金币/钻石素材与正式文案均保持不变；“我的订单”仅通过香槟金和字重突出。
+- findings: no actionable P0/P1/P2 mismatch remains.
+
+final result: passed
+
+---
+
+# Design QA — AA 已选座定位凭证 v1
+
+- source visual truth path: 用户于 2026-08-29 当前会话提供的已选座列表卡与完整凭证截图，以及稳定源码 `C:\Users\Poplar\Desktop\KingClub-app\pages\Choose`、`pages\ticket`
+- implementation screenshot paths: `docs/features/club/feature_aa_reservation/pages/page_aa_positioning_card/audit/2026-08-29/01-reservation-list-positioning-card.png`; `02-positioning-card-page.png`
+- viewport: Android emulator `1080 × 2400 px`, approximately `411 × 891 dp`
+- state: 周四 08.27 已支付已选座 / 888 / 3880卡座套餐 / 388元每人
+- full-view evidence: 列表紫色定位卡与完整酒红二维码凭证页均按旧版内容顺序、主区域比例和原始素材复刻。
+- focused evidence: `888` 衬线字、紫红渐变、2×5 席位矩阵、白底二维码、King 中心图、会员号/套餐/票价与三条说明均已核对。
+- comparison history: 修复列表卡 2 px 溢出与渐变压暗；修复完整页标题栏收缩导致返回箭头压住标题；修复直接路由没有上一页时返回无响应，并实机验证左上角、Android 系统返回及正常路由栈返回。最终证据无剩余 P0/P1/P2 差异。
+- verification: AA 相关测试 17/17 passed; `flutter analyze` no issues; preview APK installed on `emulator-5554`.
+
+final result: passed
+
+---
+
+# Design QA — Direct Chat WeChat Fluency Pass
+
+- source visual truth: user-provided WeChat-style direct-chat screenshot and the approved legacy chat replication documents
+- implementation screenshot: `build/direct-chat-wechat-fluency.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`
+- state: chat list → `卡座搭子` → normal direct conversation
+
+## Interaction evidence
+
+- The message list is top-flowing and remains above the composer instead of being squeezed against the bottom edge.
+- Input focus and the attachment panel are mutually exclusive; keyboard settling triggers one debounced scroll to the latest message.
+- Enter sends, local messages appear immediately, focus is retained after sending, and dragging the list dismisses the keyboard.
+- The list uses lazy construction, additional scroll cache and repaint boundaries to reduce avoidable rebuild/jank during normal chat.
+
+## Verification
+
+- Direct-chat widget tests: 5/5 passed.
+- Full app smoke tests: 35/35 passed.
+- Static analysis: no issues.
+
+final result: passed for UI/Fake fluency; real WebSocket remains gated
+
+---
+
 # Design QA — Legacy Private Storage Replica v1
 
 - source visual truth: user-provided old-version private storage screenshot in the 2026-08-26 conversation (`580 × 1200 px`, including device frame)
@@ -44,6 +97,662 @@
 ## Follow-up Polish
 
 - A populated cabinet state needs a separate old-version reference before adding bottle/product assets.
+
+final result: passed
+
+---
+
+# Design QA — Home Original Banner Replica v7
+
+- source visual truth paths: `assets/legacy/home/legacy_banner_childrens_day.png` (`687 × 415 px`) and `assets/legacy/home/legacy_banner_recruitment.png` (`1375 × 831 px`)
+- implementation screenshot paths: `.tmp-home-original-banner-v2.png` and `.tmp-home-original-recruitment-final.png` (`1080 × 2400 px` each)
+- combined comparison evidence: `.tmp-home-original-banner-comparison.png` (`1200 × 1500 px`)
+- viewport: Android emulator `1080 × 2400 px`, approximately `393 × 873 dp`
+- state: children-day and recruitment carousel pages
+
+## Comparison evidence
+
+- Typography and copy: all advertising typography and copy are embedded in the original legacy PNG files, so no Flutter font approximation, wrapping, or letter-spacing drift remains.
+- Spacing and layout: the implementation uses the legacy `690:417` canvas ratio and the old `-20rpx` top-offset semantics; the action cards begin immediately below the complete transparent canvas.
+- Colors: original pixels and alpha channels are rendered without theme overlays, filters, gradients, or recoloring.
+- Image quality: both source assets are displayed with `BoxFit.contain` and high-quality filtering; the complete head/hair and water-droplet silhouettes break above the rectangular background exactly because they are part of the source transparency.
+- Content: original `King club` marks, Chinese/English campaign copy, people, and backgrounds are retained as one image per slide.
+
+## Comparison history
+
+- P1 fixed: the former generated split-layer banner changed the subject silhouette, crop, typography, and composition.
+- Fix: replaced the generated composition with the exact legacy `ad02.png` and `ad4.png` files and restored the original aspect ratio/top offset.
+- Post-fix combined evidence shows no actionable P0/P1/P2 mismatch in either banner state.
+
+## Verification
+
+- `flutter test --update-goldens test/home_legacy_visual_test.dart`: passed.
+- `flutter test test/home_legacy_visual_test.dart`: passed.
+- `flutter analyze`: no issues.
+
+final result: passed
+
+---
+
+# Design QA — Compact Profile Cover Gallery Picker v8
+
+- source visual truth: 用户于 2026-08-29 对现有黑金编辑主页提出的“按钮更小、可调用相册”修正要求；前一版为 `docs/features/profile_settings/feature_profile_center/pages/page_edit_profile/audit/2026-08-29-black-gold-cover/01-edit-profile.png`
+- implementation screenshots: `docs/features/profile_settings/feature_profile_center/pages/page_edit_profile/audit/2026-08-29-gallery-picker/01-compact-cover-button.png`; `02-system-photo-picker.png`; `03-gallery-image-preview.png`; `04-profile-saved-gallery-cover.png`
+- viewport: Android device `1080 × 2400 px`; approximately `432 × 960` logical px at density 2.5
+- normalization: source and implementation use identical pixel dimensions and device density
+- state: 编辑主页、系统相册、相册图片预览、保存后主页
+
+## Full-view and focused comparison evidence
+
+- Typography: “更换封面”降为 12 logical px，未改变其余编辑页字阶。
+- Spacing: 胶囊图标、间距和内边距同步缩小；封面、头像、字段列表的既有位置完全保留。
+- Colors: App 自有区域继续使用黑、深棕、香槟金和暖白；系统相册保持设备原生主题。
+- Image quality: 相册原图在编辑预览和主页使用同一引用与 cover 裁切，无压缩占位图。
+- Copy: 正式 UI 只显示“更换封面”和保存提示，没有技术测试文案。
+
+## Findings and comparison history
+
+- Earlier P2 oversized cover control: fixed by reducing icon from 18 to 15, type to 12, and padding from 14×8 to 9×5 logical px.
+- Earlier P1 preset-only selection: fixed with the Android system Photo Picker; selection, preview and saved-profile states were captured on-device.
+- No actionable P0/P1/P2 issue remains.
+
+final result: passed
+
+---
+
+# Design QA — Profile Edit Black-Gold and Cover v7
+
+- source visual truth: 用户于 2026-08-29 提供的旧粉色编辑弹窗问题截图，以及已批准的 KingClub 黑金“我的”主页
+- implementation screenshots: `docs/features/profile_settings/feature_profile_center/pages/page_edit_profile/audit/2026-08-29-black-gold-cover/01-edit-profile.png`; `02-black-gold-dialog.png`; `03-cover-picker.png`; `05-profile-updated-cover.png`
+- viewport: connected Android device, `1080 × 2400 px`, approximately `432 × 960` logical px at density 2.5
+- state: 编辑主页首屏、昵称编辑、封面选择、保存后主页
+
+## Comparison evidence
+
+- Typography and spacing: 编辑页、弹窗和选择器采用同一黑金字阶与边距，字段值和箭头保持既有对齐规则。
+- Colors: 已清除本流程的粉色主题；选中、描边和主操作均使用香槟金。
+- Imagery: 封面选择与主页回显使用完全相同的本地资源，裁切稳定且文字叠放不变。
+- Copy: “更换封面”与“保存修改”清楚表达本地 Mock 流程，正式界面无测试提示。
+
+## Findings
+
+- 旧粉色弹窗和缺少封面编辑两个 P1 差异均已闭环；无剩余 P0/P1/P2 问题。
+
+final result: passed
+
+---
+
+# Design QA — 首页完整顶部组合吸顶 v7
+
+- source visual truth：用户于 2026-08-29 提供的旧版首页滚动态局部截图（紧凑会员栏、一起玩/组局玩/扫码三联入口及底部阴影）
+- implementation screenshots：`docs/features/home/feature_home_hub/pages/page_home/audit/2026-08-29-scroll-header/15-sticky-group-shadow-top.png`、`16-sticky-group-shadow-compact.png`
+- viewport：Android 真机 `1080 × 2400 px`；与旧版完整截图同像素尺寸，无密度换算
+- state：首页展开态；Banner 滚出后的顶部组合吸顶态
+
+## Full-view comparison evidence
+
+- 展开态顺序保持“会员信息 → Banner → 三联入口 → 两列广告”。
+- 滚动态改为“紧凑会员信息 + 三联入口”整体固定，广告从三联入口下方经过，三个入口不会再随 Banner 一起滚走。
+- 三联入口底部加入连续黑色柔和阴影，滚动态阴影增强并覆盖广告上沿，形成旧版可见的前后层次。
+
+## Focused region comparison evidence
+
+- Typography：一起玩、组局玩、扫码及英文副标题沿用已验收字号、字重、行高和居中方式。
+- Spacing：三张卡保持同高、同顶线、同底线；紧凑会员栏与三联入口之间无异常空档。
+- Colors：黑底、米金卡片、深棕文字与黑色阴影均沿用首页旧版色系。
+- Image quality：三个入口继续使用旧版背景素材，没有代码绘制或占位替代。
+- Copy：`一起玩 / TOGETHER PLAY`、`组局玩 / EXCLUSIVE SEATS`、`SCAN QR` 保持不变。
+
+## Comparison history
+
+- P1 fixed：此前只固定会员栏，三联入口仍会滚走，不符合用户给出的旧版滚动态。
+- Fix：把会员栏、Banner 和三联入口合并为一个可折叠头部；仅 Banner 滚出，紧凑会员栏和三联入口共同吸顶，并补充底部阴影。
+- Post-fix evidence：`16-sticky-group-shadow-compact.png` 显示三个入口全部固定在紧凑会员栏下方，广告紧接其后且阴影层次可见。
+
+## Findings
+
+- 本轮指定区域无剩余 P0/P1/P2 差异。
+
+final result: passed
+
+---
+
+# Design QA — Home Scroll-Responsive Member Header
+
+- source visual truth: user-provided legacy expanded and compact-scroll screenshots in the current conversation; full-screen source is `1080 × 2400 px`
+- implementation screenshots: `docs/features/home/feature_home_hub/pages/page_home/audit/2026-08-29-scroll-header/08-final-top.png` and `docs/features/home/feature_home_hub/pages/page_home/audit/2026-08-29-scroll-header/12-final-compact-matched.png`
+- viewport: connected Android device, `1080 × 2400 px`, no density normalization required
+- state: expanded home top and compact pinned member header after the hero leaves the viewport
+- full-view evidence: the legacy member assets remain visible in both states; the compact header stays pinned while quick actions and the two-column campaign grid continue below it
+- focused-region evidence: the compact header preserves the source logo, nickname/level, coin, diamond, and progress hierarchy without replacement assets or copy changes
+- typography: existing approved member type scales with the header and remains single-line; no new font or weight drift
+- spacing/layout: header height and asset widths interpolate continuously; quick actions are reachable directly below the compact bar; no overflow at the tested viewport
+- colors/tokens: black background and champagne-gold member treatment preserved
+- image quality: original legacy raster assets remain sharp and correctly proportioned
+- copy/content: unchanged
+- comparison history: initial P1 was a missing compact state because the member header scrolled away; fixed with a pinned persistent header and sufficient scroll range; post-fix evidence is `12-final-compact-matched.png`
+- verification: home widget tests 13/13 passed; static analysis reports no issues
+
+final result: passed
+
+---
+
+# Design QA — Home Header Legacy Logo Scale
+
+- source visual truth: user-provided legacy home screenshot, stable `pages/index/index.wxml` / `index.wxss`, and exact old `images/logo_2.png`
+- implementation screenshot: `docs/features/home/feature_home_hub/pages/page_home/home-logo-fixed-2026-08-29.png`
+- viewport: connected Android device, `1080 × 2400 px`
+- evidence: source and V2 logo SHA-256 match; measured logo is `202 × 107 px`, or `18.70%` of the viewport width, matching the old `140rpx / 750rpx` rule and the original `400 × 213` aspect ratio
+- verification: home widget tests 11/11 passed; static analysis reports no issues
+
+final result: passed
+
+---
+
+# Design QA — Home Banner Left-Only Infinite Loop
+
+- source interaction truth: corrected user direction that the home ad must loop only to the left and never page right
+- implementation recording: `docs/features/home/feature_home_hub/pages/page_home/home-banner-left-loop-2026-08-29.mp4`
+- viewport: connected Android device, `1080 × 2400 px`
+- evidence: two automatic cycles use increasing virtual pages (`10000 → 10001 → 10002`) with no visible reset; rightward drag is rejected and leftward drag advances one page
+- verification: home widget tests 12/12 passed; static analysis reports no issues
+
+final result: passed
+
+---
+
+# Design QA — VIP / Profile Orders / Payment Notice Corrections
+
+- source visual truth: 用户于 2026-08-29 提供的 VIP 组局、“我的”页与支付页截图
+- implementation screenshots: `docs/features/foundation/feature_mock_runtime/audit/2026-08-29-ui-corrections/`
+- viewport: connected Android device, `1080 × 2400 px`
+- state: VIP 成员区展开；“我的”主页；支付准备态
+
+## Comparison evidence
+
+- VIP：粉色成员面板、席位与按钮全部替换为深黑棕底、香槟金高亮；角色层级与可操作状态仍清楚。
+- “我的订单”：使用香槟金实底和深色图文突出，垂直内边距、图标尺寸与同排资产胶囊统一。
+- 支付安全提示：盾牌与单行文案共用 `CrossAxisAlignment.center`，真机画面无上浮、下沉或基线错位。
+
+## Findings
+
+- 本轮指定的三处正常 Android 视口问题无剩余 P0/P1/P2 偏差。
+
+final result: passed
+
+---
+
+# Design QA — AA Paid Order Center Continuity v5.2
+
+- source visual truth: approved legacy-derived order-center and AA order-detail contracts
+- implementation screenshots: `docs/features/commerce/feature_order_center/pages/page_order_center/audit/2026-08-29-aa-paid-v4/01-all-aa-first.png`, `02-active-aa.png`, `03-aa-detail.png`, `04-back-keeps-active.png`
+- viewport: connected Android device, `1080 × 2400 px`, approximately `432 × 960` logical px at density 2.5
+- state: all orders, active orders, AA detail and return to active filter
+
+## Evidence
+
+- Typography and spacing preserve the approved dense black-gold order-list hierarchy; the new title, two-line summary, time, state and amount fit without clipping.
+- Colors continue the existing champagne, amber amount and mint confirmed-state tokens.
+- The approved 3880 package poster is contained cleanly and remains recognizable at list-card size.
+- Copy and values remain consistent across list and detail: V5, 08月29日 20:30, 3880卡座套餐 and ¥268.
+- Navigation preserves the active filter after returning from the matching order detail.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains in the AA paid-order list/detail continuity.
+
+final result: passed
+
+---
+
+# Design QA — AA Payment to Order Detail v5.1
+
+- source visual truth: the user's legacy black-gold order-detail references supplied on 2026-08-29, plus the approved order-detail contract
+- implementation screenshot: `docs/features/club/feature_aa_reservation/qa/2026-08-29/aa-order-detail.png`
+- viewport: connected Android device, `1080 × 2400 px`, approximately `432 × 960` logical px at density 2.5
+- state: V5 AA reservation, no deductions, server-confirmed payment, paid order detail
+- normalization: app-owned content compared at the same portrait viewport; Android system status/navigation chrome excluded from fidelity findings
+
+## Full-view comparison evidence
+
+- The detail preserves the approved black canvas, champagne title/back control, shallow gold information cards, black timeline card and fixed black action footer.
+- Information order is stable: confirmed state, order identity, package row, amount summary, progress, then safe actions.
+- Physical back returns directly to the V5 positioning-card page; the payment result cannot be submitted again.
+
+## Focused region comparison evidence
+
+- Typography: title, confirmed state, card labels/values, package name and amount use the established order-detail weights without clipping or unintended wrapping.
+- Spacing: card insets, row rhythm, image/text separation and fixed footer clearances are consistent; all visible content fits at 1080 × 2400.
+- Colors: black, champagne, shallow gold and mint-confirmed tokens remain consistent with the accepted legacy-derived system.
+- Image quality: the approved `package_3880_v1.png` asset is used directly with a contained crop; no placeholder or code-drawn replacement appears.
+- Copy/content: `KING CLUB AA预订`, `V5 卡座 · 08月29日 20:30`, `3880卡座套餐`, `本人 1 席` and `¥268` remain consistent from quote through payment and detail; no 888-table or scan-order content appears.
+
+## Comparison history
+
+- P1 fixed: payment success previously had no order navigation callback and could not open a real detail state.
+- P1 fixed: `order-aa-v5-paid-*` previously fell through to the old V8 scan-order sample.
+- P2 fixed: deduction variants could have shown a payment amount different from the detail amount; the opaque quote-version suffix now restores the matching Fake total.
+- Post-fix Android evidence shows the dedicated AA detail and a verified return path to the V5 positioning card.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains in the AA payment-to-detail path.
+
+final result: passed
+
+---
+
+# Design QA — AA 详情与确认页黑金主题
+
+- source visual truth path: 用户在 2026-08-29 当前会话提供的原版 `POSITIONING CARD` 黑金截图与粉色确认订单截图
+- implementation screenshot paths: `docs/features/club/feature_aa_reservation/qa/2026-08-29/aa-detail-black-gold.png`; `docs/features/club/feature_aa_reservation/qa/2026-08-29/aa-confirm-black-gold.png`
+- source pixels: `1080 × 2400`; implementation pixels: `1080 × 2400`
+- CSS/logical viewport: Android 约 `432 × 960 dp`，density `2.5`
+- normalization: 同尺寸真机截图，忽略系统状态栏与 Android 导航栏差异
+- state: A6 微醺畅饮套餐详情；未选择抵扣且未勾选规则的确认订单
+
+## Full-view comparison evidence
+
+- 详情页维持原版黑底径向暗棕光晕、白色大号卡座、米金日期、米金固定报价栏和深棕抢订胶囊。
+- 确认页已移除全部粉红、玫红和酒红区域，摘要、抵扣、支付方式与边框改为黑/深棕，标签与可交互强调统一米金。
+- 底部实付区域采用米白到米金的轻渐变，金额为深棕，主按钮为深棕胶囊；未勾选规则时保持低对比禁用态。
+
+## Focused region comparison evidence
+
+- 顶部标题、摘要四行、三项抵扣、微信支付、规则行和固定付款栏均在真机完整可见，无粉色残留、遮挡或溢出。
+- 套餐详情的卡座编号由沙发图标恢复为原版的大号字母数字组合，并与“卡座”基线对齐。
+
+## Findings
+
+- Earlier P1 fixed: 确认页主体分区和底部付款栏使用粉色/玫红主题，与原版详情黑金体系冲突。
+- Earlier P2 fixed: 详情页卡座位置使用沙发图标，未复刻原版大号卡座编号层级。
+- Post-fix: 字体层级、间距节奏、黑金色板、现有品牌图片与业务文案均无可执行 P0/P1/P2 问题。
+- P3: 当前套餐视觉继续使用仓库内现有 King Club 品牌图，后续拿到原版套餐海报源文件后可再替换，不影响本轮黑金主题验收。
+
+## Implementation Checklist
+
+- [x] 文档先行更新黑金主题约束
+- [x] 详情页卡座、状态和底栏改为黑金
+- [x] 确认页摘要、抵扣、异常和底栏移除粉色
+- [x] Android 1080 × 2400 真机截图核验
+- [x] AA 专项测试 15 项通过
+- [x] `flutter analyze` 无问题
+
+final result: passed
+
+---
+
+# Design QA — Order Confirmation Alignment v3.1
+
+- source visual truth path: user-provided crops 3–5 in the 2026-08-29 thread, plus `C:\Users\Poplar\Desktop\KingClub-app\pages\shoping2\shoping2.wxml` and `shoping2.wxss`
+- implementation screenshot path: `docs/features/commerce/feature_scan_ordering/pages/page_scan_order_confirmation/audit/2026-08-29-legacy-v3.1/01-confirm-alignment.png`
+- viewport: Xiaomi 14 Pro, 1080 × 2400 px, approximately 432 × 960 logical px at density 2.5
+- state: 888 / two expanded products / 3710 merchandise total / 3680 amount due
+
+## Comparison evidence
+
+- `订单日期`、`桌号`、`报价剩余` 的值均贴同一卡片右内边距，不再因文字宽度停在中部。
+- 展开态恢复旧版 `隐藏更多（共2件物品）`，并使用左右贯穿细线、同色中心遮挡、普通小号字和紧凑箭头。
+- 折叠态由专项测试确认切换为 `显示更多（共2件物品）`，商品数量与报价保持不变。
+
+## Findings
+
+- 用户指出的两个 P2 对齐问题均已修复；Android 截图未发现新的溢出、遮挡或可操作 P0/P1/P2。
+- 专项组件测试 7/7 通过，相关 Dart 静态检查无问题。
+
+final result: passed
+
+---
+
+# Design QA — Legacy Scan Ordering Sidebar/Header v3.2
+
+- source visual truth path: user-provided old full ordering screen and focused header/sidebar crops in the 2026-08-29 thread; `C:\Users\Poplar\Desktop\KingClub-app\utils\formatTime.wxs` and `pages\shoping\shoping.wxss`
+- implementation screenshot path: `docs/features/commerce/feature_scan_ordering/pages/page_scan_ordering_cart/audit/2026-08-29-legacy-v3.2/02-sidebar-header-final.png`
+- implementation pixels: `1080 × 2400`; Android logical viewport approximately `432 × 960` at density 2.5
+- state: 酒水 / 畅饮套餐 / XO 1 / Chivas 1 / 3710.00
+
+## Comparison evidence
+
+- The old `formatText` rule is reproduced explicitly: four-character labels wrap 2 + 2 and six-character labels wrap 3 + 3.
+- Sidebar text is restored to the old 26/28rpx hierarchy with 1.2 line height and stable centered rows.
+- The store logo, title and original 888 vector are resized/repositioned as a single header row without clipping or competition.
+- Product layout, assets, prices, steppers and checkout bar remain unchanged from the preceding approved pass.
+
+## Findings
+
+- Earlier P1 fixed: sidebar labels were undersized and missing deterministic legacy wrapping.
+- Earlier P2 fixed: store-header local proportions did not match the full legacy reference.
+- No actionable P0/P1/P2 difference remains in the requested regions.
+
+final result: passed
+
+---
+
+# Design QA — Legacy Ordering v3.1 Vector Table Number & Product Rhythm
+
+- source visual truth path: user-provided 2026-08-29 ordering full screenshot plus `888` and Hennessy XO focused crops; `C:\Users\Poplar\Desktop\KingClub-app\app.wxss` and `pages\shoping\shoping.{wxml,wxss}`
+- implementation screenshot path: `docs/features/commerce/feature_scan_ordering/pages/page_scan_ordering_cart/audit/2026-08-29-legacy-v3/12-vector-menu-pass1.png`
+- source pixels: `1080 × 2400`; implementation pixels: `1080 × 2400`; CSS/logical viewport approximately `432 × 960`, density 2.5
+- state: 888 / 酒水 / 畅饮套餐 / XO 1 / Chivas 1 / 3710.00
+
+## Comparison evidence
+
+- Full view: search, venue header, category tabs, left rail, product density and fixed checkout bar retain the old composition.
+- Focused `888`: source `.F_888` viewBox/path and `.tablestyle` gold gradient replace the former Android serif approximation.
+- Focused product row: 190 × 240 rpx image slot and 32/28/36/24 rpx typography are restored; the title group is top-aligned and price/stepper bottom-aligned through the old `space-between` rhythm.
+- Source and implementation were compared at the same 1080 × 2400 viewport and shopping state; platform status/navigation chrome was excluded.
+
+## Findings and history
+
+- Earlier P1 vector fidelity: fixed by using the old source path as `table_888.svg`.
+- Earlier P1 typography/rhythm: fixed by restoring source sizing and top/bottom distribution.
+- No actionable P0/P1/P2 mismatch remains. Android font rasterization is retained as P3 only.
+
+## Verification
+
+- Dedicated ordering tests: 5/5 passed.
+- Static analysis: clean.
+- Xiaomi 14 Pro preview build installed and opened at `/commerce/ordering`.
+
+final result: passed
+
+---
+
+# Design QA — Approved Review Enter-only State
+
+- source visual truth: user-provided approved-review screenshot and explicit enter-only instruction on 2026-08-28
+- implementation screenshot: `build/review-approved-enter-only.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`
+
+## Comparison evidence
+
+- Approved status keeps the success icon, title, explanatory copy, update time and full-pill `进入 KingClub` action.
+- The outlined `刷新状态` action is absent.
+- The `退出登录` action is absent.
+- The local UI test panel remains collapsed at the bottom and does not interrupt the formal approved-state content.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains for the approved enter-only state.
+
+## Implementation Checklist
+
+- [x] Page documentation updated before UI implementation
+- [x] Approved state reduced to one formal action
+- [x] Other review states retain their required safety actions
+- [x] Android screenshot and accessibility hierarchy verified
+- [x] 35 widget flows and static analysis pass
+
+final result: passed
+
+---
+
+# Design QA — Adult Verification Exact Rollback v5
+
+- source visual truth: user-provided Step 1 rollback screenshot on 2026-08-28
+- implementation screenshot: `build/adult-exact-rollback.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`
+
+## Comparison evidence
+
+- The legacy prohibition icon and two-line warning remain centered beneath the progress bar.
+- Labels are restored exactly to centered `NAME:` and `ID CARD:`.
+- Both champagne input capsules retain the source's compact 80%-width proportions.
+- The ID visibility icon and the later inline adult-declaration row are absent.
+- The face-verification button and city line remain the only elements below the form.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains for the requested rollback state.
+
+## Implementation Checklist
+
+- [x] Page documents updated before rollback implementation
+- [x] Later Chinese-label and consent-row revisions removed
+- [x] Original centered labels and compact capsules restored
+- [x] Android visual capture reviewed
+- [x] 35 widget flows and static analysis pass
+
+final result: passed
+
+---
+
+# Design QA — Adult Verification Legacy Structure v4
+
+- source visual truth: user-provided legacy Step 1 screenshot and explicit Chinese-label instruction on 2026-08-28
+- implementation screenshot: `build/adult-compact-fields.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`
+
+## Comparison evidence
+
+- The prohibition icon and original two-line warning are restored.
+- `NAME:` and `ID CARD:` are replaced by `姓名` and `证件号码`; both labels sit above their fields and align with the fields' left edge.
+- Both inputs restore the legacy champagne filled capsule treatment while retaining the approved masked-ID visibility action.
+- Both inputs now use the source image's compact proportions: approximately 80% viewport width and 52dp height, instead of the previous near-full-width 68dp treatment.
+- The circular declaration control and its complete Chinese declaration copy are unchanged.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains for this requested revision.
+
+## Implementation Checklist
+
+- [x] Page documentation updated before UI implementation
+- [x] Legacy warning and filled capsules restored
+- [x] Chinese labels aligned to the field left edge
+- [x] Adult declaration preserved unchanged
+- [x] Android visual capture reviewed
+- [x] 35 widget flows and static analysis pass
+
+final result: passed
+
+---
+
+# Design QA — Adult Verification Form v3
+
+- source visual truth: user-provided Step 1 screenshot, two-line warning crop and Chinese floating-label form crop on 2026-08-28
+- implementation screenshots: `build/adult-circle-top-final.png`, `build/adult-verification-v3-filled-hidden.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`, approximately `411 × 891` logical px
+- states: empty/unaccepted and filled/masked/accepted
+
+## Comparison evidence
+
+- The old two-line `未满18岁未成年人 / 不得饮酒注册会员` copy is replaced by one centered `成年核验` title at a larger bold weight.
+- `NAME:` and `ID CARD:` are removed. Both 68dp-high fields use Chinese floating labels (`姓名`, `证件号码`), left-aligned content, dark fill, champagne outline and a 34dp radius for a complete capsule silhouette.
+- The identity field masks all 18 characters and provides a right-side visibility action without changing the field layout.
+- The inline checkbox copy is exactly `我已阅读并同意：本人已满18周岁，未成年人禁止进入本娱乐场所，遵守店内相关管理规定。` and wraps without clipping.
+- The declaration control uses a circular outline, and its visible upper edge is aligned to the first text line's upper edge; the whole row remains tappable.
+- The former confirmation dialog is removed; the full pill `人脸核验` action remains disabled until the declaration is checked.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains for the requested Step 1 form revision.
+
+## Implementation Checklist
+
+- [x] Documentation updated before UI implementation
+- [x] Adult-verification title hierarchy
+- [x] Chinese floating labels and masked identity input
+- [x] Visibility toggle and inline adult declaration
+- [x] Full pill verification action and consent gate
+- [x] Empty and completed Android captures
+- [x] 35 widget flows and relevant static analysis pass
+
+final result: passed
+
+---
+
+# Design QA — Onboarding Pill Primary Actions
+
+- source visual truth: user-provided `提交会员申请`、实心 `刷新状态` 和描边 `刷新状态` crops, with explicit instruction that all actions use complete pill corners on 2026-08-28
+- implementation screenshots: `build/onboarding-pill-step2.png`, `build/review-pill-final.png`, `build/review-pill-outlined.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`, approximately `411 × 891` logical px
+- states: onboarding step 2 with blank image slots; pending review; changes-required review
+
+## Full-view and focused comparison evidence
+
+- The Step 2 `下一步` button keeps its original width, height, champagne fill, dark label, and vertical location.
+- Step 1–4 primary actions use a full `StadiumBorder` pill so the four-step registration flow remains consistent.
+- Review primary actions use the same complete pill silhouette without changing their fill, label or spacing.
+- The outlined `刷新状态` variant uses the same `StadiumBorder`, preserving a continuous capsule border around the black interior.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains for the requested complete-pill standard.
+
+## Implementation Checklist
+
+- [x] Step 1–4 primary actions converted to complete pill shape
+- [x] Review pending, approved, rejected and changes-required primary actions synchronized
+- [x] Review outlined refresh action synchronized
+- [x] Android captures for onboarding, filled review and outlined review states
+- [x] 35 widget flows pass
+- [x] Relevant static analysis passes
+
+final result: passed
+
+---
+
+# Design QA — Legacy Real-name Step 1 Black-Gold Replica
+
+- source visual truth: user-provided original `regist2` screenshot on 2026-08-28, plus `C:\Users\Poplar\Desktop\KingClub-app\pages\regist2\regist2.wxml` and `regist2.wxss`
+- source assets: `C:\Users\Poplar\Desktop\KingClub-app\images\nonine.png`, `camera.png`, and `back.png`
+- implementation screenshot: `build/real-name-aligned-up.png`
+- source screenshot pixels: approximately `575 × 1212 px`, including iPhone/WeChat chrome
+- implementation pixels: `1080 × 2400 px`; Flutter viewport approximately `411 × 891` logical px at Android emulator density
+- normalization: compared app-owned content by relative width and vertical order; iPhone frame, WeChat capsule, Android status bar, and Android home indicator were excluded from fidelity findings
+- state: onboarding step 1, blank form, before consent confirmation
+
+## Full-view comparison evidence
+
+- The updated order is preserved: prohibition icon, two-line warning, `NAME:`, name field, `ID CARD:`, identity field, face-verification button, and city label.
+- The requested V2 `步骤 1/4` title and 25% progress bar remain above the legacy composition.
+- Original pink surfaces have been replaced consistently with champagne-gold fields, gold foreground artwork, and a deep-brown button on black.
+- No Fake, synthetic-data, or test notice occupies the formal first-screen layout.
+
+## Focused region comparison evidence
+
+- Header: the progress indicator remains visible and reads exactly one of four steps; the legacy back artwork is retained.
+- Hero: the original `nonine.png` silhouette remains sharp and proportionally scaled; a gold source-in treatment removes all pink while preserving transparency.
+- Form: both pill fields keep the legacy 80% viewport width, centered labels, centered placeholder copy, and matching radii.
+- Action: the original camera artwork and `人脸核验` label are centered as one unit inside the deep-brown pill button.
+
+## Required fidelity surfaces
+
+- Fonts and typography: original hierarchy, centered English labels, and two-line Chinese warning are retained with Android-safe Chinese fallbacks; the legal paragraph is intentionally removed.
+- Spacing and layout rhythm: the 600/750 control-width ratio is preserved; after removing the paragraph, the hero and form are biased upward to align with the preceding login page's logo position, while most flexible space remains above the bottom action.
+- Colors and visual tokens: black canvas, `#C9B69E` champagne gold, gold-brown input fill, and `#24180A` button surface; no pink remains.
+- Image quality and asset fidelity: all three legacy raster assets are reused; no icon was redrawn or replaced by a text glyph.
+- Copy and content: the legacy warning, labels, button copy, and `SHANGHAI . ZHUZHOU` are retained; the law explanation is removed by explicit user direction.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains for the requested hybrid target.
+- The missing WeChat capsule is intentional because this is the Flutter App, not the mini-program host.
+
+## Comparison history
+
+- Pass 1 matched the requested hierarchy and black-gold conversion.
+- Pass 2 removed the legal paragraph and redistributed the surrounding flexible space evenly so the hero/form composition no longer leaves an accidental blank region.
+- Pass 3 moved the hero/form composition upward to match the preceding login page's top-content rhythm and preserved the bottom action position.
+
+## Implementation Checklist
+
+- [x] Documentation updated before UI code
+- [x] Original legacy assets reused
+- [x] `步骤 1/4` and progress bar retained
+- [x] Pink removed from app-owned content
+- [x] Legal paragraph removed and remaining content vertically centered
+- [x] Hero/form group aligned upward with the previous page
+- [x] Consent moved to the face-verification action without changing the initial layout
+- [x] 35 widget flows pass
+- [x] Relevant static analysis passes
+
+final result: passed
+
+---
+
+# Design QA — Legacy Welcome and Mobile Login Replica
+
+- source visual truth: user-provided original welcome and login screenshots on 2026-08-28
+- source implementation: `C:\Users\Poplar\Desktop\KingClub-app\pages\login` and `C:\Users\Poplar\Desktop\KingClub-app\pages\regist`
+- source assets: original `bj.jpg`, `logo_1.png`, `logo_2.png`, and `images/back.png`
+- implementation screenshots: `build/legacy-welcome-final.png` and `build/legacy-mobile-login-final.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`, approximately `411 × 891` logical px
+- states: welcome consent selected; mobile login idle
+
+## Full-view comparison evidence
+
+- The welcome screen uses the original full-height pink venue photograph and original pink handwritten logo without redrawing either asset.
+- Consent, NEXT, business-hours copy and bottom spacing follow the original page hierarchy.
+- The login screen restores the original black canvas, gold handwritten logo, champagne labels, pill fields, split verification-code control, bottom NEXT button and city line.
+- The Android build intentionally omits the WeChat mini-program capsule; system status and navigation chrome remain platform-owned.
+
+## Comparison history
+
+- Pass 1: login content sat too high, the back control was approximate, and the verification-code split was too even.
+- Pass 2: exact legacy back artwork was restored and the form was moved down, but the spacing became too loose.
+- Final: top spacing was rebalanced to match the reference, the code control was set to a wider input/narrower action split, and the bottom area was lowered.
+
+## Findings
+
+- No actionable P0/P1/P2 visual mismatch remains for the requested legacy welcome and login replica on the verified Android viewport.
+- iOS device-specific safe-area comparison remains a later device acceptance item.
+
+## Implementation Checklist
+
+- [x] Page documentation completed before UI implementation
+- [x] Original legacy assets reused
+- [x] Main controls and navigation path work with Fake data
+- [x] Android screenshots captured and visually reviewed
+- [x] 35 widget flows pass
+- [x] Relevant static analysis passes
+
+final result: passed
+
+---
+
+# Design QA — Membership Review No-Logo Centered Layout
+
+- source visual truth: the user's final direction to remove all logo treatments and center the formal review content
+- implementation screenshot path: `build/membership-review-centered.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`, approximately `411 × 891` logical px
+- state: pending membership review, test scenarios collapsed, default text scale
+
+## Full-view comparison evidence
+
+- The black-gold handwritten logo and the earlier generic brand mark are both absent.
+- The status icon, title, explanation, update time, primary action and logout action form one centered visual group.
+- The local UI test panel remains at the bottom and does not displace the formal content hierarchy.
+
+## Focused region comparison evidence
+
+- Alignment: all formal status copy and actions share the page center line.
+- Vertical rhythm: the formal group is centered within the usable region above the test panel.
+- Small-screen behavior: the complete layout remains scrollable instead of clipping when available height is reduced.
+
+## Findings
+
+- No actionable P0/P1/P2 issue remains for the requested logo removal and centering.
+
+## Comparison history
+
+- Pass 1 P2: the review page retained a large brand logo above the status content.
+- Fix: removed the logo and separated the formal content group from the bottom-only UI test controls.
+- Pass 2 evidence: `build/membership-review-centered.png`.
+
+## Implementation Checklist
+
+- [x] Page documentation updated before UI code
+- [x] All review-page logo treatments removed
+- [x] Formal content centered horizontally and vertically in its available region
+- [x] UI test scenarios kept at the bottom
+- [x] Android visual capture
+- [x] 35-flow widget test and static analysis
+
+## Follow-up Polish
+
+- None for this requested adjustment.
 
 final result: passed
 
@@ -808,3 +1517,414 @@ final result: blocked
 - Replace local Fake catalog imagery only after the production detail projection supplies authoritative image URLs and crop guidance.
 
 final result: blocked
+
+---
+
+# Design QA — Login and Onboarding Consent Row Alignment
+
+- source visual truth path: user-provided misalignment crop plus `build/login-consent-aligned.png` (手机号登录页协议勾选行)
+- implementation screenshot path: `build/onboarding-realname-aligned.png` (实名与成年核验页告知勾选行)
+- viewport: Android API 37 emulator, `1080 × 2400 px`, approximately `411 × 891` logical px at the same device density
+- source and implementation density normalization: both screenshots were captured from the same emulator and app build; no scaling or density conversion was required
+- state: unchecked, enabled, dark theme, default text scale
+
+## Full-view comparison evidence
+
+- Both screens use the same horizontal page inset and the same compact consent-row hierarchy beneath their primary form controls.
+- The onboarding row no longer inherits the enlarged default `CheckboxListTile` typography or minimum tile height.
+
+## Focused region comparison evidence
+
+- Fonts and typography: both consent rows now use Design System `bodySmall`, `13sp`, with the same color and line-height token.
+- Spacing and layout rhythm: both rows use a `40 × 40 dp` checkbox hit area, `4dp` checkbox-to-copy spacing and true vertical-center alignment; the former `2dp` top inset was removed.
+- Colors and visual tokens: both rows inherit the same theme checkbox border, active color and secondary text color.
+- Image quality and asset fidelity: no raster assets are present in this component.
+- Copy and content: page-specific wording remains unchanged; only its visual specification is shared.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains in checkbox size, text size or horizontal spacing.
+
+## Comparison history
+
+- Pass 1 P2: 实名认证页使用默认 `CheckboxListTile`，造成约 16sp 文案和偏高的整行布局。
+- Fix: replaced it with the same `Row + 40dp Checkbox + 4dp gap + bodySmall` construction used by the 手机号登录页.
+- Pass 2 P2: size and typography matched, but top alignment left the visible checkbox below the text center, as shown in the user's crop.
+- Fix: both login and onboarding rows now use `CrossAxisAlignment.center`, and the checkbox's extra top inset was removed.
+- Pass 3 evidence: `build/login-consent-aligned.png` and `build/onboarding-realname-aligned.png`; the visible checkbox and copy centers now align, while the 40dp hit area and 13sp type remain unchanged.
+
+## Implementation Checklist
+
+- [x] Specification recorded before implementation
+- [x] 40 × 40 dp checkbox hit area
+- [x] 4 dp control-to-copy gap
+- [x] 13sp `bodySmall` copy
+- [x] Same checkbox behavior retained
+- [x] Android visual comparison
+- [x] Widget test and static analysis
+
+## Follow-up Polish
+
+- None for this requested component.
+
+final result: passed
+
+---
+
+# Design QA — Onboarding Test-Aid Placement
+
+- source visual truth path: user-provided `合成数据演示` card crop and request to keep test aids below the production-equivalent UI
+- implementation screenshot path: `build/onboarding-real-ui.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`, approximately `411 × 891` logical px
+- state: onboarding step 1, unchecked consent, synthetic form values, default text scale
+
+## Full-view comparison evidence
+
+- The production-equivalent sequence is now uninterrupted: title and purpose, name, masked identity number, consent, then primary action.
+- The synthetic-data notice begins only after the primary action with a separate 32dp gap, so it no longer changes the form hierarchy.
+
+## Focused region comparison evidence
+
+- Fonts and typography: formal labels and the primary CTA contain no `Fake` wording; the auxiliary card keeps its smaller secondary copy.
+- Spacing and layout rhythm: removing the top card brings the form directly below the page introduction; the notice is visually subordinate below the CTA.
+- Colors and visual tokens: the core form retains the black/champagne palette; the blue test icon appears only in the auxiliary region.
+- Image quality and asset fidelity: no raster assets are involved.
+- Copy and content: the CTA now reads `开始核验`; synthetic-data safety copy remains available below the real flow.
+
+## Findings
+
+- No actionable P0/P1/P2 issue remains for the requested ordering.
+
+## Comparison history
+
+- Pass 1 P2: the large synthetic-data card occupied the first content block and pushed the actual form down.
+- Fix: moved the card below the CTA, changed the CTA to production-equivalent copy, and applied the same bottom-only rule to step 4 and the review-scenario controls.
+- Pass 2 evidence: `build/onboarding-real-ui.png`; the complete core task is visible first and the test aid is clearly secondary.
+
+## Implementation Checklist
+
+- [x] Documentation updated before UI code
+- [x] Real-name test card below primary action
+- [x] Step-4 Mock notice below both submit actions
+- [x] Review test scenarios below formal actions and logout
+- [x] Login and SMS test explanations remain after their primary actions
+- [x] Android visual capture
+- [x] 35-flow widget test and static analysis
+
+## Follow-up Polish
+
+- None for this requested ordering.
+
+final result: passed
+
+---
+
+# Design QA — Membership Review Black-Gold Logo
+
+- source visual truth path: `assets/legacy/home/logo_2.png`, the user-approved black-gold transparent `King club` artwork already used by the login page
+- implementation screenshot path: `build/membership-review-black-gold-logo.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`, approximately `411 × 891` logical px
+- state: pending membership review, test scenarios collapsed, default text scale
+
+## Full-view comparison evidence
+
+- The obsolete circular `K + KINGCLUB` construction has been removed from the review page.
+- The approved handwritten logo is centered above the pending icon and remains visually separate from the status hierarchy.
+
+## Focused region comparison evidence
+
+- Fonts and typography: the brand lettering comes from the supplied raster artwork; it is not recreated with a system font.
+- Spacing and layout rhythm: the logo uses the same `190 × 108 dp` box as login and preserves the existing 40dp gap to the status icon.
+- Colors and visual tokens: the source champagne/black-gold color is rendered unchanged against the black page.
+- Image quality and asset fidelity: the original transparent PNG is shown with `BoxFit.contain`, without crop, stretch, tint, border or synthetic background.
+- Copy and content: no additional `KINGCLUB` text remains in the brand region.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains for the requested logo replacement.
+
+## Comparison history
+
+- Pass 1 P2: the review page used the generic code-rendered circle `K + KINGCLUB` mark instead of the supplied venue logo.
+- Fix: replaced `KingBrandMark(compact: true)` with the same original asset and dimensions used on mobile login.
+- Pass 2 evidence: `build/membership-review-black-gold-logo.png`; the approved source artwork is centered, intact and sharp.
+
+## Implementation Checklist
+
+- [x] Page documentation updated first
+- [x] Original user-provided asset reused
+- [x] Login-matched 190 × 108 dp sizing
+- [x] Generic circle mark removed
+- [x] Android visual capture
+- [x] 35-flow widget test and static analysis
+
+## Follow-up Polish
+
+- None for this requested logo replacement.
+
+final result: passed
+
+---
+
+# Design QA — Mobile Login Centered Logo
+
+- source visual truth: the user's direction to remove the login heading/caption and center the supplied black-gold logo
+- implementation screenshot path: `build/login-centered-logo.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`, approximately `411 × 891` logical px
+- state: initial mobile login, UI test explanation collapsed, default text scale
+
+## Full-view comparison evidence
+
+- The `手机号登录` heading and account-creation caption are absent.
+- The original handwritten `King club` artwork is centered on the page center line.
+- The phone field now follows the logo directly while the consent and Mock behavior remain unchanged.
+
+## Findings
+
+- No actionable P0/P1/P2 issue remains for the requested copy removal and logo alignment.
+
+## Implementation Checklist
+
+- [x] Page documentation updated before UI code
+- [x] Heading and caption removed
+- [x] Original logo centered without crop or distortion
+- [x] Android visual capture
+- [x] 35-flow widget test and static analysis
+
+final result: passed
+
+---
+
+# Design QA — Mobile Login Centered Content Group
+
+- source visual truth: the user's direction to center the complete formal login composition
+- implementation screenshot path: `build/login-content-centered.png`
+- viewport: Android API 37 emulator, `1080 × 2400 px`, approximately `411 × 891` logical px
+- state: initial mobile login, UI test explanation collapsed, default text scale
+
+## Full-view comparison evidence
+
+- Logo, mobile field, verification button, consent and account note read as one centered composition.
+- The composition is vertically centered within the usable area above the test-only control.
+- The `UI 测试说明` control remains at the bottom and does not participate in the formal UI alignment.
+
+## Findings
+
+- No actionable P0/P1/P2 issue remains for the requested whole-content centering.
+
+## Implementation Checklist
+
+- [x] Page documentation updated before UI code
+- [x] Formal content grouped and horizontally centered
+- [x] Formal content vertically centered in its available region
+- [x] Test-only control kept at the bottom
+- [x] Small-height layout remains scrollable
+- [x] Android visual capture
+- [x] 35-flow widget test and static analysis
+
+final result: passed
+
+---
+
+# Design QA — Legacy Scan Ordering Pixel Replica v3
+
+- source visual truth path: user-provided old ordering screenshots in the 2026-08-29 thread, plus `C:\Users\Poplar\Desktop\KingClub-app\pages\shoping\shoping.wxml`, `shoping.wxss` and `app.wxss`
+- implementation screenshot path: `docs/features/commerce/feature_scan_ordering/pages/page_scan_ordering_cart/audit/2026-08-29-legacy-v3/04-catalog-final.png`
+- source pixels: approximately `660 × 1280`; implementation pixels: `1080 × 2400`; Android logical viewport approximately `432 × 960` at density 2.5
+- normalization: app-owned content compared by width; Mini Program host capsule and platform system chrome excluded
+- state: 888 / 酒水 / 畅饮套餐 / two selected products / 3710.00
+
+## Comparison evidence
+
+- Original King logo, four transparent bottle images and shopping-bag artwork are reused from the stable old repository.
+- Store header, left category rail, borderless product rows, yellow steppers and fixed checkout bar reproduce the reference hierarchy and density.
+- First device capture found a P2 oversized logo and over-spread top categories; the final capture follows the corrected `56 × 36dp` logo, `80dp` category units and `36dp` underline.
+- Widget interactions for category/search/add/remove/bag/checkout pass 5/5; the full Flutter suite passes 257/257; Android checkout handoff and back return were captured; static analysis is clean.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains in the verified app-owned viewport.
+- P3: platform font rasterization differs slightly from the old iOS/WeChat runtime.
+
+final result: passed
+
+---
+
+# Design QA — Legacy Shopping Bag Panel v3.3 + Order Confirmation v3
+
+- source visual truth path: the two old-app screenshots supplied by the user on 2026-08-29, plus `C:\Users\Poplar\Desktop\KingClub-app\pages\shoping` and `pages\shoping2`
+- implementation screenshot paths: `docs/features/commerce/feature_scan_ordering/pages/page_scan_ordering_cart/audit/2026-08-29-legacy-v3.3/01-bag-pass1.png`; `docs/features/commerce/feature_scan_ordering/pages/page_scan_order_confirmation/audit/2026-08-29-legacy-v3/01-confirm-pass1.png`; `02-confirm-lower.png`
+- viewport: Xiaomi 14 Pro, 1080 × 2400 px, approximately 432 × 960 logical px at density 2.5
+- state: two selected products; 3710 merchandise total; safe V2 quote adjustment retained on confirmation
+
+## Comparison evidence
+
+- The missing pre-checkout state now uses the legacy brown sheet, select-all/clear header, black item card, light total card and the original fixed checkout bar.
+- The confirmation title is restored to `提交订单`; card width/radius/rhythm, transparent bottle sizing, normal product typography and the fixed amount/button footer follow the old `shoping2` composition.
+- The user's requested V2 content is retained in compact legacy-style cards: quote lifetime, discount/due amount, error states and payment-after-order explanation.
+- Client-entered coin/balance splitting, direct payment-success claims and real service calls remain excluded by the approved safety gate.
+
+## Findings
+
+- Earlier P1 fixed: the legacy bag-review state was absent.
+- Earlier P1 fixed: confirmation typography and value weights were oversized and duplicated amount rows made the product card too tall.
+- Post-fix Android evidence shows no clipping, overflow, obscured persistent action, or remaining actionable P0/P1/P2 difference in the requested regions.
+
+final result: passed
+
+---
+
+# Design QA — Legacy AA Package Detail Replica v3
+
+- source visual truth path: the user's second `POSITIONING CARD` reference screenshot supplied on 2026-08-29, `1080 × 2400 px`, plus `C:\Users\Poplar\Desktop\KingClub-app\pages\order\order.wxml` and `order.wxss`
+- implementation screenshot path: `docs/features/club/feature_aa_reservation/qa/2026-08-29/aa-detail-legacy-v3.png`
+- viewport: connected Android device `1080 × 2400 px`, approximately `432 × 960` logical px at density 2.5
+- normalization: source and implementation have the same pixel viewport; Android system chrome was excluded from layout findings
+- state: V5 / 2026-08-29 周六 / 3880卡座套餐 / ¥268.00 discounted price
+
+## Full-view comparison evidence
+
+- The title, seat number, date, poster, package copy, age prices, rules and fixed purchase bar follow the same top-to-bottom hierarchy as the reference.
+- The complete black-and-gold package poster is rendered at the reference scale instead of the earlier logo-only placeholder.
+- The fixed footer keeps `¥268.00`, struck `¥388.00`, the voucher note and the dark capsule `抢订` action visible without obscuring package rules.
+
+## Focused region comparison evidence
+
+- Typography: `POSITIONING CARD` now uses regular weight; V5 remains the dominant display type; package name and suggested price retain the reference emphasis; supporting rows use smaller gray optical weight.
+- Spacing: the poster-to-title and copy-row gaps were compressed after the first Android capture so all two-column details and both rule lines remain visible above the footer.
+- Colors: the radial black/brown background, champagne-gold labels and cream/gold footer match the old black-gold direction.
+- Image quality: the full raster package artwork is used with `BoxFit.contain`; no logo placeholder, CSS drawing or emoji substitutes remain.
+- Copy: V5, full date, all six package items, four age prices, matching rule, voucher sentence and both prices match the supplied reference.
+
+## Comparison history
+
+- P1 fixed: the initial implementation used only a King logo in an oversized bordered panel; replaced with the complete package poster.
+- P2 fixed: package items wrapped and pushed the age/rule content below the persistent footer; compact two-column cells and vertical rhythm now keep the complete content visible.
+- Post-fix evidence: `aa-detail-legacy-v3.png` shows no clipping, overflow, hidden persistent action or remaining actionable P0/P1/P2 mismatch.
+
+## Findings
+
+- No actionable P0/P1/P2 issue remains in the requested package-detail state.
+- P3: Android system-font rasterization is slightly different from the original Mini Program runtime.
+
+final result: passed
+
+---
+
+# Design QA — AA Confirmation Terms Row Alignment v4
+
+- source visual truth path: the user's cropped rules-consent reference supplied on 2026-08-29
+- implementation screenshot paths: `docs/features/club/feature_aa_reservation/qa/2026-08-29/aa-confirm-terms-aligned.png`; `aa-confirm-terms-sheet-aligned.png`
+- viewport: connected Android device, `1080 × 2400 px`, approximately `432 × 960` logical px at density 2.5
+- normalization: source focused region and implementation focused region compared at the same dark confirmation state; app-owned content only
+- state: quote ready, rules unchecked; rules sheet opened in the interaction capture
+
+## Full-view comparison evidence
+
+- The consent group stays centered below the payment row and above quote-expiry information without changing the surrounding confirmation layout.
+- Opening `查看` still presents the complete four-item reservation-rules sheet.
+
+## Focused region comparison evidence
+
+- Typography: consent copy and `查看` use the same 12dp optical size and a shared vertical center.
+- Spacing: the former `Expanded` spacer was removed; checkbox, consent copy and `查看` now form one compact `mainAxisSize.min` group with 7dp and 5dp controlled gaps.
+- Colors: existing black, muted-gold and champagne text tokens are unchanged.
+- Image quality: no raster imagery appears in this focused control.
+- Copy: the consent sentence and `查看` label are unchanged.
+
+## Comparison history
+
+- P2 fixed: `Expanded` pushed `查看` to the far edge, leaving an obvious empty interval after the rules copy.
+- P2 fixed: top padding aligned the copy independently from the checkbox and action; all three now share `CrossAxisAlignment.center`.
+- Post-fix Android evidence shows one aligned, uninterrupted consent group and a working rules sheet.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains in the requested consent row.
+
+final result: passed
+
+---
+
+# Design QA — AA Confirmation Checkbox Column Alignment v4.1
+
+- source visual truth path: the user's confirmation screenshot and focused consent-row crop supplied on 2026-08-29
+- implementation screenshot path: `docs/features/club/feature_aa_reservation/qa/2026-08-29/aa-confirm-checkbox-column.png`
+- viewport: connected Android device, `1080 × 2400 px`, approximately `432 × 960` logical px at density 2.5
+- normalization: same confirmation state and device viewport; system chrome excluded
+- state: quote ready, all deduction options and rules unchecked
+
+## Full-view comparison evidence
+
+- The rules checkbox now shares the same left column as the coupon, coin and balance checkboxes.
+- The rules copy and `查看` remain a compact uninterrupted group without the former expanding blank interval.
+
+## Focused region comparison evidence
+
+- Typography: consent copy and `查看` retain a shared 12dp size and centered baseline.
+- Spacing: the consent row now uses the same 18dp horizontal inset and default checkbox geometry as `_DeductionRow`.
+- Colors: the original muted-gold checkbox border and text palette remain unchanged.
+- Image quality: no image assets appear in this focused control.
+- Copy: consent and action labels remain unchanged.
+
+## Comparison history
+
+- P2 fixed: the v4 centered content group moved the rules checkbox inward relative to the three deduction checkboxes.
+- Fix: removed the centered `FittedBox`, restored the same 18dp left inset/default checkbox geometry, and retained a controlled 5dp text-to-action gap.
+- Post-fix evidence shows all four checkbox outlines on one vertical axis with no overflow or text wrapping.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains in the requested checkbox alignment.
+
+final result: passed
+
+---
+
+# Design QA — AA Confirmation to Payment Handoff v5
+
+- source visual truth path: approved payment UI in `docs/features/commerce/feature_payment/pages/page_payment_result/README.md` and the accepted AA confirmation flow
+- implementation screenshot paths: `docs/features/club/feature_aa_reservation/qa/2026-08-29/aa-payment-ready.png`; `aa-payment-success.png`
+- viewport: connected Android device, `1080 × 2400 px`, approximately `432 × 960` logical px at density 2.5
+- state: V5 AA order, ¥268.00 ready state and server-confirmed success state
+
+## Full-view comparison evidence
+
+- AA confirmation now replaces into the existing black-gold payment page rather than stopping at a transient submission dialog.
+- Ready and success states keep the approved payment hierarchy, fixed action placement and server-confirmation wording.
+
+## Focused region comparison evidence
+
+- Typography: AA title, V5/package subtitle and ¥268.00 use the existing payment-page hierarchy without wrapping or clipping.
+- Spacing: summary, authority amount, payment method, notice and footer retain the accepted vertical rhythm.
+- Colors: no new color tokens were introduced; the black, champagne and cream payment system is preserved.
+- Image quality: the existing WeChat payment asset and legacy success visual remain unchanged.
+- Copy: order source and amount now correctly read `KING CLUB AA预订`, `V5卡座 · 3880卡座套餐`, and `¥268.00`.
+
+## Findings
+
+- No actionable P0/P1/P2 issue remains in the AA payment ready/success handoff.
+
+final result: passed
+
+---
+
+# Design QA — Order Detail Matches Confirmation Typography v6
+
+- source visual truth: 用户于 2026-08-29 提供的订单详情与提交订单截图，以及已验收 `01-confirm-alignment.png`
+- implementation screenshot: `docs/features/commerce/feature_order_center/pages/page_order_detail/audit/2026-08-29-layout-v6/01-paid-scan-order.png`
+- viewport: connected Android device, `1080 × 2400 px`
+- state: 已支付扫码订单，888号桌，两件酒品
+
+## Comparison evidence
+
+- Typography: 顶栏、信息行、商品名、英文规格、容量、单价、数量、小计和金额层级均采用提交订单的同组参数。
+- Spacing: 卡片水平内边距、商品行垂直间距、图片到文字间距和金额行节奏与已验收提交订单一致。
+- Imagery: 轩尼诗 XO 与芝华士12年继续使用同一原始商品素材，并统一为 44×70 contain 展示。
+- Content: 已支付、888号桌、订单编号、两件商品和 `3710 / -30 / 3680` 均保持不变。
+
+## Findings
+
+- 本轮指定的字体与排版差异无剩余 P0/P1/P2 问题。
+
+final result: passed

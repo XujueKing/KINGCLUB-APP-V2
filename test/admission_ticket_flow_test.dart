@@ -19,6 +19,23 @@ void main() {
     expect(find.textContaining('单人票价'), findsNothing);
   });
 
+  testWidgets('A6 order admission ref restores the matching credential', (
+    tester,
+  ) async {
+    await _pumpTicket(
+      tester,
+      admissionRef: const FakeAdmissionRef('admission-order-vip-a6-0828'),
+    );
+
+    expect(find.text('VIP 区 A6'), findsOneWidget);
+    expect(find.text('08月28日 20:30 - 次日04:00'), findsOneWidget);
+    expect(find.text('星光香槟套餐'), findsOneWidget);
+    expect(find.text('VIP 区 V8'), findsNothing);
+    final qr = tester.widget<QrImageView>(find.byType(QrImageView));
+    expect(qr.key.toString(), contains('20260828-A6'));
+    expect(qr.key.toString(), isNot(contains('20260827-V8')));
+  });
+
   testWidgets('checked in state hides QR and shows the legacy stamp', (
     tester,
   ) async {
@@ -49,6 +66,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 260));
     expect(find.text('已离场'), findsOneWidget);
     expect(find.byKey(const ValueKey('ticket-reenter')), findsOneWidget);
+    expect(find.byType(QrImageView), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('ticket-reenter')));
     await tester.pump();
@@ -83,11 +101,14 @@ void main() {
   });
 }
 
-Future<void> _pumpTicket(WidgetTester tester) async {
+Future<void> _pumpTicket(
+  WidgetTester tester, {
+  FakeAdmissionRef? admissionRef,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: KingTheme.dark,
-      home: AdmissionTicketPage(onBack: () {}),
+      home: AdmissionTicketPage(admissionRef: admissionRef, onBack: () {}),
     ),
   );
 }

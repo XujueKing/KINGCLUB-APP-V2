@@ -49,36 +49,36 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
   static const _documents = [
     _LegalDocument(
       title: 'KING CLUB 会员服务协议',
-      version: 'UI-MOCK-1',
+      version: '预发布版',
       effectiveDate: '待权威目录确认',
       sections: [
-        ('引言', '欢迎使用 KingClub。此处仅展示文档阅读版式与返回流程，不构成正式协议文本。'),
+        ('引言', '欢迎使用 KingClub。协议内容将在正式发布前完成审核并更新。'),
         ('一、服务范围', 'KingClub 为成年会员提供同城社交、到店活动与相关会员服务。正式范围以发布时权威协议为准。'),
         ('二、账号与会员', '用户应妥善保管账号凭据，并遵守平台规则。正式权利义务以权威 DocumentRef 为准。'),
       ],
     ),
     _LegalDocument(
       title: 'KingClub 隐私政策',
-      version: 'UI-MOCK-1',
+      version: '预发布版',
       effectiveDate: '待权威目录确认',
       sections: [
-        ('一、信息处理说明', '本页只用于模拟隐私政策的标题、版本、生效日期和正文阅读状态。'),
+        ('一、信息处理说明', '隐私政策将在正式发布前说明信息收集、使用、保存与保护规则。'),
         ('二、你的权利', '正式版本将说明访问、更正、删除、撤回授权和注销等权利及操作渠道。'),
         ('三、联系我们', '正式联系方式将在发布前由权威文档目录提供。'),
       ],
     ),
     _LegalDocument(
       title: '第三方 SDK 与权限说明',
-      version: 'UI-MOCK-1',
+      version: '预发布版',
       effectiveDate: '待权威目录确认',
       sections: [
         ('说明', '正式清单将列出 SDK 名称、开发者、使用目的、数据类型、权限与隐私政策链接。'),
-        ('当前阶段', 'UI Mock 阶段未接入支付、推送、定位或其他生产 SDK。'),
+        ('发布说明', '正式清单将在相关能力启用前完成更新并向用户公开。'),
       ],
     ),
     _LegalDocument(
       title: '账号注销与数据处理说明',
-      version: 'UI-MOCK-1',
+      version: '预发布版',
       effectiveDate: '待权威目录确认',
       sections: [
         ('注销范围', '仅注销 KingClub 会员和业务资料，不注销物业共享身份或物业账号。'),
@@ -240,11 +240,6 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
           style: TextStyle(color: Color(0xFF6A6259), fontSize: 11),
         ),
         const SizedBox(height: 20),
-        const Text(
-          'UI Mock，正式内容以权威文档目录为准',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF554D44), fontSize: 11),
-        ),
       ],
     );
   }
@@ -307,7 +302,7 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
           ],
         ),
         const Text(
-          '本页为 UI Mock，不是正式法律文本。',
+          '文档内容以正式发布版本为准。',
           style: TextStyle(color: Color(0xFF6A6259), fontSize: 12),
         ),
       ],
@@ -363,7 +358,7 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
                 _scenario = AboutLegalScenario.catalog;
                 _document = null;
               }),
-              child: const Text('重新加载 Fake 目录'),
+              child: const Text('重新加载'),
             ),
           ],
         ),

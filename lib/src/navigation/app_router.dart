@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../features/auth/presentation/auth_bootstrap_page.dart';
+import '../features/auth/presentation/legacy_welcome_page.dart';
 import '../features/auth/presentation/mobile_login_page.dart';
 import '../features/auth/presentation/sms_verification_page.dart';
 import '../features/auth/presentation/terms_consent_page.dart';
 import '../features/club/presentation/aa_reservations_page.dart';
+import '../features/club/presentation/aa_positioning_card_page.dart';
 import '../features/club/presentation/admission_ticket_page.dart';
 import '../features/club/presentation/vip_party_page.dart';
 import '../features/club/presentation/vip_party_create_page.dart';
@@ -24,6 +27,7 @@ import '../features/contacts/presentation/send_friend_request_page.dart';
 import '../features/contacts/presentation/user_profile_page.dart';
 import '../features/membership_wallet/presentation/asset_ledger_page.dart';
 import '../features/profile_settings/presentation/edit_profile_page.dart';
+import '../features/profile_settings/data/profile_cover_store.dart';
 import '../features/profile_settings/presentation/about_legal_page.dart';
 import '../features/profile_settings/presentation/account_deletion_page.dart';
 import '../features/profile_settings/presentation/payment_security_page.dart';
@@ -56,9 +60,33 @@ class AuthBootstrapRoute extends GoRouteData with $AuthBootstrapRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    return AuthBootstrapPage(
-      onAnonymous: () => const MobileLoginRoute().go(context),
-      onAuthenticated: () => const AppShellRoute().go(context),
+    return _ControlledRouteBackScope(
+      onBack: () {},
+      child: AuthBootstrapPage(
+        onAnonymous: () => const LegacyWelcomeRoute().go(context),
+        onAuthenticated: () => const AppShellRoute().go(context),
+      ),
+    );
+  }
+}
+
+@TypedGoRoute<LegacyWelcomeRoute>(path: '/auth/welcome')
+class LegacyWelcomeRoute extends GoRouteData with $LegacyWelcomeRoute {
+  const LegacyWelcomeRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    return _ControlledRouteBackScope(
+      onBack: SystemNavigator.pop,
+      child: LegacyWelcomePage(
+        onNext: () => const MobileLoginRoute().go(context),
+        onOpenTerms: () =>
+            TermsConsentRoute(const ConsentRouteArgs(AgreementKind.terms))
+                .push<void>(context),
+        onOpenPrivacy: () =>
+            TermsConsentRoute(const ConsentRouteArgs(AgreementKind.privacy))
+                .push<void>(context),
+      ),
     );
   }
 }
@@ -69,15 +97,15 @@ class MobileLoginRoute extends GoRouteData with $MobileLoginRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    return MobileLoginPage(
-      onFlowCreated: (flow) =>
-          SmsCodeRoute(LoginFlowRouteArgs(flow.id)).go(context),
-      onOpenTerms: () =>
-          TermsConsentRoute(const ConsentRouteArgs(AgreementKind.terms))
-              .push<void>(context),
-      onOpenPrivacy: () =>
-          TermsConsentRoute(const ConsentRouteArgs(AgreementKind.privacy))
-              .push<void>(context),
+    void back() => const LegacyWelcomeRoute().go(context);
+    return _ControlledRouteBackScope(
+      onBack: back,
+      child: MobileLoginPage(
+        onBack: back,
+        onVerified: (flowId) =>
+            RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
+                .go(context),
+      ),
     );
   }
 }
@@ -96,12 +124,16 @@ class SmsCodeRoute extends GoRouteData with $SmsCodeRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    return SmsVerificationPage(
-      flowId: $extra.flowId,
-      onBack: () => const MobileLoginRoute().go(context),
-      onVerified: (flowId) =>
-          RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
-              .go(context),
+    void back() => const MobileLoginRoute().go(context);
+    return _ControlledRouteBackScope(
+      onBack: back,
+      child: SmsVerificationPage(
+        flowId: $extra.flowId,
+        onBack: back,
+        onVerified: (flowId) =>
+            RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
+                .go(context),
+      ),
     );
   }
 }
@@ -142,10 +174,15 @@ class RealNameAdultVerificationRoute extends GoRouteData
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    return RealNameAdultVerificationPage(
-      flowId: $extra.flowId,
-      onNext: () => MembershipImageSubmissionRoute($extra).go(context),
-      onInvalidFlow: () => const MobileLoginRoute().go(context),
+    void back() => const MobileLoginRoute().go(context);
+    return _ControlledRouteBackScope(
+      onBack: back,
+      child: RealNameAdultVerificationPage(
+        flowId: $extra.flowId,
+        onBack: back,
+        onNext: () => MembershipImageSubmissionRoute($extra).go(context),
+        onInvalidFlow: () => const MobileLoginRoute().go(context),
+      ),
     );
   }
 }
@@ -159,11 +196,15 @@ class MembershipImageSubmissionRoute extends GoRouteData
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    return MembershipImageSubmissionPage(
-      flowId: $extra.flowId,
-      onBack: () => RealNameAdultVerificationRoute($extra).go(context),
-      onNext: () => StyleMusicPreferencesRoute($extra).go(context),
-      onInvalidFlow: () => const MobileLoginRoute().go(context),
+    void back() => RealNameAdultVerificationRoute($extra).go(context);
+    return _ControlledRouteBackScope(
+      onBack: back,
+      child: MembershipImageSubmissionPage(
+        flowId: $extra.flowId,
+        onBack: back,
+        onNext: () => StyleMusicPreferencesRoute($extra).go(context),
+        onInvalidFlow: () => const MobileLoginRoute().go(context),
+      ),
     );
   }
 }
@@ -177,11 +218,15 @@ class StyleMusicPreferencesRoute extends GoRouteData
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    return StyleMusicPreferencesPage(
-      flowId: $extra.flowId,
-      onBack: () => MembershipImageSubmissionRoute($extra).go(context),
-      onNext: () => DrinkEventPreferencesRoute($extra).go(context),
-      onInvalidFlow: () => const MobileLoginRoute().go(context),
+    void back() => MembershipImageSubmissionRoute($extra).go(context);
+    return _ControlledRouteBackScope(
+      onBack: back,
+      child: StyleMusicPreferencesPage(
+        flowId: $extra.flowId,
+        onBack: back,
+        onNext: () => DrinkEventPreferencesRoute($extra).go(context),
+        onInvalidFlow: () => const MobileLoginRoute().go(context),
+      ),
     );
   }
 }
@@ -195,11 +240,15 @@ class DrinkEventPreferencesRoute extends GoRouteData
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    return DrinkEventPreferencesPage(
-      flowId: $extra.flowId,
-      onBack: () => StyleMusicPreferencesRoute($extra).go(context),
-      onSubmitted: () => MembershipReviewStatusRoute($extra).go(context),
-      onInvalidFlow: () => const MobileLoginRoute().go(context),
+    void back() => StyleMusicPreferencesRoute($extra).go(context);
+    return _ControlledRouteBackScope(
+      onBack: back,
+      child: DrinkEventPreferencesPage(
+        flowId: $extra.flowId,
+        onBack: back,
+        onSubmitted: () => MembershipReviewStatusRoute($extra).go(context),
+        onInvalidFlow: () => const MobileLoginRoute().go(context),
+      ),
     );
   }
 }
@@ -213,12 +262,33 @@ class MembershipReviewStatusRoute extends GoRouteData
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    return MembershipReviewStatusPage(
-      flowId: $extra.flowId,
-      onApproved: () => const AppShellRoute().go(context),
-      onFixImages: () => MembershipImageSubmissionRoute($extra).go(context),
-      onExit: () => const MobileLoginRoute().go(context),
-      onInvalidFlow: () => const MobileLoginRoute().go(context),
+    return _ControlledRouteBackScope(
+      onBack: SystemNavigator.pop,
+      child: MembershipReviewStatusPage(
+        flowId: $extra.flowId,
+        onApproved: () => const AppShellRoute().go(context),
+        onFixImages: () => MembershipImageSubmissionRoute($extra).go(context),
+        onExit: () => const MobileLoginRoute().go(context),
+        onInvalidFlow: () => const MobileLoginRoute().go(context),
+      ),
+    );
+  }
+}
+
+class _ControlledRouteBackScope extends StatelessWidget {
+  const _ControlledRouteBackScope({required this.onBack, required this.child});
+
+  final VoidCallback onBack;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) onBack();
+      },
+      child: child,
     );
   }
 }
@@ -229,15 +299,17 @@ class AppShellRoute extends GoRouteData with $AppShellRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) => AppShellPage(
+    profileCoverStore: LocalProfileCoverStore.instance,
     onOpenTogether: () => const AaReservationsRoute().push<void>(context),
     onOpenParty: () => const VipPartyRoute().push<void>(context),
     onOpenOrdering: () => const ScanOrderingCartRoute().push<void>(context),
     onOpenAssets: (type) => AssetLedgerRoute(type).push<void>(context),
-    onOpenEditProfile: (nickname, signature) =>
-        EditProfileRoute(EditProfileRouteArgs(nickname, signature))
+    onOpenEditProfile: (nickname, signature, coverAsset) =>
+        EditProfileRoute(EditProfileRouteArgs(nickname, signature, coverAsset))
             .push<EditableProfileResult>(context),
     onOpenPersonalQr: () => const PersonalQrRoute().push<void>(context),
     onOpenSettings: () => const SettingsRoute().push<void>(context),
+    onOpenOrders: () => const OrderCenterRoute().push<void>(context),
     onOpenFriendRequests: () => const FriendRequestsRoute().push<void>(context),
     onOpenAddFriend: () => const AddFriendRoute().push<void>(context),
     onOpenBlacklist: () => const BlacklistRoute().push<void>(context),
@@ -258,16 +330,18 @@ class ContentFeedRoute extends GoRouteData with $ContentFeedRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) => AppShellPage(
+    profileCoverStore: LocalProfileCoverStore.instance,
     initialIndex: 2,
     onOpenTogether: () => const AaReservationsRoute().push<void>(context),
     onOpenParty: () => const VipPartyRoute().push<void>(context),
     onOpenOrdering: () => const ScanOrderingCartRoute().push<void>(context),
     onOpenAssets: (type) => AssetLedgerRoute(type).push<void>(context),
-    onOpenEditProfile: (nickname, signature) =>
-        EditProfileRoute(EditProfileRouteArgs(nickname, signature))
+    onOpenEditProfile: (nickname, signature, coverAsset) =>
+        EditProfileRoute(EditProfileRouteArgs(nickname, signature, coverAsset))
             .push<EditableProfileResult>(context),
     onOpenPersonalQr: () => const PersonalQrRoute().push<void>(context),
     onOpenSettings: () => const SettingsRoute().push<void>(context),
+    onOpenOrders: () => const OrderCenterRoute().push<void>(context),
     onOpenFriendRequests: () => const FriendRequestsRoute().push<void>(context),
     onOpenAddFriend: () => const AddFriendRoute().push<void>(context),
     onOpenBlacklist: () => const BlacklistRoute().push<void>(context),
@@ -288,16 +362,18 @@ class ContactsRoute extends GoRouteData with $ContactsRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) => AppShellPage(
+    profileCoverStore: LocalProfileCoverStore.instance,
     initialIndex: 1,
     onOpenTogether: () => const AaReservationsRoute().push<void>(context),
     onOpenParty: () => const VipPartyRoute().push<void>(context),
     onOpenOrdering: () => const ScanOrderingCartRoute().push<void>(context),
     onOpenAssets: (type) => AssetLedgerRoute(type).push<void>(context),
-    onOpenEditProfile: (nickname, signature) =>
-        EditProfileRoute(EditProfileRouteArgs(nickname, signature))
+    onOpenEditProfile: (nickname, signature, coverAsset) =>
+        EditProfileRoute(EditProfileRouteArgs(nickname, signature, coverAsset))
             .push<EditableProfileResult>(context),
     onOpenPersonalQr: () => const PersonalQrRoute().push<void>(context),
     onOpenSettings: () => const SettingsRoute().push<void>(context),
+    onOpenOrders: () => const OrderCenterRoute().push<void>(context),
     onOpenFriendRequests: () => const FriendRequestsRoute().push<void>(context),
     onOpenAddFriend: () => const AddFriendRoute().push<void>(context),
     onOpenBlacklist: () => const BlacklistRoute().push<void>(context),
@@ -372,15 +448,6 @@ class UserProfileRoute extends GoRouteData with $UserProfileRoute {
     initialRelationship: $extra.relationship,
     onBack: () => context.pop(),
     onOpenSelfProfile: () => const AppShellRoute().go(context),
-    onOpenSendRequest: (targetRef) =>
-        SendFriendRequestRoute(SendFriendRequestRouteArgs(targetRef, '好友'))
-            .push<void>(context),
-    onOpenFriendRemark: (targetRef) =>
-        FriendRemarkRoute(FriendRemarkRouteArgs(targetRef, '好友', '保持热爱，奔赴山海'))
-            .push<void>(context),
-    onOpenPermissions: (targetRef) => RelationshipPermissionsRoute(
-      RelationshipPermissionsRouteArgs(targetRef, '好友'),
-    ).push<void>(context),
     onSessionResetRequested: () => const MobileLoginRoute().go(context),
   );
 }
@@ -503,12 +570,46 @@ class AaReservationsRoute extends GoRouteData with $AaReservationsRoute {
   const AaReservationsRoute();
 
   @override
-  Widget build(BuildContext context, GoRouterState state) => AaReservationsPage(
-    onBack: () => context.pop(),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
-    onOpenAdmissionTicket: () =>
-        const AdmissionTicketRoute().push<void>(context),
-  );
+  Widget build(BuildContext context, GoRouterState state) {
+    final canPop = context.canPop();
+    void back() => canPop
+        ? context.pop()
+        : const AppShellRoute().go(context);
+
+    return PopScope<void>(
+      canPop: canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) const AppShellRoute().go(context);
+      },
+      child: AaReservationsPage(
+        onBack: back,
+        onSessionResetRequested: () => const MobileLoginRoute().go(context),
+        onOpenAdmissionTicket: () =>
+            const AaPositioningCardRoute().push<void>(context),
+      ),
+    );
+  }
+}
+
+@TypedGoRoute<AaPositioningCardRoute>(path: '/club/aa/positioning-card')
+class AaPositioningCardRoute extends GoRouteData with $AaPositioningCardRoute {
+  const AaPositioningCardRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    final canPop = context.canPop();
+    void back() => canPop
+        ? context.pop()
+        : const AaReservationsRoute().go(context);
+
+    return PopScope<void>(
+      canPop: canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) const AaReservationsRoute().go(context);
+      },
+      child: AaPositioningCardPage(onBack: back),
+    );
+  }
 }
 
 @TypedGoRoute<VipPartyRoute>(
@@ -551,11 +652,13 @@ class VipPartyManagementRoute extends GoRouteData
 
 @TypedGoRoute<AdmissionTicketRoute>(path: '/club/admission')
 class AdmissionTicketRoute extends GoRouteData with $AdmissionTicketRoute {
-  const AdmissionTicketRoute();
+  const AdmissionTicketRoute([this.$extra]);
+
+  final FakeAdmissionRef? $extra;
 
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      AdmissionTicketPage(onBack: () => context.pop());
+      AdmissionTicketPage(admissionRef: $extra, onBack: () => context.pop());
 }
 
 @TypedGoRoute<ScanOrderingCartRoute>(path: '/commerce/ordering')
@@ -591,6 +694,9 @@ class ScanOrderConfirmationRoute extends GoRouteData
         onModify: () => context.canPop()
             ? context.pop()
             : const ScanOrderingCartRoute().go(context),
+        onOrderCreated: (intent) => PaymentResultRoute(
+          FakePaymentIntentRef('payment-intent-${intent.orderRef}'),
+        ).go(context),
         onSessionResetRequested: () => const MobileLoginRoute().go(context),
         onOpenOrders: () => const OrderCenterRoute().go(context),
       );
@@ -623,7 +729,9 @@ class OrderDetailRoute extends GoRouteData with $OrderDetailRoute {
     orderRef: $extra ?? const FakeOrderRef('order-scan-v8-0827'),
     onBack: () =>
         context.canPop() ? context.pop() : const OrderCenterRoute().go(context),
-    onAdmission: (_) => const AdmissionTicketRoute().push<void>(context),
+    onAdmission: (admissionRef) =>
+        AdmissionTicketRoute(FakeAdmissionRef(admissionRef))
+            .push<void>(context),
     onPaymentIntent: (intentId) =>
         PaymentResultRoute(FakePaymentIntentRef(intentId)).push<void>(context),
     onSessionResetRequested: () => const MobileLoginRoute().go(context),
@@ -668,10 +776,11 @@ class AssetLedgerRoute extends GoRouteData with $AssetLedgerRoute {
 }
 
 class EditProfileRouteArgs {
-  const EditProfileRouteArgs(this.nickname, this.signature);
+  const EditProfileRouteArgs(this.nickname, this.signature, this.coverAsset);
 
   final String nickname;
   final String signature;
+  final String coverAsset;
 }
 
 @TypedGoRoute<EditProfileRoute>(path: '/me/edit')
@@ -684,6 +793,7 @@ class EditProfileRoute extends GoRouteData with $EditProfileRoute {
   Widget build(BuildContext context, GoRouterState state) => EditProfilePage(
     nickname: $extra.nickname,
     signature: $extra.signature,
+    coverAsset: $extra.coverAsset,
     onBack: () => context.pop(),
     onSaved: (result) => context.pop(result),
     onSessionResetRequested: () => const MobileLoginRoute().go(context),

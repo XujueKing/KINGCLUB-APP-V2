@@ -45,11 +45,11 @@ class _TermsConsentPageState extends State<TermsConsentPage> {
                     segments: const [
                       ButtonSegment(
                         value: AgreementKind.terms,
-                        label: Text('用户协议 vMock'),
+                        label: Text('用户协议'),
                       ),
                       ButtonSegment(
                         value: AgreementKind.privacy,
-                        label: Text('隐私政策 vMock'),
+                        label: Text('隐私政策'),
                       ),
                     ],
                     selected: {_selected},
@@ -72,7 +72,7 @@ class _TermsConsentPageState extends State<TermsConsentPage> {
                       ),
                       child: SingleChildScrollView(
                         child: SelectableText(
-                          isTerms ? _mockTerms : _mockPrivacy,
+                          isTerms ? _termsPreview : _privacyPreview,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ),
@@ -80,7 +80,7 @@ class _TermsConsentPageState extends State<TermsConsentPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '以上为 UI Mock 占位正文，不构成正式法律文本，也不会写入同意记录。',
+                    '协议正文以正式发布版本为准。',
                     style: Theme.of(context).textTheme.bodySmall
                         ?.copyWith(color: KingColors.warning),
                   ),
@@ -94,10 +94,10 @@ class _TermsConsentPageState extends State<TermsConsentPage> {
   }
 }
 
-const _mockTerms = '''KingClub 用户协议（Mock）
+const _termsPreview = '''KingClub 用户协议
 
-一、说明
-本页面用于验证协议阅读、标签切换、动态字体和返回流程。
+一、服务说明
+以下内容用于展示协议页面结构，正式服务条款以发布时展示的版本为准。
 
 二、会员服务
 正式权利义务、会员规则和服务边界将在法务文本批准后展示。
@@ -105,10 +105,10 @@ const _mockTerms = '''KingClub 用户协议（Mock）
 三、账户安全
 请妥善保护账户信息，不要向他人透露验证码。''';
 
-const _mockPrivacy = '''KingClub 隐私政策（Mock）
+const _privacyPreview = '''KingClub 隐私政策
 
-一、说明
-本页面仅使用虚构内容验证 UI，不采集或上传个人信息。
+一、隐私说明
+以下内容用于展示隐私政策页面结构，正式政策以发布时展示的版本为准。
 
 二、最小化原则
 正式版本将说明数据类型、使用目的、保存期限和用户权利。

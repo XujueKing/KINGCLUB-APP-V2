@@ -18,7 +18,9 @@ void main() {
     );
 
     expect(find.text('一起玩AA预定'), findsOneWidget);
-    expect(find.text('微醺畅饮套餐'), findsOneWidget);
+    expect(find.text('3880卡座套餐'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
+    expect(find.textContaining('Mock'), findsNothing);
 
     await tester.tap(find.text('加入').first);
     await tester.pumpAndSettle();
@@ -57,8 +59,32 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
 
-    expect(find.text('已生成 Fake 待支付订单'), findsOneWidget);
-    expect(find.textContaining('真实支付模块尚未接入'), findsOneWidget);
+    expect(find.text('支付'), findsOneWidget);
+    expect(find.text('KING CLUB AA预订'), findsOneWidget);
+    expect(find.textContaining('V5卡座'), findsOneWidget);
+    expect(find.text('¥248.00'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
+    expect(find.textContaining('真实支付'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('payment-confirm')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(find.text('支付已确认'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('payment-view-order')));
+    await tester.pumpAndSettle();
+    expect(find.text('订单详情'), findsOneWidget);
+    expect(find.text('KING CLUB AA预订'), findsOneWidget);
+    expect(find.text('V5 卡座 · 08月29日 20:30'), findsOneWidget);
+    expect(find.text('3880卡座套餐'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('应付金额'),
+      180,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('¥248'), findsOneWidget);
+    expect(find.text('888号桌'), findsNothing);
   });
 
   testWidgets(
@@ -129,7 +155,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('确认新价格'), findsOneWidget);
-    expect(find.textContaining('¥218.00'), findsWidgets);
+    expect(find.textContaining('¥288.00'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('aa-package-bottom-action')));
     await tester.pump();
@@ -137,7 +163,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('aa-package-bottom-action')));
     await tester.pumpAndSettle();
     expect(find.text('确认订单'), findsOneWidget);
-    expect(find.text('¥218.00'), findsWidgets);
+    expect(find.text('¥288.00'), findsWidgets);
   });
 
   testWidgets('sold out AA package only returns to the list', (tester) async {
@@ -277,8 +303,9 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
-    expect(find.text('已生成 Fake 待支付订单'), findsOneWidget);
-    expect(find.textContaining('席位模拟保留 10 分钟'), findsOneWidget);
+    expect(find.text('支付'), findsOneWidget);
+    expect(find.text('KING CLUB AA预订'), findsOneWidget);
+    expect(find.text('¥268.00'), findsOneWidget);
   });
 
   testWidgets('AA ineligible result exits the write flow without charging', (
@@ -339,7 +366,7 @@ void main() {
     await _selectConfirmationScenario(tester, 'sessionInvalid');
 
     expect(find.text('登录状态已失效'), findsOneWidget);
-    expect(find.text('微醺畅饮套餐'), findsNothing);
+    expect(find.text('3880卡座套餐'), findsNothing);
     expect(find.byKey(const ValueKey('aa-pay-button')), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('aa-session-reset-action')));
@@ -355,12 +382,12 @@ void main() {
 
     expect(find.text('正在获取最新报价'), findsOneWidget);
     expect(find.text('实付￥--'), findsOneWidget);
-    expect(find.text('微醺畅饮套餐'), findsNothing);
+    expect(find.text('3880卡座套餐'), findsNothing);
     expect(_payButton(tester).onPressed, isNull);
 
     await tester.tap(find.byKey(const ValueKey('aa-initial-load-action')));
     await tester.pump();
-    expect(find.text('微醺畅饮套餐'), findsOneWidget);
+    expect(find.text('3880卡座套餐'), findsOneWidget);
     expect(find.text('立即付款'), findsOneWidget);
   });
 
@@ -419,7 +446,7 @@ void main() {
     await _selectConfirmationScenario(tester, 'invalidRef');
 
     expect(find.text('报价已失效'), findsOneWidget);
-    expect(find.text('微醺畅饮套餐'), findsNothing);
+    expect(find.text('3880卡座套餐'), findsNothing);
     expect(find.byKey(const ValueKey('aa-pay-button')), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('aa-invalid-ref-action')));
@@ -434,14 +461,15 @@ void main() {
     await _selectConfirmationScenario(tester, 'zeroCash');
 
     expect(find.text('确认预订'), findsOneWidget);
-    expect(find.text('无需调用支付'), findsOneWidget);
+    expect(find.text('本单无需支付'), findsOneWidget);
     expect(find.textContaining('0.00 元'), findsOneWidget);
 
     await _agreeAndSubmit(tester);
-    expect(find.text('Fake 预订已确认'), findsOneWidget);
+    expect(find.text('预订已确认'), findsOneWidget);
     expect(find.textContaining('实付 ¥0.00'), findsOneWidget);
-    expect(find.textContaining('没有拉起支付'), findsOneWidget);
-    expect(find.text('已生成 Fake 待支付订单'), findsNothing);
+    expect(find.textContaining('优惠已抵扣全部金额'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
+    expect(find.text('订单已提交'), findsNothing);
   });
 }
 

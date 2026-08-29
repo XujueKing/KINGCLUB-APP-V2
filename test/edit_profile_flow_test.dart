@@ -7,6 +7,8 @@ void main() {
     ValueChanged<EditableProfileResult>? onSaved,
     VoidCallback? onBack,
     VoidCallback? onSessionResetRequested,
+    Future<String?> Function()? pickCoverImage,
+    Future<String?> Function(String imagePath)? adjustCoverImage,
     TextScaler textScaler = TextScaler.noScaling,
   }) {
     return MaterialApp(
@@ -22,6 +24,8 @@ void main() {
           onSaved: onSaved,
           onBack: onBack,
           onSessionResetRequested: onSessionResetRequested,
+          pickCoverImage: pickCoverImage,
+          adjustCoverImage: adjustCoverImage,
         ),
       ),
     );
@@ -62,7 +66,7 @@ void main() {
     return save;
   }
 
-  testWidgets('保存成功只返回 Fake 昵称和签名', (tester) async {
+  testWidgets('保存成功只返回昵称和签名', (tester) async {
     EditableProfileResult? result;
     await tester.pumpWidget(subject(onSaved: (value) => result = value));
 
@@ -74,6 +78,72 @@ void main() {
     await tester.pump(const Duration(milliseconds: 450));
     expect(result?.nickname, '杨嘉琪 King');
     expect(result?.signature, '');
+    expect(result?.coverAsset, kDefaultProfileCoverAsset);
+  });
+
+  testWidgets('更换封面调用相册并在保存后回传', (tester) async {
+    EditableProfileResult? result;
+    var pickerCalls = 0;
+    await tester.pumpWidget(
+      subject(
+        onSaved: (value) => result = value,
+        pickCoverImage: () async {
+          pickerCalls += 1;
+          return 'assets/legacy/home/mock_poster_music.png';
+        },
+        adjustCoverImage: (path) async => path,
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('edit-profile-cover')));
+    await tester.pumpAndSettle();
+    expect(pickerCalls, 1);
+    expect(find.textContaining('新封面已预览'), findsOneWidget);
+
+    await tapSave(tester);
+    await tester.pump(const Duration(milliseconds: 450));
+    expect(result?.coverAsset, 'assets/legacy/home/mock_poster_music.png');
+  });
+
+  testWidgets('取消封面相册选择不产生草稿', (tester) async {
+    await tester.pumpWidget(subject(pickCoverImage: () async => null));
+
+    await tester.tap(find.byKey(const ValueKey('edit-profile-cover')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('新封面已预览'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('legacy-back')));
+    await tester.pumpAndSettle();
+    expect(find.text('放弃修改？'), findsNothing);
+  });
+
+  testWidgets('取消封面位置调整不产生草稿', (tester) async {
+    await tester.pumpWidget(
+      subject(
+        pickCoverImage: () async => 'selected-cover.jpg',
+        adjustCoverImage: (_) async => null,
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('edit-profile-cover')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('新封面已预览'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('legacy-back')));
+    await tester.pumpAndSettle();
+    expect(find.text('放弃修改？'), findsNothing);
+  });
+
+  testWidgets('文本编辑弹窗不使用粉色主题', (tester) async {
+    await tester.pumpWidget(subject());
+    await tester.tap(find.byKey(const ValueKey('edit-profile-nickname')));
+    await tester.pumpAndSettle();
+
+    final dialog = tester.widget<AlertDialog>(
+      find.byKey(const ValueKey('edit-profile-dialog-nickname')),
+    );
+    expect(dialog.backgroundColor, isNot(const Color(0xFFFBAFDA)));
+    expect(find.text('修改昵称'), findsOneWidget);
   });
 
   testWidgets('昵称校验错误不会清空当前输入', (tester) async {
@@ -157,16 +227,12 @@ void main() {
     expect(savedCount, 1);
   });
 
-  testWidgets('头像失败仅显示稳定提示且不读取相册', (tester) async {
+  testWidgets('空白头像保持非交互状态', (tester) async {
     await tester.pumpWidget(subject());
     await tester.tap(find.byKey(const ValueKey('edit-profile-empty-avatar')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('不会读取真实相册'), findsOneWidget);
-    await tester.tap(
-      find.byKey(const ValueKey('edit-profile-avatar-upload-failed')),
-    );
-    await tester.pumpAndSettle();
-    expect(find.textContaining('仅头像受影响'), findsOneWidget);
+    expect(find.text('请选择头像处理方式。'), findsNothing);
+    expect(find.byType(BottomSheet), findsNothing);
     expect(find.text('杨嘉琪'), findsOneWidget);
   });
 

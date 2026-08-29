@@ -58,9 +58,11 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('vip-create-submit')));
     await tester.pumpAndSettle();
 
-    expect(find.text('已生成 Fake 待支付意图'), findsOneWidget);
-    expect(find.textContaining('真实支付尚未接入'), findsOneWidget);
-    expect(find.textContaining('不会显示已付款'), findsOneWidget);
+    expect(find.text('待支付订单已生成'), findsOneWidget);
+    expect(find.textContaining('席位将保留 10 分钟'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
+    expect(find.textContaining('Mock'), findsNothing);
+    expect(find.textContaining('支付成功前不会标记为已付款'), findsOneWidget);
   });
 
   testWidgets('quote expiry refreshes without submitting', (tester) async {
@@ -94,9 +96,10 @@ void main() {
     await _acceptTerms(tester);
     await tester.tap(find.byKey(const ValueKey('vip-create-submit')));
     await tester.pumpAndSettle();
-    expect(find.text('Fake 组局创建成功'), findsOneWidget);
+    expect(find.text('组局创建成功'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
     expect(find.textContaining('当前实付 ¥0.00'), findsOneWidget);
-    expect(find.textContaining('没有拉起支付'), findsOneWidget);
+    expect(find.textContaining('无需支付'), findsOneWidget);
   });
 }
 

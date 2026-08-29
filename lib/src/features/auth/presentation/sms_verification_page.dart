@@ -35,10 +35,39 @@ class _SmsVerificationPageState extends ConsumerState<SmsVerificationPage> {
   @override
   void initState() {
     super.initState();
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _remaining == 0) return;
       setState(() => _remaining--);
     });
+  }
+
+  Future<void> _handleSecondaryAction() async {
+    if (_remaining == 0) {
+      setState(() => _remaining = 60);
+      _startCountdown();
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('验证码已重新发送')));
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('收不到验证码？'),
+        content: const Text('请确认手机号填写正确、短信未被拦截，并在倒计时结束后重新获取。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -208,12 +237,16 @@ class _SmsVerificationPageState extends ConsumerState<SmsVerificationPage> {
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
-                TextButton(onPressed: () {}, child: const Text('收不到验证码？')),
+                TextButton(
+                  onPressed: _submitting ? null : _handleSecondaryAction,
+                  child: Text(_remaining > 0 ? '收不到验证码？' : '重新获取'),
+                ),
               ],
             ),
             const SizedBox(height: 20),
             FilledButton(
               onPressed: _submitting ? null : _verify,
+              style: FilledButton.styleFrom(shape: const StadiumBorder()),
               child: _submitting
                   ? const SizedBox.square(
                       dimension: 20,
@@ -229,6 +262,7 @@ class _SmsVerificationPageState extends ConsumerState<SmsVerificationPage> {
                 highlightColor: Colors.transparent,
               ),
               child: ExpansionTile(
+                key: const ValueKey('sms-test-scenarios'),
                 tilePadding: EdgeInsets.zero,
                 childrenPadding: const EdgeInsets.only(bottom: 8),
                 dense: true,

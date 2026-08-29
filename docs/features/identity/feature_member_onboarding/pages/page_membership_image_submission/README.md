@@ -5,8 +5,8 @@
 - 所属功能：[会员注册、资料初始化与准入](../../README.md)
 - 旧版来源：`regist3`
 - 路由语义：`MembershipImageSubmissionRoute`
-- 设计版本：`Onboarding Wireframe v1 / Step 2`
-- 最后更新：2026-08-25
+- 设计版本：`Onboarding Wireframe v1 / Step 2 / Pill Actions`
+- 最后更新：2026-08-28
 
 ## 用户任务
 
@@ -41,6 +41,7 @@
 - 选择后提供裁切/预览/替换/删除；不做美颜、自动修改身体或外貌。
 - 上传失败只影响当前槽位；成功 commit 后立即清理临时副本。
 - 不展示“颜值分”、模型标签或侮辱性审核文案。
+- “下一步”主按钮使用完整胶囊圆角，与 Step 1 的主操作保持同一黑金视觉语言。
 - 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)。
 
 ## Mock 与埋点

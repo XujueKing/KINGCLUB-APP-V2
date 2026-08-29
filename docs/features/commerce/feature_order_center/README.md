@@ -1,11 +1,11 @@
 # 消费者订单中心
 
 - Scope ID：`KC-F-028`
-- 文档状态：`Approved for Development`
+- 文档状态：`UI Mock Implemented / Android Device Verified`
 - 所属业务域：`commerce`
 - M0 范围：`In Release Scope`
 - 设计版本：`Order Center v1`
-- 最后更新：2026-08-25
+- 最后更新：2026-08-29
 
 ## 目标与用户价值
 
@@ -27,8 +27,8 @@
 
 ## 页面与文档
 
-- [KC-P-036 订单中心页](pages/page_order_center/README.md) — `Approved for Development`
-- [KC-P-037 订单详情页](pages/page_order_detail/README.md) — `Approved for Development`
+- [KC-P-036 订单中心页](pages/page_order_center/README.md) — `UI Mock Implemented / Android Device Verified`
+- [KC-P-037 订单详情页](pages/page_order_detail/README.md) — `UI Mock Implemented / Android Device Verified`
 - [旧版审计](legacy_audit.md)
 - [状态与动作模型](state_machine.md)
 - [数据与 Fake 契约](data_and_api.md)

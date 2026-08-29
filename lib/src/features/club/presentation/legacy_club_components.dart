@@ -12,6 +12,9 @@ class LegacyClubScaffold extends StatelessWidget {
     required this.child,
     this.showMockLabel = true,
     this.onTitleLongPress,
+    this.titleFontSize = 18,
+    this.titleFontWeight = FontWeight.w600,
+    this.headerHeight = 54,
   });
 
   final String title;
@@ -19,6 +22,9 @@ class LegacyClubScaffold extends StatelessWidget {
   final Widget child;
   final bool showMockLabel;
   final VoidCallback? onTitleLongPress;
+  final double titleFontSize;
+  final FontWeight titleFontWeight;
+  final double headerHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +43,7 @@ class LegacyClubScaffold extends StatelessWidget {
             children: [
               SizedBox(
                 width: double.infinity,
-                height: 54,
+                height: headerHeight,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -58,10 +64,10 @@ class LegacyClubScaffold extends StatelessWidget {
                       onLongPress: onTitleLongPress,
                       child: Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: legacyGold,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                          fontSize: titleFontSize,
+                          fontWeight: titleFontWeight,
                         ),
                       ),
                     ),
@@ -170,11 +176,13 @@ class LegacyClubButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.light = false,
+    this.goldFill = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool light;
+  final bool goldFill;
 
   @override
   Widget build(BuildContext context) {
@@ -184,8 +192,14 @@ class LegacyClubButton extends StatelessWidget {
         elevation: 0,
         minimumSize: const Size(82, 38),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        backgroundColor: light ? legacyPink : const Color(0xFF24180A),
-        foregroundColor: light ? const Color(0xFF33261D) : legacyGold,
+        backgroundColor: goldFill
+            ? legacyGold
+            : light
+            ? legacyPink
+            : const Color(0xFF24180A),
+        foregroundColor: goldFill || light
+            ? const Color(0xFF33261D)
+            : legacyGold,
         disabledBackgroundColor: const Color(0x33222222),
         disabledForegroundColor: const Color(0x55FFFFFF),
         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -199,5 +213,5 @@ class LegacyClubButton extends StatelessWidget {
 void showFakeResult(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text('$message（仅 Fake 数据，未连接服务器）')));
+    ..showSnackBar(SnackBar(content: Text(message)));
 }

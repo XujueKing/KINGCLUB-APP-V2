@@ -1,13 +1,13 @@
 # 支付处理与结果页
 
 - Scope ID：`KC-P-038`
-- 文档状态：`Approved for Development`
+- 文档状态：`UI Mock Implemented / Android Device Verified`
 - M0 范围：`In Release Scope`
 - 所属功能：[支付处理与结果](../../README.md)
 - 旧版来源：`pay`
 - 路由：`PaymentResultRoute`，`/commerce/payment`，`$extra: PaymentIntentRef | PaymentAttemptRef`
 - 设计版本：`Legacy Payment Result v2 / Fake Orchestration`
-- 最后更新：2026-08-27
+- 最后更新：2026-08-29
 
 ## 旧版视觉基线
 
@@ -44,3 +44,31 @@
 - 页面只接收 `PaymentIntentRef` 或 `PaymentAttemptRef`；不从路由读取订单金额、用户、支付参数或成功标记。
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。
+
+## 2026-08-29 v3 正式展示冻结
+
+1. 点单确认创建待支付订单后直接进入本页，使用替换式导航，返回不得重新提交原报价。
+2. 默认演示上下文与已验收点单流程统一：`KINGBAR 湖南工大店`、`888号桌`、轩尼诗 XO、芝华士12年、应付 `¥3680.00`。
+3. 正常用户界面不得出现 `Fake`、`Mock`、`PaymentIntent`、`PaymentAttempt`、`provider`、内部引用或“未调用真实 SDK”等测试说明。
+4. 准备态只使用正式产品文案：权威应付金额、可用支付方式、服务器确认规则和完整胶囊主按钮。
+5. 处理中、成功、取消、失败和待确认继续沿用旧版 `pay` 的居中结果结构；成功只表达“服务器已确认”。
+6. 长按标题的验收场景入口继续隐藏，不进入正常用户信息架构。
+
+## AA 预订支付夹具
+
+- `payment-intent-aa-*` 在本地 Fake registry 中映射为 AA 支付上下文：`KING CLUB AA预订`、`V5卡座 · 3880卡座套餐`、应付 `¥268.00`（抵扣后金额按确认页 Fake 报价冻结）。
+- 路由仍只接收不透明 `PaymentIntentRef`；金额和摘要由支付页本地 Fake registry 返回，不从路由或客户端表单读取。
+- 点单夹具继续保持 `KINGBAR 湖南工大店 / 888号桌 / ¥3680.00`，两种来源复用同一支付状态机和结果页，不复制新页面。
+- AA 支付成功后“查看订单”只传 `order-aa-v5-paid-r*-0829` 不透明引用，并替换进入同一报价对应的 V5 AA 订单详情；不得回落到扫码点单详情。
+
+## 2026-08-29 横屏恢复规则
+
+- 已确认事实：J03 真机支付成功页在 `2400×1080` 横屏时底部主按钮溢出 `32px`。
+- 当前建议：不改变旧版竖屏视觉；结果态改为“最小高度 + 可纵向滚动”容器，横屏与大字体时仍能完成“查看订单”。
+- 已确认事实：手机横屏按全局响应式规则不得崩溃或阻断关键流程，因此不通过强制锁定竖屏规避本问题。
+
+## 2026-08-29 支付安全提示条对齐修订
+
+- 盾牌图标与提示文字作为同一行内容整体上下居中，不再使用顶部对齐。
+- 图标、间距和文字行盒在卡片内垂直居中；正常宽度保持单行，窄屏换行时整组仍居中且文字左对齐。
+- 不改变提示文案、服务器确认语义或支付状态机。

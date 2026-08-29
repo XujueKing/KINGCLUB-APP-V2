@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'aa_mock_models.dart';
 import 'aa_package_detail_page.dart';
+import 'aa_positioning_card_page.dart';
 import 'legacy_club_components.dart';
 
 enum AaLandingScenario {
@@ -30,7 +31,7 @@ class AaReservationsPage extends StatefulWidget {
 }
 
 class _AaReservationsPageState extends State<AaReservationsPage> {
-  int _selectedDate = 0;
+  int _selectedDate = 3;
   bool _opening = false;
   AaLandingScenario _scenario = AaLandingScenario.available;
 
@@ -47,7 +48,12 @@ class _AaReservationsPageState extends State<AaReservationsPage> {
         children: [
           LegacyDateStrip(
             selectedIndex: _selectedDate,
-            onSelected: (value) => setState(() => _selectedDate = value),
+            onSelected: (value) => setState(() {
+              _selectedDate = value;
+              _scenario = value == 1
+                  ? AaLandingScenario.confirmed
+                  : AaLandingScenario.available;
+            }),
           ),
           const SizedBox(height: 18),
           if (_scenario == AaLandingScenario.offline)
@@ -60,7 +66,7 @@ class _AaReservationsPageState extends State<AaReservationsPage> {
           ),
           const SizedBox(height: 18),
           const Text(
-            '预定规则：【一起玩】是会员加入随机配对局，消费为AA制套餐。预定好后凭入场凭证到店，请注意穿着精致、文明饮酒并尊重同桌会员。当前页面使用本地模拟套餐，最终价格和规则以确认页为准。',
+            '预定规则：【一起玩】是会员加入随机配对局，消费为AA制套餐。预定好后凭入场凭证到店，请注意穿着精致、文明饮酒并尊重同桌会员。最终价格和规则以确认页为准。',
             style: TextStyle(
               color: Color(0x66FFFFFF),
               fontSize: 12,
@@ -125,7 +131,7 @@ class _AaReservationsPageState extends State<AaReservationsPage> {
       return;
     }
     final message = switch (_scenario) {
-      AaLandingScenario.pendingPayment => '已找到待支付预订，真实支付模块尚未接入',
+      AaLandingScenario.pendingPayment => '已找到待支付预订',
       AaLandingScenario.confirmed => '已找到确认预订',
       _ => '当前没有已有预订',
     };
@@ -201,6 +207,9 @@ class _ReservationStatusCard extends StatelessWidget {
     if (scenario == AaLandingScenario.pendingPayment ||
         scenario == AaLandingScenario.confirmed) {
       final pending = scenario == AaLandingScenario.pendingPayment;
+      if (!pending) {
+        return AaLegacyConfirmedReservationCard(onTap: onAction);
+      }
       return Container(
         key: ValueKey(pending ? 'aa-pending-card' : 'aa-confirmed-card'),
         constraints: const BoxConstraints(minHeight: 122),

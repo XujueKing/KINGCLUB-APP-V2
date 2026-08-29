@@ -104,4 +104,53 @@ void main() {
     await tester.pumpAndSettle();
     expect(reset, isTrue);
   });
+
+  testWidgets('local permission flow keeps display name and updates relation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(UserProfileRelationship.friend),
+    );
+    await tester.tap(find.byKey(const ValueKey('user-profile-permissions')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('relationship-block')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('与 艾琳 的好友关系'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey('relationship-confirm-确认拉黑')),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('user-profile-unblock')), findsOneWidget);
+    expect(find.byKey(const ValueKey('user-profile-message')), findsNothing);
+  });
+
+  testWidgets('local request result atomically becomes outgoing pending', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(UserProfileRelationship.stranger));
+    await tester.tap(find.byKey(const ValueKey('user-profile-add')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(
+              of: find.byKey(const ValueKey('send-friend-remark')),
+              matching: find.byType(TextField),
+            ),
+          )
+          .controller
+          ?.text,
+      '艾琳',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('send-friend-submit')));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('user-profile-waiting')), findsOneWidget);
+    expect(find.byKey(const ValueKey('user-profile-add')), findsNothing);
+  });
 }

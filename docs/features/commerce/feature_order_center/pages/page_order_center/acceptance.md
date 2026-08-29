@@ -11,7 +11,7 @@
 
 UI Mock 阶段验证 ORDERS-M01～M06、M16～M18；全局文档门禁已满足，可以实现页面 Fake 流程。
 
-## 2026-08-27 Android UI Mock 验收记录
+## 2026-08-29 Android UI Mock 验收记录
 
 - [x] `/commerce/orders` 可独立打开，并维持旧版黑金列表视觉
 - [x] 全部订单混排扫描点单、VIP 组局、一起玩 AA 与售后订单
@@ -21,11 +21,38 @@ UI Mock 阶段验证 ORDERS-M01～M06、M16～M18；全局文档门禁已满足�
 - [x] 列表详情入口只传递不透明 `OrderRef`，没有取消、支付、退款或核销写操作
 - [x] Android `1080 × 2400` 默认态和待支付筛选态无溢出、遮挡或底部碰撞
 - [x] `flutter analyze` 无问题
-- [x] 完整 Flutter 测试：87 项全部通过
+- [x] 订单中心专项测试：10 项全部通过
+
+## 2026-08-29 支付后一致性 v3
+
+- [x] 888 号桌订单位于“全部”列表首位
+- [x] 商店、桌号、商品、时间和实付金额与支付结果一致
+- [x] 订单状态归入“进行中”，不出现支付后回退为“待支付”
+- [x] 点击首条订单打开同一笔 888 号桌已支付详情
+- [x] 待支付筛选仍只显示待支付状态族
+- [x] Android 1080 × 2400 真机无溢出、遮挡或底部碰撞
 
 实机截图：
 
-- `screenshots/android_order_center_v2.png`
-- `screenshots/android_order_center_pending_v2.png`
+- `audit/2026-08-29-device/order_center_default.png`
+- `audit/2026-08-29-device/order_center_pending.png`
+- `audit/2026-08-29-device/order_center_pagination.png`
+- `audit/2026-08-29-device/order_center_error.png`
+- `audit/2026-08-29-device/order_center_empty.png`
 
 由于旧版不存在同状态的统一订单中心运行截图，本页只能验证旧版结构组合和 Android 实机质量，不能声明像素级复刻通过。
+
+## 2026-08-29 AA 支付后列表 v4
+
+- [x] V5/3880 AA 已确认订单位于“全部”首屏首位
+- [x] 标题、卡座、套餐、时间和 ¥268 与确认、支付、详情页面一致
+- [x] AA 已确认订单归入“进行中”，不进入待支付或完成售后筛选
+- [x] 点击卡片只传 `order-aa-v5-paid-r0-0829` 并打开同一 AA 详情
+- [x] Android 1080 × 2400 真机完成列表首屏、进行中筛选和详情返回验收
+
+实机截图：
+
+- `audit/2026-08-29-aa-paid-v4/01-all-aa-first.png`
+- `audit/2026-08-29-aa-paid-v4/02-active-aa.png`
+- `audit/2026-08-29-aa-paid-v4/03-aa-detail.png`
+- `audit/2026-08-29-aa-paid-v4/04-back-keeps-active.png`

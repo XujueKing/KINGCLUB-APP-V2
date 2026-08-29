@@ -77,6 +77,7 @@ class _StyleMusicPreferencesPageState
           const SizedBox(height: 32),
           FilledButton(
             onPressed: _saving ? null : _continue,
+            style: FilledButton.styleFrom(shape: const StadiumBorder()),
             child: _saving ? const _ButtonProgress() : const Text('下一步'),
           ),
           const SizedBox(height: 10),

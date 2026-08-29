@@ -61,6 +61,26 @@ class OrderCenterPage extends StatefulWidget {
 class _OrderCenterPageState extends State<OrderCenterPage> {
   static const _firstPage = <_FakeOrderSummary>[
     _FakeOrderSummary(
+      ref: FakeOrderRef('order-aa-v5-paid-r0-0829'),
+      type: '一起玩AA',
+      title: 'KING CLUB AA预订',
+      summary: '08月29日 20:30 · V5卡座 · 3880卡座套餐',
+      time: '08月29日 21:54',
+      amount: 268,
+      status: FakeOrderStatus.confirmed,
+      asset: 'assets/legacy/aa/package_3880_v1.png',
+    ),
+    _FakeOrderSummary(
+      ref: FakeOrderRef('order-scan-888-paid-0829'),
+      type: '扫码点单',
+      title: 'KINGBAR 湖南工大店',
+      summary: '888号桌 · 轩尼诗XO、芝华士12年',
+      time: '08月29日 20:18',
+      amount: 3680,
+      status: FakeOrderStatus.inService,
+      asset: 'assets/legacy/ordering/hennessy_xo.png',
+    ),
+    _FakeOrderSummary(
       ref: FakeOrderRef('order-scan-v8-0827'),
       type: '扫码点单',
       title: 'KINGBAR V8 桌点单',
@@ -153,7 +173,7 @@ class _OrderCenterPageState extends State<OrderCenterPage> {
       if (_hasSecondPage) ..._secondPage,
     ];
     if (_refreshed) {
-      result[0] = result[0].copyWith(status: FakeOrderStatus.paymentProcessing);
+      result[2] = result[2].copyWith(status: FakeOrderStatus.paymentProcessing);
     }
     if (_scenario == OrderCenterScenario.unknownStatus) {
       result.insert(

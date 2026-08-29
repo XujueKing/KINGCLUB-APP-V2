@@ -8,15 +8,23 @@
 | 当前页面 | 系统/手势返回 | 成功出口 |
 |---|---|---|
 | `/auth/bootstrap` | 禁止 pop | reset mobile 或 home 语义 |
-| `/auth/mobile` | 二次确认退出 App | replace code |
+| `/auth/welcome` | 作为匿名根页交给平台退出/后台，不允许弹出唯一 Router 页面形成空画面 | replace mobile |
+| `/auth/mobile` | 与左上角返回一致，replace welcome；不得直接 pop 唯一 Router 页面 | replace onboarding identity |
 | `/auth/code` | 销毁 PendingSmsLogin 与验证码，replace mobile | session 原子提交 + K104 后 reset 目标 |
 | `/auth/consent` readOnly | pop 回 mobile，保留同 generation 表单 | pop，无服务端同意写入 |
 | `/auth/consent` loginRecovery | 返回前确认退出；确认后销毁流程并 replace mobile | replace code，重新输入验证码 |
+| `/onboarding/identity` | 与左上角返回一致，replace mobile | replace images |
+| `/onboarding/images` | 与左上角返回一致，replace identity，同一 flowId | replace style-music |
+| `/onboarding/style-music` | 与左上角返回一致，replace images，同一 flowId | replace drink-events |
+| `/onboarding/drink-events` | 与左上角返回一致，replace style-music，同一 flowId | replace review |
+| `/onboarding/review` | 作为准入根页交给平台退出/后台；不得返回已提交步骤或形成空画面 | reset home 或批准的补资料目标 |
 | Shell 分支子页 | pop 当前分支 | 页面批准的下一目标 |
 | 非首页分支根 | 切换到首页根 | 继续留在 Shell |
 | `/home` 根页 | 按平台根页规范退出/后台，不回 auth flow | 页面批准的下一目标 |
 
 页面只发 `BackIntent`，由 application/navigation 协调器完成流程销毁和栈动作；禁止 Widget 先 pop 再异步清理敏感状态。
+
+所有使用 `go()` 建立的 auth/onboarding 替换页必须由 Router 层拦截系统返回：步骤页执行与可见返回键相同的受控目标；匿名欢迎页和审核根页只触发平台根页退出语义。任何情况下不得让系统返回直接弹出唯一 Router 页面。
 
 ## 2. Predictive back 与 iOS 手势
 

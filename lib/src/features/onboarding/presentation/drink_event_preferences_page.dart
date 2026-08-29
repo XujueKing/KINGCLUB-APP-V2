@@ -78,15 +78,9 @@ class _DrinkEventPreferencesPageState
             onChanged: (value) => _toggle(_events, value),
           ),
           const SizedBox(height: 28),
-          const KingStatusCard(
-            icon: Icons.fact_check_outlined,
-            title: '提交后进入会员审核',
-            message: 'Mock 只模拟状态流转，不上传资料，也不会自动授予会员权限。',
-            color: KingColors.info,
-          ),
-          const SizedBox(height: 24),
           FilledButton(
             onPressed: _submitting ? null : _submit,
+            style: FilledButton.styleFrom(shape: const StadiumBorder()),
             child: _submitting
                 ? const SizedBox.square(
                     dimension: 20,
@@ -98,6 +92,14 @@ class _DrinkEventPreferencesPageState
           TextButton(
             onPressed: _submitting ? null : () => _submit(skip: true),
             child: const Text('跳过偏好并提交'),
+          ),
+          const SizedBox(height: 32),
+          const KingStatusCard(
+            key: ValueKey('drink-event-review-notice'),
+            icon: Icons.fact_check_outlined,
+            title: '提交后进入会员审核',
+            message: '提交后将进入会员审核流程，最终结果请以审核状态页显示为准。',
+            color: KingColors.info,
           ),
         ],
       ),

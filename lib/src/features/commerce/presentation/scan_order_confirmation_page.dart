@@ -131,10 +131,13 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   @override
   Widget build(BuildContext context) {
     return LegacyClubScaffold(
-      title: '确认点单',
-      onBack: widget.onBack,
+      title: '提交订单',
+      onBack: widget.onModify,
       showMockLabel: false,
       onTitleLongPress: _showScenarioPicker,
+      titleFontSize: 16,
+      titleFontWeight: FontWeight.w400,
+      headerHeight: 52,
       child: Column(
         children: [
           ...switch (_statusBanner) {
@@ -144,7 +147,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
           Expanded(
             child: SingleChildScrollView(
               key: const ValueKey('order-confirm-scroll'),
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 26),
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 24),
               child: Column(
                 children: [
                   _buildOrderInfoCard(),
@@ -166,9 +169,8 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
       key: const ValueKey('order-info-card'),
       child: Column(
         children: [
-          _infoRow('订单日期：', '2026-08-27 20:18'),
-          _infoRow('门店：', 'KINGBAR 湖南工大店'),
-          _infoRow('桌号：', 'V8'),
+          _infoRow('订单日期：', '2026/8/29'),
+          _infoRow('桌号：', '888'),
           _infoRow(
             '报价剩余：',
             _formatDuration(_secondsRemaining),
@@ -192,58 +194,83 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
             alignment: Alignment.centerLeft,
             child: Text(
               'KINGBAR 湖南工大店',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
             ),
           ),
-          const SizedBox(height: 8),
-          for (final item in visible) _buildItem(item),
+          const SizedBox(height: 4),
+          for (var index = 0; index < visible.length; index++)
+            _buildItem(
+              visible[index],
+              showBottomDivider: index < visible.length - 1,
+            ),
           if (_quote.items.length > 1)
-            TextButton.icon(
-              key: const ValueKey('order-toggle-items'),
-              onPressed: () => setState(() => _expanded = !_expanded),
-              iconAlignment: IconAlignment.end,
-              icon: Icon(
-                _expanded
-                    ? Icons.expand_less_rounded
-                    : Icons.expand_more_rounded,
-                size: 18,
-              ),
-              label: Text(
-                '${_expanded ? '收起' : '展开'}更多（共${_quote.itemCount}件物品）',
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xAA181205),
+            SizedBox(
+              height: 46,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Divider(height: 1, color: Color(0x22181205)),
+                  Material(
+                    color: const Color(0xFFC9B69E),
+                    child: InkWell(
+                      key: const ValueKey('order-toggle-items'),
+                      onTap: () => setState(() => _expanded = !_expanded),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${_expanded ? '隐藏' : '显示'}更多（共${_quote.itemCount}件物品）',
+                              style: const TextStyle(
+                                color: Color(0x99181205),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(width: 7),
+                            Icon(
+                              _expanded
+                                  ? Icons.expand_less_rounded
+                                  : Icons.expand_more_rounded,
+                              size: 14,
+                              color: const Color(0x99181205),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          const Divider(color: Color(0x22181205)),
           _amountRow('商品总价：', _subtotal),
-          if (_discount > 0) ...[
-            _amountRow('会员活动优惠：', -_discount, compact: true),
-            _amountRow('商品原价：', _subtotal, compact: true, strike: true),
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildItem(FakeOrderingQuoteItem item) {
+  Widget _buildItem(
+    FakeOrderingQuoteItem item, {
+    required bool showBottomDivider,
+  }) {
+    final detailParts = item.detail.split(' · ');
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x1A181205))),
-      ),
+      key: ValueKey('order-item-${item.name}'),
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      decoration: showBottomDivider
+          ? const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Color(0x1A181205))),
+            )
+          : null,
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: Image.asset(
-              item.asset,
-              width: 54,
-              height: 76,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 12),
+          Image.asset(item.asset, width: 44, height: 70, fit: BoxFit.contain),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,19 +279,20 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
                   item.name,
                   style: const TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w400,
+                    height: 1.15,
                   ),
                 ),
-                const SizedBox(height: 3),
+                for (final part in detailParts)
+                  Text(
+                    part,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, height: 1.25),
+                  ),
                 Text(
-                  item.detail,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, height: 1.35),
-                ),
-                Text(
-                  '单价¥${item.unitPrice}',
-                  style: const TextStyle(fontSize: 11),
+                  '单价 ¥${item.unitPrice}.00',
+                  style: const TextStyle(fontSize: 11, height: 1.25),
                 ),
               ],
             ),
@@ -275,14 +303,14 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
             children: [
               Text(
                 '数量 x ${item.quantity}',
-                style: const TextStyle(fontSize: 12),
+                style: const TextStyle(fontSize: 11),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
               Text(
-                '小计¥${item.subtotal}',
+                '小计 ¥${item.subtotal}',
                 style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ],
@@ -301,7 +329,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
             alignment: Alignment.centerLeft,
             child: Text(
               '报价确认',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w400),
             ),
           ),
           const SizedBox(height: 8),
@@ -373,21 +401,21 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
       key: const ValueKey('order-payment-notice'),
       child: const Row(
         children: [
-          Icon(Icons.account_balance_wallet_outlined, color: Color(0xFF423528)),
-          SizedBox(width: 12),
+          Icon(
+            Icons.account_balance_wallet_outlined,
+            color: Color(0xFF423528),
+            size: 21,
+          ),
+          SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '支付方式',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w400),
                 ),
-                SizedBox(height: 3),
-                Text(
-                  '订单创建后选择；本页不手填余额、金币或现金分摊',
-                  style: TextStyle(fontSize: 11, height: 1.4),
-                ),
+                Text('订单创建后选择', style: TextStyle(fontSize: 11, height: 1.25)),
               ],
             ),
           ),
@@ -415,44 +443,29 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
         child: Row(
           children: [
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        const TextSpan(
-                          text: '应付 ¥',
-                          style: TextStyle(
-                            color: Color(0x88DDCBB5),
-                            fontSize: 13,
-                          ),
-                        ),
-                        TextSpan(
-                          text: '$_amountDue',
-                          style: const TextStyle(
-                            color: Color(0xFFDDCBB5),
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(
+                      text: '应付 ¥ ',
+                      style: TextStyle(color: Color(0x88DDCBB5), fontSize: 14),
                     ),
-                  ),
-                  const Text(
-                    '最终以当前 Fake Quote 为准',
-                    style: TextStyle(color: Color(0x887E7163), fontSize: 10),
-                  ),
-                ],
+                    TextSpan(
+                      text: '$_amountDue',
+                      style: const TextStyle(
+                        color: Color(0xFFDDCBB5),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const TextSpan(
+                      text: '.00',
+                      style: TextStyle(color: Color(0x88DDCBB5), fontSize: 14),
+                    ),
+                  ],
+                ),
               ),
             ),
-            TextButton(
-              key: const ValueKey('order-modify'),
-              onPressed: _submitting ? null : widget.onModify,
-              child: const Text('返回修改'),
-            ),
-            const SizedBox(width: 6),
             SizedBox(
               width: 112,
               height: 48,
@@ -510,7 +523,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
       ),
       ScanOrderConfirmationScenario.resultUnknown => (
         Icons.sync_outlined,
-        '提交结果未知，只允许对账原提交',
+        '提交结果确认中，请勿重复提交',
       ),
       ScanOrderConfirmationScenario.offline => (
         Icons.cloud_off_outlined,
@@ -518,7 +531,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
       ),
       ScanOrderConfirmationScenario.sessionInvalid => (
         Icons.lock_reset_outlined,
-        '会话已失效，QuoteRef 已清理',
+        '当前登录已失效，请重新登录',
       ),
       _ => null,
     };
@@ -577,16 +590,19 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
       child: Row(
         children: [
           Text(label, style: const TextStyle(fontSize: 14)),
-          const Spacer(),
-          Flexible(
-            child: Text(
-              value,
-              key: valueKey,
-              textAlign: TextAlign.end,
-              style: TextStyle(
-                color: valueColor ?? const Color(0xFF181205),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                value,
+                key: valueKey,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: valueColor ?? const Color(0xFF181205),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
             ),
           ),
@@ -611,7 +627,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
             label,
             style: TextStyle(
               fontSize: emphasized ? 16 : (compact ? 13 : 14),
-              fontWeight: emphasized ? FontWeight.w700 : FontWeight.w400,
+              fontWeight: emphasized ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
           const Spacer(),
@@ -619,7 +635,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
             amountText,
             style: TextStyle(
               fontSize: emphasized ? 22 : (compact ? 13 : 18),
-              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
+              fontWeight: emphasized ? FontWeight.w600 : FontWeight.w400,
               decoration: strike ? TextDecoration.lineThrough : null,
               color: emphasized ? const Color(0xFF4C2D12) : null,
             ),
@@ -694,12 +710,12 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '应付¥${intent.amountDue} · ${intent.orderRef}',
+              '应付¥${intent.amountDue}',
               style: const TextStyle(color: legacyGold),
             ),
             const SizedBox(height: 8),
             const Text(
-              '这是离线 Fake 订单，未调用超级接口、支付 SDK，也不表示支付成功。',
+              '订单已创建，请前往订单中心继续完成支付。',
               textAlign: TextAlign.center,
               style: TextStyle(color: Color(0xFF9C9186), fontSize: 12),
             ),
@@ -731,7 +747,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
           shrinkWrap: true,
           children: [
             const ListTile(
-              title: Text('确认页 Fake 场景'),
+              title: Text('确认页验收场景'),
               subtitle: Text('仅用于 UI 验收，长按标题再次打开'),
             ),
             for (final scenario in ScanOrderConfirmationScenario.values)
@@ -789,7 +805,7 @@ class _LegacyConfirmationCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
       decoration: BoxDecoration(
         color: legacyGold,
         borderRadius: BorderRadius.circular(8),

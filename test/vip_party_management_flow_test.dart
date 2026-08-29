@@ -77,12 +77,34 @@ void main() {
     expect(find.text('局长管理权限已失效'), findsOneWidget);
     expect(find.text('青铜'), findsNothing);
   });
+
+  testWidgets('management tabs and member actions fit at 200% text', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpManagement(tester, textScaler: const TextScaler.linear(2));
+
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const ValueKey('vip-manage-tab-2')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('释放占位'), findsOneWidget);
+    expect(find.text('撤销邀请'), findsOneWidget);
+  });
 }
 
-Future<void> _pumpManagement(WidgetTester tester) async {
+Future<void> _pumpManagement(
+  WidgetTester tester, {
+  TextScaler textScaler = TextScaler.noScaling,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: KingTheme.dark,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+        child: child!,
+      ),
       home: VipPartyManagementPage(onBack: () {}),
     ),
   );

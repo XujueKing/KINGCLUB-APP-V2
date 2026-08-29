@@ -107,7 +107,7 @@ class _VipPartyManagementPageState extends State<VipPartyManagementPage> {
         _BillItem(),
         SizedBox(height: 14),
         Text(
-          '本页只展示消费者可见的 Fake 账单摘要。商品确认、服务员分配和追加点单不在本页面范围。',
+          '本页展示本局账单摘要。商品确认、服务员分配和追加点单请前往对应业务页面。',
           style: TextStyle(color: Color(0x66FFFFFF), fontSize: 12, height: 1.5),
         ),
       ],
@@ -118,6 +118,7 @@ class _VipPartyManagementPageState extends State<VipPartyManagementPage> {
     if (_scenario == VipPartyManagementScenario.permissionLost) {
       return const _PermissionLostView();
     }
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final rows = <Widget>[
       const _MemberRow(
         name: '青铜',
@@ -168,7 +169,6 @@ class _VipPartyManagementPageState extends State<VipPartyManagementPage> {
         sex: _MemberSex.empty,
         actionLabel: '邀请',
         actionKey: const ValueKey('vip-invite-friend'),
-        lightAction: true,
         enabled: !_readOnly && !_submitting && _recruiting,
         onAction: _inviteFriend,
       ),
@@ -178,18 +178,27 @@ class _VipPartyManagementPageState extends State<VipPartyManagementPage> {
       key: const ValueKey('vip-manage-members'),
       children: [
         Container(
-          height: 54,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          constraints: const BoxConstraints(minHeight: 54),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
           decoration: const BoxDecoration(
             border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
           ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('座位总数：8 位', style: _mutedStyle),
-              Text('当前确认：2 位', style: _mutedStyle),
-            ],
-          ),
+          child: largeText
+              ? const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('座位总数：8 位', style: _mutedStyle),
+                    SizedBox(height: 4),
+                    Text('当前确认：2 位', style: _mutedStyle),
+                  ],
+                )
+              : const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('座位总数：8 位', style: _mutedStyle),
+                    Text('当前确认：2 位', style: _mutedStyle),
+                  ],
+                ),
         ),
         Expanded(
           child: ListView(
@@ -387,7 +396,7 @@ class _VipPartyManagementPageState extends State<VipPartyManagementPage> {
                     option == _scenario
                         ? Icons.radio_button_checked
                         : Icons.radio_button_off,
-                    color: option == _scenario ? legacyPink : legacyGold,
+                    color: legacyGold,
                   ),
                   onTap: () => Navigator.pop(context, option),
                 ),
@@ -418,8 +427,10 @@ class _LegacyTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const labels = ['概况', '账单', '成员'];
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final adaptiveHeight = 48.0 + 20.0 * (textScale - 1).clamp(0.0, 1.5);
     return Container(
-      height: 48,
+      height: adaptiveHeight,
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
       ),
@@ -463,79 +474,93 @@ class _LegacyTabs extends StatelessWidget {
 class _TableOverview extends StatelessWidget {
   const _TableOverview();
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(4, 18, 4, 22),
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
-    ),
-    child: const Row(
+  Widget build(BuildContext context) {
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    const tableIdentity = SizedBox(
+      width: 104,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'V8',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 38,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text('星光香槟套餐', style: TextStyle(color: legacyGold, fontSize: 12)),
+        ],
+      ),
+    );
+    const tableDetails = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 104,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'V8',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 38,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text('星光香槟套餐', style: TextStyle(color: legacyGold, fontSize: 12)),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('订座日期：2026-08-27', style: _mutedStyle),
-              SizedBox(height: 7),
-              Text('预订人数：4 / 8 人', style: _mutedStyle),
-              SizedBox(height: 7),
-              Text('最低消费：¥688.00', style: _mutedStyle),
-            ],
-          ),
-        ),
+        Text('订座日期：2026-08-27', style: _mutedStyle),
+        SizedBox(height: 7),
+        Text('预订人数：4 / 8 人', style: _mutedStyle),
+        SizedBox(height: 7),
+        Text('最低消费：¥688.00', style: _mutedStyle),
       ],
-    ),
-  );
+    );
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 18, 4, 22),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
+      ),
+      child: largeText
+          ? const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [tableIdentity, SizedBox(height: 16), tableDetails],
+            )
+          : const Row(
+              children: [
+                tableIdentity,
+                Expanded(child: tableDetails),
+              ],
+            ),
+    );
+  }
 }
 
 class _SpendSummary extends StatelessWidget {
   const _SpendSummary();
   @override
-  Widget build(BuildContext context) => Container(
-    color: const Color(0x0AFFFFFF),
-    padding: const EdgeInsets.symmetric(vertical: 18),
-    child: const Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('当前已付 ', style: _mutedStyle),
-            Text(
-              '¥516.00',
-              style: TextStyle(color: Colors.white, fontSize: 20),
-            ),
-            Text(' / 合计 ¥688.00', style: _mutedStyle),
-          ],
-        ),
-        SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _BillMetric(label: '微信支付', value: '344.00'),
-            _BillMetric(label: '钱包', value: '172.00'),
-            _BillMetric(label: '待付', value: '172.00', alert: true),
-          ],
-        ),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    return Container(
+      color: const Color(0x0AFFFFFF),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+      child: Column(
+        children: [
+          const Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text('当前已付 ', style: _mutedStyle),
+              Text(
+                '¥516.00',
+                style: TextStyle(color: Colors.white, fontSize: 20),
+              ),
+              Text(' / 合计 ¥688.00', style: _mutedStyle),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            alignment: WrapAlignment.spaceAround,
+            spacing: largeText ? 24 : 48,
+            runSpacing: 16,
+            children: const [
+              _BillMetric(label: '微信支付', value: '344.00'),
+              _BillMetric(label: '钱包', value: '172.00'),
+              _BillMetric(label: '待付', value: '172.00', alert: true),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _InfoRow extends StatelessWidget {
@@ -550,38 +575,67 @@ class _InfoRow extends StatelessWidget {
   final Color? valueColor;
   final Widget? trailing;
   @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minHeight: 62),
-    padding: const EdgeInsets.symmetric(vertical: 12),
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
-    ),
-    child: Row(
+  Widget build(BuildContext context) {
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    final valueWidget = Text(
+      value,
+      style: TextStyle(
+        color: valueColor ?? const Color(0x88FFFFFF),
+        fontSize: 13,
+      ),
+    );
+    final trailingGroup = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(color: Color(0xAAFFFFFF), fontSize: 14),
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            color: valueColor ?? const Color(0x88FFFFFF),
-            fontSize: 13,
-          ),
-        ),
+        valueWidget,
         if (trailing != null) ...[const SizedBox(width: 8), trailing!],
       ],
-    ),
-  );
+    );
+    return Container(
+      constraints: const BoxConstraints(minHeight: 62),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
+      ),
+      child: largeText
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xAAFFFFFF),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(alignment: Alignment.centerRight, child: trailingGroup),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: Color(0xAAFFFFFF),
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                trailingGroup,
+              ],
+            ),
+    );
+  }
 }
 
 class _HostRow extends StatelessWidget {
   const _HostRow();
   @override
   Widget build(BuildContext context) => Container(
-    height: 78,
+    constraints: const BoxConstraints(minHeight: 78),
+    padding: const EdgeInsets.symmetric(vertical: 10),
     decoration: const BoxDecoration(
       border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
     ),
@@ -700,7 +754,6 @@ class _MemberRow extends StatelessWidget {
     this.status,
     this.actionLabel,
     this.actionKey,
-    this.lightAction = false,
     this.enabled = true,
     this.onAction,
   });
@@ -710,7 +763,6 @@ class _MemberRow extends StatelessWidget {
   final String? status;
   final String? actionLabel;
   final Key? actionKey;
-  final bool lightAction;
   final bool enabled;
   final VoidCallback? onAction;
   @override
@@ -735,7 +787,7 @@ class _MemberRow extends StatelessWidget {
             color: sex == _MemberSex.male
                 ? const Color(0xFF75A9FF)
                 : sex == _MemberSex.female
-                ? legacyPink
+                ? legacyGold
                 : const Color(0x66FFFFFF),
           ),
         ),
@@ -775,7 +827,6 @@ class _MemberRow extends StatelessWidget {
           LegacyClubButton(
             key: actionKey,
             label: actionLabel!,
-            light: lightAction,
             onPressed: enabled ? onAction : null,
           ),
       ],
@@ -794,8 +845,7 @@ class _StatusBanner extends StatelessWidget {
     color: const Color(0x33252018),
     child: Text(switch (scenario) {
       VipPartyManagementScenario.ready => '',
-      VipPartyManagementScenario.versionConflict =>
-        '其他端刚刚修改了组局；下一次提交将模拟版本冲突并重读。',
+      VipPartyManagementScenario.versionConflict => '其他端刚刚修改了组局；提交前将重新读取最新状态。',
       VipPartyManagementScenario.offline => '当前离线，仅可查看缓存内容，管理动作已禁用。',
       VipPartyManagementScenario.locked => '临近活动，组局已锁定；成员和招募动作暂停。',
       VipPartyManagementScenario.permissionLost => '当前账号已不再拥有局长权限，成员资料已清除。',

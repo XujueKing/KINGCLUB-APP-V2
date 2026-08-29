@@ -131,7 +131,7 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
           obscure: false,
           onSubmit: () {
             if (_controller.text != '888888') {
-              setState(() => _error = 'UI 测试验证码为 888888');
+              setState(() => _error = '验证码不正确，请重新输入');
               return;
             }
             _goTo(_PinFlowStep.enterNew);
@@ -186,10 +186,7 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              '当前仅为 UI Mock，未修改真实支付凭据。',
-              style: TextStyle(color: _muted),
-            ),
+            const Text('新的支付 PIN 已生效，请妥善保管。', style: TextStyle(color: _muted)),
             const SizedBox(height: 38),
             FilledButton(onPressed: _finishBack, child: const Text('返回设置')),
           ],
@@ -258,7 +255,7 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      locked ? '请稍后再试，锁定时间以服务端为准（Fake）' : '用于余额、金币等敏感支付确认',
+                      locked ? '请稍后再试，具体解锁时间以页面提示为准' : '用于余额、金币等敏感支付确认',
                       style: const TextStyle(color: _muted, fontSize: 12),
                     ),
                   ],
@@ -376,11 +373,6 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
         ),
         ?footer,
         const SizedBox(height: 24),
-        const Text(
-          'UI Mock：不会发送短信或修改真实支付凭据。',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF554D44), fontSize: 11),
-        ),
       ],
     );
   }

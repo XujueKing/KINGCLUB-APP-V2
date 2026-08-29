@@ -144,11 +144,6 @@ class _PersonalQrPageState extends State<PersonalQrPage>
                       ],
                     ),
                     const SizedBox(height: 18),
-                    const Text(
-                      '离线 UI Mock · 不会签发、刷新或撤销真实邀请码',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Color(0xFF494949), fontSize: 11),
-                    ),
                     if (_statusAnnouncement != null)
                       Semantics(
                         liveRegion: true,
@@ -379,7 +374,7 @@ class _PersonalQrPageState extends State<PersonalQrPage>
         _viewState = PersonalQrViewState.ready;
         _remainingSeconds = 600;
         _visualSeed++;
-        _statusAnnouncement = '新的 Fake 二维码已生成';
+        _statusAnnouncement = '新的二维码已生成';
       });
     });
   }
@@ -423,7 +418,7 @@ class _PersonalQrPageState extends State<PersonalQrPage>
               ? 55
               : 600;
           _visualSeed++;
-          _statusAnnouncement = '新的 Fake 二维码已生成';
+          _statusAnnouncement = '新的二维码已生成';
         }
       });
     });

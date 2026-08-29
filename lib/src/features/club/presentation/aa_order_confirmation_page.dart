@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../commerce/presentation/order_detail_page.dart';
+import '../../commerce/presentation/payment_result_page.dart';
 import 'aa_mock_models.dart';
 import 'legacy_club_components.dart';
 
@@ -212,14 +214,14 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
                         ),
                         const _Section(children: [_PaymentRow()]),
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+                          padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Checkbox(
                                 key: const ValueKey('aa-terms-checkbox'),
                                 value: _agreed,
-                                activeColor: legacyPink,
+                                activeColor: legacyGold,
                                 checkColor: Colors.black,
                                 side: const BorderSide(color: legacyGold),
                                 onChanged: _interactionBlocked
@@ -228,24 +230,35 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
                                         () => _agreed = value ?? false,
                                       ),
                               ),
-                              const Expanded(
-                                child: Padding(
-                                  padding: EdgeInsets.only(top: 11),
-                                  child: Text(
-                                    '我已阅读并同意本次预订、迟到和取消规则',
-                                    style: TextStyle(
-                                      color: Color(0xFFB9AEA4),
-                                      fontSize: 12,
-                                      height: 1.5,
-                                    ),
-                                  ),
+                              const Text(
+                                '我已阅读并同意本次预订、迟到和取消规则',
+                                maxLines: 1,
+                                style: TextStyle(
+                                  color: Color(0xFFB9AEA4),
+                                  fontSize: 12,
+                                  height: 1,
                                 ),
                               ),
+                              const SizedBox(width: 5),
                               TextButton(
                                 onPressed: _showTerms,
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 8,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
                                 child: const Text(
                                   '查看',
-                                  style: TextStyle(color: legacyPink),
+                                  style: TextStyle(
+                                    color: legacyGold,
+                                    fontSize: 12,
+                                    height: 1,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ],
@@ -266,7 +279,7 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
                                 ),
                               ),
                               const Text(
-                                'Fake 报价剩余 04:32',
+                                '报价剩余 04:32',
                                 style: TextStyle(
                                   color: Color(0xFF8E7E70),
                                   fontSize: 12,
@@ -284,7 +297,7 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
                     enabled: _agreed && !_submitting && !_interactionBlocked,
                     submitting: _submitting,
                     buttonLabel: _paymentButtonLabel,
-                    subtitle: _zeroCash ? '无需调用支付' : '不会调用真实支付',
+                    subtitle: _zeroCash ? '本单无需支付' : '提交后进入支付',
                     onPay: _submitFakeOrder,
                   ),
                 ],
@@ -326,7 +339,7 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
       _requoteLoading = false;
       _quoteChanged = false;
     });
-    showFakeResult(context, '已获取新的 Fake 报价，请重新确认规则');
+    showFakeResult(context, '已获取最新报价，请重新确认规则');
   }
 
   Future<void> _showTerms() async {
@@ -338,7 +351,7 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
         child: Padding(
           padding: EdgeInsets.fromLTRB(24, 4, 24, 28),
           child: Text(
-            '预订规则\n\n1. 本次预订仅包含本人一席。\n2. 到店后凭有效入场凭证核验。\n3. 请文明饮酒并尊重同桌会员。\n4. 当前为 UI/Fake 流程，不会产生真实订单或扣款。',
+            '预订规则\n\n1. 本次预订仅包含本人一席。\n2. 到店后凭有效入场凭证核验。\n3. 请文明饮酒并尊重同桌会员。\n4. 最终金额以提交时确认结果为准。',
             style: TextStyle(color: Color(0xFFD8C8B8), height: 1.8),
           ),
         ),
@@ -384,15 +397,15 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1A1511),
-        title: const Text('Fake 预订已确认'),
+        title: const Text('预订已确认'),
         content: const Text(
-          '实付 ¥0.00\n本次由 Fake 抵扣方案覆盖全部金额。\n\n没有拉起支付，也不会产生真实订单。',
+          '实付 ¥0.00\n本次优惠已抵扣全部金额。',
           style: TextStyle(color: Color(0xFFD8C8B8), height: 1.6),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('知道了', style: TextStyle(color: legacyPink)),
+            child: const Text('知道了', style: TextStyle(color: legacyGold)),
           ),
         ],
       ),
@@ -400,21 +413,25 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
   }
 
   Future<void> _showPendingPaymentResult() async {
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1511),
-        title: const Text('已生成 Fake 待支付订单'),
-        content: Text(
-          '${widget.package.name}\n待支付 ${formatAaMoney(_payable)}\n席位模拟保留 10 分钟。\n\n真实支付模块尚未接入，本次不会扣款。',
-          style: const TextStyle(color: Color(0xFFD8C8B8), height: 1.6),
+    final quoteMask = (_coupon ? 1 : 0) | (_gold ? 2 : 0) | (_balance ? 4 : 0);
+    await Navigator.of(context).pushReplacement<void, void>(
+      MaterialPageRoute<void>(
+        builder: (paymentContext) => PaymentResultPage(
+          intentRef: FakePaymentIntentRef('payment-intent-aa-v5-r$quoteMask'),
+          onClose: () => Navigator.of(paymentContext).maybePop(),
+          onOpenOrder: (orderRef) {
+            Navigator.of(paymentContext).pushReplacement<void, void>(
+              MaterialPageRoute<void>(
+                builder: (orderContext) => OrderDetailPage(
+                  orderRef: orderRef,
+                  onBack: () => Navigator.of(orderContext).maybePop(),
+                  onSessionResetRequested: widget.onSessionResetRequested,
+                ),
+              ),
+            );
+          },
+          onSessionResetRequested: widget.onSessionResetRequested,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('知道了', style: TextStyle(color: legacyPink)),
-          ),
-        ],
       ),
     );
   }
@@ -461,7 +478,7 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
                         ? Icons.radio_button_checked_rounded
                         : Icons.radio_button_off_rounded,
                     color: option == _scenario
-                        ? legacyPink
+                        ? legacyGold
                         : const Color(0x668E7E70),
                   ),
                   onTap: () => Navigator.pop(context, option),
@@ -515,7 +532,7 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
       _requoteLoading = false;
       _quoteChanged = false;
     });
-    showFakeResult(context, '已恢复 Fake 网络，请重新确认规则');
+    showFakeResult(context, '网络已恢复，请重新确认规则');
   }
 
   void _requestSessionReset() {
@@ -596,18 +613,18 @@ class _QuoteExpiredBanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF360521),
-        border: Border.all(color: const Color(0x88FBAFDA)),
+        color: const Color(0xFF211B15),
+        border: Border.all(color: const Color(0x887D684F)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          const Icon(Icons.schedule_rounded, color: legacyPink, size: 20),
+          const Icon(Icons.schedule_rounded, color: legacyGold, size: 20),
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
               '报价已失效，请刷新后重新确认金额和规则',
-              style: TextStyle(color: legacyPink, fontSize: 12, height: 1.4),
+              style: TextStyle(color: legacyGold, fontSize: 12, height: 1.4),
             ),
           ),
           TextButton(
@@ -636,8 +653,8 @@ class _RequoteBanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF360521),
-        border: Border.all(color: const Color(0x88FBAFDA)),
+        color: const Color(0xFF211B15),
+        border: Border.all(color: const Color(0x887D684F)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -648,11 +665,11 @@ class _RequoteBanner extends StatelessWidget {
               height: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: legacyPink,
+                color: legacyGold,
               ),
             )
           else
-            const Icon(Icons.update_rounded, color: legacyPink, size: 20),
+            const Icon(Icons.update_rounded, color: legacyGold, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -661,7 +678,7 @@ class _RequoteBanner extends StatelessWidget {
                 Text(
                   loading ? '正在重新计算报价' : '报价已更新',
                   style: const TextStyle(
-                    color: legacyPink,
+                    color: legacyGold,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -706,7 +723,7 @@ class _InitialLoadingView extends StatelessWidget {
               height: 42,
               child: CircularProgressIndicator(
                 strokeWidth: 3,
-                color: legacyPink,
+                color: legacyGold,
               ),
             ),
             const SizedBox(height: 22),
@@ -740,7 +757,7 @@ class _InitialLoadingView extends StatelessWidget {
                   side: const BorderSide(color: legacyGold),
                   shape: const StadiumBorder(),
                 ),
-                child: const Text('完成 Fake 加载'),
+                child: const Text('重新加载'),
               ),
             ),
           ],
@@ -762,7 +779,7 @@ class _InvalidQuoteView extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(30, 24, 30, 40),
         child: Column(
           children: [
-            const Icon(Icons.link_off_rounded, color: legacyPink, size: 58),
+            const Icon(Icons.link_off_rounded, color: legacyGold, size: 58),
             const SizedBox(height: 20),
             const Text(
               '报价已失效',
@@ -790,7 +807,7 @@ class _InvalidQuoteView extends StatelessWidget {
                 key: const ValueKey('aa-invalid-ref-action'),
                 onPressed: onReturn,
                 style: FilledButton.styleFrom(
-                  backgroundColor: legacyPink,
+                  backgroundColor: legacyGold,
                   foregroundColor: const Color(0xFF33261D),
                   shape: const StadiumBorder(),
                 ),
@@ -827,13 +844,13 @@ class _SubmissionOutcomeBanner extends StatelessWidget {
       AaSubmissionOutcome.duplicateReservation => (
         Icons.receipt_long_rounded,
         '检测到已有AA预订',
-        'KC-AA-0826-01 · 待支付\n席位模拟保留 08:36，不会再创建第二张订单。',
+        'KC-AA-0826-01 · 待支付\n席位保留 08:36，不会再创建第二张订单。',
         '返回查看',
       ),
       AaSubmissionOutcome.resultUnknown => (
         Icons.sync_rounded,
         '预订结果待确认',
-        '请勿重复提交或支付。继续查询将复用同一个 Fake 请求编号。',
+        '请勿重复提交或支付。继续查询将沿用本次请求编号。',
         '继续查询',
       ),
       AaSubmissionOutcome.ineligible => (
@@ -858,14 +875,14 @@ class _SubmissionOutcomeBanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF360521),
-        border: Border.all(color: const Color(0x88FBAFDA)),
+        color: const Color(0xFF211B15),
+        border: Border.all(color: const Color(0x887D684F)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: legacyPink, size: 22),
+          Icon(icon, color: legacyGold, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -874,7 +891,7 @@ class _SubmissionOutcomeBanner extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    color: legacyPink,
+                    color: legacyGold,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -924,7 +941,7 @@ class _SessionInvalidView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.lock_reset_rounded, color: legacyPink, size: 58),
+            const Icon(Icons.lock_reset_rounded, color: legacyGold, size: 58),
             const SizedBox(height: 20),
             const Text(
               '登录状态已失效',
@@ -952,18 +969,12 @@ class _SessionInvalidView extends StatelessWidget {
                 key: const ValueKey('aa-session-reset-action'),
                 onPressed: onReset,
                 style: FilledButton.styleFrom(
-                  backgroundColor: legacyPink,
+                  backgroundColor: legacyGold,
                   foregroundColor: const Color(0xFF33261D),
                   shape: const StadiumBorder(),
                 ),
                 child: const Text('返回登录'),
               ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              '当前为 UI/Fake 会话重置，不会连接真实服务',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF74675D), fontSize: 11),
             ),
           ],
         ),
@@ -982,9 +993,9 @@ class _Section extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 10),
       decoration: const BoxDecoration(
-        color: Color(0xFF20030D),
+        color: Color(0xFF17120E),
         border: Border.symmetric(
-          horizontal: BorderSide(color: Color(0xFF310515)),
+          horizontal: BorderSide(color: Color(0xFF34291F)),
         ),
       ),
       child: Column(children: children),
@@ -1008,7 +1019,7 @@ class _InfoRow extends StatelessWidget {
           children: [
             Text(
               '$label：',
-              style: const TextStyle(color: legacyPink, fontSize: 14),
+              style: const TextStyle(color: legacyGold, fontSize: 14),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -1053,14 +1064,14 @@ class _DeductionRow extends StatelessWidget {
             Checkbox(
               value: selected,
               semanticLabel: '$title，$detail',
-              activeColor: legacyPink,
+              activeColor: legacyGold,
               checkColor: Colors.black,
               side: const BorderSide(color: Color(0xFFB9AEA4)),
               onChanged: enabled ? (value) => onChanged(value ?? false) : null,
             ),
             Text(
               title,
-              style: const TextStyle(color: legacyPink, fontSize: 14),
+              style: const TextStyle(color: legacyGold, fontSize: 14),
             ),
             const Spacer(),
             Text(
@@ -1097,7 +1108,7 @@ class _PaymentRow extends StatelessWidget {
               color: Color(0xFF1AAD19),
             ),
             SizedBox(width: 12),
-            Text('微信支付（Fake 外观）', style: TextStyle(color: Colors.white)),
+            Text('微信支付', style: TextStyle(color: Colors.white)),
             Spacer(),
             Icon(Icons.chevron_right_rounded, color: Color(0x66FFFFFF)),
           ],
@@ -1114,7 +1125,7 @@ class _PaymentBottomBar extends StatelessWidget {
     required this.enabled,
     required this.submitting,
     required this.buttonLabel,
-    this.subtitle = '不会调用真实支付',
+    this.subtitle = '提交后进入支付',
     required this.onPay,
   });
 
@@ -1133,11 +1144,7 @@ class _PaymentBottomBar extends StatelessWidget {
       height: 102,
       padding: const EdgeInsets.fromLTRB(20, 12, 18, 12),
       decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment.centerLeft,
-          radius: 1.5,
-          colors: [Colors.white, legacyPink],
-        ),
+        gradient: LinearGradient(colors: [Color(0xFFF3EADF), legacyGold]),
       ),
       child: Row(
         children: [
@@ -1150,7 +1157,7 @@ class _PaymentBottomBar extends StatelessWidget {
                   const Text(
                     '实付￥--',
                     style: TextStyle(
-                      color: legacyMagenta,
+                      color: Color(0xFF3B2B1D),
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1176,11 +1183,14 @@ class _PaymentBottomBar extends StatelessWidget {
                         ),
                       ],
                     ),
-                    style: const TextStyle(color: legacyMagenta),
+                    style: const TextStyle(color: Color(0xFF3B2B1D)),
                   ),
                 Text(
                   subtitle,
-                  style: const TextStyle(color: legacyMagenta, fontSize: 11),
+                  style: const TextStyle(
+                    color: Color(0xFF5C4E3E),
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -1189,9 +1199,9 @@ class _PaymentBottomBar extends StatelessWidget {
             key: const ValueKey('aa-pay-button'),
             onPressed: enabled ? onPay : null,
             style: FilledButton.styleFrom(
-              backgroundColor: legacyPink,
-              foregroundColor: const Color(0xFF33261D),
-              disabledBackgroundColor: const Color(0x55AD016A),
+              backgroundColor: const Color(0xFF24180E),
+              foregroundColor: legacyGold,
+              disabledBackgroundColor: const Color(0x663B2B1D),
               minimumSize: const Size(118, 48),
               maximumSize: const Size(118, 48),
               fixedSize: const Size(118, 48),

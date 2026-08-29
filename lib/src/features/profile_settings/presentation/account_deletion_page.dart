@@ -214,12 +214,6 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
           onPressed: _acknowledged && !_blocked ? _verifySms : null,
           child: const Text('完成短信验证并永久注销'),
         ),
-        const SizedBox(height: 12),
-        const Text(
-          'UI Mock：不会注销真实账号或清理真实会话。',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF554D44), fontSize: 11),
-        ),
       ],
     );
   }
@@ -281,11 +275,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(6),
             ],
-            decoration: InputDecoration(
-              labelText: '验证码',
-              helperText: 'UI 测试验证码：888888',
-              errorText: error,
-            ),
+            decoration: InputDecoration(labelText: '验证码', errorText: error),
           ),
           actions: [
             TextButton(
@@ -373,7 +363,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
             const Icon(Icons.check_circle_outline, color: _gold, size: 76),
             const SizedBox(height: 22),
             const Text(
-              'Fake 注销流程已完成',
+              'KingClub 账号已注销',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 21,
@@ -382,7 +372,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
             ),
             const SizedBox(height: 12),
             const Text(
-              '真实 KingClub 与物业账号均未发生变化。',
+              '你的物业账号与物业数据不受影响。',
               textAlign: TextAlign.center,
               style: TextStyle(color: _muted),
             ),
@@ -435,7 +425,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
 
   void _showBlockerIntent(String action) {
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('UI Mock：$action，仅传受控业务引用')));
+        .showSnackBar(SnackBar(content: Text('$action，请处理完成后返回本页')));
   }
 
   Future<void> _showScenarioPanel() async {

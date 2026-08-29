@@ -11,6 +11,22 @@ class FakePaymentIntentRef {
   final String opaqueId;
 }
 
+class _FakePaymentFixture {
+  const _FakePaymentFixture({
+    required this.title,
+    required this.subtitle,
+    required this.amountDue,
+    required this.pendingOrderRef,
+    required this.paidOrderRef,
+  });
+
+  final String title;
+  final String subtitle;
+  final int amountDue;
+  final String pendingOrderRef;
+  final String paidOrderRef;
+}
+
 class FakePaymentAttemptRef {
   const FakePaymentAttemptRef(this.opaqueId);
 
@@ -84,6 +100,8 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
   }.contains(_stage);
 
   bool get _zeroAmount => _scenario == PaymentResultScenario.zeroAmount;
+  _FakePaymentFixture get _fixture => _paymentFixture(widget.intentRef);
+  int get _amountDue => _zeroAmount ? 0 : _fixture.amountDue;
 
   @override
   void initState() {
@@ -150,29 +168,32 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
           left: BorderSide(color: Color(0xFF5C4C3A), width: 3),
         ),
       ),
-      child: const Row(
+      child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'KINGBAR V8 桌点单',
-                  style: TextStyle(
+                  _fixture.title,
+                  style: const TextStyle(
                     color: Color(0xFFE8DED1),
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: 7),
+                const SizedBox(height: 7),
                 Text(
-                  'V8 卡座 · 星光香槟、金标威士忌',
-                  style: TextStyle(color: Color(0xFF9B9085), fontSize: 12),
+                  _fixture.subtitle,
+                  style: const TextStyle(
+                    color: Color(0xFF9B9085),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           ),
-          Text(
+          const Text(
             '待支付',
             style: TextStyle(
               color: Color(0xFFFFB400),
@@ -186,7 +207,6 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
   }
 
   Widget _buildAmountCard() {
-    final amount = _zeroAmount ? 0 : 1156;
     return Container(
       key: const ValueKey('payment-authoritative-amount'),
       width: double.infinity,
@@ -203,7 +223,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '¥$amount.00',
+            '¥$_amountDue.00',
             style: const TextStyle(
               color: Color(0xFF181205),
               fontSize: 38,
@@ -213,9 +233,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
           ),
           const SizedBox(height: 7),
           Text(
-            _zeroAmount
-                ? '优惠已覆盖全部金额，无需调用支付方式'
-                : '金额来自 Fake PaymentIntent，客户端不能修改',
+            _zeroAmount ? '优惠已覆盖全部金额，无需选择支付方式' : '报价已锁定，请核对后选择支付方式',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Color(0xFF796A58), fontSize: 10),
           ),
@@ -247,7 +265,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
           _PaymentMethodRow(
             asset: 'assets/legacy/payment/legacy_weipay.png',
             title: '微信支付',
-            subtitle: _methodAvailable ? 'Fake provider 外观' : '当前暂不可用',
+            subtitle: _methodAvailable ? '推荐使用' : '当前暂不可用',
             selected: _methodAvailable,
             enabled: _methodAvailable,
           ),
@@ -273,19 +291,19 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
         border: Border.all(color: const Color(0xFF4D4034)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(Icons.shield_outlined, color: legacyGold, size: 20),
+          const Icon(Icons.shield_outlined, color: legacyGold, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               _zeroAmount
-                  ? '0 元订单只查询 Fake 订单确认结果，不创建 PaymentAttempt。'
-                  : '本页不会调用真实支付 SDK。provider 返回后仍需 Fake 服务端确认，未确认前请勿重复支付。',
+                  ? '0 元订单将直接确认订单状态，不会发起扣款。'
+                  : '支付结果将由服务器确认，确认完成前请勿重复支付。',
               style: const TextStyle(
                 color: Color(0xFFAAA097),
                 fontSize: 11,
-                height: 1.5,
+                height: 1.25,
               ),
             ),
           ),
@@ -313,7 +331,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
             foregroundColor: const Color(0xFF181205),
             shape: const StadiumBorder(),
           ),
-          child: Text(_zeroAmount ? '确认 0 元订单' : '确认支付 ¥1156.00'),
+          child: Text(_zeroAmount ? '确认 0 元订单' : '确认支付 ¥$_amountDue.00'),
         ),
       ),
     );
@@ -321,15 +339,9 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
 
   Widget _buildProcessing() {
     final data = switch (_stage) {
-      PaymentResultStage.creatingAttempt => (
-        '正在创建支付请求',
-        '正在生成唯一 Fake PaymentAttempt，请勿重复点击',
-      ),
-      PaymentResultStage.handingOff => (
-        '正在交接支付',
-        'Fake provider 已接收 attempt，本页没有拉起真实 SDK',
-      ),
-      _ => ('正在确认支付结果', '无论 provider 返回什么，都以 Fake 服务端查询结果为准'),
+      PaymentResultStage.creatingAttempt => ('正在创建支付请求', '支付请求正在生成，请勿重复点击'),
+      PaymentResultStage.handingOff => ('正在打开微信支付', '请根据页面提示完成本次支付'),
+      _ => ('正在确认支付结果', '支付结果正在向服务器确认，请勿重复支付'),
     };
     return _CenteredPaymentState(
       key: const ValueKey('payment-processing'),
@@ -435,7 +447,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
         ),
       ),
       title: '会话已失效',
-      subtitle: '支付意图和 attempt 引用已从当前页面清理',
+      subtitle: '当前支付信息已清理，请重新登录后查看订单',
       footer: 'SHANGHAI · ZHUZHOU',
       actions: [
         _ResultButton(
@@ -498,10 +510,13 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
   }
 
   void _openOrder() {
+    final orderRef = _stage == PaymentResultStage.succeeded
+        ? FakeOrderRef(_fixture.paidOrderRef)
+        : FakeOrderRef(_fixture.pendingOrderRef);
     if (widget.onOpenOrder case final callback?) {
-      callback(const FakeOrderRef('order-scan-v8-0827'));
+      callback(orderRef);
     } else {
-      showFakeResult(context, '已生成订单详情意图');
+      showFakeResult(context, '正在打开订单详情');
     }
   }
 
@@ -519,7 +534,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF201A15),
         title: const Text('支付结果仍在确认'),
-        content: const Text('返回不会取消原 Fake attempt。请勿因为暂时没有结果而再次付款。'),
+        content: const Text('返回不会取消当前支付确认。请勿因为暂时没有结果而再次付款。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
@@ -573,9 +588,9 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
   }
 
   _PaymentResultPresentation get _resultPresentation => switch (_stage) {
-    PaymentResultStage.succeeded => const _PaymentResultPresentation(
+    PaymentResultStage.succeeded => _PaymentResultPresentation(
       title: '支付已确认',
-      subtitle: 'Fake 服务端已确认 ¥1156.00 支付成功\n订单状态将以详情页为准',
+      subtitle: '服务器已确认 ¥${_amountDue.toStringAsFixed(2)} 支付成功\n订单状态将以详情页为准',
       color: Colors.white,
       icon: Icons.check_rounded,
       useLegacySuccess: true,
@@ -588,13 +603,13 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
     ),
     PaymentResultStage.failed => const _PaymentResultPresentation(
       title: '支付未完成',
-      subtitle: 'Fake 服务端确认本次 attempt 已明确失败\n允许重新获取支付意图后安全重试',
+      subtitle: '服务器已确认本次支付未完成\n可以重新获取支付信息后安全重试',
       color: Color(0xFFF08F78),
       icon: Icons.priority_high_rounded,
     ),
     PaymentResultStage.pending => const _PaymentResultPresentation(
       title: '支付结果待确认',
-      subtitle: '暂时无法确认是否扣款，请勿重复支付\n可继续查询原 attempt 或返回订单详情',
+      subtitle: '暂时无法确认是否扣款，请勿重复支付\n可继续查询本次支付或返回订单详情',
       color: Color(0xFFFFC761),
       icon: Icons.more_horiz_rounded,
     ),
@@ -612,7 +627,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
     ),
     PaymentResultStage.offline => const _PaymentResultPresentation(
       title: '当前网络不可用',
-      subtitle: '订单摘要仅供查看，尚未创建支付 attempt\n恢复网络后可重新加载 Fake 支付意图',
+      subtitle: '订单摘要仅供查看，尚未创建支付请求\n恢复网络后可重新加载支付信息',
       color: Color(0xFFB7ADA3),
       icon: Icons.cloud_off_rounded,
     ),
@@ -714,44 +729,54 @@ class _CenteredPaymentState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(26, 24, 26, 30),
-      child: Column(
-        children: [
-          const Spacer(flex: 2),
-          visual,
-          const SizedBox(height: 28),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFFE8DED1),
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        key: const ValueKey('payment-centered-state-scroll'),
+        padding: const EdgeInsets.fromLTRB(26, 24, 26, 30),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - 54),
+          child: IntrinsicHeight(
+            child: Column(
+              children: [
+                const Spacer(flex: 2),
+                visual,
+                const SizedBox(height: 28),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFE8DED1),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFA89E94),
+                    fontSize: 13,
+                    height: 1.65,
+                  ),
+                ),
+                const Spacer(flex: 3),
+                ...actions.expand(
+                  (action) => [action, const SizedBox(height: 10)],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  footer,
+                  style: const TextStyle(
+                    color: Color(0xFF5E554D),
+                    fontSize: 9,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 14),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFFA89E94),
-              fontSize: 13,
-              height: 1.65,
-            ),
-          ),
-          const Spacer(flex: 3),
-          ...actions.expand((action) => [action, const SizedBox(height: 10)]),
-          const SizedBox(height: 4),
-          Text(
-            footer,
-            style: const TextStyle(
-              color: Color(0xFF5E554D),
-              fontSize: 9,
-              letterSpacing: 2,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -853,3 +878,29 @@ String _scenarioLabel(PaymentResultScenario scenario) => switch (scenario) {
   PaymentResultScenario.sessionInvalid => '会话失效',
   PaymentResultScenario.zeroAmount => '0 元订单',
 };
+
+_FakePaymentFixture _paymentFixture(FakePaymentIntentRef intentRef) {
+  final aaMatch = RegExp(r'^payment-intent-aa-v5-r([0-7])$')
+      .firstMatch(intentRef.opaqueId);
+  if (aaMatch != null) {
+    final mask = int.parse(aaMatch.group(1)!);
+    final deduction =
+        (mask & 1 != 0 ? 20 : 0) +
+        (mask & 2 != 0 ? 8 : 0) +
+        (mask & 4 != 0 ? 20 : 0);
+    return _FakePaymentFixture(
+      title: 'KING CLUB AA预订',
+      subtitle: 'V5卡座 · 3880卡座套餐',
+      amountDue: 268 - deduction,
+      pendingOrderRef: 'order-aa-v5-pending-r$mask-0829',
+      paidOrderRef: 'order-aa-v5-paid-r$mask-0829',
+    );
+  }
+  return const _FakePaymentFixture(
+    title: 'KINGBAR 湖南工大店',
+    subtitle: '888号桌 · 轩尼诗XO、芝华士12年',
+    amountDue: 3680,
+    pendingOrderRef: 'order-scan-v8-0827',
+    paidOrderRef: 'order-scan-888-paid-0829',
+  );
+}

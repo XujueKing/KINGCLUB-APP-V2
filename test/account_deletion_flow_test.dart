@@ -64,6 +64,8 @@ void main() {
       find.byKey(const ValueKey('account-deletion-completed')),
       findsOneWidget,
     );
+    expect(find.text('KingClub 账号已注销'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
     expect(completed, isFalse);
     await tester.tap(
       find.byKey(const ValueKey('account-deletion-completed-exit')),
@@ -83,7 +85,7 @@ void main() {
     expect(blocker, findsOneWidget);
     await tester.tap(blocker);
     await tester.pump();
-    expect(find.textContaining('仅传受控业务引用'), findsOneWidget);
+    expect(find.textContaining('请处理完成后返回本页'), findsOneWidget);
     final ackFinder = find.byKey(const ValueKey('account-deletion-ack'));
     await tester.scrollUntilVisible(ackFinder, 220);
     expect(tester.widget<CheckboxListTile>(ackFinder).onChanged, isNull);
@@ -125,7 +127,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('请勿重复提交'), findsOneWidget);
-    expect(find.text('Fake 注销流程已完成'), findsNothing);
+    expect(find.text('KingClub 账号已注销'), findsNothing);
   });
 
   testWidgets('changed eligibility requires preflight again', (tester) async {

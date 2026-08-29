@@ -61,7 +61,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                '这是离线 Fake 状态，不会查询服务器或生成取件码。',
+                '取件凭证仅在核验到有效存酒或物品后生成。',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Color(0x55FFFFFF), fontSize: 12),
               ),
@@ -82,7 +82,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage> {
                     foregroundColor: _storageGold,
                     side: const BorderSide(color: _storageGold),
                   ),
-                  child: const Text('查看取件凭证演示'),
+                  child: const Text('查看取件凭证'),
                 ),
               ),
               const SizedBox(height: 10),
@@ -106,110 +106,113 @@ class _PrivateStoragePageState extends State<PrivateStoragePage> {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(0, -0.48),
-          radius: 0.92,
-          colors: [Color(0xEF252018), Colors.black],
-          stops: [0, 1],
+    return Material(
+      color: Colors.black,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -0.48),
+            radius: 0.92,
+            colors: [Color(0xEF252018), Colors.black],
+            stops: [0, 1],
+          ),
         ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            const SizedBox(
-              height: 58,
-              child: Center(
-                child: Text(
-                  '私人储物柜',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: Center(
-                child: Semantics(
-                  key: const ValueKey('storage-empty-info'),
-                  button: true,
-                  label: '储物柜为空，查看说明',
-                  child: InkResponse(
-                    onTap: _showEmptyMessage,
-                    radius: 40,
-                    child: Image.asset(
-                      'assets/legacy/storage/fail.png',
-                      width: 58,
-                      height: 58,
-                      fit: BoxFit.contain,
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              const SizedBox(
+                height: 58,
+                child: Center(
+                  child: Text(
+                    '私人储物柜',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
               ),
-            ),
-            SizedBox(
-              height: 479,
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: 322,
-                    height: 34,
-                    child: Row(
-                      children: [
-                        _CategoryTab(
-                          label: '酒',
-                          selected: _category == _StorageCategory.wine,
-                          onTap: () => _selectCategory(_StorageCategory.wine),
-                        ),
-                        _CategoryTab(
-                          label: '物',
-                          selected: _category == _StorageCategory.item,
-                          onTap: () => _selectCategory(_StorageCategory.item),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  SizedBox(
-                    width: 322,
-                    height: 322,
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: 2,
-                      onPageChanged: (value) => setState(() => _page = value),
-                      itemBuilder: (_, pageIndex) => _EmptyStorageGrid(
-                        category: _category,
-                        pageIndex: pageIndex,
+              Expanded(
+                child: Center(
+                  child: Semantics(
+                    key: const ValueKey('storage-empty-info'),
+                    button: true,
+                    label: '储物柜为空，查看说明',
+                    child: InkResponse(
+                      onTap: _showEmptyMessage,
+                      radius: 40,
+                      child: Image.asset(
+                        'assets/legacy/storage/fail.png',
+                        width: 58,
+                        height: 58,
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 15),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      2,
-                      (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        width: 8,
-                        height: 8,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: index == _page
-                              ? _storageGold
-                              : const Color(0x30FFFFFF),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+              SizedBox(
+                height: 479,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: 322,
+                      height: 34,
+                      child: Row(
+                        children: [
+                          _CategoryTab(
+                            label: '酒',
+                            selected: _category == _StorageCategory.wine,
+                            onTap: () => _selectCategory(_StorageCategory.wine),
+                          ),
+                          _CategoryTab(
+                            label: '物',
+                            selected: _category == _StorageCategory.item,
+                            onTap: () => _selectCategory(_StorageCategory.item),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    SizedBox(
+                      width: 322,
+                      height: 322,
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: 2,
+                        onPageChanged: (value) => setState(() => _page = value),
+                        itemBuilder: (_, pageIndex) => _EmptyStorageGrid(
+                          category: _category,
+                          pageIndex: pageIndex,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        2,
+                        (index) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: index == _page
+                                ? _storageGold
+                                : const Color(0x30FFFFFF),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

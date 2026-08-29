@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/design_system/king_components.dart';
 import '../../../core/design_system/king_theme.dart';
 import '../../../core/mock/mock_runtime.dart';
 
@@ -51,90 +50,123 @@ class _MembershipReviewStatusPageState
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 40, 20, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Center(child: KingBrandMark(compact: true)),
-                  const SizedBox(height: 40),
-                  Icon(presentation.icon, size: 72, color: presentation.color),
-                  const SizedBox(height: 20),
-                  Text(
-                    presentation.title,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    presentation.message,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium
-                        ?.copyWith(color: KingColors.textSecondary),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '最近更新：刚刚',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 28),
-                  _primaryAction(),
-                  if (_status != ReviewStatus.pending) ...[
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: _refreshing ? null : _refresh,
-                      child: Text(_refreshing ? '正在刷新…' : '刷新状态'),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const verticalPadding = 72.0;
+                final minimumContentHeight =
+                    (constraints.maxHeight - verticalPadding).clamp(
+                      0.0,
+                      double.infinity,
+                    );
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 40, 20, 32),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: minimumContentHeight,
                     ),
-                  ],
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  Theme(
-                    data: Theme.of(context).copyWith(
-                      dividerColor: Colors.transparent,
-                      splashColor: Colors.transparent,
-                      highlightColor: Colors.transparent,
-                    ),
-                    child: ExpansionTile(
-                      tilePadding: EdgeInsets.zero,
-                      childrenPadding: const EdgeInsets.only(bottom: 8),
-                      title: Text(
-                        'UI 测试场景',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      subtitle: Text(
-                        '本地 Mock 专用',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: ReviewStatus.values.map((status) {
-                              return ChoiceChip(
-                                label: Text(_scenarioLabel(status)),
-                                selected: _status == status,
-                                onSelected: (_) =>
-                                    setState(() => _status = status),
-                              );
-                            }).toList(),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: Center(
+                              child: _reviewContent(context, presentation),
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 24),
+                          const Divider(),
+                          _scenarioPanel(context),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: widget.onExit,
-                    child: const Text('退出登录'),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _reviewContent(
+    BuildContext context,
+    _ReviewPresentation presentation,
+  ) {
+    return Column(
+      key: const ValueKey('membership-review-content'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Icon(presentation.icon, size: 72, color: presentation.color),
+        const SizedBox(height: 20),
+        Text(
+          presentation.title,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          presentation.message,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: KingColors.textSecondary),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '最近更新：刚刚',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 28),
+        _primaryAction(),
+        if (_status != ReviewStatus.approved) ...[
+          if (_status != ReviewStatus.pending) ...[
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: _refreshing ? null : _refresh,
+              style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+              child: Text(_refreshing ? '正在刷新…' : '刷新状态'),
+            ),
+          ],
+          const SizedBox(height: 24),
+          TextButton(onPressed: widget.onExit, child: const Text('退出登录')),
+        ],
+      ],
+    );
+  }
+
+  Widget _scenarioPanel(BuildContext context) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        dividerColor: Colors.transparent,
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+      ),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 8),
+        title: Text('UI 测试场景', style: Theme.of(context).textTheme.bodyMedium),
+        subtitle: Text(
+          '本地 Mock 专用',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: ReviewStatus.values.map((status) {
+                return ChoiceChip(
+                  label: Text(_scenarioLabel(status)),
+                  selected: _status == status,
+                  onSelected: (_) => setState(() => _status = status),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -143,19 +175,23 @@ class _MembershipReviewStatusPageState
     return switch (_status) {
       ReviewStatus.pending => FilledButton(
         onPressed: _refreshing ? null : _refresh,
+        style: FilledButton.styleFrom(shape: const StadiumBorder()),
         child: const Text('刷新状态'),
       ),
       ReviewStatus.changesRequired => FilledButton(
         onPressed: widget.onFixImages,
+        style: FilledButton.styleFrom(shape: const StadiumBorder()),
         child: const Text('补充形象资料'),
       ),
       ReviewStatus.approved => FilledButton(
         onPressed: widget.onApproved,
+        style: FilledButton.styleFrom(shape: const StadiumBorder()),
         child: const Text('进入 KingClub'),
       ),
-      ReviewStatus.rejected => const FilledButton(
+      ReviewStatus.rejected => FilledButton(
         onPressed: null,
-        child: Text('暂不可重新申请'),
+        style: FilledButton.styleFrom(shape: const StadiumBorder()),
+        child: const Text('暂不可重新申请'),
       ),
     };
   }
@@ -184,7 +220,7 @@ class _MembershipReviewStatusPageState
         Icons.info_outline,
         KingColors.danger,
         '会员申请暂未通过',
-        '当前不支持重新提交；正式策略将由权威审核状态提供。',
+        '本次申请暂未通过，重新申请时间请以页面后续通知为准。',
       ),
     };
   }

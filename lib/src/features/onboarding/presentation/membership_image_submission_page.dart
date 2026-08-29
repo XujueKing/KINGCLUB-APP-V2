@@ -40,13 +40,13 @@ class _MembershipImageSubmissionPageState
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.science_outlined),
-              title: const Text('使用合成示例图'),
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('从相册选择'),
               onTap: () => Navigator.pop(context, 'synthetic'),
             ),
             ListTile(
-              leading: const Icon(Icons.no_photography_outlined),
-              title: const Text('模拟权限拒绝'),
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('拍摄照片'),
               onTap: () => Navigator.pop(context, 'denied'),
             ),
             ListTile(
@@ -73,7 +73,7 @@ class _MembershipImageSubmissionPageState
     if (_selectedSlots.length != 2) {
       setState(() {
         for (var i = 0; i < 2; i++) {
-          if (!_selectedSlots.contains(i)) _slotErrors[i] = '请添加此槽位的合成示例图';
+          if (!_selectedSlots.contains(i)) _slotErrors[i] = '请添加此槽位的照片';
         }
       });
       return;
@@ -94,7 +94,7 @@ class _MembershipImageSubmissionPageState
     return OnboardingScaffold(
       step: 2,
       title: '完善会员形象资料',
-      subtitle: '两张近期清晰照片仅用于会员审核。Mock 阶段只显示抽象合成占位。',
+      subtitle: '请添加两张近期清晰照片，仅用于会员审核。',
       onBack: widget.onBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -115,6 +115,7 @@ class _MembershipImageSubmissionPageState
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _saving ? null : _next,
+            style: FilledButton.styleFrom(shape: const StadiumBorder()),
             child: _saving
                 ? const SizedBox.square(
                     dimension: 20,
@@ -157,7 +158,7 @@ class _MembershipImageSubmissionPageState
                 Text(label, textAlign: TextAlign.center),
                 const SizedBox(height: 4),
                 Text(
-                  selected ? '合成示例已提交' : '点击添加',
+                  selected ? '已添加' : '点击添加',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

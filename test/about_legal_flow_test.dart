@@ -37,7 +37,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('about-legal-document-0')));
       await tester.pumpAndSettle();
       expect(find.text('《KING CLUB 会员服务协议》'), findsOneWidget);
-      expect(find.text('版本：UI-MOCK-1'), findsOneWidget);
+      expect(find.text('版本：预发布版'), findsOneWidget);
       expect(find.text('生效日期：待权威目录确认'), findsOneWidget);
 
       await tester.tap(find.byType(IconButton).first);
@@ -64,7 +64,7 @@ void main() {
       find.byKey(const ValueKey('about-reader-offline-cached')),
       findsOneWidget,
     );
-    expect(find.text('版本：UI-MOCK-1'), findsOneWidget);
+    expect(find.text('版本：预发布版'), findsOneWidget);
   });
 
   testWidgets('expired cache refuses to show blank or stale content', (

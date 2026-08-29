@@ -29,8 +29,8 @@
 
 ## 页面与文档
 
-- [KC-P-034 扫码点单商品/购物车页](pages/page_scan_ordering_cart/README.md) — `Approved for Development`
-- [KC-P-035 点单确认页](pages/page_scan_order_confirmation/README.md) — `Approved for Development`
+- [KC-P-034 扫码点单商品/购物车页](pages/page_scan_ordering_cart/README.md) — `UI Mock Implemented / Android Device Verified`
+- [KC-P-035 点单确认页](pages/page_scan_order_confirmation/README.md) — `UI Mock Implemented / Android Device Verified`
 - [旧版审计](legacy_audit.md)
 - [流程与状态](flow_and_state.md)
 - [计价、库存与安全](pricing_inventory_security.md)

@@ -46,8 +46,10 @@ void main() {
     expect(find.textContaining('成员各付 ¥488.00'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('vip-confirm-join')));
     await tester.pumpAndSettle();
-    expect(find.text('已生成 Fake 待支付意图'), findsOneWidget);
-    expect(find.textContaining('真实支付模块尚未接入'), findsOneWidget);
+    expect(find.text('待支付订单已生成'), findsOneWidget);
+    expect(find.textContaining('席位将保留 10 分钟'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
+    expect(find.textContaining('Mock'), findsNothing);
   });
 
   testWidgets('VIP empty and offline states preserve safe page context', (
@@ -92,8 +94,9 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('vip-confirm-join')));
     await tester.pumpAndSettle();
-    expect(find.text('Fake 加入成功'), findsOneWidget);
-    expect(find.textContaining('没有拉起支付'), findsOneWidget);
+    expect(find.text('加入成功'), findsOneWidget);
+    expect(find.textContaining('Fake'), findsNothing);
+    expect(find.textContaining('无需支付'), findsOneWidget);
   });
 }
 

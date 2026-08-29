@@ -6,6 +6,18 @@ import 'legacy_club_components.dart';
 
 enum AaPackageScenario { ready, priceUpdated, soldOut }
 
+String _moneyValue(int minor) => (minor / 100).toStringAsFixed(2);
+
+String _legacyFullServiceDate(String serviceDate) => switch (serviceDate) {
+  '08.26' => '2026-08-26 周三',
+  '08.27' => '2026-08-27 周四',
+  '08.28' => '2026-08-28 周五',
+  '08.29' => '2026-08-29 周六',
+  '08.30' => '2026-08-30 周日',
+  '08.31' => '2026-08-31 周一',
+  _ => serviceDate,
+};
+
 class AaPackageDetailPage extends StatefulWidget {
   const AaPackageDetailPage({
     super.key,
@@ -64,44 +76,45 @@ class _AaPackageDetailPageState extends State<AaPackageDetailPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Icon(
-                            Icons.weekend_rounded,
-                            size: 54,
-                            color: legacyPink,
+                          Text(
+                            widget.package.seat,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 58,
+                              fontWeight: FontWeight.w700,
+                              height: .9,
+                            ),
                           ),
                           const SizedBox(width: 12),
-                          Text(
-                            '${widget.package.seat} 卡座',
-                            style: const TextStyle(
-                              color: legacyPink,
-                              fontSize: 17,
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '卡座',
+                              style: TextStyle(color: legacyGold, fontSize: 17),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 18),
                       Text(
-                        '${widget.serviceDate} 20:30-04:00',
-                        style: const TextStyle(color: legacyPink, fontSize: 15),
+                        '${_legacyFullServiceDate(widget.serviceDate)} 20:30-04:00',
+                        style: const TextStyle(color: legacyGold, fontSize: 15),
                       ),
-                      const SizedBox(height: 24),
-                      Container(
-                        height: 188,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: const Color(0x441A1510),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0x337B6650)),
-                        ),
-                        padding: const EdgeInsets.all(28),
-                        child: Image.asset(
-                          'assets/legacy/home/logo_2.png',
-                          fit: BoxFit.contain,
-                          semanticLabel: 'King Club 套餐品牌图',
-                          errorBuilder: (_, _, _) => const Icon(
+                      const SizedBox(height: 8),
+                      Image.asset(
+                        widget.package.posterAsset ??
+                            'assets/legacy/aa/package_3880_v1.png',
+                        width: 154,
+                        height: 254,
+                        fit: BoxFit.contain,
+                        semanticLabel: '${widget.package.name}套餐海报',
+                        errorBuilder: (_, _, _) => const SizedBox(
+                          width: 154,
+                          height: 254,
+                          child: Icon(
                             Icons.local_bar_rounded,
                             color: legacyGold,
-                            size: 76,
+                            size: 70,
                           ),
                         ),
                       ),
@@ -114,54 +127,60 @@ class _AaPackageDetailPageState extends State<AaPackageDetailPage> {
                           priceAcknowledged: _updatedPriceAcknowledged,
                         ),
                       ],
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 8),
                       Text(
                         widget.package.name,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 21,
+                          fontSize: 22,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
                       Wrap(
                         alignment: WrapAlignment.center,
-                        spacing: 24,
-                        runSpacing: 8,
+                        spacing: 12,
+                        runSpacing: 5,
                         children: [
                           for (final item in widget.package.contents)
                             SizedBox(
-                              width: 142,
-                              child: Text(
-                                item,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFF888888),
-                                  fontSize: 12,
+                              width: 146,
+                              height: 18,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  item,
+                                  maxLines: 1,
+                                  style: const TextStyle(
+                                    color: Color(0xFF888888),
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                             ),
                         ],
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 15),
                       Text(
-                        '套餐建议价：${formatAaMoney(_displayPriceMinor)} / 本人1席',
+                        '套餐建议价：￥${_moneyValue(widget.package.suggestedPackagePriceMinor ?? _displayPriceMinor)}元/${widget.package.partySize}人',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
+                          fontSize: 20,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 11),
+                      const _AgePriceGrid(),
+                      const SizedBox(height: 6),
                       const Text(
-                        '系统随机分桌，最终套餐、活动优惠与可用抵扣以确认订单页的最新 Fake 报价为准。本页尚未锁定真实库存。',
+                        '系统自动匹配1:1男女比例会员拼桌\n女神预定后，即赠送 100元 现金券',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFF888888),
-                          fontSize: 12,
-                          height: 1.6,
+                          fontSize: 12.5,
+                          height: 1.45,
                         ),
                       ),
                     ],
@@ -170,6 +189,7 @@ class _AaPackageDetailPageState extends State<AaPackageDetailPage> {
               ),
               _PackageBottomBar(
                 priceMinor: _displayPriceMinor,
+                originalPriceMinor: widget.package.originalPriceMinor,
                 scenario: _scenario,
                 priceAcknowledged: _updatedPriceAcknowledged,
                 onPressed: _handleBottomAction,
@@ -232,7 +252,7 @@ class _AaPackageDetailPageState extends State<AaPackageDetailPage> {
                       ? Icons.radio_button_checked_rounded
                       : Icons.radio_button_off_rounded,
                   color: option == _scenario
-                      ? legacyPink
+                      ? legacyGold
                       : const Color(0x668E7E70),
                 ),
                 onTap: () => Navigator.pop(context, option),
@@ -273,17 +293,15 @@ class _PackageStateBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: soldOut ? const Color(0xFF28221D) : const Color(0xFF360521),
-        border: Border.all(
-          color: soldOut ? const Color(0x887D684F) : const Color(0x88FBAFDA),
-        ),
+        color: const Color(0xFF211B15),
+        border: Border.all(color: const Color(0x887D684F)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
           Icon(
             soldOut ? Icons.event_busy_rounded : Icons.price_change_rounded,
-            color: soldOut ? legacyGold : legacyPink,
+            color: legacyGold,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -291,11 +309,7 @@ class _PackageStateBanner extends StatelessWidget {
               soldOut
                   ? '刷新后该套餐已售罄，请返回列表选择其他套餐'
                   : '价格由 ${formatAaMoney(oldPriceMinor)} 更新为 ${formatAaMoney(newPriceMinor)}\n${priceAcknowledged ? '新价格已确认，可继续抢订' : '请先确认新价格，再继续抢订'}',
-              style: TextStyle(
-                color: soldOut ? legacyGold : legacyPink,
-                fontSize: 12,
-                height: 1.5,
-              ),
+              style: TextStyle(color: legacyGold, fontSize: 12, height: 1.5),
             ),
           ),
         ],
@@ -304,15 +318,51 @@ class _PackageStateBanner extends StatelessWidget {
   }
 }
 
+class _AgePriceGrid extends StatelessWidget {
+  const _AgePriceGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    const items = <String>[
+      '18-23岁：208.00元/人',
+      '24-29岁：268.00元/人',
+      '30-35岁：328.00元/人',
+      '35岁以上：388.00元/人',
+    ];
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 12,
+      runSpacing: 5,
+      children: [
+        for (final item in items)
+          SizedBox(
+            width: 146,
+            height: 18,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                item,
+                maxLines: 1,
+                style: const TextStyle(color: Color(0xFF888888), fontSize: 12),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _PackageBottomBar extends StatelessWidget {
   const _PackageBottomBar({
     required this.priceMinor,
+    required this.originalPriceMinor,
     required this.scenario,
     required this.priceAcknowledged,
     required this.onPressed,
   });
 
   final int priceMinor;
+  final int? originalPriceMinor;
   final AaPackageScenario scenario;
   final bool priceAcknowledged;
   final VoidCallback onPressed;
@@ -321,6 +371,10 @@ class _PackageBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final soldOut = scenario == AaPackageScenario.soldOut;
     final priceParts = (priceMinor / 100).toStringAsFixed(2).split('.');
+    final showOriginalPrice =
+        !soldOut &&
+        originalPriceMinor != null &&
+        originalPriceMinor != priceMinor;
     final buttonLabel = soldOut
         ? '返回列表'
         : scenario == AaPackageScenario.priceUpdated && !priceAcknowledged
@@ -367,12 +421,22 @@ class _PackageBottomBar extends StatelessWidget {
                         text: soldOut ? '' : '.${priceParts.last} 元',
                         style: const TextStyle(fontSize: 15),
                       ),
+                      if (showOriginalPrice)
+                        TextSpan(
+                          text: '  原价￥${_moneyValue(originalPriceMinor!)}',
+                          style: const TextStyle(
+                            color: Color(0xFF6A5B4C),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
                     ],
                   ),
                   style: const TextStyle(color: Color(0xFF42372B)),
                 ),
                 Text(
-                  soldOut ? '请返回列表刷新其他套餐' : '以确认页最新报价为准',
+                  soldOut ? '请返回列表刷新其他套餐' : '小姐姐可赠送100元现金券(使用优惠券的除外)',
                   style: const TextStyle(
                     color: Color(0xFF5C4E3E),
                     fontSize: 11,
@@ -385,8 +449,8 @@ class _PackageBottomBar extends StatelessWidget {
             key: const ValueKey('aa-package-bottom-action'),
             onPressed: onPressed,
             style: FilledButton.styleFrom(
-              backgroundColor: legacyPink,
-              foregroundColor: const Color(0xFF33261D),
+              backgroundColor: const Color(0xFF24180E),
+              foregroundColor: legacyGold,
               minimumSize: Size(buttonWidth, 48),
               maximumSize: Size(buttonWidth, 48),
               fixedSize: Size(buttonWidth, 48),
@@ -443,7 +507,7 @@ class _LegacyHeader extends StatelessWidget {
               style: const TextStyle(
                 color: legacyGold,
                 fontSize: 17,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w400,
                 letterSpacing: .5,
               ),
             ),

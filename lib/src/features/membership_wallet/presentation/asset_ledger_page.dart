@@ -300,7 +300,9 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
           ),
           const Spacer(),
           Text(
-            '支出 ${_formatSummary(expense)}  收入 ${_formatSummary(income)}',
+            _selectedSection == _AssetLedgerSection.order
+                ? _formatOrderSummary(entries)
+                : '支出 ${_formatSummary(expense)}  收入 ${_formatSummary(income)}',
             key: const ValueKey('asset-period-summary'),
             style: const TextStyle(color: _muted, fontSize: 11),
           ),
@@ -382,7 +384,7 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
                   padding: const EdgeInsets.all(11),
                   color: const Color(0x0FFFFFFF),
                   child: Text(
-                    entry.note ?? '该笔流水为 Fake 展示记录，金额和状态均不来自真实账户。',
+                    entry.note ?? '该笔流水暂无更多说明。',
                     style: const TextStyle(
                       color: Color(0x99FFFFFF),
                       fontSize: 12,
@@ -602,7 +604,7 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
           time: '08月28日 09:18',
           amount: 2000,
           status: AssetLedgerEntryStatus.pending,
-          note: '支付渠道已返回，Fake 服务端尚未确认最终入账。',
+          note: '支付渠道已返回，入账状态仍在确认中。',
         ),
       ];
     }
@@ -816,11 +818,37 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
   }
 
   String _formatSummary(int value) {
-    if (_selectedSection == _AssetLedgerSection.order ||
-        _selectedType == AssetLedgerType.cashBalance) {
+    if (_selectedType == AssetLedgerType.cashBalance) {
       return '¥${(value / 100).toStringAsFixed(2)}';
     }
     return '$value枚';
+  }
+
+  String _formatOrderSummary(List<FakeAssetLedgerEntry> entries) {
+    final balanceExpense = entries
+        .where(
+          (entry) =>
+              entry.type == AssetLedgerType.cashBalance && entry.amount < 0,
+        )
+        .fold<int>(0, (sum, entry) => sum + entry.amount.abs());
+    final coinExpense = entries
+        .where(
+          (entry) => entry.type == AssetLedgerType.goldCoin && entry.amount < 0,
+        )
+        .fold<int>(0, (sum, entry) => sum + entry.amount.abs());
+    final balanceIncome = entries
+        .where(
+          (entry) =>
+              entry.type == AssetLedgerType.cashBalance && entry.amount > 0,
+        )
+        .fold<int>(0, (sum, entry) => sum + entry.amount);
+
+    final expenseParts = <String>[
+      if (balanceExpense > 0) '¥${(balanceExpense / 100).toStringAsFixed(2)}',
+      if (coinExpense > 0) '$coinExpense枚',
+    ];
+    final income = '¥${(balanceIncome / 100).toStringAsFixed(2)}';
+    return '支出 ${expenseParts.join(' · ')}  收入 $income';
   }
 
   _AssetLedgerSection _sectionForType(AssetLedgerType type) => switch (type) {
@@ -888,7 +916,7 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
       time: '08月27日 20:31',
       amount: -6800,
       status: AssetLedgerEntryStatus.posted,
-      orderRef: FakeOrderRef('order-scan-v8-0827'),
+      orderRef: FakeOrderRef('order-aa-v2-0826'),
     ),
     FakeAssetLedgerEntry(
       refId: 'ledger-balance-refund',
@@ -897,7 +925,7 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
       time: '08月24日 18:10',
       amount: 2000,
       status: AssetLedgerEntryStatus.posted,
-      note: '退款已由 Fake 服务端确认入账。',
+      note: '退款已确认并计入余额。',
     ),
     FakeAssetLedgerEntry(
       refId: 'ledger-coin-reward',
@@ -914,7 +942,7 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
       time: '08月26日 20:18',
       amount: -30,
       status: AssetLedgerEntryStatus.posted,
-      orderRef: FakeOrderRef('order-scan-v8-0827'),
+      orderRef: FakeOrderRef('order-scan-888-paid-0829'),
     ),
     FakeAssetLedgerEntry(
       refId: 'ledger-diamond-reward',

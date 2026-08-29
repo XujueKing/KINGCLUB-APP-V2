@@ -2,7 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-enum StoragePickupScenario { ready, partial, collected, unavailable, offline }
+enum StoragePickupScenario {
+  ready,
+  partial,
+  collected,
+  unavailable,
+  offline,
+  expired,
+  replayRejected,
+  resultUnknown,
+}
 
 class StoragePickupCodePage extends StatefulWidget {
   const StoragePickupCodePage({
@@ -25,16 +34,17 @@ class _StoragePickupCodePageState extends State<StoragePickupCodePage>
   int _seconds = 30;
   int _generation = 1;
   bool _privacyCovered = false;
+  late StoragePickupScenario _scenario;
 
   bool get _canShowCode =>
       !_privacyCovered &&
-      widget.scenario != StoragePickupScenario.offline &&
-      widget.scenario != StoragePickupScenario.unavailable &&
-      widget.scenario != StoragePickupScenario.collected;
+      (_scenario == StoragePickupScenario.ready ||
+          _scenario == StoragePickupScenario.partial);
 
   @override
   void initState() {
     super.initState();
+    _scenario = widget.scenario;
     WidgetsBinding.instance.addObserver(this);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || !_canShowCode) return;
@@ -44,6 +54,16 @@ class _StoragePickupCodePageState extends State<StoragePickupCodePage>
         setState(() => _seconds--);
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant StoragePickupCodePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.scenario == widget.scenario) return;
+    _scenario = widget.scenario;
+    _seconds = 30;
+    _generation++;
+    _privacyCovered = false;
   }
 
   @override
@@ -120,14 +140,18 @@ class _StoragePickupCodePageState extends State<StoragePickupCodePage>
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back_ios_new, color: _gold, size: 21),
           ),
-          const Expanded(
+          Expanded(
             child: Center(
-              child: Text(
-                '取件凭证',
-                style: TextStyle(
-                  color: _gold,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
+              child: GestureDetector(
+                key: const ValueKey('storage-pickup-title'),
+                onLongPress: _showScenarioPicker,
+                child: const Text(
+                  '取件凭证',
+                  style: TextStyle(
+                    color: _gold,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
@@ -139,10 +163,13 @@ class _StoragePickupCodePageState extends State<StoragePickupCodePage>
   }
 
   Widget _codeArea() {
-    final String coverText = switch (widget.scenario) {
+    final String coverText = switch (_scenario) {
       StoragePickupScenario.offline => '当前离线\n请联系工作人员安全核验',
       StoragePickupScenario.unavailable => '当前暂停取件',
       StoragePickupScenario.collected => '物品已取出',
+      StoragePickupScenario.expired => '取件凭证已过期',
+      StoragePickupScenario.replayRejected => '凭证已使用或失效\n请重新签发',
+      StoragePickupScenario.resultUnknown => '核验结果确认中\n暂不显示取件凭证',
       _ when _privacyCovered => '凭证已隐藏\n回到前台后重新签发',
       _ => '',
     };
@@ -193,13 +220,19 @@ class _StoragePickupCodePageState extends State<StoragePickupCodePage>
 
   Widget _statusText() {
     if (!_canShowCode) {
+      final canIssue =
+          _scenario == StoragePickupScenario.expired ||
+          _scenario == StoragePickupScenario.replayRejected;
+      final canReconcile = _scenario == StoragePickupScenario.resultUnknown;
       return TextButton.icon(
         key: const ValueKey('storage-pickup-refresh'),
-        onPressed: widget.scenario == StoragePickupScenario.ready
-            ? _issueNewCode
+        onPressed: canIssue
+            ? () => _issueNewCode(resetScenario: true)
+            : canReconcile
+            ? _reconcileUnknownResult
             : null,
-        icon: const Icon(Icons.refresh, size: 18),
-        label: const Text('重新签发凭证'),
+        icon: Icon(canReconcile ? Icons.sync : Icons.refresh, size: 18),
+        label: Text(canReconcile ? '刷新核验状态' : '重新签发凭证'),
       );
     }
     return Column(
@@ -218,7 +251,7 @@ class _StoragePickupCodePageState extends State<StoragePickupCodePage>
   }
 
   Widget _details() {
-    final remaining = widget.scenario == StoragePickupScenario.partial
+    final remaining = _scenario == StoragePickupScenario.partial
         ? '35%（部分交付）'
         : '65%';
     return Column(
@@ -280,30 +313,85 @@ class _StoragePickupCodePageState extends State<StoragePickupCodePage>
           style: TextStyle(color: _muted, fontSize: 12, height: 1.7),
         ),
         SizedBox(height: 18),
-        Center(
-          child: Text(
-            'UI Mock · 不含账号、URL 或永久储物编号',
-            style: TextStyle(color: Color(0xFF554D44), fontSize: 11),
-          ),
-        ),
       ],
     );
   }
 
-  String _scenarioLabel() => switch (widget.scenario) {
+  String _scenarioLabel() => switch (_scenario) {
     StoragePickupScenario.ready => '可取',
     StoragePickupScenario.partial => '部分交付，剩余可取',
     StoragePickupScenario.collected => '已取出',
     StoragePickupScenario.unavailable => '暂停取件',
     StoragePickupScenario.offline => '离线，需人工核验',
+    StoragePickupScenario.expired => '凭证已过期',
+    StoragePickupScenario.replayRejected => '重放已拒绝，剩余量未变化',
+    StoragePickupScenario.resultUnknown => '核验结果确认中',
   };
 
-  void _issueNewCode() {
+  void _issueNewCode({bool resetScenario = false}) {
     if (!mounted) return;
     setState(() {
+      if (resetScenario) {
+        _scenario = StoragePickupScenario.ready;
+      }
       _seconds = 30;
       _generation++;
       _privacyCovered = false;
     });
   }
+
+  void _reconcileUnknownResult() {
+    if (!mounted) return;
+    setState(() {
+      _scenario = StoragePickupScenario.partial;
+      _seconds = 30;
+      _generation++;
+      _privacyCovered = false;
+    });
+  }
+
+  Future<void> _showScenarioPicker() async {
+    final selected = await showModalBottomSheet<StoragePickupScenario>(
+      context: context,
+      backgroundColor: const Color(0xFF17130F),
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          children: StoragePickupScenario.values
+              .map(
+                (scenario) => ListTile(
+                  key: ValueKey('storage-scenario-${scenario.name}'),
+                  title: Text(_scenarioMenuLabel(scenario)),
+                  trailing: scenario == _scenario
+                      ? const Icon(Icons.check, color: _gold)
+                      : null,
+                  onTap: () => Navigator.pop(context, scenario),
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+    if (!mounted || selected == null || selected == _scenario) return;
+    setState(() {
+      _scenario = selected;
+      _seconds = 30;
+      _generation++;
+      _privacyCovered = false;
+    });
+  }
+
+  String _scenarioMenuLabel(StoragePickupScenario scenario) =>
+      switch (scenario) {
+        StoragePickupScenario.ready => '正常轮换',
+        StoragePickupScenario.partial => '部分交付',
+        StoragePickupScenario.collected => '已取出',
+        StoragePickupScenario.unavailable => '暂停取件',
+        StoragePickupScenario.offline => '离线',
+        StoragePickupScenario.expired => '凭证过期',
+        StoragePickupScenario.replayRejected => '重放拒绝',
+        StoragePickupScenario.resultUnknown => '核验结果未知',
+      };
 }

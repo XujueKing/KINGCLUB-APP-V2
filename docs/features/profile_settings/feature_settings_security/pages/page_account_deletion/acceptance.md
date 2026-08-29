@@ -14,5 +14,6 @@
 - [x] 结果未知不声称成功，成功后才触发安全退出回调
 - [x] 明确仅注销 KingClub，物业账号、物业数据和共享身份不受影响
 - [x] 不注销真实账号、不发送真实短信、不清理真实会话
+- [x] 正常注销流程使用正式风险、验证和结果文案，不展示测试验证码、Fake、Mock 或真实账号未变化提示
 
 设备证据：[首屏](screenshots/android_account_deletion_v2.png)、[底部操作区](screenshots/android_account_deletion_bottom_v2.png)。自动化证据：`test/account_deletion_flow_test.dart` 7 项；项目全量 172 项通过，`flutter analyze` 无问题。

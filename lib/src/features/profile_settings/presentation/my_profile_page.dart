@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../membership_wallet/presentation/asset_ledger_page.dart';
+import '../data/profile_cover_store.dart';
 import 'edit_profile_page.dart';
+import 'profile_image_ref.dart';
 import 'personal_qr_page.dart';
 import 'settings_page.dart';
 
@@ -14,18 +16,23 @@ class MyProfilePage extends StatefulWidget {
     this.onOpenEditProfile,
     this.onOpenPersonalQr,
     this.onOpenSettings,
+    this.onOpenOrders,
     this.onSessionResetRequested,
+    this.coverStore,
   });
 
   final ValueChanged<AssetLedgerType>? onOpenAssets;
   final Future<EditableProfileResult?> Function(
     String nickname,
     String signature,
+    String coverAsset,
   )?
   onOpenEditProfile;
   final VoidCallback? onOpenPersonalQr;
   final VoidCallback? onOpenSettings;
+  final VoidCallback? onOpenOrders;
   final VoidCallback? onSessionResetRequested;
+  final ProfileCoverStore? coverStore;
 
   @override
   State<MyProfilePage> createState() => _MyProfilePageState();
@@ -37,9 +44,27 @@ class _MyProfilePageState extends State<MyProfilePage> {
   int _selectedTab = 1;
   String _nickname = '杨嘉琪';
   String _signature = '';
+  String _coverAsset = kDefaultProfileCoverAsset;
   double _layoutWidth = 393;
 
   double get _legacyScale => _layoutWidth / 750;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCover();
+  }
+
+  Future<void> _loadSavedCover() async {
+    final store = widget.coverStore;
+    if (store == null) return;
+    try {
+      final saved = await store.load();
+      if (saved != null && mounted) setState(() => _coverAsset = saved);
+    } catch (_) {
+      // A missing or unreadable local cover safely falls back to the default.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,8 +101,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
       key: const ValueKey('my-profile-cover'),
       height: 540 * scale,
       width: double.infinity,
-      child: Image.asset(
-        'assets/legacy/profile/my_profile_skyline_v1.png',
+      child: Image(
+        image: profileImageProvider(_coverAsset),
         fit: BoxFit.cover,
         alignment: const Alignment(-0.28, 0.28),
       ),
@@ -399,7 +424,45 @@ class _MyProfilePageState extends State<MyProfilePage> {
         _assetChip('余额：¥ 0.00', null, '我的余额', AssetLedgerType.cashBalance),
         _assetChip('50', 'gold.png', '金币', AssetLedgerType.goldCoin),
         _assetChip('0', 'diamond.png', '钻石', AssetLedgerType.diamond),
+        _ordersChip(),
       ],
+    );
+  }
+
+  Widget _ordersChip() {
+    return Material(
+      color: const Color(0xFFCDBB9E),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        key: const ValueKey('my-profile-orders'),
+        borderRadius: BorderRadius.circular(20),
+        onTap: _showOrders,
+        child: SizedBox(
+          height: 34,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 11),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.receipt_long_outlined,
+                  color: Color(0xFF21180F),
+                  size: 20,
+                ),
+                SizedBox(width: 6),
+                Text(
+                  '我的订单',
+                  style: TextStyle(
+                    color: Color(0xFF21180F),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -416,28 +479,31 @@ class _MyProfilePageState extends State<MyProfilePage> {
         key: ValueKey('my-profile-asset-$title'),
         borderRadius: BorderRadius.circular(20),
         onTap: () => _showAsset(type),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (asset != null) ...[
-                Image.asset(
-                  'assets/legacy/profile/$asset',
-                  width: 20,
-                  height: 20,
+        child: SizedBox(
+          height: 34,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 11),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (asset != null) ...[
+                  Image.asset(
+                    'assets/legacy/profile/$asset',
+                    width: 20,
+                    height: 20,
+                  ),
+                  const SizedBox(width: 7),
+                ],
+                Text(
+                  text,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                const SizedBox(width: 7),
               ],
-              Text(
-                text,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -492,6 +558,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
                   const Padding(
                     padding: EdgeInsets.only(left: 5),
                     child: Icon(
+                      key: ValueKey('my-profile-dynamic-arrow'),
                       Icons.arrow_drop_down,
                       color: _warmWhite,
                       size: 20,
@@ -596,23 +663,53 @@ class _MyProfilePageState extends State<MyProfilePage> {
         .push(MaterialPageRoute<void>(builder: (_) => const SettingsPage()));
   }
 
+  void _showOrders() {
+    if (widget.onOpenOrders case final callback?) {
+      callback();
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('订单入口正在准备中，请稍后重试')));
+  }
+
   Future<void> _showEditProfile() async {
     final result = widget.onOpenEditProfile != null
-        ? await widget.onOpenEditProfile!(_nickname, _signature)
+        ? await widget.onOpenEditProfile!(_nickname, _signature, _coverAsset)
         : await Navigator.of(context).push<EditableProfileResult>(
             MaterialPageRoute<EditableProfileResult>(
               builder: (_) => EditProfilePage(
                 nickname: _nickname,
                 signature: _signature,
+                coverAsset: _coverAsset,
                 onSessionResetRequested: widget.onSessionResetRequested,
               ),
             ),
           );
     if (result == null || !mounted) return;
+    var nextCover = result.coverAsset;
+    var coverSaveFailed = false;
+    if (widget.coverStore case final store?
+        when result.coverAsset != _coverAsset &&
+            !result.coverAsset.startsWith('assets/')) {
+      try {
+        nextCover = await store.persist(result.coverAsset);
+      } catch (_) {
+        nextCover = _coverAsset;
+        coverSaveFailed = true;
+      }
+    }
+    if (!mounted) return;
     setState(() {
       _nickname = result.nickname;
       _signature = result.signature;
+      _coverAsset = nextCover;
     });
+    if (coverSaveFailed) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('封面保存失败，已保留原封面。')));
+    }
   }
 
   void _showSheet({required String title, required Widget child}) {
