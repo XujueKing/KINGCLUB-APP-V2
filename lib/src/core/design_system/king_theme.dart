@@ -137,6 +137,7 @@ abstract final class KingTheme {
         foregroundColor: KingColors.textPrimary,
         surfaceTintColor: Colors.transparent,
         centerTitle: true,
+        iconTheme: IconThemeData(size: 22),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: KingColors.elevated,

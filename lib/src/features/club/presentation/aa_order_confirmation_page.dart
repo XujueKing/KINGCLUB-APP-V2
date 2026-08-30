@@ -579,7 +579,7 @@ class _Header extends StatelessWidget {
               icon: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 color: legacyGold,
-                size: 20,
+                size: 22,
               ),
             ),
           ),

@@ -862,7 +862,7 @@ class _LegacyHeader extends StatelessWidget {
             icon: const Icon(
               Icons.arrow_back_ios_new,
               color: Color(0xFFC9B69E),
-              size: 21,
+              size: 22,
             ),
           ),
           Expanded(

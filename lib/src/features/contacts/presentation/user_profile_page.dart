@@ -370,7 +370,9 @@ class _LegacyBackButton extends StatelessWidget {
           onPressed: onPressed,
           icon: Image.asset(
             'assets/legacy/friendship/back.png',
-            width: 22,
+            width: 11,
+            height: 22,
+            fit: BoxFit.contain,
             color: _legacyGold,
           ),
         ),

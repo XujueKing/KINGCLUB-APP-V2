@@ -5,7 +5,7 @@
 - 所属功能：[系统通知](../../README.md)
 - 路由：`SystemNotificationsRoute`，`/messages/system`，protectedShell/messages 子路由
 - 设计版本：`System Notifications Wireframe v1`
-- 最后更新：2026-08-27
+- 最后更新：2026-08-30
 - UI 状态：`UI Mock Implemented（2026-08-27）`
 
 ## 用户任务与线框
@@ -40,5 +40,12 @@ UI/Mock 实现以[旧版系统消息 UI 复刻规范](legacy_ui_replication.md)�
 - “全部已读”把当前三张 Fake 卡片全部设为已读，并将会话行未读数清零。
 - 仅进入页面、折叠已读卡片或返回列表不会额外改变未读数。
 - 联动状态仅由 App Shell 当前内存持有；App 重启后恢复初始 Fake 数据。
+
+## 通知卡片主体对齐（2026-08-30）
+
+- 顶部品牌栏、未读点和分隔线的位置保持不变。
+- 分隔线下方的“说明＋结果”视为一个内容组，在卡片剩余主体区内水平、垂直居中。
+- 内容组上下留白必须相等，金币、预订和维护三类卡片共用同一对齐规则。
+- 卡片外的时间文字与展开明细不参与主体居中计算。
 
 状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

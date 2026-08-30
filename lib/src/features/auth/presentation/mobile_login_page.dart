@@ -258,7 +258,8 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                       tooltip: '返回',
                       icon: const Image(
                         image: AssetImage('assets/legacy/friendship/back.png'),
-                        width: 12,
+                        width: 11,
+                        height: 22,
                         fit: BoxFit.contain,
                       ),
                     ),

@@ -1290,6 +1290,16 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('天鹅之梦'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('direct-chat-gifts-icon-inactive')),
+      findsOneWidget,
+    );
+    final giftLabel = find.text('赠送礼物');
+    final giftName = find.text('天鹅之梦');
+    expect(
+      tester.getTopLeft(giftLabel).dx,
+      closeTo(tester.getTopLeft(giftName).dx, 0.01),
+    );
   });
 
   testWidgets('direct chat keeps long and burst messages stable', (
@@ -1601,7 +1611,7 @@ void main() {
     expect(find.text('河南省 · 安阳市'), findsOneWidget);
     expect(find.text('木系灵根'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('my-profile-dynamic-arrow')),
+      find.byKey(const ValueKey('my-profile-selected-tab-arrow-动态')),
       findsOneWidget,
     );
 
@@ -1611,25 +1621,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('my-profile-content-0')), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('my-profile-dynamic-arrow')),
-      findsNothing,
+      find.byKey(const ValueKey('my-profile-selected-tab-arrow-作品')),
+      findsOneWidget,
     );
+    expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
     final albumTab = find.byKey(const ValueKey('my-profile-tab-相册'));
     await tester.ensureVisible(albumTab);
     await tester.tap(albumTab);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('my-profile-content-2')), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('my-profile-dynamic-arrow')),
-      findsNothing,
+      find.byKey(const ValueKey('my-profile-selected-tab-arrow-相册')),
+      findsOneWidget,
     );
+    expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
     final activityTab = find.byKey(const ValueKey('my-profile-tab-动态'));
     await tester.tap(activityTab);
     await tester.pumpAndSettle();
     expect(
-      find.byKey(const ValueKey('my-profile-dynamic-arrow')),
+      find.byKey(const ValueKey('my-profile-selected-tab-arrow-动态')),
       findsOneWidget,
     );
+    expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
 
     final qrEntry = find.byKey(const ValueKey('my-profile-qr'));
     await tester.ensureVisible(qrEntry);

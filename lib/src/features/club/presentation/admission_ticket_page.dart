@@ -146,6 +146,7 @@ class _AdmissionTicketPageState extends State<AdmissionTicketPage>
               icon: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 color: legacyPink,
+                size: 22,
               ),
             ),
           ),

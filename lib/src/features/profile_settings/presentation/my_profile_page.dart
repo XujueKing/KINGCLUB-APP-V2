@@ -554,11 +554,13 @@ class _MyProfilePageState extends State<MyProfilePage> {
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
-                if (selected && index == 1)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 5),
+                if (selected)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 5),
                     child: Icon(
-                      key: ValueKey('my-profile-dynamic-arrow'),
+                      key: ValueKey(
+                        'my-profile-selected-tab-arrow-${tabs[index]}',
+                      ),
                       Icons.arrow_drop_down,
                       color: _warmWhite,
                       size: 20,

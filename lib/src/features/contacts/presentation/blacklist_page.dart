@@ -303,7 +303,9 @@ class _LegacyBlacklistHeader extends StatelessWidget {
                 onPressed: onBack,
                 icon: Image.asset(
                   'assets/legacy/friendship/back.png',
-                  width: 22,
+                  width: 11,
+                  height: 22,
+                  fit: BoxFit.contain,
                   color: _legacyGold,
                 ),
               ),

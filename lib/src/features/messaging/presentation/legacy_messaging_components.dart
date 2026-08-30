@@ -38,8 +38,8 @@ class LegacyMessagingHeader extends StatelessWidget {
               onPressed: onBack,
               icon: Image.asset(
                 'assets/legacy/friendship/back.png',
-                width: 24,
-                height: 24,
+                width: 11,
+                height: 22,
                 fit: BoxFit.contain,
               ),
             ),

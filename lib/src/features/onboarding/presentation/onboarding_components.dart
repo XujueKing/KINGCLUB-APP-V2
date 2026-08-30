@@ -32,7 +32,10 @@ class OnboardingScaffold extends StatelessWidget {
       appBar: AppBar(
         leading: onBack == null
             ? null
-            : IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back)),
+            : IconButton(
+                onPressed: onBack,
+                icon: const Icon(Icons.arrow_back, size: 22),
+              ),
         title: Text('步骤 $step/4'),
       ),
       body: SafeArea(

@@ -152,7 +152,7 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
               icon: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 color: _text,
-                size: 20,
+                size: 22,
               ),
             ),
           ),

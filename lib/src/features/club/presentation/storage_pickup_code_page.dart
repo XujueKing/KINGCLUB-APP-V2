@@ -138,7 +138,7 @@ class _StoragePickupCodePageState extends State<StoragePickupCodePage>
           IconButton(
             key: const ValueKey('storage-pickup-back'),
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new, color: _gold, size: 21),
+            icon: const Icon(Icons.arrow_back_ios_new, color: _gold, size: 22),
           ),
           Expanded(
             child: Center(

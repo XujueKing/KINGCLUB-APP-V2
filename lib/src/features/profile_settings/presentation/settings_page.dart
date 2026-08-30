@@ -78,7 +78,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     icon: const Icon(
                       Icons.arrow_back_ios_new,
                       color: _gold,
-                      size: 21,
+                      size: 22,
                     ),
                   ),
                   Expanded(

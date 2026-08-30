@@ -139,7 +139,7 @@ class _NoticeCard extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               decoration: BoxDecoration(
                 color: const Color(0x0FFFFFFF),
                 borderRadius: BorderRadius.circular(8),
@@ -177,21 +177,29 @@ class _NoticeCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   const Divider(color: Color(0x14FFFFFF)),
-                  const SizedBox(height: 24),
-                  Text(
-                    notice.title,
-                    style: const TextStyle(
-                      color: Color(0xCCFFFFFF),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    notice.value,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w500,
+                  Padding(
+                    key: ValueKey('system-notice-body-${notice.title}'),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          notice.title,
+                          style: const TextStyle(
+                            color: Color(0xCCFFFFFF),
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          notice.value,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   AnimatedCrossFade(
@@ -201,7 +209,7 @@ class _NoticeCard extends StatelessWidget {
                         : CrossFadeState.showFirst,
                     firstChild: const SizedBox(width: double.infinity),
                     secondChild: Padding(
-                      padding: const EdgeInsets.only(top: 22),
+                      padding: const EdgeInsets.fromLTRB(0, 6, 0, 16),
                       child: Column(
                         children: notice.details
                             .map(

@@ -146,7 +146,9 @@ class _RealNameAdultVerificationPageState
           tooltip: '返回',
           icon: Image.asset(
             'assets/legacy/friendship/back.png',
-            width: 12,
+            width: 11,
+            height: 22,
+            fit: BoxFit.contain,
             filterQuality: FilterQuality.high,
           ),
         ),

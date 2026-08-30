@@ -62,6 +62,7 @@ void main() {
   ) async {
     final runtime = MockRuntime();
     final flowId = runtime.startOnboarding();
+    var backed = false;
     var continued = false;
 
     await tester.pumpWidget(
@@ -69,12 +70,16 @@ void main() {
         runtime,
         StyleMusicPreferencesPage(
           flowId: flowId,
-          onBack: () {},
+          onBack: () => backed = true,
           onNext: () => continued = true,
           onInvalidFlow: () {},
         ),
       ),
     );
+
+    await tester.tap(find.byType(IconButton).first);
+    await tester.pump();
+    expect(backed, isTrue);
 
     expect(find.text('高级酒会小礼服'), findsOneWidget);
     expect(find.text('韩式现代时尚风'), findsOneWidget);

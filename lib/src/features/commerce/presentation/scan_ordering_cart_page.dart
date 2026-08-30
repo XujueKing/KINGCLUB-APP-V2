@@ -207,7 +207,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               icon: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 color: Color(0xFFF0ECE7),
-                size: 25,
+                size: 22,
               ),
             ),
           ),

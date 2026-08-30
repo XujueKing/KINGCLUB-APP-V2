@@ -288,11 +288,24 @@ class _DirectChatPageState extends State<DirectChatPage>
                   key: const ValueKey('direct-chat-gifts'),
                   tooltip: '礼物',
                   onPressed: _readOnly ? null : _toggleGifts,
-                  icon: Image.asset(
-                    'assets/legacy/messaging/gift2.png',
-                    width: 30,
-                    height: 30,
-                    filterQuality: FilterQuality.high,
+                  icon: ColorFiltered(
+                    key: ValueKey(
+                      _composerPanel == _ComposerPanel.gifts
+                          ? 'direct-chat-gifts-icon-active'
+                          : 'direct-chat-gifts-icon-inactive',
+                    ),
+                    colorFilter: ColorFilter.mode(
+                      _composerPanel == _ComposerPanel.gifts
+                          ? legacyMessageGold
+                          : const Color(0xFF37322C),
+                      BlendMode.srcIn,
+                    ),
+                    child: Image.asset(
+                      'assets/legacy/messaging/gift2.png',
+                      width: 30,
+                      height: 30,
+                      filterQuality: FilterQuality.high,
+                    ),
                   ),
                 ),
                 Expanded(
@@ -1346,36 +1359,45 @@ class _MessageContent extends StatelessWidget {
       case _FakeMessageKind.gift:
         return Container(
           key: const ValueKey('direct-chat-gift-message'),
-          width: 210,
-          padding: const EdgeInsets.all(12),
+          width: 236,
+          constraints: const BoxConstraints(minHeight: 96),
+          padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
           decoration: BoxDecoration(
             color: const Color(0xFF231F1B),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0x554A4037)),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Image.asset(
                 message.assetPath!,
-                width: 58,
-                height: 58,
+                width: 70,
+                height: 70,
                 fit: BoxFit.contain,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       '赠送礼物',
-                      style: TextStyle(color: Color(0xFF8A8178), fontSize: 11),
+                      style: TextStyle(
+                        color: Color(0xFF8A8178),
+                        fontSize: 12,
+                        height: 1.2,
+                      ),
                     ),
+                    const SizedBox(height: 6),
                     Text(
                       message.text,
                       style: const TextStyle(
                         color: legacyMessageGold,
-                        fontSize: 15,
+                        fontSize: 17,
                         fontWeight: FontWeight.w700,
+                        height: 1.15,
                       ),
                     ),
                   ],

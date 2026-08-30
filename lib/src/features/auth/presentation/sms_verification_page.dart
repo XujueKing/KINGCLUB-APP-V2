@@ -124,7 +124,7 @@ class _SmsVerificationPageState extends ConsumerState<SmsVerificationPage> {
       appBar: AppBar(
         leading: IconButton(
           onPressed: widget.onBack,
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, size: 22),
         ),
         title: const Text('验证手机号'),
       ),
