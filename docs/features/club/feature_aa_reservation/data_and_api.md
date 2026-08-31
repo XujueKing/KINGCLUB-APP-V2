@@ -12,7 +12,6 @@ ServiceDay
 AaOfferSummary
   offerRef
   serviceDay
-  tableLabel
   packageName
   capacityLabel
   remainingBucket
@@ -44,6 +43,9 @@ AaReservationProjection
   paymentIntentRef?
   holdExpiresAt?
   admissionRef?
+  assignmentState: pending | revealed
+  revealAt
+  tableLabel?        # 仅 revealed 可返回
   allowedActions[]
 ```
 
@@ -67,4 +69,6 @@ AaReservationRepository
 - `quoteRevision + expiresAt` 防止旧报价提交；创建预订必须携带稳定幂等键。
 - `remainingBucket` 建议只返回 `available | fewLeft | soldOut`，不暴露精确同桌人数与成员资料。
 - `termsSnapshotRef` 绑定当次退款、迟到、着装、安全和入场规则版本。
+- offer 和 quote 不得携带可见卡座号。`assignmentState != revealed` 时，预订、订单、支付和通知投影的 `tableLabel` 必须为空。
+- `revealAt` 由服务端按门店时区和营业日规则生成；客户端不用本机时间计算揭晓资格。
 - UI Mock 阶段只实现此 port 的 Fake，不设计或调用旧超级接口 ID。

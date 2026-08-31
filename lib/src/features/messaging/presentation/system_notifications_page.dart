@@ -33,7 +33,7 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
       value: '预订成功',
       time: '昨天 21:08',
       kingClub: true,
-      details: const [('套餐：', '微醺畅饮套餐'), ('卡座位置：', 'A6')],
+      details: const [('套餐：', '微醺畅饮套餐'), ('卡座：', '营业日前一天揭晓')],
     ),
     _FakeNotice(
       source: 'KING CLUB',

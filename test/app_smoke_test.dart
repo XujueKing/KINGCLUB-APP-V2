@@ -383,7 +383,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('home-quick-together')));
     await tester.pumpAndSettle();
     expect(find.text('一起玩AA预定'), findsOneWidget);
-    expect(find.text('一键随机选座'), findsOneWidget);
+    expect(find.text('随机预订'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
     await tester.pumpAndSettle();

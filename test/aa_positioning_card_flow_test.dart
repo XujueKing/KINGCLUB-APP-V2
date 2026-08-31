@@ -29,12 +29,36 @@ void main() {
     );
     expect(find.text('888'), findsOneWidget);
     expect(find.text('3880卡座套餐'), findsWidgets);
-    expect(find.text('一键随机选座'), findsNothing);
+    expect(find.text('随机预订'), findsNothing);
 
     await tester.tap(
       find.byKey(const ValueKey('aa-confirmed-positioning-card')),
     );
     expect(opened, isTrue);
+  });
+
+  testWidgets('已确认但未揭晓时不显示卡座号或凭证', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KingTheme.dark,
+        home: AaReservationsPage(
+          onBack: () {},
+          initialScenario: AaLandingScenario.confirmedPendingReveal,
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('aa-confirmed-pending-reveal-card')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('卡座待揭晓'), findsOneWidget);
+    expect(find.textContaining('前一天揭晓'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('aa-confirmed-positioning-card')),
+      findsNothing,
+    );
+    expect(find.text('888'), findsNothing);
   });
 
   testWidgets('legacy AA positioning credential shows complete QR content', (

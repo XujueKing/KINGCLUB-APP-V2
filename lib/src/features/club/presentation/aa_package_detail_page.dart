@@ -63,7 +63,7 @@ class _AaPackageDetailPageState extends State<AaPackageDetailPage> {
           child: Column(
             children: [
               _LegacyHeader(
-                title: 'POSITIONING CARD',
+                title: '一起玩套餐',
                 onBack: () => Navigator.pop(context),
                 onTitleLongPress: _showScenarioSheet,
               ),
@@ -72,30 +72,21 @@ class _AaPackageDetailPageState extends State<AaPackageDetailPage> {
                   padding: const EdgeInsets.fromLTRB(24, 18, 24, 30),
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            widget.package.seat,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 58,
-                              fontWeight: FontWeight.w700,
-                              height: .9,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              '卡座',
-                              style: TextStyle(color: legacyGold, fontSize: 17),
-                            ),
-                          ),
-                        ],
+                      const Text(
+                        '随机卡座',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '预订时不选号 · 营业日前一天揭晓',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: legacyGold, fontSize: 13),
+                      ),
+                      const SizedBox(height: 12),
                       Text(
                         '${_legacyFullServiceDate(widget.serviceDate)} 20:30-04:00',
                         style: const TextStyle(color: legacyGold, fontSize: 15),

@@ -24,12 +24,16 @@ void main() {
 
     await tester.tap(find.text('加入').first);
     await tester.pumpAndSettle();
-    expect(find.text('POSITIONING CARD'), findsOneWidget);
+    expect(find.text('一起玩套餐'), findsOneWidget);
+    expect(find.text('随机卡座'), findsOneWidget);
+    expect(find.textContaining('V5'), findsNothing);
     expect(find.text('抢订'), findsOneWidget);
 
     await tester.tap(find.text('抢订'));
     await tester.pumpAndSettle();
     expect(find.text('确认订单'), findsOneWidget);
+    expect(find.text('系统随机分配'), findsOneWidget);
+    expect(find.text('营业日前一天'), findsOneWidget);
     expect(find.text('立即付款'), findsOneWidget);
     expect(find.bySemanticsLabel('优惠券，未选择'), findsOneWidget);
     expect(find.bySemanticsLabel('金币兑换，可用50金币'), findsOneWidget);
@@ -61,7 +65,8 @@ void main() {
 
     expect(find.text('支付'), findsOneWidget);
     expect(find.text('KING CLUB AA预订'), findsOneWidget);
-    expect(find.textContaining('V5卡座'), findsOneWidget);
+    expect(find.textContaining('随机卡座·待揭晓'), findsOneWidget);
+    expect(find.textContaining('V5'), findsNothing);
     expect(find.text('¥248.00'), findsOneWidget);
     expect(find.textContaining('Fake'), findsNothing);
     expect(find.textContaining('真实支付'), findsNothing);
@@ -76,7 +81,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('订单详情'), findsOneWidget);
     expect(find.text('KING CLUB AA预订'), findsOneWidget);
-    expect(find.text('V5 卡座 · 08月29日 20:30'), findsOneWidget);
+    expect(find.text('卡座待揭晓 · 08月29日 20:30'), findsOneWidget);
     expect(find.text('3880卡座套餐'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('应付金额'),
@@ -108,7 +113,13 @@ void main() {
 
       await tester.longPress(find.byKey(const ValueKey('legacy-club-title')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('aa-scenario-offline')));
+      final offline = find.byKey(const ValueKey('aa-scenario-offline'));
+      await tester.scrollUntilVisible(
+        offline,
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(offline);
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('aa-offline-banner')), findsOneWidget);
       expect(find.text('离线'), findsWidgets);

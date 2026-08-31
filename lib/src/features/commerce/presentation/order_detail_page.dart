@@ -1056,10 +1056,10 @@ _OrderDetailPresentation _aaConfirmedPresentationFor(String orderRef) {
   return _OrderDetailPresentation(
     type: '一起玩AA',
     title: 'KING CLUB AA预订',
-    table: 'V5 卡座 · 08月29日 20:30',
+    table: '卡座待揭晓 · 08月29日 20:30',
     createdAt: '2026-08-29 21:54',
     statusLabel: '已确认',
-    statusHint: '支付已确认，V5 卡座本人席位已经保留',
+    statusHint: '预订已确认，卡座将在营业日前一天揭晓',
     statusColor: const Color(0xFF72DDB2),
     items: [
       _FakeOrderLine(
@@ -1077,7 +1077,7 @@ _OrderDetailPresentation _aaConfirmedPresentationFor(String orderRef) {
     timeline: const [
       ('支付已确认', '刚刚'),
       ('预订已提交', '21:54'),
-      ('已选择 V5 卡座', '21:52'),
+      ('系统已接受随机分配', '21:52'),
     ],
   );
 }

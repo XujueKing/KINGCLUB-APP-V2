@@ -890,7 +890,7 @@ _FakePaymentFixture _paymentFixture(FakePaymentIntentRef intentRef) {
         (mask & 4 != 0 ? 20 : 0);
     return _FakePaymentFixture(
       title: 'KING CLUB AA预订',
-      subtitle: 'V5卡座 · 3880卡座套餐',
+      subtitle: '随机卡座·待揭晓 · 3880卡座套餐',
       amountDue: 268 - deduction,
       pendingOrderRef: 'order-aa-v5-pending-r$mask-0829',
       paidOrderRef: 'order-aa-v5-paid-r$mask-0829',

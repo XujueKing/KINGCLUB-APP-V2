@@ -14,6 +14,17 @@ pendingPayment -> confirmed | expired
 confirmed -> cancelledByVenue | completed
 ```
 
+卡座分配为预订下的独立子状态，不得用支付成功替代：
+
+```text
+assignmentPending
+  -> assignmentRevealed(revealAt, tableLabel, admissionRef)
+```
+
+- `assignmentPending`：预订已确认，但尚未到营业日前一天；所有客户端投影必须隐藏卡座号。
+- `assignmentRevealed`：服务端已完成随机分配且到达 `revealAt`；才允许展示 `tableLabel` 和打开入场凭证。
+- 客户端不使用本机日期自行推算或提前解密卡座号，只渲染权威投影。
+
 | 状态 | 含义 | 客户端允许动作 |
 |---|---|---|
 | `none` | 当天没有有效预订 | 浏览并发起确认 |

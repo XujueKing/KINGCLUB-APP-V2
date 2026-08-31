@@ -150,10 +150,7 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
                       children: [
                         _Section(
                           children: [
-                            _InfoRow(
-                              label: '预定位置',
-                              value: '${widget.package.seat}卡座',
-                            ),
+                            _InfoRow(label: '分配方式', value: '系统随机分配'),
                             _InfoRow(
                               label: '时间',
                               value: '${widget.serviceDate} 20:30-04:00',
@@ -163,6 +160,7 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
                               label: 'AA人次价',
                               value: formatAaMoney(widget.package.priceMinor),
                             ),
+                            const _InfoRow(label: '卡座揭晓', value: '营业日前一天'),
                           ],
                         ),
                         if (_quoteExpired)

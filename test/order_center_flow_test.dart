@@ -36,7 +36,8 @@ void main() {
     expect(find.text('¥3680'), findsOneWidget);
     expect(find.text('进行中'), findsNWidgets(2));
     expect(find.text('KING CLUB AA预订'), findsOneWidget);
-    expect(find.text('08月29日 20:30 · V5卡座 · 3880卡座套餐'), findsOneWidget);
+    expect(find.text('08月29日 20:30 · 卡座待揭晓 · 3880卡座套餐'), findsOneWidget);
+    expect(find.textContaining('V5'), findsNothing);
     expect(find.text('¥268'), findsOneWidget);
     expect(find.byKey(const ValueKey('order-center-list')), findsOneWidget);
     expect(find.textContaining('Fake'), findsNothing);
@@ -65,7 +66,7 @@ void main() {
     expect(opened?.opaqueId, 'order-scan-888-paid-0829');
   });
 
-  testWidgets('V5 AA 已确认订单置顶并打开同一详情引用', (tester) async {
+  testWidgets('AA 已确认待揭晓订单置顶并打开同一详情引用', (tester) async {
     FakeOrderRef? opened;
     await tester.pumpWidget(subject(onOpenOrder: (value) => opened = value));
 
@@ -83,7 +84,7 @@ void main() {
     expect(opened?.opaqueId, 'order-aa-v5-paid-r0-0829');
   });
 
-  testWidgets('V5 AA 已确认订单只归入进行中状态族', (tester) async {
+  testWidgets('AA 已确认待揭晓订单只归入进行中状态族', (tester) async {
     await tester.pumpWidget(subject());
 
     await tester.tap(find.byKey(const ValueKey('order-filter-active')));

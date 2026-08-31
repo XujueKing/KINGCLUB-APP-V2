@@ -8,7 +8,8 @@ import 'legacy_club_components.dart';
 enum AaLandingScenario {
   available,
   pendingPayment,
-  confirmed,
+  confirmedPendingReveal,
+  assignmentRevealed,
   soldOut,
   offline,
   noRecommendation,
@@ -20,11 +21,13 @@ class AaReservationsPage extends StatefulWidget {
     required this.onBack,
     this.onSessionResetRequested,
     this.onOpenAdmissionTicket,
+    this.initialScenario = AaLandingScenario.available,
   });
 
   final VoidCallback onBack;
   final VoidCallback? onSessionResetRequested;
   final VoidCallback? onOpenAdmissionTicket;
+  final AaLandingScenario initialScenario;
 
   @override
   State<AaReservationsPage> createState() => _AaReservationsPageState();
@@ -33,7 +36,13 @@ class AaReservationsPage extends StatefulWidget {
 class _AaReservationsPageState extends State<AaReservationsPage> {
   int _selectedDate = 3;
   bool _opening = false;
-  AaLandingScenario _scenario = AaLandingScenario.available;
+  late AaLandingScenario _scenario;
+
+  @override
+  void initState() {
+    super.initState();
+    _scenario = widget.initialScenario;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +60,7 @@ class _AaReservationsPageState extends State<AaReservationsPage> {
             onSelected: (value) => setState(() {
               _selectedDate = value;
               _scenario = value == 1
-                  ? AaLandingScenario.confirmed
+                  ? AaLandingScenario.assignmentRevealed
                   : AaLandingScenario.available;
             }),
           ),
@@ -125,14 +134,15 @@ class _AaReservationsPageState extends State<AaReservationsPage> {
   }
 
   void _showExistingReservationResult() {
-    if (_scenario == AaLandingScenario.confirmed &&
+    if (_scenario == AaLandingScenario.assignmentRevealed &&
         widget.onOpenAdmissionTicket != null) {
       widget.onOpenAdmissionTicket!();
       return;
     }
     final message = switch (_scenario) {
       AaLandingScenario.pendingPayment => '已找到待支付预订',
-      AaLandingScenario.confirmed => '已找到确认预订',
+      AaLandingScenario.confirmedPendingReveal => '卡座将在营业日前一天揭晓',
+      AaLandingScenario.assignmentRevealed => '已找到揭晓后的入场凭证',
       _ => '当前没有已有预订',
     };
     showFakeResult(context, message);
@@ -182,7 +192,8 @@ class _AaReservationsPageState extends State<AaReservationsPage> {
   String _scenarioLabel(AaLandingScenario value) => switch (value) {
     AaLandingScenario.available => '正常可订',
     AaLandingScenario.pendingPayment => '已有待支付预订',
-    AaLandingScenario.confirmed => '已有确认预订',
+    AaLandingScenario.confirmedPendingReveal => '已确认·卡座待揭晓',
+    AaLandingScenario.assignmentRevealed => '卡座已揭晓',
     AaLandingScenario.soldOut => '当日售罄',
     AaLandingScenario.offline => '离线快照',
     AaLandingScenario.noRecommendation => '无可推荐套餐',
@@ -205,27 +216,29 @@ class _ReservationStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (scenario == AaLandingScenario.pendingPayment ||
-        scenario == AaLandingScenario.confirmed) {
+        scenario == AaLandingScenario.confirmedPendingReveal ||
+        scenario == AaLandingScenario.assignmentRevealed) {
       final pending = scenario == AaLandingScenario.pendingPayment;
-      if (!pending) {
+      final revealed = scenario == AaLandingScenario.assignmentRevealed;
+      if (revealed) {
         return AaLegacyConfirmedReservationCard(onTap: onAction);
       }
       return Container(
-        key: ValueKey(pending ? 'aa-pending-card' : 'aa-confirmed-card'),
+        key: ValueKey(
+          pending ? 'aa-pending-card' : 'aa-confirmed-pending-reveal-card',
+        ),
         constraints: const BoxConstraints(minHeight: 122),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: pending ? const Color(0xFF281B10) : const Color(0xFF360521),
-          border: Border.all(
-            color: pending ? const Color(0x887D684F) : const Color(0x88AD016A),
-          ),
+          color: pending ? const Color(0xFF281B10) : const Color(0xFF211A14),
+          border: Border.all(color: const Color(0x887D684F)),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           children: [
             Icon(
-              pending ? Icons.schedule_rounded : Icons.verified_rounded,
-              color: pending ? legacyGold : legacyPink,
+              pending ? Icons.schedule_rounded : Icons.event_seat_rounded,
+              color: legacyGold,
               size: 34,
             ),
             const SizedBox(width: 14),
@@ -234,9 +247,9 @@ class _ReservationStatusCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    pending ? '已有待支付预订' : 'AA预订已确认',
+                    pending ? '已有待支付预订' : '预订已确认·卡座待揭晓',
                     style: TextStyle(
-                      color: pending ? legacyGold : legacyPink,
+                      color: legacyGold,
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
@@ -245,7 +258,7 @@ class _ReservationStatusCard extends StatelessWidget {
                   Text(
                     pending
                         ? '$date · 微醺畅饮套餐\n席位还剩 09:42'
-                        : '$date · 微醺畅饮套餐\n20:30 后凭入场凭证核验',
+                        : '$date · 微醺畅饮套餐\n营业日前一天揭晓卡座',
                     style: const TextStyle(
                       color: Color(0xAFFFFFFF),
                       fontSize: 11,
@@ -256,8 +269,8 @@ class _ReservationStatusCard extends StatelessWidget {
               ),
             ),
             LegacyClubButton(
-              label: pending ? '继续支付' : '查看凭证',
-              light: !pending,
+              label: pending ? '继续支付' : '待揭晓',
+              light: false,
               onPressed: onAction,
             ),
           ],
@@ -306,7 +319,7 @@ class _ReservationStatusCard extends StatelessWidget {
                 ? '离线'
                 : noRecommendation
                 ? '暂无推荐'
-                : '一键随机选座',
+                : '随机预订',
             onPressed: unavailable || noRecommendation ? null : onRandom,
           ),
         ],
@@ -370,7 +383,9 @@ class _PackageCard extends StatelessWidget {
             scenario == AaLandingScenario.noRecommendation);
     final foreground = usable ? legacyGold : const Color(0x776F6258);
     final buttonLabel = switch (scenario) {
-      AaLandingScenario.pendingPayment || AaLandingScenario.confirmed => '已有预订',
+      AaLandingScenario.pendingPayment ||
+      AaLandingScenario.confirmedPendingReveal ||
+      AaLandingScenario.assignmentRevealed => '已有预订',
       AaLandingScenario.soldOut => '售罄',
       AaLandingScenario.offline => '离线',
       AaLandingScenario.noRecommendation => item.available ? '加入' : '售罄',
@@ -392,7 +407,7 @@ class _PackageCard extends StatelessWidget {
               children: [
                 Icon(Icons.weekend_rounded, color: foreground, size: 36),
                 Text(
-                  '卡座 ${item.remaining}',
+                  '余位 ${item.remaining}',
                   style: TextStyle(color: foreground, fontSize: 10),
                 ),
               ],

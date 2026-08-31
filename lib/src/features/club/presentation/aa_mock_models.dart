@@ -1,6 +1,5 @@
 class AaMockPackage {
   const AaMockPackage({
-    required this.seat,
     required this.name,
     required this.remaining,
     required this.priceMinor,
@@ -13,7 +12,6 @@ class AaMockPackage {
     this.partySize = 1,
   });
 
-  final String seat;
   final String name;
   final String remaining;
   final int priceMinor;
@@ -28,7 +26,6 @@ class AaMockPackage {
   String get priceYuan => (priceMinor / 100).toStringAsFixed(0);
 
   AaMockPackage copyWith({int? priceMinor, bool? available}) => AaMockPackage(
-    seat: seat,
     name: name,
     remaining: remaining,
     priceMinor: priceMinor ?? this.priceMinor,
@@ -44,7 +41,6 @@ class AaMockPackage {
 
 const aaMockPackages = <AaMockPackage>[
   AaMockPackage(
-    seat: 'V5',
     name: '3880卡座套餐',
     remaining: '4/10',
     priceMinor: 26800,
@@ -63,7 +59,6 @@ const aaMockPackages = <AaMockPackage>[
     partySize: 10,
   ),
   AaMockPackage(
-    seat: 'A8',
     name: '经典派对套餐',
     remaining: '6/8',
     priceMinor: 28800,
@@ -71,7 +66,6 @@ const aaMockPackages = <AaMockPackage>[
     contents: ['芝华士 12 年 700ml × 1', '精选软饮 × 8', '时令果盘 × 2', '精致小吃 × 2'],
   ),
   AaMockPackage(
-    seat: 'A10',
     name: '限定香槟套餐',
     remaining: '已满',
     priceMinor: 38800,

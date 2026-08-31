@@ -94,14 +94,16 @@ void main() {
     expect(find.byKey(const ValueKey('order-admission')), findsNothing);
   });
 
-  testWidgets('AA 支付后订单保持 V5 套餐金额并移除扫码内容', (tester) async {
+  testWidgets('AA 支付后订单隐藏未揭晓卡座并保持套餐金额', (tester) async {
     await tester.pumpWidget(
       subject(orderRef: const FakeOrderRef('order-aa-v5-paid-r0-0829')),
     );
 
     expect(find.text('已确认'), findsOneWidget);
     expect(find.text('KING CLUB AA预订'), findsOneWidget);
-    expect(find.text('V5 卡座 · 08月29日 20:30'), findsOneWidget);
+    expect(find.text('卡座待揭晓 · 08月29日 20:30'), findsOneWidget);
+    expect(find.textContaining('V5'), findsNothing);
+    expect(find.textContaining('营业日前一天揭晓'), findsOneWidget);
     expect(find.text('3880卡座套餐'), findsOneWidget);
     expect(find.text('AA 预订 · 本人 1 席'), findsOneWidget);
     await tester.scrollUntilVisible(

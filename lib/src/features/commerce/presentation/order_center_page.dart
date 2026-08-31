@@ -64,7 +64,7 @@ class _OrderCenterPageState extends State<OrderCenterPage> {
       ref: FakeOrderRef('order-aa-v5-paid-r0-0829'),
       type: '一起玩AA',
       title: 'KING CLUB AA预订',
-      summary: '08月29日 20:30 · V5卡座 · 3880卡座套餐',
+      summary: '08月29日 20:30 · 卡座待揭晓 · 3880卡座套餐',
       time: '08月29日 21:54',
       amount: 268,
       status: FakeOrderStatus.confirmed,
