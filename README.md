@@ -33,3 +33,15 @@ Android/iOS 包标识当前沿用旧版 `com.lingmei.kingclub`，用于保留未
 当前 `flutter analyze` 与 6 条 Widget 测试已通过，其中一条覆盖从手机号登录、四步准入、审核通过到 App Shell 的完整旅程，并覆盖安全扫码、只读发现作品流与通讯录隐私搜索边界。Android API 37 模拟器、Debug APK 与实机 UI 截图均已验证；Gradle 9.3.1 使用带官方 SHA-256 校验的国内镜像下载。
 
 产品、架构、页面和交付门禁从 [V2 总览](docs/v2/README.md) 与 [功能文档索引](docs/features/README.md) 进入。
+
+## GitHub 文件范围与体积
+
+GitHub 只保留源码、工程配置、运行必需素材、自动化测试及其基准图，以及必要的设计契约和文字验收记录。参考截图、录屏、UI 层级 XML、设计附件、临时文件、缓存和安装包只留本地，不再跟踪。
+
+历史验收文档中的图片、视频和 XML 链接可能指向仅存本地的附件；新克隆不包含这些附件，需要原工作目录或重新执行验收才能查看。不要通过 `git add -f` 重新加入。完整规则见 [仓库内容策略](docs/REPOSITORY_CONTENT_POLICY.md)。
+
+提交前先暂存修改，再检查将被提交的文件及体积：
+
+```powershell
+node scripts/check_repository_content.mjs
+```
