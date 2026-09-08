@@ -52,7 +52,7 @@ app.*.map.json
 /.tmp-*
 /.audit-current.xml
 
-# Reference attachments stay local; specifications and acceptance text remain tracked.
+# Reference attachments belong outside the project; specifications and acceptance text remain tracked.
 /docs/**/*.png
 /docs/**/*.jpg
 /docs/**/*.jpeg
