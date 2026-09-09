@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/core/mock/mock_runtime.dart';
+import 'package:kingclub/src/features/auth/presentation/legacy_welcome_page.dart';
 import 'package:kingclub/src/features/auth/presentation/mobile_login_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/membership_image_submission_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/membership_review_status_page.dart';
@@ -10,7 +11,29 @@ import 'package:kingclub/src/features/onboarding/presentation/real_name_adult_ve
 
 Widget _app(MockRuntime runtime, Widget child) => ProviderScope(
   overrides: [mockRuntimeProvider.overrideWithValue(runtime)],
-  child: MaterialApp(theme: KingTheme.dark, home: child),
+  child: MaterialApp(
+    key: const ValueKey('registration-base-app'),
+    theme: KingTheme.dark,
+    home: child,
+  ),
+);
+
+Widget _scaledApp(
+  MockRuntime runtime,
+  Widget home, {
+  required double textScale,
+}) => ProviderScope(
+  overrides: [mockRuntimeProvider.overrideWithValue(runtime)],
+  child: MaterialApp(
+    key: ValueKey('registration-scaled-app-$textScale'),
+    theme: KingTheme.dark,
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: TextScaler.linear(textScale)),
+      child: child!,
+    ),
+    home: home,
+  ),
 );
 
 Future<void> _completeIdentity(
@@ -36,9 +59,88 @@ Future<void> _addPhoto(WidgetTester tester, String source) async {
 }
 
 void main() {
+  testWidgets('registration screens reflow at supported phone sizes', (
+    tester,
+  ) async {
+    const configurations = <(Size, double)>[
+      (Size(360, 800), 1),
+      (Size(393, 852), 1.3),
+      (Size(430, 932), 2),
+    ];
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    for (final configuration in configurations) {
+      await tester.binding.setSurfaceSize(configuration.$1);
+      final runtime = MockRuntime();
+      final flowId = runtime.startOnboarding();
+
+      final pages = <(Widget, Finder)>[
+        (
+          LegacyWelcomePage(
+            onNext: () {},
+            onOpenTerms: () {},
+            onOpenPrivacy: () {},
+          ),
+          find.byKey(const ValueKey('legacy-welcome-next')),
+        ),
+        (
+          MobileLoginPage(onBack: () {}, onVerified: (_) {}),
+          find.byKey(const ValueKey('mobile-login-next')),
+        ),
+        (
+          RealNameAdultVerificationPage(
+            flowId: flowId,
+            onBack: () {},
+            onNext: () {},
+            onInvalidFlow: () {},
+          ),
+          find.byKey(const ValueKey('real-name-verify-button')),
+        ),
+        (
+          MembershipImageSubmissionPage(
+            flowId: flowId,
+            onBack: () {},
+            onNext: () {},
+            onInvalidFlow: () {},
+          ),
+          find.text('提交并评分'),
+        ),
+        (
+          MembershipReviewStatusPage(
+            flowId: flowId,
+            onApproved: () {},
+            onFixImages: () {},
+            onExit: () {},
+            onInvalidFlow: () {},
+          ),
+          find.text('刷新状态'),
+        ),
+      ];
+
+      for (final page in pages) {
+        await tester.pumpWidget(
+          _scaledApp(runtime, page.$1, textScale: configuration.$2),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        expect(page.$2, findsOneWidget);
+        await tester.ensureVisible(page.$2);
+        await tester.pump();
+        final actionCenter = tester.getCenter(page.$2);
+        expect(actionCenter.dx, inInclusiveRange(0, configuration.$1.width));
+        expect(actionCenter.dy, inInclusiveRange(0, configuration.$1.height));
+      }
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.binding.setSurfaceSize(null);
+    await tester.pump();
+  });
+
   testWidgets('approved member login skips paid registration checks', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final runtime = MockRuntime();
     runtime.seedApprovedMember('13800000003');
     var entered = false;
