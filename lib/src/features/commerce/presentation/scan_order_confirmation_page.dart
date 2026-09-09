@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../club/presentation/legacy_club_components.dart';
+import '../data/fake_commerce_repository.dart';
 import 'scan_ordering_cart_page.dart';
 
 enum ScanOrderConfirmationScenario {
@@ -21,10 +22,12 @@ class FakeOrderCreatedIntent {
   const FakeOrderCreatedIntent({
     required this.orderRef,
     required this.amountDue,
+    required this.paymentIntentId,
   });
 
   final String orderRef;
   final int amountDue;
+  final String paymentIntentId;
 }
 
 class ScanOrderConfirmationPage extends StatefulWidget {
@@ -36,6 +39,7 @@ class ScanOrderConfirmationPage extends StatefulWidget {
     this.onOrderCreated,
     this.onOpenOrders,
     this.onSessionResetRequested,
+    this.repository,
   });
 
   final VoidCallback onBack;
@@ -44,6 +48,7 @@ class ScanOrderConfirmationPage extends StatefulWidget {
   final ValueChanged<FakeOrderCreatedIntent>? onOrderCreated;
   final VoidCallback? onOpenOrders;
   final VoidCallback? onSessionResetRequested;
+  final FakeCommerceRepository? repository;
 
   @override
   State<ScanOrderConfirmationPage> createState() =>
@@ -76,9 +81,26 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   bool _submitting = false;
   bool _priceChangeAccepted = false;
   bool _reconciling = false;
+  late final FakeCommerceRepository _repository;
+  late final String _requestKey;
+  late final int _generation;
+  CommerceOrder? _createdOrder;
+  bool _emitted = false;
+
+  List<CommerceLine> get _lines => _quote.items
+      .map(
+        (item) => CommerceLine(
+          name: item.name,
+          detail: item.detail,
+          asset: item.asset,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        ),
+      )
+      .toList();
 
   int get _subtotal => _quote.items.fold(0, (sum, item) => sum + item.subtotal);
-  int get _discount => _subtotal >= 500 ? 30 : 0;
+  int get _discount => FakeCommerceRepository.discountFor(_lines);
   int get _changedAmount => _subtotal - _discount + 20;
   int get _amountDue => _scenario == ScanOrderConfirmationScenario.quoteChanged
       ? _changedAmount
@@ -87,6 +109,9 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   bool get _canSubmit =>
       !_submitting &&
       !_reconciling &&
+      !_emitted &&
+      _quote.items.isNotEmpty &&
+      _quote.items.every((item) => item.quantity > 0 && item.unitPrice >= 0) &&
       !{
         ScanOrderConfirmationScenario.quoteExpired,
         ScanOrderConfirmationScenario.soldOut,
@@ -101,6 +126,9 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   @override
   void initState() {
     super.initState();
+    _repository = widget.repository ?? FakeCommerceRepository();
+    _requestKey = _repository.newRequestKey();
+    _generation = _repository.generation;
     _quote =
         widget.quote ??
         const FakeOrderingQuote(
@@ -125,6 +153,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    if (widget.repository == null) _repository.dispose();
     super.dispose();
   }
 
@@ -664,7 +693,9 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   }
 
   Future<void> _submitOrder() async {
+    if (!_canSubmit) return;
     setState(() => _submitting = true);
+    if (!_createOrder()) return;
     await Future<void>.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -672,7 +703,9 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   }
 
   Future<void> _reconcileSubmission() async {
+    if (_reconciling || _emitted) return;
     setState(() => _reconciling = true);
+    if (!_createOrder()) return;
     await Future<void>.delayed(const Duration(milliseconds: 650));
     if (!mounted) return;
     setState(() => _reconciling = false);
@@ -680,9 +713,17 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   }
 
   Future<void> _emitOrderCreated() async {
+    final order = _createdOrder;
+    if (_emitted || order == null) return;
+    if (_repository.generation != _generation) {
+      setState(() => _scenario = ScanOrderConfirmationScenario.sessionInvalid);
+      return;
+    }
+    _emitted = true;
     final intent = FakeOrderCreatedIntent(
-      orderRef: 'fake-order-v8-0827',
-      amountDue: _amountDue,
+      orderRef: order.id,
+      amountDue: order.amountDue,
+      paymentIntentId: order.paymentIntentId,
     );
     if (widget.onOrderCreated case final callback?) {
       callback(intent);
@@ -738,7 +779,36 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
     );
   }
 
+  bool _createOrder() {
+    try {
+      _createdOrder ??= _repository.createScanOrder(
+        requestKey: _requestKey,
+        expectedGeneration: _generation,
+        items: _lines,
+        priceAdjustment: _scenario == ScanOrderConfirmationScenario.quoteChanged
+            ? 20
+            : 0,
+      );
+      return true;
+    } on StateError {
+      setState(() {
+        _submitting = false;
+        _reconciling = false;
+        _scenario = ScanOrderConfirmationScenario.sessionInvalid;
+      });
+      return false;
+    } on ArgumentError {
+      setState(() {
+        _submitting = false;
+        _reconciling = false;
+        _scenario = ScanOrderConfirmationScenario.quoteExpired;
+      });
+      return false;
+    }
+  }
+
   Future<void> _showScenarioPicker() async {
+    if (_submitting || _reconciling || _emitted) return;
     final selected = await showModalBottomSheet<ScanOrderConfirmationScenario>(
       context: context,
       backgroundColor: const Color(0xFF181512),

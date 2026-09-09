@@ -24,3 +24,7 @@
 - `OrderCreationPort.reconcile(idempotencyKey)`
 
 UI/Mock 阶段全部由 Fake 实现。未来 adapter 只能把这些语义映射到已批准契约，不允许页面直接调用超级接口。
+
+## 2026-09-09 审计修复补充
+
+按[本轮对照与验收条件](../../../audits/2026-09-09-miniprogram-alignment.md)实现：Fake 创建订单须登记完整报价快照和支付意图映射；同一请求幂等，不同请求不得共用固定订单号。金额只在 Fake 数据源计算，确认后跨页只携带引用，不能在支付页替换为默认样例。此临时 Fake 输入不是未来真实接口的可信价格来源。

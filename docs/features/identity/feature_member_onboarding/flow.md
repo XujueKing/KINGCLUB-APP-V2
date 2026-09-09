@@ -1,5 +1,7 @@
 # 会员准入用户流程与导航
 
+> 2026-09-10：下方是历史准入导航，首版最新要求是[旧照片上传方式、无实名核身](../../../product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)。W10 将重审 KC-P-005/006 与照片检测/审核顺序；不得把历史“核验完成”作为首发 SDK 接入要求，本轮不擅自删路由。
+
 - 文档状态：`Approved for Development`
 
 ## 1. 入口

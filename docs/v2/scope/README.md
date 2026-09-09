@@ -1,5 +1,7 @@
 # Flutter V2 本期范围评审包
 
+**历史基线提示（2026-09-09）**：本目录 69 路由对应 505d222，当前小程序已为 9299208 / 72 路由。新的[72 路由对照](../../product/2026-09-09-native-product-review/inventory/LEGACY_ROUTES.md)与[完整产品需求](../../product/2026-09-09-native-product-review/PRODUCT_REQUIREMENTS.md)用于本轮重新评审；原 48 页批准保留，但旧暂缓清单不是完整产品的永久删减清单。
+
 - 状态：`M0 Scope Frozen`
 - 审计基线：旧版 `KingClub-app / master / 505d222 / 1.1.37`
 - 审计日期：2026-08-24

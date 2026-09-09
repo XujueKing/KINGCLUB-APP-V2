@@ -1,5 +1,7 @@
 # 功能分块总览
 
+**2026-09-10 更新**：完整产品扩为 41 类需求，见[产品主表](../product/2026-09-09-native-product-review/PRODUCT_REQUIREMENTS.md)和[用户变更台账](../product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)。首版不做实名核身，沿用旧照片上传接口；原生美颜、游戏大厅、储物券/道具和 App 授权管理已明确。本文下方“本期不包含”是历史 48 页基线，不覆盖最新产品方向；详细规格/批次继续 In Review。
+
 ## 1. 分块原则
 
 - 以用户目标和业务所有权划分功能，不按旧版文件位置机械复制。

@@ -1,5 +1,7 @@
 # 数据、Repository 与待建接口契约
 
+> 2026-09-10 修订待审：用户已排除首版实名核身，采用旧 `registrationPhotoUpload` 照片上传方法；[RQ-22](../../../product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)优先于下方历史身份核验 port。R1 对齐上传暂存令牌与后续检测/评分/审核，再形成 CCSOP 契约/兼容路径；“不复用旧接口”不能解释为不准沿用用户指定照片业务方法，但也不得复制旧共享鉴权。首版不调用 start/completeIdentityVerification 或写伪造 KYC verified；旧真实接入门禁不变。
+
 - 文档状态：`Approved for Development`
 - 契约性质：UI Mock 的批准候选；真实 K 接口尚未编号、登记或实现
 

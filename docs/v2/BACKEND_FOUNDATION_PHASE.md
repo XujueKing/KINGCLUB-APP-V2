@@ -1,5 +1,7 @@
 # 第一阶段：数据库、超级接口、登录鉴权与 WebSocket
 
+**2026-09-09 复核**：[当前输入与服务差距](../product/2026-09-09-native-product-review/SOURCE_BASELINE.md)确认本机新服务仍为 `business/kingclub-v2 / d9929ff`，typecheck 和 133 项单元测试通过；生产配置、真实 E2E、完整业务接口与迁移本轮未验证。新增重构方案及迁移见[产品评审包](../product/2026-09-09-native-product-review/README.md)，不要将本文件历史隔离环境记录当作本机生产已完成。
+
 - 文档状态：In Progress
 - 审计日期：2026-08-24
 - 当前范围：KingClub 登录/会话密文主链、异常矩阵和四个 Flutter 登录页面文档已完成，进入 Flutter Foundation 详细评审；旧客户端和旧数据库仍保持只读

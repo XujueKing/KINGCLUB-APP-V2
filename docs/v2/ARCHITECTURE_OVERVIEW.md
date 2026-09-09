@@ -1,5 +1,7 @@
 # Flutter V2 总体架构
 
+**2026-09-09 架构重整**：用户允许对旧手工代码与存储过程重构。新建议见[前后端现代化架构](../product/2026-09-09-native-product-review/ARCHITECTURE.md)，保持 Flutter + CCSOP 与已确认统一身份方向；服务端领域用例/数据库事务的具体分工需 ADR 评审。旧文档中的 REST/多 schema 等早期候选不覆盖后续已实现的 CCSOP K 接口、独立库与 U...账号基线。
+
 ## 1. 架构目标
 
 - 支持 Android 与 iOS 共用主要业务代码。

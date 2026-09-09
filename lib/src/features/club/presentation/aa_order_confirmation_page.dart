@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../commerce/data/fake_commerce_repository.dart';
+
 import '../../commerce/presentation/order_detail_page.dart';
 import '../../commerce/presentation/payment_result_page.dart';
 import 'aa_mock_models.dart';
@@ -35,11 +37,13 @@ class AaOrderConfirmationPage extends StatefulWidget {
     required this.package,
     required this.serviceDate,
     this.onSessionResetRequested,
+    this.repository,
   });
 
   final AaMockPackage package;
   final String serviceDate;
   final VoidCallback? onSessionResetRequested;
+  final FakeCommerceRepository? repository;
 
   @override
   State<AaOrderConfirmationPage> createState() =>
@@ -57,6 +61,13 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
   bool _quoteChanged = false;
   AaConfirmationScenario _scenario = AaConfirmationScenario.ready;
   AaSubmissionOutcome _submissionOutcome = AaSubmissionOutcome.none;
+  late final int _generation;
+
+  @override
+  void initState() {
+    super.initState();
+    _generation = widget.repository?.generation ?? 0;
+  }
 
   int get _deduction =>
       (_coupon ? 2000 : 0) + (_gold ? 800 : 0) + (_balance ? 2000 : 0);
@@ -411,16 +422,39 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
   }
 
   Future<void> _showPendingPaymentResult() async {
-    final quoteMask = (_coupon ? 1 : 0) | (_gold ? 2 : 0) | (_balance ? 4 : 0);
+    // Standalone UI tests own an isolated flow; the application injects its store.
+    final repository = widget.repository ?? FakeCommerceRepository(seed: false);
+    CommerceOrder order;
+    try {
+      order = repository.createAaOrder(
+        requestKey: repository.newRequestKey(),
+        expectedGeneration: _generation,
+        packageName: widget.package.name,
+        asset:
+            widget.package.posterAsset ??
+            'assets/legacy/aa/package_3880_v1.png',
+        serviceDate: widget.serviceDate,
+        priceMinor: widget.package.priceMinor,
+        deductionMinor: _deduction,
+      );
+    } on StateError {
+      setState(() => _submissionOutcome = AaSubmissionOutcome.sessionInvalid);
+      return;
+    } on ArgumentError {
+      setState(() => _quoteExpired = true);
+      return;
+    }
     await Navigator.of(context).pushReplacement<void, void>(
       MaterialPageRoute<void>(
         builder: (paymentContext) => PaymentResultPage(
-          intentRef: FakePaymentIntentRef('payment-intent-aa-v5-r$quoteMask'),
+          repository: repository,
+          intentRef: FakePaymentIntentRef(order.paymentIntentId),
           onClose: () => Navigator.of(paymentContext).maybePop(),
           onOpenOrder: (orderRef) {
             Navigator.of(paymentContext).pushReplacement<void, void>(
               MaterialPageRoute<void>(
                 builder: (orderContext) => OrderDetailPage(
+                  repository: repository,
                   orderRef: orderRef,
                   onBack: () => Navigator.of(orderContext).maybePop(),
                   onSessionResetRequested: widget.onSessionResetRequested,

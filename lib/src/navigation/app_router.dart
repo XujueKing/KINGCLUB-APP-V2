@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -15,6 +16,7 @@ import '../features/club/presentation/vip_party_page.dart';
 import '../features/club/presentation/vip_party_create_page.dart';
 import '../features/club/presentation/vip_party_management_page.dart';
 import '../features/commerce/presentation/order_detail_page.dart';
+import '../features/commerce/data/fake_commerce_repository.dart';
 import '../features/commerce/presentation/order_center_page.dart';
 import '../features/commerce/presentation/payment_result_page.dart';
 import '../features/commerce/presentation/scan_ordering_cart_page.dart';
@@ -42,6 +44,17 @@ import '../features/scanner/presentation/safe_scanner_page.dart';
 import '../features/shell/presentation/app_shell_page.dart';
 
 part 'app_router.g.dart';
+
+FakeCommerceRepository _commerce(BuildContext context) =>
+    ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(fakeCommerceRepositoryProvider);
+
+void _clearCommerceAndLogin(BuildContext context) {
+  _commerce(context).clear();
+  const MobileLoginRoute().go(context);
+}
 
 @Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
@@ -317,7 +330,7 @@ class AppShellRoute extends GoRouteData with $AppShellRoute {
         UserProfileRoute(UserProfileRouteArgs(targetRef)).push<void>(context),
     onOpenContentAuthor: (targetRef) =>
         UserProfileRoute(UserProfileRouteArgs(targetRef)).push<void>(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
     onOpenScanner: (shellContext, originIndex) =>
         SafeScannerRoute(ScannerRouteArgs(originIndex))
             .push<SafeScanDestination>(shellContext),
@@ -349,7 +362,7 @@ class ContentFeedRoute extends GoRouteData with $ContentFeedRoute {
         UserProfileRoute(UserProfileRouteArgs(targetRef)).push<void>(context),
     onOpenContentAuthor: (targetRef) =>
         UserProfileRoute(UserProfileRouteArgs(targetRef)).push<void>(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
     onOpenScanner: (shellContext, originIndex) =>
         SafeScannerRoute(ScannerRouteArgs(originIndex))
             .push<SafeScanDestination>(shellContext),
@@ -381,7 +394,7 @@ class ContactsRoute extends GoRouteData with $ContactsRoute {
         UserProfileRoute(UserProfileRouteArgs(targetRef)).push<void>(context),
     onOpenContentAuthor: (targetRef) =>
         UserProfileRoute(UserProfileRouteArgs(targetRef)).push<void>(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
     onOpenScanner: (shellContext, originIndex) =>
         SafeScannerRoute(ScannerRouteArgs(originIndex))
             .push<SafeScanDestination>(shellContext),
@@ -396,7 +409,7 @@ class AddFriendRoute extends GoRouteData with $AddFriendRoute {
   Widget build(BuildContext context, GoRouterState state) => AddFriendPage(
     onBack: () => context.pop(),
     onOpenPersonalQr: () => const PersonalQrRoute().push<void>(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
     onOpenScanner: () async {
       final destination = await SafeScannerRoute(const ScannerRouteArgs(1))
           .push<SafeScanDestination>(context);
@@ -422,7 +435,7 @@ class FriendRequestsRoute extends GoRouteData with $FriendRequestsRoute {
     onOpenAddFriend: () => const AddFriendRoute().push<void>(context),
     onOpenChat: (peerName) => ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text('已打开与 $peerName 的 Fake 会话入口'))),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
@@ -448,7 +461,7 @@ class UserProfileRoute extends GoRouteData with $UserProfileRoute {
     initialRelationship: $extra.relationship,
     onBack: () => context.pop(),
     onOpenSelfProfile: () => const AppShellRoute().go(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
@@ -472,7 +485,7 @@ class SendFriendRequestRoute extends GoRouteData with $SendFriendRequestRoute {
         targetName: $extra.targetName,
         onBack: () => context.pop(),
         onSent: () => context.pop(),
-        onSessionResetRequested: () => const MobileLoginRoute().go(context),
+        onSessionResetRequested: () => _clearCommerceAndLogin(context),
       );
 }
 
@@ -500,7 +513,7 @@ class FriendRemarkRoute extends GoRouteData with $FriendRemarkRoute {
     initialRemark: $extra.initialRemark,
     signature: $extra.signature,
     onBack: () => context.pop(),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
@@ -524,7 +537,7 @@ class RelationshipPermissionsRoute extends GoRouteData
         targetRef: $extra.targetRef,
         displayName: $extra.displayName,
         onBack: () => context.pop(),
-        onSessionResetRequested: () => const MobileLoginRoute().go(context),
+        onSessionResetRequested: () => _clearCommerceAndLogin(context),
       );
 }
 
@@ -542,7 +555,7 @@ class BlacklistRoute extends GoRouteData with $BlacklistRoute {
         relationship: UserProfileRelationship.blockedByMe,
       ),
     ).push<void>(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
@@ -572,9 +585,7 @@ class AaReservationsRoute extends GoRouteData with $AaReservationsRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) {
     final canPop = context.canPop();
-    void back() => canPop
-        ? context.pop()
-        : const AppShellRoute().go(context);
+    void back() => canPop ? context.pop() : const AppShellRoute().go(context);
 
     return PopScope<void>(
       canPop: canPop,
@@ -582,8 +593,9 @@ class AaReservationsRoute extends GoRouteData with $AaReservationsRoute {
         if (!didPop) const AppShellRoute().go(context);
       },
       child: AaReservationsPage(
+        repository: _commerce(context),
         onBack: back,
-        onSessionResetRequested: () => const MobileLoginRoute().go(context),
+        onSessionResetRequested: () => _clearCommerceAndLogin(context),
         onOpenAdmissionTicket: () =>
             const AaPositioningCardRoute().push<void>(context),
       ),
@@ -598,9 +610,8 @@ class AaPositioningCardRoute extends GoRouteData with $AaPositioningCardRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) {
     final canPop = context.canPop();
-    void back() => canPop
-        ? context.pop()
-        : const AaReservationsRoute().go(context);
+    void back() =>
+        canPop ? context.pop() : const AaReservationsRoute().go(context);
 
     return PopScope<void>(
       canPop: canPop,
@@ -687,6 +698,7 @@ class ScanOrderConfirmationRoute extends GoRouteData
   @override
   Widget build(BuildContext context, GoRouterState state) =>
       ScanOrderConfirmationPage(
+        repository: _commerce(context),
         quote: $extra,
         onBack: () => context.canPop()
             ? context.pop()
@@ -694,10 +706,10 @@ class ScanOrderConfirmationRoute extends GoRouteData
         onModify: () => context.canPop()
             ? context.pop()
             : const ScanOrderingCartRoute().go(context),
-        onOrderCreated: (intent) => PaymentResultRoute(
-          FakePaymentIntentRef('payment-intent-${intent.orderRef}'),
-        ).go(context),
-        onSessionResetRequested: () => const MobileLoginRoute().go(context),
+        onOrderCreated: (intent) =>
+            PaymentResultRoute(FakePaymentIntentRef(intent.paymentIntentId))
+                .go(context),
+        onSessionResetRequested: () => _clearCommerceAndLogin(context),
         onOpenOrders: () => const OrderCenterRoute().go(context),
       );
 }
@@ -711,10 +723,11 @@ class OrderCenterRoute extends GoRouteData with $OrderCenterRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) => OrderCenterPage(
+    repository: _commerce(context),
     onBack: () =>
         context.canPop() ? context.pop() : const AppShellRoute().go(context),
     onOpenHome: () => const AppShellRoute().go(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
     onOpenOrder: (orderRef) => OrderDetailRoute(orderRef).push<void>(context),
   );
 }
@@ -726,7 +739,8 @@ class OrderDetailRoute extends GoRouteData with $OrderDetailRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) => OrderDetailPage(
-    orderRef: $extra ?? const FakeOrderRef('order-scan-v8-0827'),
+    repository: _commerce(context),
+    orderRef: $extra ?? const FakeOrderRef(''),
     onBack: () =>
         context.canPop() ? context.pop() : const OrderCenterRoute().go(context),
     onAdmission: (admissionRef) =>
@@ -734,7 +748,7 @@ class OrderDetailRoute extends GoRouteData with $OrderDetailRoute {
             .push<void>(context),
     onPaymentIntent: (intentId) =>
         PaymentResultRoute(FakePaymentIntentRef(intentId)).push<void>(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
@@ -744,18 +758,22 @@ class PaymentResultRoute extends GoRouteData with $PaymentResultRoute {
 
   final FakePaymentIntentRef? $extra;
 
-  static const _fallbackOrderRef = FakeOrderRef('order-scan-v8-0827');
-
   @override
   Widget build(BuildContext context, GoRouterState state) => PaymentResultPage(
-    intentRef:
-        $extra ??
-        const FakePaymentIntentRef('payment-intent-order-scan-v8-0827'),
-    onClose: () => context.canPop()
-        ? context.pop()
-        : const OrderDetailRoute(_fallbackOrderRef).go(context),
+    repository: _commerce(context),
+    intentRef: $extra ?? const FakePaymentIntentRef(''),
+    onClose: () {
+      final order = _commerce(context).payment($extra?.opaqueId ?? '');
+      if (order == null) {
+        const OrderCenterRoute().go(context);
+      } else if (context.canPop()) {
+        context.pop();
+      } else {
+        OrderDetailRoute(FakeOrderRef(order.id)).go(context);
+      }
+    },
     onOpenOrder: (orderRef) => OrderDetailRoute(orderRef).go(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
@@ -771,7 +789,7 @@ class AssetLedgerRoute extends GoRouteData with $AssetLedgerRoute {
     onBack: () =>
         context.canPop() ? context.pop() : const AppShellRoute().go(context),
     onOpenOrder: (orderRef) => OrderDetailRoute(orderRef).push<void>(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
@@ -796,7 +814,7 @@ class EditProfileRoute extends GoRouteData with $EditProfileRoute {
     coverAsset: $extra.coverAsset,
     onBack: () => context.pop(),
     onSaved: (result) => context.pop(result),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
@@ -808,7 +826,7 @@ class PersonalQrRoute extends GoRouteData with $PersonalQrRoute {
   Widget build(BuildContext context, GoRouterState state) => PersonalQrPage(
     onBack: () =>
         context.canPop() ? context.pop() : const AppShellRoute().go(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
@@ -832,8 +850,8 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
     onOpenAccountDeletion: () =>
         const AccountDeletionRoute().push<void>(context),
     onOpenAboutLegal: () => const AboutLegalRoute().push<void>(context),
-    onLogoutCompleted: () => const MobileLoginRoute().go(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onLogoutCompleted: () => _clearCommerceAndLogin(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
@@ -846,7 +864,7 @@ class PaymentSecurityRoute extends GoRouteData with $PaymentSecurityRoute {
         onBack: () => context.canPop()
             ? context.pop()
             : const SettingsRoute().go(context),
-        onSessionResetRequested: () => const MobileLoginRoute().go(context),
+        onSessionResetRequested: () => _clearCommerceAndLogin(context),
       );
 }
 
@@ -859,8 +877,8 @@ class AccountDeletionRoute extends GoRouteData with $AccountDeletionRoute {
         onBack: () => context.canPop()
             ? context.pop()
             : const SettingsRoute().go(context),
-        onCompleted: () => const MobileLoginRoute().go(context),
-        onSessionResetRequested: () => const MobileLoginRoute().go(context),
+        onCompleted: () => _clearCommerceAndLogin(context),
+        onSessionResetRequested: () => _clearCommerceAndLogin(context),
       );
 }
 
@@ -871,6 +889,6 @@ class AboutLegalRoute extends GoRouteData with $AboutLegalRoute {
   Widget build(BuildContext context, GoRouterState state) => AboutLegalPage(
     onBack: () =>
         context.canPop() ? context.pop() : const SettingsRoute().go(context),
-    onSessionResetRequested: () => const MobileLoginRoute().go(context),
+    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }

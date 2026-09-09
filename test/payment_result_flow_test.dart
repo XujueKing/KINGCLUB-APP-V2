@@ -34,9 +34,9 @@ void main() {
   testWidgets('准备态展示权威金额和服务端方式列表', (tester) async {
     await tester.pumpWidget(subject());
 
-    expect(find.text('¥3680.00'), findsOneWidget);
-    expect(find.text('KINGBAR 湖南工大店'), findsOneWidget);
-    expect(find.textContaining('888号桌'), findsOneWidget);
+    expect(find.text('¥1156.00'), findsOneWidget);
+    expect(find.text('KINGBAR V8 桌点单'), findsOneWidget);
+    expect(find.textContaining('V8 卡座'), findsOneWidget);
     expect(find.text('微信支付'), findsOneWidget);
     expect(find.text('余额支付'), findsOneWidget);
     expect(find.text('服务端未开放此方式'), findsOneWidget);
@@ -67,11 +67,11 @@ void main() {
     await finishProviderFlow(tester);
 
     expect(find.text('支付已确认'), findsOneWidget);
-    expect(find.textContaining('服务器已确认 ¥3680.00'), findsOneWidget);
+    expect(find.textContaining('服务器已确认 ¥1156.00'), findsOneWidget);
     expect(find.textContaining('Fake'), findsNothing);
     expect(find.byKey(const ValueKey('payment-view-order')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('payment-view-order')));
-    expect(opened?.opaqueId, 'order-scan-888-paid-0829');
+    expect(opened?.opaqueId, 'order-scan-v8-0827');
   });
 
   testWidgets('横屏支付成功态可滚动到达查看订单且无溢出', (tester) async {

@@ -1,5 +1,7 @@
 # 会员准入状态机
 
+> 2026-09-10：用户已明确[首版不做实名核身](../../../product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)，以下 identityRequired→identityVerified 是待修订的历史状态机，不是新首版的 KYC 前置。新规格须分离照片提交/检测/审核与会员状态，未获可信实名证据不得将 kycStatus 写为 verified；本轮记录变更，具体状态枚举随 W10 评审。
+
 - 文档状态：`Approved for Development`
 
 ```text

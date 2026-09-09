@@ -1,5 +1,7 @@
 # KINGCLUB APP V2 分阶段迁移计划
 
+> 本文件为历史分阶段建议。2026-09-09 最新[产品 ROADMAP](../product/2026-09-09-native-product-review/ROADMAP.md)与[迁移方案](../product/2026-09-09-native-product-review/DATA_AND_API_MIGRATION.md)已补充旧端持续运营、每域唯一写入方、94 张 k_ 表、接口分类、新旧服务来源缺口及重构方向，现待用户检阅。下方旧范围与工期参考不是本轮承诺或新范围批准。
+
 ## 总原则
 
 - 旧版持续可运行

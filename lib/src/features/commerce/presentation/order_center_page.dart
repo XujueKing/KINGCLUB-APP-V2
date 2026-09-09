@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../club/presentation/legacy_club_components.dart';
+import '../data/fake_commerce_repository.dart';
 
 enum OrderCenterFilter { all, awaitingPayment, active, completedAndAfterSales }
 
@@ -46,6 +47,7 @@ class OrderCenterPage extends StatefulWidget {
     this.onOpenHome,
     this.onSessionResetRequested,
     this.initialScenario = OrderCenterScenario.content,
+    this.repository,
   });
 
   final VoidCallback onBack;
@@ -53,6 +55,7 @@ class OrderCenterPage extends StatefulWidget {
   final VoidCallback? onOpenHome;
   final VoidCallback? onSessionResetRequested;
   final OrderCenterScenario initialScenario;
+  final FakeCommerceRepository? repository;
 
   @override
   State<OrderCenterPage> createState() => _OrderCenterPageState();
@@ -150,21 +153,29 @@ class _OrderCenterPageState extends State<OrderCenterPage> {
   late OrderCenterScenario _scenario;
   bool _loadingMore = false;
   bool _hasSecondPage = false;
-  bool _refreshed = false;
+  late final FakeCommerceRepository _repository;
 
   @override
   void initState() {
     super.initState();
+    _repository = widget.repository ?? FakeCommerceRepository();
+    _repository.addListener(_onOrdersChanged);
     _scenario = widget.initialScenario;
     _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _repository.removeListener(_onOrdersChanged);
+    if (widget.repository == null) _repository.dispose();
     _scrollController
       ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
+  }
+
+  void _onOrdersChanged() {
+    if (mounted) setState(() {});
   }
 
   List<_FakeOrderSummary> get _allOrders {
@@ -172,9 +183,6 @@ class _OrderCenterPageState extends State<OrderCenterPage> {
       ..._firstPage,
       if (_hasSecondPage) ..._secondPage,
     ];
-    if (_refreshed) {
-      result[2] = result[2].copyWith(status: FakeOrderStatus.paymentProcessing);
-    }
     if (_scenario == OrderCenterScenario.unknownStatus) {
       result.insert(
         1,
@@ -189,6 +197,35 @@ class _OrderCenterPageState extends State<OrderCenterPage> {
           asset: 'assets/legacy/ordering/product_fruit_platter_v1.png',
         ),
       );
+    }
+    for (final order in _repository.orders.reversed) {
+      final summary = _FakeOrderSummary(
+        ref: FakeOrderRef(order.id),
+        type: order.type,
+        title: order.title,
+        summary: order.summary,
+        time: order.createdAt.toString().substring(0, 16),
+        amount: order.amountDue,
+        asset: order.items.first.asset,
+        status: switch (order.status) {
+          CommerceOrderStatus.awaitingPayment =>
+            FakeOrderStatus.awaitingPayment,
+          CommerceOrderStatus.paymentPending =>
+            FakeOrderStatus.paymentProcessing,
+          CommerceOrderStatus.confirmed => FakeOrderStatus.confirmed,
+          CommerceOrderStatus.cancelled => FakeOrderStatus.cancelled,
+        },
+      );
+      final index = result.indexWhere((item) => item.ref.opaqueId == order.id);
+      if (index == -1) {
+        result.insert(0, summary);
+      } else {
+        result[index] = summary;
+      }
+    }
+    // A cleared session must not resurrect the actionable seeded pending order.
+    if (_repository.order('order-scan-v8-0827') == null) {
+      result.removeWhere((item) => item.ref.opaqueId == 'order-scan-v8-0827');
     }
     return result;
   }
@@ -606,7 +643,6 @@ class _OrderCenterPageState extends State<OrderCenterPage> {
     await Future<void>.delayed(const Duration(milliseconds: 520));
     if (!mounted) return;
     setState(() {
-      _refreshed = true;
       _scenario = OrderCenterScenario.content;
     });
   }
@@ -733,17 +769,6 @@ class _FakeOrderSummary {
   final int amount;
   final FakeOrderStatus status;
   final String asset;
-
-  _FakeOrderSummary copyWith({FakeOrderStatus? status}) => _FakeOrderSummary(
-    ref: ref,
-    type: type,
-    title: title,
-    summary: summary,
-    time: time,
-    amount: amount,
-    status: status ?? this.status,
-    asset: asset,
-  );
 }
 
 class _OrderSkeleton extends StatelessWidget {

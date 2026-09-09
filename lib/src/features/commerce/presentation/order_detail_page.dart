@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../club/presentation/legacy_club_components.dart';
+import '../data/fake_commerce_repository.dart';
 import 'order_center_page.dart';
 
 enum OrderDetailScenario {
@@ -32,6 +33,7 @@ class OrderDetailPage extends StatefulWidget {
     this.onContactSupport,
     this.onSessionResetRequested,
     this.initialScenario,
+    this.repository,
   });
 
   final FakeOrderRef orderRef;
@@ -41,6 +43,7 @@ class OrderDetailPage extends StatefulWidget {
   final ValueChanged<FakeOrderRef>? onContactSupport;
   final VoidCallback? onSessionResetRequested;
   final OrderDetailScenario? initialScenario;
+  final FakeCommerceRepository? repository;
 
   @override
   State<OrderDetailPage> createState() => _OrderDetailPageState();
@@ -52,11 +55,45 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   bool _cancelledLocally = false;
   bool _conflictResolved = false;
   bool _resultUnknown = false;
+  late final FakeCommerceRepository _repository;
+  late final int _generation;
+  late bool _scenarioOverride;
+  CommerceOrder? get _order => _repository.order(widget.orderRef.opaqueId);
 
   @override
   void initState() {
     super.initState();
-    _scenario = widget.initialScenario ?? _scenarioForRef(widget.orderRef);
+    _repository = widget.repository ?? FakeCommerceRepository();
+    _generation = _repository.generation;
+    _scenarioOverride = widget.initialScenario != null;
+    _scenario = widget.initialScenario ?? _resolveScenario();
+    _repository.addListener(_onOrderChanged);
+  }
+
+  OrderDetailScenario _resolveScenario() {
+    final order = _order;
+    if (order == null) return _scenarioForRef(widget.orderRef);
+    return switch (order.status) {
+      CommerceOrderStatus.confirmed =>
+        order.type == '一起玩AA'
+            ? OrderDetailScenario.aaConfirmed
+            : OrderDetailScenario.scanConfirmed,
+      CommerceOrderStatus.cancelled => OrderDetailScenario.cancelled,
+      _ => OrderDetailScenario.awaitingPayment,
+    };
+  }
+
+  void _onOrderChanged() {
+    if (mounted && !_scenarioOverride) {
+      setState(() => _scenario = _resolveScenario());
+    }
+  }
+
+  @override
+  void dispose() {
+    _repository.removeListener(_onOrderChanged);
+    if (widget.repository == null) _repository.dispose();
+    super.dispose();
   }
 
   @override
@@ -299,6 +336,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           _MoneyRow(label: '商品总价', amount: data.originalAmount),
           if (data.discount > 0)
             _MoneyRow(label: '优惠减免', amount: -data.discount),
+          if (data.priceAdjustment != 0)
+            _MoneyRow(label: '库存价格调整', amount: data.priceAdjustment),
           _MoneyRow(label: '应付金额', amount: data.paidAmount, strong: true),
           if (data.refundAmount > 0)
             _MoneyRow(
@@ -390,7 +429,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             if (canPay)
               _ActionButton(
                 key: const ValueKey('order-pay'),
-                label: '继续支付',
+                label: _order?.status == CommerceOrderStatus.paymentPending
+                    ? '继续查询'
+                    : '继续支付',
                 primary: true,
                 onPressed: _openPayment,
               ),
@@ -482,7 +523,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     await Future<void>.delayed(const Duration(milliseconds: 420));
     if (!mounted) return;
     setState(() {
-      _scenario = _scenarioForRef(widget.orderRef);
+      _scenarioOverride = false;
+      _scenario = _resolveScenario();
       _conflictResolved = false;
       _resultUnknown = false;
       _cancelledLocally = false;
@@ -525,7 +567,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       } else if (_scenario == OrderDetailScenario.cancelResultUnknown) {
         _resultUnknown = true;
       } else {
-        _cancelledLocally = true;
+        if (_scenarioOverride) {
+          _cancelledLocally = true;
+        } else {
+          _cancelledLocally = _repository.cancelOrder(
+            widget.orderRef.opaqueId,
+            expectedGeneration: _generation,
+          );
+          _scenario = _resolveScenario();
+        }
       }
     });
   }
@@ -542,7 +592,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   void _openPayment() {
-    final ref = 'payment-intent-${widget.orderRef.opaqueId}';
+    final order = _order;
+    if (order == null ||
+        !{
+          CommerceOrderStatus.awaitingPayment,
+          CommerceOrderStatus.paymentPending,
+        }.contains(order.status)) {
+      return;
+    }
+    final ref = order.paymentIntentId;
     if (widget.onPaymentIntent case final callback?) {
       callback(ref);
     } else {
@@ -593,6 +651,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   Navigator.of(sheetContext).pop();
                   setState(() {
                     _scenario = scenario;
+                    _scenarioOverride = true;
                     _submitting = false;
                     _cancelledLocally = false;
                     _conflictResolved = false;
@@ -608,6 +667,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   String get _maskedSuffix {
+    if (_order case final order?) {
+      final id = order.id;
+      return id.substring(id.length > 4 ? id.length - 4 : 0).toUpperCase();
+    }
     if (_presentation.title == _scanConfirmedPresentation.title) return '0829';
     if (_scenario == OrderDetailScenario.aaConfirmed) return 'AA29';
     if (_presentation.title == _confirmedPresentation.title) return '0828';
@@ -626,6 +689,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   _OrderDetailPresentation get _presentation {
+    final currentOrder = _order;
+    if (!_scenarioOverride && currentOrder != null) {
+      return _commercePresentation(currentOrder);
+    }
     if (_cancelledLocally) return _cancelledAwaitingPaymentPresentation;
     if (_conflictResolved) return _confirmedPresentation;
     return switch (_scenario) {
@@ -957,6 +1024,7 @@ class _OrderDetailPresentation {
     this.canPay = false,
     this.canCancel = false,
     this.canViewAdmission = false,
+    this.priceAdjustment = 0,
   });
 
   final String type;
@@ -975,6 +1043,56 @@ class _OrderDetailPresentation {
   final bool canPay;
   final bool canCancel;
   final bool canViewAdmission;
+  final int priceAdjustment;
+}
+
+_OrderDetailPresentation _commercePresentation(CommerceOrder order) {
+  final status = switch (order.status) {
+    CommerceOrderStatus.awaitingPayment => ('待支付', '订单已创建，请核对金额后继续支付'),
+    CommerceOrderStatus.paymentPending => ('支付确认中', '结果待确认，请勿重复支付'),
+    CommerceOrderStatus.confirmed =>
+      order.type == '一起玩AA'
+          ? ('已确认', '预订已确认，卡座将在营业日前一天揭晓')
+          : ('已支付', '支付已确认，商品将按 ${order.table} 安排出品'),
+    CommerceOrderStatus.cancelled => ('已取消', '订单已经取消，无法继续支付'),
+  };
+  return _OrderDetailPresentation(
+    type: order.type,
+    title: order.title,
+    table: order.table,
+    createdAt: order.createdAt.toString(),
+    statusLabel: status.$1,
+    statusHint: status.$2,
+    statusColor: order.status == CommerceOrderStatus.confirmed
+        ? const Color(0xFF72DDB2)
+        : const Color(0xFFFFB400),
+    items: order.items
+        .map(
+          (item) => _FakeOrderLine(
+            name: item.name,
+            spec: item.detail,
+            unitPrice: item.unitPrice,
+            quantity: item.quantity,
+            asset: item.asset,
+          ),
+        )
+        .toList(),
+    originalAmount: order.subtotal,
+    discount: order.discount,
+    priceAdjustment: order.priceAdjustment,
+    paidAmount: order.amountDue,
+    refundAmount: 0,
+    timeline: [
+      if (order.status != CommerceOrderStatus.awaitingPayment)
+        (status.$1, '最新状态'),
+      ('订单已创建', order.createdAt.toString().substring(11, 16)),
+    ],
+    canPay: {
+      CommerceOrderStatus.awaitingPayment,
+      CommerceOrderStatus.paymentPending,
+    }.contains(order.status),
+    canCancel: order.status == CommerceOrderStatus.awaitingPayment,
+  );
 }
 
 const _scanItems = <_FakeOrderLine>[
@@ -1245,15 +1363,19 @@ const _unknownPresentation = _OrderDetailPresentation(
 
 OrderDetailScenario _scenarioForRef(FakeOrderRef ref) {
   final id = ref.opaqueId;
-  if (id.contains('scan-888-paid')) return OrderDetailScenario.scanConfirmed;
-  if (id.contains('aa-v5-paid')) return OrderDetailScenario.aaConfirmed;
-  if (id.contains('vip-a6')) return OrderDetailScenario.confirmed;
-  if (id.contains('aa-v2')) return OrderDetailScenario.completed;
-  if (id.contains('fruit')) return OrderDetailScenario.refunding;
-  if (id.contains('vip-c3')) return OrderDetailScenario.cancelled;
-  if (id.contains('aa-b5')) return OrderDetailScenario.refunded;
-  if (id.contains('unknown')) return OrderDetailScenario.unknownStatus;
-  return OrderDetailScenario.awaitingPayment;
+  if (id == 'order-scan-888-paid-0829') {
+    return OrderDetailScenario.scanConfirmed;
+  }
+  if (RegExp(r'^order-aa-v5-paid-r[0-7]-0829$').hasMatch(id)) {
+    return OrderDetailScenario.aaConfirmed;
+  }
+  if (id == 'order-vip-a6-0828') return OrderDetailScenario.confirmed;
+  if (id == 'order-aa-v2-0826') return OrderDetailScenario.completed;
+  if (id == 'order-scan-fruit-0825') return OrderDetailScenario.refunding;
+  if (id == 'order-vip-c3-0823') return OrderDetailScenario.cancelled;
+  if (id == 'order-aa-b5-0818') return OrderDetailScenario.refunded;
+  if (id == 'order-unknown-0827') return OrderDetailScenario.unknownStatus;
+  return OrderDetailScenario.invalidRef;
 }
 
 String _scenarioLabel(OrderDetailScenario scenario) => switch (scenario) {

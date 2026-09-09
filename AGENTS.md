@@ -1,5 +1,33 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-10 碎片需求与首版照片方案（最新）
+
+- 用户要求持续记录/整理碎片需求。先读 `docs/product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md`；本批 22 条，PR 主表扩为 41 项，后续追加保留稳定编号与变更来源。
+- 用户最新明确：实名核身第一版不做，沿用旧照片上传接口的方法。以旧 `/kingclub/registrationPhotoUpload` 暂存令牌及后续检测/评分/审核链为原型；CCSOP 迁移方向和安全边界不变。首发不接核身 SDK/权威库，不将供应商开通作为首发依赖，不把照片审核标为 KYC verified。
+- 全局媒体压缩、微信式聊天与业务扩展、中央抖音式内容/创作、自研原生美颜、游戏大厅（《夜幕协议》《修仙世界》入口）、储物券/道具、抖音式我的、扫码点单及 App 授权管理员能力均已明确提出。不可再用旧“暂缓/移出 App”将其从完整产品排除。
+- 中央已是内容目的地，扫码是独立快捷入口；部分早期“中央扫码”文字是历史，不据此回退 Shell。
+- 腾讯核身调研仅后续参考；颜值自建与美颜分别验证，未达标不替换旧付费评分。开源/媒体候选及边界见 `MEDIA_AND_FACE_RESEARCH.md`，不得声称所有文件绝对无损大幅压缩或零总成本。
+- 本次为需求文档更新；首版范围方向确认不等于新页面详细规格、UI Flow Approved、真实接口/SDK或生产切换批准。原实名页/状态机的历史 KYC 前置需重审，不照旧文档接服务，不擅自删路由。
+
+## 2026-09-09 产品重整与服务迁移（当前任务）
+
+- 主仓库仍为 `D:\WEB3_AI\KINGCLUB-APP-V2`，不要在 IDE 默认的旧小程序仓库写 App 改动。
+- 用户新增参考：旧 Java `D:\2026-ZHUZHOU\SERVICES\wuyexin-service\wuyexin`、新服务 `D:\2026-ZHUZHOU\SERVICES\ccsop-service`、混合 SQL `D:\2026-ZHUZHOU\物业信数据库\nuggets-结构+数据.sql`。本轮旧资料只读；不要把目录名当作当前线上版本证明。
+- 用户确认 SQL 是多网站混包，KING CLUB 业务表只按 `k_` / `K_` 前缀认定。以 `s_interface.interfaceType -> s_interface_type.typeId/parentId` 的酒吧分类和接口/Routine 依赖交叉核对。非 k_ 表只登记公共依赖，不默认迁移其他网站数据。
+- 用户允许重构旧手工代码和存储过程，旧版用于还原有效业务、历史数据与 UI，不是必须照搬的内部架构模板。UI 99% 类似是待验收目标，不得宣称现已达到。
+- 当前先交付产品、架构、迁移和 ROADMAP 文档供用户检阅；本轮新增方案保持 In Review。不得把“完成产品”的长期目标解读为已批准数据库切换、生产部署或真实客户端接入。
+- 除下方历史必读文件，开始产品/架构/迁移任务还须读 `docs/product/2026-09-09-native-product-review/README.md` 及其中的 SOURCE_BASELINE、PRODUCT_REQUIREMENTS、ARCHITECTURE、DATA_AND_API_MIGRATION、UI_AND_PERFORMANCE、ROADMAP。
+- 原 48 页 UI/Mock 批准继续有效；完整群聊、发布/音乐和真实赠送重新进入需求评审，未自动扩为首发。根交付账本仍是唯一 UI Flow Approved 状态来源。
+- 新服务目前为 `business/kingclub-v2 / d9929ff`，有用户 `.gitignore` 改动；任何实际新服务修改前重查 Git 并遵守该仓库 AGENTS 的 migration/对象登记规则。已执行 migration 不回改。
+- 旧服务目录与小程序后续文档存在版本不匹配；源码在线版本与最终 SQL 补丁待确认，禁止重置、删除 `._` 文件或擅自部署来试验。
+
+## 2026-09-09 本机工作目录与新增参考基线
+
+- 主工作仓库：`D:\WEB3_AI\KINGCLUB-APP-V2`。不得因 IDE 工作目录指向旧仓库而把改动写入旧仓库。
+- 用户指定新增参考：`D:\WEB3_AI\KingClub-git`，本次核实为 `master / 9299208 / 1.1.38`，工作区干净。之后每轮仍须重新检查状态，不得假定一直不变。
+- 下文 `505d222 / 1.1.37` 和 Poplar 机器路径是历史迁移基线，不能据此把当前小程序回退。新旧差异见 `docs/audits/2026-09-09-miniprogram-alignment.md`。
+- 参考小程序仍只读；本轮用户同意整改不等于批准全局 `UI Flow Approved` 或生产服务接入。
+
 开始任何分析、设计或代码工作前，必须完整阅读：
 
 1. `docs/migration/README.md`

@@ -1,5 +1,7 @@
 # App Shell 与全局信息架构
 
+> 2026-09-10 产品扩展：[新需求台账](../../../product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)要求中央内容增加创作/原生美颜/游戏大厅，储物箱增加券/道具，App 提供授权管理员能力。五目的地和独立扫码入口保持；下方“只读/禁止发布/管理移出 App”是历史版本，不覆盖新方向。具体入口/角色布局待 W11/W13 规格评审，本轮不改旧审批或创建新 UI。
+
 - Scope ID：`KC-F-007`
 - 文档状态：`Approved for Development`
 - 所属业务域：`foundation`

@@ -156,7 +156,7 @@ void main() {
     expect(find.text('状态更新中'), findsOneWidget);
   });
 
-  testWidgets('下拉刷新权威替换首屏状态', (tester) async {
+  testWidgets('下拉刷新保持共享订单状态，不伪造支付确认', (tester) async {
     await tester.pumpWidget(subject());
     unawaited(
       tester.state<RefreshIndicatorState>(find.byType(RefreshIndicator)).show(),
@@ -166,7 +166,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.text('支付确认中'), findsOneWidget);
+    expect(find.text('支付确认中'), findsNothing);
+    expect(find.text('待支付'), findsNWidgets(2));
   });
 
   testWidgets('全部为空可通过正式入口返回首页', (tester) async {

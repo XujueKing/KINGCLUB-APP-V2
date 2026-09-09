@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../commerce/data/fake_commerce_repository.dart';
+
 import 'aa_mock_models.dart';
 import 'aa_package_detail_page.dart';
 import 'aa_positioning_card_page.dart';
@@ -22,12 +24,14 @@ class AaReservationsPage extends StatefulWidget {
     this.onSessionResetRequested,
     this.onOpenAdmissionTicket,
     this.initialScenario = AaLandingScenario.available,
+    this.repository,
   });
 
   final VoidCallback onBack;
   final VoidCallback? onSessionResetRequested;
   final VoidCallback? onOpenAdmissionTicket;
   final AaLandingScenario initialScenario;
+  final FakeCommerceRepository? repository;
 
   @override
   State<AaReservationsPage> createState() => _AaReservationsPageState();
@@ -119,6 +123,7 @@ class _AaReservationsPageState extends State<AaReservationsPage> {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => AaPackageDetailPage(
+          repository: widget.repository,
           package: item,
           serviceDate: LegacyDateStrip.dates[_selectedDate].$2,
           onSessionResetRequested: widget.onSessionResetRequested,

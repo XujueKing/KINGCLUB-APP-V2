@@ -1,5 +1,7 @@
 # KINGCLUB APP V2 目标架构
 
+> 历史方向讨论。2026-09-09 当前方案见[现代化架构评审](../product/2026-09-09-native-product-review/ARCHITECTURE.md)：沿用 Flutter、CCSOP K 接口、U...统一账号与独立 KingClub 库。下面的多 schema、personId/REST 等早期候选不是已实施或待自动执行的决定。旧代码/存储过程允许重构，新建议需评审。
+
 ## 总体结构
 
 ```text

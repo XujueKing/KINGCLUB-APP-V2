@@ -3,28 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../club/presentation/legacy_club_components.dart';
+import '../data/fake_commerce_repository.dart';
 import 'order_center_page.dart';
 
 class FakePaymentIntentRef {
   const FakePaymentIntentRef(this.opaqueId);
 
   final String opaqueId;
-}
-
-class _FakePaymentFixture {
-  const _FakePaymentFixture({
-    required this.title,
-    required this.subtitle,
-    required this.amountDue,
-    required this.pendingOrderRef,
-    required this.paidOrderRef,
-  });
-
-  final String title;
-  final String subtitle;
-  final int amountDue;
-  final String pendingOrderRef;
-  final String paidOrderRef;
 }
 
 class FakePaymentAttemptRef {
@@ -73,6 +58,7 @@ class PaymentResultPage extends StatefulWidget {
     this.onSessionResetRequested,
     this.onAttemptCreated,
     this.initialScenario = PaymentResultScenario.normalSuccess,
+    this.repository,
   });
 
   final FakePaymentIntentRef intentRef;
@@ -81,6 +67,7 @@ class PaymentResultPage extends StatefulWidget {
   final VoidCallback? onSessionResetRequested;
   final ValueChanged<FakePaymentAttemptRef>? onAttemptCreated;
   final PaymentResultScenario initialScenario;
+  final FakeCommerceRepository? repository;
 
   @override
   State<PaymentResultPage> createState() => _PaymentResultPageState();
@@ -91,7 +78,8 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
   late PaymentResultStage _stage;
   FakePaymentAttemptRef? _attemptRef;
   bool _methodAvailable = true;
-  int _attemptCount = 0;
+  late final FakeCommerceRepository _repository;
+  late final int _generation;
 
   bool get _busy => {
     PaymentResultStage.creatingAttempt,
@@ -99,20 +87,50 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
     PaymentResultStage.verifying,
   }.contains(_stage);
 
-  bool get _zeroAmount => _scenario == PaymentResultScenario.zeroAmount;
-  _FakePaymentFixture get _fixture => _paymentFixture(widget.intentRef);
-  int get _amountDue => _zeroAmount ? 0 : _fixture.amountDue;
+  bool get _zeroAmount =>
+      _scenario == PaymentResultScenario.zeroAmount || _order?.amountDue == 0;
+  CommerceOrder? get _order => _repository.payment(widget.intentRef.opaqueId);
+  int get _amountDue => _zeroAmount ? 0 : _order?.amountDue ?? 0;
 
   @override
   void initState() {
     super.initState();
+    _repository = widget.repository ?? FakeCommerceRepository();
+    _generation = _repository.generation;
     _scenario = widget.initialScenario;
     _stage = _initialStage(_scenario);
+    _syncOrderState();
+    _repository.addListener(_onOrderChanged);
     _methodAvailable = _scenario != PaymentResultScenario.methodUnavailable;
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_order == null) {
+      return LegacyClubScaffold(
+        title: '支付',
+        onBack: widget.onClose,
+        showMockLabel: false,
+        child: _CenteredPaymentState(
+          key: const ValueKey('payment-invalid-intent'),
+          visual: const Icon(
+            Icons.receipt_long_outlined,
+            color: legacyGold,
+            size: 48,
+          ),
+          title: '无法继续支付',
+          subtitle: '支付信息不存在或已失效，请返回订单中心重新查看',
+          footer: 'SHANGHAI · ZHUZHOU',
+          actions: [
+            _ResultButton(
+              label: '返回订单中心',
+              primary: true,
+              onPressed: widget.onClose,
+            ),
+          ],
+        ),
+      );
+    }
     return PopScope(
       canPop: !_busy,
       onPopInvokedWithResult: (didPop, _) {
@@ -175,7 +193,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _fixture.title,
+                  _order!.title,
                   style: const TextStyle(
                     color: Color(0xFFE8DED1),
                     fontSize: 16,
@@ -184,7 +202,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
                 ),
                 const SizedBox(height: 7),
                 Text(
-                  _fixture.subtitle,
+                  _order!.summary,
                   style: const TextStyle(
                     color: Color(0xFF9B9085),
                     fontSize: 12,
@@ -461,18 +479,28 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
 
   Future<void> _startPayment() async {
     if (_busy || _stage != PaymentResultStage.ready) return;
+    if (_order?.status != CommerceOrderStatus.awaitingPayment) {
+      setState(_syncOrderState);
+      return;
+    }
     if (_zeroAmount) {
       setState(() => _stage = PaymentResultStage.verifying);
       await Future<void>.delayed(const Duration(milliseconds: 650));
       if (!mounted) return;
-      setState(() => _stage = PaymentResultStage.succeeded);
+      _applyOutcome(PaymentResultStage.succeeded);
+      return;
+    }
+    if (!_repository.beginPayment(
+      widget.intentRef.opaqueId,
+      expectedGeneration: _generation,
+    )) {
+      setState(_syncOrderState);
       return;
     }
     setState(() {
       _stage = PaymentResultStage.creatingAttempt;
-      _attemptCount += 1;
       _attemptRef = FakePaymentAttemptRef(
-        'attempt-${widget.intentRef.opaqueId}-$_attemptCount',
+        'attempt-${widget.intentRef.opaqueId}-${_repository.newRequestKey()}',
       );
     });
     widget.onAttemptCreated?.call(_attemptRef!);
@@ -484,7 +512,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
     setState(() => _stage = PaymentResultStage.verifying);
     await Future<void>.delayed(const Duration(milliseconds: 620));
     if (!mounted) return;
-    setState(() => _stage = _providerOutcome(_scenario));
+    _applyOutcome(_providerOutcome(_scenario));
   }
 
   Future<void> _safeRetry() async {
@@ -498,11 +526,11 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
     setState(() => _stage = PaymentResultStage.verifying);
     await Future<void>.delayed(const Duration(milliseconds: 620));
     if (!mounted) return;
-    setState(() {
-      _stage = _scenario == PaymentResultScenario.lateSuccess
+    _applyOutcome(
+      _scenario == PaymentResultScenario.lateSuccess
           ? PaymentResultStage.succeeded
-          : PaymentResultStage.pending;
-    });
+          : PaymentResultStage.pending,
+    );
   }
 
   void _recoverNetwork() {
@@ -510,9 +538,9 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
   }
 
   void _openOrder() {
-    final orderRef = _stage == PaymentResultStage.succeeded
-        ? FakeOrderRef(_fixture.paidOrderRef)
-        : FakeOrderRef(_fixture.pendingOrderRef);
+    final order = _order;
+    if (order == null) return;
+    final orderRef = FakeOrderRef(order.id);
     if (widget.onOpenOrder case final callback?) {
       callback(orderRef);
     } else {
@@ -526,6 +554,69 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
     } else {
       widget.onClose();
     }
+  }
+
+  void _syncOrderState() {
+    switch (_order?.status) {
+      case CommerceOrderStatus.confirmed:
+        _stage = PaymentResultStage.succeeded;
+      case CommerceOrderStatus.cancelled:
+        _stage = PaymentResultStage.orderStateChanged;
+      case CommerceOrderStatus.paymentPending:
+        _stage = PaymentResultStage.pending;
+      default:
+        break;
+    }
+  }
+
+  void _onOrderChanged() {
+    if (mounted) setState(_syncOrderState);
+  }
+
+  void _applyOutcome(PaymentResultStage outcome) {
+    if (_repository.generation != _generation || _order == null) {
+      setState(() => _stage = PaymentResultStage.sessionInvalid);
+      return;
+    }
+    if (outcome == PaymentResultStage.cancelled ||
+        outcome == PaymentResultStage.failed) {
+      _repository.releasePayment(
+        widget.intentRef.opaqueId,
+        expectedGeneration: _generation,
+      );
+    }
+    if (outcome == PaymentResultStage.succeeded &&
+        _amountDue == _order!.amountDue) {
+      if (!_repository.confirmPayment(
+        widget.intentRef.opaqueId,
+        expectedGeneration: _generation,
+      )) {
+        outcome = PaymentResultStage.orderStateChanged;
+      }
+    } else if (outcome == PaymentResultStage.pending) {
+      if (!_repository.markPaymentPending(
+        widget.intentRef.opaqueId,
+        expectedGeneration: _generation,
+      )) {
+        outcome = _order?.status == CommerceOrderStatus.confirmed
+            ? PaymentResultStage.succeeded
+            : PaymentResultStage.orderStateChanged;
+      }
+    }
+    // A late provider failure/cancel cannot override a newer confirmed result.
+    if (_order?.status == CommerceOrderStatus.confirmed) {
+      outcome = PaymentResultStage.succeeded;
+    } else if (_order?.status == CommerceOrderStatus.cancelled) {
+      outcome = PaymentResultStage.orderStateChanged;
+    }
+    setState(() => _stage = outcome);
+  }
+
+  @override
+  void dispose() {
+    _repository.removeListener(_onOrderChanged);
+    if (widget.repository == null) _repository.dispose();
+    super.dispose();
   }
 
   void _showBusyExitDialog() {
@@ -574,7 +665,6 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
                     _scenario = scenario;
                     _stage = _initialStage(scenario);
                     _attemptRef = null;
-                    _attemptCount = 0;
                     _methodAvailable =
                         scenario != PaymentResultScenario.methodUnavailable;
                   });
@@ -878,29 +968,3 @@ String _scenarioLabel(PaymentResultScenario scenario) => switch (scenario) {
   PaymentResultScenario.sessionInvalid => '会话失效',
   PaymentResultScenario.zeroAmount => '0 元订单',
 };
-
-_FakePaymentFixture _paymentFixture(FakePaymentIntentRef intentRef) {
-  final aaMatch = RegExp(r'^payment-intent-aa-v5-r([0-7])$')
-      .firstMatch(intentRef.opaqueId);
-  if (aaMatch != null) {
-    final mask = int.parse(aaMatch.group(1)!);
-    final deduction =
-        (mask & 1 != 0 ? 20 : 0) +
-        (mask & 2 != 0 ? 8 : 0) +
-        (mask & 4 != 0 ? 20 : 0);
-    return _FakePaymentFixture(
-      title: 'KING CLUB AA预订',
-      subtitle: '随机卡座·待揭晓 · 3880卡座套餐',
-      amountDue: 268 - deduction,
-      pendingOrderRef: 'order-aa-v5-pending-r$mask-0829',
-      paidOrderRef: 'order-aa-v5-paid-r$mask-0829',
-    );
-  }
-  return const _FakePaymentFixture(
-    title: 'KINGBAR 湖南工大店',
-    subtitle: '888号桌 · 轩尼诗XO、芝华士12年',
-    amountDue: 3680,
-    pendingOrderRef: 'order-scan-v8-0827',
-    paidOrderRef: 'order-scan-888-paid-0829',
-  );
-}

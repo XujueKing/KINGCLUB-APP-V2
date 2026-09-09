@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../commerce/data/fake_commerce_repository.dart';
+
 import 'aa_mock_models.dart';
 import 'aa_order_confirmation_page.dart';
 import 'legacy_club_components.dart';
@@ -24,11 +26,13 @@ class AaPackageDetailPage extends StatefulWidget {
     required this.package,
     required this.serviceDate,
     this.onSessionResetRequested,
+    this.repository,
   });
 
   final AaMockPackage package;
   final String serviceDate;
   final VoidCallback? onSessionResetRequested;
+  final FakeCommerceRepository? repository;
 
   @override
   State<AaPackageDetailPage> createState() => _AaPackageDetailPageState();
@@ -206,6 +210,7 @@ class _AaPackageDetailPageState extends State<AaPackageDetailPage> {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => AaOrderConfirmationPage(
+          repository: widget.repository,
           package: _displayPackage,
           serviceDate: widget.serviceDate,
           onSessionResetRequested: widget.onSessionResetRequested,
@@ -377,7 +382,7 @@ class _PackageBottomBar extends StatelessWidget {
         ? 138.0
         : 104.0;
     return Container(
-      height: 102,
+      constraints: const BoxConstraints(minHeight: 102),
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 12, 18, 12),
       decoration: const BoxDecoration(
@@ -392,6 +397,7 @@ class _PackageBottomBar extends StatelessWidget {
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text.rich(

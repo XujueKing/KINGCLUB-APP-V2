@@ -1,5 +1,7 @@
 # 会员注册、资料初始化与准入
 
+> 2026-09-10 用户范围变更：首版不做实名核身，沿用旧照片上传接口的方法，见[最新决定 RQ-22](../../../product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)。下方及本目录的实名 SDK/KYC 前置为历史批准规格，需随 W10 重审；不得据此接核身或将照片审核置为 KYC verified。上传/检测/颜值/会员审核保留，新分数展示与自建替代条件待审。本轮仅登记变更，未批准或实现新页面契约。
+
 - Scope ID：`KC-F-011`
 - 文档状态：`Approved for Development`
 - 所属业务域：`identity`

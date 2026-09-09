@@ -65,7 +65,7 @@ void main() {
 
     expect(find.text('支付'), findsOneWidget);
     expect(find.text('KING CLUB AA预订'), findsOneWidget);
-    expect(find.textContaining('随机卡座·待揭晓'), findsOneWidget);
+    expect(find.textContaining('卡座待揭晓'), findsOneWidget);
     expect(find.textContaining('V5'), findsNothing);
     expect(find.text('¥248.00'), findsOneWidget);
     expect(find.textContaining('Fake'), findsNothing);

@@ -1,5 +1,7 @@
 # KINGCLUB APP V2 迁移交接包
 
+**2026-09-09 当前迁移评审**：[产品与迁移评审包](../product/2026-09-09-native-product-review/README.md)已核对本机五份资料及用户新要求。混包只将 k_/K_ 表作为 KING CLUB 业务来源，通过 s_interface 酒吧分类与依赖交叉核对；不导入整库。下方 Poplar 路径、505d222 与早期 personId/多库方向属于历史，当前基线见新包。当前只交付文档待检阅，不执行迁移。
+
 更新时间：2026-08-24  
 维护人：poplar `<3156506895@qq.com>`
 

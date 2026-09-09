@@ -89,7 +89,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('order-submit')));
     await tester.pump(const Duration(milliseconds: 650));
 
-    expect(result?.orderRef, 'fake-order-v8-0827');
+    expect(result?.orderRef, startsWith('order-scan-'));
+    expect(result?.paymentIntentId, 'payment-intent-${result?.orderRef}');
     expect(result?.amountDue, 1156);
   });
 
@@ -139,7 +140,7 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('order-reconcile')));
     await tester.pump(const Duration(milliseconds: 700));
-    expect(result?.orderRef, 'fake-order-v8-0827');
+    expect(result?.orderRef, startsWith('order-scan-'));
   });
 
   testWidgets('返回修改保留强类型出口', (tester) async {

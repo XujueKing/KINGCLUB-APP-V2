@@ -1,5 +1,11 @@
 # KINGCLUB APP V2 Roadmap
 
+**2026-09-10 最新范围**：新增 W09～W13 覆盖媒体、旧照片准入/颜值/美颜、内容/游戏、储物权益和 App 管理；实名核身首版明确不做，不作为首发依赖。详见[最新 ROADMAP](../product/2026-09-09-native-product-review/ROADMAP.md)及[需求台账](../product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)。下方原 48 页阶段批准不自动覆盖新增规格。
+
+## 2026-09-09 当前路线评审
+
+用户要求完成原生产品并先检阅全量需求。最新 [ROADMAP（R0～R7）](../product/2026-09-09-native-product-review/ROADMAP.md) 已补齐新旧服务、k_ 业务数据迁移、旧端共存、现代化重构、UI 保真与生产验收，当前 In Review。本文件下方 Stage/M0～M5 保留原批准基线；`28/48` 等旧进度不是当前事实，新范围不能自动视为已批准。
+
 Roadmap 按可验证结果划分，不以页面数量或代码量作为完成标准。具体排期必须在团队规模、API 现状和 MVP 范围确认后制定。
 
 ## Stage 0：本期范围与资产基线
