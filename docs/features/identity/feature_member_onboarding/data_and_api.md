@@ -1,6 +1,6 @@
 # 数据、Repository 与待建接口契约
 
-> 2026-09-10 修订待审：用户已排除首版实名核身，采用旧 `registrationPhotoUpload` 照片上传方法；[RQ-22](../../../product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)优先于下方历史身份核验 port。R1 对齐上传暂存令牌与后续检测/评分/审核，再形成 CCSOP 契约/兼容路径；“不复用旧接口”不能解释为不准沿用用户指定照片业务方法，但也不得复制旧共享鉴权。首版不调用 start/completeIdentityVerification 或写伪造 KYC verified；旧真实接入门禁不变。
+> 2026-09-10 最新澄清：保留后台腾讯照片实名认证，不接新增 App 活体 SDK；旧 `registrationPhotoUpload → isUnderageApi/ImageRecognition → imageScoreApi/DetectFaceAttributes` 已核对。见[正式 adapter 边界与申请契约建议](2026-09-10-tencent-adapter-review.md)。新端需照片核验提交/结果查询、两图评分/审核快照，不照搬 SDK start/complete 语义；具体 DTO/K 编号尚未冻结。本模块独立 UI 验收后可接隔离测试，目前尚未通过验收。
 
 - 文档状态：`Approved for Development`
 - 契约性质：UI Mock 的批准候选；真实 K 接口尚未编号、登记或实现
@@ -43,7 +43,7 @@ OnboardingRepository
   getReviewStatus()
 ```
 
-UI Mock 使用 FakeOnboardingRepository、FakeIdentityVerification 和 FakeMediaPicker。真实 adapter 只能在项目达到 `UI Flow Approved` 后加入。
+UI Mock 当前由 keepAlive `MockRuntime` 持有共享 `MockOnboardingSnapshot`，覆盖 identityVerified、selfie/portrait/outfit 槽位、reviewStatus 与更新时间；页面不再用本地审核按钮直接授权。后续正式重构仍以 `OnboardingRepository` port 替换 MockRuntime，不能让页面依赖腾讯 DTO。真实 adapter 在本模块独立 UI 验收通过并满足正式契约/安全前置后可接隔离测试；其他模块全局门禁不变。
 
 ## 3. 当前建议的服务端语义
 
@@ -54,7 +54,7 @@ UI Mock 使用 FakeOnboardingRepository、FakeIdentityVerification 和 FakeMedia
 | `membership.media.intent/commit/remove` | session | 受控 MIME/大小/槽位；隔离对象存储；内容扫描 |
 | `membership.preferences.catalog/save` | session | 只收 enabled optionId；乐观版本冲突 |
 | `membership.application.submit` | session | 幂等、服务端验证完整性、原子建立审核申请 |
-| `membership.review.get` | session | 只返回稳定原因分类和允许动作，不返回模型分数 |
+| `membership.review.get` | session | 返回当前申请版本、状态、稳定原因、允许动作/重传策略；支持低分待审文案，具体数字分是否返回待规则批准 |
 
 正式 interfaceId、请求字段、错误码、上传供应商与 OpenAPI 必须由后端工作包另行评审，不能复用旧 `S231202502210648`、`isFaceVerificationApi` 或 `imageScoreApi`。
 

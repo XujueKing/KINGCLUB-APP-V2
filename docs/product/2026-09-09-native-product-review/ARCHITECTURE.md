@@ -4,7 +4,7 @@
 - 已确认用户方向：旧版作为原型和业务证据，允许重构代码及存储过程；延续 UI 不等于延续内部架构。
 - 目标：可靠、响应快、可测试、可观察、可逐域交付。不存在未经压测就能保证“更先进、零卡顿”的技术选型。
 
-**2026-09-10 用户方向更新**：[需求台账](REQUIREMENT_INBOX.md)新增全局媒体、微信式聊天扩展、原生美颜、游戏大厅/两款游戏入口、储物券/道具、App 管理能力。**实名核身首版不做，沿用旧照片上传接口方法**；下述新增设计为建议，非已实现。
+**2026-09-10 最新方向**：[需求台账 RQ-23～25](REQUIREMENT_INBOX.md)确认先做注册准入，**保留腾讯照片实名认证，不接新增 App 活体核身 SDK**；此前“不接权威库”的解释已纠正。本模块独立 UI 验收后可接隔离测试环境，尚未验收；下述新增设计是建议，非已实现。
 
 ## 1. 保留与改变
 
@@ -40,7 +40,7 @@
 
 | 领域 | 唯一事实与业务职责 | 对外端口 / 事件 |
 |---|---|---|
-| identity/member | 统一账号投影、旧方式照片上传/检测、会员申请/审核与有效资格；KYC 状态独立 | session/member snapshot；membership.changed；首版不接实名核身 |
+| identity/member | 统一账号投影、腾讯照片实名、两图评分、会员申请/审核与有效资格；实名、活体、会员状态独立 | session/member snapshot；membership.changed；不新增 App 活体 SDK |
 | social | 好友/关注/黑名单及可见性 | relationships queries/commands；relationship.changed |
 | messaging | 会话成员、持久消息、序号、已读/投递、治理 | history/send/ack/sync；message.committed |
 | content/media | 作品、评论、可见性、草稿提交、上传/处理/审核 | feed/publish/status；media.ready、work.published |
@@ -124,7 +124,7 @@
 - 表/Routine/接口及分类登记与递增 migration 同批提交；不修改已经执行过的 001～022，后续编号需开工时重新核对，本文不预占编号。
 - 变更采用扩展→回填→兼容读取→切换→收缩；新旧 App 混合运行期间版本兼容经过契约测试。
 - 开发、测试、预发布、生产配置与凭据分离，敏感日志默认拒绝；审计保存必要 actor/action/object/result，不保存消息/证件/支付响应全文。
-- 按领域放量和回滚；启用真实 adapter 需要全局 UI 验收及隔离环境集成验证，生产切换另行确认。
+- 按领域放量和回滚；注册登录模块获独立 UI 验收后可先接隔离测试，其他模块仍需全局 UI 验收。正式 adapter 的安全/契约前置不能跳过，生产切换另行确认。
 
 ## 7. 架构验收
 
@@ -134,11 +134,13 @@
 
 ## 8. 09-10 新需求的架构影响（当前建议）
 
-### 首版照片准入，不接实名核身
+### 首版腾讯照片实名与颜值准入，不新增活体 SDK
 
 沿用 `/kingclub/registrationPhotoUpload` 的上传/暂存令牌业务方法，迁到 CCSOP 的可信会话及受控媒体链；后续检测/评分/会员审核以匹配旧版的契约重建。令牌绑定 actor、imageType/用途、有效期与消费状态；校验真实 MIME、大小/像素、归属和重放。是否保留旧兼容路径在 R1 冻结，不让 Flutter 复制旧共享 Basic 凭据。
 
-建议 `RegistrationPhotoPort`、`AppearanceAssessmentPort`、`BeautyEffectsPort` 分开。真实实名核身 port 如已有设计只留后续扩展，不在首版装配 SDK、发起权威核身或阻塞注册。照片已上传、检测/评分结果、会员审核、KYC 分别建模；会员通过不得自动把 U...身份投影改为 KYC verified，也不覆盖历史可信证据。
+建议 `RegistrationPhotoPort`、`PhotoIdentityVerificationPort`、`AppearanceAssessmentPort`、`BeautyEffectsPort` 分开。后台正式 `TencentPhotoIdentityAdapter` 优先评估 `ImageRecognitionV2`，`TencentAppearanceAdapter` 使用 `DetectFaceAttributes`；业务准入规则在版本化 AdmissionPolicy，不塞进供应商 adapter。官方服务端 SDK 不等于新增 App 活体 SDK，密钥不进入 Flutter。
+
+照片上传、实名结果、活体证据、颜值评估、会员审核分别建模；会员通过不能反向把 U...身份投影伪造为 KYC verified。已确认的真实照片核验结果只有满足身份权威契约和可信证据要求才可同步，Mock 固定成功不能用于生产。新 CCSOP 目前只有 MockIdentityAdapter，旧 ImageRecognition 已停止新接入，详见[源码/官方核查与重构边界](../../features/identity/feature_member_onboarding/2026-09-10-tencent-adapter-review.md)。
 
 自建颜值模型先隔离验证，保留算法来源/版本/评分尺度、不可评分状态与复核，未达标不替换既有腾讯评分。任何有准入后果的评分以受控服务端结果为准，不能信任手机上报分数；美颜与准入素材分离。详见[技术调研](MEDIA_AND_FACE_RESEARCH.md)。
 

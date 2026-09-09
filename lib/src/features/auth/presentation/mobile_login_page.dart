@@ -11,10 +11,12 @@ class MobileLoginPage extends ConsumerStatefulWidget {
     super.key,
     required this.onBack,
     required this.onVerified,
+    this.onAuthenticatedMember,
   });
 
   final VoidCallback onBack;
   final ValueChanged<String> onVerified;
+  final VoidCallback? onAuthenticatedMember;
 
   @override
   ConsumerState<MobileLoginPage> createState() => _MobileLoginPageState();
@@ -111,8 +113,14 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
     if (!mounted) return;
     switch (outcome) {
       case CodeVerificationOutcome.verified:
-        final onboardingId = ref.read(mockRuntimeProvider).startOnboarding();
-        widget.onVerified(onboardingId);
+        final runtime = ref.read(mockRuntimeProvider);
+        final onboardingId = runtime.startOnboarding(loginFlowId: _flow!.id);
+        if (runtime.canEnterApp(onboardingId) &&
+            widget.onAuthenticatedMember != null) {
+          widget.onAuthenticatedMember!();
+        } else {
+          widget.onVerified(onboardingId);
+        }
       case CodeVerificationOutcome.invalid:
         _codeController.clear();
         setState(() {

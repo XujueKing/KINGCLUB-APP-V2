@@ -10,7 +10,30 @@ enum SmsRequestFailure { rateLimited, offline }
 
 enum CodeVerificationOutcome { verified, invalid, expired, outcomeUnknown }
 
-enum ReviewStatus { pending, changesRequired, approved, rejected }
+enum ReviewStatus {
+  pending,
+  appearanceReview,
+  changesRequired,
+  approved,
+  rejected,
+}
+
+enum PhotoIdentityOutcome {
+  verifiedAdult,
+  identityMismatch,
+  ageRestricted,
+  retryableFailure,
+  outcomeUnknown,
+}
+
+enum AppearanceAssessmentOutcome {
+  qualified,
+  manualReview,
+  changesRequired,
+  outcomeUnknown,
+}
+
+enum RegistrationPhotoSlot { selfie, portrait, outfit }
 
 class MockSmsRequestException implements Exception {
   const MockSmsRequestException(this.failure);
@@ -32,11 +55,54 @@ class LoginFlowSnapshot {
   final DateTime resendAt;
 }
 
+class MockOnboardingSnapshot {
+  const MockOnboardingSnapshot({
+    required this.id,
+    this.identityVerified = false,
+    this.photoSlots = const <RegistrationPhotoSlot>{},
+    this.reviewStatus = ReviewStatus.pending,
+    this.reviewUpdatedAt,
+  });
+
+  final String id;
+  final bool identityVerified;
+  final Set<RegistrationPhotoSlot> photoSlots;
+  final ReviewStatus reviewStatus;
+  final DateTime? reviewUpdatedAt;
+
+  bool get hasBothMemberPhotos =>
+      photoSlots.contains(RegistrationPhotoSlot.portrait) &&
+      photoSlots.contains(RegistrationPhotoSlot.outfit);
+
+  MockOnboardingSnapshot copyWith({
+    bool? identityVerified,
+    Set<RegistrationPhotoSlot>? photoSlots,
+    ReviewStatus? reviewStatus,
+    DateTime? reviewUpdatedAt,
+  }) {
+    return MockOnboardingSnapshot(
+      id: id,
+      identityVerified: identityVerified ?? this.identityVerified,
+      photoSlots: Set<RegistrationPhotoSlot>.unmodifiable(
+        photoSlots ?? this.photoSlots,
+      ),
+      reviewStatus: reviewStatus ?? this.reviewStatus,
+      reviewUpdatedAt: reviewUpdatedAt ?? this.reviewUpdatedAt,
+    );
+  }
+}
+
 class MockRuntime {
   final Map<String, LoginFlowSnapshot> _flows = {};
-  final Set<String> _onboardingFlows = {};
+  final Map<String, String> _flowMobiles = {};
+  final Map<String, MockOnboardingSnapshot> _onboardingFlows = {};
+  final Set<String> _approvedMemberMobiles = {};
   int _flowSequence = 0;
   int _onboardingSequence = 0;
+  PhotoIdentityOutcome _nextIdentityOutcome =
+      PhotoIdentityOutcome.verifiedAdult;
+  AppearanceAssessmentOutcome _nextAppearanceOutcome =
+      AppearanceAssessmentOutcome.qualified;
 
   Future<BootstrapOutcome> bootstrap() async {
     await Future<void>.delayed(const Duration(milliseconds: 900));
@@ -60,6 +126,7 @@ class MockRuntime {
       resendAt: now.add(const Duration(seconds: 60)),
     );
     _flows[id] = flow;
+    _flowMobiles[id] = mobile;
     return flow;
   }
 
@@ -82,15 +149,125 @@ class MockRuntime {
     };
   }
 
-  void clearFlow(String id) => _flows.remove(id);
+  void clearFlow(String id) {
+    _flows.remove(id);
+    _flowMobiles.remove(id);
+  }
 
-  String startOnboarding() {
+  String startOnboarding({String? loginFlowId}) {
     final id = 'mock-onboarding-${++_onboardingSequence}';
-    _onboardingFlows.add(id);
+    final isExistingApprovedMember =
+        loginFlowId != null &&
+        _approvedMemberMobiles.contains(_flowMobiles[loginFlowId]);
+    _onboardingFlows[id] = MockOnboardingSnapshot(
+      id: id,
+      identityVerified: isExistingApprovedMember,
+      reviewStatus: isExistingApprovedMember
+          ? ReviewStatus.approved
+          : ReviewStatus.pending,
+      reviewUpdatedAt: isExistingApprovedMember ? DateTime.now() : null,
+    );
     return id;
   }
 
-  bool hasOnboardingFlow(String id) => _onboardingFlows.contains(id);
+  void seedApprovedMember(String mobile) {
+    _approvedMemberMobiles.add(mobile);
+  }
+
+  bool hasOnboardingFlow(String id) => _onboardingFlows.containsKey(id);
+
+  MockOnboardingSnapshot? onboardingSnapshot(String id) => _onboardingFlows[id];
+
+  void setNextIdentityOutcome(PhotoIdentityOutcome outcome) {
+    _nextIdentityOutcome = outcome;
+  }
+
+  Future<PhotoIdentityOutcome> submitPhotoIdentity({
+    required String flowId,
+    required String name,
+    required String identityNumber,
+  }) async {
+    await completeMockStep();
+    final current = _onboardingFlows[flowId];
+    if (current == null) return PhotoIdentityOutcome.outcomeUnknown;
+    final outcome = _nextIdentityOutcome;
+    _nextIdentityOutcome = PhotoIdentityOutcome.verifiedAdult;
+    if (outcome == PhotoIdentityOutcome.verifiedAdult) {
+      _onboardingFlows[flowId] = current.copyWith(
+        identityVerified: true,
+        photoSlots: {...current.photoSlots, RegistrationPhotoSlot.selfie},
+      );
+    }
+    return outcome;
+  }
+
+  Future<bool> stageRegistrationPhoto({
+    required String flowId,
+    required RegistrationPhotoSlot slot,
+  }) async {
+    await completeMockStep();
+    final current = _onboardingFlows[flowId];
+    if (current == null) return false;
+    _onboardingFlows[flowId] = current.copyWith(
+      photoSlots: {...current.photoSlots, slot},
+      reviewStatus: ReviewStatus.pending,
+      reviewUpdatedAt: DateTime.now(),
+    );
+    return true;
+  }
+
+  void setNextAppearanceOutcome(AppearanceAssessmentOutcome outcome) {
+    _nextAppearanceOutcome = outcome;
+  }
+
+  Future<AppearanceAssessmentOutcome> submitAppearanceAssessment(
+    String flowId,
+  ) async {
+    await completeMockStep();
+    final current = _onboardingFlows[flowId];
+    if (current == null ||
+        !current.identityVerified ||
+        !current.hasBothMemberPhotos) {
+      if (current != null) {
+        _onboardingFlows[flowId] = current.copyWith(
+          reviewStatus: ReviewStatus.changesRequired,
+          reviewUpdatedAt: DateTime.now(),
+        );
+      }
+      return AppearanceAssessmentOutcome.changesRequired;
+    }
+    final outcome = _nextAppearanceOutcome;
+    _nextAppearanceOutcome = AppearanceAssessmentOutcome.qualified;
+    final status = switch (outcome) {
+      AppearanceAssessmentOutcome.qualified => ReviewStatus.approved,
+      AppearanceAssessmentOutcome.manualReview => ReviewStatus.appearanceReview,
+      AppearanceAssessmentOutcome.changesRequired =>
+        ReviewStatus.changesRequired,
+      AppearanceAssessmentOutcome.outcomeUnknown => ReviewStatus.pending,
+    };
+    _onboardingFlows[flowId] = current.copyWith(
+      reviewStatus: status,
+      reviewUpdatedAt: DateTime.now(),
+    );
+    return outcome;
+  }
+
+  void setReviewFixture(String flowId, ReviewStatus status) {
+    final current = _onboardingFlows[flowId];
+    if (current == null) return;
+    _onboardingFlows[flowId] = current.copyWith(
+      reviewStatus: status,
+      reviewUpdatedAt: DateTime.now(),
+    );
+  }
+
+  Future<MockOnboardingSnapshot?> refreshOnboarding(String flowId) async {
+    await completeMockStep();
+    return _onboardingFlows[flowId];
+  }
+
+  bool canEnterApp(String flowId) =>
+      _onboardingFlows[flowId]?.reviewStatus == ReviewStatus.approved;
 
   Future<void> completeMockStep() =>
       Future<void>.delayed(const Duration(milliseconds: 650));

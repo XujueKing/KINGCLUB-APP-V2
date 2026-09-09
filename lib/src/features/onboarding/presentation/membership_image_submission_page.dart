@@ -27,8 +27,24 @@ class MembershipImageSubmissionPage extends ConsumerStatefulWidget {
 class _MembershipImageSubmissionPageState
     extends ConsumerState<MembershipImageSubmissionPage> {
   final _selectedSlots = <int>{};
+  final _uploadingSlots = <int>{};
   final _slotErrors = <int, String>{};
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final snapshot = ref
+        .read(mockRuntimeProvider)
+        .onboardingSnapshot(widget.flowId);
+    if (snapshot?.photoSlots.contains(RegistrationPhotoSlot.portrait) ??
+        false) {
+      _selectedSlots.add(0);
+    }
+    if (snapshot?.photoSlots.contains(RegistrationPhotoSlot.outfit) ?? false) {
+      _selectedSlots.add(1);
+    }
+  }
 
   Future<void> _pick(int slot) async {
     final action = await showModalBottomSheet<String>(
@@ -42,12 +58,12 @@ class _MembershipImageSubmissionPageState
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
               title: const Text('从相册选择'),
-              onTap: () => Navigator.pop(context, 'synthetic'),
+              onTap: () => Navigator.pop(context, 'gallery'),
             ),
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
               title: const Text('拍摄照片'),
-              onTap: () => Navigator.pop(context, 'denied'),
+              onTap: () => Navigator.pop(context, 'camera'),
             ),
             ListTile(
               leading: const Icon(Icons.close),
@@ -60,11 +76,25 @@ class _MembershipImageSubmissionPageState
     );
     if (!mounted || action == null) return;
     setState(() {
-      if (action == 'synthetic') {
+      _uploadingSlots.add(slot);
+      _slotErrors.remove(slot);
+    });
+    final uploaded = await ref
+        .read(mockRuntimeProvider)
+        .stageRegistrationPhoto(
+          flowId: widget.flowId,
+          slot: slot == 0
+              ? RegistrationPhotoSlot.portrait
+              : RegistrationPhotoSlot.outfit,
+        );
+    if (!mounted) return;
+    setState(() {
+      _uploadingSlots.remove(slot);
+      if (uploaded) {
         _selectedSlots.add(slot);
         _slotErrors.remove(slot);
       } else {
-        _slotErrors[slot] = '相机/相册权限已拒绝，可选择其他方式或前往设置';
+        _slotErrors[slot] = '照片上传失败，请重新选择';
       }
     });
   }
@@ -79,7 +109,9 @@ class _MembershipImageSubmissionPageState
       return;
     }
     setState(() => _saving = true);
-    await ref.read(mockRuntimeProvider).completeMockStep();
+    await ref
+        .read(mockRuntimeProvider)
+        .submitAppearanceAssessment(widget.flowId);
     if (!mounted) return;
     widget.onNext();
   }
@@ -109,7 +141,7 @@ class _MembershipImageSubmissionPageState
           ),
           const SizedBox(height: 18),
           Text(
-            '照片要求：本人、近期、清晰、无严重遮挡。不使用美颜，不展示颜值分。',
+            '照片要求：本人、近期、清晰、无严重遮挡。照片不使用美颜，将用于会员形象评分与审核。',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
@@ -121,7 +153,7 @@ class _MembershipImageSubmissionPageState
                     dimension: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('下一步'),
+                : const Text('提交并评分'),
           ),
         ],
       ),
@@ -130,11 +162,12 @@ class _MembershipImageSubmissionPageState
 
   Widget _slot(int index, String label, IconData icon) {
     final selected = _selectedSlots.contains(index);
+    final uploading = _uploadingSlots.contains(index);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         InkWell(
-          onTap: _saving ? null : () => _pick(index),
+          onTap: _saving || uploading ? null : () => _pick(index),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             height: 180,
@@ -149,16 +182,26 @@ class _MembershipImageSubmissionPageState
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  selected ? Icons.check_circle_outline : icon,
-                  size: 48,
-                  color: selected ? KingColors.success : KingColors.brand,
-                ),
+                if (uploading)
+                  const SizedBox.square(
+                    dimension: 42,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Icon(
+                    selected ? Icons.check_circle_outline : icon,
+                    size: 48,
+                    color: selected ? KingColors.success : KingColors.brand,
+                  ),
                 const SizedBox(height: 12),
                 Text(label, textAlign: TextAlign.center),
                 const SizedBox(height: 4),
                 Text(
-                  selected ? '已添加' : '点击添加',
+                  uploading
+                      ? '压缩并上传中…'
+                      : selected
+                      ? '已上传 · 点击替换'
+                      : '点击添加',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

@@ -164,6 +164,7 @@ void main() {
       _app(
         runtime,
         MembershipReviewStatusPage(
+          key: UniqueKey(),
           flowId: flowId,
           onApproved: () => approved = true,
           onFixImages: () => fixImages = true,
@@ -174,27 +175,36 @@ void main() {
     );
 
     expect(find.text('会员申请审核中'), findsOneWidget);
-    await tester.ensureVisible(find.text('UI 测试场景'));
-    await tester.tap(find.text('UI 测试场景'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('补资料'));
-    await tester.pump();
+    runtime.setReviewFixture(flowId, ReviewStatus.changesRequired);
+    await tester.tap(find.text('刷新状态'));
+    await tester.pump(const Duration(milliseconds: 700));
     expect(find.text('需要补充资料'), findsOneWidget);
     await tester.tap(find.text('补充形象资料'));
     expect(fixImages, isTrue);
 
-    await tester.tap(find.text('已通过'));
-    await tester.pump();
+    runtime.setReviewFixture(flowId, ReviewStatus.approved);
+    await tester.tap(find.text('刷新状态'));
+    await tester.pump(const Duration(milliseconds: 700));
     expect(find.text('进入 KingClub'), findsOneWidget);
     expect(find.text('刷新状态'), findsNothing);
     expect(find.text('退出登录'), findsNothing);
     await tester.tap(find.text('进入 KingClub'));
+    await tester.pump(const Duration(milliseconds: 700));
     expect(approved, isTrue);
 
-    await tester.ensureVisible(find.text('未通过'));
-    await tester.tap(find.text('未通过'));
-    await tester.pump();
+    runtime.setReviewFixture(flowId, ReviewStatus.rejected);
+    await tester.pumpWidget(
+      _app(
+        runtime,
+        MembershipReviewStatusPage(
+          flowId: flowId,
+          onApproved: () => approved = true,
+          onFixImages: () => fixImages = true,
+          onExit: () {},
+          onInvalidFlow: () {},
+        ),
+      ),
+    );
     expect(find.text('本次申请暂未通过，重新申请时间请以页面后续通知为准。'), findsOneWidget);
     expect(find.textContaining('正式策略'), findsNothing);
   });

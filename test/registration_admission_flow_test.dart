@@ -1,0 +1,237 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/core/design_system/king_theme.dart';
+import 'package:kingclub/src/core/mock/mock_runtime.dart';
+import 'package:kingclub/src/features/auth/presentation/mobile_login_page.dart';
+import 'package:kingclub/src/features/onboarding/presentation/membership_image_submission_page.dart';
+import 'package:kingclub/src/features/onboarding/presentation/membership_review_status_page.dart';
+import 'package:kingclub/src/features/onboarding/presentation/real_name_adult_verification_page.dart';
+
+Widget _app(MockRuntime runtime, Widget child) => ProviderScope(
+  overrides: [mockRuntimeProvider.overrideWithValue(runtime)],
+  child: MaterialApp(theme: KingTheme.dark, home: child),
+);
+
+Future<void> _completeIdentity(
+  WidgetTester tester,
+  MockRuntime runtime,
+  String flowId,
+) async {
+  final future = runtime.submitPhotoIdentity(
+    flowId: flowId,
+    name: '测试会员',
+    identityNumber: '430102199001011234',
+  );
+  await tester.pump(const Duration(milliseconds: 700));
+  final result = await future;
+  expect(result, PhotoIdentityOutcome.verifiedAdult);
+}
+
+Future<void> _addPhoto(WidgetTester tester, String source) async {
+  await tester.tap(find.text('点击添加').first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(source));
+  await tester.pump(const Duration(milliseconds: 700));
+}
+
+void main() {
+  testWidgets('approved member login skips paid registration checks', (
+    tester,
+  ) async {
+    final runtime = MockRuntime();
+    runtime.seedApprovedMember('13800000003');
+    var entered = false;
+    var onboardingStarted = false;
+    await tester.pumpWidget(
+      _app(
+        runtime,
+        MobileLoginPage(
+          onBack: () {},
+          onAuthenticatedMember: () => entered = true,
+          onVerified: (_) => onboardingStarted = true,
+        ),
+      ),
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('mobile-login-phone-field')),
+        matching: find.byType(EditableText),
+      ),
+      '13800000003',
+    );
+    await tester.tap(find.byKey(const ValueKey('mobile-login-request-code')));
+    await tester.pump(const Duration(milliseconds: 750));
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('mobile-login-code-field')),
+        matching: find.byType(EditableText),
+      ),
+      '888888',
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const ValueKey('mobile-login-next')))
+          .onPressed,
+      isNotNull,
+    );
+    await tester.tap(find.byKey(const ValueKey('mobile-login-next')));
+    await tester.pump(const Duration(milliseconds: 850));
+
+    expect(entered, isTrue);
+    expect(onboardingStarted, isFalse);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('photo identity failure is recoverable and never advances', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final runtime = MockRuntime();
+    final flowId = runtime.startOnboarding();
+    var advanced = false;
+    runtime.setNextIdentityOutcome(PhotoIdentityOutcome.identityMismatch);
+
+    await tester.pumpWidget(
+      _app(
+        runtime,
+        RealNameAdultVerificationPage(
+          flowId: flowId,
+          onBack: () {},
+          onNext: () => advanced = true,
+          onInvalidFlow: () {},
+        ),
+      ),
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('real-name-name-field')),
+        matching: find.byType(EditableText),
+      ),
+      '测试会员',
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('real-name-id-field')),
+        matching: find.byType(EditableText),
+      ),
+      '430102199001011234',
+    );
+    await tester.tap(find.byKey(const ValueKey('real-name-notice-checkbox')));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('real-name-verify-button')),
+    );
+    await tester.tap(find.byKey(const ValueKey('real-name-verify-button')));
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(advanced, isFalse);
+    expect(find.textContaining('照片与实名信息不一致'), findsOneWidget);
+    expect(runtime.onboardingSnapshot(flowId)?.identityVerified, isFalse);
+
+    await tester.tap(find.byKey(const ValueKey('real-name-verify-button')));
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(advanced, isTrue);
+    expect(runtime.onboardingSnapshot(flowId)?.identityVerified, isTrue);
+    expect(
+      runtime.onboardingSnapshot(flowId)?.photoSlots,
+      contains(RegistrationPhotoSlot.selfie),
+    );
+  });
+
+  testWidgets('low appearance score waits for review and supports reupload', (
+    tester,
+  ) async {
+    final runtime = MockRuntime();
+    final flowId = runtime.startOnboarding();
+    await _completeIdentity(tester, runtime, flowId);
+    runtime.setNextAppearanceOutcome(AppearanceAssessmentOutcome.manualReview);
+    var submitted = false;
+
+    await tester.pumpWidget(
+      _app(
+        runtime,
+        MembershipImageSubmissionPage(
+          flowId: flowId,
+          onBack: () {},
+          onNext: () => submitted = true,
+          onInvalidFlow: () {},
+        ),
+      ),
+    );
+    await _addPhoto(tester, '拍摄照片');
+    await _addPhoto(tester, '从相册选择');
+    expect(find.text('已上传 · 点击替换'), findsNWidgets(2));
+
+    await tester.tap(find.text('提交并评分'));
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(submitted, isTrue);
+    expect(
+      runtime.onboardingSnapshot(flowId)?.reviewStatus,
+      ReviewStatus.appearanceReview,
+    );
+
+    var reupload = false;
+    var entered = false;
+    await tester.pumpWidget(
+      _app(
+        runtime,
+        MembershipReviewStatusPage(
+          flowId: flowId,
+          onApproved: () => entered = true,
+          onFixImages: () => reupload = true,
+          onExit: () {},
+          onInvalidFlow: () {},
+        ),
+      ),
+    );
+    expect(find.text('颜值分数不够，等待审核'), findsOneWidget);
+    expect(find.text('重新上传照片'), findsOneWidget);
+    expect(find.text('进入 KingClub'), findsNothing);
+    await tester.tap(find.text('重新上传照片'));
+    expect(reupload, isTrue);
+
+    runtime.setReviewFixture(flowId, ReviewStatus.approved);
+    await tester.tap(find.text('刷新审核状态'));
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(find.text('会员申请已通过'), findsOneWidget);
+    await tester.tap(find.text('进入 KingClub'));
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(entered, isTrue);
+  });
+
+  test('replacing a scored photo revokes cached entry permission', () async {
+    final runtime = MockRuntime();
+    final flowId = runtime.startOnboarding();
+    final identityResult = await runtime.submitPhotoIdentity(
+      flowId: flowId,
+      name: '测试会员',
+      identityNumber: '430102199001011234',
+    );
+    expect(identityResult, PhotoIdentityOutcome.verifiedAdult);
+    await runtime.stageRegistrationPhoto(
+      flowId: flowId,
+      slot: RegistrationPhotoSlot.portrait,
+    );
+    await runtime.stageRegistrationPhoto(
+      flowId: flowId,
+      slot: RegistrationPhotoSlot.outfit,
+    );
+    expect(
+      await runtime.submitAppearanceAssessment(flowId),
+      AppearanceAssessmentOutcome.qualified,
+    );
+    expect(runtime.canEnterApp(flowId), isTrue);
+
+    await runtime.stageRegistrationPhoto(
+      flowId: flowId,
+      slot: RegistrationPhotoSlot.portrait,
+    );
+    expect(runtime.canEnterApp(flowId), isFalse);
+    expect(
+      runtime.onboardingSnapshot(flowId)?.reviewStatus,
+      ReviewStatus.pending,
+    );
+  });
+}

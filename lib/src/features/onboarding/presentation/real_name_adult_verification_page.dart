@@ -34,6 +34,7 @@ class _RealNameAdultVerificationPageState
   final _identityFocusNode = FocusNode();
   bool _submitting = false;
   bool _adultConsent = false;
+  String? _verificationError;
 
   @override
   void initState() {
@@ -75,10 +76,40 @@ class _RealNameAdultVerificationPageState
     }
     setState(() {
       _submitting = true;
+      _verificationError = null;
     });
-    await ref.read(mockRuntimeProvider).completeMockStep();
+    final outcome = await ref
+        .read(mockRuntimeProvider)
+        .submitPhotoIdentity(
+          flowId: widget.flowId,
+          name: _nameController.text.trim(),
+          identityNumber: _identityController.text.trim().toUpperCase(),
+        );
     if (!mounted) return;
-    widget.onNext();
+    switch (outcome) {
+      case PhotoIdentityOutcome.verifiedAdult:
+        widget.onNext();
+      case PhotoIdentityOutcome.identityMismatch:
+        setState(() {
+          _submitting = false;
+          _verificationError = '照片与实名信息不一致，请确认信息后重新拍摄';
+        });
+      case PhotoIdentityOutcome.ageRestricted:
+        setState(() {
+          _submitting = false;
+          _verificationError = '核验未通过：未满18周岁，暂不能注册会员';
+        });
+      case PhotoIdentityOutcome.retryableFailure:
+        setState(() {
+          _submitting = false;
+          _verificationError = '照片不清晰或未检测到完整人脸，请重新拍摄';
+        });
+      case PhotoIdentityOutcome.outcomeUnknown:
+        setState(() {
+          _submitting = false;
+          _verificationError = '核验结果确认中，请稍后重试，不需要重复上传';
+        });
+    }
   }
 
   void _showMessage(String message) {
@@ -318,6 +349,22 @@ class _RealNameAdultVerificationPageState
                     ),
                   ),
                   SizedBox(height: constraints.maxHeight * 0.09),
+                  if (_verificationError case final error?) ...[
+                    SizedBox(
+                      key: const ValueKey('photo-identity-error'),
+                      width: controlWidth,
+                      child: Text(
+                        error,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: KingColors.danger,
+                          fontSize: 13,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   SizedBox(
                     width: controlWidth,
                     height: 52,
@@ -356,7 +403,7 @@ class _RealNameAdultVerificationPageState
                                 ),
                                 const SizedBox(width: 12),
                                 const Text(
-                                  '人脸核验',
+                                  '拍照上传核验',
                                   style: TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.w500,

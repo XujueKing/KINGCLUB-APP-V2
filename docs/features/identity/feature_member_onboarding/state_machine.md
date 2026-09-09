@@ -1,6 +1,6 @@
 # 会员准入状态机
 
-> 2026-09-10：用户已明确[首版不做实名核身](../../../product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)，以下 identityRequired→identityVerified 是待修订的历史状态机，不是新首版的 KYC 前置。新规格须分离照片提交/检测/审核与会员状态，未获可信实名证据不得将 kycStatus 写为 verified；本轮记录变更，具体状态枚举随 W10 评审。
+> 2026-09-10 最新澄清：保留腾讯照片实名认证，不接新增活体 SDK。identityRequired/Processing/Verified 应对应受控照片 API 的可信结果，不等同活体。新增两图评分达标/低分待审/质量重传/未知结果分流，审核刷新只读取权威状态；具体新枚举待页面契约落地，见[本轮核查](2026-09-10-tencent-adapter-review.md)。下方偏好顺序为历史导航，偏好可跳过，准入不能依赖是否填写偏好；尚未修改实现。
 
 - 文档状态：`Approved for Development`
 

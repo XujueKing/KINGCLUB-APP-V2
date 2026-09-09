@@ -115,6 +115,7 @@ class MobileLoginRoute extends GoRouteData with $MobileLoginRoute {
       onBack: back,
       child: MobileLoginPage(
         onBack: back,
+        onAuthenticatedMember: () => const AppShellRoute().go(context),
         onVerified: (flowId) =>
             RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
                 .go(context),
@@ -143,6 +144,7 @@ class SmsCodeRoute extends GoRouteData with $SmsCodeRoute {
       child: SmsVerificationPage(
         flowId: $extra.flowId,
         onBack: back,
+        onAuthenticatedMember: () => const AppShellRoute().go(context),
         onVerified: (flowId) =>
             RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
                 .go(context),
@@ -215,7 +217,7 @@ class MembershipImageSubmissionRoute extends GoRouteData
       child: MembershipImageSubmissionPage(
         flowId: $extra.flowId,
         onBack: back,
-        onNext: () => StyleMusicPreferencesRoute($extra).go(context),
+        onNext: () => MembershipReviewStatusRoute($extra).go(context),
         onInvalidFlow: () => const MobileLoginRoute().go(context),
       ),
     );

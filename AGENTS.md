@@ -1,6 +1,17 @@
 # KINGCLUB APP V2 Agent Instructions
 
-## 2026-09-10 碎片需求与首版照片方案（最新）
+## 2026-09-10 注册首功能与腾讯照片实名澄清（最新，覆盖下方冲突口径）
+
+- 用户确认首版保留旧版“姓名＋身份证号＋拍照上传→后台调用腾讯照片实名认证”，仅不接新增 App 活体核身 SDK。先前将旧照片方式理解为“不接权威库”的解释已纠正，不再据此删除实名步骤。
+- 用户要求先开发注册/登录、核身自拍、两张形象照片评分、达标进入、低分等待审核或重传、通过后刷新进入。见台账 RQ-23～25，累计 25 条；第三方核查见 `docs/features/identity/feature_member_onboarding/2026-09-10-tencent-adapter-review.md`。
+- 用户已批准注册登录模块独立 UI 验收后接隔离测试环境。该例外仅覆盖 KC-F-010/011 及必要直接依赖；当前模块尚未 UI 验收，不是全局 UI Flow Approved，更不是生产批准。唯一状态源仍为 `docs/v2/APP_SCOPE_AND_UI_DELIVERY_GATE.md`。
+- 旧后台实际调用 ImageRecognition 和 DetectFaceAttributes；新 CCSOP 当前只有 MockIdentityAdapter。建议重建服务端适配器而非复制旧 Java 大方法，不得拿 Mock 的固定 verified=true 放行真实用户。
+- 腾讯旧照片实名 API 已停止新接入；优先评估 ImageRecognitionV2，账号权限/费用未核验，不自动双调用或失败降级。旧 SQL 男 80 / 女 85 且聚合所有审核图是来源证据，不是已批准的新生产阈值。实名相似度、颜值与会员资格分开。
+- 注册 UI/Mock 第一版已实现共享申请快照：核身失败可恢复、自拍/两图分槽位、评分分流、低分待审/重传、刷新复核、通过后进入；相关自动化已加入。模块用户 UI 验收、正式 adapter、数据库迁移和真实联调仍未完成，不把 Mock 测试通过记为真实服务完成。
+
+## 2026-09-10 碎片需求与首版照片方案（历史记录）
+
+以下为此前记录；与上方腾讯照片实名澄清冲突的首版“不接权威库”口径已被覆盖。
 
 - 用户要求持续记录/整理碎片需求。先读 `docs/product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md`；本批 22 条，PR 主表扩为 41 项，后续追加保留稳定编号与变更来源。
 - 用户最新明确：实名核身第一版不做，沿用旧照片上传接口的方法。以旧 `/kingclub/registrationPhotoUpload` 暂存令牌及后续检测/评分/审核链为原型；CCSOP 迁移方向和安全边界不变。首发不接核身 SDK/权威库，不将供应商开通作为首发依赖，不把照片审核标为 KYC verified。
@@ -58,7 +69,7 @@ Flutter App 必须执行以下全局交付门禁：
 4. 使用 Mock/Fake 把本期 App 的全部页面、主流程、异常流程和返回路径完整模拟并完成 UI 验收。
 5. 只有全局 UI Mock 流程验收通过后，才允许按批准契约接入真实接口和 SDK。
 
-`Approved for Development` 对 App 页面只表示允许进入 UI/Mock 阶段，不等于允许真实服务接入。真实接入必须同时满足项目级 `UI Flow Approved` 门禁。
+`Approved for Development` 对 App 页面只表示允许进入 UI/Mock 阶段，不等于允许真实服务接入。除上方 09-10 用户批准的注册模块独立验收后接隔离测试例外，真实接入必须满足项目级 `UI Flow Approved` 门禁。
 
 旧版源码位于 `C:\Users\Poplar\Desktop\KingClub-app`。
 

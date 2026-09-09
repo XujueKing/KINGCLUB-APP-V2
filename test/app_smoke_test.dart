@@ -308,32 +308,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('从相册选择'));
     await tester.pumpAndSettle();
-    expect(find.text('已添加'), findsNWidgets(2));
-    await tester.tap(find.text('下一步'));
+    expect(find.text('已上传 · 点击替换'), findsNWidgets(2));
+    await tester.tap(find.text('提交并评分'));
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    expect(find.text('你的风格偏好'), findsOneWidget);
-    await tester.ensureVisible(find.text('暂时跳过'));
-    await tester.tap(find.text('暂时跳过'));
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pumpAndSettle();
-
-    expect(find.text('完善兴趣偏好'), findsOneWidget);
-    expect(find.text('提交后将进入会员审核流程，最终结果请以审核状态页显示为准。'), findsOneWidget);
-    expect(find.textContaining('Mock 只模拟'), findsNothing);
-    final drinkNotice = find.byKey(const ValueKey('drink-event-review-notice'));
-    await tester.ensureVisible(find.text('跳过偏好并提交'));
-    await tester.pumpAndSettle();
-    expect(
-      tester.getTopLeft(drinkNotice).dy,
-      greaterThan(tester.getBottomLeft(find.text('跳过偏好并提交')).dy),
-    );
-    await tester.tap(find.text('跳过偏好并提交'));
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pumpAndSettle();
-
-    expect(find.text('会员申请审核中'), findsOneWidget);
+    expect(find.text('会员申请已通过'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('membership-review-brand-logo')),
       findsNothing,
@@ -347,17 +327,6 @@ void main() {
       moreOrLessEquals(tester.getCenter(find.byType(Scaffold)).dx, epsilon: 1),
     );
     expect(find.text('KINGCLUB'), findsNothing);
-    await tester.ensureVisible(find.text('UI 测试场景'));
-    await tester.pumpAndSettle();
-    expect(
-      tester.getTopLeft(find.text('UI 测试场景')).dy,
-      greaterThan(tester.getBottomLeft(find.text('退出登录')).dy),
-    );
-    await tester.tap(find.text('UI 测试场景'));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('已通过'));
-    await tester.tap(find.text('已通过'));
-    await tester.pump();
     await tester.ensureVisible(find.text('进入 KingClub'));
     expect(find.text('刷新状态'), findsNothing);
     expect(find.text('退出登录'), findsNothing);

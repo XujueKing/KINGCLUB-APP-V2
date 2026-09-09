@@ -27,14 +27,56 @@ class MembershipReviewStatusPage extends ConsumerStatefulWidget {
 
 class _MembershipReviewStatusPageState
     extends ConsumerState<MembershipReviewStatusPage> {
-  ReviewStatus _status = ReviewStatus.pending;
+  late ReviewStatus _status;
   bool _refreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _status =
+        ref
+            .read(mockRuntimeProvider)
+            .onboardingSnapshot(widget.flowId)
+            ?.reviewStatus ??
+        ReviewStatus.pending;
+  }
 
   Future<void> _refresh() async {
     setState(() => _refreshing = true);
-    await ref.read(mockRuntimeProvider).completeMockStep();
+    final snapshot = await ref
+        .read(mockRuntimeProvider)
+        .refreshOnboarding(widget.flowId);
     if (!mounted) return;
-    setState(() => _refreshing = false);
+    if (snapshot == null) {
+      widget.onInvalidFlow();
+      return;
+    }
+    setState(() {
+      _status = snapshot.reviewStatus;
+      _refreshing = false;
+    });
+  }
+
+  Future<void> _enterApp() async {
+    setState(() => _refreshing = true);
+    final snapshot = await ref
+        .read(mockRuntimeProvider)
+        .refreshOnboarding(widget.flowId);
+    if (!mounted) return;
+    if (snapshot?.reviewStatus == ReviewStatus.approved &&
+        ref.read(mockRuntimeProvider).canEnterApp(widget.flowId)) {
+      setState(() => _refreshing = false);
+      widget.onApproved();
+      return;
+    }
+    if (snapshot == null) {
+      widget.onInvalidFlow();
+      return;
+    }
+    setState(() {
+      _status = snapshot.reviewStatus;
+      _refreshing = false;
+    });
   }
 
   @override
@@ -120,8 +162,18 @@ class _MembershipReviewStatusPageState
         ),
         const SizedBox(height: 28),
         _primaryAction(),
+        if (_status == ReviewStatus.appearanceReview) ...[
+          const SizedBox(height: 12),
+          OutlinedButton(
+            key: const ValueKey('membership-review-reupload'),
+            onPressed: _refreshing ? null : widget.onFixImages,
+            style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+            child: const Text('重新上传照片'),
+          ),
+        ],
         if (_status != ReviewStatus.approved) ...[
-          if (_status != ReviewStatus.pending) ...[
+          if (_status != ReviewStatus.pending &&
+              _status != ReviewStatus.appearanceReview) ...[
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: _refreshing ? null : _refresh,
@@ -161,9 +213,27 @@ class _MembershipReviewStatusPageState
                 return ChoiceChip(
                   label: Text(_scenarioLabel(status)),
                   selected: _status == status,
-                  onSelected: (_) => setState(() => _status = status),
+                  onSelected: (_) {
+                    ref
+                        .read(mockRuntimeProvider)
+                        .setReviewFixture(widget.flowId, status);
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        const SnackBar(content: Text('服务端测试状态已更新，请刷新查看')),
+                      );
+                  },
                 );
               }).toList(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _refreshing ? null : _refresh,
+              icon: const Icon(Icons.sync_rounded),
+              label: Text(_refreshing ? '正在读取…' : '应用并刷新测试状态'),
             ),
           ),
         ],
@@ -178,15 +248,20 @@ class _MembershipReviewStatusPageState
         style: FilledButton.styleFrom(shape: const StadiumBorder()),
         child: const Text('刷新状态'),
       ),
+      ReviewStatus.appearanceReview => FilledButton(
+        onPressed: _refreshing ? null : _refresh,
+        style: FilledButton.styleFrom(shape: const StadiumBorder()),
+        child: Text(_refreshing ? '正在刷新…' : '刷新审核状态'),
+      ),
       ReviewStatus.changesRequired => FilledButton(
         onPressed: widget.onFixImages,
         style: FilledButton.styleFrom(shape: const StadiumBorder()),
         child: const Text('补充形象资料'),
       ),
       ReviewStatus.approved => FilledButton(
-        onPressed: widget.onApproved,
+        onPressed: _refreshing ? null : _enterApp,
         style: FilledButton.styleFrom(shape: const StadiumBorder()),
-        child: const Text('进入 KingClub'),
+        child: Text(_refreshing ? '正在确认…' : '进入 KingClub'),
       ),
       ReviewStatus.rejected => FilledButton(
         onPressed: null,
@@ -203,6 +278,12 @@ class _MembershipReviewStatusPageState
         KingColors.warning,
         '会员申请审核中',
         '资料已安全提交，请耐心等待审核结果。',
+      ),
+      ReviewStatus.appearanceReview => const _ReviewPresentation(
+        Icons.manage_search_outlined,
+        KingColors.warning,
+        '颜值分数不够，等待审核',
+        '资料已进入人工审核。你可以刷新审核状态，或重新上传两张近期清晰照片。',
       ),
       ReviewStatus.changesRequired => const _ReviewPresentation(
         Icons.edit_note_outlined,
@@ -227,6 +308,7 @@ class _MembershipReviewStatusPageState
 
   String _scenarioLabel(ReviewStatus status) => switch (status) {
     ReviewStatus.pending => '审核中',
+    ReviewStatus.appearanceReview => '颜值待审',
     ReviewStatus.changesRequired => '补资料',
     ReviewStatus.approved => '已通过',
     ReviewStatus.rejected => '未通过',

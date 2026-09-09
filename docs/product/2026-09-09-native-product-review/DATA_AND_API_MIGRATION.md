@@ -4,7 +4,7 @@
 - 已确认用户边界：只将 `k_` / `K_` 表认定为 KING CLUB 业务表；混包中的其他网站不能整体迁入或修改。
 - 已确认用户方向：旧过程不必照搬，可以重新建模和重构；必须保留正确的业务与资产语义。
 
-**2026-09-10 范围增补**：首版不做实名核身，沿用旧照片上传接口方法；腾讯核身不是迁移前置。新增储物券/道具与 App 授权经营需求见[台账](REQUIREMENT_INBOX.md)，不扩大混库 k_ 数据归属边界。
+**2026-09-10 最新范围澄清**：首版保留旧腾讯照片实名认证（姓名＋身份证号＋照片），不接新增 App 活体核身 SDK。旧后台实际为 ImageRecognition/DetectFaceAttributes，新 CCSOP 正式 adapter 待建；见[接口核查](../../features/identity/feature_member_onboarding/2026-09-10-tencent-adapter-review.md)。模块独立 UI 验收后允许隔离测试联调，不等于准许真实用户/生产数据迁移；混库 k_ 归属边界不变。
 
 ## 1. 如何确定范围
 

@@ -14,11 +14,13 @@ class SmsVerificationPage extends ConsumerStatefulWidget {
     required this.flowId,
     required this.onBack,
     required this.onVerified,
+    this.onAuthenticatedMember,
   });
 
   final String flowId;
   final VoidCallback onBack;
   final ValueChanged<String> onVerified;
+  final VoidCallback? onAuthenticatedMember;
 
   @override
   ConsumerState<SmsVerificationPage> createState() =>
@@ -89,8 +91,16 @@ class _SmsVerificationPageState extends ConsumerState<SmsVerificationPage> {
     if (!mounted) return;
     switch (outcome) {
       case CodeVerificationOutcome.verified:
-        final onboardingId = ref.read(mockRuntimeProvider).startOnboarding();
-        widget.onVerified(onboardingId);
+        final runtime = ref.read(mockRuntimeProvider);
+        final onboardingId = runtime.startOnboarding(
+          loginFlowId: widget.flowId,
+        );
+        if (runtime.canEnterApp(onboardingId) &&
+            widget.onAuthenticatedMember != null) {
+          widget.onAuthenticatedMember!();
+        } else {
+          widget.onVerified(onboardingId);
+        }
       case CodeVerificationOutcome.invalid:
         _codeController.clear();
         setState(() {
