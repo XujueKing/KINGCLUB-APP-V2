@@ -7,7 +7,7 @@
 
 ## 最新需求与已定变更
 
-[碎片需求台账](REQUIREMENT_INBOX.md)持续记录用户原意与变更；目前 25 条，覆盖 8 个业务板块、全局媒体要求及首功能开发决定，[产品主表](PRODUCT_REQUIREMENTS.md)已扩为 41 项。[技术调研](MEDIA_AND_FACE_RESEARCH.md)区分媒体压缩、颜值评分、自研美颜与腾讯核身。
+[碎片需求台账](REQUIREMENT_INBOX.md)持续记录用户原意与变更；目前 27 条，覆盖 8 个业务板块、全局媒体要求、首功能开发决定、逐功能数据库审查及现代化边界，[产品主表](PRODUCT_REQUIREMENTS.md)已扩为 41 项。[技术调研](MEDIA_AND_FACE_RESEARCH.md)区分媒体压缩、颜值评分、自研美颜与腾讯核身。
 
 用户最新澄清：**首版保留腾讯照片实名认证，只是不接新增 App 活体核身 SDK**。此前将“用旧照片接口”解读为不接权威库已纠正。先开发登录/注册、核身自拍、两张照片评分、低分待审/重传及刷新进入；本模块独立 UI 验收后可接隔离测试环境，尚未验收或真实接入。见[接口核查与重构方案](../../features/identity/feature_member_onboarding/2026-09-10-tencent-adapter-review.md)。管理员、创作/美颜/游戏、储物权益等完整产品方向不变。
 
@@ -15,7 +15,7 @@
 
 1. [产品需求与功能范围](PRODUCT_REQUIREMENTS.md)：是否有遗漏，哪些能力必须首发。
 2. [UI 保真与流畅度验收](UI_AND_PERFORMANCE.md)：把“99% 类似”和“流畅”变成可检查的标准。
-3. [迁移方案](DATA_AND_API_MIGRATION.md)：只处理 KING CLUB 数据，旧系统继续可用。
+3. [迁移方案](DATA_AND_API_MIGRATION.md)、[每功能数据审查门禁](FEATURE_DATA_REVIEW_GATE.md)与[数据库现代化原则](DATA_MODERNIZATION_PRINCIPLES.md)：只处理 KING CLUB 数据，逐功能核清表、接口和副作用，保持旧业务正确性并改进模型。
 4. [ROADMAP 与待决策项](ROADMAP.md)：按验收结果推进，不以页面数量冒充产品完成度。
 
 技术审阅：[架构方案](ARCHITECTURE.md)、[资产事实与缺口](SOURCE_BASELINE.md)。

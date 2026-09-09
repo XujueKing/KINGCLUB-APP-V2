@@ -6,6 +6,8 @@
 
 **2026-09-10 最新范围澄清**：首版保留旧腾讯照片实名认证（姓名＋身份证号＋照片），不接新增 App 活体核身 SDK。旧后台实际为 ImageRecognition/DetectFaceAttributes，新 CCSOP 正式 adapter 待建；见[接口核查](../../features/identity/feature_member_onboarding/2026-09-10-tencent-adapter-review.md)。模块独立 UI 验收后允许隔离测试联调，不等于准许真实用户/生产数据迁移；混库 k_ 归属边界不变。
 
+**2026-09-10 新增强制门禁**：所有功能必须逐功能审查数据库表和完整数据链，不能等到总迁移阶段再一次性猜映射。统一检查项、状态和模板见[每功能数据库与数据链路审查门禁](FEATURE_DATA_REVIEW_GATE.md)；首个注册准入切片已建立[数据库审查](../../features/identity/feature_member_onboarding/database_review.md)。
+
 ## 1. 如何确定范围
 
 同时检查三条证据：

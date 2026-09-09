@@ -3,7 +3,10 @@
 ## 2026-09-10 注册首功能与腾讯照片实名澄清（最新，覆盖下方冲突口径）
 
 - 用户确认首版保留旧版“姓名＋身份证号＋拍照上传→后台调用腾讯照片实名认证”，仅不接新增 App 活体核身 SDK。先前将旧照片方式理解为“不接权威库”的解释已纠正，不再据此删除实名步骤。
-- 用户要求先开发注册/登录、核身自拍、两张形象照片评分、达标进入、低分等待审核或重传、通过后刷新进入。见台账 RQ-23～25，累计 25 条；第三方核查见 `docs/features/identity/feature_member_onboarding/2026-09-10-tencent-adapter-review.md`。
+- 用户要求先开发注册/登录、核身自拍、两张形象照片评分、达标进入、低分等待审核或重传、通过后刷新进入。见台账 RQ-23～27，累计 27 条；第三方核查见 `docs/features/identity/feature_member_onboarding/2026-09-10-tencent-adapter-review.md`。
+- 用户确认每个功能的数据库表都要逐功能审查。接真实接口或建立 migration 前，必须从 `s_interface` 分类/旧调用链追到直接和间接 `k_` 表、公共依赖、副作用、字段语义，再完成 CCSOP 目标模型、事务、迁移、对账和回滚审查；标准见 `FEATURE_DATA_REVIEW_GATE.md`，首功能见 `feature_member_onboarding/database_review.md`。
+- 用户纠正：旧注册相关存储过程已有事务、异常处理和回滚，不能声称旧系统会因注册失败留下半套资产。新版重构须保留或增强既有原子业务语义；跨服务拆分用短事务、Outbox、幂等和补偿，不得以牺牲一致性换解耦。
+- 用户确认旧数据库与业务逻辑没有问题，是新系统的正确业务基线；允许现代化手工形成的表结构、代码组织和架构，但不得擅改业务结果。继续使用 MySQL 8.4，存储过程不因形式旧而删除；每功能以旧行为对照测试和迁移对账证明等价，原则见 `DATA_MODERNIZATION_PRINCIPLES.md`。
 - 用户已批准注册登录模块独立 UI 验收后接隔离测试环境。该例外仅覆盖 KC-F-010/011 及必要直接依赖；当前模块尚未 UI 验收，不是全局 UI Flow Approved，更不是生产批准。唯一状态源仍为 `docs/v2/APP_SCOPE_AND_UI_DELIVERY_GATE.md`。
 - 旧后台实际调用 ImageRecognition 和 DetectFaceAttributes；新 CCSOP 当前只有 MockIdentityAdapter。建议重建服务端适配器而非复制旧 Java 大方法，不得拿 Mock 的固定 verified=true 放行真实用户。
 - 腾讯旧照片实名 API 已停止新接入；优先评估 ImageRecognitionV2，账号权限/费用未核验，不自动双调用或失败降级。旧 SQL 男 80 / 女 85 且聚合所有审核图是来源证据，不是已批准的新生产阈值。实名相似度、颜值与会员资格分开。

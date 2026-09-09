@@ -54,6 +54,7 @@
 - [用户流程与导航](flow.md)
 - [准入状态机](state_machine.md)
 - [数据、Repository 与待建接口契约](data_and_api.md)
+- [注册准入数据库、旧接口副作用与 CCSOP 目标模型审查](database_review.md)
 - [隐私、安全与审核公平性](privacy_and_safety.md)
 - [Mock/Fake 场景](mock_scenarios.md)
 - [功能验收](acceptance.md)
