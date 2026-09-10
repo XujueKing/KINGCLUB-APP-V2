@@ -1,5 +1,11 @@
 # UI 保真、原生体验与流畅度验收
 
+## 2026-09-11 手机方向策略
+
+用户指出多数页面不支持横屏。当前普通手机页面统一竖屏：Flutter 启动设置 portraitUp，Android Activity 在启动阶段声明 portrait，iPhone 支持方向仅保留竖屏。视频全屏/游戏如需横屏，随对应功能单独开放，退出恢复竖屏；本轮不新建横屏页面。
+
+平板/折叠大屏另行适配，不以锁定方向宣称适配完成；iPad 保留已有多任务方向声明。Android 新版本对宽度至少 600dp 的设备可能忽略方向限制，见 [Flutter 平台限制](https://api.flutter.dev/flutter/services/SystemChrome/setPreferredOrientations.html)。
+
 - 状态：**In Review**；本文件定义验收方法与建议预算，不是已完成的截图审计或性能报告。
 - 已确认用户目标：对旧版 UI 保持 99% 类似；可以边实现有效业务流程边微调 UI，不要求复制旧内部代码与容器限制。
 
