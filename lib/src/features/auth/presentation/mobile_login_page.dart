@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design_system/king_components.dart';
+import '../../../core/design_system/registration_input_style.dart';
 import '../data/auth_repository_provider.dart';
 import '../domain/auth_repository.dart';
 
@@ -435,15 +436,9 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
     return Container(
       key: key,
       height: 45,
-      decoration: BoxDecoration(
-        borderRadius: borderRadius ?? BorderRadius.circular(22.5),
-        gradient: const RadialGradient(
-          center: Alignment.topLeft,
-          // Legacy CSS uses `circle 600rpx at 0% 0%`: a fixed 300dp
-          // radius, rather than a radius scaled to this 45dp-high box.
-          radius: 20 / 3,
-          colors: [Color(0xFFB8A289), Color(0xFF7E6951)],
-        ),
+      decoration: registrationInputDecoration(
+        height: 45,
+        borderRadius: borderRadius,
       ),
       alignment: Alignment.center,
       child: TextField(

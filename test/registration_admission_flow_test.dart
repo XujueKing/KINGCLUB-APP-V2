@@ -59,6 +59,49 @@ Future<void> _addPhoto(WidgetTester tester, String source) async {
 }
 
 void main() {
+  testWidgets('identity fields and action stay horizontally centered', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final runtime = MockRuntime();
+    await tester.pumpWidget(
+      _app(
+        runtime,
+        RealNameAdultVerificationPage(
+          flowId: runtime.startOnboarding(),
+          onBack: () {},
+          onNext: () {},
+          onInvalidFlow: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+    for (final key in [
+      'real-name-name-field',
+      'real-name-id-field',
+      'real-name-verify-button',
+    ]) {
+      expect(
+        tester.getCenter(find.byKey(ValueKey(key))).dx,
+        closeTo(393 / 2, .5),
+      );
+    }
+    final surfaces = tester
+        .widgetList<Container>(find.byType(Container))
+        .where(
+          (widget) =>
+              widget.decoration is BoxDecoration &&
+              (widget.decoration as BoxDecoration).gradient is RadialGradient,
+        );
+    expect(surfaces.length, 2);
+    for (final surface in surfaces) {
+      final gradient =
+          (surface.decoration as BoxDecoration).gradient! as RadialGradient;
+      // A 300dp circle spans the field; a radius of 1 collapses to its height.
+      expect(gradient.radius * 46, closeTo(300, .1));
+    }
+  });
   testWidgets('registration screens reflow at supported phone sizes', (
     tester,
   ) async {

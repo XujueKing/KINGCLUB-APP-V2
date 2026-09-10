@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design_system/king_theme.dart';
+import '../../../core/design_system/registration_input_style.dart';
 import '../../../core/mock/mock_runtime.dart';
 import '../../auth/data/auth_repository_provider.dart';
 
@@ -127,14 +128,7 @@ class _RealNameAdultVerificationPageState
   }) {
     return Container(
       height: 46,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: const RadialGradient(
-          center: Alignment.topLeft,
-          radius: 1,
-          colors: [Color(0xFFB8A289), Color(0xFF7E6951)],
-        ),
-      ),
+      decoration: registrationInputDecoration(height: 46),
       child: TextField(
         key: ValueKey(keyName),
         controller: controller,
@@ -207,6 +201,7 @@ class _RealNameAdultVerificationPageState
             padding: const EdgeInsets.only(top: 30, bottom: 50),
             child: ConstrainedBox(
               constraints: BoxConstraints(
+                minWidth: constraints.maxWidth,
                 minHeight: (constraints.maxHeight - 80).clamp(
                   0.0,
                   double.infinity,
