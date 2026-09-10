@@ -221,7 +221,6 @@ void main() {
       ),
       '430102199001011234',
     );
-    await tester.tap(find.byKey(const ValueKey('real-name-notice-checkbox')));
     await tester.ensureVisible(
       find.byKey(const ValueKey('real-name-verify-button')),
     );

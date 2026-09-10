@@ -27,14 +27,13 @@ class RealNameAdultVerificationPage extends ConsumerStatefulWidget {
 class _RealNameAdultVerificationPageState
     extends ConsumerState<RealNameAdultVerificationPage> {
   static const _gold = KingColors.brand;
-  static const _actionBrown = Color(0xFF3B2814);
+  static const _actionBrown = Color(0xFF24180A);
 
   final _nameController = TextEditingController();
   final _identityController = TextEditingController();
   final _nameFocusNode = FocusNode();
   final _identityFocusNode = FocusNode();
   bool _submitting = false;
-  bool _adultConsent = false;
   String? _verificationError;
 
   @override
@@ -73,10 +72,6 @@ class _RealNameAdultVerificationPageState
     }
     if (_identityController.text.trim().length < 15) {
       _showMessage('请输入正确的身份证号码');
-      return;
-    }
-    if (!_adultConsent) {
-      _showMessage('请先阅读并同意成年声明');
       return;
     }
     setState(() {
@@ -123,32 +118,69 @@ class _RealNameAdultVerificationPageState
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  InputDecoration _formInputDecoration({required String hint}) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(
-        color: Color(0xFF766451),
-        fontSize: 16,
-        fontWeight: FontWeight.w400,
-      ),
-      filled: true,
-      fillColor: const Color(0xFFBDA788),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      border: OutlineInputBorder(
+  Widget _field({
+    required String keyName,
+    required TextEditingController controller,
+    required FocusNode focus,
+    required String hint,
+    bool identity = false,
+  }) {
+    return Container(
+      height: 46,
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
-        borderSide: BorderSide.none,
+        gradient: const RadialGradient(
+          center: Alignment.topLeft,
+          radius: 1,
+          colors: [Color(0xFFB8A289), Color(0xFF7E6951)],
+        ),
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(26),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(26),
-        borderSide: const BorderSide(color: _gold, width: 1.5),
-      ),
-      disabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(26),
-        borderSide: const BorderSide(color: Color(0xFF2B2723)),
+      child: TextField(
+        key: ValueKey(keyName),
+        controller: controller,
+        focusNode: focus,
+        enabled: !_submitting,
+        enableSuggestions: false,
+        autocorrect: false,
+        textAlign: TextAlign.center,
+        textAlignVertical: TextAlignVertical.center,
+        keyboardType: identity
+            ? TextInputType.visiblePassword
+            : TextInputType.name,
+        textInputAction: identity ? TextInputAction.done : TextInputAction.next,
+        maxLength: identity ? 18 : null,
+        buildCounter: (
+          _, {
+          required currentLength,
+          required isFocused,
+          maxLength,
+        }) => null,
+        style: const TextStyle(
+          color: _actionBrown,
+          fontSize: 21,
+          fontWeight: FontWeight.w400,
+        ),
+        decoration: InputDecoration(
+          hintText: focus.hasFocus ? '' : hint,
+          hintStyle: const TextStyle(color: Color(0x99422E19), fontSize: 16),
+          filled: false,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 10,
+          ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+        ),
+        onSubmitted: (_) {
+          if (identity) {
+            _requestVerification();
+          } else {
+            _identityFocusNode.requestFocus();
+          }
+        },
       ),
     );
   }
@@ -160,69 +192,113 @@ class _RealNameAdultVerificationPageState
         ? ref.watch(authenticatedMemberProvider)?.needsIdentity == true
         : ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId);
     if (!validFlow) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => widget.onInvalidFlow(),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onInvalidFlow();
+      });
     }
-    final controlWidth = (MediaQuery.sizeOf(context).width - 48)
-        .clamp(280.0, 480.0)
-        .toDouble();
-    final fieldWidth = (MediaQuery.sizeOf(context).width * 0.8)
-        .clamp(280.0, 420.0)
-        .toDouble();
-
+    final width = MediaQuery.sizeOf(context).width;
+    final contentWidth = (width * .88).clamp(0.0, 528.0).toDouble();
+    final fieldWidth = (width * .8).clamp(0.0, 480.0).toDouble();
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 10, 24, 18),
+            padding: const EdgeInsets.only(top: 30, bottom: 50),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - 28,
+                minHeight: (constraints.maxHeight - 80).clamp(
+                  0.0,
+                  double.infinity,
+                ),
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   SizedBox(
-                    key: const ValueKey('real-name-step-header'),
-                    width: controlWidth,
-                    height: 44,
+                    width: contentWidth,
                     child: Stack(
-                      alignment: Alignment.center,
                       children: [
+                        Column(
+                          children: [
+                            const SizedBox(height: 30),
+                            ColorFiltered(
+                              colorFilter: const ColorFilter.mode(
+                                _gold,
+                                BlendMode.srcIn,
+                              ),
+                              child: Image.asset(
+                                'assets/legacy/onboarding/nonine.png',
+                                width: 90,
+                                height: 90,
+                              ),
+                            ),
+                            const SizedBox(height: 25),
+                            const Text(
+                              '未满18岁未成年人\n不得饮酒注册会员',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _gold,
+                                fontSize: 20,
+                                height: 1.4,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.only(top: 15, bottom: 20),
+                              child: Text(
+                                '根据《中华人民共和国未成年人保护法》第三十七条禁止向未成年人出售烟酒，经营者应当在显著位置设置不向未成年人出售烟酒的标志；对难以判明是否已成年的，应当要求其出示身份证件。请实名验证会员身份，确保年满18岁。',
+                                textAlign: TextAlign.justify,
+                                style: TextStyle(
+                                  color: Color(0xCCC9B69E),
+                                  fontSize: 13,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                            const Text(
+                              'NAME:',
+                              style: TextStyle(color: _gold, fontSize: 14),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: fieldWidth,
+                              child: _field(
+                                keyName: 'real-name-name-field',
+                                controller: _nameController,
+                                focus: _nameFocusNode,
+                                hint: '身份证姓名',
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'ID CARD:',
+                              style: TextStyle(color: _gold, fontSize: 14),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: fieldWidth,
+                              child: _field(
+                                keyName: 'real-name-id-field',
+                                controller: _identityController,
+                                focus: _identityFocusNode,
+                                hint: '身份证号码',
+                                identity: true,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
                         Positioned(
-                          left: -12,
+                          left: 0,
+                          top: 0,
                           child: IconButton(
-                            onPressed: _submitting ? null : widget.onBack,
                             tooltip: '返回',
+                            onPressed: _submitting ? null : widget.onBack,
                             icon: Image.asset(
                               'assets/legacy/friendship/back.png',
-                              width: 11,
-                              height: 22,
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.high,
-                            ),
-                          ),
-                        ),
-                        const Text(
-                          '身份资料',
-                          style: TextStyle(
-                            color: _gold,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const Positioned(
-                          right: 0,
-                          child: Text(
-                            '1 / 4',
-                            style: TextStyle(
-                              color: Color(0xB3C9B69E),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 1,
+                              width: 10,
+                              height: 20,
                             ),
                           ),
                         ),
@@ -230,234 +306,79 @@ class _RealNameAdultVerificationPageState
                     ),
                   ),
                   SizedBox(
-                    width: controlWidth,
-                    child: const LinearProgressIndicator(
-                      value: 0.25,
-                      minHeight: 2,
-                      color: _gold,
-                      backgroundColor: Color(0xFF3A332C),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  ColorFiltered(
-                    colorFilter: const ColorFilter.mode(_gold, BlendMode.srcIn),
-                    child: Image.asset(
-                      'assets/legacy/onboarding/nonine.png',
-                      width: 90,
-                      height: 90,
-                      filterQuality: FilterQuality.high,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  const Text(
-                    '未满18岁未成年人\n不得饮酒注册会员',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _gold,
-                      fontSize: 19,
-                      height: 1.45,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  SizedBox(
                     width: fieldWidth,
-                    child: const Text(
-                      'NAME:',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: _gold, fontSize: 14),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: fieldWidth,
-                    height: 46,
-                    child: TextField(
-                      key: const ValueKey('real-name-name-field'),
-                      controller: _nameController,
-                      focusNode: _nameFocusNode,
-                      enabled: !_submitting,
-                      textInputAction: TextInputAction.next,
-                      style: const TextStyle(
-                        color: Color(0xFF4D4134),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                      decoration: _formInputDecoration(
-                        hint: _nameFocusNode.hasFocus ? '' : '请输入姓名',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: const Text(
-                      'ID CARD:',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: _gold, fontSize: 14),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: fieldWidth,
-                    height: 46,
-                    child: TextField(
-                      key: const ValueKey('real-name-id-field'),
-                      controller: _identityController,
-                      focusNode: _identityFocusNode,
-                      enabled: !_submitting,
-                      enableSuggestions: false,
-                      autocorrect: false,
-                      keyboardType: TextInputType.visiblePassword,
-                      textInputAction: TextInputAction.done,
-                      maxLength: 18,
-                      buildCounter: (
-                        _, {
-                        required currentLength,
-                        required isFocused,
-                        maxLength,
-                      }) => null,
-                      style: const TextStyle(
-                        color: Color(0xFF4D4134),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 2,
-                      ),
-                      textAlign: TextAlign.center,
-                      decoration: _formInputDecoration(
-                        hint: _identityFocusNode.hasFocus ? '' : '请输入证件号码',
-                      ),
-                      onSubmitted: (_) => _requestVerification(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: controlWidth,
-                    child: InkWell(
-                      key: const ValueKey('real-name-notice-checkbox'),
-                      onTap: _submitting
-                          ? null
-                          : () =>
-                                setState(() => _adultConsent = !_adultConsent),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 1),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 140),
-                                width: 22,
-                                height: 22,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _adultConsent
-                                      ? _gold
-                                      : Colors.transparent,
-                                  border: Border.all(color: _gold, width: 1.5),
-                                ),
-                                child: _adultConsent
-                                    ? const Icon(
-                                        Icons.check_rounded,
-                                        size: 16,
-                                        color: Color(0xFF24180A),
-                                      )
-                                    : null,
-                              ),
+                    child: Column(
+                      children: [
+                        if (_verificationError case final error?) ...[
+                          Text(
+                            error,
+                            key: const ValueKey('photo-identity-error'),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: KingColors.danger,
+                              fontSize: 13,
+                              height: 1.45,
                             ),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                              child: Text(
-                                '我已阅读并同意：本人已满18周岁，未成年人禁止进入本娱乐场所，遵守店内相关管理规定。',
-                                style: TextStyle(
-                                  color: _gold,
-                                  fontSize: 12.5,
-                                  height: 1.45,
-                                ),
-                              ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        SizedBox(
+                          width: double.infinity,
+                          height: 46,
+                          child: FilledButton(
+                            key: const ValueKey('real-name-verify-button'),
+                            onPressed: _submitting
+                                ? null
+                                : _requestVerification,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _actionBrown,
+                              foregroundColor: const Color(0xABC9B69E),
+                              disabledBackgroundColor: _actionBrown,
+                              disabledForegroundColor: const Color(0x61C9B69E),
+                              shape: const StadiumBorder(),
+                              side: BorderSide.none,
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  if (_verificationError case final error?) ...[
-                    SizedBox(
-                      key: const ValueKey('photo-identity-error'),
-                      width: controlWidth,
-                      child: Text(
-                        error,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: KingColors.danger,
-                          fontSize: 13,
-                          height: 1.45,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  SizedBox(
-                    width: fieldWidth,
-                    height: 48,
-                    child: FilledButton(
-                      key: const ValueKey('real-name-verify-button'),
-                      onPressed: _submitting ? null : _requestVerification,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _actionBrown,
-                        foregroundColor: _gold,
-                        disabledBackgroundColor: const Color(0xFF17110A),
-                        disabledForegroundColor: const Color(0x667C6D5A),
-                        shape: const StadiumBorder(),
-                        side: BorderSide(
-                          color: _submitting
-                              ? _gold.withValues(alpha: 0.18)
-                              : _gold.withValues(alpha: 0.55),
-                        ),
-                      ),
-                      child: _submitting
-                          ? const SizedBox.square(
-                              dimension: 20,
-                              child: CircularProgressIndicator(
-                                color: _gold,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ColorFiltered(
-                                  colorFilter: const ColorFilter.mode(
-                                    _gold,
-                                    BlendMode.srcIn,
+                            child: _submitting
+                                ? const SizedBox.square(
+                                    dimension: 20,
+                                    child: CircularProgressIndicator(
+                                      color: _gold,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      ColorFiltered(
+                                        colorFilter: const ColorFilter.mode(
+                                          _gold,
+                                          BlendMode.srcIn,
+                                        ),
+                                        child: Image.asset(
+                                          'assets/legacy/onboarding/camera.png',
+                                          width: 22.5,
+                                          height: 18.6,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Text(
+                                        '人脸核验',
+                                        style: TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  child: Image.asset(
-                                    'assets/legacy/onboarding/camera.png',
-                                    width: 24,
-                                    height: 20,
-                                    filterQuality: FilterQuality.high,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  '拍照上传核验',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'SHANGHAI . ZHUZHOU',
+                          style: TextStyle(color: _gold, fontSize: 14),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'SHANGHAI . ZHUZHOU',
-                    style: TextStyle(color: _gold, fontSize: 14),
                   ),
                 ],
               ),
