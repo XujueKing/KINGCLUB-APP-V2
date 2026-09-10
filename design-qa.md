@@ -12,6 +12,31 @@ final result: passed
 
 ---
 
+# Design QA — 手机号登录按钮严格恢复旧版 v4
+
+- source visual truth: `D:\WEB3_AI\KingClub-git\pages\regist\regist.wxml` 与 `regist.wxss`
+- implementation screenshot: `.tmp-kingclub-login-v4.png`
+- target viewport: OPPO PCLM50，Android 12，Profile 构建，`1080 × 2400 px`
+
+## Comparison evidence
+
+- NEXT 与“获取验证码”均恢复旧版内联样式：背景 `rgb(36, 24, 10)`（`#24180A`）。
+- 两个按钮文字均恢复旧版 `#c9b69eAA`（Flutter `0xAAC9B69E`），不再使用新拟定的暖金棕配色。
+- 圆角、控件尺寸、位置、输入框、标准返回键与页脚保持上一轮已确认状态。
+
+## Verification
+
+- 精确色值已纳入定向组件测试断言。
+- 本轮只恢复旧版按钮色值，不改变交互与布局。
+
+## Findings
+
+- 按钮与旧版 CSS 的指定颜色无剩余 P0/P1/P2 差异。
+
+final result: passed
+
+---
+
 # Design QA — 手机号登录金色层级与标准返回键 v3
 
 - source visual truth: `D:\WEB3_AI\KingClub-git\pages\regist\regist.wxml`、`regist.wxss`、`D:\WEB3_AI\KingClub-git\app.wxss` 与用户于 2026-09-10 的真机反馈

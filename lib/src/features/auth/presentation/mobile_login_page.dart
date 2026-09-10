@@ -25,10 +25,10 @@ class MobileLoginPage extends ConsumerStatefulWidget {
 
 class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   static const _champagne = Color(0xFFC9B69E);
-  static const _buttonGold = Color(0xFF5A3510);
-  static const _buttonGoldDisabled = Color(0xFF342009);
-  static const _actionText = Color(0xFFE6C995);
-  static const _disabledActionText = Color(0xFFA88D68);
+  static const _buttonGold = Color(0xFF24180A);
+  static const _buttonGoldDisabled = Color(0xFF24180A);
+  static const _actionText = Color(0xAAC9B69E);
+  static const _disabledActionText = Color(0xAAC9B69E);
   static const _inputText = Color(0xFF2A1D11);
 
   final _mobileController = TextEditingController();
