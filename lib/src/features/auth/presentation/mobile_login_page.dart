@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design_system/king_components.dart';
 import '../../../core/mock/mock_runtime.dart';
+import '../data/auth_repository_provider.dart';
+import '../domain/auth_repository.dart';
 
 class MobileLoginPage extends ConsumerStatefulWidget {
   const MobileLoginPage({
@@ -35,7 +37,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   final _codeController = TextEditingController();
   final _mobileFocusNode = FocusNode();
   final _codeFocusNode = FocusNode();
-  LoginFlowSnapshot? _flow;
+  AuthSmsChallenge? _flow;
   Timer? _timer;
   int _remaining = 0;
   bool _requesting = false;
@@ -85,13 +87,13 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
       _codeError = null;
     });
     try {
-      final flow = await ref.read(mockRuntimeProvider).requestSms(mobile);
+      final flow = await ref.read(authRepositoryProvider).requestSms(mobile);
       if (!mounted) return;
       _timer?.cancel();
       setState(() {
         _flow = flow;
         _requesting = false;
-        _remaining = 60;
+        _remaining = flow.retryAfterSeconds;
       });
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (!mounted || _remaining == 0) {
@@ -100,13 +102,15 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
         }
         setState(() => _remaining--);
       });
-    } on MockSmsRequestException catch (error) {
+    } on AuthFailure catch (error) {
       if (!mounted) return;
       setState(() {
         _requesting = false;
-        _mobileError = switch (error.failure) {
-          SmsRequestFailure.rateLimited => '请求过于频繁，请 60 秒后重试',
-          SmsRequestFailure.offline => '网络暂时不可用，请检查后重试',
+        _mobileError = switch (error.code) {
+          'AUTH_SMS_RATE_LIMITED' => '请求过于频繁，请稍后重试',
+          'SMS_PROVIDER_ERROR' => '短信发送失败，请稍后重试',
+          'SMS_ROUTE_UNAVAILABLE' => '短信服务正在配置，请稍后重试',
+          _ => error.message,
         };
       });
     }
@@ -120,43 +124,44 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
       _verifying = true;
       _codeError = null;
     });
-    final outcome = await ref
-        .read(mockRuntimeProvider)
-        .verifyCode(flowId: _flow!.id, code: _codeController.text);
-    if (!mounted) return;
-    switch (outcome) {
-      case CodeVerificationOutcome.verified:
-        final runtime = ref.read(mockRuntimeProvider);
-        final onboardingId = runtime.startOnboarding(loginFlowId: _flow!.id);
-        if (runtime.canEnterApp(onboardingId) &&
-            widget.onAuthenticatedMember != null) {
-          widget.onAuthenticatedMember!();
-        } else {
-          widget.onVerified(onboardingId);
+    try {
+      final result = await ref
+          .read(authRepositoryProvider)
+          .login(
+            mobile: _mobileController.text.replaceAll(RegExp(r'[\s-]'), ''),
+            challengeId: _flow!.id,
+            code: _codeController.text,
+          );
+      if (!mounted) return;
+      if (result.canEnterApp && widget.onAuthenticatedMember != null) {
+        widget.onAuthenticatedMember!();
+      } else {
+        final onboardingId = ref
+            .read(mockRuntimeProvider)
+            .startOnboarding(loginFlowId: _flow!.id);
+        widget.onVerified(onboardingId);
+      }
+    } on AuthFailure catch (error) {
+      if (!mounted) return;
+      final expired =
+          error.code == 'AUTH_CHALLENGE_EXPIRED' ||
+          error.code == 'AUTH_CHALLENGE_INVALID' ||
+          error.code == 'AUTH_CHALLENGE_LOCKED';
+      _codeController.clear();
+      setState(() {
+        _verifying = false;
+        if (expired) {
+          _flow = null;
+          _remaining = 0;
         }
-      case CodeVerificationOutcome.invalid:
-        _codeController.clear();
-        setState(() {
-          _verifying = false;
-          _codeError = '验证码不正确，请重新输入';
-        });
-      case CodeVerificationOutcome.expired:
-        _codeController.clear();
-        setState(() {
-          _verifying = false;
-          _flow = null;
-          _remaining = 0;
-          _codeError = '验证码已过期，请重新获取';
-        });
-      case CodeVerificationOutcome.outcomeUnknown:
-        _codeController.clear();
-        ref.read(mockRuntimeProvider).clearFlow(_flow!.id);
-        setState(() {
-          _verifying = false;
-          _flow = null;
-          _remaining = 0;
-          _codeError = '验证结果暂时无法确认，请重新获取';
-        });
+        _codeError = switch (error.code) {
+          'AUTH_CODE_INVALID' => '验证码不正确，请重新输入',
+          'AUTH_CHALLENGE_EXPIRED' => '验证码已过期，请重新获取',
+          'AUTH_CHALLENGE_LOCKED' => '错误次数过多，请重新获取',
+          'IDENTITY_AUTHORITY_UNAVAILABLE' => '会员服务暂时不可用，请稍后重试',
+          _ => error.message,
+        };
+      });
     }
   }
 
@@ -315,9 +320,6 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
           hintText: _mobileFocusNode.hasFocus ? null : '请输入电话号码',
           autofillHints: const [AutofillHints.telephoneNumber],
           onChanged: (_) {
-            if (_flow != null) {
-              ref.read(mockRuntimeProvider).clearFlow(_flow!.id);
-            }
             _timer?.cancel();
             setState(() {
               _flow = null;
