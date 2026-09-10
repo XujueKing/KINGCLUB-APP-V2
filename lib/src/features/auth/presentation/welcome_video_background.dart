@@ -159,16 +159,16 @@ class _WelcomeVideoBackgroundState extends State<WelcomeVideoBackground>
           Positioned(
             top: MediaQuery.paddingOf(context).top + 12,
             right: 16,
-            child: IconButton.filledTonal(
+            child: IconButton(
               key: const ValueKey('welcome-sound-toggle'),
               tooltip: _muted ? '开启声音' : '关闭声音',
               onPressed: _toggleSound,
               style: IconButton.styleFrom(
-                backgroundColor: Colors.black54,
-                foregroundColor: const Color(0xFFC9B69E),
+                backgroundColor: Colors.transparent,
+                foregroundColor: const Color(0xB3FFFFFF),
                 minimumSize: const Size(48, 48),
               ),
-              icon: Icon(_muted ? Icons.volume_off : Icons.volume_up, size: 22),
+              icon: Icon(_muted ? Icons.volume_off : Icons.volume_up, size: 18),
             ),
           ),
       ],
