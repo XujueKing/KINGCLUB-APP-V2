@@ -39,3 +39,12 @@
 ## 下一门禁
 
 产品负责人检阅本地预览并明确批准 `Module UI Accepted` 后，才开始 CCSOP 隔离测试环境 adapter、腾讯照片实名认证 V2 和受控媒体上传联调。
+
+## Android 真机旧版样式校正（2026-09-10）
+
+- 设备：OPPO PCLM50，Android 12，物理分辨率 `1080 × 2400 px`。
+- 欢迎页：协议保持单行；文字恢复旧版 `#C9B69E / 14dp`；勾选视觉恢复为约 `20dp` 粉色圆与居中 `10dp` 黑色小勾；NEXT 恢复 `80% × 45dp` 及旧版粉色。
+- 手机登录页：标签、输入和按钮恢复旧版字号；输入高 `45dp`、圆角 `22.5dp`；验证码按钮和 NEXT 使用 `#24180A` 背景、`#AAC9B69E` 文字且无额外描边。
+- 验证码行按旧版最终截图恢复约 `65% : 35%` 的可见宽度，表单顶部位置按旧版手机内容区重新对齐。
+- 真机已验证欢迎页勾选、NEXT 跳转、手机登录页禁用态；静态分析无问题，注册/身份聚焦测试 `48/48` 通过。
+- 对照证据：旧版 `D:\WEB3_AI\KingClub-git\docs\modules\login\screenshots\regist-reference.png`；最终真机截图与拼图保存在 `C:\Users\xiaoshafa\Documents\Codex\Exports\kingclub-ui-audit-2026-09-10`。

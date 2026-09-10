@@ -68,7 +68,7 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
                       Positioned(
                         left: pageWidth * 0.10,
                         right: pageWidth * 0.10,
-                        bottom: 26,
+                        bottom: 30,
                         child: _bottomContent(context),
                       ),
                     ],
@@ -84,7 +84,7 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
 
   Widget _bottomContent(BuildContext context) {
     const agreementStyle = TextStyle(
-      color: Color(0xFFF2D7E5),
+      color: Color(0xFFC9B69E),
       fontSize: 14,
       height: 1.35,
     );
@@ -95,40 +95,64 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox.square(
-              dimension: 32,
-              child: Checkbox(
+            Semantics(
+              checked: _accepted,
+              label: '同意隐私政策和用户协议',
+              child: GestureDetector(
                 key: const ValueKey('legacy-welcome-consent'),
-                value: _accepted,
-                shape: const CircleBorder(),
-                side: BorderSide.none,
-                fillColor: WidgetStateProperty.resolveWith(
-                  (states) => states.contains(WidgetState.selected)
-                      ? _palePink
-                      : const Color(0x66FBAFDA),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _accepted = !_accepted),
+                child: SizedBox.square(
+                  dimension: 32,
+                  child: Center(
+                    child: AnimatedContainer(
+                      key: const ValueKey('legacy-welcome-consent-visual'),
+                      duration: const Duration(milliseconds: 120),
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: _accepted ? _palePink : Colors.black,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _palePink,
+                          width: _accepted ? 0.5 : 1.5,
+                        ),
+                      ),
+                      child: _accepted
+                          ? const Icon(
+                              Icons.check_rounded,
+                              key: ValueKey('legacy-welcome-consent-check'),
+                              size: 10,
+                              color: Colors.black,
+                            )
+                          : null,
+                    ),
+                  ),
                 ),
-                checkColor: const Color(0xFF541033),
-                onChanged: (value) =>
-                    setState(() => _accepted = value ?? false),
               ),
             ),
             const SizedBox(width: 6),
             Expanded(
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  const Text('我已阅读并同意', style: agreementStyle),
-                  _agreementButton('《隐私政策》', widget.onOpenPrivacy),
-                  const Text('和', style: agreementStyle),
-                  _agreementButton('《用户协议》', widget.onOpenTerms),
-                ],
+              child: FittedBox(
+                key: const ValueKey('legacy-welcome-agreement-line'),
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('我已阅读并同意', style: agreementStyle),
+                    _agreementButton('《隐私政策》', widget.onOpenPrivacy),
+                    const Text('和', style: agreementStyle),
+                    _agreementButton('《用户协议》', widget.onOpenTerms),
+                  ],
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 15),
         SizedBox(
-          height: 50,
+          height: 45,
           child: FilledButton(
             key: const ValueKey('legacy-welcome-next'),
             onPressed: _accepted ? widget.onNext : null,
@@ -139,45 +163,48 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
               disabledForegroundColor: _palePink.withValues(alpha: 0.20),
               shape: const StadiumBorder(),
               textStyle: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
               ),
             ),
             child: const Text('NEXT'),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         const Text(
           'BUSINESS HOURS',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFFE9CAD9), fontSize: 14),
+          style: TextStyle(color: Color(0xFFC9B69E), fontSize: 14),
         ),
-        const SizedBox(height: 3),
         const Text(
           '20:30-04:00',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFFD7B6C7), fontSize: 14),
+          style: TextStyle(color: Color(0xFFC9B69E), fontSize: 14),
         ),
       ],
     );
   }
 
   Widget _agreementButton(String label, VoidCallback onPressed) {
-    return TextButton(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 1),
-        minimumSize: const Size(0, 30),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        foregroundColor: const Color(0xFFF2D7E5),
-        textStyle: const TextStyle(
-          fontSize: 14,
-          height: 1.35,
-          decoration: TextDecoration.underline,
-          decorationColor: Color(0xFFF2D7E5),
+    return Semantics(
+      link: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFFC9B69E),
+              fontSize: 14,
+              height: 1.35,
+              decoration: TextDecoration.underline,
+              decorationColor: Color(0xFFC9B69E),
+            ),
+          ),
         ),
       ),
-      child: Text(label),
     );
   }
 }

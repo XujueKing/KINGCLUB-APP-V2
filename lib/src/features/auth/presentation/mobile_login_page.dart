@@ -25,6 +25,8 @@ class MobileLoginPage extends ConsumerStatefulWidget {
 class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   static const _champagne = Color(0xFFC9B69E);
   static const _deepBrown = Color(0xFF24180A);
+  static const _actionText = Color(0xAAC9B69E);
+  static const _disabledActionText = Color(0x61C9B69E);
   static const _inputText = Color(0xFF2A1D11);
 
   final _mobileController = TextEditingController();
@@ -177,7 +179,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              const SizedBox(height: 110),
+                              const SizedBox(height: 70),
                               SizedBox(
                                 key: const ValueKey('mobile-login-brand-logo'),
                                 width: constraints.maxWidth * 0.2933,
@@ -207,7 +209,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                                       CrossAxisAlignment.stretch,
                                   children: [
                                     SizedBox(
-                                      height: 50,
+                                      height: 45,
                                       child: FilledButton(
                                         key: const ValueKey(
                                           'mobile-login-next',
@@ -215,15 +217,14 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                                         onPressed: nextEnabled ? _verify : null,
                                         style: FilledButton.styleFrom(
                                           backgroundColor: _deepBrown,
-                                          disabledBackgroundColor: _deepBrown
-                                              .withValues(alpha: 0.62),
-                                          foregroundColor: _champagne,
-                                          disabledForegroundColor: _champagne
-                                              .withValues(alpha: 0.46),
+                                          disabledBackgroundColor: _deepBrown,
+                                          foregroundColor: _actionText,
+                                          disabledForegroundColor:
+                                              _disabledActionText,
                                           shape: const StadiumBorder(),
                                           textStyle: const TextStyle(
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.w600,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                         child: _verifying
@@ -238,7 +239,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                                             : const Text('NEXT'),
                                       ),
                                     ),
-                                    const SizedBox(height: 14),
+                                    const SizedBox(height: 10),
                                     const Text(
                                       'SHANGHAI . ZHUZHOU',
                                       textAlign: TextAlign.center,
@@ -310,6 +311,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
               _codeController.clear();
             });
           },
+          fontSize: 21,
         ),
         if (_mobileError != null) ...[
           const SizedBox(height: 6),
@@ -318,13 +320,13 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
             style: const TextStyle(color: Color(0xFFFF7D93), fontSize: 12),
           ),
         ],
-        const SizedBox(height: 18),
+        const SizedBox(height: 10),
         const Text('Code:', style: labelStyle),
         const SizedBox(height: 10),
         SizedBox(
-          height: 50,
+          height: 45,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(22.5),
             child: Row(
               children: [
                 Expanded(
@@ -338,6 +340,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                     borderRadius: BorderRadius.zero,
                     autofillHints: const [AutofillHints.oneTimeCode],
                     onChanged: (_) => setState(() => _codeError = null),
+                    fontSize: 20,
                   ),
                 ),
                 Expanded(
@@ -351,15 +354,13 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                       style: TextButton.styleFrom(
                         backgroundColor: _deepBrown,
                         disabledBackgroundColor: _deepBrown,
-                        foregroundColor: _champagne,
-                        disabledForegroundColor: _champagne.withValues(
-                          alpha: 0.65,
-                        ),
+                        foregroundColor: _actionText,
+                        disabledForegroundColor: _disabledActionText,
                         shape: const RoundedRectangleBorder(),
                         padding: EdgeInsets.zero,
                         textStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       child: Text(
@@ -397,12 +398,13 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
     Iterable<String>? autofillHints,
     BorderRadius? borderRadius,
     FocusNode? focusNode,
+    double fontSize = 21,
   }) {
     return Container(
       key: key,
-      height: 50,
+      height: 45,
       decoration: BoxDecoration(
-        borderRadius: borderRadius ?? BorderRadius.circular(25),
+        borderRadius: borderRadius ?? BorderRadius.circular(22.5),
         gradient: const RadialGradient(
           center: Alignment.topLeft,
           radius: 1.65,
@@ -424,14 +426,13 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
         textAlign: TextAlign.center,
         style: const TextStyle(
           color: _inputText,
-          fontSize: 19,
           fontWeight: FontWeight.w400,
-        ),
+        ).copyWith(fontSize: fontSize),
         cursorColor: _inputText,
         decoration: InputDecoration(
           counterText: '',
           hintText: hintText,
-          hintStyle: const TextStyle(color: Color(0x99422E19), fontSize: 15),
+          hintStyle: const TextStyle(color: Color(0x99422E19), fontSize: 16),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,

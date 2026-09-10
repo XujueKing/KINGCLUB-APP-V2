@@ -12,6 +12,47 @@ final result: passed
 
 ---
 
+# Design QA — 欢迎页与手机号登录旧版样式复刻 v1
+
+- source visual truth paths: 用户于 2026-09-10 当前会话提供的旧版欢迎页截图；`D:\WEB3_AI\KingClub-git\docs\modules\login\screenshots\regist-reference.png`；`D:\WEB3_AI\KingClub-git\pages\login\login.wxss`；`D:\WEB3_AI\KingClub-git\pages\regist\regist.wxss`；`D:\WEB3_AI\KingClub-git\app.wxss`
+- implementation screenshot paths: `C:\Users\xiaoshafa\Documents\Codex\Exports\kingclub-ui-audit-2026-09-10\06-final-welcome-checked.png`; `C:\Users\xiaoshafa\Documents\Codex\Exports\kingclub-ui-audit-2026-09-10\11-final-login.png`
+- combined comparison evidence: `C:\Users\xiaoshafa\Documents\Codex\Exports\kingclub-ui-audit-2026-09-10\12-login-reference-vs-final.png`
+- viewport: connected OPPO PCLM50, Android 12, `1080 × 2400 px`; Flutter app content `1080 × 2172 px` plus system status/navigation bars
+- source pixels: login reference `734 × 1693 px`, phone content crop `664 × 1428 px`; implementation `1080 × 2400 px`
+- normalization: the old phone content crop was scaled to `1080 × 2323 px` and placed beside the `1080 × 2400 px` Android capture. Platform-owned WeChat capsule, device notch and Android navigation chrome were excluded from fidelity findings.
+- state: welcome consent checked and NEXT enabled; mobile login empty fields with request-code enabled and NEXT disabled
+
+## Fidelity surfaces
+
+- Fonts and typography: welcome agreement/business text uses `14dp / #C9B69E`; login labels use `15dp`, phone input `21dp`, code input `20dp`, placeholders `16dp`, request action `15dp`, matching the old rpx scale and visible hierarchy.
+- Spacing and layout rhythm: welcome agreement remains one line; the consent visual is approximately `20dp`; primary buttons are `80% × 45dp` with `22.5dp` radius. Login logo, form and footer align to the reference proportions; the code row's rendered split is approximately `65% : 35%`.
+- Colors and visual tokens: welcome uses `#FBAFDA` and `#AD016A`; login uses the old `#C9B69E`, `#24180A`, `#AAC9B69E` and the original `#B8A289 → #7E6951` input gradient. No new outline was added.
+- Image quality and asset fidelity: background and both King logos use the original legacy raster assets without redrawing, filters or placeholders.
+- Copy and content: `我已阅读并同意《隐私政策》和《用户协议》`, `NEXT`, `BUSINESS HOURS`, `20:30-04:00`, `Mobile Phone:`, `Code:`, `获取验证码` and `SHANGHAI . ZHUZHOU` match the old flow.
+
+## Comparison history
+
+- Pass 1 P1: Flutter's default checkbox produced an oversized tick and the agreement/button colors drifted from the old page. Fix: replaced it with the old 20dp pink circle, centered 10dp black tick, and restored exact text/button tokens.
+- Pass 1 P1: mobile request and NEXT controls used brighter colors and extra visual separation. Fix: restored `#24180A / #AAC9B69E`, removed added borders, and restored 45dp geometry and legacy font sizes.
+- Pass 2 P2: the login form sat below the normalized legacy reference and the `350 : 250` logical flex made the visible request button too wide. Fix: moved the top composition upward and matched the old screenshot's effective `65% : 35%` split, including the WXSS input padding effect.
+- Pass 3 evidence: `12-login-reference-vs-final.png` shows aligned logo/form/footer proportions, matching code split, radii, typography and palette; `06-final-welcome-checked.png` shows the requested small centered tick and single-line agreement. No actionable P0/P1/P2 mismatch remains in app-owned content.
+
+## Interaction and verification
+
+- Primary interactions tested: checkbox toggle, welcome NEXT enable/disable, navigation to mobile login, mobile request-code enabled state, login NEXT disabled state.
+- `flutter analyze --no-pub`: passed.
+- `flutter test --no-pub test/app_smoke_test.dart test/registration_admission_flow_test.dart`: `48/48` passed.
+- Android preview APK installed successfully; APK signature schemes v2 and v3 verified.
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains for the two requested screens.
+- P3: system font rasterization and platform-owned status/navigation chrome naturally differ between the WeChat iPhone simulator and Android device.
+
+final result: passed
+
+---
+
 # Design QA — Onboarding Expanded Preference Catalog v2
 
 - source visual truth: 用户于 2026-08-30 提供的 V2 步骤 3/4 截图用于页面结构与黑金主题；旧版 `C:\Users\Poplar\Desktop\KingClub-app\pages\regist4`、`regist5` 用于目录内容；用户明确要求不复刻旧版固定两列排版

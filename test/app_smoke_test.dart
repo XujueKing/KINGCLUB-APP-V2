@@ -94,6 +94,25 @@ void main() {
     expect(find.byKey(const ValueKey('legacy-welcome-logo')), findsOneWidget);
     expect(find.text('BUSINESS HOURS'), findsOneWidget);
     expect(find.text('20:30-04:00'), findsOneWidget);
+    final agreementLine = find.byKey(
+      const ValueKey('legacy-welcome-agreement-line'),
+    );
+    expect(agreementLine, findsOneWidget);
+    expect(tester.getSize(agreementLine).height, lessThan(40));
+    expect(
+      tester.getSize(
+        find.byKey(const ValueKey('legacy-welcome-consent-visual')),
+      ),
+      const Size.square(20),
+    );
+    expect(
+      tester.widget<Text>(find.text('我已阅读并同意')).style?.color,
+      const Color(0xFFC9B69E),
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('legacy-welcome-next'))).height,
+      45,
+    );
     expect(find.text('Mobile Phone:'), findsNothing);
     final welcomeNext = tester.widget<FilledButton>(
       find.byKey(const ValueKey('legacy-welcome-next')),
@@ -101,6 +120,14 @@ void main() {
     expect(welcomeNext.onPressed, isNull);
     await tester.tap(find.byKey(const ValueKey('legacy-welcome-consent')));
     await tester.pump();
+    expect(
+      tester
+          .widget<Icon>(
+            find.byKey(const ValueKey('legacy-welcome-consent-check')),
+          )
+          .size,
+      10,
+    );
     await tester.tap(find.byKey(const ValueKey('legacy-welcome-next')));
     await tester.pumpAndSettle();
 
@@ -108,6 +135,22 @@ void main() {
     expect(find.text('Code:'), findsOneWidget);
     expect(find.text('获取验证码'), findsOneWidget);
     expect(find.text('SHANGHAI . ZHUZHOU'), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('mobile-login-next'))).height,
+      45,
+    );
+    final requestCode = tester.widget<TextButton>(
+      find.byKey(const ValueKey('mobile-login-request-code')),
+    );
+    expect(
+      requestCode.style?.backgroundColor?.resolve(<WidgetState>{}),
+      const Color(0xFF24180A),
+    );
+    expect(
+      requestCode.style?.foregroundColor?.resolve(<WidgetState>{}),
+      const Color(0xAAC9B69E),
+    );
+    expect(requestCode.style?.side?.resolve(<WidgetState>{}), isNull);
     final loginLogo = find.byKey(const ValueKey('mobile-login-brand-logo'));
     expect(loginLogo, findsOneWidget);
     expect(
@@ -160,7 +203,8 @@ void main() {
     await tester.tap(mobileNext);
     await tester.pump(const Duration(milliseconds: 850));
     await tester.pumpAndSettle();
-    expect(find.text('步骤 1/4'), findsOneWidget);
+    expect(find.text('身份资料'), findsOneWidget);
+    expect(find.text('1 / 4'), findsOneWidget);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
@@ -230,7 +274,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 850));
     await tester.pumpAndSettle();
 
-    expect(find.text('步骤 1/4'), findsOneWidget);
+    expect(find.text('身份资料'), findsOneWidget);
+    expect(find.text('1 / 4'), findsOneWidget);
     expect(find.text('未满18岁未成年人\n不得饮酒注册会员'), findsOneWidget);
     expect(find.text('姓名'), findsNothing);
     expect(find.text('证件号码'), findsNothing);
@@ -240,7 +285,7 @@ void main() {
       find.byKey(const ValueKey('real-name-name-field')),
     );
     expect(nameFieldSize.width, moreOrLessEquals(420, epsilon: 1));
-    expect(nameFieldSize.height, moreOrLessEquals(52, epsilon: 1));
+    expect(nameFieldSize.height, moreOrLessEquals(46, epsilon: 1));
     expect(
       tester.getCenter(find.text('NAME:')).dx,
       moreOrLessEquals(
