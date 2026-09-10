@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/design_system/king_theme.dart';
 
@@ -19,74 +22,59 @@ class TermsConsentPage extends StatefulWidget {
 }
 
 class _TermsConsentPageState extends State<TermsConsentPage> {
-  late AgreementKind _selected = widget.initialAgreement;
+  late final Future<_LegacyAgreementCatalog> _catalog =
+      _loadLegacyAgreementCatalog();
 
   @override
   Widget build(BuildContext context) {
-    final isTerms = _selected == AgreementKind.terms;
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          onPressed: widget.onClose,
-          icon: const Icon(Icons.close),
-        ),
-        title: const Text('协议与隐私'),
+    final isTerms = widget.initialAgreement == AgreementKind.terms;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.black,
+        systemNavigationBarIconBrightness: Brightness.light,
       ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SegmentedButton<AgreementKind>(
-                    segments: const [
-                      ButtonSegment(
-                        value: AgreementKind.terms,
-                        label: Text('用户协议'),
-                      ),
-                      ButtonSegment(
-                        value: AgreementKind.privacy,
-                        label: Text('隐私政策'),
-                      ),
-                    ],
-                    selected: {_selected},
-                    onSelectionChanged: (value) =>
-                        setState(() => _selected = value.first),
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          foregroundColor: KingColors.textPrimary,
+          leading: IconButton(
+            key: const ValueKey('agreement-back'),
+            onPressed: widget.onClose,
+            tooltip: '返回',
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          ),
+          title: Text(isTerms ? 'KINGBAR用户协议' : 'KINGBAR隐私政策'),
+          centerTitle: true,
+        ),
+        body: SafeArea(
+          child: FutureBuilder<_LegacyAgreementCatalog>(
+            future: _catalog,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Center(child: Text('协议正文暂时无法显示'));
+              }
+              final catalog = snapshot.data;
+              if (catalog == null) {
+                return const Center(
+                  child: CircularProgressIndicator(color: KingColors.brand),
+                );
+              }
+              final paragraphs = isTerms ? catalog.terms : catalog.privacy;
+              return SelectionArea(
+                child: ListView.builder(
+                  key: ValueKey(
+                    isTerms ? 'legacy-user-agreement' : 'legacy-privacy-policy',
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '发布日期：2026-08-26',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: KingColors.surface,
-                        border: Border.all(color: KingColors.border),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: SingleChildScrollView(
-                        child: SelectableText(
-                          isTerms ? _termsPreview : _privacyPreview,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '协议正文以正式发布版本为准。',
-                    style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: KingColors.warning),
-                  ),
-                ],
-              ),
-            ),
+                  padding: const EdgeInsets.fromLTRB(25, 0, 25, 50),
+                  itemCount: paragraphs.length,
+                  itemBuilder: (context, index) =>
+                      _LegacyAgreementParagraphView(paragraphs[index]),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -94,24 +82,93 @@ class _TermsConsentPageState extends State<TermsConsentPage> {
   }
 }
 
-const _termsPreview = '''KingClub 用户协议
+class _LegacyAgreementParagraphView extends StatelessWidget {
+  const _LegacyAgreementParagraphView(this.paragraph);
 
-一、服务说明
-以下内容用于展示协议页面结构，正式服务条款以发布时展示的版本为准。
+  final _LegacyAgreementParagraph paragraph;
 
-二、会员服务
-正式权利义务、会员规则和服务边界将在法务文本批准后展示。
+  @override
+  Widget build(BuildContext context) {
+    final text = paragraph.type == 3 ? '《${paragraph.text}》' : paragraph.text;
+    if (text.isEmpty) return const SizedBox(height: 10);
 
-三、账户安全
-请妥善保护账户信息，不要向他人透露验证码。''';
+    final (style, padding, alignment) = switch (paragraph.type) {
+      3 => (
+        const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          height: 1.45,
+        ),
+        const EdgeInsets.fromLTRB(0, 30, 0, 20),
+        TextAlign.center,
+      ),
+      1 => (
+        const TextStyle(color: Colors.white, fontSize: 17.5, height: 1.5),
+        const EdgeInsets.fromLTRB(0, 22.5, 0, 10),
+        TextAlign.start,
+      ),
+      8 => (
+        const TextStyle(
+          color: Color(0xFFCCCCCC),
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          height: 1.55,
+        ),
+        const EdgeInsets.symmetric(vertical: 10),
+        TextAlign.start,
+      ),
+      _ => (
+        const TextStyle(
+          color: Color(0xFFCCCCCC),
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+          height: 1.55,
+        ),
+        const EdgeInsets.symmetric(vertical: 10),
+        TextAlign.start,
+      ),
+    };
 
-const _privacyPreview = '''KingClub 隐私政策
+    return Padding(
+      padding: padding,
+      child: Text(text, style: style, textAlign: alignment),
+    );
+  }
+}
 
-一、隐私说明
-以下内容用于展示隐私政策页面结构，正式政策以发布时展示的版本为准。
+class _LegacyAgreementCatalog {
+  const _LegacyAgreementCatalog({required this.terms, required this.privacy});
 
-二、最小化原则
-正式版本将说明数据类型、使用目的、保存期限和用户权利。
+  final List<_LegacyAgreementParagraph> terms;
+  final List<_LegacyAgreementParagraph> privacy;
+}
 
-三、系统权限
-相机、相册、通知与定位仅在相关功能中按需申请。''';
+class _LegacyAgreementParagraph {
+  const _LegacyAgreementParagraph({required this.type, required this.text});
+
+  factory _LegacyAgreementParagraph.fromJson(Map<String, dynamic> json) =>
+      _LegacyAgreementParagraph(
+        type: json['a'] as int? ?? 0,
+        text: json['b'] as String? ?? '',
+      );
+
+  final int type;
+  final String text;
+}
+
+Future<_LegacyAgreementCatalog> _loadLegacyAgreementCatalog() async {
+  final source = await rootBundle.loadString(
+    'assets/legacy/legal/agreements.json',
+  );
+  final json = jsonDecode(source) as Map<String, dynamic>;
+  List<_LegacyAgreementParagraph> decode(String key) =>
+      (json[key] as List<dynamic>)
+          .cast<Map<String, dynamic>>()
+          .map(_LegacyAgreementParagraph.fromJson)
+          .toList(growable: false);
+  return _LegacyAgreementCatalog(
+    terms: decode('terms'),
+    privacy: decode('privacy'),
+  );
+}

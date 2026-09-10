@@ -22,6 +22,8 @@
 - [ ] auth flow 在进程重启、外部直达或缺失 `$extra` 时不可恢复
 - [ ] Android/iOS 返回手势、冷/热启动和前后台竞态通过集成测试
 - [x] 2026-08-29 auth/onboarding 替换页系统返回与可见返回动作一致，Xiaomi 14 Pro 连续返回未留下空 Router 或黑屏
+- [x] 2026-09-10 登录、注册与核身改用可转场的 push/pop；撤销自定义时长与淡入叠加，恢复 Android/iOS 平台标准转场
+- [x] 2026-09-10 根据实机反馈补强首次 NEXT 横向滑入，并为隐私政策/用户协议增加底部上推转场
 
 实体机证据见 [2026-08-29 Auth/Onboarding 返回栈验收](audit/2026-08-29-device/README.md)。
 

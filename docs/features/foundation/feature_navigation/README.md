@@ -32,7 +32,9 @@
 
 ## 返回与生命周期
 
-- 登录流程使用受控 replace 栈，成功后不能返回验证码或协议确认页。
+- 登录、注册与核身步骤使用受控 push/pop 栈呈现原生前进和返回动效；登录或审核成功进入首页时清除流程栈，不能返回验证码或准入页面。
+- 页面转场不自定义时长、位移或叠加淡入，直接使用 Flutter 当前稳定版的原生平台标准：Android 使用 Material predictive-back 转场，iOS 使用 Cupertino 转场；系统“减少动态效果”继续交由平台处理。
+- 欢迎页首次进入手机号验证使用 300ms 单一横向滑入，避免 Debug 首次 Material 转场不明显；隐私政策与用户协议作为临时阅读层，使用 300ms 底部上推、240ms 下滑关闭，不叠加透明度动画。
 - Android predictive back 使用当前 Flutter/Router 支持方式统一测试；重要退出动作由页面意图确认，不依赖已弃用 API。
 - auth flow 永不进行进程恢复。
 - 当前 UI Mock 不启用 App Link、推送跳转或业务 `returnTo`；对应页面文档和 UI 流程批准后再逐项目启用。

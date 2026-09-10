@@ -43,6 +43,7 @@
 - 未知 location 和缺失 `$extra` 不出现 go_router 默认错误内容。
 - Router diagnostics 在 prod 关闭，不打印 location extra。
 - Shell 五分支进程内状态隔离；注销/撤销/会员失效销毁所有分支。
+- 普通页面及 auth/onboarding 步骤使用 Android Material / iOS Cupertino 平台标准转场与返回手势；登录或审核成功清栈进入首页，不能返回流程页面。
 
 ## 4. 双端集成场景
 

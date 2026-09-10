@@ -90,6 +90,7 @@ flutter:
     - assets/legacy/aa/kingLogo.png
     - assets/legacy/aa/qrcode2.png
     - assets/legacy/messaging/
+    - assets/legacy/legal/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

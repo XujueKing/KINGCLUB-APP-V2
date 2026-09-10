@@ -55,7 +55,7 @@ void main() {
     expect(find.textContaining('真实服务'), findsNothing);
   });
 
-  testWidgets('terms page keeps technical placeholder labels out of UI', (
+  testWidgets('terms page renders the exact legacy agreement catalogs', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -67,15 +67,28 @@ void main() {
       ),
     );
 
-    expect(find.text('用户协议'), findsOneWidget);
-    expect(find.text('隐私政策'), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    expect(find.text('KINGBAR用户协议'), findsOneWidget);
+    expect(find.text('《KINGBAR 服务条款和规则》'), findsOneWidget);
+    expect(find.textContaining('引言-您同意这些服务条款'), findsOneWidget);
     expect(find.textContaining('Mock'), findsNothing);
     expect(find.textContaining('测试模式'), findsNothing);
-    expect(find.text('协议正文以正式发布版本为准。'), findsOneWidget);
+    expect(find.textContaining('正式发布版本为准'), findsNothing);
 
-    await tester.tap(find.text('隐私政策'));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TermsConsentPage(
+          initialAgreement: AgreementKind.privacy,
+          onClose: () {},
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
-    expect(find.textContaining('KingClub 隐私政策'), findsOneWidget);
+    expect(find.text('KINGBAR隐私政策'), findsOneWidget);
+    expect(find.text('《KINGBAR 隐私政策》'), findsOneWidget);
+    expect(find.text('版本生效日期：2025年5月1日'), findsOneWidget);
+    expect(find.textContaining('实名认证需要：身份证号'), findsOneWidget);
   });
 
   testWidgets('anonymous bootstrap opens legacy welcome then login', (
@@ -135,6 +148,43 @@ void main() {
     expect(find.text('Code:'), findsOneWidget);
     expect(find.text('获取验证码'), findsOneWidget);
     expect(find.text('SHANGHAI . ZHUZHOU'), findsOneWidget);
+    final phoneField = find.byKey(const ValueKey('mobile-login-phone-field'));
+    final phoneTextField = find.descendant(
+      of: phoneField,
+      matching: find.byType(TextField),
+    );
+    expect(
+      tester.widget<TextField>(phoneTextField).decoration?.hintText,
+      '请输入电话号码',
+    );
+    final phoneDecoration =
+        tester.widget<Container>(phoneField).decoration! as BoxDecoration;
+    expect(
+      (phoneDecoration.gradient! as RadialGradient).radius,
+      moreOrLessEquals(20 / 3),
+    );
+    await tester.tap(phoneTextField);
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(phoneTextField).focusNode?.hasFocus,
+      isTrue,
+    );
+    expect(
+      tester.widget<TextField>(phoneTextField).decoration?.hintText,
+      isNull,
+    );
+    expect(tester.testTextInput.isVisible, isTrue);
+    await tester.tapAt(const Offset(400, 20));
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(phoneTextField).focusNode?.hasFocus,
+      isFalse,
+    );
+    expect(tester.testTextInput.isVisible, isFalse);
+    expect(
+      tester.widget<TextField>(phoneTextField).decoration?.hintText,
+      '请输入电话号码',
+    );
     expect(
       tester.getSize(find.byKey(const ValueKey('mobile-login-next'))).height,
       45,
@@ -207,7 +257,8 @@ void main() {
     expect(find.text('1 / 4'), findsOneWidget);
 
     await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
     expect(find.text('Mobile Phone:'), findsOneWidget);
     expect(find.byType(Scaffold), findsOneWidget);
 

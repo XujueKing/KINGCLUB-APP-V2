@@ -31,6 +31,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
 
   final _mobileController = TextEditingController();
   final _codeController = TextEditingController();
+  final _mobileFocusNode = FocusNode();
   final _codeFocusNode = FocusNode();
   LoginFlowSnapshot? _flow;
   Timer? _timer;
@@ -43,6 +44,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   @override
   void initState() {
     super.initState();
+    _mobileFocusNode.addListener(_handleInputFocusChanged);
     _codeFocusNode.addListener(_handleCodeFocusChanged);
   }
 
@@ -51,6 +53,9 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
     _timer?.cancel();
     _mobileController.dispose();
     _codeController.dispose();
+    _mobileFocusNode
+      ..removeListener(_handleInputFocusChanged)
+      ..dispose();
     _codeFocusNode
       ..removeListener(_handleCodeFocusChanged)
       ..dispose();
@@ -58,6 +63,10 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   }
 
   void _handleCodeFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _handleInputFocusChanged() {
     if (mounted) setState(() {});
   }
 
@@ -162,120 +171,131 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
       ),
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final formWidth = constraints.maxWidth * 0.80;
-              return Stack(
-                children: [
-                  Positioned.fill(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight - 24,
-                        ),
-                        child: IntrinsicHeight(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const SizedBox(height: 70),
-                              SizedBox(
-                                key: const ValueKey('mobile-login-brand-logo'),
-                                width: constraints.maxWidth * 0.2933,
-                                child: Semantics(
-                                  label: 'King club',
-                                  image: true,
-                                  child: const Image(
-                                    image: AssetImage(
-                                      'assets/legacy/home/logo_2.png',
+        body: GestureDetector(
+          key: const ValueKey('mobile-login-dismiss-keyboard'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final formWidth = constraints.maxWidth * 0.80;
+                return Stack(
+                  children: [
+                    Positioned.fill(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight - 24,
+                          ),
+                          child: IntrinsicHeight(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const SizedBox(height: 70),
+                                SizedBox(
+                                  key: const ValueKey(
+                                    'mobile-login-brand-logo',
+                                  ),
+                                  width: constraints.maxWidth * 0.2933,
+                                  child: Semantics(
+                                    label: 'King club',
+                                    image: true,
+                                    child: const Image(
+                                      image: AssetImage(
+                                        'assets/legacy/home/logo_2.png',
+                                      ),
+                                      fit: BoxFit.contain,
+                                      excludeFromSemantics: true,
                                     ),
-                                    fit: BoxFit.contain,
-                                    excludeFromSemantics: true,
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 54),
-                              SizedBox(
-                                key: const ValueKey('mobile-login-content'),
-                                width: formWidth,
-                                child: _form(context),
-                              ),
-                              const Spacer(),
-                              SizedBox(
-                                width: formWidth,
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    SizedBox(
-                                      height: 45,
-                                      child: FilledButton(
-                                        key: const ValueKey(
-                                          'mobile-login-next',
-                                        ),
-                                        onPressed: nextEnabled ? _verify : null,
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: _deepBrown,
-                                          disabledBackgroundColor: _deepBrown,
-                                          foregroundColor: _actionText,
-                                          disabledForegroundColor:
-                                              _disabledActionText,
-                                          shape: const StadiumBorder(),
-                                          textStyle: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        child: _verifying
-                                            ? const SizedBox.square(
-                                                dimension: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: _champagne,
-                                                    ),
-                                              )
-                                            : const Text('NEXT'),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    const Text(
-                                      'SHANGHAI . ZHUZHOU',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: _champagne,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
+                                const SizedBox(height: 54),
+                                SizedBox(
+                                  key: const ValueKey('mobile-login-content'),
+                                  width: formWidth,
+                                  child: _form(context),
                                 ),
-                              ),
-                              const SizedBox(height: 3),
-                            ],
+                                const Spacer(),
+                                SizedBox(
+                                  width: formWidth,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      SizedBox(
+                                        height: 45,
+                                        child: FilledButton(
+                                          key: const ValueKey(
+                                            'mobile-login-next',
+                                          ),
+                                          onPressed: nextEnabled
+                                              ? _verify
+                                              : null,
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor: _deepBrown,
+                                            disabledBackgroundColor: _deepBrown,
+                                            foregroundColor: _actionText,
+                                            disabledForegroundColor:
+                                                _disabledActionText,
+                                            shape: const StadiumBorder(),
+                                            textStyle: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          child: _verifying
+                                              ? const SizedBox.square(
+                                                  dimension: 18,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: _champagne,
+                                                      ),
+                                                )
+                                              : const Text('NEXT'),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      const Text(
+                                        'SHANGHAI . ZHUZHOU',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: _champagne,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    left: 25,
-                    top: 35,
-                    child: IconButton(
-                      key: const ValueKey('mobile-login-back'),
-                      onPressed: widget.onBack,
-                      tooltip: '返回',
-                      icon: const Image(
-                        image: AssetImage('assets/legacy/friendship/back.png'),
-                        width: 11,
-                        height: 22,
-                        fit: BoxFit.contain,
+                    Positioned(
+                      left: 25,
+                      top: 35,
+                      child: IconButton(
+                        key: const ValueKey('mobile-login-back'),
+                        onPressed: widget.onBack,
+                        tooltip: '返回',
+                        icon: const Image(
+                          image: AssetImage(
+                            'assets/legacy/friendship/back.png',
+                          ),
+                          width: 11,
+                          height: 22,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -296,7 +316,9 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
         _legacyInput(
           key: const ValueKey('mobile-login-phone-field'),
           controller: _mobileController,
+          focusNode: _mobileFocusNode,
           maxLength: 11,
+          hintText: _mobileFocusNode.hasFocus ? null : '请输入电话号码',
           autofillHints: const [AutofillHints.telephoneNumber],
           onChanged: (_) {
             if (_flow != null) {
@@ -407,7 +429,9 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
         borderRadius: borderRadius ?? BorderRadius.circular(22.5),
         gradient: const RadialGradient(
           center: Alignment.topLeft,
-          radius: 1.65,
+          // Legacy CSS uses `circle 600rpx at 0% 0%`: a fixed 300dp
+          // radius, rather than a radius scaled to this 45dp-high box.
+          radius: 20 / 3,
           colors: [Color(0xFFB8A289), Color(0xFF7E6951)],
         ),
       ),

@@ -56,6 +56,63 @@ void _clearCommerceAndLogin(BuildContext context) {
   const MobileLoginRoute().go(context);
 }
 
+Page<void> _authFlowPage({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return MaterialPage<void>(key: state.pageKey, child: child);
+}
+
+Page<void> _horizontalEntryPage({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 260),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return SlideTransition(
+        position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+            .animate(
+              CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+                reverseCurve: Curves.easeInCubic,
+              ),
+            ),
+        child: child,
+      );
+    },
+    child: child,
+  );
+}
+
+Page<void> _bottomUpPage({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 240),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+            .animate(
+              CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+                reverseCurve: Curves.easeInCubic,
+              ),
+            ),
+        child: child,
+      );
+    },
+    child: child,
+  );
+}
+
 @Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
   const previewLocation = String.fromEnvironment(
@@ -88,17 +145,20 @@ class LegacyWelcomeRoute extends GoRouteData with $LegacyWelcomeRoute {
   const LegacyWelcomeRoute();
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    return _ControlledRouteBackScope(
-      onBack: SystemNavigator.pop,
-      child: LegacyWelcomePage(
-        onNext: () => const MobileLoginRoute().go(context),
-        onOpenTerms: () =>
-            TermsConsentRoute(const ConsentRouteArgs(AgreementKind.terms))
-                .push<void>(context),
-        onOpenPrivacy: () =>
-            TermsConsentRoute(const ConsentRouteArgs(AgreementKind.privacy))
-                .push<void>(context),
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    return _authFlowPage(
+      state: state,
+      child: _ControlledRouteBackScope(
+        onBack: SystemNavigator.pop,
+        child: LegacyWelcomePage(
+          onNext: () => const MobileLoginRoute().push<void>(context),
+          onOpenTerms: () =>
+              TermsConsentRoute(const ConsentRouteArgs(AgreementKind.terms))
+                  .push<void>(context),
+          onOpenPrivacy: () =>
+              TermsConsentRoute(const ConsentRouteArgs(AgreementKind.privacy))
+                  .push<void>(context),
+        ),
       ),
     );
   }
@@ -109,16 +169,21 @@ class MobileLoginRoute extends GoRouteData with $MobileLoginRoute {
   const MobileLoginRoute();
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    void back() => const LegacyWelcomeRoute().go(context);
-    return _ControlledRouteBackScope(
-      onBack: back,
-      child: MobileLoginPage(
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    void back() => context.canPop()
+        ? context.pop()
+        : const LegacyWelcomeRoute().go(context);
+    return _horizontalEntryPage(
+      state: state,
+      child: _ControlledRouteBackScope(
         onBack: back,
-        onAuthenticatedMember: () => const AppShellRoute().go(context),
-        onVerified: (flowId) =>
-            RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
-                .go(context),
+        child: MobileLoginPage(
+          onBack: back,
+          onAuthenticatedMember: () => const AppShellRoute().go(context),
+          onVerified: (flowId) =>
+              RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
+                  .push<void>(context),
+        ),
       ),
     );
   }
@@ -137,17 +202,21 @@ class SmsCodeRoute extends GoRouteData with $SmsCodeRoute {
   final LoginFlowRouteArgs $extra;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    void back() => const MobileLoginRoute().go(context);
-    return _ControlledRouteBackScope(
-      onBack: back,
-      child: SmsVerificationPage(
-        flowId: $extra.flowId,
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    void back() =>
+        context.canPop() ? context.pop() : const MobileLoginRoute().go(context);
+    return _authFlowPage(
+      state: state,
+      child: _ControlledRouteBackScope(
         onBack: back,
-        onAuthenticatedMember: () => const AppShellRoute().go(context),
-        onVerified: (flowId) =>
-            RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
-                .go(context),
+        child: SmsVerificationPage(
+          flowId: $extra.flowId,
+          onBack: back,
+          onAuthenticatedMember: () => const AppShellRoute().go(context),
+          onVerified: (flowId) =>
+              RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
+                  .push<void>(context),
+        ),
       ),
     );
   }
@@ -166,10 +235,13 @@ class TermsConsentRoute extends GoRouteData with $TermsConsentRoute {
   final ConsentRouteArgs $extra;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    return TermsConsentPage(
-      initialAgreement: $extra.initialAgreement,
-      onClose: () => context.pop(),
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    return _bottomUpPage(
+      state: state,
+      child: TermsConsentPage(
+        initialAgreement: $extra.initialAgreement,
+        onClose: () => context.pop(),
+      ),
     );
   }
 }
@@ -188,15 +260,20 @@ class RealNameAdultVerificationRoute extends GoRouteData
   final OnboardingFlowRouteArgs $extra;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    void back() => const MobileLoginRoute().go(context);
-    return _ControlledRouteBackScope(
-      onBack: back,
-      child: RealNameAdultVerificationPage(
-        flowId: $extra.flowId,
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    void back() =>
+        context.canPop() ? context.pop() : const MobileLoginRoute().go(context);
+    return _authFlowPage(
+      state: state,
+      child: _ControlledRouteBackScope(
         onBack: back,
-        onNext: () => MembershipImageSubmissionRoute($extra).go(context),
-        onInvalidFlow: () => const MobileLoginRoute().go(context),
+        child: RealNameAdultVerificationPage(
+          flowId: $extra.flowId,
+          onBack: back,
+          onNext: () =>
+              MembershipImageSubmissionRoute($extra).push<void>(context),
+          onInvalidFlow: () => const MobileLoginRoute().go(context),
+        ),
       ),
     );
   }
@@ -210,15 +287,20 @@ class MembershipImageSubmissionRoute extends GoRouteData
   final OnboardingFlowRouteArgs $extra;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    void back() => RealNameAdultVerificationRoute($extra).go(context);
-    return _ControlledRouteBackScope(
-      onBack: back,
-      child: MembershipImageSubmissionPage(
-        flowId: $extra.flowId,
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    void back() => context.canPop()
+        ? context.pop()
+        : RealNameAdultVerificationRoute($extra).go(context);
+    return _authFlowPage(
+      state: state,
+      child: _ControlledRouteBackScope(
         onBack: back,
-        onNext: () => MembershipReviewStatusRoute($extra).go(context),
-        onInvalidFlow: () => const MobileLoginRoute().go(context),
+        child: MembershipImageSubmissionPage(
+          flowId: $extra.flowId,
+          onBack: back,
+          onNext: () => MembershipReviewStatusRoute($extra).push<void>(context),
+          onInvalidFlow: () => const MobileLoginRoute().go(context),
+        ),
       ),
     );
   }
@@ -232,15 +314,20 @@ class StyleMusicPreferencesRoute extends GoRouteData
   final OnboardingFlowRouteArgs $extra;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    void back() => MembershipImageSubmissionRoute($extra).go(context);
-    return _ControlledRouteBackScope(
-      onBack: back,
-      child: StyleMusicPreferencesPage(
-        flowId: $extra.flowId,
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    void back() => context.canPop()
+        ? context.pop()
+        : MembershipImageSubmissionRoute($extra).go(context);
+    return _authFlowPage(
+      state: state,
+      child: _ControlledRouteBackScope(
         onBack: back,
-        onNext: () => DrinkEventPreferencesRoute($extra).go(context),
-        onInvalidFlow: () => const MobileLoginRoute().go(context),
+        child: StyleMusicPreferencesPage(
+          flowId: $extra.flowId,
+          onBack: back,
+          onNext: () => DrinkEventPreferencesRoute($extra).push<void>(context),
+          onInvalidFlow: () => const MobileLoginRoute().go(context),
+        ),
       ),
     );
   }
@@ -254,15 +341,21 @@ class DrinkEventPreferencesRoute extends GoRouteData
   final OnboardingFlowRouteArgs $extra;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    void back() => StyleMusicPreferencesRoute($extra).go(context);
-    return _ControlledRouteBackScope(
-      onBack: back,
-      child: DrinkEventPreferencesPage(
-        flowId: $extra.flowId,
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    void back() => context.canPop()
+        ? context.pop()
+        : StyleMusicPreferencesRoute($extra).go(context);
+    return _authFlowPage(
+      state: state,
+      child: _ControlledRouteBackScope(
         onBack: back,
-        onSubmitted: () => MembershipReviewStatusRoute($extra).go(context),
-        onInvalidFlow: () => const MobileLoginRoute().go(context),
+        child: DrinkEventPreferencesPage(
+          flowId: $extra.flowId,
+          onBack: back,
+          onSubmitted: () =>
+              MembershipReviewStatusRoute($extra).push<void>(context),
+          onInvalidFlow: () => const MobileLoginRoute().go(context),
+        ),
       ),
     );
   }
@@ -276,15 +369,20 @@ class MembershipReviewStatusRoute extends GoRouteData
   final OnboardingFlowRouteArgs $extra;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    return _ControlledRouteBackScope(
-      onBack: SystemNavigator.pop,
-      child: MembershipReviewStatusPage(
-        flowId: $extra.flowId,
-        onApproved: () => const AppShellRoute().go(context),
-        onFixImages: () => MembershipImageSubmissionRoute($extra).go(context),
-        onExit: () => const MobileLoginRoute().go(context),
-        onInvalidFlow: () => const MobileLoginRoute().go(context),
+  Page<void> buildPage(BuildContext context, GoRouterState state) {
+    return _authFlowPage(
+      state: state,
+      child: _ControlledRouteBackScope(
+        onBack: SystemNavigator.pop,
+        child: MembershipReviewStatusPage(
+          flowId: $extra.flowId,
+          onApproved: () => const AppShellRoute().go(context),
+          onFixImages: () => context.canPop()
+              ? context.pop()
+              : MembershipImageSubmissionRoute($extra).go(context),
+          onExit: () => const MobileLoginRoute().go(context),
+          onInvalidFlow: () => const MobileLoginRoute().go(context),
+        ),
       ),
     );
   }
