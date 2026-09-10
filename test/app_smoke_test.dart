@@ -199,11 +199,11 @@ void main() {
     );
     expect(
       requestCode.style?.backgroundColor?.resolve(<WidgetState>{}),
-      const Color(0xFF6B5232),
+      const Color(0xFF5A3510),
     );
     expect(
       requestCode.style?.foregroundColor?.resolve(<WidgetState>{}),
-      const Color(0xFFF0D5AF),
+      const Color(0xFFE6C995),
     );
     expect(requestCode.style?.side?.resolve(<WidgetState>{}), isNull);
     final loginLogo = find.byKey(const ValueKey('mobile-login-brand-logo'));

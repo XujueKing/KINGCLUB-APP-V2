@@ -2,6 +2,35 @@ import 'package:flutter/material.dart';
 
 import 'king_theme.dart';
 
+class KingBackButton extends StatelessWidget {
+  const KingBackButton({
+    super.key,
+    required this.onPressed,
+    this.tooltip = '返回',
+  });
+
+  final VoidCallback? onPressed;
+  final String tooltip;
+
+  static const safeAreaOffset = Offset(18.5, 28);
+  static const glyphSize = Size(10, 20);
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      icon: Image.asset(
+        'assets/legacy/friendship/back.png',
+        width: glyphSize.width,
+        height: glyphSize.height,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+      ),
+    );
+  }
+}
+
 class KingBrandMark extends StatelessWidget {
   const KingBrandMark({super.key, this.compact = false});
 

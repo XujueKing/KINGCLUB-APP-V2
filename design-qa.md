@@ -12,6 +12,32 @@ final result: passed
 
 ---
 
+# Design QA — 手机号登录金色层级与标准返回键 v3
+
+- source visual truth: `D:\WEB3_AI\KingClub-git\pages\regist\regist.wxml`、`regist.wxss`、`D:\WEB3_AI\KingClub-git\app.wxss` 与用户于 2026-09-10 的真机反馈
+- implementation screenshot: `.tmp-kingclub-login-v3.png`
+- viewport: OPPO PCLM50，Android 12，Profile 构建，`1080 × 2400 px`
+
+## Comparison evidence
+
+- 验证码按钮与 NEXT 从低饱和灰金改为浓郁暖金棕，香槟金文字保持清晰；禁用 NEXT 仍明确但不发灰。
+- `SHANGHAI . ZHUZHOU` 缩至 13dp，并使用 70% 香槟金，回到弱化页脚层级。
+- 返回键沿用旧版 `back.png`，箭头由 11×22dp 缩至 10×20dp；48dp 触控面积不变。
+- 返回键按旧版 `.back_view`、`.back_img` 的位置关系校准为安全区内 `18.5, 28`，并抽取为全 App 标准 `KingBackButton`。
+
+## Verification
+
+- 真机截图中箭头、Logo、表单之间留白关系稳定，无裁切、溢出或触控面积退化。
+- 指定文件静态分析与欢迎页到登录页定向组件测试通过。
+
+## Findings
+
+- 本轮指定的按钮灰淡、页脚过亮与返回键尺寸/位置问题无剩余 P0/P1/P2 问题。
+
+final result: passed
+
+---
+
 # Design QA — 欢迎页与手机号登录旧版样式复刻 v1
 
 - source visual truth paths: 用户于 2026-09-10 当前会话提供的旧版欢迎页截图；`D:\WEB3_AI\KingClub-git\docs\modules\login\screenshots\regist-reference.png`；`D:\WEB3_AI\KingClub-git\pages\login\login.wxss`；`D:\WEB3_AI\KingClub-git\pages\regist\regist.wxss`；`D:\WEB3_AI\KingClub-git\app.wxss`
