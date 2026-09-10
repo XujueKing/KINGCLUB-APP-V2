@@ -116,11 +116,16 @@ void main() {
       tester.getSize(
         find.byKey(const ValueKey('legacy-welcome-consent-visual')),
       ),
-      const Size.square(20),
+      const Size.square(18),
     );
     expect(
       tester.widget<Text>(find.text('我已阅读并同意')).style?.color,
       const Color(0xFFC9B69E),
+    );
+    expect(tester.widget<Text>(find.text('我已阅读并同意')).style?.fontSize, 15);
+    expect(
+      tester.widget<Text>(find.text('BUSINESS HOURS')).style?.fontSize,
+      13,
     );
     expect(
       tester.getSize(find.byKey(const ValueKey('legacy-welcome-next'))).height,
@@ -139,7 +144,7 @@ void main() {
             find.byKey(const ValueKey('legacy-welcome-consent-check')),
           )
           .size,
-      10,
+      9,
     );
     await tester.tap(find.byKey(const ValueKey('legacy-welcome-next')));
     await tester.pumpAndSettle();
@@ -194,11 +199,11 @@ void main() {
     );
     expect(
       requestCode.style?.backgroundColor?.resolve(<WidgetState>{}),
-      const Color(0xFF24180A),
+      const Color(0xFF6B5232),
     );
     expect(
       requestCode.style?.foregroundColor?.resolve(<WidgetState>{}),
-      const Color(0xAAC9B69E),
+      const Color(0xFFF0D5AF),
     );
     expect(requestCode.style?.side?.resolve(<WidgetState>{}), isNull);
     final loginLogo = find.byKey(const ValueKey('mobile-login-brand-logo'));

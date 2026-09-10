@@ -24,9 +24,10 @@ class MobileLoginPage extends ConsumerStatefulWidget {
 
 class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   static const _champagne = Color(0xFFC9B69E);
-  static const _deepBrown = Color(0xFF24180A);
-  static const _actionText = Color(0xAAC9B69E);
-  static const _disabledActionText = Color(0x61C9B69E);
+  static const _buttonGold = Color(0xFF6B5232);
+  static const _buttonGoldDisabled = Color(0xFF3F301F);
+  static const _actionText = Color(0xFFF0D5AF);
+  static const _disabledActionText = Color(0xFF9E876A);
   static const _inputText = Color(0xFF2A1D11);
 
   final _mobileController = TextEditingController();
@@ -233,8 +234,9 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                                               ? _verify
                                               : null,
                                           style: FilledButton.styleFrom(
-                                            backgroundColor: _deepBrown,
-                                            disabledBackgroundColor: _deepBrown,
+                                            backgroundColor: _buttonGold,
+                                            disabledBackgroundColor:
+                                                _buttonGoldDisabled,
                                             foregroundColor: _actionText,
                                             disabledForegroundColor:
                                                 _disabledActionText,
@@ -374,8 +376,8 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                           ? null
                           : _requestCode,
                       style: TextButton.styleFrom(
-                        backgroundColor: _deepBrown,
-                        disabledBackgroundColor: _deepBrown,
+                        backgroundColor: _buttonGold,
+                        disabledBackgroundColor: _buttonGoldDisabled,
                         foregroundColor: _actionText,
                         disabledForegroundColor: _disabledActionText,
                         shape: const RoundedRectangleBorder(),
@@ -448,6 +450,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
         ],
         maxLength: maxLength,
         textAlign: TextAlign.center,
+        textAlignVertical: TextAlignVertical.center,
         style: const TextStyle(
           color: _inputText,
           fontWeight: FontWeight.w400,
@@ -462,6 +465,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
           focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
           filled: false,
+          isDense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12),
         ),
         onChanged: onChanged,

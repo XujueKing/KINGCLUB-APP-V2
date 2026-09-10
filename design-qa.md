@@ -2000,3 +2000,31 @@ final result: passed
 - 本轮指定的字体与排版差异无剩余 P0/P1/P2 问题。
 
 final result: passed
+
+---
+
+# Design QA — 欢迎页与手机号登录实机微调 v2
+
+- source visual truth: `D:\WEB3_AI\KingClub-git\pages\login\login.wxss`、`pages\login\login.wxml`、`pages\regist\regist.wxss` 与用户于 2026-09-10 提供的旧版截图及实机反馈
+- implementation screenshots: `.tmp-kingclub-ui-review-4.png`、`.tmp-kingclub-login-review.png`
+- viewport: OPPO PCLM50，Android 12，Profile 构建，`1080 × 2400 px`
+- state: 欢迎页未勾选；手机号登录页空输入、NEXT 禁用、获取验证码可用
+
+## Comparison evidence
+
+- 欢迎页协议说明提升至 15dp，营业时间缩小至 13dp；勾选视觉缩至 18dp，并保留足够触控区域。
+- 协议链接下划线改为带 2dp 字线间距的底边线，避免紧贴中文字形。
+- 手机号占位文字已水平、垂直居中；输入框继续采用旧版径向金色渐变。
+- 获取验证码与 NEXT 使用更明亮的深金色层级，清晰区别于纯黑背景；禁用态仍保持可辨识但不过度抢眼。
+
+## Verification
+
+- 指定 Dart 文件静态分析通过。
+- 欢迎页到手机号登录页的定向组件测试通过。
+- Preview Profile APK 已构建、安装并在连接的 Android 真机完成截图核对。
+
+## Findings
+
+- 本轮指定的字号、下划线间距、勾选尺寸、输入居中与按钮金色层级无剩余 P0/P1/P2 问题。
+
+final result: passed

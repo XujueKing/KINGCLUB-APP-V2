@@ -85,7 +85,7 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
   Widget _bottomContent(BuildContext context) {
     const agreementStyle = TextStyle(
       color: Color(0xFFC9B69E),
-      fontSize: 14,
+      fontSize: 15,
       height: 1.35,
     );
     return Column(
@@ -108,8 +108,8 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
                     child: AnimatedContainer(
                       key: const ValueKey('legacy-welcome-consent-visual'),
                       duration: const Duration(milliseconds: 120),
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       decoration: BoxDecoration(
                         color: _accepted ? _palePink : Colors.black,
                         shape: BoxShape.circle,
@@ -122,7 +122,7 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
                           ? const Icon(
                               Icons.check_rounded,
                               key: ValueKey('legacy-welcome-consent-check'),
-                              size: 10,
+                              size: 9,
                               color: Colors.black,
                             )
                           : null,
@@ -174,12 +174,12 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
         const Text(
           'BUSINESS HOURS',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFFC9B69E), fontSize: 14),
+          style: TextStyle(color: Color(0xFFC9B69E), fontSize: 13),
         ),
         const Text(
           '20:30-04:00',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFFC9B69E), fontSize: 14),
+          style: TextStyle(color: Color(0xFFC9B69E), fontSize: 13),
         ),
       ],
     );
@@ -193,14 +193,22 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
         onTap: onPressed,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 8),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFFC9B69E),
-              fontSize: 14,
-              height: 1.35,
-              decoration: TextDecoration.underline,
-              decorationColor: Color(0xFFC9B69E),
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Color(0xFFC9B69E), width: 0.8),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFFC9B69E),
+                  fontSize: 15,
+                  height: 1.35,
+                ),
+              ),
             ),
           ),
         ),
