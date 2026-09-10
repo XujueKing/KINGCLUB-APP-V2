@@ -1,5 +1,11 @@
 # KingClub App V2
 
+## 2026-09-10 晚间开发状态
+
+真实短信登录已接入并部署 IDC 测试服务器，使用新的 `kingclubMember` 表；短信正文已恢复旧版。当前入口 `https://test.wuyexin.cn/kingclub-v2`，`api.sh-kingclub.cn` 备案处理中。照片实名认证、两图评分及审核的真实接口仍待接入；首版保留腾讯照片实名认证，不接新增 App 活体核身 SDK。
+
+接续详见[聊天与 Git 核实记录](docs/migration/SESSION_RECOVERY_2026-09-10.md)和[交付账本](docs/v2/APP_SCOPE_AND_UI_DELIVERY_GATE.md)。以下旧阶段描述按日期追溯，不能据此重复开发已完成项。
+
 ## 当前产品评审（更新至 2026-09-10）
 
 新增[用户碎片需求台账](docs/product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)与[媒体/颜值/美颜及腾讯核身调研](docs/product/2026-09-09-native-product-review/MEDIA_AND_FACE_RESEARCH.md)，已同步 41 项产品需求与 ROADMAP。最新决定：**首版不做实名核身，沿用旧照片上传接口的方法**；管理能力纳入 App 授权角色范围。新增详细规格仍待审，未接真实服务。

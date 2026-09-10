@@ -46,8 +46,10 @@ dependencies:
   flutter_secure_storage: ^11.1.0
   uuid: ^4.6.0
   elliptic: ^0.4.0
+  video_player: ^2.14.0
 
 dev_dependencies:
+  video_player_platform_interface: ^6.9.0
   flutter_test:
     sdk: flutter
 

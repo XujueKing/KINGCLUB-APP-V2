@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'welcome_video_background.dart';
+
 class LegacyWelcomePage extends StatefulWidget {
   const LegacyWelcomePage({
     super.key,
@@ -37,13 +39,7 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
         body: Stack(
           fit: StackFit.expand,
           children: [
-            const Image(
-              key: ValueKey('legacy-welcome-background'),
-              image: AssetImage('assets/legacy/home/legacy_login_cover.jpg'),
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
-              excludeFromSemantics: true,
-            ),
+            const WelcomeVideoBackground(),
             SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {

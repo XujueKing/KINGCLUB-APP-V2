@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../features/auth/presentation/auth_bootstrap_page.dart';
 import '../features/auth/presentation/legacy_welcome_page.dart';
+import '../features/auth/presentation/welcome_video_background.dart';
 import '../features/auth/presentation/mobile_login_page.dart';
 import '../features/auth/presentation/sms_verification_page.dart';
 import '../features/auth/presentation/terms_consent_page.dart';
@@ -119,7 +120,11 @@ GoRouter appRouter(Ref ref) {
     'KINGCLUB_INITIAL_LOCATION',
     defaultValue: '/auth/bootstrap',
   );
-  final router = GoRouter(initialLocation: previewLocation, routes: $appRoutes);
+  final router = GoRouter(
+    initialLocation: previewLocation,
+    routes: $appRoutes,
+    observers: [welcomeMediaRouteObserver],
+  );
   ref.onDispose(router.dispose);
   return router;
 }

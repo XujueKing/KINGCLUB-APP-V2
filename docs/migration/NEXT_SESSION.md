@@ -1,5 +1,15 @@
 # 新会话接续说明
 
+## 有声视频封面增量
+
+用户提供竖屏 MP4，明确欢迎页“就是要有声音，这个像游戏一样”。已压为 4.68 MB，分辨率/帧率/时长保持，原 AAC 音轨逐字节保留；已接入本地自动循环播放、声音开关与页面/后台暂停。详见[封面验收](../features/identity/feature_login_session/pages/page_legacy_welcome/acceptance.md)。真实短信测试入口继续保留。ADB 无设备，真机试听尚未完成。
+
+## 2026-09-10 晚间接续（优先于下文历史）
+
+先读[会话恢复与开发接续基线](SESSION_RECOVERY_2026-09-10.md)：两份导出聊天已与 Git/源码交叉核对。App `b35c33e`、后端 `390632b`；真实短信登录、新会员表、IDC 部署、旧短信正文恢复已完成。直接使用现有测试服务器，不再要求重复短信 UI 批准或额外隔离部署。
+
+测试入口为 `https://test.wuyexin.cn/kingclub-v2`；品牌域名备案由用户处理中。下一步补真实会话恢复/新会员状态衔接，再推进受控照片上传、腾讯照片实名、两图评分及审核查询。保留照片实名认证，不接新增 App 活体 SDK。下文“仅 Mock”“首版不做实名”“22 条需求”等是较早记录，不再作为当前状态。
+
 ## 2026-09-10 最新续接：碎片需求与首版照片方案
 
 先读[需求台账](../product/2026-09-09-native-product-review/REQUIREMENT_INBOX.md)与更新后的产品/架构/ROADMAP。当前 22 条 RQ、41 条 PR、W01～W13；用户最新明确**首版不做实名核身，使用旧照片上传接口的方法**。已定位 `/kingclub/registrationPhotoUpload` 的 multipart/imageType/暂存令牌，后续检测/评分链需 R1 对齐；不接腾讯核身 SDK，不伪造 KYC verified。自建颜值先验证，原生美颜独立。
