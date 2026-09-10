@@ -29,38 +29,48 @@ class KingclubSecureClient {
 
   Future<Map<String, dynamic>> call(
     String interfaceId,
-    Map<String, dynamic> params,
-  ) async {
+    Map<String, dynamic> params, {
+    Map<String, dynamic>? session,
+  }) async {
     try {
-      final privateKey = _curve.generatePrivateKey();
-      final clientNonce = 'nonce_${const Uuid().v4()}';
-      final publicBytes = _fromHex(privateKey.publicKey.toHex());
-      final handshakeResponse = await _dio.post<Map<String, dynamic>>(
-        '/supper-handshake',
-        data: {
-          'clientPublicKey': _b64(publicBytes),
-          'clientNonce': clientNonce,
-          'clientType': 'android',
-          'clientVersion': '1.0.0',
-        },
-      );
-      final handshake = _map(handshakeResponse.data?['data']);
-      final handshakeId = handshake['handshakeId'] as String;
-      final serverBytes = _b64decode(handshake['serverPublicKey'] as String);
-      if (serverBytes.length != 65 || serverBytes.first != 4) {
-        throw const AuthFailure('HANDSHAKE_INVALID', '服务器安全握手无效');
+      late final String keyId;
+      late final SecretKey sessionKey;
+      final sessionId = session?['sessionId'] as String? ?? '';
+      if (session != null) {
+        keyId = session['apiKeyId'] as String;
+        sessionKey = SecretKey(utf8.encode(session['apiKey'] as String));
+      } else {
+        final privateKey = _curve.generatePrivateKey();
+        final clientNonce = 'nonce_${const Uuid().v4()}';
+        final publicBytes = _fromHex(privateKey.publicKey.toHex());
+        final handshakeResponse = await _dio.post<Map<String, dynamic>>(
+          '/supper-handshake',
+          data: {
+            'clientPublicKey': _b64(publicBytes),
+            'clientNonce': clientNonce,
+            'clientType': 'android',
+            'clientVersion': '1.0.0',
+          },
+        );
+        final handshake = _map(handshakeResponse.data?['data']);
+        final handshakeId = handshake['handshakeId'] as String;
+        final serverBytes = _b64decode(handshake['serverPublicKey'] as String);
+        if (serverBytes.length != 65 || serverBytes.first != 4) {
+          throw const AuthFailure('HANDSHAKE_INVALID', '服务器安全握手无效');
+        }
+        final shared = SecretKey(
+          elliptic_ecdh.computeSecret(
+            privateKey,
+            elliptic.PublicKey.fromHex(_curve, _hex(serverBytes)),
+          ),
+        );
+        sessionKey = await _derive(
+          shared,
+          clientNonce,
+          'ccsop:supper-handshake:$handshakeId',
+        );
+        keyId = handshakeId;
       }
-      final shared = SecretKey(
-        elliptic_ecdh.computeSecret(
-          privateKey,
-          elliptic.PublicKey.fromHex(_curve, _hex(serverBytes)),
-        ),
-      );
-      final sessionKey = await _derive(
-        shared,
-        clientNonce,
-        'ccsop:supper-handshake:$handshakeId',
-      );
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final nonce = 'nonce_${const Uuid().v4()}';
       final requestId = 'request_${const Uuid().v4()}';
@@ -89,8 +99,8 @@ class KingclubSecureClient {
       final canonical = [
         'POST',
         '/supper-interface',
-        handshakeId,
-        '',
+        keyId,
+        sessionId,
         timestamp,
         nonce,
         requestId,
@@ -105,7 +115,9 @@ class KingclubSecureClient {
         data: {'data': payload, 'sign': _b64(signature.bytes)},
         options: Options(
           headers: {
-            'x-handshake-id': handshakeId,
+            if (session == null) 'x-handshake-id': keyId,
+            if (session != null) 'x-api-key-id': keyId,
+            if (session != null) 'x-session-id': sessionId,
             'x-timestamp': timestamp,
             'x-nonce': nonce,
             'x-request-id': requestId,

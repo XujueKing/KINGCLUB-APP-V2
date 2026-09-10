@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../features/auth/data/auth_repository_provider.dart';
+
 import '../features/auth/presentation/auth_bootstrap_page.dart';
 import '../features/auth/presentation/legacy_welcome_page.dart';
 import '../features/auth/presentation/welcome_video_background.dart';
@@ -40,6 +42,7 @@ import '../features/onboarding/presentation/drink_event_preferences_page.dart';
 import '../features/onboarding/presentation/membership_image_submission_page.dart';
 import '../features/onboarding/presentation/membership_review_status_page.dart';
 import '../features/onboarding/presentation/real_name_adult_verification_page.dart';
+import '../features/onboarding/presentation/real_membership_status_page.dart';
 import '../features/onboarding/presentation/style_music_preferences_page.dart';
 import '../features/scanner/presentation/safe_scanner_page.dart';
 import '../features/shell/presentation/app_shell_page.dart';
@@ -124,6 +127,14 @@ GoRouter appRouter(Ref ref) {
     initialLocation: previewLocation,
     routes: $appRoutes,
     observers: [welcomeMediaRouteObserver],
+    redirect: (context, state) {
+      if (kingclubApiBaseUrl.isNotEmpty &&
+          state.uri.path == '/home' &&
+          ref.read(authenticatedMemberProvider)?.canEnterApp != true) {
+        return '/auth/mobile';
+      }
+      return null;
+    },
   );
   ref.onDispose(router.dispose);
   return router;
@@ -184,6 +195,9 @@ class MobileLoginRoute extends GoRouteData with $MobileLoginRoute {
         onBack: back,
         child: MobileLoginPage(
           onBack: back,
+          onRegistrationStatus: () => const MembershipReviewStatusRoute(
+            OnboardingFlowRouteArgs('real-registration'),
+          ).push<void>(context),
           onAuthenticatedMember: () => const AppShellRoute().go(context),
           onVerified: (flowId) =>
               RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
@@ -375,6 +389,20 @@ class MembershipReviewStatusRoute extends GoRouteData
 
   @override
   Page<void> buildPage(BuildContext context, GoRouterState state) {
+    if ($extra.flowId == 'real-registration') {
+      return _authFlowPage(
+        state: state,
+        child: _ControlledRouteBackScope(
+          onBack: () => const MobileLoginRoute().go(context),
+          child: RealMembershipStatusPage(
+            onApproved: () => const AppShellRoute().go(context),
+            onIdentity: () =>
+                RealNameAdultVerificationRoute($extra).go(context),
+            onBack: () => const MobileLoginRoute().go(context),
+          ),
+        ),
+      );
+    }
     return _authFlowPage(
       state: state,
       child: _ControlledRouteBackScope(

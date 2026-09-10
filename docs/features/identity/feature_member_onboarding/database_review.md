@@ -94,3 +94,7 @@
 - 完成目标字段级映射、索引/唯一约束、错误码和接口 DTO 评审。
 - 模块 UI 获得 `Module UI Accepted`。
 - 确认腾讯账号 V2 权限、隔离凭据、受控样片和测试费用后，方可进入 `Approved for Isolated Integration`。
+
+## 2026-09-11 已实施的登录分流增量
+
+根据用户本轮继续开发真实登录分流的要求，只新增 kingclubMember.registrationStatus（migration 024），区分手机号建档与注册审核完成。旧 regist.js 的 userStatus=2 首页、=1 待审、其余实名保持不变。K102/K104 扩展 membership 返回；无新表/Routine/接口，也不改变原登录或钱包事务。测试库无旧会员导入/真实批准证据，现有及新增行默认 identity_required，不按 active/isNewMembership 自动批准。字段、目录、对账、保留与回滚审查见 CCSOP 项目 `04-数据库与数据治理/注册准入状态.md`。该增量不代表照片实名/评分/审批已接通。

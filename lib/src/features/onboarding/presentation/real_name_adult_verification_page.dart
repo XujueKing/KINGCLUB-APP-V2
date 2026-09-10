@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design_system/king_theme.dart';
 import '../../../core/mock/mock_runtime.dart';
+import '../../auth/data/auth_repository_provider.dart';
 
 class RealNameAdultVerificationPage extends ConsumerStatefulWidget {
   const RealNameAdultVerificationPage({
@@ -62,6 +63,10 @@ class _RealNameAdultVerificationPageState
 
   Future<void> _requestVerification() async {
     FocusScope.of(context).unfocus();
+    if (widget.flowId == 'real-registration') {
+      setState(() => _verificationError = '实名认证服务暂不可用，请稍后再试');
+      return;
+    }
     if (_nameController.text.trim().isEmpty) {
       _showMessage('请输入身份证姓名');
       return;
@@ -150,7 +155,11 @@ class _RealNameAdultVerificationPageState
 
   @override
   Widget build(BuildContext context) {
-    if (!ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId)) {
+    final isReal = widget.flowId == 'real-registration';
+    final validFlow = isReal
+        ? ref.watch(authenticatedMemberProvider)?.needsIdentity == true
+        : ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId);
+    if (!validFlow) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => widget.onInvalidFlow(),
       );

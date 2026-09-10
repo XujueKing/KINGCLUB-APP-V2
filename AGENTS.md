@@ -1,5 +1,12 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-11 登录后真实注册状态分流（最新）
+
+- 已对照旧 regist.js：审核通过首页、待审核状态页、未注册实名。后端 migration 024 新增 kingclubMember.registrationStatus，K102/K104 返回真实状态；active 仅表示可用，不代表注册完成。
+- 真实登录已移除 Mock 注册快照，首次及重复登录均按 registrationStatus 分流；账号/会员 active 且 approved 才允许进入首页，未知/受限状态不放行。审核页可用安全会话刷新 K104。
+- IDC 测试部署与连接 OPPO 的 preview/profile 安装已完成，保留原数据和真实短信入口。旧会员未导入，现有手机号档案默认 identity_required。腾讯实名/上传/两图评分/审核写入仍未接通；真实实名提交提示不可用，不产生 Mock 成功。冷启动自动恢复/刷新会话仍未完成。
+- 视频有声、18dp 白色70%无底静音图标、手机竖屏均已安装；勿按下方“ADB 无设备”等历史状态重复工作。
+
 ## 2026-09-10 晚间真实短信已部署（最新，覆盖下方历史冲突）
 
 - 接续先读 `docs/migration/SESSION_RECOVERY_2026-09-10.md`。已对照两份导出聊天、App `b35c33e` 与后端 `390632b` 恢复进度。

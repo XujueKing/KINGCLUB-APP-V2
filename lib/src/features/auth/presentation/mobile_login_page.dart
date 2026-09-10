@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design_system/king_components.dart';
-import '../../../core/mock/mock_runtime.dart';
 import '../data/auth_repository_provider.dart';
 import '../domain/auth_repository.dart';
 
@@ -15,11 +14,13 @@ class MobileLoginPage extends ConsumerStatefulWidget {
     required this.onBack,
     required this.onVerified,
     this.onAuthenticatedMember,
+    this.onRegistrationStatus,
   });
 
   final VoidCallback onBack;
   final ValueChanged<String> onVerified;
   final VoidCallback? onAuthenticatedMember;
+  final VoidCallback? onRegistrationStatus;
 
   @override
   ConsumerState<MobileLoginPage> createState() => _MobileLoginPageState();
@@ -135,11 +136,18 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
       if (!mounted) return;
       if (result.canEnterApp && widget.onAuthenticatedMember != null) {
         widget.onAuthenticatedMember!();
+      } else if (result.isRealSession) {
+        if (result.needsIdentity) {
+          widget.onVerified('real-registration');
+        } else if (widget.onRegistrationStatus != null) {
+          widget.onRegistrationStatus!();
+        } else {
+          throw const AuthFailure('MEMBERSHIP_RESTRICTED', '请先完成会员注册审核');
+        }
+      } else if (result.onboardingFlowId != null) {
+        widget.onVerified(result.onboardingFlowId!);
       } else {
-        final onboardingId = ref
-            .read(mockRuntimeProvider)
-            .startOnboarding(loginFlowId: _flow!.id);
-        widget.onVerified(onboardingId);
+        throw const AuthFailure('MEMBERSHIP_INVALID', '会员状态暂时无法确认，请稍后重试');
       }
     } on AuthFailure catch (error) {
       if (!mounted) return;
@@ -161,6 +169,12 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
           'IDENTITY_AUTHORITY_UNAVAILABLE' => '会员服务暂时不可用，请稍后重试',
           _ => error.message,
         };
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _verifying = false;
+        _codeError = '登录暂时未完成，请稍后重试';
       });
     }
   }

@@ -8,6 +8,17 @@ import '../domain/auth_repository.dart';
 
 const kingclubApiBaseUrl = String.fromEnvironment('KINGCLUB_API_BASE_URL');
 
+final authenticatedMemberProvider =
+    NotifierProvider<AuthenticatedMember, AuthLoginResult?>(
+      AuthenticatedMember.new,
+    );
+
+class AuthenticatedMember extends Notifier<AuthLoginResult?> {
+  @override
+  AuthLoginResult? build() => null;
+  void update(AuthLoginResult result) => state = result;
+}
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   if (kingclubApiBaseUrl.isEmpty) {
     return MockAuthRepository(ref.read(mockRuntimeProvider));
@@ -15,13 +26,15 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return RealAuthRepository(
     KingclubSecureClient(kingclubApiBaseUrl),
     SecureSessionStore(),
+    onAuthenticated: ref.read(authenticatedMemberProvider.notifier).update,
   );
 });
 
 class RealAuthRepository implements AuthRepository {
-  RealAuthRepository(this._client, this._sessionStore);
+  RealAuthRepository(this._client, this._sessionStore, {this.onAuthenticated});
   final KingclubSecureClient _client;
   final SecureSessionStore _sessionStore;
+  final void Function(AuthLoginResult)? onAuthenticated;
   List<Map<String, String>>? _consents;
 
   @override
@@ -74,11 +87,34 @@ class RealAuthRepository implements AuthRepository {
       'clientType': 'android',
       'deviceId': await _sessionStore.deviceId(),
     });
+    final snapshot = parseMembership(result);
     await _sessionStore.saveSession(result);
+    onAuthenticated?.call(snapshot);
+    return snapshot;
+  }
+
+  Future<AuthLoginResult> refreshMembership() async {
+    final session = await _sessionStore.readSession();
+    if (session == null) {
+      throw const AuthFailure('SESSION_EXPIRED', '登录已失效，请重新登录');
+    }
+    final result = await _client.call('K260824000104', {}, session: session);
+    final snapshot = parseMembership(result);
+    onAuthenticated?.call(snapshot);
+    return snapshot;
+  }
+
+  static AuthLoginResult parseMembership(Map<String, dynamic> result) {
+    if (result['membership'] is! Map || result['account'] is! Map) {
+      throw const AuthFailure('MEMBERSHIP_INVALID', '会员状态暂时无法确认，请稍后重试');
+    }
     final membership = Map<String, dynamic>.from(result['membership'] as Map);
     return AuthLoginResult(
       isNewMembership: result['isNewMembership'] == true,
       membershipStatus: '${membership['status']}',
+      registrationStatus: '${membership['registrationStatus'] ?? 'unknown'}',
+      accountStatus: '${(result['account'] as Map)['accountStatus']}',
+      isRealSession: true,
     );
   }
 }
@@ -111,6 +147,10 @@ class MockAuthRepository implements AuthRepository {
     return AuthLoginResult(
       isNewMembership: !_runtime.canEnterApp(id),
       membershipStatus: _runtime.canEnterApp(id) ? 'active' : 'applicant',
+      registrationStatus: _runtime.canEnterApp(id)
+          ? 'approved'
+          : 'identity_required',
+      onboardingFlowId: id,
     );
   }
 }

@@ -1,5 +1,11 @@
 # 新会话接续说明
 
+## 2026-09-11 真实注册分流已部署
+
+K102/K104 已返回新增 registrationStatus（后端 migration 024）。短信后按旧规则分流：identity_required 实名、pending_review 待审、active+approved 首页；重复登录不会将仅手机号建档当成完成注册。真实会话不创建 Mock 注册快照，审核页支持 K104 加密刷新；首页入口有真实状态校验。
+
+测试服务器迁移对账及运行检查通过，OPPO PCLM50（ADB 已连接）已覆盖安装 preview/profile 并启动；本批 Flutter analyze、9 项真实登录分流测试及原注册流程测试通过，后端 verify 141 项通过。旧会员尚未导入；腾讯实名上传/核验、两图评分、审核写入与冷启动会话恢复仍未完成。下一批从真实实名接口继续，不再重复短信、视频或分流开发。
+
 ## 有声视频封面增量
 
 用户提供竖屏 MP4，明确欢迎页“就是要有声音，这个像游戏一样”。已压为 4.68 MB，分辨率/帧率/时长保持，原 AAC 音轨逐字节保留；已接入本地自动循环播放、声音开关与页面/后台暂停。详见[封面验收](../features/identity/feature_login_session/pages/page_legacy_welcome/acceptance.md)。真实短信测试入口继续保留。ADB 无设备，真机试听尚未完成。

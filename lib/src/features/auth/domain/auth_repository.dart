@@ -8,10 +8,25 @@ class AuthLoginResult {
   const AuthLoginResult({
     required this.isNewMembership,
     required this.membershipStatus,
+    this.registrationStatus = 'identity_required',
+    this.accountStatus = 'active',
+    this.isRealSession = false,
+    this.onboardingFlowId,
   });
   final bool isNewMembership;
   final String membershipStatus;
-  bool get canEnterApp => !isNewMembership && membershipStatus == 'active';
+  final String registrationStatus;
+  final String accountStatus;
+  final bool isRealSession;
+  final String? onboardingFlowId;
+  bool get canEnterApp =>
+      accountStatus == 'active' &&
+      membershipStatus == 'active' &&
+      registrationStatus == 'approved';
+  bool get needsIdentity =>
+      accountStatus == 'active' &&
+      membershipStatus == 'active' &&
+      registrationStatus == 'identity_required';
 }
 
 class AuthFailure implements Exception {

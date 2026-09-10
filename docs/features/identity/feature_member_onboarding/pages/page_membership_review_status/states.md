@@ -14,3 +14,7 @@
 | `sessionLost` | reset 登录 |
 
 状态图标、标题、正文和动作必须由稳定枚举映射，禁止服务端下发任意按钮路由。
+
+## 2026-09-11 真实登录状态接入
+
+复用本页路由展示 K102/K104 的注册状态。pending_review 显示待审核；photos_required、changes_required、rejected 显示对应进度；未知/受限状态不进首页。刷新使用当前安全会话读取 K104，approved 且账号/会员 active 才进入首页；identity_required 回实名。照片补交与审核接口尚未接通，本批不提供模拟提交；返回登录不宣称已撤销服务器会话。

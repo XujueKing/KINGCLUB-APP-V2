@@ -1,5 +1,11 @@
 # 登录数据与接口
 
+## 2026-09-11 真实注册分流
+
+用户要求参照旧版：短信验证后，已注册进入首页，未注册进入实名。旧 userStatus=2/1/其他分别对应已通过/待审/未完成；新 kingclubMember.memberStatus=active 只表示未禁用，不代表已注册。后端 migration 024 新增 registrationStatus，K102/K104返回该字段。以 active + approved 进入首页；identity_required进入实名，pending_review进入审核状态；其余进度按状态提示恢复，未知/限制状态不放行。isNewMembership仅为是否本次建档，第二次登录不能据此绕过实名。
+
+真实登录不创建 MockOnboardingSnapshot。现有实名页接收真实会话上下文；腾讯正式上传/核验接口尚未落地时，不能调用 Mock 生成成功，提交应提示服务暂不可用且留在页面。本批交付真实分流与状态刷新，不宣称照片实名完成。旧会员数据尚未迁入，不自动查询或修改旧库。
+
 ## 复用模型与权威来源
 
 - `userAccount`：平台永久统一账号，由物业公共身份模块生成，格式 `U...`
