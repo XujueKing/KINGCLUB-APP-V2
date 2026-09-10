@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:dio/dio.dart';
+import 'package:elliptic/ecdh.dart' as elliptic_ecdh;
+import 'package:elliptic/elliptic.dart' as elliptic;
 import 'package:uuid/uuid.dart';
 
 import '../../features/auth/domain/auth_repository.dart';
@@ -20,7 +22,7 @@ class KingclubSecureClient {
       );
 
   final Dio _dio;
-  final _ecdh = Ecdh.p256(length: 32);
+  final _curve = elliptic.getP256();
   final _aes = AesGcm.with256bits();
   final _hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
   final _hmac = Hmac.sha256();
@@ -30,10 +32,9 @@ class KingclubSecureClient {
     Map<String, dynamic> params,
   ) async {
     try {
-      final keyPair = await _ecdh.newKeyPair();
-      final publicKey = await keyPair.extractPublicKey();
+      final privateKey = _curve.generatePrivateKey();
       final clientNonce = 'nonce_${const Uuid().v4()}';
-      final publicBytes = <int>[4, ...publicKey.x, ...publicKey.y];
+      final publicBytes = _fromHex(privateKey.publicKey.toHex());
       final handshakeResponse = await _dio.post<Map<String, dynamic>>(
         '/supper-handshake',
         data: {
@@ -49,12 +50,10 @@ class KingclubSecureClient {
       if (serverBytes.length != 65 || serverBytes.first != 4) {
         throw const AuthFailure('HANDSHAKE_INVALID', '服务器安全握手无效');
       }
-      final shared = await _ecdh.sharedSecretKey(
-        keyPair: keyPair,
-        remotePublicKey: EcPublicKey(
-          x: serverBytes.sublist(1, 33),
-          y: serverBytes.sublist(33, 65),
-          type: KeyPairType.p256,
+      final shared = SecretKey(
+        elliptic_ecdh.computeSecret(
+          privateKey,
+          elliptic.PublicKey.fromHex(_curve, _hex(serverBytes)),
         ),
       );
       final sessionKey = await _derive(
@@ -176,3 +175,7 @@ Uint8List _b64decode(String value) => Uint8List.fromList(
 );
 String _hex(List<int> value) =>
     value.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+Uint8List _fromHex(String value) => Uint8List.fromList([
+  for (var index = 0; index < value.length; index += 2)
+    int.parse(value.substring(index, index + 2), radix: 16),
+]);
