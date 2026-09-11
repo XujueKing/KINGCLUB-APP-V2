@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../../content/presentation/content_feed_page.dart';
@@ -494,41 +496,104 @@ class _LegacyBottomBar extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      minimum: const EdgeInsets.fromLTRB(28, 0, 28, 14),
-      child: Container(
-        height: 64,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xF51A1611),
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x99000000),
-              blurRadius: 18,
-              offset: Offset(0, 7),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final unit = constraints.maxWidth / 750;
+      final extraBottom = (MediaQuery.paddingOf(context).bottom - 80 * unit)
+          .clamp(0.0, double.infinity);
+      // CSS space-around over five 80rpx buttons and four 12rpx margins.
+      double centerFor(int index) => (61.2 + 134.4 * index) * unit;
+      return SizedBox(
+        height: 220 * unit + extraBottom,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0x00000000),
+                        Color(0xDD000000),
+                        Colors.black,
+                      ],
+                      stops: [0, 0.5, 0.86],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: EdgeInsets.only(top: 30 * unit),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(50 * unit),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: SizedBox(
+                      key: const ValueKey('shell-bottom-bar'),
+                      width: 660 * unit,
+                      height: 110 * unit,
+                      child: ColoredBox(
+                        color: const Color(0xEE1A1611),
+                        child: Stack(
+                          children: [
+                            AnimatedPositioned(
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 300),
+                              curve: Curves.ease,
+                              left: centerFor(selectedIndex) - 40 * unit,
+                              top: 15 * unit,
+                              width: 80 * unit,
+                              height: 80 * unit,
+                              child: const IgnorePointer(
+                                child: DecoratedBox(
+                                  key: ValueKey('shell-nav-indicator'),
+                                  decoration: BoxDecoration(
+                                    color: Color(0x70000000),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            for (
+                              var index = 0;
+                              index < destinations.length;
+                              index++
+                            )
+                              Positioned(
+                                left: centerFor(index) - 61.2 * unit,
+                                top: 0,
+                                width: 122.4 * unit,
+                                height: 110 * unit,
+                                child: _LegacyNavItem(
+                                  destination: destinations[index],
+                                  selected: selectedIndex == index,
+                                  center: index == 2,
+                                  unit: unit,
+                                  unreadCount: index == 1
+                                      ? messageUnreadCount
+                                      : 0,
+                                  onTap: () => onSelected(index),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
-        child: Row(
-          children: List.generate(
-            destinations.length,
-            (index) => Expanded(
-              child: _LegacyNavItem(
-                destination: destinations[index],
-                selected: selectedIndex == index,
-                center: index == 2,
-                unreadCount: index == 1 ? messageUnreadCount : 0,
-                onTap: () => onSelected(index),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+      );
+    },
+  );
 }
 
 class _LegacyNavItem extends StatelessWidget {
@@ -536,6 +601,7 @@ class _LegacyNavItem extends StatelessWidget {
     required this.destination,
     required this.selected,
     required this.center,
+    required this.unit,
     required this.unreadCount,
     required this.onTap,
   });
@@ -543,6 +609,7 @@ class _LegacyNavItem extends StatelessWidget {
   final _ShellDestination destination;
   final bool selected;
   final bool center;
+  final double unit;
   final int unreadCount;
   final VoidCallback onTap;
 
@@ -556,83 +623,59 @@ class _LegacyNavItem extends StatelessWidget {
       selected: selected,
       button: true,
       label: '${destination.label}，标签$unreadSemantics${selected ? '，已选中' : ''}',
-      child: InkResponse(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        radius: 30,
         child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: center ? 50 : 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: selected && !center
-                  ? const Color(0xFF090806)
-                  : Colors.transparent,
-              shape: BoxShape.circle,
-            ),
-            child: center
-                ? Container(
-                    width: 42,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8F5F0),
-                      borderRadius: BorderRadius.circular(7),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.favorite,
-                      size: 20,
-                      color: Color(0xFFD65E6B),
-                    ),
-                  )
-                : Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: [
-                      Image.asset(
-                        'assets/legacy/navigation/$asset',
-                        width: 32,
-                        height: 24,
-                        fit: BoxFit.contain,
-                      ),
-                      if (unreadCount > 0)
-                        Positioned(
-                          top: 1,
-                          right: 0,
-                          child: ExcludeSemantics(
-                            child: Container(
-                              key: const ValueKey('shell-message-unread-badge'),
-                              constraints: const BoxConstraints(
-                                minWidth: 18,
-                                minHeight: 18,
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE84848),
-                                borderRadius: BorderRadius.circular(9),
-                                border: Border.all(
-                                  color: const Color(0xFF1A1611),
-                                  width: 1.5,
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                unreadCount > 99 ? '99+' : '$unreadCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  height: 1,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
+          child: SizedBox(
+            width: 80 * unit,
+            height: 80 * unit,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                Image.asset(
+                  'assets/legacy/navigation/$asset',
+                  width: (center ? 70 : 50) * unit,
+                  height: (center ? 49 : 35) * unit,
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                ),
+                if (unreadCount > 0)
+                  Positioned(
+                    top: 1,
+                    right: 0,
+                    child: ExcludeSemantics(
+                      child: Container(
+                        key: const ValueKey('shell-message-unread-badge'),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE84848),
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(
+                            color: const Color(0xFF1A1611),
+                            width: 1.5,
                           ),
                         ),
-                    ],
+                        alignment: Alignment.center,
+                        child: Text(
+                          unreadCount > 99 ? '99+' : '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            height: 1,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
+              ],
+            ),
           ),
         ),
       ),

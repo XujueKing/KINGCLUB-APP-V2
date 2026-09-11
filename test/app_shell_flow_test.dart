@@ -32,6 +32,53 @@ void main() {
     );
   }
 
+  testWidgets(
+    'legacy bar scales and its single indicator slides between tabs',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      for (final width in [360.0, 393.0, 430.0]) {
+        tester.view.physicalSize = Size(width, 900);
+        await tester.pumpWidget(shell());
+        await tester.pumpAndSettle();
+        final bar = find.byKey(const ValueKey('shell-bottom-bar'));
+        final indicator = find.byKey(const ValueKey('shell-nav-indicator'));
+        expect(tester.getSize(bar).width, closeTo(width * 660 / 750, 0.001));
+        expect(tester.getSize(bar).height, closeTo(width * 110 / 750, 0.001));
+        expect(
+          tester.getSize(indicator).width,
+          closeTo(width * 80 / 750, 0.001),
+        );
+        final start = tester.getCenter(indicator).dx;
+        await tester.tap(find.bySemanticsLabel('私人储物柜，标签'));
+        await tester.pump();
+        expect(tester.getCenter(indicator).dx, closeTo(start, 0.001));
+        await tester.pump(const Duration(milliseconds: 100));
+        final middle = tester.getCenter(indicator).dx;
+        expect(middle, greaterThan(start));
+        final destination = tester
+            .getCenter(find.bySemanticsLabel('私人储物柜，标签，已选中'))
+            .dx;
+        expect(middle, lessThan(destination));
+        // Retarget during motion without snapping to the previous destination.
+        await tester.tap(find.bySemanticsLabel('消息，标签，5 条未读'));
+        await tester.pump();
+        expect(tester.getCenter(indicator).dx, closeTo(middle, 0.001));
+        await tester.pumpAndSettle();
+        expect(
+          tester.getCenter(indicator).dx,
+          closeTo(
+            tester.getCenter(find.bySemanticsLabel('消息，标签，5 条未读，已选中')).dx,
+            0.001,
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      }
+    },
+  );
+
   testWidgets('five fixed destinations preserve and reselect message branch', (
     tester,
   ) async {
