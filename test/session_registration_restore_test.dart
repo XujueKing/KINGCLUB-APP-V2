@@ -13,7 +13,20 @@ import 'package:kingclub/src/navigation/app_router.dart';
 import 'package:kingclub/src/features/onboarding/data/real_identity_repository.dart';
 
 class _Images extends RealIdentityRepository {
-  _Images() : super(_Client(), _Store(), 'https://example.invalid');
+  _Images({this.step = 3})
+    : super(_Client(), _Store(), 'https://example.invalid');
+  final int step;
+  @override
+  Future<Map<String, dynamic>> preferences() async => {
+    'preferences': {
+      'styles': <String>[],
+      'music': <String>[],
+      'drinks': <String>[],
+      'events': <String>[],
+    },
+    'version': 1,
+    'step': step,
+  };
   @override
   Future<Map<String, dynamic>> appearanceStatus() async => {
     'state': 'draft',
@@ -95,6 +108,40 @@ class _Client extends KingclubSecureClient {
 }
 
 void main() {
+  for (final step in [3, 4]) {
+    testWidgets(
+      'cold launch resumes saved preference step $step instead of review',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            realIdentityRepositoryProvider.overrideWithValue(
+              _Images(step: step),
+            ),
+            authRepositoryProvider.overrideWith(
+              (ref) => RealAuthRepository(
+                _Client(registrationStatus: 'preferences_required'),
+                _Store(),
+                onAuthenticated: ref
+                    .read(authenticatedMemberProvider.notifier)
+                    .update,
+              ),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const KingClubApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(step == 3 ? '你的风格偏好' : '完善兴趣偏好'), findsOneWidget);
+        expect(find.text('会员注册状态'), findsNothing);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
   for (final coldLaunch in [true, false]) {
     testWidgets(
       'unverified cover entry requires SMS even within fifteen minutes: cold=$coldLaunch',

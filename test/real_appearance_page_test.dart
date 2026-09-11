@@ -10,6 +10,8 @@ import 'package:kingclub/src/features/auth/data/auth_repository_provider.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/onboarding/data/real_identity_repository.dart';
 import 'package:kingclub/src/features/onboarding/presentation/membership_image_submission_page.dart';
+import 'package:kingclub/src/features/onboarding/presentation/style_music_preferences_page.dart';
+import 'package:kingclub/src/features/onboarding/presentation/drink_event_preferences_page.dart';
 
 class _Photos extends RealIdentityRepository {
   _Photos()
@@ -22,6 +24,32 @@ class _Photos extends RealIdentityRepository {
   var version = 1;
   var submits = 0;
   String state = 'draft';
+  Map<String, dynamic> draft = {
+    'styles': <String>[],
+    'music': <String>[],
+    'drinks': <String>[],
+    'events': <String>[],
+  };
+  final finalizations = <bool>[];
+  @override
+  Future<Map<String, dynamic>> preferences() async => {
+    'preferences': draft,
+    'version': version,
+    'step': finalizations.isEmpty ? 3 : 4,
+    'registrationStatus': 'preferences_required',
+  };
+  @override
+  Future<Map<String, dynamic>> savePreferences(
+    Map<String, dynamic> values,
+    int submittedVersion, {
+    required bool finalize,
+  }) async {
+    expect(submittedVersion, version);
+    draft = values;
+    finalizations.add(finalize);
+    return preferences();
+  }
+
   @override
   Future<Uint8List?> capture({ImageSource source = ImageSource.camera}) async =>
       Uint8List.fromList([1, 2, 3]);
@@ -58,7 +86,7 @@ class _Photos extends RealIdentityRepository {
   ) async {
     expect(submittedVersion, version);
     submits++;
-    state = 'pending_review';
+    state = 'preferences_required';
     return appearanceStatus();
   }
 }
@@ -73,14 +101,90 @@ class _Auth extends RealAuthRepository {
   Future<AuthLoginResult> refreshMembership() async => const AuthLoginResult(
     isNewMembership: false,
     membershipStatus: 'active',
-    registrationStatus: 'pending_review',
+    registrationStatus: 'preferences_required',
     isRealSession: true,
   );
 }
 
 void main() {
   testWidgets(
-    'real image slots upload, submit once and allow replacing after low score',
+    'style and music save a draft, only final interest page submits admission',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(430, 1100));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final photos = _Photos();
+      final container = ProviderContainer(
+        overrides: [
+          realIdentityRepositoryProvider.overrideWithValue(photos),
+          authRepositoryProvider.overrideWithValue(_Auth()),
+        ],
+      );
+      addTearDown(container.dispose);
+      container
+          .read(authenticatedMemberProvider.notifier)
+          .update(
+            const AuthLoginResult(
+              isNewMembership: false,
+              membershipStatus: 'active',
+              registrationStatus: 'preferences_required',
+              isRealSession: true,
+            ),
+          );
+      var advanced = false, submitted = false;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: StyleMusicPreferencesPage(
+              flowId: 'real-registration',
+              onBack: () {},
+              onNext: () => advanced = true,
+              onInvalidFlow: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('小清新'));
+      await tester.tap(find.text('HOUSE'));
+      await tester.ensureVisible(find.text('下一步'));
+      await tester.tap(find.text('下一步'));
+      await tester.pumpAndSettle();
+      expect(advanced, true);
+      expect(photos.finalizations, [false]);
+      expect(photos.draft['styles'], ['fresh']);
+      expect(photos.draft['music'], ['house']);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: DrinkEventPreferencesPage(
+              flowId: 'real-registration',
+              onBack: () {},
+              onSubmitted: () => submitted = true,
+              onInvalidFlow: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('啤酒'));
+      await tester.tap(find.text('车友会专场'));
+      await tester.ensureVisible(find.text('提交会员申请'));
+      await tester.tap(find.text('提交会员申请'));
+      await tester.pump();
+      await tester.pump();
+      expect(submitted, true);
+      expect(photos.finalizations, [false, true]);
+      expect(photos.draft['styles'], ['fresh']);
+      expect(photos.draft['drinks'], ['beer']);
+      expect(photos.draft['events'], ['car_club']);
+      expect(photos.submits, 0);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'real image slots upload then continue to preferences without early review',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(430, 932));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -132,7 +236,7 @@ void main() {
       await tester.tap(find.text('提交并评分'));
       await tester.pumpAndSettle();
       expect(photos.submits, 1);
-      expect(find.text('已提交 · 等待审核'), findsOneWidget);
+      expect(find.text('下一步 · 选择爱好'), findsOneWidget);
       await tester.tap(find.text('已上传 · 点击替换').first);
       await tester.pumpAndSettle();
       await tester.tap(find.text('拍摄照片'));

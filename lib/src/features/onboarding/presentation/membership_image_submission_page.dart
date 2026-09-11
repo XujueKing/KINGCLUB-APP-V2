@@ -158,16 +158,18 @@ class _MembershipImageSubmissionPageState
     if (_isReal) {
       try {
         _submissionKey ??= const Uuid().v4();
-        await ref
-            .read(realIdentityRepositoryProvider)
-            .submitAppearance(_version, _submissionKey!);
+        if (_assessmentState != 'preferences_required') {
+          await ref
+              .read(realIdentityRepositoryProvider)
+              .submitAppearance(_version, _submissionKey!);
+        }
         await _loadReal();
         final repository =
             ref.read(authRepositoryProvider) as RealAuthRepository;
         _completed = true;
         final member = await repository.refreshMembership();
         if (!mounted) return;
-        if (member.canEnterApp) {
+        if (member.needsPreferences || member.canEnterApp) {
           widget.onNext();
         } else {
           setState(() => _completed = false);
@@ -181,7 +183,12 @@ class _MembershipImageSubmissionPageState
         if (mounted) {
           setState(() {
             _saving = false;
-            if (_assessmentState != 'approved') _completed = false;
+            if (![
+              'approved',
+              'preferences_required',
+            ].contains(_assessmentState)) {
+              _completed = false;
+            }
           });
         }
       }
@@ -233,6 +240,8 @@ class _MembershipImageSubmissionPageState
         _completed ||
         (_isReal
             ? (ref.watch(authenticatedMemberProvider)?.needsImages == true ||
+                  ref.watch(authenticatedMemberProvider)?.needsPreferences ==
+                      true ||
                   ref.watch(authenticatedMemberProvider)?.registrationStatus ==
                       'pending_review')
             : ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId));
@@ -289,7 +298,9 @@ class _MembershipImageSubmissionPageState
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : Text(
-                      _assessmentState == 'pending_review'
+                      _assessmentState == 'preferences_required'
+                          ? '下一步 · 选择爱好'
+                          : _assessmentState == 'pending_review'
                           ? '已提交 · 等待审核'
                           : _assessmentState == 'processing'
                           ? '正在评分'
@@ -313,6 +324,7 @@ class _MembershipImageSubmissionPageState
               _error ??
                   switch (_assessmentState) {
                     'pending_review' => '资料已提交人工审核，也可以替换照片后重新评分。',
+                    'preferences_required' => '照片已提交，请继续选择爱好。',
                     'changes_required' => '请按照片提示重新上传，已通过的实名无需重做。',
                     'processing' => '正在确认三张照片的评分结果，请稍后刷新。',
                     'unknown' => '评分结果待确认，请联系客服，避免重复提交。',
@@ -327,7 +339,10 @@ class _MembershipImageSubmissionPageState
                   : () async {
                       setState(() => _error = null);
                       await _loadReal();
-                      if (_assessmentState == 'approved') {
+                      if ([
+                        'approved',
+                        'preferences_required',
+                      ].contains(_assessmentState)) {
                         _completed = true;
                         await (ref.read(
                           authRepositoryProvider,

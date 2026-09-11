@@ -49,6 +49,16 @@ class RealIdentityRepository {
 
   Future<Map<String, dynamic>> status() => _call('K260911000203', {});
   Future<Map<String, dynamic>> appearanceStatus() => _call('K260911000303', {});
+  Future<Map<String, dynamic>> preferences() => _call('K260911000304', {});
+  Future<Map<String, dynamic>> savePreferences(
+    Map<String, dynamic> preferences,
+    int version, {
+    required bool finalize,
+  }) => _call('K260911000305', {
+    ...preferences,
+    'version': version,
+    'finalize': finalize,
+  });
   Future<Map<String, dynamic>> submitAppearance(int version, String key) =>
       _call('K260911000302', {'version': version, 'idempotencyKey': key});
   String previewUrl(String path) => '${_upload.options.baseUrl}$path';

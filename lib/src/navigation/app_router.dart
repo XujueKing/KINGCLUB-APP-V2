@@ -45,6 +45,7 @@ import '../features/onboarding/presentation/membership_review_status_page.dart';
 import '../features/onboarding/presentation/real_name_adult_verification_page.dart';
 import '../features/onboarding/presentation/real_membership_status_page.dart';
 import '../features/onboarding/presentation/style_music_preferences_page.dart';
+import '../features/onboarding/data/real_identity_repository.dart';
 import '../features/scanner/presentation/safe_scanner_page.dart';
 import '../features/shell/presentation/app_shell_page.dart';
 
@@ -107,6 +108,22 @@ Future<void> _continueRealRegistration(
     const RealNameAdultVerificationRoute(args).go(context);
   } else if (member.needsImages) {
     const MembershipImageSubmissionRoute(args).go(context);
+  } else if (member.needsPreferences) {
+    var step = 3;
+    try {
+      final draft = await container
+          .read(realIdentityRepositoryProvider)
+          .preferences();
+      step = (draft['step'] as num?)?.toInt() ?? 3;
+    } catch (_) {
+      /* The preferences page exposes a retry if loading fails. */
+    }
+    if (!context.mounted) return;
+    if (step == 4) {
+      const DrinkEventPreferencesRoute(args).go(context);
+    } else {
+      const StyleMusicPreferencesRoute(args).go(context);
+    }
   } else {
     const MembershipReviewStatusRoute(args).go(context);
   }
@@ -184,7 +201,9 @@ GoRouter appRouter(Ref ref) {
       final member = ref.read(authenticatedMemberProvider);
       if (realMode &&
           member != null &&
-          (member.canEnterApp || member.needsImages) &&
+          (member.canEnterApp ||
+              member.needsImages ||
+              member.needsPreferences) &&
           {'/auth/mobile', '/onboarding/identity'}.contains(state.uri.path)) {
         return '/auth/bootstrap';
       }
@@ -445,7 +464,9 @@ class StyleMusicPreferencesRoute extends GoRouteData
           flowId: $extra.flowId,
           onBack: back,
           onNext: () => DrinkEventPreferencesRoute($extra).push<void>(context),
-          onInvalidFlow: () => const MobileLoginRoute().go(context),
+          onInvalidFlow: () => $extra.flowId == 'real-registration'
+              ? _continueRealRegistration(context)
+              : const MobileLoginRoute().go(context),
         ),
       ),
     );
@@ -471,9 +492,12 @@ class DrinkEventPreferencesRoute extends GoRouteData
         child: DrinkEventPreferencesPage(
           flowId: $extra.flowId,
           onBack: back,
-          onSubmitted: () =>
-              MembershipReviewStatusRoute($extra).push<void>(context),
-          onInvalidFlow: () => const MobileLoginRoute().go(context),
+          onSubmitted: () => $extra.flowId == 'real-registration'
+              ? MembershipReviewStatusRoute($extra).go(context)
+              : MembershipReviewStatusRoute($extra).push<void>(context),
+          onInvalidFlow: () => $extra.flowId == 'real-registration'
+              ? _continueRealRegistration(context)
+              : const MobileLoginRoute().go(context),
         ),
       ),
     );

@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/design_system/king_components.dart';
 import '../../../core/design_system/king_theme.dart';
 import '../../../core/mock/mock_runtime.dart';
+import '../../auth/data/auth_repository_provider.dart';
+import '../../auth/domain/auth_repository.dart';
+import '../data/real_identity_repository.dart';
 import 'onboarding_components.dart';
 
 class DrinkEventPreferencesPage extends ConsumerStatefulWidget {
@@ -28,12 +31,10 @@ class DrinkEventPreferencesPage extends ConsumerStatefulWidget {
 class _DrinkEventPreferencesPageState
     extends ConsumerState<DrinkEventPreferencesPage> {
   static const _drinkOptions = [
-    PreferenceOption(id: 'alcohol_free', label: '无酒精'),
     PreferenceOption(id: 'whisky', label: '威士忌'),
     PreferenceOption(id: 'brandy', label: '白兰地'),
     PreferenceOption(id: 'vodka', label: '伏特加'),
     PreferenceOption(id: 'red_wine', label: '红葡萄酒'),
-    PreferenceOption(id: 'white_wine', label: '白葡萄酒'),
     PreferenceOption(id: 'sake', label: '日本清酒'),
     PreferenceOption(id: 'champagne', label: '香槟'),
     PreferenceOption(id: 'cocktail', label: '鸡尾酒'),
@@ -49,15 +50,55 @@ class _DrinkEventPreferencesPageState
     PreferenceOption(id: 'car_club', label: '车友会专场'),
     PreferenceOption(id: 'korean_fresh_party', label: '韩式小清新 Party'),
     PreferenceOption(id: 'retro_classic', label: '怀旧经典专场'),
-    PreferenceOption(id: 'live_music', label: '现场音乐'),
-    PreferenceOption(id: 'dj_theme', label: 'DJ 主题夜'),
-    PreferenceOption(id: 'tasting', label: '酒类品鉴'),
-    PreferenceOption(id: 'friends_gathering', label: '好友聚会'),
   ];
 
   final _drinks = <String>{};
   final _events = <String>{};
   bool _submitting = false;
+  bool get _isReal => widget.flowId == 'real-registration';
+  bool _completed = false;
+  bool _loaded = false;
+  Map<String, dynamic> _draft = {
+    'styles': <String>[],
+    'music': <String>[],
+    'drinks': <String>[],
+    'events': <String>[],
+  };
+  int _version = 1;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    if (_isReal) Future.microtask(_load);
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final result = await ref
+          .read(realIdentityRepositoryProvider)
+          .preferences();
+      if (!mounted) return;
+      setState(() {
+        _draft = Map<String, dynamic>.from(result['preferences'] as Map);
+        _version = (result['version'] as num).toInt();
+        _drinks
+          ..clear()
+          ..addAll(List<String>.from(_draft['drinks'] ?? []));
+        _events
+          ..clear()
+          ..addAll(List<String>.from(_draft['events'] ?? []));
+        _loaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _error = '爱好资料加载失败，请重试');
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
 
   Future<void> _submit({bool skip = false}) async {
     if (_submitting) return;
@@ -66,6 +107,34 @@ class _DrinkEventPreferencesPageState
       _events.clear();
     }
     setState(() => _submitting = true);
+    if (_isReal) {
+      try {
+        await ref
+            .read(realIdentityRepositoryProvider)
+            .savePreferences(
+              {
+                ..._draft,
+                'drinks': _drinks.toList(),
+                'events': _events.toList(),
+              },
+              _version,
+              finalize: true,
+            );
+        _completed = true;
+        await (ref.read(authRepositoryProvider) as RealAuthRepository)
+            .refreshMembership();
+        if (mounted) widget.onSubmitted();
+      } on AuthFailure catch (error) {
+        _completed = false;
+        if (mounted) setState(() => _error = error.message);
+      } catch (_) {
+        _completed = false;
+        if (mounted) setState(() => _error = '提交结果暂未确认，请重试，已保存资料不会重复评分');
+      } finally {
+        if (mounted && !_completed) setState(() => _submitting = false);
+      }
+      return;
+    }
     await ref.read(mockRuntimeProvider).completeMockStep();
     if (!mounted) return;
     widget.onSubmitted();
@@ -79,7 +148,10 @@ class _DrinkEventPreferencesPageState
 
   @override
   Widget build(BuildContext context) {
-    if (!ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId)) {
+    if (_isReal
+        ? (!_completed &&
+              ref.watch(authenticatedMemberProvider)?.needsPreferences != true)
+        : !ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId)) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => widget.onInvalidFlow(),
       );
@@ -92,6 +164,13 @@ class _DrinkEventPreferencesPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_error != null) ...[
+            Text(_error!),
+            TextButton(
+              onPressed: _submitting ? null : _load,
+              child: const Text('重新加载'),
+            ),
+          ],
           PreferenceSection(
             title: '酒类偏好',
             options: _drinkOptions,
@@ -107,7 +186,7 @@ class _DrinkEventPreferencesPageState
           ),
           const SizedBox(height: 28),
           FilledButton(
-            onPressed: _submitting ? null : _submit,
+            onPressed: _submitting || (_isReal && !_loaded) ? null : _submit,
             style: FilledButton.styleFrom(shape: const StadiumBorder()),
             child: _submitting
                 ? const SizedBox.square(
@@ -118,7 +197,9 @@ class _DrinkEventPreferencesPageState
           ),
           const SizedBox(height: 10),
           TextButton(
-            onPressed: _submitting ? null : () => _submit(skip: true),
+            onPressed: _submitting || (_isReal && !_loaded)
+                ? null
+                : () => _submit(skip: true),
             child: const Text('跳过偏好并提交'),
           ),
           const SizedBox(height: 32),
