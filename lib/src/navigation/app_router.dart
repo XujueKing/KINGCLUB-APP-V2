@@ -75,9 +75,18 @@ Future<void> _clearCommerceAndLogin(BuildContext context) async {
   const MobileLoginRoute().go(context);
 }
 
-Future<void> _continueRealRegistration(BuildContext context) async {
+Future<void> _continueRealRegistration(
+  BuildContext context, {
+  bool fromCover = false,
+}) async {
   final container = ProviderScope.containerOf(context, listen: false);
   final repository = container.read(authRepositoryProvider);
+  if (fromCover &&
+      repository is RealAuthRepository &&
+      container.read(authenticatedMemberProvider)?.needsIdentity == true) {
+    await _clearCommerceAndLogin(context);
+    return;
+  }
   if (repository is RealAuthRepository &&
       !await repository.canResumeWithoutSms()) {
     container.read(authenticatedMemberProvider.notifier).clear();
@@ -213,7 +222,7 @@ class AuthBootstrapRoute extends GoRouteData with $AuthBootstrapRoute {
             context,
             listen: false,
           ).read(authRepositoryProvider) is RealAuthRepository) {
-            _continueRealRegistration(context);
+            _continueRealRegistration(context, fromCover: true);
           } else {
             const AppShellRoute().go(context);
           }
@@ -240,7 +249,7 @@ class LegacyWelcomeRoute extends GoRouteData with $LegacyWelcomeRoute {
               listen: false,
             ).read(authenticatedMemberProvider);
             if (member?.isRealSession == true) {
-              _continueRealRegistration(context);
+              _continueRealRegistration(context, fromCover: true);
             } else {
               const MobileLoginRoute().push<void>(context);
             }

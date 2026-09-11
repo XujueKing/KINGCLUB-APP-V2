@@ -41,9 +41,13 @@ class _Store extends SecureSessionStore {
 }
 
 class _Client extends KingclubSecureClient {
-  _Client({this.firstError, this.waitForResponse})
-    : super('https://example.invalid');
+  _Client({
+    this.firstError,
+    this.waitForResponse,
+    this.registrationStatus = 'photos_required',
+  }) : super('https://example.invalid');
   final Future<void>? waitForResponse;
+  final String registrationStatus;
   String? firstError;
   final calls = <String>[];
   @override
@@ -73,13 +77,59 @@ class _Client extends KingclubSecureClient {
       'account': {'accountStatus': 'active'},
       'membership': {
         'status': 'active',
-        'registrationStatus': 'photos_required',
+        'registrationStatus': registrationStatus,
       },
     };
   }
 }
 
 void main() {
+  for (final coldLaunch in [true, false]) {
+    testWidgets(
+      'unverified cover entry requires SMS even within fifteen minutes: cold=$coldLaunch',
+      (tester) async {
+        final store = _Store();
+        final client = _Client(registrationStatus: 'identity_required');
+        final container = ProviderContainer(
+          overrides: [
+            authRepositoryProvider.overrideWith(
+              (ref) => RealAuthRepository(
+                client,
+                store,
+                onAuthenticated: ref
+                    .read(authenticatedMemberProvider.notifier)
+                    .update,
+              ),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        if (!coldLaunch) {
+          await (container.read(authRepositoryProvider) as RealAuthRepository)
+              .restoreSession();
+          container.read(appRouterProvider).go('/auth/welcome');
+        }
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const KingClubApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+        if (!coldLaunch) {
+          tester
+              .widget<LegacyWelcomePage>(find.byType(LegacyWelcomePage))
+              .onNext();
+          await tester.pumpAndSettle();
+        }
+        expect(find.byKey(const ValueKey('mobile-login-next')), findsOneWidget);
+        expect(find.byKey(const ValueKey('real-name-id-field')), findsNothing);
+        expect(store.saved, isNull);
+        expect(container.read(authenticatedMemberProvider), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
   testWidgets(
     'expired mobile window opens phone entry rather than restarting identity',
     (tester) async {
