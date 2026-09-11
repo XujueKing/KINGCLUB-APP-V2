@@ -691,24 +691,20 @@ class _LegacyNavItem extends StatelessWidget {
                       child: Container(
                         key: const ValueKey('shell-message-unread-badge'),
                         constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
+                          minWidth: 14,
+                          minHeight: 14,
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
                         decoration: BoxDecoration(
                           color: const Color(0xFFE84848),
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(
-                            color: const Color(0xFF1A1611),
-                            width: 1.5,
-                          ),
+                          borderRadius: BorderRadius.circular(7),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           unreadCount > 99 ? '99+' : '$unreadCount',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
+                            fontSize: 8.5,
                             height: 1,
                             fontWeight: FontWeight.w700,
                           ),
