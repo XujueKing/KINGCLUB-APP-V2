@@ -21,6 +21,58 @@ class _Auth implements AuthRepository {
 }
 
 void main() {
+  testWidgets(
+    'NEXT is grey until valid phone, code and challenge are present',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(
+              _Auth(
+                const AuthLoginResult(
+                  isNewMembership: true,
+                  membershipStatus: 'active',
+                ),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            home: MobileLoginPage(onBack: () {}, onVerified: (_) {}),
+          ),
+        ),
+      );
+      final next = find.byKey(const ValueKey('mobile-login-next'));
+      FilledButton button() => tester.widget<FilledButton>(next);
+      expect(button().onPressed, isNull);
+      expect(
+        button().style!.backgroundColor!.resolve({WidgetState.disabled}),
+        const Color(0xFF292929),
+      );
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(0), '13800000000');
+      await tester.enterText(fields.at(1), '111111');
+      await tester.pump();
+      expect(button().onPressed, isNull);
+      expect(find.text('请先点击“获取验证码”'), findsOneWidget);
+      await tester.tap(find.text('获取验证码'));
+      await tester.pump();
+      expect(button().onPressed, isNotNull);
+      expect(
+        button().style!.backgroundColor!.resolve({}),
+        isNot(const Color(0xFF292929)),
+      );
+      await tester.enterText(fields.at(1), '11111');
+      await tester.pump();
+      expect(button().onPressed, isNull);
+      await tester.enterText(fields.at(0), '12800000000');
+      await tester.enterText(fields.at(1), '111111');
+      await tester.pump();
+      expect(button().onPressed, isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   for (final isNew in [true, false]) {
     for (final status in [
       'identity_required',

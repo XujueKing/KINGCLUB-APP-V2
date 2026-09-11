@@ -1,5 +1,9 @@
 # 登录数据与接口
 
+## 2026-09-11 NEXT 启用与禁用
+
+NEXT 只有手机号符合大陆11位格式、验证码为6位数字、已取得当前号码challenge且没有请求/校验进行中时启用。禁用时使用明确灰底灰字，与启用金棕色区分；位数齐全但未获取challenge时显示“请先点击获取验证码”。号码修改使旧challenge失效，异步短信结果不得绑定到修改后的号码。固定测试码仍通过同一challenge流程，客户端不验证固定值或绕过服务端。
+
 ## 2026-09-11 真实注册分流
 
 用户要求参照旧版：短信验证后，已注册进入首页，未注册进入实名。旧 userStatus=2/1/其他分别对应已通过/待审/未完成；新 kingclubMember.memberStatus=active 只表示未禁用，不代表已注册。后端 migration 024 新增 registrationStatus，K102/K104返回该字段。以 active + approved 进入首页；identity_required进入实名，pending_review进入审核状态；其余进度按状态提示恢复，未知/限制状态不放行。isNewMembership仅为是否本次建档，第二次登录不能据此绕过实名。

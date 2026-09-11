@@ -30,9 +30,9 @@ class MobileLoginPage extends ConsumerStatefulWidget {
 class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   static const _champagne = Color(0xFFC9B69E);
   static const _buttonGold = Color(0xFF24180A);
-  static const _buttonGoldDisabled = Color(0xFF24180A);
+  static const _buttonGoldDisabled = Color(0xFF292929);
   static const _actionText = Color(0xAAC9B69E);
-  static const _disabledActionText = Color(0xAAC9B69E);
+  static const _disabledActionText = Color(0xFF777777);
   static const _inputText = Color(0xFF2A1D11);
 
   final _mobileController = TextEditingController();
@@ -46,6 +46,16 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   bool _verifying = false;
   String? _mobileError;
   String? _codeError;
+
+  bool get _validMobile =>
+      RegExp(r'^1[3-9]\d{9}$').hasMatch(_mobileController.text);
+  bool get _validCode => RegExp(r'^\d{6}$').hasMatch(_codeController.text);
+  bool get _canVerify =>
+      _validMobile &&
+      _validCode &&
+      _flow != null &&
+      !_requesting &&
+      !_verifying;
 
   @override
   void initState() {
@@ -79,7 +89,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   Future<void> _requestCode() async {
     if (_requesting || _remaining > 0) return;
     final mobile = _mobileController.text.replaceAll(RegExp(r'[\s-]'), '');
-    if (!RegExp(r'^1\d{10}$').hasMatch(mobile)) {
+    if (!_validMobile) {
       setState(() => _mobileError = '请输入正确的 11 位手机号');
       return;
     }
@@ -91,6 +101,10 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
     try {
       final flow = await ref.read(authRepositoryProvider).requestSms(mobile);
       if (!mounted) return;
+      if (_mobileController.text != mobile) {
+        setState(() => _requesting = false);
+        return;
+      }
       _timer?.cancel();
       setState(() {
         _flow = flow;
@@ -119,7 +133,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   }
 
   Future<void> _verify() async {
-    if (_verifying || _flow == null || _codeController.text.length != 6) {
+    if (!_canVerify) {
       return;
     }
     setState(() {
@@ -182,8 +196,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final nextEnabled =
-        _flow != null && _codeController.text.length == 6 && !_verifying;
+    final nextEnabled = _canVerify;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -245,6 +258,19 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
+                                      if (_validMobile &&
+                                          _validCode &&
+                                          _flow == null) ...[
+                                        const Text(
+                                          '请先点击“获取验证码”',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: _champagne,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                      ],
                                       SizedBox(
                                         height: 45,
                                         child: FilledButton(
