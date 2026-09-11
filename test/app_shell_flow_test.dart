@@ -45,7 +45,7 @@ void main() {
         final bar = find.byKey(const ValueKey('shell-bottom-bar'));
         final indicator = find.byKey(const ValueKey('shell-nav-indicator'));
         expect(tester.getSize(bar).width, closeTo(width * 660 / 750, 0.001));
-        expect(tester.getSize(bar).height, closeTo(width * 110 / 750, 0.001));
+        expect(tester.getSize(bar).height, closeTo(width * 120 / 750, 0.001));
         expect(
           tester.getSize(indicator).width,
           closeTo(width * 80 / 750, 0.001),
@@ -59,7 +59,7 @@ void main() {
         );
         expect(
           900 - tester.getBottomLeft(bar).dy,
-          closeTo(width * 24 / 750, 0.001),
+          closeTo(width * 12 / 750, 0.001),
         );
         expect(find.byKey(const ValueKey('content-heart')), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('私人储物柜，标签'));
@@ -102,7 +102,7 @@ void main() {
     final bar = find.byKey(const ValueKey('shell-bottom-bar'));
     expect(
       852 - tester.getBottomLeft(bar).dy,
-      closeTo(34 + 393 * 12 / 750, 0.001),
+      closeTo(34 + 393 * 8 / 750, 0.001),
     );
     await tester.tap(find.bySemanticsLabel('内容，标签'));
     await tester.pumpAndSettle();

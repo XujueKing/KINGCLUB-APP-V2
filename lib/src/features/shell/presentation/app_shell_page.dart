@@ -501,12 +501,12 @@ class _LegacyBottomBar extends StatelessWidget {
       final unit = constraints.maxWidth / 750;
       // Keep a small visual gap above the actual system navigation area.
       // The mini-program's fixed 80rpx gap over-reserves space on Android.
-      final bottomGap = (MediaQuery.paddingOf(context).bottom + 12 * unit)
-          .clamp(24 * unit, double.infinity);
+      final bottomGap = (MediaQuery.paddingOf(context).bottom + 8 * unit)
+          .clamp(12 * unit, double.infinity);
       // Share the legacy indicator centers with the icon hit areas.
       double centerFor(int index) => [60, 195, 330, 465, 598][index] * unit;
       return SizedBox(
-        height: 140 * unit + bottomGap,
+        height: 150 * unit + bottomGap,
         child: Stack(
           children: [
             Positioned.fill(
@@ -538,7 +538,7 @@ class _LegacyBottomBar extends StatelessWidget {
                     child: SizedBox(
                       key: const ValueKey('shell-bottom-bar'),
                       width: 660 * unit,
-                      height: 110 * unit,
+                      height: 120 * unit,
                       child: ColoredBox(
                         color: const Color(0xEE1A1611),
                         child: Stack(
@@ -549,7 +549,7 @@ class _LegacyBottomBar extends StatelessWidget {
                                   : const Duration(milliseconds: 300),
                               curve: Curves.ease,
                               left: centerFor(selectedIndex) - 40 * unit,
-                              top: 15 * unit,
+                              top: 20 * unit,
                               width: 80 * unit,
                               height: 80 * unit,
                               child: const IgnorePointer(
@@ -571,7 +571,7 @@ class _LegacyBottomBar extends StatelessWidget {
                                 left: centerFor(index) - 61.2 * unit,
                                 top: 0,
                                 width: 122.4 * unit,
-                                height: 110 * unit,
+                                height: 120 * unit,
                                 child: _LegacyNavItem(
                                   destination: destinations[index],
                                   selected: selectedIndex == index,
