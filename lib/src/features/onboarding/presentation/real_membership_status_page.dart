@@ -267,6 +267,17 @@ class _RealMembershipStatusPageState
                               ],
                             ),
                           ),
+                          if (approved) ...[
+                            const SizedBox(height: 16),
+                            const Text(
+                              'KINGCLUB 是年轻人的单身交友俱乐部，会员需要遵守会员规则，文明绿色交友，遵守国家相关法律法规，拒绝黄赌毒。',
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.45,
+                                color: KingColors.textSecondary,
+                              ),
+                            ),
+                          ],
                           if (!approved) ...[
                             const SizedBox(height: 16),
                             if (member.registrationStatus == 'pending_review')
@@ -380,11 +391,16 @@ class _RealMembershipStatusPageState
                     ),
                   ),
                 ),
-                if (!approved)
-                  TextButton(
+                Visibility(
+                  visible: !approved,
+                  maintainSize: true,
+                  maintainAnimation: true,
+                  maintainState: true,
+                  child: TextButton(
                     onPressed: widget.onBack,
                     child: const Text('返回登录页'),
                   ),
+                ),
                 SizedBox(height: compact ? 8 : 16),
               ],
             ),

@@ -173,13 +173,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      final refreshPosition = tester.getRect(find.byType(FilledButton));
       await tester.tap(find.text('刷新状态'));
       await tester.pumpAndSettle();
       expect(entered, isFalse);
       expect(find.text('欢迎加入 KINGCLUB'), findsOneWidget);
       expect(find.text('进入 KINGCLUB'), findsOneWidget);
       expect(find.text('更换形象照片'), findsNothing);
-      expect(find.text('返回登录页'), findsNothing);
+      expect(find.text('返回登录页').hitTestable(), findsNothing);
+      expect(tester.getRect(find.byType(FilledButton)), refreshPosition);
+      expect(find.textContaining('KINGCLUB 是年轻人的单身交友俱乐部'), findsOneWidget);
       await tester.tap(find.text('进入 KINGCLUB'));
       expect(entered, isTrue);
     },
@@ -279,7 +282,7 @@ void main() {
           expect(find.text('评分仅供本次申请参考，不代表个人价值。最终结果以会员审核为准。'), findsNothing);
           expect(find.text('刷新状态'), findsNothing);
           expect(find.text('更换形象照片'), findsNothing);
-          expect(find.text('返回登录页'), findsNothing);
+          expect(find.text('返回登录页').hitTestable(), findsNothing);
           await tester.tap(find.text('进入 KINGCLUB'));
           expect(entered, isTrue);
           expect(photos.submits, 0);
