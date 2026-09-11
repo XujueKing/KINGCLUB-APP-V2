@@ -685,8 +685,8 @@ class _LegacyNavItem extends StatelessWidget {
                   ),
                 if (unreadCount > 0)
                   Positioned(
-                    top: 1,
-                    right: 0,
+                    top: 8 * unit,
+                    right: 8 * unit,
                     child: ExcludeSemantics(
                       child: Container(
                         key: const ValueKey('shell-message-unread-badge'),
@@ -702,10 +702,13 @@ class _LegacyNavItem extends StatelessWidget {
                         alignment: Alignment.center,
                         child: Text(
                           unreadCount > 99 ? '99+' : '$unreadCount',
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 8.5,
                             height: 1,
+                            leadingDistribution: TextLeadingDistribution.even,
+                            letterSpacing: 0,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
