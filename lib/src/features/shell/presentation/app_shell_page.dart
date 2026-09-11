@@ -499,6 +499,7 @@ class _LegacyBottomBar extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final unit = constraints.maxWidth / 750;
+      final barHeight = 120 * unit - 1;
       // Keep a small visual gap above the actual system navigation area.
       // The mini-program's fixed 80rpx gap over-reserves space on Android.
       final bottomGap = (MediaQuery.paddingOf(context).bottom + 8 * unit)
@@ -506,7 +507,7 @@ class _LegacyBottomBar extends StatelessWidget {
       // Share the legacy indicator centers with the icon hit areas.
       double centerFor(int index) => [60, 195, 330, 465, 598][index] * unit;
       return SizedBox(
-        height: 150 * unit + bottomGap,
+        height: 30 * unit + barHeight + bottomGap,
         child: Stack(
           children: [
             Positioned.fill(
@@ -532,13 +533,13 @@ class _LegacyBottomBar extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.only(top: 30 * unit),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(50 * unit),
+                  borderRadius: BorderRadius.circular(barHeight / 2),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                     child: SizedBox(
                       key: const ValueKey('shell-bottom-bar'),
                       width: 660 * unit,
-                      height: 120 * unit,
+                      height: barHeight,
                       child: ColoredBox(
                         color: const Color(0xEE1A1611),
                         child: Stack(
@@ -549,7 +550,7 @@ class _LegacyBottomBar extends StatelessWidget {
                                   : const Duration(milliseconds: 300),
                               curve: Curves.ease,
                               left: centerFor(selectedIndex) - 40 * unit,
-                              top: 20 * unit,
+                              top: (barHeight - 80 * unit) / 2,
                               width: 80 * unit,
                               height: 80 * unit,
                               child: const IgnorePointer(
@@ -571,7 +572,7 @@ class _LegacyBottomBar extends StatelessWidget {
                                 left: centerFor(index) - 61.2 * unit,
                                 top: 0,
                                 width: 122.4 * unit,
-                                height: 120 * unit,
+                                height: barHeight,
                                 child: _LegacyNavItem(
                                   destination: destinations[index],
                                   selected: selectedIndex == index,
