@@ -174,7 +174,13 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                         child: Text('私人储物柜', style: KingTheme.headerTitleStyle),
                       ),
                     ),
-                    SizedBox(height: heroHeight, child: _hero(u)),
+                    SizedBox(
+                      height: heroHeight,
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 48 * u),
+                        child: _hero(u),
+                      ),
+                    ),
                     SizedBox(
                       width: width,
                       height: 48 * u,
@@ -408,9 +414,10 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
             ),
             GestureDetector(
               key: const ValueKey('storage-pickup'),
-              onTap: item.canPickup ? _pickup : null,
+              onTap: _pickup,
+              behavior: HitTestBehavior.opaque,
               child: Opacity(
-                opacity: item.canPickup ? 1 : .35,
+                opacity: 1,
                 child: Image.asset(
                   'assets/legacy/storage/wine_barcode.png',
                   width: 64 * u,

@@ -34,7 +34,19 @@ void main() {
           ),
           home: AppShellPage(
             initialIndex: 3,
-            storageRepository: PreviewStorageRepository(fixture),
+            storageRepository: PreviewStorageRepository(
+              Platform.environment['KINGCLUB_QA_FULL'] == '1'
+                  ? [
+                      StorageItem(
+                        ref: 'wine-1',
+                        name: fixture.first.name,
+                        assetKey: 'vodka',
+                        quantity: 2,
+                      ),
+                      ...fixture.skip(1),
+                    ]
+                  : fixture,
+            ),
             onOpenScanner: (_, _) async => null,
             onOpenTogether: () {},
             onOpenParty: () {},

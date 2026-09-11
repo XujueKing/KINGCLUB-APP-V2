@@ -165,7 +165,9 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                           : Center(
                               child: Text(
                                 _error ??
-                                    (_item.status == 'collected'
+                                    (_item.status == 'expired'
+                                        ? '存酒已过期，请联系工作人员核实'
+                                        : _item.status == 'collected'
                                         ? '已取出'
                                         : '当前物品不可提取'),
                                 textAlign: TextAlign.center,
@@ -177,10 +179,13 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    '请向工作人员出示，提取码会自动更新',
+                  Text(
+                    _token != null ? '请向工作人员出示，提取码会自动更新' : '当前展示物品详情，暂不生成提取码',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Color(0x99C9B69E), fontSize: 11),
+                    style: const TextStyle(
+                      color: Color(0x99C9B69E),
+                      fontSize: 11,
+                    ),
                   ),
                   const SizedBox(height: 30),
                   for (final row in [

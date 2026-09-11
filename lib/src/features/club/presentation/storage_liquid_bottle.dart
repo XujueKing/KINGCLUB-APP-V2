@@ -97,6 +97,7 @@ class _StorageLiquidBottleState extends State<StorageLiquidBottle>
           child: AnimatedBuilder(
             animation: _wave,
             builder: (context, _) => ClipPath(
+              key: const ValueKey('storage-liquid-surface'),
               clipper: _LiquidClipper(
                 widget.item.remainingPercent / 100,
                 _wave.value,
@@ -159,14 +160,20 @@ class _LiquidClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final p = Path();
-    final y = size.height * (1 - level.clamp(0, 1));
-    final amplitude = level <= 0 || level >= 1 ? 0.0 : 3.0;
+    // 100% is a full usable bottle, not liquid up to the stopper.
+    final fill = level.clamp(0.0, 1.0) * .90;
+    final y = size.height * (1 - fill);
+    final amplitude = math.min(3.0, size.height * fill * .08);
     p.moveTo(0, y);
     for (var x = 0.0; x <= size.width; x += 2) {
       p.lineTo(
         x,
         y +
-            math.sin(x / size.width * math.pi * 2 + phase * math.pi * 2) *
+            (math.sin(x / size.width * math.pi * 2 + phase * math.pi * 2) +
+                    .3 *
+                        math.sin(
+                          x / size.width * math.pi * 4 - phase * math.pi * 2,
+                        )) *
                 amplitude,
       );
     }
