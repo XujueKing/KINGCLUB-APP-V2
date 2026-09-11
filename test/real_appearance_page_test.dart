@@ -205,6 +205,8 @@ void main() {
           expect(find.text('为什么需要等待审核？'), findsNothing);
           expect(find.text('评分仅供本次申请参考，不代表个人价值。最终结果以会员审核为准。'), findsNothing);
           expect(find.text('刷新状态'), findsNothing);
+          expect(find.text('更换形象照片'), findsNothing);
+          expect(find.text('返回登录页'), findsNothing);
           await tester.tap(find.text('进入 KINGCLUB'));
           expect(entered, isTrue);
           expect(photos.submits, 0);
@@ -294,7 +296,15 @@ void main() {
           find.widgetWithText(FilledButton, '刷新状态'),
         );
         expect(marketing.bottom, lessThanOrEqualTo(refresh.top));
-        expect(find.text('返回登录').hitTestable(), findsOneWidget);
+        expect(find.text('返回登录页').hitTestable(), findsOneWidget);
+        expect(
+          tester.getRect(find.widgetWithText(TextButton, '更换形象照片')).bottom,
+          lessThanOrEqualTo(refresh.top),
+        );
+        expect(
+          tester.getRect(find.widgetWithText(TextButton, '返回登录页')).top,
+          greaterThanOrEqualTo(refresh.bottom),
+        );
         await tester.ensureVisible(find.text('为什么需要等待审核？'));
         await tester.tap(find.text('为什么需要等待审核？'));
         await tester.pumpAndSettle();

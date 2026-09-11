@@ -351,6 +351,12 @@ class _RealMembershipStatusPageState
                     ),
                   ),
                 ),
+                if (!restricted &&
+                    member.registrationStatus == 'pending_review')
+                  TextButton(
+                    onPressed: widget.onImages,
+                    child: const Text('更换形象照片'),
+                  ),
                 ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 45),
                   child: FilledButton(
@@ -373,21 +379,9 @@ class _RealMembershipStatusPageState
                   ),
                 ),
                 if (!approved)
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 12,
-                    children: [
-                      if (!restricted &&
-                          member.registrationStatus == 'pending_review')
-                        TextButton(
-                          onPressed: widget.onImages,
-                          child: const Text('更换形象照片'),
-                        ),
-                      TextButton(
-                        onPressed: widget.onBack,
-                        child: const Text('返回登录'),
-                      ),
-                    ],
+                  TextButton(
+                    onPressed: widget.onBack,
+                    child: const Text('返回登录页'),
                   ),
                 SizedBox(height: compact ? 8 : 16),
               ],
