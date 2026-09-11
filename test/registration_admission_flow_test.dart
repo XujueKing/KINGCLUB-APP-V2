@@ -59,6 +59,43 @@ Future<void> _addPhoto(WidgetTester tester, String source) async {
 }
 
 void main() {
+  testWidgets(
+    'identity inputs dismiss keyboard on outside touch and can switch focus',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final runtime = MockRuntime();
+      await tester.pumpWidget(
+        _app(
+          runtime,
+          RealNameAdultVerificationPage(
+            flowId: runtime.startOnboarding(),
+            onBack: () {},
+            onNext: () {},
+            onInvalidFlow: () {},
+          ),
+        ),
+      );
+      final name = find.byKey(const ValueKey('real-name-name-field'));
+      final identity = find.byKey(const ValueKey('real-name-id-field'));
+      await tester.tap(name);
+      await tester.pump();
+      expect(tester.widget<TextField>(name).focusNode!.hasFocus, true);
+      await tester.tap(identity);
+      await tester.pump();
+      expect(tester.widget<TextField>(identity).focusNode!.hasFocus, true);
+      expect(tester.widget<TextField>(name).focusNode!.hasFocus, false);
+      for (final field in [identity, name]) {
+        await tester.tap(field);
+        await tester.pump();
+        expect(tester.testTextInput.isVisible, true);
+        await tester.tap(find.text('NAME:'));
+        await tester.pump();
+        expect(tester.widget<TextField>(field).focusNode!.hasFocus, false);
+        expect(tester.testTextInput.isVisible, false);
+      }
+    },
+  );
   testWidgets('identity action aligns with login NEXT at phone sizes', (
     tester,
   ) async {

@@ -224,6 +224,7 @@ class _RealNameAdultVerificationPageState
         key: ValueKey(keyName),
         controller: controller,
         focusNode: focus,
+        onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         enabled: !_submitting,
         enableSuggestions: false,
         autocorrect: false,
