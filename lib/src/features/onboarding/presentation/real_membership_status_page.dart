@@ -82,7 +82,9 @@ class _RealMembershipStatusPageState
       final state = await repository.refreshMembership();
       if (!mounted) return;
       if (state.canEnterApp) {
-        widget.onApproved();
+        // Membership refresh publishes the approved state; the member chooses
+        // when to leave the welcome screen using the primary action.
+        if (_score == null || _scoreError != null) await _loadScore();
       } else if (state.needsIdentity) {
         widget.onIdentity();
       } else if (state.needsImages) {

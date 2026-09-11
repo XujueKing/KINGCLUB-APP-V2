@@ -110,7 +110,80 @@ class _Auth extends RealAuthRepository {
   );
 }
 
+class _ApprovalRefresh extends _Auth {
+  _ApprovalRefresh(this.publish);
+  final void Function(AuthLoginResult) publish;
+
+  @override
+  Future<AuthLoginResult> refreshMembership() async {
+    const result = AuthLoginResult(
+      isNewMembership: false,
+      membershipStatus: 'active',
+      registrationStatus: 'approved',
+      isRealSession: true,
+    );
+    publish(result);
+    return result;
+  }
+}
+
 void main() {
+  testWidgets(
+    'refresh approval stays on success screen until enter is tapped',
+    (tester) async {
+      late ProviderContainer container;
+      container = ProviderContainer(
+        overrides: [
+          realIdentityRepositoryProvider.overrideWithValue(
+            _Photos()..score = 77,
+          ),
+          authRepositoryProvider.overrideWithValue(
+            _ApprovalRefresh(
+              (member) => container
+                  .read(authenticatedMemberProvider.notifier)
+                  .update(member),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container
+          .read(authenticatedMemberProvider.notifier)
+          .update(
+            const AuthLoginResult(
+              isNewMembership: false,
+              membershipStatus: 'active',
+              registrationStatus: 'pending_review',
+              isRealSession: true,
+            ),
+          );
+      var entered = false;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: KingTheme.dark,
+            home: RealMembershipStatusPage(
+              onApproved: () => entered = true,
+              onIdentity: () {},
+              onBack: () {},
+              onImages: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('刷新状态'));
+      await tester.pumpAndSettle();
+      expect(entered, isFalse);
+      expect(find.text('欢迎加入 KINGCLUB'), findsOneWidget);
+      expect(find.text('进入 KINGCLUB'), findsOneWidget);
+      expect(find.text('更换形象照片'), findsNothing);
+      expect(find.text('返回登录页'), findsNothing);
+      await tester.tap(find.text('进入 KINGCLUB'));
+      expect(entered, isTrue);
+    },
+  );
   testWidgets(
     'rejected and blocked members see only their public decision reason',
     (tester) async {
