@@ -133,15 +133,31 @@ void main() {
               isRealSession: true,
             ),
           );
-      for (final score in <num?>[77, null]) {
+      for (final scenario in [
+        (size: const Size(320, 568), scale: 1.0, score: 77),
+        (size: const Size(360, 640), scale: 1.0, score: 77),
+        (size: const Size(393, 852), scale: 1.0, score: 77),
+        (size: const Size(430, 932), scale: 1.0, score: 77),
+        (size: const Size(320, 568), scale: 2.0, score: 77),
+        (size: const Size(360, 800), scale: 1.0, score: null),
+      ]) {
+        final score = scenario.score;
+        tester.view.physicalSize = scenario.size;
         photos.score = score;
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
             child: MaterialApp(
               theme: KingTheme.dark,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(scenario.scale),
+                  padding: const EdgeInsets.only(top: 44, bottom: 34),
+                ),
+                child: child!,
+              ),
               home: RealMembershipStatusPage(
-                key: ValueKey(score),
+                key: ValueKey(scenario),
                 onApproved: () {},
                 onIdentity: () {},
                 onBack: () {},
@@ -155,8 +171,16 @@ void main() {
         expect(find.text('希望更快了解审核进度？'), findsOneWidget);
         expect(
           tester.getRect(find.widgetWithText(FilledButton, '刷新状态')).bottom,
-          lessThan(800),
+          lessThan(scenario.size.height - 34),
         );
+        await tester.ensureVisible(find.text('联系营销人员，协助跟进审核或补充资料。'));
+        await tester.pumpAndSettle();
+        final marketing = tester.getRect(find.text('联系营销人员，协助跟进审核或补充资料。'));
+        final refresh = tester.getRect(
+          find.widgetWithText(FilledButton, '刷新状态'),
+        );
+        expect(marketing.bottom, lessThanOrEqualTo(refresh.top));
+        expect(find.text('返回登录').hitTestable(), findsOneWidget);
         expect(photos.submits, 0);
         expect(tester.takeException(), isNull);
       }

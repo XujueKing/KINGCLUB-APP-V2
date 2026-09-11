@@ -100,6 +100,7 @@ class _RealMembershipStatusPageState
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).height < 740;
     final member = ref.watch(authenticatedMemberProvider);
     final restricted =
         member == null ||
@@ -139,7 +140,10 @@ class _RealMembershipStatusPageState
               children: [
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(top: 24, bottom: 24),
+                    padding: EdgeInsets.only(
+                      top: compact ? 12 : 20,
+                      bottom: 16,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -147,9 +151,9 @@ class _RealMembershipStatusPageState
                           !restricted && member.registrationStatus == 'approved'
                               ? '欢迎加入 KINGCLUB'
                               : '感谢您的申请',
-                          style: Theme.of(context).textTheme.headlineSmall,
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         Text(
                           message,
                           style: const TextStyle(
@@ -158,9 +162,9 @@ class _RealMembershipStatusPageState
                           ),
                         ),
                         if (!restricted) ...[
-                          const SizedBox(height: 28),
+                          SizedBox(height: compact ? 16 : 20),
                           Container(
-                            padding: const EdgeInsets.all(24),
+                            padding: EdgeInsets.all(compact ? 12 : 16),
                             decoration: BoxDecoration(
                               color: KingColors.surface,
                               border: Border.all(color: KingColors.border),
@@ -175,7 +179,7 @@ class _RealMembershipStatusPageState
                                     fontSize: 14,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 6),
                                 Text(
                                   _score == null
                                       ? '—'
@@ -183,8 +187,8 @@ class _RealMembershipStatusPageState
                                   key: const ValueKey(
                                     'membership-appearance-score',
                                   ),
-                                  style: const TextStyle(
-                                    fontSize: 56,
+                                  style: TextStyle(
+                                    fontSize: compact ? 40 : 46,
                                     fontWeight: FontWeight.w300,
                                     color: KingColors.brandStrong,
                                   ),
@@ -207,27 +211,27 @@ class _RealMembershipStatusPageState
                           ),
                           const SizedBox(height: 16),
                           const Text(
-                            '自动评分是本次会员申请的参考信息，不代表对个人价值的评价。您可以更换形象照片，最终结果以会员审核为准。',
+                            '评分仅供本次申请参考，不代表个人价值。最终结果以会员审核为准。',
                             style: TextStyle(
                               fontSize: 13,
-                              height: 1.6,
+                              height: 1.45,
                               color: KingColors.textSecondary,
                             ),
                           ),
-                          const SizedBox(height: 28),
+                          SizedBox(height: compact ? 16 : 20),
                           const Text(
                             '希望更快了解审核进度？',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 14,
                               color: KingColors.brandStrong,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
                           const Text(
-                            '可联系为您服务的营销人员，协助跟进审核、确认需要补充的资料。',
+                            '联系营销人员，协助跟进审核或补充资料。',
                             style: TextStyle(
                               fontSize: 13,
-                              height: 1.6,
+                              height: 1.45,
                               color: KingColors.textSecondary,
                             ),
                           ),
@@ -245,22 +249,34 @@ class _RealMembershipStatusPageState
                     ),
                   ),
                 ),
-                if (!restricted &&
-                    member.registrationStatus == 'pending_review')
-                  TextButton(
-                    onPressed: widget.onImages,
-                    child: const Text('更换形象照片'),
-                  ),
-                SizedBox(
-                  height: 45,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 45),
                   child: FilledButton(
                     onPressed: _loading ? null : _refresh,
-                    style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(45),
+                      shape: const StadiumBorder(),
+                    ),
                     child: Text(_loading ? '正在刷新' : '刷新状态'),
                   ),
                 ),
-                TextButton(onPressed: widget.onBack, child: const Text('返回登录')),
-                const SizedBox(height: 16),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 12,
+                  children: [
+                    if (!restricted &&
+                        member.registrationStatus == 'pending_review')
+                      TextButton(
+                        onPressed: widget.onImages,
+                        child: const Text('更换形象照片'),
+                      ),
+                    TextButton(
+                      onPressed: widget.onBack,
+                      child: const Text('返回登录'),
+                    ),
+                  ],
+                ),
+                SizedBox(height: compact ? 8 : 16),
               ],
             ),
           ),
