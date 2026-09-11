@@ -1,0 +1,13 @@
+# 注册进度恢复
+
+用户明确要求实名成功后不因关机、App重启、错误返回而再次实名，直接继续完善形象资料。已实测腾讯照片V2核验成功一次，数据库verified且photos_required；不能以新建会员或本地Mock状态覆盖服务器结果。
+
+每次冷启动通过安全存储取会话，K104刷新进度；访问凭据过期则K103轮换后再读K104。有效refresh到期/撤销才回登录；网络错误保留安全会话，展示重试，不把网络失败当作匿名重开实名。并发恢复合并为单次Future。
+
+统一分流：active+approved首页；identity_required实名页；photos_required/changes_required形象资料页；pending_review/rejected/unknown/受限账号状态页。短信登录后、实名成功后与bootstrap使用相同分流；已实名误访问手机号/实名/欢迎入口转bootstrap刷新，不依据本地缓存直接发起有费核验。形象资料页返回退出App，不返回实名。显式登出清安全会话和内存会员状态。
+
+真人首次成功后出现旧页面finally解除loading、provider已变更而误触发onInvalidFlow的竞态；完成标记令路由交接期间旧页面不再触发无效流程回跳。测试保留旧页一帧验证onNext仅一次、onInvalidFlow零次。
+
+测试：session_registration_restore_test覆盖本地旧进度与服务器冲突、令牌轮换、网络失败、撤销、两次冷启动与误入实名；real_identity_navigation_test覆盖成功交接。与17既有登录注册检查合计23通过，analyze通过。安装后须用ADB强制停止再启动确认真实安全会话恢复，不重新发送短信或照片。
+
+范围：本批完成注册续接路由。实际形象资料页真实模式不调用Mock；两张形象照上传、评分及后续偏好/审核仍需接入，不能由路由改动冒充已提交或入会已通过。

@@ -17,6 +17,7 @@ class AuthenticatedMember extends Notifier<AuthLoginResult?> {
   @override
   AuthLoginResult? build() => null;
   void update(AuthLoginResult result) => state = result;
+  void clear() => state = null;
 }
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -36,6 +37,48 @@ class RealAuthRepository implements AuthRepository {
   final SecureSessionStore _sessionStore;
   final void Function(AuthLoginResult)? onAuthenticated;
   List<Map<String, String>>? _consents;
+  Future<AuthLoginResult?>? _restoring;
+
+  Future<AuthLoginResult?> restoreSession() =>
+      _restoring ??= _restoreSession().whenComplete(() => _restoring = null);
+
+  Future<AuthLoginResult?> _restoreSession() async {
+    final saved = await _sessionStore.readSession();
+    if (saved == null) return null;
+    try {
+      try {
+        return await refreshMembership();
+      } on AuthFailure catch (error) {
+        if (error.code != 'SESSION_EXPIRED') rethrow;
+      }
+      final deadline = DateTime.tryParse('${saved['refreshExpiresAt']}');
+      if (deadline == null || !deadline.isAfter(DateTime.now())) {
+        await _sessionStore.clearSession();
+        return null;
+      }
+      final rotated = await _client.call('K260824000103', {
+        'sessionId': saved['sessionId'],
+        'refreshToken': saved['refreshToken'],
+        'refreshTokenVersion': saved['refreshTokenVersion'],
+        'clientAppCode': 'kingclub',
+        'clientType': 'android',
+        'deviceId': await _sessionStore.deviceId(),
+      });
+      await _sessionStore.saveSession({...saved, ...rotated});
+      return await refreshMembership();
+    } on AuthFailure catch (error) {
+      if ({
+        'SESSION_EXPIRED',
+        'AUTH_SESSION_REVOKED',
+        'AUTH_REFRESH_TOKEN_INVALID',
+        'AUTH_REFRESH_REUSE_DETECTED',
+      }.contains(error.code)) {
+        await _sessionStore.clearSession();
+        return null;
+      }
+      rethrow;
+    }
+  }
 
   Future<void> _loadConsents() async {
     final catalog = await _client.call('K260824000107', {

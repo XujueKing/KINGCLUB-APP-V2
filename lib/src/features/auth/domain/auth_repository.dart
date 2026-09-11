@@ -27,6 +27,11 @@ class AuthLoginResult {
       accountStatus == 'active' &&
       membershipStatus == 'active' &&
       registrationStatus == 'identity_required';
+  bool get needsImages =>
+      accountStatus == 'active' &&
+      membershipStatus == 'active' &&
+      (registrationStatus == 'photos_required' ||
+          registrationStatus == 'changes_required');
 }
 
 class AuthFailure implements Exception {

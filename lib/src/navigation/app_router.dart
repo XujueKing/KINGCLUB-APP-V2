@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../features/auth/data/auth_repository_provider.dart';
+import '../core/session/secure_session_store.dart';
 
 import '../features/auth/presentation/auth_bootstrap_page.dart';
 import '../features/auth/presentation/legacy_welcome_page.dart';
@@ -55,9 +56,34 @@ FakeCommerceRepository _commerce(BuildContext context) =>
       listen: false,
     ).read(fakeCommerceRepositoryProvider);
 
-void _clearCommerceAndLogin(BuildContext context) {
+Future<void> _clearCommerceAndLogin(BuildContext context) async {
   _commerce(context).clear();
+  ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(authenticatedMemberProvider.notifier).clear();
+  await SecureSessionStore().clearSession();
+  if (!context.mounted) return;
   const MobileLoginRoute().go(context);
+}
+
+void _continueRealRegistration(BuildContext context) {
+  final member = ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(authenticatedMemberProvider);
+  const args = OnboardingFlowRouteArgs('real-registration');
+  if (member == null) {
+    const AuthBootstrapRoute().go(context);
+  } else if (member.canEnterApp) {
+    const AppShellRoute().go(context);
+  } else if (member.needsIdentity) {
+    const RealNameAdultVerificationRoute(args).go(context);
+  } else if (member.needsImages) {
+    const MembershipImageSubmissionRoute(args).go(context);
+  } else {
+    const MembershipReviewStatusRoute(args).go(context);
+  }
 }
 
 Page<void> _authFlowPage({
@@ -128,10 +154,22 @@ GoRouter appRouter(Ref ref) {
     routes: $appRoutes,
     observers: [welcomeMediaRouteObserver],
     redirect: (context, state) {
-      if (kingclubApiBaseUrl.isNotEmpty &&
+      final realMode = ref.read(authRepositoryProvider) is RealAuthRepository;
+      final member = ref.read(authenticatedMemberProvider);
+      if (realMode &&
+          member != null &&
+          (member.canEnterApp || member.needsImages) &&
+          {
+            '/auth/mobile',
+            '/auth/welcome',
+            '/onboarding/identity',
+          }.contains(state.uri.path)) {
+        return '/auth/bootstrap';
+      }
+      if (realMode &&
           state.uri.path == '/home' &&
           ref.read(authenticatedMemberProvider)?.canEnterApp != true) {
-        return '/auth/mobile';
+        return '/auth/bootstrap';
       }
       return null;
     },
@@ -150,7 +188,16 @@ class AuthBootstrapRoute extends GoRouteData with $AuthBootstrapRoute {
       onBack: () {},
       child: AuthBootstrapPage(
         onAnonymous: () => const LegacyWelcomeRoute().go(context),
-        onAuthenticated: () => const AppShellRoute().go(context),
+        onAuthenticated: () {
+          if (ProviderScope.containerOf(
+            context,
+            listen: false,
+          ).read(authRepositoryProvider) is RealAuthRepository) {
+            _continueRealRegistration(context);
+          } else {
+            const AppShellRoute().go(context);
+          }
+        },
       ),
     );
   }
@@ -195,9 +242,7 @@ class MobileLoginRoute extends GoRouteData with $MobileLoginRoute {
         onBack: back,
         child: MobileLoginPage(
           onBack: back,
-          onRegistrationStatus: () => const MembershipReviewStatusRoute(
-            OnboardingFlowRouteArgs('real-registration'),
-          ).push<void>(context),
+          onRegistrationStatus: () => _continueRealRegistration(context),
           onAuthenticatedMember: () => const AppShellRoute().go(context),
           onVerified: (flowId) =>
               RealNameAdultVerificationRoute(OnboardingFlowRouteArgs(flowId))
@@ -291,12 +336,14 @@ class RealNameAdultVerificationRoute extends GoRouteData
           onBack: back,
           onNext: () {
             if ($extra.flowId == 'real-registration') {
-              MembershipReviewStatusRoute($extra).go(context);
+              _continueRealRegistration(context);
             } else {
               MembershipImageSubmissionRoute($extra).push<void>(context);
             }
           },
-          onInvalidFlow: () => const MobileLoginRoute().go(context),
+          onInvalidFlow: () => $extra.flowId == 'real-registration'
+              ? _continueRealRegistration(context)
+              : const MobileLoginRoute().go(context),
         ),
       ),
     );
@@ -312,7 +359,9 @@ class MembershipImageSubmissionRoute extends GoRouteData
 
   @override
   Page<void> buildPage(BuildContext context, GoRouterState state) {
-    void back() => context.canPop()
+    void back() => $extra.flowId == 'real-registration'
+        ? SystemNavigator.pop()
+        : context.canPop()
         ? context.pop()
         : RealNameAdultVerificationRoute($extra).go(context);
     return _authFlowPage(
@@ -323,7 +372,9 @@ class MembershipImageSubmissionRoute extends GoRouteData
           flowId: $extra.flowId,
           onBack: back,
           onNext: () => MembershipReviewStatusRoute($extra).push<void>(context),
-          onInvalidFlow: () => const MobileLoginRoute().go(context),
+          onInvalidFlow: () => $extra.flowId == 'real-registration'
+              ? _continueRealRegistration(context)
+              : const MobileLoginRoute().go(context),
         ),
       ),
     );
@@ -400,6 +451,7 @@ class MembershipReviewStatusRoute extends GoRouteData
         child: _ControlledRouteBackScope(
           onBack: () => const MobileLoginRoute().go(context),
           child: RealMembershipStatusPage(
+            onImages: () => MembershipImageSubmissionRoute($extra).go(context),
             onApproved: () => const AppShellRoute().go(context),
             onIdentity: () =>
                 RealNameAdultVerificationRoute($extra).go(context),

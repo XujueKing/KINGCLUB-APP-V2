@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design_system/king_theme.dart';
 import '../../../core/mock/mock_runtime.dart';
+import '../../auth/data/auth_repository_provider.dart';
 import 'onboarding_components.dart';
 
 class MembershipImageSubmissionPage extends ConsumerStatefulWidget {
@@ -30,10 +31,12 @@ class _MembershipImageSubmissionPageState
   final _uploadingSlots = <int>{};
   final _slotErrors = <int, String>{};
   bool _saving = false;
+  bool get _isReal => widget.flowId == 'real-registration';
 
   @override
   void initState() {
     super.initState();
+    if (_isReal) return;
     final snapshot = ref
         .read(mockRuntimeProvider)
         .onboardingSnapshot(widget.flowId);
@@ -47,6 +50,11 @@ class _MembershipImageSubmissionPageState
   }
 
   Future<void> _pick(int slot) async {
+    if (_isReal) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('形象照片提交服务暂不可用，请稍后再试')));
+      return;
+    }
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: KingColors.elevated,
@@ -100,6 +108,7 @@ class _MembershipImageSubmissionPageState
   }
 
   Future<void> _next() async {
+    if (_isReal) return;
     if (_selectedSlots.length != 2) {
       setState(() {
         for (var i = 0; i < 2; i++) {
@@ -118,10 +127,13 @@ class _MembershipImageSubmissionPageState
 
   @override
   Widget build(BuildContext context) {
-    if (!ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId)) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => widget.onInvalidFlow(),
-      );
+    final valid = _isReal
+        ? ref.watch(authenticatedMemberProvider)?.needsImages == true
+        : ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId);
+    if (!valid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onInvalidFlow();
+      });
     }
     return OnboardingScaffold(
       step: 2,
@@ -146,7 +158,7 @@ class _MembershipImageSubmissionPageState
           ),
           const SizedBox(height: 24),
           FilledButton(
-            onPressed: _saving ? null : _next,
+            onPressed: _saving || _isReal ? null : _next,
             style: FilledButton.styleFrom(shape: const StadiumBorder()),
             child: _saving
                 ? const SizedBox.square(

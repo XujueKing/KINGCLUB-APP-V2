@@ -22,6 +22,8 @@ class SecureSessionStore {
   Future<void> saveSession(Map<String, dynamic> value) =>
       _storage.write(key: _sessionKey, value: jsonEncode(value));
 
+  Future<void> clearSession() => _storage.delete(key: _sessionKey);
+
   Future<Map<String, dynamic>?> readSession() async {
     final value = await _storage.read(key: _sessionKey);
     if (value == null) return null;

@@ -10,10 +10,12 @@ class RealMembershipStatusPage extends ConsumerStatefulWidget {
     required this.onApproved,
     required this.onIdentity,
     required this.onBack,
+    this.onImages,
   });
   final VoidCallback onApproved;
   final VoidCallback onIdentity;
   final VoidCallback onBack;
+  final VoidCallback? onImages;
   @override
   ConsumerState<RealMembershipStatusPage> createState() =>
       _RealMembershipStatusPageState();
@@ -41,6 +43,8 @@ class _RealMembershipStatusPageState
         widget.onApproved();
       } else if (state.needsIdentity) {
         widget.onIdentity();
+      } else if (state.needsImages) {
+        widget.onImages?.call();
       }
     } on AuthFailure catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -62,7 +66,7 @@ class _RealMembershipStatusPageState
         ? '会员状态暂不可用，请重新登录或联系客服'
         : switch (member.registrationStatus) {
             'pending_review' => '入会资格审核中，请耐心等待',
-            'photos_required' => '请完成会员形象照片提交',
+            'photos_required' => '实名认证已通过，请继续完善会员形象照片',
             'changes_required' => '会员资料需要补充，请按审核要求重新提交',
             'rejected' => '暂未通过入会审核，请联系客服',
             'approved' => '注册已通过，请刷新进入首页',

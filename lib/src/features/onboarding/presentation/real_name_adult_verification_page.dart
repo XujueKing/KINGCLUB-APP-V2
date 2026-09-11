@@ -41,6 +41,7 @@ class _RealNameAdultVerificationPageState
   String? _verificationError;
   String? _progress;
   bool _checkingOutcome = false;
+  bool _verificationCompleted = false;
 
   @override
   void initState() {
@@ -188,7 +189,10 @@ class _RealNameAdultVerificationPageState
     if (result['state'] == 'verified') {
       final auth = ref.read(authRepositoryProvider);
       if (auth is RealAuthRepository) await auth.refreshMembership();
-      if (mounted) widget.onNext();
+      if (mounted) {
+        _verificationCompleted = true;
+        widget.onNext();
+      }
       return;
     }
     setState(() {
@@ -259,7 +263,8 @@ class _RealNameAdultVerificationPageState
   Widget build(BuildContext context) {
     final isReal = widget.flowId == 'real-registration';
     final validFlow = isReal
-        ? (_submitting ||
+        ? (_verificationCompleted ||
+              _submitting ||
               ref.watch(authenticatedMemberProvider)?.needsIdentity == true)
         : ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId);
     if (!validFlow) {
