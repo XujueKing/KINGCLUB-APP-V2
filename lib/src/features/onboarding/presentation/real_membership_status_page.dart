@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
+import '../../../core/design_system/king_components.dart';
 
 class RealMembershipStatusPage extends ConsumerStatefulWidget {
   const RealMembershipStatusPage({
@@ -74,8 +75,13 @@ class _RealMembershipStatusPageState
           };
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 85,
+        toolbarHeight: 56,
         title: const Text('会员注册状态'),
-        leading: BackButton(onPressed: widget.onBack),
+        leading: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18.5, vertical: 4),
+          child: KingBackButton(onPressed: widget.onBack),
+        ),
       ),
       body: SafeArea(
         child: Center(
@@ -98,6 +104,12 @@ class _RealMembershipStatusPageState
                   child: Text(_loading ? '正在刷新' : '刷新状态'),
                 ),
                 TextButton(onPressed: widget.onBack, child: const Text('返回登录')),
+                if (!restricted &&
+                    member.registrationStatus == 'pending_review')
+                  TextButton(
+                    onPressed: widget.onImages,
+                    child: const Text('更换形象照片'),
+                  ),
               ],
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/king_theme.dart';
+import '../../../core/design_system/king_components.dart';
 
 @immutable
 class PreferenceOption {
@@ -32,11 +33,16 @@ class OnboardingScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 85,
+        toolbarHeight: 56,
         leading: onBack == null
             ? null
-            : IconButton(
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back, size: 22),
+            : Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18.5,
+                  vertical: 4,
+                ),
+                child: KingBackButton(onPressed: onBack),
               ),
         title: Text('步骤 $step/4'),
       ),

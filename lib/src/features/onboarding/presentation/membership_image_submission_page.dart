@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/design_system/king_theme.dart';
 import '../../../core/mock/mock_runtime.dart';
 import '../../auth/data/auth_repository_provider.dart';
+import '../../auth/domain/auth_repository.dart';
+import '../data/real_identity_repository.dart';
 import 'onboarding_components.dart';
 
 class MembershipImageSubmissionPage extends ConsumerStatefulWidget {
@@ -34,12 +38,22 @@ class _MembershipImageSubmissionPageState
   final _slotErrors = <int, String>{};
   bool _saving = false;
   bool _switchingMobile = false;
+  bool _loading = false;
+  bool _completed = false;
+  String? _error;
+  String _assessmentState = 'draft';
+  int _version = 1;
+  String? _submissionKey;
+  final _previews = <int, String>{};
   bool get _isReal => widget.flowId == 'real-registration';
 
   @override
   void initState() {
     super.initState();
-    if (_isReal) return;
+    if (_isReal) {
+      Future.microtask(_loadReal);
+      return;
+    }
     final snapshot = ref
         .read(mockRuntimeProvider)
         .onboardingSnapshot(widget.flowId);
@@ -53,11 +67,6 @@ class _MembershipImageSubmissionPageState
   }
 
   Future<void> _pick(int slot) async {
-    if (_isReal) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('形象照片提交服务暂不可用，请稍后再试')));
-      return;
-    }
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: KingColors.elevated,
@@ -89,7 +98,33 @@ class _MembershipImageSubmissionPageState
     setState(() {
       _uploadingSlots.add(slot);
       _slotErrors.remove(slot);
+      _error = null;
     });
+    if (_isReal) {
+      try {
+        final repository = ref.read(realIdentityRepositoryProvider);
+        final bytes = await repository.capture(
+          source: action == 'gallery'
+              ? ImageSource.gallery
+              : ImageSource.camera,
+        );
+        if (bytes == null) return;
+        await repository.upload(
+          bytes,
+          (_, _) {},
+          appearanceSlot: slot == 0 ? 'portrait' : 'outfit',
+        );
+        _submissionKey = null;
+        await _loadReal();
+      } on AuthFailure catch (error) {
+        if (mounted) setState(() => _slotErrors[slot] = error.message);
+      } catch (_) {
+        if (mounted) setState(() => _slotErrors[slot] = '照片处理或上传失败，请重新选择');
+      } finally {
+        if (mounted) setState(() => _uploadingSlots.remove(slot));
+      }
+      return;
+    }
     final uploaded = await ref
         .read(mockRuntimeProvider)
         .stageRegistrationPhoto(
@@ -111,7 +146,6 @@ class _MembershipImageSubmissionPageState
   }
 
   Future<void> _next() async {
-    if (_isReal) return;
     if (_selectedSlots.length != 2) {
       setState(() {
         for (var i = 0; i < 2; i++) {
@@ -121,6 +155,38 @@ class _MembershipImageSubmissionPageState
       return;
     }
     setState(() => _saving = true);
+    if (_isReal) {
+      try {
+        _submissionKey ??= const Uuid().v4();
+        await ref
+            .read(realIdentityRepositoryProvider)
+            .submitAppearance(_version, _submissionKey!);
+        await _loadReal();
+        final repository =
+            ref.read(authRepositoryProvider) as RealAuthRepository;
+        _completed = true;
+        final member = await repository.refreshMembership();
+        if (!mounted) return;
+        if (member.canEnterApp) {
+          widget.onNext();
+        } else {
+          setState(() => _completed = false);
+        }
+      } on AuthFailure catch (error) {
+        if (mounted) setState(() => _error = error.message);
+        await _loadReal();
+      } catch (_) {
+        if (mounted) setState(() => _error = '暂未确认评分结果，请点击刷新，照片无需重新上传');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _saving = false;
+            if (_assessmentState != 'approved') _completed = false;
+          });
+        }
+      }
+      return;
+    }
     await ref
         .read(mockRuntimeProvider)
         .submitAppearanceAssessment(widget.flowId);
@@ -128,12 +194,47 @@ class _MembershipImageSubmissionPageState
     widget.onNext();
   }
 
+  Future<void> _loadReal() async {
+    if (!mounted) return;
+    setState(() => _loading = true);
+    try {
+      final repository = ref.read(realIdentityRepositoryProvider);
+      final result = await repository.appearanceStatus();
+      if (!mounted) return;
+      setState(() {
+        _assessmentState = '${result['state']}';
+        _version = (result['version'] as num).toInt();
+        _selectedSlots.clear();
+        _previews.clear();
+        for (final photo in (result['photos'] as List? ?? [])) {
+          final slot = photo['slot'] == 'portrait' ? 0 : 1;
+          _selectedSlots.add(slot);
+          _previews[slot] = repository.previewUrl('${photo['previewPath']}');
+          if (photo['state'] == 'rejected') {
+            _slotErrors[slot] = photo['resultCode'] == 'PORTRAIT_FACE_TOO_SMALL'
+                ? '人脸距离过远，请换一张正面清晰照片'
+                : '请上传仅有本人、面部清晰的照片';
+          }
+        }
+      });
+    } on AuthFailure catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = '照片资料加载失败，请点击刷新重试');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final valid =
         _switchingMobile ||
+        _completed ||
         (_isReal
-            ? ref.watch(authenticatedMemberProvider)?.needsImages == true
+            ? (ref.watch(authenticatedMemberProvider)?.needsImages == true ||
+                  ref.watch(authenticatedMemberProvider)?.registrationStatus ==
+                      'pending_review')
             : ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId));
     if (!valid) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -167,14 +268,33 @@ class _MembershipImageSubmissionPageState
             height: 45,
             width: double.infinity,
             child: FilledButton(
-              onPressed: _saving || _isReal ? null : _next,
+              onPressed:
+                  _saving ||
+                      _loading ||
+                      _uploadingSlots.isNotEmpty ||
+                      (_isReal &&
+                          (_selectedSlots.length != 2 ||
+                              [
+                                'processing',
+                                'unknown',
+                                'pending_review',
+                                'approved',
+                              ].contains(_assessmentState)))
+                  ? null
+                  : _next,
               style: FilledButton.styleFrom(shape: const StadiumBorder()),
               child: _saving
                   ? const SizedBox.square(
                       dimension: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('提交并评分'),
+                  : Text(
+                      _assessmentState == 'pending_review'
+                          ? '已提交 · 等待审核'
+                          : _assessmentState == 'processing'
+                          ? '正在评分'
+                          : '提交并评分',
+                    ),
             ),
           ),
           const SizedBox(height: 10),
@@ -188,6 +308,36 @@ class _MembershipImageSubmissionPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_isReal && (_error != null || _assessmentState != 'draft')) ...[
+            Text(
+              _error ??
+                  switch (_assessmentState) {
+                    'pending_review' => '资料已提交人工审核，也可以替换照片后重新评分。',
+                    'changes_required' => '请按照片提示重新上传，已通过的实名无需重做。',
+                    'processing' => '正在确认三张照片的评分结果，请稍后刷新。',
+                    'unknown' => '评分结果待确认，请联系客服，避免重复提交。',
+                    'approved' => '会员审核已通过。',
+                    _ => '',
+                  },
+              style: const TextStyle(color: KingColors.brand),
+            ),
+            TextButton(
+              onPressed: _loading
+                  ? null
+                  : () async {
+                      setState(() => _error = null);
+                      await _loadReal();
+                      if (_assessmentState == 'approved') {
+                        _completed = true;
+                        await (ref.read(
+                          authRepositoryProvider,
+                        ) as RealAuthRepository).refreshMembership();
+                        if (mounted) widget.onNext();
+                      }
+                    },
+              child: Text(_loading ? '正在刷新' : '刷新状态'),
+            ),
+          ],
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -214,7 +364,17 @@ class _MembershipImageSubmissionPageState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         InkWell(
-          onTap: _saving || uploading ? null : () => _pick(index),
+          onTap:
+              _saving ||
+                  uploading ||
+                  _loading ||
+                  [
+                    'processing',
+                    'unknown',
+                    'approved',
+                  ].contains(_assessmentState)
+              ? null
+              : () => _pick(index),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             height: 180,
@@ -229,7 +389,19 @@ class _MembershipImageSubmissionPageState
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (uploading)
+                if (!uploading && _previews[index] != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      _previews[index]!,
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          const Icon(Icons.image_outlined, size: 48),
+                    ),
+                  )
+                else if (uploading)
                   const SizedBox.square(
                     dimension: 42,
                     child: CircularProgressIndicator(strokeWidth: 2),

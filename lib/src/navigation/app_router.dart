@@ -413,7 +413,9 @@ class MembershipImageSubmissionRoute extends GoRouteData
               : null,
           flowId: $extra.flowId,
           onBack: back,
-          onNext: () => MembershipReviewStatusRoute($extra).push<void>(context),
+          onNext: () => $extra.flowId == 'real-registration'
+              ? _continueRealRegistration(context)
+              : MembershipReviewStatusRoute($extra).push<void>(context),
           onInvalidFlow: () => $extra.flowId == 'real-registration'
               ? _continueRealRegistration(context)
               : const MobileLoginRoute().go(context),

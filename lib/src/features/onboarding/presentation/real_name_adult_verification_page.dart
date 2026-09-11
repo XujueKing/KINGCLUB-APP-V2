@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/design_system/king_theme.dart';
+import '../../../core/design_system/king_components.dart';
 import '../../../core/design_system/registration_input_style.dart';
 import '../../../core/mock/mock_runtime.dart';
 import '../../auth/data/auth_repository_provider.dart';
@@ -279,208 +280,225 @@ class _RealNameAdultVerificationPageState
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.only(top: 30, bottom: 27),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: constraints.maxWidth,
-                minHeight: (constraints.maxHeight - 57).clamp(
-                  0.0,
-                  double.infinity,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  SizedBox(
-                    width: contentWidth,
-                    child: Stack(
-                      alignment: Alignment.topCenter,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 30, bottom: 27),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minWidth: constraints.maxWidth,
+                      minHeight: (constraints.maxHeight - 57).clamp(
+                        0.0,
+                        double.infinity,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        if (_progress != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Text(
-                              _progress!,
-                              style: const TextStyle(
-                                color: _gold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        Column(
-                          children: [
-                            const SizedBox(height: 30),
-                            ColorFiltered(
-                              colorFilter: const ColorFilter.mode(
-                                _gold,
-                                BlendMode.srcIn,
-                              ),
-                              child: Image.asset(
-                                'assets/legacy/onboarding/nonine.png',
-                                width: 64,
-                                height: 64,
-                              ),
-                            ),
-                            const SizedBox(height: 25),
-                            const Text(
-                              '未满18岁未成年人\n不得饮酒注册会员',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: _gold,
-                                fontSize: 20,
-                                height: 1.4,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            SizedBox(
-                              width: fieldWidth,
-                              child: const Padding(
-                                padding: EdgeInsets.only(top: 15, bottom: 20),
-                                child: Text(
-                                  '根据《中华人民共和国未成年人保护法》第三十七条禁止向未成年人出售烟酒，经营者应当在显著位置设置不向未成年人出售烟酒的标志；对难以判明是否已成年的，应当要求其出示身份证件。请实名验证会员身份，确保年满18岁。',
-                                  textAlign: TextAlign.justify,
-                                  style: TextStyle(
-                                    color: Color(0xCCC9B69E),
-                                    fontSize: 12,
-                                    height: 1.3,
+                        SizedBox(
+                          width: contentWidth,
+                          child: Stack(
+                            alignment: Alignment.topCenter,
+                            children: [
+                              if (_progress != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(
+                                    _progress!,
+                                    style: const TextStyle(
+                                      color: _gold,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            const Text(
-                              'NAME:',
-                              style: TextStyle(color: _gold, fontSize: 14),
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: fieldWidth,
-                              child: _field(
-                                keyName: 'real-name-name-field',
-                                controller: _nameController,
-                                focus: _nameFocusNode,
-                                hint: '身份证姓名',
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              'ID CARD:',
-                              style: TextStyle(color: _gold, fontSize: 14),
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: fieldWidth,
-                              child: _field(
-                                keyName: 'real-name-id-field',
-                                controller: _identityController,
-                                focus: _identityFocusNode,
-                                hint: '身份证号码',
-                                identity: true,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                        ),
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: IconButton(
-                            tooltip: '返回',
-                            onPressed: _submitting ? null : widget.onBack,
-                            icon: Image.asset(
-                              'assets/legacy/friendship/back.png',
-                              width: 10,
-                              height: 20,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: Column(
-                      children: [
-                        if (_verificationError case final error?) ...[
-                          Text(
-                            error,
-                            key: const ValueKey('photo-identity-error'),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: KingColors.danger,
-                              fontSize: 13,
-                              height: 1.45,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        SizedBox(
-                          width: double.infinity,
-                          height: 45,
-                          child: FilledButton(
-                            key: const ValueKey('real-name-verify-button'),
-                            onPressed: _submitting
-                                ? null
-                                : _requestVerification,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _actionBrown,
-                              foregroundColor: const Color(0xABC9B69E),
-                              disabledBackgroundColor: _actionBrown,
-                              disabledForegroundColor: const Color(0x61C9B69E),
-                              shape: const StadiumBorder(),
-                              side: BorderSide.none,
-                            ),
-                            child: _submitting
-                                ? const SizedBox.square(
-                                    dimension: 20,
-                                    child: CircularProgressIndicator(
-                                      color: _gold,
-                                      strokeWidth: 2,
+                              Column(
+                                children: [
+                                  const SizedBox(height: 30),
+                                  ColorFiltered(
+                                    colorFilter: const ColorFilter.mode(
+                                      _gold,
+                                      BlendMode.srcIn,
                                     ),
-                                  )
-                                : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      ColorFiltered(
-                                        colorFilter: const ColorFilter.mode(
-                                          _gold,
-                                          BlendMode.srcIn,
-                                        ),
-                                        child: Image.asset(
-                                          'assets/legacy/onboarding/camera.png',
-                                          width: 22.5,
-                                          height: 18.6,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        _checkingOutcome ? '刷新核验结果' : '人脸核验',
-                                        style: const TextStyle(
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
+                                    child: Image.asset(
+                                      'assets/legacy/onboarding/nonine.png',
+                                      width: 64,
+                                      height: 64,
+                                    ),
                                   ),
+                                  const SizedBox(height: 25),
+                                  const Text(
+                                    '未满18岁未成年人\n不得饮酒注册会员',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: _gold,
+                                      fontSize: 20,
+                                      height: 1.4,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: fieldWidth,
+                                    child: const Padding(
+                                      padding: EdgeInsets.only(
+                                        top: 15,
+                                        bottom: 20,
+                                      ),
+                                      child: Text(
+                                        '根据《中华人民共和国未成年人保护法》第三十七条禁止向未成年人出售烟酒，经营者应当在显著位置设置不向未成年人出售烟酒的标志；对难以判明是否已成年的，应当要求其出示身份证件。请实名验证会员身份，确保年满18岁。',
+                                        textAlign: TextAlign.justify,
+                                        style: TextStyle(
+                                          color: Color(0xCCC9B69E),
+                                          fontSize: 12,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const Text(
+                                    'NAME:',
+                                    style: TextStyle(
+                                      color: _gold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  SizedBox(
+                                    width: fieldWidth,
+                                    child: _field(
+                                      keyName: 'real-name-name-field',
+                                      controller: _nameController,
+                                      focus: _nameFocusNode,
+                                      hint: '身份证姓名',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'ID CARD:',
+                                    style: TextStyle(
+                                      color: _gold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  SizedBox(
+                                    width: fieldWidth,
+                                    child: _field(
+                                      keyName: 'real-name-id-field',
+                                      controller: _identityController,
+                                      focus: _identityFocusNode,
+                                      hint: '身份证号码',
+                                      identity: true,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'SHANGHAI . ZHUZHOU',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0xB3C9B69E),
-                            fontSize: 13,
+                        SizedBox(
+                          width: fieldWidth,
+                          child: Column(
+                            children: [
+                              if (_verificationError case final error?) ...[
+                                Text(
+                                  error,
+                                  key: const ValueKey('photo-identity-error'),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: KingColors.danger,
+                                    fontSize: 13,
+                                    height: 1.45,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                              SizedBox(
+                                width: double.infinity,
+                                height: 45,
+                                child: FilledButton(
+                                  key: const ValueKey(
+                                    'real-name-verify-button',
+                                  ),
+                                  onPressed: _submitting
+                                      ? null
+                                      : _requestVerification,
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: _actionBrown,
+                                    foregroundColor: const Color(0xABC9B69E),
+                                    disabledBackgroundColor: _actionBrown,
+                                    disabledForegroundColor: const Color(
+                                      0x61C9B69E,
+                                    ),
+                                    shape: const StadiumBorder(),
+                                    side: BorderSide.none,
+                                  ),
+                                  child: _submitting
+                                      ? const SizedBox.square(
+                                          dimension: 20,
+                                          child: CircularProgressIndicator(
+                                            color: _gold,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            ColorFiltered(
+                                              colorFilter:
+                                                  const ColorFilter.mode(
+                                                    _gold,
+                                                    BlendMode.srcIn,
+                                                  ),
+                                              child: Image.asset(
+                                                'assets/legacy/onboarding/camera.png',
+                                                width: 22.5,
+                                                height: 18.6,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Text(
+                                              _checkingOutcome
+                                                  ? '刷新核验结果'
+                                                  : '人脸核验',
+                                              style: const TextStyle(
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              const Text(
+                                'SHANGHAI . ZHUZHOU',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Color(0xB3C9B69E),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
+            Positioned(
+              left: KingBackButton.safeAreaOffset.dx,
+              top: KingBackButton.safeAreaOffset.dy,
+              child: KingBackButton(
+                onPressed: _submitting ? null : widget.onBack,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -10,6 +10,17 @@ import 'package:kingclub/src/features/auth/data/auth_repository_provider.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/auth/presentation/legacy_welcome_page.dart';
 import 'package:kingclub/src/navigation/app_router.dart';
+import 'package:kingclub/src/features/onboarding/data/real_identity_repository.dart';
+
+class _Images extends RealIdentityRepository {
+  _Images() : super(_Client(), _Store(), 'https://example.invalid');
+  @override
+  Future<Map<String, dynamic>> appearanceStatus() async => {
+    'state': 'draft',
+    'version': 1,
+    'photos': [],
+  };
+}
 
 class _Store extends SecureSessionStore {
   Map<String, dynamic>? saved = {
@@ -92,6 +103,7 @@ void main() {
         final client = _Client(registrationStatus: 'identity_required');
         final container = ProviderContainer(
           overrides: [
+            realIdentityRepositoryProvider.overrideWithValue(_Images()),
             authRepositoryProvider.overrideWith(
               (ref) => RealAuthRepository(
                 client,
@@ -141,6 +153,7 @@ void main() {
       final client = _Client();
       final container = ProviderContainer(
         overrides: [
+          realIdentityRepositoryProvider.overrideWithValue(_Images()),
           authRepositoryProvider.overrideWith(
             (ref) => RealAuthRepository(
               client,
@@ -217,6 +230,7 @@ void main() {
       final client = _Client(waitForResponse: gate.future);
       final container = ProviderContainer(
         overrides: [
+          realIdentityRepositoryProvider.overrideWithValue(_Images()),
           authRepositoryProvider.overrideWith(
             (ref) => RealAuthRepository(
               client,
@@ -296,6 +310,7 @@ void main() {
       for (var launch = 0; launch < 2; launch++) {
         final container = ProviderContainer(
           overrides: [
+            realIdentityRepositoryProvider.overrideWithValue(_Images()),
             authRepositoryProvider.overrideWith(
               (ref) => RealAuthRepository(
                 client,
@@ -325,7 +340,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('完善会员形象资料'), findsOneWidget);
         expect(find.byKey(const ValueKey('real-name-id-field')), findsNothing);
-        await tester.tap(find.byIcon(Icons.arrow_back));
+        await tester.tap(find.byTooltip('返回'));
         await tester.pumpAndSettle();
         expect(
           container

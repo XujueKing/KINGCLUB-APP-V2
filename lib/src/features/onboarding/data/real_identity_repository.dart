@@ -43,15 +43,19 @@ class RealIdentityRepository {
       id,
       params,
       session: session,
-      receiveTimeout: const Duration(seconds: 35),
+      receiveTimeout: Duration(seconds: id == 'K260911000302' ? 65 : 35),
     );
   }
 
   Future<Map<String, dynamic>> status() => _call('K260911000203', {});
+  Future<Map<String, dynamic>> appearanceStatus() => _call('K260911000303', {});
+  Future<Map<String, dynamic>> submitAppearance(int version, String key) =>
+      _call('K260911000302', {'version': version, 'idempotencyKey': key});
+  String previewUrl(String path) => '${_upload.options.baseUrl}$path';
 
-  Future<Uint8List?> capture() async {
+  Future<Uint8List?> capture({ImageSource source = ImageSource.camera}) async {
     final photo = await ImagePicker().pickImage(
-      source: ImageSource.camera,
+      source: source,
       preferredCameraDevice: CameraDevice.front,
       maxWidth: 2000,
       maxHeight: 2000,
@@ -78,18 +82,25 @@ class RealIdentityRepository {
 
   Future<String> upload(
     Uint8List photo,
-    void Function(int, int) onProgress,
-  ) async {
+    void Function(int, int) onProgress, {
+    String? appearanceSlot,
+  }) async {
     final digest = await Sha256().hash(photo);
-    final ticket = await _call('K260911000201', {
-      'sha256': digest.bytes
-          .map((b) => b.toRadixString(16).padLeft(2, '0'))
-          .join(),
-      'sizeBytes': photo.length,
-    });
+    final ticket = await _call(
+      appearanceSlot == null ? 'K260911000201' : 'K260911000301',
+      {
+        'slot': ?appearanceSlot,
+        'sha256': digest.bytes
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join(),
+        'sizeBytes': photo.length,
+      },
+    );
     try {
       final response = await _upload.post<Map<String, dynamic>>(
-        '/kingclub/identity/photo',
+        appearanceSlot == null
+            ? '/kingclub/identity/photo'
+            : '/kingclub/appearance/photo',
         data: Stream.value(photo),
         options: Options(
           contentType: 'image/jpeg',

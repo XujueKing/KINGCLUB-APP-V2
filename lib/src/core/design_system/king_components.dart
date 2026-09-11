@@ -12,12 +12,14 @@ class KingBackButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final String tooltip;
 
-  static const safeAreaOffset = Offset(18.5, 28);
-  static const glyphSize = Size(10, 20);
+  static const safeAreaOffset = Offset(18.5, 4);
+  static const glyphSize = Size(8, 16);
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
+      constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+      padding: EdgeInsets.zero,
       onPressed: onPressed,
       tooltip: tooltip,
       icon: Image.asset(

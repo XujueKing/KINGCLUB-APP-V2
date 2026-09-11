@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/mock/mock_runtime.dart';
 import 'package:kingclub/src/features/auth/presentation/legacy_welcome_page.dart';
 import 'package:kingclub/src/features/auth/presentation/mobile_login_page.dart';
@@ -59,6 +60,44 @@ Future<void> _addPhoto(WidgetTester tester, String source) async {
 }
 
 void main() {
+  testWidgets(
+    'registration back arrows share safe area position and small glyph',
+    (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      for (final width in [360.0, 430.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 932));
+        final runtime = MockRuntime();
+        final flow = runtime.startOnboarding();
+        Rect? previous;
+        for (final page in <Widget>[
+          MobileLoginPage(onBack: () {}, onVerified: (_) {}),
+          RealNameAdultVerificationPage(
+            flowId: flow,
+            onBack: () {},
+            onNext: () {},
+            onInvalidFlow: () {},
+          ),
+          MembershipImageSubmissionPage(
+            flowId: flow,
+            onBack: () {},
+            onNext: () {},
+            onInvalidFlow: () {},
+          ),
+        ]) {
+          await tester.pumpWidget(_app(runtime, page));
+          await tester.pump();
+          final arrow = find.descendant(
+            of: find.byType(KingBackButton),
+            matching: find.byType(Image),
+          );
+          final rect = tester.getRect(arrow);
+          expect(rect.size, const Size(8, 16));
+          if (previous != null) expect(rect, previous);
+          previous = rect;
+        }
+      }
+    },
+  );
   testWidgets(
     'identity inputs dismiss keyboard on outside touch and can switch focus',
     (tester) async {
