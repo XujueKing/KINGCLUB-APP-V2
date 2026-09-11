@@ -139,7 +139,7 @@ class _StyleMusicPreferencesPageState
       );
     }
     return OnboardingScaffold(
-      step: 3,
+      step: 4,
       title: '你的风格偏好',
       subtitle: '选择你喜欢的着装与音乐，可多选。',
       onBack: widget.onBack,

@@ -251,7 +251,7 @@ class _MembershipImageSubmissionPageState
       });
     }
     return OnboardingScaffold(
-      step: 2,
+      step: 3,
       title: '完善会员形象资料',
       subtitle: '请添加两张近期清晰照片，仅用于会员审核。',
       onBack: widget.onBack,

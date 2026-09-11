@@ -40,6 +40,24 @@ class KingBackButton extends StatelessWidget {
   }
 }
 
+class KingRegistrationStepTitle extends StatelessWidget {
+  const KingRegistrationStepTitle({super.key, required this.step});
+
+  final int step;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    '当前步骤 $step/5',
+    textAlign: TextAlign.center,
+    style: const TextStyle(
+      color: Color(0xB3C9B69E),
+      fontSize: 13,
+      fontWeight: FontWeight.w400,
+      height: 1.2,
+    ),
+  );
+}
+
 class KingBrandMark extends StatelessWidget {
   const KingBrandMark({super.key, this.compact = false});
 

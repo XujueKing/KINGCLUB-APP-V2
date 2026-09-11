@@ -151,7 +151,7 @@ class _DrinkEventPreferencesPageState
       );
     }
     return OnboardingScaffold(
-      step: 4,
+      step: 5,
       title: '完善兴趣偏好',
       subtitle: '选择你喜欢的酒类与活动，可多选。请理性饮酒。',
       onBack: _submitting ? null : widget.onBack,

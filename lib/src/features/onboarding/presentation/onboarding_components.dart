@@ -35,6 +35,8 @@ class OnboardingScaffold extends StatelessWidget {
       appBar: AppBar(
         leadingWidth: KingBackButton.leftOffset(context) + 48,
         toolbarHeight: 56,
+        centerTitle: true,
+        title: KingRegistrationStepTitle(step: step),
         leading: onBack == null
             ? null
             : Padding(
