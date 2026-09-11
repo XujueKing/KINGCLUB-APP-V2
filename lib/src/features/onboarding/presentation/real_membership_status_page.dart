@@ -210,14 +210,42 @@ class _RealMembershipStatusPageState
                           ),
                           if (!approved) ...[
                             const SizedBox(height: 16),
-                            const Text(
-                              '评分仅供本次申请参考，不代表个人价值。最终结果以会员审核为准。',
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.45,
-                                color: KingColors.textSecondary,
+                            if (member.registrationStatus == 'pending_review')
+                              const ExpansionTile(
+                                key: ValueKey('review-reason'),
+                                tilePadding: EdgeInsets.zero,
+                                childrenPadding: EdgeInsets.only(bottom: 8),
+                                shape: Border(),
+                                collapsedShape: Border(),
+                                iconColor: KingColors.brandStrong,
+                                collapsedIconColor: KingColors.brandStrong,
+                                title: Text(
+                                  '为什么需要等待审核？',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: KingColors.brandStrong,
+                                  ),
+                                ),
+                                children: [
+                                  Text(
+                                    '照片清晰度、拍摄角度或光线可能影响自动评分，因此需要人工进一步确认。您也可以更换清晰、光线均匀的形象照片后重新提交。评分仅供本次申请参考。',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      height: 1.45,
+                                      color: KingColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              const Text(
+                                '评分仅供本次申请参考，不代表个人价值。最终结果以会员审核为准。',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.45,
+                                  color: KingColors.textSecondary,
+                                ),
                               ),
-                            ),
                             SizedBox(height: compact ? 16 : 20),
                             const Text(
                               '希望更快了解审核进度？',

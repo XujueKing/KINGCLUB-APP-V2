@@ -150,6 +150,7 @@ void main() {
           expect(find.text('欢迎加入 KINGCLUB'), findsOneWidget);
           expect(find.text('88'), findsOneWidget);
           expect(find.text('希望更快了解审核进度？'), findsNothing);
+          expect(find.text('为什么需要等待审核？'), findsNothing);
           expect(find.text('评分仅供本次申请参考，不代表个人价值。最终结果以会员审核为准。'), findsNothing);
           expect(find.text('刷新状态'), findsNothing);
           await tester.tap(find.text('进入 KINGCLUB'));
@@ -220,6 +221,13 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text(score == null ? '评分结果待确认' : '77'), findsOneWidget);
         expect(find.text('希望更快了解审核进度？'), findsOneWidget);
+        expect(find.text('为什么需要等待审核？'), findsOneWidget);
+        final reason = find.textContaining('照片清晰度、拍摄角度或光线');
+        expect(reason, findsNothing);
+        await tester.ensureVisible(find.text('为什么需要等待审核？'));
+        await tester.tap(find.text('为什么需要等待审核？'));
+        await tester.pumpAndSettle();
+        expect(reason, findsOneWidget);
         expect(
           tester.getRect(find.widgetWithText(FilledButton, '刷新状态')).bottom,
           lessThan(scenario.size.height - 34),
@@ -232,6 +240,10 @@ void main() {
         );
         expect(marketing.bottom, lessThanOrEqualTo(refresh.top));
         expect(find.text('返回登录').hitTestable(), findsOneWidget);
+        await tester.ensureVisible(find.text('为什么需要等待审核？'));
+        await tester.tap(find.text('为什么需要等待审核？'));
+        await tester.pumpAndSettle();
+        expect(reason, findsNothing);
         expect(photos.submits, 0);
         expect(tester.takeException(), isNull);
       }
