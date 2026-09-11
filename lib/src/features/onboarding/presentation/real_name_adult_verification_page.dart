@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/design_system/king_theme.dart';
 import '../../../core/design_system/registration_input_style.dart';
 import '../../../core/mock/mock_runtime.dart';
 import '../../auth/data/auth_repository_provider.dart';
+import '../../auth/domain/auth_repository.dart';
+import '../data/real_identity_repository.dart';
 
 class RealNameAdultVerificationPage extends ConsumerStatefulWidget {
   const RealNameAdultVerificationPage({
@@ -36,6 +39,8 @@ class _RealNameAdultVerificationPageState
   final _identityFocusNode = FocusNode();
   bool _submitting = false;
   String? _verificationError;
+  String? _progress;
+  bool _checkingOutcome = false;
 
   @override
   void initState() {
@@ -62,9 +67,10 @@ class _RealNameAdultVerificationPageState
   }
 
   Future<void> _requestVerification() async {
+    if (_submitting) return;
     FocusScope.of(context).unfocus();
     if (widget.flowId == 'real-registration') {
-      setState(() => _verificationError = '实名认证服务暂不可用，请稍后再试');
+      await _verifyReal();
       return;
     }
     if (_nameController.text.trim().isEmpty) {
@@ -111,6 +117,86 @@ class _RealNameAdultVerificationPageState
           _verificationError = '核验结果确认中，请稍后重试，不需要重复上传';
         });
     }
+  }
+
+  Future<void> _verifyReal() async {
+    final name = _nameController.text.trim();
+    final idCard = _identityController.text.trim().toUpperCase();
+    if (!_checkingOutcome &&
+        (name.length < 2 || !RegExp(r'^\d{17}[0-9X]$').hasMatch(idCard))) {
+      _showMessage('请输入身份证姓名和18位身份证号码');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _verificationError = null;
+      _progress = '读取核验状态…';
+    });
+    final repository = ref.read(realIdentityRepositoryProvider);
+    try {
+      final existing = await repository.status();
+      if (!mounted) return;
+      if (['verified', 'processing', 'unknown'].contains(existing['state'])) {
+        await _handleRealResult(existing);
+        return;
+      }
+      _checkingOutcome = false;
+      if (existing['providerAvailable'] != true) {
+        throw const AuthFailure(
+          'IDENTITY_PROVIDER_UNAVAILABLE',
+          '实名认证服务尚未开通，请稍后再试',
+        );
+      }
+      setState(() => _progress = '拍照并压缩…');
+      final photo = await repository.capture();
+      if (photo == null || !mounted) return;
+      setState(() => _progress = '上传照片…');
+      final photoId = await repository.upload(photo, (sent, total) {
+        if (mounted && total > 0) {
+          setState(() => _progress = '上传照片 ${(sent * 100 / total).round()}%');
+        }
+      });
+      if (!mounted) return;
+      setState(() {
+        _progress = '正在核验…';
+        _checkingOutcome = true;
+      });
+      final result = await repository.submit(
+        photoId: photoId,
+        name: name,
+        idCard: idCard,
+        idempotencyKey: const Uuid().v4(),
+      );
+      if (mounted) await _handleRealResult(result);
+    } on AuthFailure catch (error) {
+      if (mounted) setState(() => _verificationError = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _verificationError = '拍照或核验未完成，请检查相机权限和网络后重试');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _progress = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleRealResult(Map<String, dynamic> result) async {
+    if (result['state'] == 'verified') {
+      final auth = ref.read(authRepositoryProvider);
+      if (auth is RealAuthRepository) await auth.refreshMembership();
+      if (mounted) widget.onNext();
+      return;
+    }
+    setState(() {
+      _checkingOutcome = ['processing', 'unknown'].contains(result['state']);
+      _verificationError = _checkingOutcome
+          ? '核验结果确认中，请刷新结果，无需重复拍照。'
+          : '核验未通过，请检查姓名、身份证号码并拍摄清晰正面照片。';
+    });
   }
 
   void _showMessage(String message) {
@@ -173,7 +259,8 @@ class _RealNameAdultVerificationPageState
   Widget build(BuildContext context) {
     final isReal = widget.flowId == 'real-registration';
     final validFlow = isReal
-        ? ref.watch(authenticatedMemberProvider)?.needsIdentity == true
+        ? (_submitting ||
+              ref.watch(authenticatedMemberProvider)?.needsIdentity == true)
         : ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId);
     if (!validFlow) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -205,6 +292,17 @@ class _RealNameAdultVerificationPageState
                     child: Stack(
                       alignment: Alignment.topCenter,
                       children: [
+                        if (_progress != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              _progress!,
+                              style: const TextStyle(
+                                color: _gold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
                         Column(
                           children: [
                             const SizedBox(height: 30),
@@ -350,9 +448,9 @@ class _RealNameAdultVerificationPageState
                                         ),
                                       ),
                                       const SizedBox(width: 10),
-                                      const Text(
-                                        '人脸核验',
-                                        style: TextStyle(
+                                      Text(
+                                        _checkingOutcome ? '刷新核验结果' : '人脸核验',
+                                        style: const TextStyle(
                                           fontSize: 17,
                                           fontWeight: FontWeight.w500,
                                         ),

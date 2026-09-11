@@ -289,8 +289,13 @@ class RealNameAdultVerificationRoute extends GoRouteData
         child: RealNameAdultVerificationPage(
           flowId: $extra.flowId,
           onBack: back,
-          onNext: () =>
-              MembershipImageSubmissionRoute($extra).push<void>(context),
+          onNext: () {
+            if ($extra.flowId == 'real-registration') {
+              MembershipReviewStatusRoute($extra).go(context);
+            } else {
+              MembershipImageSubmissionRoute($extra).push<void>(context);
+            }
+          },
           onInvalidFlow: () => const MobileLoginRoute().go(context),
         ),
       ),

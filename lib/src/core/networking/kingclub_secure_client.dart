@@ -31,6 +31,7 @@ class KingclubSecureClient {
     String interfaceId,
     Map<String, dynamic> params, {
     Map<String, dynamic>? session,
+    Duration? receiveTimeout,
   }) async {
     try {
       late final String keyId;
@@ -114,6 +115,7 @@ class KingclubSecureClient {
         '/supper-interface',
         data: {'data': payload, 'sign': _b64(signature.bytes)},
         options: Options(
+          receiveTimeout: receiveTimeout,
           headers: {
             if (session == null) 'x-handshake-id': keyId,
             if (session != null) 'x-api-key-id': keyId,

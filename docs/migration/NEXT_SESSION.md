@@ -141,3 +141,10 @@ ccsop-property-identity-a033/feature/unified-identity-authority-v1
 - 数据迁移必须提供校验和回滚脚本。
 - 不把旧客户端传入的金额和用户身份当作可信数据。
 - 不在同一阶段同时切换数据库、服务端接口和全部客户端。
+# 2026-09-11 下午新增交接：照片实名与会员目录
+
+首次实机203出现RETURN_SCHEMA_VALIDATION_FAILED，后端初始resultCode由null改为NOT_STARTED并补回归，161后端测试通过，修复已部署且实际目录契约核验通过。腾讯已配置启用；不是“尚未配置”。手机无需重装即可重试人脸核验，正在等真人拍照结果。
+
+用户批准真实实名开发和复用旧腾讯接入配置。已完成026三表/目录/三个session接口IDC部署；App原生拍照压缩、私有二进制上传和实名结果处理已接线并安装OPPO。后端160测试+verify/runtime通过；App analyze与17登录注册测试通过。腾讯凭据已比对旧线上两个Java服务包后仅写运行.env，已启用并收到MissingParameter签名探测；真人核验仍待拍照联调，不能记成已通过。
+
+会员文件按U账号、用途(identity/images/chat-images/videos/chat-videos)、年月分目录；不会搬旧文件或用手机号/身份证命名。实名文件短期24小时清理，私有字节与DB元数据分开。unknown不自动重复收费，真人verified才推进photos_required；公共KYC同步、两图评分、审核尚未完成。详见功能目录2026-09-11-photo-upload-compression.md及后端当日日志。以下历史未接通描述已被本节覆盖。

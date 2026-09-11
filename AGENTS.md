@@ -1,5 +1,13 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-11 下午照片实名与媒体目录（最新）
+
+- 用户明确要求开发实名链路、按会员分目录保存图片/聊天图片/视频，并要求参照旧服务配置腾讯。真实接入范围已授权，不再按下方历史提示重复阻断。
+- 后端026三表与三个session接口K260911000201/202/203已在IDC应用；App已接前置状态、拍照原生压缩、短期凭据二进制上传、加密姓名证件提交、未知结果刷新。实名通过仅photos_required，后续两图/审核仍未接通。
+- 腾讯ImageRecognitionV2凭据已与旧线上rest/insrest的部署jar核对后写入IDC私有.env；不入Git。已启用并收到无身份资料签名探测MissingParameter，不能把该探测认定为真人核验或商业权限全验收。
+- 文件按kingclub/members/<U账号>/<用途>/<年月>/<随机ID>懒创建；实名24小时清理，通用附件下载/删除禁止实名用途。聊天业务引用清理尚未接线，不能整目录递归删会员资产。
+- App analyze及17注册登录测试通过，新增插件首次构建补齐Android34，118.6MB preview/profile包已覆盖安装OPPO并启动。真人拍照联调待用户操作；旧UI几何和渐变不重做。
+
 ## 2026-09-11 登录后真实注册状态分流（最新）
 
 - 已对照旧 regist.js：审核通过首页、待审核状态页、未注册实名。后端 migration 024 新增 kingclubMember.registrationStatus，K102/K104 返回真实状态；active 仅表示可用，不代表注册完成。

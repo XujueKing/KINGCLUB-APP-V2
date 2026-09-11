@@ -27,7 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>用于从相册选择 KingClub 个人主页封面。</string>
+	<string>用于选择会员资料照片</string>
+	<key>NSCameraUsageDescription</key>
+	<string>用于拍摄会员实名核验照片。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
