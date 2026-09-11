@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/design_system/king_components.dart';
-import '../../../core/design_system/king_theme.dart';
 import '../../../core/mock/mock_runtime.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
@@ -100,12 +98,8 @@ class _DrinkEventPreferencesPageState
     }
   }
 
-  Future<void> _submit({bool skip = false}) async {
+  Future<void> _submit() async {
     if (_submitting) return;
-    if (skip) {
-      _drinks.clear();
-      _events.clear();
-    }
     setState(() => _submitting = true);
     if (_isReal) {
       try {
@@ -159,8 +153,32 @@ class _DrinkEventPreferencesPageState
     return OnboardingScaffold(
       step: 4,
       title: '完善兴趣偏好',
-      subtitle: '选择酒类和活动偏好，或跳过后提交会员申请。请理性饮酒。',
+      subtitle: '选择你喜欢的酒类与活动，可多选。请理性饮酒。',
       onBack: _submitting ? null : widget.onBack,
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 45,
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _submitting || (_isReal && !_loaded) ? null : _submit,
+              style: FilledButton.styleFrom(shape: const StadiumBorder()),
+              child: _submitting
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('提交会员申请'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'SHANGHAI . ZHUZHOU',
+            style: TextStyle(color: Color(0xB3C9B69E), fontSize: 13),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -177,38 +195,12 @@ class _DrinkEventPreferencesPageState
             selected: _drinks,
             onChanged: (value) => _toggle(_drinks, value),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
           PreferenceSection(
             title: '希望参加的活动',
             options: _eventOptions,
             selected: _events,
             onChanged: (value) => _toggle(_events, value),
-          ),
-          const SizedBox(height: 28),
-          FilledButton(
-            onPressed: _submitting || (_isReal && !_loaded) ? null : _submit,
-            style: FilledButton.styleFrom(shape: const StadiumBorder()),
-            child: _submitting
-                ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('提交会员申请'),
-          ),
-          const SizedBox(height: 10),
-          TextButton(
-            onPressed: _submitting || (_isReal && !_loaded)
-                ? null
-                : () => _submit(skip: true),
-            child: const Text('跳过偏好并提交'),
-          ),
-          const SizedBox(height: 32),
-          const KingStatusCard(
-            key: ValueKey('drink-event-review-notice'),
-            icon: Icons.fact_check_outlined,
-            title: '提交后进入会员审核',
-            message: '提交后将进入会员审核流程，最终结果请以审核状态页显示为准。',
-            color: KingColors.info,
           ),
         ],
       ),

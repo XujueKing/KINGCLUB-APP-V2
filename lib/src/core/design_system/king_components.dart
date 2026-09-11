@@ -13,6 +13,13 @@ class KingBackButton extends StatelessWidget {
   final String tooltip;
 
   static const safeAreaOffset = Offset(18.5, 4);
+
+  static double contentWidth(BuildContext context) =>
+      (MediaQuery.sizeOf(context).width * .8).clamp(0.0, 480.0).toDouble();
+
+  // Center the 8 dp glyph in its 48 dp touch target on the content edge.
+  static double leftOffset(BuildContext context) =>
+      (MediaQuery.sizeOf(context).width - contentWidth(context)) / 2 - 20;
   static const glyphSize = Size(8, 16);
 
   @override

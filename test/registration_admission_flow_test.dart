@@ -10,6 +10,7 @@ import 'package:kingclub/src/features/onboarding/presentation/membership_image_s
 import 'package:kingclub/src/features/onboarding/presentation/membership_review_status_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/real_name_adult_verification_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/style_music_preferences_page.dart';
+import 'package:kingclub/src/features/onboarding/presentation/drink_event_preferences_page.dart';
 
 Widget _app(MockRuntime runtime, Widget child) => ProviderScope(
   overrides: [mockRuntimeProvider.overrideWithValue(runtime)],
@@ -65,11 +66,15 @@ void main() {
     'style preferences keep NEXT visible and remove redundant progress and skip',
     (tester) async {
       addTearDown(() => tester.binding.setSurfaceSize(null));
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.devicePixelRatio = 1;
       for (final size in [
         const Size(360, 800),
         const Size(393, 852),
         const Size(430, 932),
       ]) {
+        tester.view.physicalSize = size;
         await tester.binding.setSurfaceSize(size);
         final runtime = MockRuntime();
         await tester.pumpWidget(
@@ -83,7 +88,7 @@ void main() {
             ),
           ),
         );
-        await tester.pump();
+        await tester.pumpAndSettle();
         expect(find.byType(LinearProgressIndicator), findsNothing);
         expect(find.text('暂时跳过'), findsNothing);
         expect(find.text('步骤 3/4'), findsNothing);
@@ -94,6 +99,39 @@ void main() {
               .getRect(find.byKey(const ValueKey('preference-big_room')))
               .bottom,
           lessThan(next.top),
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(
+          _app(
+            runtime,
+            DrinkEventPreferencesPage(
+              flowId: runtime.startOnboarding(),
+              onBack: () {},
+              onSubmitted: () {},
+              onInvalidFlow: () {},
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('跳过偏好并提交'), findsNothing);
+        expect(
+          find.byKey(const ValueKey('drink-event-review-notice')),
+          findsNothing,
+        );
+        final submit = tester.getRect(
+          find.widgetWithText(FilledButton, '提交会员申请'),
+        );
+        expect(submit, next);
+        final arrow = tester.getRect(
+          find.descendant(
+            of: find.byType(KingBackButton),
+            matching: find.byType(Image),
+          ),
+        );
+        expect(arrow.left, closeTo(submit.left, .01));
+        expect(
+          tester.getRect(find.text('完善兴趣偏好')).left,
+          closeTo(submit.left, .01),
         );
         expect(tester.takeException(), isNull);
       }

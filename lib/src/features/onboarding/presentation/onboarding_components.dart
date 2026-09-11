@@ -33,14 +33,15 @@ class OnboardingScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leadingWidth: 85,
+        leadingWidth: KingBackButton.leftOffset(context) + 48,
         toolbarHeight: 56,
         leading: onBack == null
             ? null
             : Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18.5,
-                  vertical: 4,
+                padding: EdgeInsets.only(
+                  left: KingBackButton.leftOffset(context),
+                  top: 4,
+                  bottom: 4,
                 ),
                 child: KingBackButton(onPressed: onBack),
               ),
@@ -52,9 +53,11 @@ class OnboardingScaffold extends StatelessWidget {
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
+                  constraints: BoxConstraints.tightFor(
+                    width: KingBackButton.contentWidth(context),
+                  ),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -80,9 +83,7 @@ class OnboardingScaffold extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 27),
                 child: SizedBox(
-                  width: (MediaQuery.sizeOf(context).width * .8)
-                      .clamp(0.0, 480.0)
-                      .toDouble(),
+                  width: KingBackButton.contentWidth(context),
                   child: footer,
                 ),
               ),

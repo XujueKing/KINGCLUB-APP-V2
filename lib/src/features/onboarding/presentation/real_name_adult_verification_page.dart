@@ -492,7 +492,7 @@ class _RealNameAdultVerificationPageState
               ),
             ),
             Positioned(
-              left: KingBackButton.safeAreaOffset.dx,
+              left: KingBackButton.leftOffset(context),
               top: KingBackButton.safeAreaOffset.dy,
               child: KingBackButton(
                 onPressed: _submitting ? null : widget.onBack,

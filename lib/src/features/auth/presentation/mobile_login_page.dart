@@ -311,7 +311,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                       ),
                     ),
                     Positioned(
-                      left: KingBackButton.safeAreaOffset.dx,
+                      left: KingBackButton.leftOffset(context),
                       top: KingBackButton.safeAreaOffset.dy,
                       child: KingBackButton(
                         key: const ValueKey('mobile-login-back'),
