@@ -1,5 +1,9 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-12 底栏真机纠正
+
+- 中央必须是未选中白底粉心、选中粉底白加号，不能使用tabBar_py人像。普通图标与单一动画圆底共享中心坐标；底栏660×110rpx保留，下方改为实际安全区+12rpx（至少24rpx），不固定留80rpx。用户截图和真机反馈优先于首次机械迁移，详见底栏组件文档。注册登录保持冻结。
+
 ## 2026-09-12 首页底栏旧版对齐
 
 - 用户要求底栏和5图标与旧小程序同样式尺寸，选中圆底丝滑移动。底栏按660×110rpx及原PNG恢复，80rpx单圆底300ms ease移动；以实际布局宽度换算，保留安全区和原目的地。详细依据与验收见首页component_legacy_bottom_navigation文档。本次旧仓库pages/index/index.js及project.private.config.json已有修改，仅只读参考，不覆盖。

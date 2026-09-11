@@ -79,6 +79,7 @@ flutter:
     - assets/legacy/home/
     - assets/legacy/onboarding/
     - assets/legacy/navigation/
+    - assets/legacy/navigation/content-heart.png
     - assets/legacy/storage/
     - assets/legacy/profile/
     - assets/legacy/friendship/

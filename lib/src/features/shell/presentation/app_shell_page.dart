@@ -100,7 +100,7 @@ class _AppShellPageState extends State<AppShellPage> {
   static const _destinations = [
     _ShellDestination('首页', 'tabBar_home.png', 'tabBar_home_a.png'),
     _ShellDestination('消息', 'tabBar_chat.png', 'tabBar_chat_a.png'),
-    _ShellDestination('内容', 'tabBar_py.png', 'tabBar_py_a.png'),
+    _ShellDestination('内容', 'content-heart.png', 'content-heart.png'),
     _ShellDestination('私人储物柜', 'tabBar_bx.png', 'tabBar_bx_a.png'),
     _ShellDestination('我的', 'tabBar_my.png', 'tabBar_my_a.png'),
   ];
@@ -499,12 +499,14 @@ class _LegacyBottomBar extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final unit = constraints.maxWidth / 750;
-      final extraBottom = (MediaQuery.paddingOf(context).bottom - 80 * unit)
-          .clamp(0.0, double.infinity);
-      // CSS space-around over five 80rpx buttons and four 12rpx margins.
-      double centerFor(int index) => (61.2 + 134.4 * index) * unit;
+      // Keep a small visual gap above the actual system navigation area.
+      // The mini-program's fixed 80rpx gap over-reserves space on Android.
+      final bottomGap = (MediaQuery.paddingOf(context).bottom + 12 * unit)
+          .clamp(24 * unit, double.infinity);
+      // Share the legacy indicator centers with the icon hit areas.
+      double centerFor(int index) => [60, 195, 330, 465, 598][index] * unit;
       return SizedBox(
-        height: 220 * unit + extraBottom,
+        height: 140 * unit + bottomGap,
         child: Stack(
           children: [
             Positioned.fill(
@@ -634,13 +636,37 @@ class _LegacyNavItem extends StatelessWidget {
               alignment: Alignment.center,
               clipBehavior: Clip.none,
               children: [
-                Image.asset(
-                  'assets/legacy/navigation/$asset',
-                  width: (center ? 70 : 50) * unit,
-                  height: (center ? 49 : 35) * unit,
-                  fit: BoxFit.contain,
-                  gaplessPlayback: true,
-                ),
+                if (center)
+                  Container(
+                    key: ValueKey(selected ? 'content-plus' : 'content-heart'),
+                    width: 70 * unit,
+                    height: 49 * unit,
+                    decoration: BoxDecoration(
+                      color: selected ? const Color(0xFFEA405B) : Colors.white,
+                      borderRadius: BorderRadius.circular(12 * unit),
+                    ),
+                    alignment: Alignment.center,
+                    child: selected
+                        ? Icon(
+                            Icons.add_rounded,
+                            color: Colors.white,
+                            size: 38 * unit,
+                          )
+                        : Image.asset(
+                            'assets/legacy/navigation/content-heart.png',
+                            width: 32 * unit,
+                            height: 32 * unit,
+                          ),
+                  )
+                else
+                  Image.asset(
+                    'assets/legacy/navigation/$asset',
+                    key: ValueKey('nav-icon-${destination.label}'),
+                    width: 50 * unit,
+                    height: 35 * unit,
+                    fit: BoxFit.contain,
+                    gaplessPlayback: true,
+                  ),
                 if (unreadCount > 0)
                   Positioned(
                     top: 1,

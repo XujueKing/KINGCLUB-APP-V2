@@ -51,6 +51,17 @@ void main() {
           closeTo(width * 80 / 750, 0.001),
         );
         final start = tester.getCenter(indicator).dx;
+        expect(
+          (tester.getCenter(find.byKey(const ValueKey('nav-icon-首页'))) -
+                  tester.getCenter(indicator))
+              .distance,
+          lessThan(0.001),
+        );
+        expect(
+          900 - tester.getBottomLeft(bar).dy,
+          closeTo(width * 24 / 750, 0.001),
+        );
+        expect(find.byKey(const ValueKey('content-heart')), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('私人储物柜，标签'));
         await tester.pump();
         expect(tester.getCenter(indicator).dx, closeTo(start, 0.001));
@@ -78,6 +89,39 @@ void main() {
       }
     },
   );
+
+  testWidgets('content switches heart to plus and bar clears safe area', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.padding = const FakeViewPadding(bottom: 34);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(shell());
+    await tester.pumpAndSettle();
+    final bar = find.byKey(const ValueKey('shell-bottom-bar'));
+    expect(
+      852 - tester.getBottomLeft(bar).dy,
+      closeTo(34 + 393 * 12 / 750, 0.001),
+    );
+    await tester.tap(find.bySemanticsLabel('内容，标签'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('content-heart')), findsNothing);
+    final plus = find.byKey(const ValueKey('content-plus'));
+    expect(plus, findsOneWidget);
+    expect(
+      (tester.getCenter(plus) -
+              tester.getCenter(
+                find.byKey(const ValueKey('shell-nav-indicator')),
+              ))
+          .distance,
+      lessThan(0.001),
+    );
+    await tester.tap(find.bySemanticsLabel('首页，标签'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('content-heart')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('five fixed destinations preserve and reselect message branch', (
     tester,
