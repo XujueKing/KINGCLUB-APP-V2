@@ -108,6 +108,57 @@ class _Client extends KingclubSecureClient {
 }
 
 void main() {
+  test(
+    'approved members persist approval and restore after fifteen minutes',
+    () async {
+      final verified = DateTime.now();
+      final store = _Store();
+      store.saved!['mobileVerifiedAt'] = verified.toIso8601String();
+      await RealAuthRepository(
+        _Client(registrationStatus: 'approved'),
+        store,
+      ).refreshMembership();
+      final client = _Client(
+        registrationStatus: 'approved',
+        firstError: 'SESSION_EXPIRED',
+      );
+      final repository = RealAuthRepository(
+        client,
+        store,
+        now: () => verified.add(const Duration(days: 1)),
+      );
+      expect((await repository.restoreSession())?.canEnterApp, true);
+      expect(client.calls, ['K260824000104', 'K260824000103', 'K260824000104']);
+      expect(store.saved?['mobileVerifiedAt'], verified.toIso8601String());
+      expect(await repository.canResumeWithoutSms(), true);
+      await repository.clearLocalSession();
+      expect(await repository.canResumeWithoutSms(), false);
+    },
+  );
+  test(
+    'saved approval never overrides changed server status or revoked session',
+    () async {
+      for (final revoked in [false, true]) {
+        final store = _Store();
+        await RealAuthRepository(
+          _Client(registrationStatus: 'approved'),
+          store,
+        ).refreshMembership();
+        store.saved!['mobileVerifiedAt'] = DateTime.now()
+            .subtract(const Duration(days: 1))
+            .toIso8601String();
+        final repository = RealAuthRepository(
+          _Client(
+            registrationStatus: 'blocked',
+            firstError: revoked ? 'AUTH_SESSION_REVOKED' : null,
+          ),
+          store,
+        );
+        expect(await repository.canResumeWithoutSms(), false);
+        expect(store.saved, isNull);
+      }
+    },
+  );
   for (final step in [3, 4]) {
     testWidgets(
       'cold launch resumes saved preference step $step instead of review',

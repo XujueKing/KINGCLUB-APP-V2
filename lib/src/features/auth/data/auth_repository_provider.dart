@@ -40,6 +40,10 @@ class RealAuthRepository implements AuthRepository {
   }) : _now = now ?? DateTime.now;
   final DateTime Function() _now;
   DateTime? _mobileVerifiedAt;
+  bool _savedMemberApproved(Map<String, dynamic>? session) =>
+      session?['account'] is Map &&
+      session?['membership'] is Map &&
+      parseMembership(session!).canEnterApp;
   static const mobileLoginWindow = Duration(minutes: 15);
   bool _withinMobileWindow(DateTime? verifiedAt) {
     if (verifiedAt == null) return false;
@@ -48,10 +52,18 @@ class RealAuthRepository implements AuthRepository {
   }
 
   Future<bool> canResumeWithoutSms() async {
-    if (_mobileVerifiedAt == null) {
-      final saved = await _sessionStore.readSession();
-      _mobileVerifiedAt = DateTime.tryParse('${saved?['mobileVerifiedAt']}');
+    final saved = await _sessionStore.readSession();
+    if (_savedMemberApproved(saved)) {
+      try {
+        return await restoreSession() != null;
+      } on AuthFailure catch (error) {
+        if (error.code == 'MOBILE_REVERIFICATION_REQUIRED') return false;
+        // A temporary outage must not erase an established member's login.
+        if (error.code == 'NETWORK_ERROR') return true;
+        rethrow;
+      }
     }
+    _mobileVerifiedAt ??= DateTime.tryParse('${saved?['mobileVerifiedAt']}');
     if (_withinMobileWindow(_mobileVerifiedAt)) return true;
     await clearLocalSession();
     return false;
@@ -76,18 +88,19 @@ class RealAuthRepository implements AuthRepository {
     final saved = await _sessionStore.readSession();
     if (saved == null) return null;
     _mobileVerifiedAt = DateTime.tryParse('${saved['mobileVerifiedAt']}');
-    if (!_withinMobileWindow(_mobileVerifiedAt)) {
+    if (!_savedMemberApproved(saved) &&
+        !_withinMobileWindow(_mobileVerifiedAt)) {
       await clearLocalSession();
       throw const AuthFailure('MOBILE_REVERIFICATION_REQUIRED', '请重新验证手机号');
     }
     try {
       try {
-        return await refreshMembership();
+        return await _refreshRestoredMembership();
       } on AuthFailure catch (error) {
         if (error.code != 'SESSION_EXPIRED') rethrow;
       }
       final deadline = DateTime.tryParse('${saved['refreshExpiresAt']}');
-      if (deadline == null || !deadline.isAfter(DateTime.now())) {
+      if (deadline == null || !deadline.isAfter(_now())) {
         await _sessionStore.clearSession();
         return null;
       }
@@ -100,7 +113,7 @@ class RealAuthRepository implements AuthRepository {
         'deviceId': await _sessionStore.deviceId(),
       });
       await _sessionStore.saveSession({...saved, ...rotated});
-      return await refreshMembership();
+      return await _refreshRestoredMembership();
     } on AuthFailure catch (error) {
       if ({
         'SESSION_EXPIRED',
@@ -113,6 +126,15 @@ class RealAuthRepository implements AuthRepository {
       }
       rethrow;
     }
+  }
+
+  Future<AuthLoginResult> _refreshRestoredMembership() async {
+    final result = await refreshMembership();
+    if (!result.canEnterApp && !_withinMobileWindow(_mobileVerifiedAt)) {
+      await clearLocalSession();
+      throw const AuthFailure('MOBILE_REVERIFICATION_REQUIRED', '请重新验证手机号');
+    }
+    return result;
   }
 
   Future<void> _loadConsents() async {
@@ -187,6 +209,11 @@ class RealAuthRepository implements AuthRepository {
     }
     final result = await _client.call('K260824000104', {}, session: session);
     final snapshot = parseMembership(result);
+    await _sessionStore.saveSession({
+      ...session,
+      'account': result['account'],
+      'membership': result['membership'],
+    });
     onAuthenticated?.call(snapshot);
     return snapshot;
   }
