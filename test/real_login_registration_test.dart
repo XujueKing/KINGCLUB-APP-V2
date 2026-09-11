@@ -22,7 +22,7 @@ class _Auth implements AuthRepository {
 
 void main() {
   testWidgets(
-    'NEXT is grey until valid phone, code and challenge are present',
+    'NEXT is enabled by valid phone and code without requesting SMS',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(430, 932));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -54,10 +54,7 @@ void main() {
       await tester.enterText(fields.at(0), '13800000000');
       await tester.enterText(fields.at(1), '111111');
       await tester.pump();
-      expect(button().onPressed, isNull);
-      expect(find.text('请先点击“获取验证码”'), findsOneWidget);
-      await tester.tap(find.text('获取验证码'));
-      await tester.pump();
+      expect(find.text('请先点击“获取验证码”'), findsNothing);
       expect(button().onPressed, isNotNull);
       expect(
         button().style!.backgroundColor!.resolve({}),

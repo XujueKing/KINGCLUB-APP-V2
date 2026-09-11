@@ -37,8 +37,7 @@ class RealAuthRepository implements AuthRepository {
   final void Function(AuthLoginResult)? onAuthenticated;
   List<Map<String, String>>? _consents;
 
-  @override
-  Future<AuthSmsChallenge> requestSms(String mobile) async {
+  Future<void> _loadConsents() async {
     final catalog = await _client.call('K260824000107', {
       'clientAppCode': 'kingclub',
       'clientType': 'android',
@@ -53,6 +52,11 @@ class RealAuthRepository implements AuthRepository {
           },
         )
         .toList(growable: false);
+  }
+
+  @override
+  Future<AuthSmsChallenge> requestSms(String mobile) async {
+    await _loadConsents();
     final deviceId = await _sessionStore.deviceId();
     final result = await _client.call('K260824000101', {
       'mobile': mobile,
@@ -74,12 +78,13 @@ class RealAuthRepository implements AuthRepository {
     required String challengeId,
     required String code,
   }) async {
+    if (_consents == null) await _loadConsents();
     final consents = _consents;
     if (consents == null || consents.length != 2) {
       throw const AuthFailure('AUTH_CONSENT_REQUIRED', '请重新获取验证码');
     }
     final result = await _client.call('K260824000102', {
-      'challengeId': challengeId,
+      if (challengeId.isNotEmpty) 'challengeId': challengeId,
       'mobile': mobile,
       'code': code,
       'consents': consents,

@@ -51,11 +51,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
       RegExp(r'^1[3-9]\d{9}$').hasMatch(_mobileController.text);
   bool get _validCode => RegExp(r'^\d{6}$').hasMatch(_codeController.text);
   bool get _canVerify =>
-      _validMobile &&
-      _validCode &&
-      _flow != null &&
-      !_requesting &&
-      !_verifying;
+      _validMobile && _validCode && !_requesting && !_verifying;
 
   @override
   void initState() {
@@ -145,7 +141,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
           .read(authRepositoryProvider)
           .login(
             mobile: _mobileController.text.replaceAll(RegExp(r'[\s-]'), ''),
-            challengeId: _flow!.id,
+            challengeId: _flow?.id ?? '',
             code: _codeController.text,
           );
       if (!mounted) return;
@@ -258,19 +254,6 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                      if (_validMobile &&
-                                          _validCode &&
-                                          _flow == null) ...[
-                                        const Text(
-                                          '请先点击“获取验证码”',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: _champagne,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                      ],
                                       SizedBox(
                                         height: 45,
                                         child: FilledButton(
