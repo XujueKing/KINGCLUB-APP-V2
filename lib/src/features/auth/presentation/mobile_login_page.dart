@@ -175,6 +175,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
         }
         _codeError = switch (error.code) {
           'AUTH_CODE_INVALID' => '验证码不正确，请重新输入',
+          'IDENTITY_BINDING_CONFLICT' => '会员账号绑定异常，请联系客服处理',
           'AUTH_CHALLENGE_EXPIRED' => '验证码已过期，请重新获取',
           'AUTH_CHALLENGE_LOCKED' => '错误次数过多，请重新获取',
           'IDENTITY_AUTHORITY_UNAVAILABLE' => '会员服务暂时不可用，请稍后重试',
