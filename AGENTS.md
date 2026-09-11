@@ -2,6 +2,8 @@
 
 ## 2026-09-11 真人核验通过与注册续接（最新）
 
+- 实机验收：已覆盖安装b8eb9b9代码的新包，force-stop后启动直接显示形象资料页和两个槽位，未要求短信或身份证。后端4cc858c已推送；App曾多次推送网络失败，实际远端需核实。
+
 - 腾讯V2已完成一次真实照片核验，DB为verified/VERIFIED且member.registrationStatus=photos_required；不再说“真人待测”。照片客户端375735字节，服务端1202×1600、171991字节，private且会员identity年月目录符合约定。禁止重置该真实状态或让用户再付费实名。
 - 用户追加要求关机/误回首页后继续形象资料。已实现SecureSessionStore恢复、K104读服务器进度、访问会话过期用K103轮换再K104；网络失败保留登录可重试，撤销凭据回登录。bootstrap/短信登录/实名成功统一分流，photos_required及changes_required进入实际形象资料页，approved才首页。
 - 修复实名成功更新provider后旧页onInvalidFlow覆盖新路由的竞态；完成标记及统一分流避免回手机页。新增关机恢复、旧实名路径、令牌过期/网络失败/撤销、跳转竞态测试，共23项注册登录测试通过、analyze通过。
