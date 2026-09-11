@@ -187,6 +187,8 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
         _verifying = false;
         _codeError = '登录暂时未完成，请稍后重试';
       });
+    } finally {
+      if (mounted) setState(() => _verifying = false);
     }
   }
 
@@ -468,17 +470,9 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
           fontWeight: FontWeight.w400,
         ).copyWith(fontSize: fontSize),
         cursorColor: _inputText,
-        decoration: InputDecoration(
-          counterText: '',
-          hintText: hintText,
-          hintStyle: const TextStyle(color: Color(0x99422E19), fontSize: 16),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          filled: false,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: registrationTextDecoration(
+          hint: hintText,
+          horizontalPadding: 12,
         ),
         onChanged: onChanged,
       ),

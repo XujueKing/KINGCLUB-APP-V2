@@ -2,6 +2,8 @@
 
 ## 2026-09-11 用户要求恢复旧版 UI（覆盖下方旧规格）
 
+最新细调：姓名/证件字段使用共享registrationTextDecoration，去掉竖向padding和计数器空间，输入区居中放置；登录字段同步复用。用途说明13→12sp、行高1.5→1.3，宽度与input一致。
+
 用户复查指出左右未居中、渐变回退。根因是滚动内容外层缩宽，以及复制 RadialGradient 时把半径写为1；非 InputDecorationTheme 覆盖。外层须占满可用宽度；注册输入框统一使用 design_system/registration_input_style.dart，固定300dp径向渐变半径，登录页与实名页共享，不强制改变全 App 其他用途表单。
 
 以当前只读小程序 pages/regist2 的 WXML/WXSS、register-theme.wxss 与 app.wxss 为准。删除 V2 步骤标题/进度条及额外成年勾选行；恢复禁酒图标、两行未成年提示、旧版用途说明、NAME/ID CARD 标签与原占宽80%的金棕径向渐变胶囊输入框。主按钮恢复“人脸核验”及旧相机图标、无描边深棕底，与城市文案组成底部区域；长屏弹性留白，小屏/键盘打开可滚动。移除勾选不代表已成年，真实准入仍需服务器核验；当前真实提交仍提示服务不可用，不能用 Mock 放行。

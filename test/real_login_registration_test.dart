@@ -127,6 +127,17 @@ void main() {
                 : 'status',
           );
           expect(runtime.hasOnboardingFlow('mock-onboarding-1'), isFalse);
+          // A pushed registration page leaves the login page mounted below it.
+          // Returning must not reveal a permanent spinner/disabled NEXT.
+          expect(
+            tester
+                .widget<FilledButton>(
+                  find.byKey(const ValueKey('mobile-login-next')),
+                )
+                .onPressed,
+            isNotNull,
+          );
+          expect(find.byType(CircularProgressIndicator), findsNothing);
           await tester.pumpWidget(const SizedBox());
         },
       );

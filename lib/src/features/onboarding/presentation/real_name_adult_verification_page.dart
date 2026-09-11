@@ -129,6 +129,7 @@ class _RealNameAdultVerificationPageState
     return Container(
       height: 46,
       decoration: registrationInputDecoration(height: 46),
+      alignment: Alignment.center,
       child: TextField(
         key: ValueKey(keyName),
         controller: controller,
@@ -154,19 +155,8 @@ class _RealNameAdultVerificationPageState
           fontSize: 21,
           fontWeight: FontWeight.w400,
         ),
-        decoration: InputDecoration(
-          hintText: focus.hasFocus ? '' : hint,
-          hintStyle: const TextStyle(color: Color(0x99422E19), fontSize: 16),
-          filled: false,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 10,
-          ),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
+        decoration: registrationTextDecoration(
+          hint: focus.hasFocus ? '' : hint,
         ),
         onSubmitted: (_) {
           if (identity) {
@@ -239,15 +229,18 @@ class _RealNameAdultVerificationPageState
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
-                            const Padding(
-                              padding: EdgeInsets.only(top: 15, bottom: 20),
-                              child: Text(
-                                '根据《中华人民共和国未成年人保护法》第三十七条禁止向未成年人出售烟酒，经营者应当在显著位置设置不向未成年人出售烟酒的标志；对难以判明是否已成年的，应当要求其出示身份证件。请实名验证会员身份，确保年满18岁。',
-                                textAlign: TextAlign.justify,
-                                style: TextStyle(
-                                  color: Color(0xCCC9B69E),
-                                  fontSize: 13,
-                                  height: 1.5,
+                            SizedBox(
+                              width: fieldWidth,
+                              child: const Padding(
+                                padding: EdgeInsets.only(top: 15, bottom: 20),
+                                child: Text(
+                                  '根据《中华人民共和国未成年人保护法》第三十七条禁止向未成年人出售烟酒，经营者应当在显著位置设置不向未成年人出售烟酒的标志；对难以判明是否已成年的，应当要求其出示身份证件。请实名验证会员身份，确保年满18岁。',
+                                  textAlign: TextAlign.justify,
+                                  style: TextStyle(
+                                    color: Color(0xCCC9B69E),
+                                    fontSize: 12,
+                                    height: 1.3,
+                                  ),
                                 ),
                               ),
                             ),
