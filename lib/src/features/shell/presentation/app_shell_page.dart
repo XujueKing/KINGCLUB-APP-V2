@@ -508,7 +508,7 @@ class _LegacyBottomBar extends StatelessWidget {
       );
       // Share the legacy indicator centers with the icon hit areas.
       double centerFor(int index) =>
-          [60, 195, 330, 465, 598][index] * unit * 690 / 660;
+          [60, 195, 330, 465, 598][index] * unit * 675 / 660;
       return SizedBox(
         height: 30 * unit + barHeight + bottomGap,
         child: Stack(
@@ -522,10 +522,10 @@ class _LegacyBottomBar extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Color(0x00000000),
-                        Color(0x10000000),
-                        Color(0x80000000),
+                        Color(0xDD000000),
+                        Colors.black,
                       ],
-                      stops: [0, 0.85, 1],
+                      stops: [0, 0.5, 0.86],
                     ),
                   ),
                 ),
@@ -541,7 +541,7 @@ class _LegacyBottomBar extends StatelessWidget {
                     filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                     child: SizedBox(
                       key: const ValueKey('shell-bottom-bar'),
-                      width: 690 * unit,
+                      width: 675 * unit,
                       height: barHeight,
                       child: DecoratedBox(
                         decoration: BoxDecoration(

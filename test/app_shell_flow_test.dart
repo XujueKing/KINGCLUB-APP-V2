@@ -44,7 +44,7 @@ void main() {
         await tester.pumpAndSettle();
         final bar = find.byKey(const ValueKey('shell-bottom-bar'));
         final indicator = find.byKey(const ValueKey('shell-nav-indicator'));
-        expect(tester.getSize(bar).width, closeTo(width * 690 / 750, 0.001));
+        expect(tester.getSize(bar).width, closeTo(width * 0.9, 0.001));
         expect(tester.getSize(bar).height, closeTo(width * 120 / 750 - 1, 0.001));
         expect(
           tester.getSize(indicator).width,
