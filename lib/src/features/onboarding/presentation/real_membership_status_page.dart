@@ -102,6 +102,7 @@ class _RealMembershipStatusPageState
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).height < 740;
     final member = ref.watch(authenticatedMemberProvider);
+    final approved = member?.canEnterApp == true;
     final restricted =
         member == null ||
         member.accountStatus != 'active' ||
@@ -113,7 +114,7 @@ class _RealMembershipStatusPageState
             'photos_required' => '实名认证已通过，请继续完善会员形象照片',
             'changes_required' => '会员资料需要补充，请按审核要求重新提交',
             'rejected' => '本次申请暂未通过，可联系营销了解详情',
-            'approved' => '注册已通过，请刷新进入首页',
+            'approved' => '您的会员申请已通过，开启 KINGCLUB 之旅。',
             _ => '暂时无法确认注册进度，请刷新重试',
           };
     return Scaffold(
@@ -148,9 +149,7 @@ class _RealMembershipStatusPageState
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          !restricted && member.registrationStatus == 'approved'
-                              ? '欢迎加入 KINGCLUB'
-                              : '感谢您的申请',
+                          approved ? '欢迎加入 KINGCLUB' : '感谢您的申请',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 8),
@@ -209,32 +208,34 @@ class _RealMembershipStatusPageState
                               ],
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            '评分仅供本次申请参考，不代表个人价值。最终结果以会员审核为准。',
-                            style: TextStyle(
-                              fontSize: 13,
-                              height: 1.45,
-                              color: KingColors.textSecondary,
+                          if (!approved) ...[
+                            const SizedBox(height: 16),
+                            const Text(
+                              '评分仅供本次申请参考，不代表个人价值。最终结果以会员审核为准。',
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.45,
+                                color: KingColors.textSecondary,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: compact ? 16 : 20),
-                          const Text(
-                            '希望更快了解审核进度？',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: KingColors.brandStrong,
+                            SizedBox(height: compact ? 16 : 20),
+                            const Text(
+                              '希望更快了解审核进度？',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: KingColors.brandStrong,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            '联系营销人员，协助跟进审核或补充资料。',
-                            style: TextStyle(
-                              fontSize: 13,
-                              height: 1.45,
-                              color: KingColors.textSecondary,
+                            const SizedBox(height: 6),
+                            const Text(
+                              '联系营销人员，协助跟进审核或补充资料。',
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.45,
+                                color: KingColors.textSecondary,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                         if (_error != null) ...[
                           const SizedBox(height: 16),
@@ -252,30 +253,41 @@ class _RealMembershipStatusPageState
                 ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 45),
                   child: FilledButton(
-                    onPressed: _loading ? null : _refresh,
+                    onPressed: _loading
+                        ? null
+                        : approved
+                        ? widget.onApproved
+                        : _refresh,
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(45),
                       shape: const StadiumBorder(),
                     ),
-                    child: Text(_loading ? '正在刷新' : '刷新状态'),
+                    child: Text(
+                      approved
+                          ? '进入 KINGCLUB'
+                          : _loading
+                          ? '正在刷新'
+                          : '刷新状态',
+                    ),
                   ),
                 ),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 12,
-                  children: [
-                    if (!restricted &&
-                        member.registrationStatus == 'pending_review')
+                if (!approved)
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    children: [
+                      if (!restricted &&
+                          member.registrationStatus == 'pending_review')
+                        TextButton(
+                          onPressed: widget.onImages,
+                          child: const Text('更换形象照片'),
+                        ),
                       TextButton(
-                        onPressed: widget.onImages,
-                        child: const Text('更换形象照片'),
+                        onPressed: widget.onBack,
+                        child: const Text('返回登录'),
                       ),
-                    TextButton(
-                      onPressed: widget.onBack,
-                      child: const Text('返回登录'),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
                 SizedBox(height: compact ? 8 : 16),
               ],
             ),

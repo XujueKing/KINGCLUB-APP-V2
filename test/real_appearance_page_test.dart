@@ -112,6 +112,57 @@ class _Auth extends RealAuthRepository {
 
 void main() {
   testWidgets(
+    'approved welcome enters directly while restricted accounts cannot',
+    (tester) async {
+      final photos = _Photos()..score = 88;
+      final container = ProviderContainer(
+        overrides: [realIdentityRepositoryProvider.overrideWithValue(photos)],
+      );
+      addTearDown(container.dispose);
+      var entered = false;
+      for (final status in ['active', 'suspended']) {
+        container
+            .read(authenticatedMemberProvider.notifier)
+            .update(
+              AuthLoginResult(
+                isNewMembership: false,
+                membershipStatus: status,
+                registrationStatus: 'approved',
+                isRealSession: true,
+              ),
+            );
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: KingTheme.dark,
+              home: RealMembershipStatusPage(
+                key: ValueKey(status),
+                onApproved: () => entered = true,
+                onIdentity: () {},
+                onBack: () {},
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        if (status == 'active') {
+          expect(find.text('欢迎加入 KINGCLUB'), findsOneWidget);
+          expect(find.text('88'), findsOneWidget);
+          expect(find.text('希望更快了解审核进度？'), findsNothing);
+          expect(find.text('评分仅供本次申请参考，不代表个人价值。最终结果以会员审核为准。'), findsNothing);
+          expect(find.text('刷新状态'), findsNothing);
+          await tester.tap(find.text('进入 KINGCLUB'));
+          expect(entered, isTrue);
+          expect(photos.submits, 0);
+        } else {
+          expect(find.text('进入 KINGCLUB'), findsNothing);
+        }
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+  testWidgets(
     'review displays saved score without resubmitting and handles missing score',
     (tester) async {
       tester.view.devicePixelRatio = 1;
