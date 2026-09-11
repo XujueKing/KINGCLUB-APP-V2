@@ -546,17 +546,13 @@ class _LegacyBottomBar extends StatelessWidget {
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(barHeight / 2),
-                          border: Border.all(
-                            color: const Color(0x38FFFFFF),
-                            width: 0.7,
-                          ),
                           gradient: const LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              Color(0x70494035),
-                              Color(0x551A1611),
-                              Color(0x70332D26),
+                              Color(0x80503A25),
+                              Color(0x702D2015),
+                              Color(0x80433222),
                             ],
                             stops: [0, 0.48, 1],
                           ),
