@@ -183,6 +183,12 @@ class AuthBootstrapRoute extends GoRouteData with $AuthBootstrapRoute {
     return _ControlledRouteBackScope(
       onBack: () {},
       child: AuthBootstrapPage(
+        onOpenTerms: () =>
+            TermsConsentRoute(const ConsentRouteArgs(AgreementKind.terms))
+                .push<void>(context),
+        onOpenPrivacy: () =>
+            TermsConsentRoute(const ConsentRouteArgs(AgreementKind.privacy))
+                .push<void>(context),
         onAnonymous: () => const LegacyWelcomeRoute().go(context),
         onAuthenticated: () {
           if (ProviderScope.containerOf(
@@ -216,7 +222,7 @@ class LegacyWelcomeRoute extends GoRouteData with $LegacyWelcomeRoute {
               listen: false,
             ).read(authenticatedMemberProvider);
             if (member?.isRealSession == true) {
-              const AuthBootstrapRoute().go(context);
+              _continueRealRegistration(context);
             } else {
               const MobileLoginRoute().push<void>(context);
             }

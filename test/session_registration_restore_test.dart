@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,7 +40,9 @@ class _Store extends SecureSessionStore {
 }
 
 class _Client extends KingclubSecureClient {
-  _Client({this.firstError}) : super('https://example.invalid');
+  _Client({this.firstError, this.waitForResponse})
+    : super('https://example.invalid');
+  final Future<void>? waitForResponse;
   String? firstError;
   final calls = <String>[];
   @override
@@ -49,6 +53,7 @@ class _Client extends KingclubSecureClient {
     Duration? receiveTimeout,
   }) async {
     calls.add(id);
+    if (waitForResponse != null) await waitForResponse;
     if (firstError != null) {
       final code = firstError!;
       firstError = null;
@@ -74,6 +79,42 @@ class _Client extends KingclubSecureClient {
 }
 
 void main() {
+  testWidgets(
+    'pending cold restoration shows the existing welcome instead of a loading page',
+    (tester) async {
+      final gate = Completer<void>();
+      final client = _Client(waitForResponse: gate.future);
+      final container = ProviderContainer(
+        overrides: [
+          authRepositoryProvider.overrideWith(
+            (ref) => RealAuthRepository(
+              client,
+              _Store(),
+              onAuthenticated: ref
+                  .read(authenticatedMemberProvider.notifier)
+                  .update,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const KingClubApp(),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(LegacyWelcomePage), findsOneWidget);
+      expect(find.byKey(const ValueKey('legacy-welcome-logo')), findsOneWidget);
+      expect(find.text('正在恢复登录和注册进度'), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('完善会员形象资料'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   test('server progress wins over stale local identity state', () async {
     final client = _Client();
     final result = await RealAuthRepository(client, _Store()).restoreSession();
@@ -165,10 +206,12 @@ void main() {
           '/auth/welcome',
         );
         expect(container.read(authenticatedMemberProvider)?.needsImages, true);
+        final requestsBeforeContinue = client.calls.length;
         tester
             .widget<LegacyWelcomePage>(find.byType(LegacyWelcomePage))
             .onNext();
         await tester.pumpAndSettle();
+        expect(client.calls.length, requestsBeforeContinue);
         expect(find.text('完善会员形象资料'), findsOneWidget);
         await tester.pumpWidget(const SizedBox());
         container.dispose();

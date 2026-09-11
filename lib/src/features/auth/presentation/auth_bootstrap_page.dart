@@ -6,16 +6,21 @@ import '../../../core/design_system/king_theme.dart';
 import '../../../core/mock/mock_runtime.dart';
 import '../data/auth_repository_provider.dart';
 import '../domain/auth_repository.dart';
+import 'legacy_welcome_page.dart';
 
 class AuthBootstrapPage extends ConsumerWidget {
   const AuthBootstrapPage({
     super.key,
     required this.onAnonymous,
     required this.onAuthenticated,
+    this.onOpenTerms,
+    this.onOpenPrivacy,
   });
 
   final VoidCallback onAnonymous;
   final VoidCallback onAuthenticated;
+  final VoidCallback? onOpenTerms;
+  final VoidCallback? onOpenPrivacy;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,6 +28,8 @@ class AuthBootstrapPage extends ConsumerWidget {
       return _RealBootstrap(
         onAnonymous: onAnonymous,
         onAuthenticated: onAuthenticated,
+        onOpenTerms: onOpenTerms,
+        onOpenPrivacy: onOpenPrivacy,
       );
     }
     ref.listen(bootstrapOutcomeProvider, (previous, next) {
@@ -93,15 +100,19 @@ class _RealBootstrap extends ConsumerStatefulWidget {
   const _RealBootstrap({
     required this.onAnonymous,
     required this.onAuthenticated,
+    this.onOpenTerms,
+    this.onOpenPrivacy,
   });
   final VoidCallback onAnonymous;
   final VoidCallback onAuthenticated;
+  final VoidCallback? onOpenTerms;
+  final VoidCallback? onOpenPrivacy;
   @override
   ConsumerState<_RealBootstrap> createState() => _RealBootstrapState();
 }
 
 class _RealBootstrapState extends ConsumerState<_RealBootstrap> {
-  String? _error;
+  bool _loading = false;
   @override
   void initState() {
     super.initState();
@@ -109,7 +120,12 @@ class _RealBootstrapState extends ConsumerState<_RealBootstrap> {
   }
 
   Future<void> _restore() async {
-    if (mounted) setState(() => _error = null);
+    if (!mounted || _loading) return;
+    if (ref.read(authenticatedMemberProvider)?.isRealSession == true) {
+      widget.onAuthenticated();
+      return;
+    }
+    _loading = true;
     try {
       final result = await (ref.read(
         authRepositoryProvider,
@@ -122,36 +138,24 @@ class _RealBootstrapState extends ConsumerState<_RealBootstrap> {
         widget.onAuthenticated();
       }
     } on AuthFailure catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      _showError(error.message);
     } catch (_) {
-      if (mounted) setState(() => _error = '暂时无法读取注册进度，请检查网络后重试');
+      _showError('网络连接暂不可用，点击继续重试');
+    } finally {
+      _loading = false;
     }
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const KingBrandMark(),
-              const SizedBox(height: 32),
-              if (_error == null) ...[
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                const Text('正在恢复登录和注册进度'),
-              ] else ...[
-                Text(_error!, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton(onPressed: _restore, child: const Text('重试')),
-              ],
-            ],
-          ),
-        ),
-      ),
-    ),
+  Widget build(BuildContext context) => LegacyWelcomePage(
+    onNext: _restore,
+    onOpenTerms: widget.onOpenTerms ?? () {},
+    onOpenPrivacy: widget.onOpenPrivacy ?? () {},
   );
 }
