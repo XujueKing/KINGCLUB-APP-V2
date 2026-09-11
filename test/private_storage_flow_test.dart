@@ -10,31 +10,29 @@ void main() {
     home: StoragePickupCodePage(scenario: scenario),
   );
 
-  testWidgets('legacy cabinet opens the pickup credential and returns', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(theme: KingTheme.dark, home: const PrivateStoragePage()),
-    );
-    await tester.pump();
+  testWidgets(
+    'empty cabinet switches category without issuing fake credentials',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(theme: KingTheme.dark, home: const PrivateStoragePage()),
+      );
+      await tester.pump();
 
-    expect(find.text('私人储物柜'), findsOneWidget);
-    expect(find.byKey(const ValueKey('storage-grid-酒-1')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('storage-tab-物-idle')));
-    await tester.pump();
-    expect(find.byKey(const ValueKey('storage-grid-物-1')), findsOneWidget);
+      expect(find.text('私人储物柜'), findsOneWidget);
+      expect(find.byKey(const ValueKey('storage-grid-酒-1')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('storage-tab-物-idle')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('storage-grid-物-1')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('storage-empty-info')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('storage-open-pickup-demo')));
-    await tester.pumpAndSettle();
-    expect(find.text('取件凭证'), findsOneWidget);
-    expect(find.byIcon(Icons.qr_code_2), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('storage-pickup-back')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('storage-grid-物-1')), findsOneWidget);
-  });
+      await tester.tap(find.byKey(const ValueKey('storage-empty-info')));
+      await tester.pumpAndSettle();
+      expect(find.text('当前没有可展示的存酒或物品'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('storage-open-pickup-demo')),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets('ready credential rotates and background always covers it', (
     tester,

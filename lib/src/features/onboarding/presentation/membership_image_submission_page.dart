@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/media/cached_media_image.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
@@ -407,8 +410,12 @@ class _MembershipImageSubmissionPageState
                 if (!uploading && _previews[index] != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
+                    child: CachedMediaImage(
                       _previews[index]!,
+                      private: true,
+                      contentKey: Uri.parse(_previews[index]!)
+                          .replace(query: '')
+                          .toString(),
                       width: 100,
                       height: 100,
                       fit: BoxFit.cover,

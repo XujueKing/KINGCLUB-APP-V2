@@ -8,6 +8,7 @@ import '../../contacts/presentation/blacklist_page.dart';
 import '../../contacts/presentation/friendship_pages.dart';
 import '../../contacts/presentation/user_profile_page.dart';
 import '../../club/presentation/private_storage_page.dart';
+import '../../club/data/storage_repository.dart';
 import '../../home/presentation/home_page.dart';
 import '../../messaging/presentation/conversations_page.dart';
 import '../../messaging/presentation/direct_chat_page.dart';
@@ -39,6 +40,7 @@ class AppShellPage extends StatefulWidget {
     this.onOpenOrders,
     this.onSessionResetRequested,
     this.profileCoverStore,
+    this.storageRepository,
     this.onOpenFriendRequests,
     this.onOpenAddFriend,
     this.onOpenBlacklist,
@@ -72,6 +74,7 @@ class AppShellPage extends StatefulWidget {
   final VoidCallback? onOpenOrders;
   final VoidCallback? onSessionResetRequested;
   final ProfileCoverStore? profileCoverStore;
+  final StorageRepository? storageRepository;
   final VoidCallback? onOpenFriendRequests;
   final VoidCallback? onOpenAddFriend;
   final VoidCallback? onOpenBlacklist;
@@ -192,7 +195,10 @@ class _AppShellPageState extends State<AppShellPage> {
                   onReturnHome: () => setState(() => _selectedIndex = 0),
                   onSessionResetRequested: widget.onSessionResetRequested,
                 ),
-                const PrivateStoragePage(),
+                PrivateStoragePage(
+                  active: _selectedIndex == 3,
+                  repository: widget.storageRepository,
+                ),
                 MyProfilePage(
                   onOpenAssets: widget.onOpenAssets,
                   onOpenEditProfile: widget.onOpenEditProfile,

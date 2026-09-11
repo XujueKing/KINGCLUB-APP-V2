@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 
+import '../media/media_cache.dart';
+
 class SecureSessionStore {
   SecureSessionStore([FlutterSecureStorage? storage])
     : _storage = storage ?? const FlutterSecureStorage();
@@ -22,7 +24,14 @@ class SecureSessionStore {
   Future<void> saveSession(Map<String, dynamic> value) =>
       _storage.write(key: _sessionKey, value: jsonEncode(value));
 
-  Future<void> clearSession() => _storage.delete(key: _sessionKey);
+  Future<void> clearSession() async {
+    await _storage.delete(key: _sessionKey);
+    try {
+      await MediaCache.shared.clear(privateOnly: true);
+    } catch (_) {
+      /* Credentials are already revoked locally. */
+    }
+  }
 
   Future<Map<String, dynamic>?> readSession() async {
     final value = await _storage.read(key: _sessionKey);

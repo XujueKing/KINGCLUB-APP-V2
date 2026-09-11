@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/media/media_cache.dart';
+
 import 'about_legal_page.dart';
 import 'account_deletion_page.dart';
 import 'payment_security_page.dart';
@@ -22,9 +24,11 @@ class SettingsPage extends StatefulWidget {
     this.onOpenAboutLegal,
     this.onLogoutCompleted,
     this.onSessionResetRequested,
+    this.mediaCache,
   });
 
   final SettingsScenario initialScenario;
+  final MediaCache? mediaCache;
   final VoidCallback? onBack;
   final VoidCallback? onOpenPaymentSecurity;
   final VoidCallback? onOpenAccountDeletion;
@@ -39,7 +43,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   static const _gold = Color(0xFFC9B69E);
   static const _muted = Color(0xFF8B8174);
-  String _cache = '12.8 MB';
+  String _cache = '计算中';
   late SettingsScenario _scenario;
 
   static const _entries = [
@@ -54,6 +58,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _scenario = widget.initialScenario;
+    _readCache();
     if (_scenario == SettingsScenario.sessionInvalid) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _showSessionInvalid(),
@@ -271,9 +276,36 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
     if (confirmed == true && mounted) {
+      try {
+        await (widget.mediaCache ?? MediaCache.shared).clear();
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('缓存清理失败，请重试')));
+        }
+        return;
+      }
+      if (!mounted) return;
       setState(() => _cache = '0 B');
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('缓存已清理')));
+    }
+  }
+
+  Future<void> _readCache() async {
+    try {
+      final bytes = await (widget.mediaCache ?? MediaCache.shared).sizeBytes();
+      if (mounted) {
+        setState(
+          () => _cache = bytes == 0
+              ? '0 B'
+              : '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB',
+        );
+      }
+    } catch (_) {
+      if (mounted) setState(() => _cache = '暂不可用');
     }
   }
 

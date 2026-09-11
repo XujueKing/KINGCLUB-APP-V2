@@ -1,6 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:kingclub/src/core/media/media_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/settings_page.dart';
+
+class _Cache extends MediaCache {
+  int bytes = 128;
+  @override
+  Future<int> sizeBytes() async => bytes;
+  @override
+  Future<void> clear({bool privateOnly = false}) async {
+    bytes = 0;
+  }
+}
 
 Widget _frame(
   SettingsScenario scenario, {
@@ -11,6 +22,7 @@ Widget _frame(
   return MaterialApp(
     home: SettingsPage(
       initialScenario: scenario,
+      mediaCache: _Cache(),
       onLogoutCompleted: onLogoutCompleted,
       onSessionResetRequested: onSessionResetRequested,
       onOpenPaymentSecurity: onOpenPaymentSecurity,
