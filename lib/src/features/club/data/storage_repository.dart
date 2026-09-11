@@ -47,6 +47,11 @@ class StorageItem {
   final double remainingPercent;
   final double? maximumValue;
   final bool canPickup;
+  String get expiresLabel {
+    final date = DateTime.tryParse(expiresAt)?.toLocal();
+    return date == null ? '' : date.toString().split('.').first;
+  }
+
   String get image =>
       'assets/legacy/storage/${switch (assetKey) {
         'vodka' => 'vodka.png',

@@ -502,7 +502,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
             ),
             SizedBox(height: 24 * u),
             Text(
-              '有效期：${item.expiresAt.isEmpty ? '长期有效' : item.expiresAt.replaceFirst('T', ' ').split('.').first}',
+              '有效期：${item.expiresAt.isEmpty ? '长期有效' : item.expiresLabel}',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 22 * u,

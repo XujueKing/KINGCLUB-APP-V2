@@ -137,9 +137,14 @@ class _StorageLiquidBottleState extends State<StorageLiquidBottle>
               Text(
                 widget.item.expiresAt.isEmpty
                     ? ''
-                    : widget.item.expiresAt.split('T').first,
+                    : widget.item.expiresLabel.split(' ').first,
                 style: const TextStyle(color: Color(0xFFC9B69E), fontSize: 11),
               ),
+              if (widget.item.status == 'expired')
+                const Text(
+                  '已过期',
+                  style: TextStyle(color: Color(0xFFC9B69E), fontSize: 11),
+                ),
             ],
           ),
         ),
