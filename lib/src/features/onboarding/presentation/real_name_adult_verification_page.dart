@@ -31,7 +31,6 @@ class RealNameAdultVerificationPage extends ConsumerStatefulWidget {
 class _RealNameAdultVerificationPageState
     extends ConsumerState<RealNameAdultVerificationPage> {
   static const _gold = KingColors.brand;
-  static const _actionBrown = Color(0xFF24180A);
 
   final _nameController = TextEditingController();
   final _identityController = TextEditingController();
@@ -218,7 +217,13 @@ class _RealNameAdultVerificationPageState
   }) {
     return Container(
       height: 46,
-      decoration: registrationInputDecoration(height: 46),
+      decoration: BoxDecoration(
+        color: KingColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: focus.hasFocus ? KingColors.brand : KingColors.border,
+        ),
+      ),
       alignment: Alignment.center,
       child: TextField(
         key: ValueKey(keyName),
@@ -241,13 +246,17 @@ class _RealNameAdultVerificationPageState
           maxLength,
         }) => null,
         style: const TextStyle(
-          color: _actionBrown,
+          color: KingColors.textPrimary,
           fontSize: 21,
           fontWeight: FontWeight.w400,
         ),
-        decoration: registrationTextDecoration(
-          hint: focus.hasFocus ? '' : hint,
-        ),
+        decoration: registrationTextDecoration(hint: focus.hasFocus ? '' : hint)
+            .copyWith(
+              hintStyle: const TextStyle(
+                color: KingColors.textSecondary,
+                fontSize: 16,
+              ),
+            ),
         onSubmitted: (_) {
           if (identity) {
             _requestVerification();
@@ -276,7 +285,7 @@ class _RealNameAdultVerificationPageState
     final contentWidth = (width * .88).clamp(0.0, 528.0).toDouble();
     final fieldWidth = (width * .8).clamp(0.0, 480.0).toDouble();
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: KingColors.canvas,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
@@ -423,10 +432,6 @@ class _RealNameAdultVerificationPageState
                                 ? null
                                 : _requestVerification,
                             style: FilledButton.styleFrom(
-                              backgroundColor: _actionBrown,
-                              foregroundColor: const Color(0xABC9B69E),
-                              disabledBackgroundColor: _actionBrown,
-                              disabledForegroundColor: const Color(0x61C9B69E),
                               shape: const StadiumBorder(),
                               side: BorderSide.none,
                             ),
@@ -434,7 +439,7 @@ class _RealNameAdultVerificationPageState
                                 ? const SizedBox.square(
                                     dimension: 20,
                                     child: CircularProgressIndicator(
-                                      color: _gold,
+                                      color: KingColors.textDisabled,
                                       strokeWidth: 2,
                                     ),
                                   )
@@ -443,7 +448,7 @@ class _RealNameAdultVerificationPageState
                                     children: [
                                       ColorFiltered(
                                         colorFilter: const ColorFilter.mode(
-                                          _gold,
+                                          KingColors.onBrand,
                                           BlendMode.srcIn,
                                         ),
                                         child: Image.asset(
