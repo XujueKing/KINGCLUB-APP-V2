@@ -59,6 +59,49 @@ Future<void> _addPhoto(WidgetTester tester, String source) async {
 }
 
 void main() {
+  testWidgets('identity action aligns with login NEXT at phone sizes', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final size in [
+      const Size(360, 800),
+      const Size(393, 852),
+      const Size(430, 932),
+    ]) {
+      await tester.binding.setSurfaceSize(size);
+      final runtime = MockRuntime();
+      await tester.pumpWidget(
+        _app(runtime, MobileLoginPage(onBack: () {}, onVerified: (_) {})),
+      );
+      await tester.pump();
+      final next = tester.getRect(
+        find.byKey(const ValueKey('mobile-login-next')),
+      );
+      await tester.pumpWidget(
+        _app(
+          runtime,
+          RealNameAdultVerificationPage(
+            flowId: runtime.startOnboarding(),
+            onBack: () {},
+            onNext: () {},
+            onInvalidFlow: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+      final action = tester.getRect(
+        find.byKey(const ValueKey('real-name-verify-button')),
+      );
+      expect(action.top, closeTo(next.top, .5));
+      expect(action.bottom, closeTo(next.bottom, .5));
+      for (final label in ['NAME:', 'ID CARD:', '未满18岁未成年人\n不得饮酒注册会员']) {
+        expect(
+          tester.getCenter(find.text(label)).dx,
+          closeTo(size.width / 2, .5),
+        );
+      }
+    }
+  });
   testWidgets('identity fields and action stay horizontally centered', (
     tester,
   ) async {

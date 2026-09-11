@@ -2,6 +2,8 @@
 
 ## 2026-09-11 用户要求恢复旧版 UI（覆盖下方旧规格）
 
+最新复查：说明文字限宽后内层Stack的内容变窄，必须明确Alignment.topCenter，不能只把外层撑满。禁酒图标90→64dp。底部与手机号NEXT统一45dp按钮、10dp间隔、13sp城市文案及安全区底部27dp留白；三种手机尺寸比对按钮top/bottom位置通过，小屏内容不足时仍可滚动。
+
 最新细调：姓名/证件字段使用共享registrationTextDecoration，去掉竖向padding和计数器空间，输入区居中放置；登录字段同步复用。用途说明13→12sp、行高1.5→1.3，宽度与input一致。
 
 用户复查指出左右未居中、渐变回退。根因是滚动内容外层缩宽，以及复制 RadialGradient 时把半径写为1；非 InputDecorationTheme 覆盖。外层须占满可用宽度；注册输入框统一使用 design_system/registration_input_style.dart，固定300dp径向渐变半径，登录页与实名页共享，不强制改变全 App 其他用途表单。

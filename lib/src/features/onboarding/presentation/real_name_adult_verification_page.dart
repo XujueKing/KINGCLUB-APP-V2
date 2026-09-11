@@ -188,11 +188,11 @@ class _RealNameAdultVerificationPageState
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.only(top: 30, bottom: 50),
+            padding: const EdgeInsets.only(top: 30, bottom: 27),
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 minWidth: constraints.maxWidth,
-                minHeight: (constraints.maxHeight - 80).clamp(
+                minHeight: (constraints.maxHeight - 57).clamp(
                   0.0,
                   double.infinity,
                 ),
@@ -203,6 +203,7 @@ class _RealNameAdultVerificationPageState
                   SizedBox(
                     width: contentWidth,
                     child: Stack(
+                      alignment: Alignment.topCenter,
                       children: [
                         Column(
                           children: [
@@ -214,8 +215,8 @@ class _RealNameAdultVerificationPageState
                               ),
                               child: Image.asset(
                                 'assets/legacy/onboarding/nonine.png',
-                                width: 90,
-                                height: 90,
+                                width: 64,
+                                height: 64,
                               ),
                             ),
                             const SizedBox(height: 25),
@@ -312,7 +313,7 @@ class _RealNameAdultVerificationPageState
                         ],
                         SizedBox(
                           width: double.infinity,
-                          height: 46,
+                          height: 45,
                           child: FilledButton(
                             key: const ValueKey('real-name-verify-button'),
                             onPressed: _submitting
@@ -363,7 +364,11 @@ class _RealNameAdultVerificationPageState
                         const SizedBox(height: 10),
                         const Text(
                           'SHANGHAI . ZHUZHOU',
-                          style: TextStyle(color: _gold, fontSize: 14),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xB3C9B69E),
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
