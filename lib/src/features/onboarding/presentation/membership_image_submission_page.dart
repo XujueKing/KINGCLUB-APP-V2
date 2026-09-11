@@ -145,6 +145,46 @@ class _MembershipImageSubmissionPageState
       title: '完善会员形象资料',
       subtitle: '请添加两张近期清晰照片，仅用于会员审核。',
       onBack: widget.onBack,
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.onSwitchMobile != null)
+            TextButton(
+              key: const ValueKey('switch-registration-mobile'),
+              onPressed: _switchingMobile
+                  ? null
+                  : () async {
+                      setState(() => _switchingMobile = true);
+                      try {
+                        await widget.onSwitchMobile!();
+                      } finally {
+                        if (mounted) setState(() => _switchingMobile = false);
+                      }
+                    },
+              child: const Text('其它账号登录'),
+            ),
+          SizedBox(
+            height: 45,
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _saving || _isReal ? null : _next,
+              style: FilledButton.styleFrom(shape: const StadiumBorder()),
+              child: _saving
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('提交并评分'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'SHANGHAI . ZHUZHOU',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xB3C9B69E), fontSize: 13),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -162,31 +202,6 @@ class _MembershipImageSubmissionPageState
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
-          if (widget.onSwitchMobile != null)
-            TextButton(
-              key: const ValueKey('switch-registration-mobile'),
-              onPressed: _switchingMobile
-                  ? null
-                  : () async {
-                      setState(() => _switchingMobile = true);
-                      try {
-                        await widget.onSwitchMobile!();
-                      } finally {
-                        if (mounted) setState(() => _switchingMobile = false);
-                      }
-                    },
-              child: const Text('切换手机号'),
-            ),
-          FilledButton(
-            onPressed: _saving || _isReal ? null : _next,
-            style: FilledButton.styleFrom(shape: const StadiumBorder()),
-            child: _saving
-                ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('提交并评分'),
-          ),
         ],
       ),
     );

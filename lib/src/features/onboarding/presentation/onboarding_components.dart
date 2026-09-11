@@ -18,12 +18,14 @@ class OnboardingScaffold extends StatelessWidget {
     required this.subtitle,
     required this.child,
     this.onBack,
+    this.footer,
   });
 
   final int step;
   final String title;
   final String subtitle;
   final Widget child;
+  final Widget? footer;
   final VoidCallback? onBack;
 
   @override
@@ -39,37 +41,53 @@ class OnboardingScaffold extends StatelessWidget {
         title: Text('步骤 $step/4'),
       ),
       body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  LinearProgressIndicator(
-                    value: step / 4,
-                    minHeight: 3,
-                    backgroundColor: KingColors.border,
+        child: Column(
+          children: [
+            Expanded(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        LinearProgressIndicator(
+                          value: step / 4,
+                          minHeight: 3,
+                          backgroundColor: KingColors.border,
+                        ),
+                        const SizedBox(height: 28),
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          subtitle,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: KingColors.textSecondary),
+                        ),
+                        const SizedBox(height: 28),
+                        child,
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 28),
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodyMedium
-                        ?.copyWith(color: KingColors.textSecondary),
-                  ),
-                  const SizedBox(height: 28),
-                  child,
-                ],
+                ),
               ),
             ),
-          ),
+            if (footer != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 27),
+                child: SizedBox(
+                  width: (MediaQuery.sizeOf(context).width * .8)
+                      .clamp(0.0, 480.0)
+                      .toDouble(),
+                  child: footer,
+                ),
+              ),
+          ],
         ),
       ),
     );
