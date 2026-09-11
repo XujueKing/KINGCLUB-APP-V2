@@ -6,10 +6,14 @@
 - 所属功能：[设置与账号安全](../../README.md)
 - 旧版来源：`setting/setup`
 - 路由：`SettingsRoute`，`/me/settings`
-- 设计版本：`Settings Wireframe v1 / Hub`
-- 最后更新：2026-08-25
+- 设计版本：`Mini Program Settings Menu Replica v2`
+- 最后更新：2026-09-12
 
-## 线框
+## 2026-09-12 当前视觉真值
+
+用户已要求设置页切换为小程序五行菜单，具体以 [mini_program_menu_replication.md](mini_program_menu_replication.md) 为准。下方 v1 线框保留为历史设计记录，不再代表当前页面外观。
+
+## 历史 v1 线框
 
 ```text
 [返回]                设置

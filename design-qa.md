@@ -1,3 +1,155 @@
+# Design QA — 小程序“我的”、个人信息头像与原版法律正文复刻 v2
+
+- source visual truth paths: 用户于 2026-09-12 当前会话提供的五张原版小程序截图；实机相册原图已只读拉取为 `kingclub_reference_my.jpg`、`kingclub_reference_personal.jpg`、`kingclub_reference_privacy.jpg`、`kingclub_reference_agreement.jpg`
+- implementation screenshot paths: `C:\Users\Poplar\AppData\Local\Temp\kingclub_my_fixed_v2.png`；`C:\Users\Poplar\AppData\Local\Temp\kingclub_personal_fixed_v2.png`；`C:\Users\Poplar\AppData\Local\Temp\kingclub_avatar_picker.png`；`C:\Users\Poplar\AppData\Local\Temp\kingclub_privacy_final3.png`；`C:\Users\Poplar\AppData\Local\Temp\kingclub_agreement_final.png`
+- combined comparisons: `C:\Users\Poplar\AppData\Local\Temp\kingclub_compare_my_v2.png`；`C:\Users\Poplar\AppData\Local\Temp\kingclub_compare_personal_v2.png`；`C:\Users\Poplar\AppData\Local\Temp\kingclub_compare_privacy_final.png`；`C:\Users\Poplar\AppData\Local\Temp\kingclub_compare_agreement_final.png`
+- viewport and normalization: 原版与实现均为 Xiaomi `1080 × 2400 px` 整机截图，按同像素尺寸并排；Android 状态栏、微信宿主胶囊和系统导航栏不计入 App 自有内容偏差
+- state: “我的”默认资产态；“我的个人信息”默认资料态及头像选择器；隐私政策和用户协议首屏阅读态
+
+## Full-view and focused-region evidence
+
+- “我的”页恢复原版四栏底部导航：首页、消息、私人储物柜、我的；不再显示中间内容/爱心入口。资产区、四项菜单及暖棕黑径向背景与原版同状态对齐。
+- 个人信息页保留原版居中标题、圆形头像、九行资料和细分隔线；右侧值列与箭头列分别固定并右对齐，手机号采用安全脱敏显示。
+- 头像现为真实可操作控件：点击打开系统相册，进入 1:1 裁切确认页后保存到本地支持目录；取消和失败不覆盖原图，重新进入页面及个人二维码页会恢复保存结果。
+- 隐私政策和用户协议正文直接按旧版 `pages/aggreement/index.js` 的原始块顺序呈现；标题、版本日期、段落、项目符号、`650rpx` 内容宽度和底部留白与图四、图五一致，不再显示通用占位法律文案。
+- typography, spacing and colors: 标题、正文、列表和值列按旧版 rpx 比例换算；黑色背景、香槟金导航和灰白正文保持原版层级，无溢出或异常截断。
+- icons, images and interactions: 菜单和品牌素材复用旧版资源；头像使用系统图库与本地裁切，不上传、不调用生产接口；所有返回路径可回实际来源页。
+
+## Comparison history and findings
+
+- P1 fixed: 底栏曾保留非原版中央内容入口。Fix：显示目的地映射改为四项，同时保留内部既有路由索引以避免破坏深链。
+- P1 fixed: 个人信息右侧值使用内容宽度自然排版且头像不可点击。Fix：建立固定值列/箭头列，并补充图库选择、1:1 裁切和本地持久化流程。
+- P1 fixed: 法律阅读页使用通用目录占位正文。Fix：从旧版稳定源码机械提取 36 个用户协议块和 65 个隐私政策块，并按旧版 WXML/WXSS 层级重建阅读器。
+- No actionable P0/P1/P2 mismatch remains in app-owned content.
+- P3: 当前默认头像是离线 UI/Fake 资产，用户选择后即由本机图片替换；真实账户头像同步留待批准的资料接口阶段。
+- P3: Flutter 与微信小程序的字体栅格化、宿主胶囊和系统栏存在平台级差异。
+
+## Verification
+
+- `flutter analyze`: passed, no issues.
+- `test/about_legal_flow_test.dart test/personal_info_flow_test.dart test/app_shell_flow_test.dart`: 26/26 passed.
+- App smoke 法律入口、个人资料返回和首页黄金图定向检查：passed.
+- Xiaomi 实机：四栏底栏、资料值列、头像系统选择器、两份正文滚动及返回均已验证；运行日志无 Flutter exception 或 overflow。
+
+final result: passed
+
+---
+
+# Design QA — 小程序个人信息、关于与长期二维码复刻 v1
+
+- source visual truth paths: 用户于 2026-09-12 当前会话提供的个人信息与关于页小程序截图（均为 `1080 × 2400 px`）；只读旧版 `C:\Users\Poplar\Desktop\KingClub-app\pages\myinfo`、`pages\about`、`pages\mycode` 及对应原始 PNG 资源
+- implementation screenshot paths: `C:\Users\Poplar\AppData\Local\Temp\kingclub_personal_info_corrected_v2.png`；`C:\Users\Poplar\AppData\Local\Temp\kingclub_about.png`；`C:\Users\Poplar\AppData\Local\Temp\kingclub_qr_corrected.png`
+- viewport: Xiaomi 14 Pro，Android 16，`1080 × 2400 px`；Flutter 逻辑宽约 `393 px`，设备像素比约 `2.75`
+- source pixels: 个人信息与关于页各 `1080 × 2400 px`；二维码以旧版 `750rpx` 页面和原始资源为尺寸基准
+- implementation pixels: 三张实机截图均为 `1080 × 2400 px`
+- density normalization: 用户截图与实现截图均按整机同像素尺寸比较；平台状态栏、微信宿主胶囊和 Android 底部系统导航不计入 App 自有内容偏差
+- state: 个人信息默认资料；关于目录默认态；个人二维码长期码默认态
+
+## Full-view comparison evidence
+
+- 个人信息页保持小程序的居中标题、圆形头像、九行资料顺序、固定值列、细分隔线和三处右箭头；页面可纵向滚动，不会因 Android 状态栏或 200% 字体遮住末行。
+- 关于页保持旧版径向暖黑背景、King Club 原始标志、品牌副标题、正文段落、两条蓝色下划线法律入口和完整备案信息；首屏纵向比例与用户截图一致。
+- 二维码页按用户图二下移内容组，只显示 `80rpx` 头像与单行会员号；白底画布为 `500rpx`、黑色码区约 `412rpx`，中心使用旧版原始 `kingLogo.png`；没有倒计时、刷新、过期、离线或后台隐藏内容。
+
+## Focused region comparison evidence
+
+- fonts and typography: 标题、个人资料标签/值、关于页正文/备案小字和二维码说明沿用当前 King 中文字体栈，并按旧版 `rpx` 比例换算；真机无异常换行、截断或字重漂移。
+- spacing and layout rhythm: 个人头像与列表起点、九行高度、关于页 Logo/副标题/正文间距，以及身份区到二维码的间距均按旧版宽度比例复核；无重叠和溢出。
+- colors and visual tokens: 三页使用纯黑或旧版暖黑径向背景、香槟金主文字、灰金次文字；法律入口使用截图中的蓝色下划线，能量图标使用原始绿色 PNG。
+- image quality and asset fidelity: King Club Logo、品牌副标题、能量图标和默认头像均复用旧版原始位图；二维码中心使用原始 King Club 素材，没有 Emoji、CSS 图形或手绘替代。
+- copy and content: 九项个人资料标签、关于页说明/版本/软著/电子版权/双端备案/开发商，以及二维码说明均与旧版一致；手机号码在 UI/Mock 数据中安全脱敏，后续由真实会员资料替换。
+- icons and interactions: 三页返回键统一使用全局 `KingBackButton`；个人称呼、签名、修改支付密码可点击，法律入口可进入阅读态，二维码仅展示且不提供保存/分享/复制。
+
+## Comparison history
+
+- Pass 1 P1: 旧二维码实现仍是十分钟短期码，包含倒计时、刷新、过期和后台隐藏状态，与用户“不要时效”的决定冲突。Fix：重建为单一长期码状态，移除计时器、刷新和生命周期替换逻辑，并同步清理当前规格中的旧短期码约束。
+- Pass 1 P2: 设置页“个人信息”仍指向旧的编辑资料页面，无法呈现截图中的九行只读资料层级。Fix：新增独立 `PersonalInfoRoute` 与小程序九行页面，保留昵称/签名编辑和支付密码出口。
+- Pass 1 P2: 关于目录仍采用通用法律文档卡片，不是小程序品牌关于页。Fix：恢复原始 Logo/品牌副标题、径向背景、完整备案文案和两条内联法律入口。
+- Pass 2 P1（用户复核发现）：“我的个人信息”仍打开旧封面编辑页，设置页才进入九行资料页。Fix：两个入口统一到 `PersonalInfoPage`，并补充入口和回退测试。
+- Pass 2 P1（用户复核发现）：二维码内容组过高、黑色码区过大、中心标识错误且多显示昵称。Fix：内容组下移，身份区仅保留头像和会员号，白底保持 `500rpx`，通过 `44rpx` 内边距将码区校准为约 `412rpx`，中心换用旧版原始 `kingLogo.png`。
+- Pass 3 post-fix evidence: `kingclub_personal_info_corrected_v2.png` 与 `kingclub_qr_corrected.png` 两张 `1080 × 2400 px` Xiaomi 14 Pro 实机截图显示个人信息头像/列表起点、九行资料、二维码身份行、白底画布、码区和中心标识均与用户新参考图对齐；没有剩余可执行 P0/P1/P2 差异。
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains in app-owned content.
+- P3: 个人头像和手机号属于真实账户动态资料；当前 UI/Mock 使用旧版默认头像与脱敏号码，接入会员资料接口后才替换为登录用户数据。
+- P3: Android 状态栏、系统导航栏与微信宿主胶囊属于平台外壳差异，不纳入页面复刻。
+
+## Verification
+
+- `flutter analyze`: passed, no issues.
+- 个人信息、二维码与入口相关定向测试：13/13 passed.
+- App smoke “我的”页面定向测试：3/3 passed.
+- 实机主交互：设置进入个人信息/关于、法律阅读返回、二维码返回按钮、个人资料编辑入口和支付密码出口已检查。
+- runtime console: 未发现 Flutter exception、overflow 或路由错误；Android 厂商系统日志不计为 App 异常。
+
+final result: passed
+
+---
+
+# Design QA — 小程序设置五行菜单复刻 v1
+
+- source visual truth: 用户于 2026-09-12 当前会话提供的 `940 × 1000 px` 小程序设置菜单截图，以及只读旧版 `C:\Users\Poplar\Desktop\KingClub-app\pages\setting\setting.wxml`、`setting.wxss`、全局 `app.wxss` 与原始 PNG 资源
+- implementation screenshot: `C:\Users\Poplar\AppData\Local\Temp\kingclub_settings_miniprogram_final.png`
+- viewport: Xiaomi 14 Pro，Android 16，`1080 × 2400 px`
+- state: `/me/settings` / 默认菜单 / 未弹出对话框
+- comparison normalization: 用户截图为菜单内容裁切，真机截图含 Android 状态栏、App 标题栏与底部系统导航；比较时按页面宽度归一，并只评估 App 自有菜单区域。
+
+## Comparison evidence
+
+- 菜单顺序和文案严格保持为个人信息、账号安全、隐私政策、用户协议、关于 KINGBAR。
+- 五个左侧图标和右箭头均复用旧版 PNG；菜单宽度、图标尺寸、字体、固定箭头列与纵向节奏按旧版 `750rpx` 比例换算。
+- 页面保持纯黑背景和香槟金层级，不显示分组标题、辅助说明或分隔线；底部保留旧版深棕色注销登录按钮。
+- 第一次真机比对发现标题栏 `Stack` 宽度收缩，返回键被挤到标题附近（P1）；补充全宽约束后，第二次比对确认返回键回到左侧标准位置。
+- 五个入口均已在真机逐项进入并验证返回；设置页返回“我的”和注销确认的取消路径也已验证。
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains in app-owned content.
+- P3: Android 状态栏、系统导航栏与小程序宿主截图的平台外壳不同，不属于页面内容偏差。
+
+## Verification
+
+- `flutter analyze`: passed.
+- `test/settings_flow_test.dart`: 7/7 passed.
+- `test/profile_row_alignment_test.dart`: 3/3 passed.
+- App smoke 定向测试：4/4 passed.
+- Xiaomi 14 Pro 真机视觉、五入口、返回与注销确认路径：passed.
+
+final result: passed
+
+---
+
+# Design QA — 小程序资产型“我的”页面复刻 v1
+
+- source visual truth: 用户于 2026-09-12 当前会话提供的小程序“我的”页面截图，以及只读旧版 `C:\Users\Poplar\Desktop\KingClub-app` 提交 `5406b87` 的 `pages/index/index.wxml`、`index.wxss` 与原始 PNG 资源
+- implementation screenshot: `C:\Users\Poplar\AppData\Local\Temp\kingclub_my_wallet_final.png`
+- viewport: Xiaomi 14 Pro，Android 16，`1080 × 2400 px`
+- state: App Shell / “我的”Tab 选中 / 默认资产数据
+
+## Comparison evidence
+
+- 页面恢复小程序的资产中心层级：总余额、钱包账户、代金券账户、金币、钻石与四项菜单完整显示。
+- 内容宽度、字体尺寸、纵向节奏和左右分栏按旧版 `750rpx` 规则换算；总余额与菜单位置在同尺寸真机截图中与用户参考一致。
+- 设置、二维码、个人信息、账单、关于、金币、钻石及余额入口全部可点击；设置和四项菜单已在真机逐项进入并验证返回。
+- 设置、二维码、个人信息、账单、关于、金币、钻石与箭头均复用旧版原始 PNG，没有重画或替代素材。
+- 微信宿主胶囊未复制到 Android App；现有已批准 App Shell 底栏保持唯一来源并正确选中“我的”。
+
+## Findings
+
+- No actionable P0/P1/P2 mismatch remains in app-owned content.
+- P3: Android 系统状态栏、字体栅格化与小程序宿主截图存在平台差异，不属于页面内容偏差。
+
+## Verification
+
+- `flutter analyze`: passed.
+- 我的页面定向组件测试：8/8 passed.
+- Xiaomi 14 Pro 真机逐项路由及返回验证：passed.
+
+final result: passed
+
+---
+
 # Design QA — Profile Asset Pills Equal Height v9
 
 - source visual truth: 用户当前会话提供的四个资产胶囊局部截图

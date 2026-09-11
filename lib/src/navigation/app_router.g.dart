@@ -1073,6 +1073,11 @@ RouteBase get $settingsRoute => GoRouteData.$route(
   factory: $SettingsRoute._fromState,
   routes: [
     GoRouteData.$route(
+      path: 'personal-info',
+      hasOverriddenOnExit: false,
+      factory: $PersonalInfoRoute._fromState,
+    ),
+    GoRouteData.$route(
       path: 'payment-security',
       hasOverriddenOnExit: false,
       factory: $PaymentSecurityRoute._fromState,
@@ -1095,6 +1100,27 @@ mixin $SettingsRoute on GoRouteData {
 
   @override
   String get location => GoRouteData.$location('/me/settings');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $PersonalInfoRoute on GoRouteData {
+  static PersonalInfoRoute _fromState(GoRouterState state) =>
+      const PersonalInfoRoute();
+
+  @override
+  String get location => GoRouteData.$location('/me/settings/personal-info');
 
   @override
   void go(BuildContext context) => context.go(location);
@@ -1219,4 +1245,4 @@ final class AppRouterProvider
   }
 }
 
-String _$appRouterHash() => r'43a7bf200863a0a2d9e9d55992c7a6a70bd9dcad';
+String _$appRouterHash() => r'aab06063984cc3fc2ab556fe0839d3e76e9d1c22';

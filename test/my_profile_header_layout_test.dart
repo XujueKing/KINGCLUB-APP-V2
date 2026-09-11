@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/my_profile_page.dart';
 
 void main() {
-  testWidgets('我的主页头图信息关系遵循旧版 750rpx 标尺', (tester) async {
+  testWidgets('资产型我的主页遵循旧版 750rpx 主栏与垂直层级', (tester) async {
     await tester.binding.setSurfaceSize(const Size(393, 852));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -18,31 +18,24 @@ void main() {
     await tester.pump();
 
     const scale = 393 / 750;
-    final cover = tester.getRect(
-      find.byKey(const ValueKey('my-profile-cover')),
+    final wallet = tester.getRect(
+      find.byKey(const ValueKey('my-profile-wallet-account')),
     );
-    final avatar = tester.getRect(
-      find.byKey(const ValueKey('my-profile-empty-avatar')),
+    final voucher = tester.getRect(
+      find.byKey(const ValueKey('my-profile-voucher-account')),
     );
-
-    expect(cover.height, closeTo(540 * scale, .01));
-    expect(cover.bottom, closeTo(540 * scale, .01));
-    expect(avatar.top, closeTo(400 * scale, .01));
-    expect(avatar.width, closeTo(180 * scale, .01));
-    expect(avatar.bottom - cover.bottom, closeTo(40 * scale, .01));
-
-    final nickname = tester.getRect(find.text('杨嘉琪'));
-    final account = tester.getRect(find.text('账号：K45600000199'));
-    expect(nickname.left, closeTo(avatar.right + 30 * scale, .01));
-    expect(account.left, closeTo(nickname.left, .01));
-
-    final likes = tester.getRect(
-      find.byKey(const ValueKey('my-profile-stat-获赞')),
+    final firstMenu = tester.getRect(
+      find.byKey(const ValueKey('my-profile-menu-qr')),
     );
-    final follows = tester.getRect(
-      find.byKey(const ValueKey('my-profile-stat-关注')),
+    final lastMenu = tester.getRect(
+      find.byKey(const ValueKey('my-profile-menu-about')),
     );
-    expect(likes.width, closeTo(104 * scale, .01));
-    expect(follows.center.dx - likes.center.dx, closeTo(104 * scale, .01));
+    expect(wallet.left, closeTo((393 - 660 * scale) / 2, .01));
+    expect(voucher.right, closeTo((393 + 660 * scale) / 2, .01));
+    expect(wallet.width, closeTo((660 * scale - 1) / 2, .01));
+    expect(voucher.width, closeTo((660 * scale - 1) / 2, .01));
+    expect(firstMenu.width, closeTo(660 * scale, .01));
+    expect(firstMenu.top, greaterThan(wallet.bottom));
+    expect(lastMenu.top, greaterThan(firstMenu.top));
   });
 }

@@ -6,40 +6,83 @@ Widget _frame(
   SettingsScenario scenario, {
   VoidCallback? onLogoutCompleted,
   VoidCallback? onSessionResetRequested,
+  VoidCallback? onOpenPersonalInfo,
   VoidCallback? onOpenPaymentSecurity,
+  VoidCallback? onOpenPrivacyPolicy,
+  VoidCallback? onOpenUserAgreement,
+  VoidCallback? onOpenAboutLegal,
 }) {
   return MaterialApp(
     home: SettingsPage(
       initialScenario: scenario,
       onLogoutCompleted: onLogoutCompleted,
       onSessionResetRequested: onSessionResetRequested,
+      onOpenPersonalInfo: onOpenPersonalInfo,
       onOpenPaymentSecurity: onOpenPaymentSecurity,
+      onOpenPrivacyPolicy: onOpenPrivacyPolicy,
+      onOpenUserAgreement: onOpenUserAgreement,
+      onOpenAboutLegal: onOpenAboutLegal,
     ),
   );
 }
 
 void main() {
-  testWidgets('normal settings keeps all fixed safety entries', (tester) async {
+  const entries = <String>[
+    'personal-info',
+    'account-security',
+    'privacy-policy',
+    'user-agreement',
+    'about-kingbar',
+  ];
+
+  testWidgets('normal settings reproduces the five mini-program rows', (
+    tester,
+  ) async {
     await tester.pumpWidget(_frame(SettingsScenario.normal));
 
-    for (final key in <String>[
-      'payment',
-      'notification',
-      'cache',
-      'about',
-      'deletion',
-    ]) {
+    for (final key in entries) {
       expect(find.byKey(ValueKey('settings-$key')), findsOneWidget);
       expect(find.byKey(ValueKey('settings-arrow-$key')), findsOneWidget);
     }
+    for (final label in const ['个人信息', '账号安全', '隐私政策', '用户协议', '关于KINGBAR']) {
+      expect(find.text(label), findsOneWidget);
+    }
+    expect(find.text('通知权限'), findsNothing);
+    expect(find.text('清理缓存'), findsNothing);
   });
 
-  testWidgets('capability failure keeps fixed entries usable', (tester) async {
-    var paymentOpened = false;
+  testWidgets('all five rows emit their fixed destination intents', (
+    tester,
+  ) async {
+    final opened = <String>[];
+    await tester.pumpWidget(
+      _frame(
+        SettingsScenario.normal,
+        onOpenPersonalInfo: () => opened.add('personal-info'),
+        onOpenPaymentSecurity: () => opened.add('account-security'),
+        onOpenPrivacyPolicy: () => opened.add('privacy-policy'),
+        onOpenUserAgreement: () => opened.add('user-agreement'),
+        onOpenAboutLegal: () => opened.add('about-kingbar'),
+      ),
+    );
+
+    for (final key in entries) {
+      final row = find.byKey(ValueKey('settings-$key'));
+      await tester.ensureVisible(row);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+    }
+    expect(opened, entries);
+  });
+
+  testWidgets('capability failure keeps every fixed row usable', (
+    tester,
+  ) async {
+    var securityOpened = false;
     await tester.pumpWidget(
       _frame(
         SettingsScenario.capabilityFailure,
-        onOpenPaymentSecurity: () => paymentOpened = true,
+        onOpenPaymentSecurity: () => securityOpened = true,
       ),
     );
 
@@ -47,34 +90,28 @@ void main() {
       find.byKey(const ValueKey('settings-capability-failure')),
       findsOneWidget,
     );
-    await tester.tap(find.byKey(const ValueKey('settings-payment')));
-    expect(paymentOpened, isTrue);
+    expect(
+      find.byKey(const ValueKey('settings-personal-info')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('settings-account-security')));
+    expect(securityOpened, isTrue);
   });
 
-  testWidgets('notification disabled gives a formal system-settings handoff', (
+  testWidgets('privacy and agreement open their direct reader states', (
     tester,
   ) async {
-    await tester.pumpWidget(_frame(SettingsScenario.notificationDisabled));
-    expect(find.text('已关闭'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('settings-notification')));
-    await tester.pumpAndSettle();
-    expect(find.text('系统通知已关闭'), findsOneWidget);
-    await tester.tap(find.text('打开系统设置'));
-    await tester.pumpAndSettle();
-    expect(find.text('请前往手机系统设置管理通知权限'), findsOneWidget);
-  });
-
-  testWidgets('clear cache does not remove the session', (tester) async {
     await tester.pumpWidget(_frame(SettingsScenario.normal));
-    await tester.tap(find.byKey(const ValueKey('settings-cache')));
+
+    await tester.tap(find.byKey(const ValueKey('settings-privacy-policy')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('确认清理'));
+    expect(find.text('KingClub 隐私政策'), findsWidgets);
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
     await tester.pumpAndSettle();
 
-    expect(find.text('0 B'), findsOneWidget);
-    expect(find.text('缓存已清理'), findsOneWidget);
-    expect(find.byKey(const ValueKey('settings-logout')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('settings-user-agreement')));
+    await tester.pumpAndSettle();
+    expect(find.text('KING CLUB 会员服务协议'), findsWidgets);
   });
 
   testWidgets('logout success confirms then resets the local flow', (
@@ -87,7 +124,10 @@ void main() {
         onLogoutCompleted: () => completed = true,
       ),
     );
-    await tester.tap(find.byKey(const ValueKey('settings-logout')));
+    final logout = find.byKey(const ValueKey('settings-logout'));
+    await tester.ensureVisible(logout);
+    await tester.pumpAndSettle();
+    await tester.tap(logout);
     await tester.pumpAndSettle();
     await tester.tap(find.text('注销登录').last);
     await tester.pump();
@@ -106,7 +146,10 @@ void main() {
         onLogoutCompleted: () => completed = true,
       ),
     );
-    await tester.tap(find.byKey(const ValueKey('settings-logout')));
+    final logout = find.byKey(const ValueKey('settings-logout'));
+    await tester.ensureVisible(logout);
+    await tester.pumpAndSettle();
+    await tester.tap(logout);
     await tester.pumpAndSettle();
     await tester.tap(find.text('注销登录').last);
     await tester.pumpAndSettle();

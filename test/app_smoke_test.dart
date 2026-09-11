@@ -28,6 +28,7 @@ import 'package:kingclub/src/features/messaging/presentation/conversations_page.
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_details_page.dart';
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
 import 'package:kingclub/src/features/messaging/presentation/system_notifications_page.dart';
+import 'package:kingclub/src/features/membership_wallet/presentation/asset_ledger_page.dart';
 import 'package:kingclub/src/features/scanner/presentation/safe_scanner_page.dart';
 import 'package:kingclub/src/features/shell/presentation/app_shell_page.dart';
 
@@ -441,7 +442,7 @@ void main() {
     expect(find.text('SCAN QR'), findsOneWidget);
     expect(find.bySemanticsLabel('首页，标签，已选中'), findsOneWidget);
     expect(find.bySemanticsLabel('消息，标签，5 条未读'), findsOneWidget);
-    expect(find.bySemanticsLabel('内容，标签'), findsOneWidget);
+    expect(find.bySemanticsLabel('内容，标签'), findsNothing);
     expect(find.bySemanticsLabel('私人储物柜，标签'), findsOneWidget);
     expect(find.bySemanticsLabel('我的，标签'), findsOneWidget);
 
@@ -1653,7 +1654,7 @@ void main() {
     expect(find.text('部分交付，剩余可取'), findsOneWidget);
   });
 
-  testWidgets('my profile reproduces legacy content and fake interactions', (
+  testWidgets('my profile reproduces the legacy wallet dashboard', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -1664,63 +1665,27 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('my-profile-empty-avatar')),
-      findsOneWidget,
-    );
-    expect(find.text('杨嘉琪'), findsOneWidget);
-    expect(find.text('青铜 L-0'), findsOneWidget);
-    expect(find.text('账号：K45600000199'), findsOneWidget);
-    expect(find.text('获赞'), findsOneWidget);
-    expect(find.text('关注'), findsOneWidget);
-    expect(find.text('互关'), findsOneWidget);
-    expect(find.text('粉丝'), findsOneWidget);
-    expect(find.text('余额：¥ 0.00'), findsOneWidget);
-    expect(find.text('♂ 24岁'), findsOneWidget);
-    expect(find.text('颜值：148'), findsOneWidget);
-    expect(find.text('河南省 · 安阳市'), findsOneWidget);
-    expect(find.text('木系灵根'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('my-profile-selected-tab-arrow-动态')),
-      findsOneWidget,
-    );
+    expect(find.text('总余额 (￥)'), findsOneWidget);
+    expect(find.text('0.00'), findsNWidgets(3));
+    expect(find.text('钱包账户(元)'), findsOneWidget);
+    expect(find.text('代金券账户(元)'), findsOneWidget);
+    expect(find.text('200'), findsOneWidget);
+    expect(find.text('我的二维码'), findsOneWidget);
+    expect(find.text('我的个人信息'), findsOneWidget);
+    expect(find.text('账单记录'), findsOneWidget);
+    expect(find.text('关于KINGBAR'), findsOneWidget);
+    expect(find.text('杨嘉琪'), findsNothing);
+    expect(find.text('作品'), findsNothing);
 
-    final worksTab = find.byKey(const ValueKey('my-profile-tab-作品'));
-    await tester.ensureVisible(worksTab);
-    await tester.tap(worksTab);
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('my-profile-content-0')), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('my-profile-selected-tab-arrow-作品')),
-      findsOneWidget,
-    );
-    expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
-    final albumTab = find.byKey(const ValueKey('my-profile-tab-相册'));
-    await tester.ensureVisible(albumTab);
-    await tester.tap(albumTab);
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('my-profile-content-2')), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('my-profile-selected-tab-arrow-相册')),
-      findsOneWidget,
-    );
-    expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
-    final activityTab = find.byKey(const ValueKey('my-profile-tab-动态'));
-    await tester.tap(activityTab);
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('my-profile-selected-tab-arrow-动态')),
-      findsOneWidget,
-    );
-    expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
-
-    final qrEntry = find.byKey(const ValueKey('my-profile-qr'));
+    final qrEntry = find.byKey(const ValueKey('my-profile-menu-qr'));
     await tester.ensureVisible(qrEntry);
     await tester.tap(qrEntry);
     await tester.pumpAndSettle();
     expect(find.text('我的二维码'), findsOneWidget);
-    expect(find.textContaining('不包含你的永久账号'), findsOneWidget);
-    expect(find.textContaining('有效期'), findsOneWidget);
+    expect(find.text('K45600000799'), findsOneWidget);
+    expect(find.text('扫一扫上面的二维码图案，加我成为朋友'), findsOneWidget);
+    expect(find.textContaining('有效期'), findsNothing);
+    expect(find.textContaining('刷新'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('personal-qr-back')));
     await tester.pumpAndSettle();
 
@@ -1728,34 +1693,55 @@ void main() {
     await tester.ensureVisible(settingsEntry);
     await tester.tap(settingsEntry);
     await tester.pumpAndSettle();
-    expect(find.text('支付安全'), findsOneWidget);
-    expect(find.text('账号注销'), findsOneWidget);
+    expect(find.text('个人信息'), findsOneWidget);
+    expect(find.text('账号安全'), findsOneWidget);
+    expect(find.text('隐私政策'), findsOneWidget);
+    expect(find.text('用户协议'), findsOneWidget);
+    expect(find.text('关于KINGBAR'), findsOneWidget);
     expect(find.text('注销登录'), findsOneWidget);
   });
 
-  testWidgets('my profile order entry opens the shared order center intent', (
+  testWidgets('my profile wallet dashboard emits every destination intent', (
     tester,
   ) async {
-    var opened = false;
+    final assetTypes = <AssetLedgerType>[];
+    var infoOpened = false;
+    var aboutOpened = false;
     await tester.pumpWidget(
       MaterialApp(
         theme: KingTheme.dark,
-        home: Scaffold(body: MyProfilePage(onOpenOrders: () => opened = true)),
+        home: Scaffold(
+          body: MyProfilePage(
+            onOpenAssets: assetTypes.add,
+            onOpenPersonalInfo: () => infoOpened = true,
+            onOpenAbout: () => aboutOpened = true,
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
 
-    final orders = find.byKey(const ValueKey('my-profile-orders'));
-    await tester.scrollUntilVisible(
-      orders,
-      180,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(orders);
-    expect(opened, isTrue);
+    await tester.tap(find.byKey(const ValueKey('my-profile-total-balance')));
+    await tester.tap(find.byKey(const ValueKey('my-profile-gold-account')));
+    await tester.tap(find.byKey(const ValueKey('my-profile-diamond-account')));
+    final ledger = find.byKey(const ValueKey('my-profile-menu-ledger'));
+    await tester.ensureVisible(ledger);
+    await tester.tap(ledger);
+    await tester.tap(find.byKey(const ValueKey('my-profile-menu-info')));
+    await tester.tap(find.byKey(const ValueKey('my-profile-menu-about')));
+    await tester.pumpAndSettle();
+
+    expect(assetTypes, [
+      AssetLedgerType.cashBalance,
+      AssetLedgerType.goldCoin,
+      AssetLedgerType.diamond,
+      AssetLedgerType.cashBalance,
+    ]);
+    expect(infoOpened, isTrue);
+    expect(aboutOpened, isTrue);
   });
 
-  testWidgets('my profile asset and order pills have identical heights', (
+  testWidgets('my profile menu rows stay aligned and equally tall', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -1766,59 +1752,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final keys = [
-      const ValueKey('my-profile-asset-我的余额'),
-      const ValueKey('my-profile-asset-金币'),
-      const ValueKey('my-profile-asset-钻石'),
-      const ValueKey('my-profile-orders'),
-    ];
-    final heights = keys
-        .map((key) => tester.getSize(find.byKey(key)).height)
+    final rows = ['qr', 'info', 'ledger', 'about']
+        .map(
+          (name) =>
+              tester.getRect(find.byKey(ValueKey('my-profile-menu-$name'))),
+        )
         .toList();
-
-    expect(heights, everyElement(34));
-  });
-
-  testWidgets('my profile applies a saved local cover immediately', (
-    tester,
-  ) async {
-    String? receivedCover;
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: KingTheme.dark,
-        home: Scaffold(
-          body: MyProfilePage(
-            onOpenEditProfile: (nickname, signature, coverAsset) async {
-              receivedCover = coverAsset;
-              return const EditableProfileResult(
-                nickname: '杨嘉琪',
-                signature: '',
-                coverAsset: 'assets/legacy/home/mock_poster_music.png',
-              );
-            },
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final edit = find.byKey(const ValueKey('my-profile-edit'));
-    await tester.ensureVisible(edit);
-    await tester.pumpAndSettle();
-    await tester.tap(edit);
-    await tester.pumpAndSettle();
-    expect(receivedCover, kDefaultProfileCoverAsset);
-
-    final coverImage = tester.widget<Image>(
-      find.descendant(
-        of: find.byKey(const ValueKey('my-profile-cover')),
-        matching: find.byType(Image),
-      ),
-    );
-    expect(
-      (coverImage.image as AssetImage).assetName,
-      'assets/legacy/home/mock_poster_music.png',
-    );
+    for (final rect in rows.skip(1)) {
+      expect(rect.left, closeTo(rows.first.left, .01));
+      expect(rect.width, closeTo(rows.first.width, .01));
+      expect(rect.height, closeTo(rows.first.height, .01));
+    }
   });
 
   testWidgets('profile internal pages keep legacy offline interactions', (
@@ -1853,21 +1797,26 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('我的二维码'), findsOneWidget);
-    expect(find.byKey(const ValueKey('personal-qr-refresh')), findsOneWidget);
-    expect(find.textContaining('有效期'), findsOneWidget);
+    expect(find.byKey(const ValueKey('personal-qr-code')), findsOneWidget);
+    expect(find.textContaining('有效期'), findsNothing);
+    expect(find.textContaining('刷新'), findsNothing);
 
     await tester.pumpWidget(
       MaterialApp(theme: KingTheme.dark, home: const SettingsPage()),
     );
     await tester.pumpAndSettle();
     expect(find.text('设置'), findsOneWidget);
-    expect(find.text('支付安全'), findsOneWidget);
-    expect(find.text('12.8 MB'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('settings-cache')));
+    expect(find.text('个人信息'), findsOneWidget);
+    expect(find.text('账号安全'), findsOneWidget);
+    expect(find.text('隐私政策'), findsOneWidget);
+    expect(find.text('用户协议'), findsOneWidget);
+    expect(find.text('关于KINGBAR'), findsOneWidget);
+    final privacyPolicy = find.byKey(const ValueKey('settings-privacy-policy'));
+    await tester.ensureVisible(privacyPolicy);
+    await tester.tap(privacyPolicy);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('确认清理'));
-    await tester.pumpAndSettle();
-    expect(find.text('0 B'), findsOneWidget);
+    expect(find.text('KINGBAR隐私政策'), findsOneWidget);
+    expect(find.text('《KINGBAR 隐私政策》'), findsOneWidget);
   });
 
   testWidgets('payment security completes the six digit fake PIN flow', (
@@ -1939,21 +1888,32 @@ void main() {
     expect(find.text('KingClub 账号已注销'), findsOneWidget);
   });
 
-  testWidgets('about catalog opens a pre-release legal document', (
+  testWidgets('about catalog opens the original legal document', (
     tester,
   ) async {
     await tester.pumpWidget(
       MaterialApp(theme: KingTheme.dark, home: const AboutLegalPage()),
     );
     await tester.pumpAndSettle();
-    expect(find.text('关于 KingClub'), findsOneWidget);
-    expect(find.text('KING CLUB 会员服务协议'), findsOneWidget);
-    expect(find.text('KingClub 隐私政策'), findsOneWidget);
+    expect(find.text('关于KINGBAR'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('about-legal-document-0')),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.byKey(const ValueKey('about-legal-document-0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('about-legal-document-1')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('about-legal-document-0')));
     await tester.pumpAndSettle();
-    expect(find.text('《KING CLUB 会员服务协议》'), findsOneWidget);
-    expect(find.text('版本：预发布版'), findsOneWidget);
-    expect(find.text('文档内容以正式发布版本为准。'), findsOneWidget);
+    expect(find.text('KINGBAR用户协议'), findsOneWidget);
+    expect(find.text('《KINGBAR 服务条款和规则》'), findsOneWidget);
+    expect(find.text('版本：预发布版'), findsNothing);
   });
 }

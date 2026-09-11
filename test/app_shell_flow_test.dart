@@ -45,7 +45,10 @@ void main() {
         final bar = find.byKey(const ValueKey('shell-bottom-bar'));
         final indicator = find.byKey(const ValueKey('shell-nav-indicator'));
         expect(tester.getSize(bar).width, closeTo(width * 0.9, 0.001));
-        expect(tester.getSize(bar).height, closeTo(width * 120 / 750 - 1, 0.001));
+        expect(
+          tester.getSize(bar).height,
+          closeTo(width * 120 / 750 - 1, 0.001),
+        );
         expect(
           tester.getSize(indicator).width,
           closeTo(width * 80 / 750, 0.001),
@@ -61,7 +64,7 @@ void main() {
           900 - tester.getBottomLeft(bar).dy,
           closeTo(width * 12 / 750, 0.001),
         );
-        expect(find.byKey(const ValueKey('content-heart')), findsOneWidget);
+        expect(find.byKey(const ValueKey('content-heart')), findsNothing);
         await tester.tap(find.bySemanticsLabel('私人储物柜，标签'));
         await tester.pump();
         expect(tester.getCenter(indicator).dx, closeTo(start, 0.001));
@@ -90,40 +93,31 @@ void main() {
     },
   );
 
-  testWidgets('content switches heart to plus and bar clears safe area', (
-    tester,
-  ) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(393, 852);
-    tester.view.padding = const FakeViewPadding(bottom: 34);
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(shell());
-    await tester.pumpAndSettle();
-    final bar = find.byKey(const ValueKey('shell-bottom-bar'));
-    expect(
-      852 - tester.getBottomLeft(bar).dy,
-      closeTo(34 + 393 * 8 / 750, 0.001),
-    );
-    await tester.tap(find.bySemanticsLabel('内容，标签'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('content-heart')), findsNothing);
-    final plus = find.byKey(const ValueKey('content-plus'));
-    expect(plus, findsOneWidget);
-    expect(
-      (tester.getCenter(plus) -
-              tester.getCenter(
-                find.byKey(const ValueKey('shell-nav-indicator')),
-              ))
-          .distance,
-      lessThan(0.001),
-    );
-    await tester.tap(find.bySemanticsLabel('首页，标签'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('content-heart')), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'four-tab bar has no central content control and clears safe area',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.padding = const FakeViewPadding(bottom: 34);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(shell());
+      await tester.pumpAndSettle();
+      final bar = find.byKey(const ValueKey('shell-bottom-bar'));
+      expect(
+        852 - tester.getBottomLeft(bar).dy,
+        closeTo(34 + 393 * 8 / 750, 0.001),
+      );
+      expect(find.bySemanticsLabel('内容，标签'), findsNothing);
+      expect(find.byKey(const ValueKey('content-heart')), findsNothing);
+      expect(find.byKey(const ValueKey('content-plus')), findsNothing);
+      await tester.tap(find.bySemanticsLabel('我的，标签'));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('我的，标签，已选中'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('five fixed destinations preserve and reselect message branch', (
+  testWidgets('four fixed destinations preserve and reselect message branch', (
     tester,
   ) async {
     var reselected = -1;
@@ -134,7 +128,7 @@ void main() {
 
     expect(find.bySemanticsLabel('首页，标签，已选中'), findsOneWidget);
     expect(find.bySemanticsLabel('消息，标签，5 条未读'), findsOneWidget);
-    expect(find.bySemanticsLabel('内容，标签'), findsOneWidget);
+    expect(find.bySemanticsLabel('内容，标签'), findsNothing);
     expect(find.bySemanticsLabel('私人储物柜，标签'), findsOneWidget);
     expect(find.bySemanticsLabel('我的，标签'), findsOneWidget);
 
@@ -194,16 +188,16 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      shell(initialIndex: 2, state: AppShellDemoState.offline),
+      shell(initialIndex: 3, state: AppShellDemoState.offline),
     );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('shell-offline-banner')), findsOneWidget);
-    expect(find.bySemanticsLabel('内容，标签，已选中'), findsOneWidget);
+    expect(find.bySemanticsLabel('私人储物柜，标签，已选中'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('shell-offline-dismiss')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('shell-offline-banner')), findsNothing);
-    expect(find.bySemanticsLabel('内容，标签，已选中'), findsOneWidget);
+    expect(find.bySemanticsLabel('私人储物柜，标签，已选中'), findsOneWidget);
   });
 
   testWidgets('session and membership transitions block navigation and exit', (
@@ -276,7 +270,7 @@ void main() {
               child: child!,
             ),
             home: AppShellPage(
-              initialIndex: 2,
+              initialIndex: 4,
               onOpenScanner: (_, _) async => null,
               onOpenTogether: () {},
               onOpenParty: () {},
@@ -285,7 +279,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        for (final label in ['首页', '消息', '内容', '私人储物柜', '我的']) {
+        for (final label in ['首页', '消息', '私人储物柜', '我的']) {
           final destination = find.bySemanticsLabel(RegExp('^$label，标签'));
           expect(destination, findsOneWidget);
           final size = tester.getSize(destination);

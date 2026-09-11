@@ -34,8 +34,10 @@ class AppShellPage extends StatefulWidget {
     this.onOpenOrdering,
     this.onOpenAssets,
     this.onOpenEditProfile,
+    this.onOpenPersonalInfo,
     this.onOpenPersonalQr,
     this.onOpenSettings,
+    this.onOpenAbout,
     this.onOpenOrders,
     this.onSessionResetRequested,
     this.profileCoverStore,
@@ -67,8 +69,10 @@ class AppShellPage extends StatefulWidget {
     String coverAsset,
   )?
   onOpenEditProfile;
+  final VoidCallback? onOpenPersonalInfo;
   final VoidCallback? onOpenPersonalQr;
   final VoidCallback? onOpenSettings;
+  final VoidCallback? onOpenAbout;
   final VoidCallback? onOpenOrders;
   final VoidCallback? onSessionResetRequested;
   final ProfileCoverStore? profileCoverStore;
@@ -104,6 +108,7 @@ class _AppShellPageState extends State<AppShellPage> {
     _ShellDestination('私人储物柜', 'tabBar_bx.png', 'tabBar_bx_a.png'),
     _ShellDestination('我的', 'tabBar_my.png', 'tabBar_my_a.png'),
   ];
+  static const _primaryDestinationIndices = [0, 1, 3, 4];
 
   @override
   void initState() {
@@ -196,8 +201,10 @@ class _AppShellPageState extends State<AppShellPage> {
                 MyProfilePage(
                   onOpenAssets: widget.onOpenAssets,
                   onOpenEditProfile: widget.onOpenEditProfile,
+                  onOpenPersonalInfo: widget.onOpenPersonalInfo,
                   onOpenPersonalQr: widget.onOpenPersonalQr,
                   onOpenSettings: widget.onOpenSettings,
+                  onOpenAbout: widget.onOpenAbout,
                   onOpenOrders: widget.onOpenOrders,
                   onSessionResetRequested: widget.onSessionResetRequested,
                   coverStore: widget.profileCoverStore,
@@ -232,11 +239,15 @@ class _AppShellPageState extends State<AppShellPage> {
         bottomNavigationBar: IgnorePointer(
           ignoring: _navigationLocked,
           child: _LegacyBottomBar(
-            selectedIndex: _selectedIndex,
+            selectedIndex: _primaryDestinationIndices.indexOf(_selectedIndex),
             messageUnreadCount:
                 _systemNotificationsUnread + _friendConversationUnread,
-            destinations: _destinations,
-            onSelected: _selectDestination,
+            destinations: [
+              for (final index in _primaryDestinationIndices)
+                _destinations[index],
+            ],
+            onSelected: (index) =>
+                _selectDestination(_primaryDestinationIndices[index]),
           ),
         ),
       ),
@@ -508,7 +519,7 @@ class _LegacyBottomBar extends StatelessWidget {
       );
       // Share the legacy indicator centers with the icon hit areas.
       double centerFor(int index) =>
-          [60, 195, 330, 465, 598][index] * unit * 675 / 660;
+          [60, 195, 465, 598][index] * unit * 675 / 660;
       return SizedBox(
         height: 30 * unit + barHeight + bottomGap,
         child: Stack(
@@ -559,25 +570,27 @@ class _LegacyBottomBar extends StatelessWidget {
                         ),
                         child: Stack(
                           children: [
-                            AnimatedPositioned(
-                              duration: MediaQuery.disableAnimationsOf(context)
-                                  ? Duration.zero
-                                  : const Duration(milliseconds: 300),
-                              curve: Curves.ease,
-                              left: centerFor(selectedIndex) - 40 * unit,
-                              top: (barHeight - 80 * unit) / 2,
-                              width: 80 * unit,
-                              height: 80 * unit,
-                              child: const IgnorePointer(
-                                child: DecoratedBox(
-                                  key: ValueKey('shell-nav-indicator'),
-                                  decoration: BoxDecoration(
-                                    color: Color(0x70000000),
-                                    shape: BoxShape.circle,
+                            if (selectedIndex >= 0)
+                              AnimatedPositioned(
+                                duration:
+                                    MediaQuery.disableAnimationsOf(context)
+                                    ? Duration.zero
+                                    : const Duration(milliseconds: 300),
+                                curve: Curves.ease,
+                                left: centerFor(selectedIndex) - 40 * unit,
+                                top: (barHeight - 80 * unit) / 2,
+                                width: 80 * unit,
+                                height: 80 * unit,
+                                child: const IgnorePointer(
+                                  child: DecoratedBox(
+                                    key: ValueKey('shell-nav-indicator'),
+                                    decoration: BoxDecoration(
+                                      color: Color(0x70000000),
+                                      shape: BoxShape.circle,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
                             for (
                               var index = 0;
                               index < destinations.length;
@@ -591,7 +604,7 @@ class _LegacyBottomBar extends StatelessWidget {
                                 child: _LegacyNavItem(
                                   destination: destinations[index],
                                   selected: selectedIndex == index,
-                                  center: index == 2,
+                                  center: false,
                                   unit: unit,
                                   unreadCount: index == 1
                                       ? messageUnreadCount
