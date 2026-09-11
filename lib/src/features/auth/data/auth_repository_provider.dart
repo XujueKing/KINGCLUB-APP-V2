@@ -32,7 +32,37 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 class RealAuthRepository implements AuthRepository {
-  RealAuthRepository(this._client, this._sessionStore, {this.onAuthenticated});
+  RealAuthRepository(
+    this._client,
+    this._sessionStore, {
+    this.onAuthenticated,
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
+  final DateTime Function() _now;
+  DateTime? _mobileVerifiedAt;
+  static const mobileLoginWindow = Duration(minutes: 15);
+  bool _withinMobileWindow(DateTime? verifiedAt) {
+    if (verifiedAt == null) return false;
+    final age = _now().difference(verifiedAt);
+    return !age.isNegative && age < mobileLoginWindow;
+  }
+
+  Future<bool> canResumeWithoutSms() async {
+    if (_mobileVerifiedAt == null) {
+      final saved = await _sessionStore.readSession();
+      _mobileVerifiedAt = DateTime.tryParse('${saved?['mobileVerifiedAt']}');
+    }
+    if (_withinMobileWindow(_mobileVerifiedAt)) return true;
+    await clearLocalSession();
+    return false;
+  }
+
+  Future<void> clearLocalSession() async {
+    _mobileVerifiedAt = null;
+    _consents = null;
+    await _sessionStore.clearSession();
+  }
+
   final KingclubSecureClient _client;
   final SecureSessionStore _sessionStore;
   final void Function(AuthLoginResult)? onAuthenticated;
@@ -45,6 +75,11 @@ class RealAuthRepository implements AuthRepository {
   Future<AuthLoginResult?> _restoreSession() async {
     final saved = await _sessionStore.readSession();
     if (saved == null) return null;
+    _mobileVerifiedAt = DateTime.tryParse('${saved['mobileVerifiedAt']}');
+    if (!_withinMobileWindow(_mobileVerifiedAt)) {
+      await clearLocalSession();
+      throw const AuthFailure('MOBILE_REVERIFICATION_REQUIRED', '请重新验证手机号');
+    }
     try {
       try {
         return await refreshMembership();
@@ -136,7 +171,11 @@ class RealAuthRepository implements AuthRepository {
       'deviceId': await _sessionStore.deviceId(),
     });
     final snapshot = parseMembership(result);
-    await _sessionStore.saveSession(result);
+    _mobileVerifiedAt = _now();
+    await _sessionStore.saveSession({
+      ...result,
+      'mobileVerifiedAt': _mobileVerifiedAt!.toIso8601String(),
+    });
     onAuthenticated?.call(snapshot);
     return snapshot;
   }

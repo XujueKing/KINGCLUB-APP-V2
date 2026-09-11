@@ -62,12 +62,29 @@ Future<void> _clearCommerceAndLogin(BuildContext context) async {
     context,
     listen: false,
   ).read(authenticatedMemberProvider.notifier).clear();
-  await SecureSessionStore().clearSession();
+  final repository = ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(authRepositoryProvider);
+  if (repository is RealAuthRepository) {
+    await repository.clearLocalSession();
+  } else {
+    await SecureSessionStore().clearSession();
+  }
   if (!context.mounted) return;
   const MobileLoginRoute().go(context);
 }
 
-void _continueRealRegistration(BuildContext context) {
+Future<void> _continueRealRegistration(BuildContext context) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final repository = container.read(authRepositoryProvider);
+  if (repository is RealAuthRepository &&
+      !await repository.canResumeWithoutSms()) {
+    container.read(authenticatedMemberProvider.notifier).clear();
+    if (context.mounted) const MobileLoginRoute().go(context);
+    return;
+  }
+  if (!context.mounted) return;
   final member = ProviderScope.containerOf(
     context,
     listen: false,
@@ -183,6 +200,7 @@ class AuthBootstrapRoute extends GoRouteData with $AuthBootstrapRoute {
     return _ControlledRouteBackScope(
       onBack: () {},
       child: AuthBootstrapPage(
+        onReauthenticate: () => const MobileLoginRoute().go(context),
         onOpenTerms: () =>
             TermsConsentRoute(const ConsentRouteArgs(AgreementKind.terms))
                 .push<void>(context),
@@ -381,6 +399,9 @@ class MembershipImageSubmissionRoute extends GoRouteData
       child: _ControlledRouteBackScope(
         onBack: back,
         child: MembershipImageSubmissionPage(
+          onSwitchMobile: $extra.flowId == 'real-registration'
+              ? () => _clearCommerceAndLogin(context)
+              : null,
           flowId: $extra.flowId,
           onBack: back,
           onNext: () => MembershipReviewStatusRoute($extra).push<void>(context),

@@ -13,12 +13,14 @@ class MembershipImageSubmissionPage extends ConsumerStatefulWidget {
     required this.onBack,
     required this.onNext,
     required this.onInvalidFlow,
+    this.onSwitchMobile,
   });
 
   final String flowId;
   final VoidCallback onBack;
   final VoidCallback onNext;
   final VoidCallback onInvalidFlow;
+  final Future<void> Function()? onSwitchMobile;
 
   @override
   ConsumerState<MembershipImageSubmissionPage> createState() =>
@@ -31,6 +33,7 @@ class _MembershipImageSubmissionPageState
   final _uploadingSlots = <int>{};
   final _slotErrors = <int, String>{};
   bool _saving = false;
+  bool _switchingMobile = false;
   bool get _isReal => widget.flowId == 'real-registration';
 
   @override
@@ -127,9 +130,11 @@ class _MembershipImageSubmissionPageState
 
   @override
   Widget build(BuildContext context) {
-    final valid = _isReal
-        ? ref.watch(authenticatedMemberProvider)?.needsImages == true
-        : ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId);
+    final valid =
+        _switchingMobile ||
+        (_isReal
+            ? ref.watch(authenticatedMemberProvider)?.needsImages == true
+            : ref.read(mockRuntimeProvider).hasOnboardingFlow(widget.flowId));
     if (!valid) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) widget.onInvalidFlow();
@@ -157,6 +162,21 @@ class _MembershipImageSubmissionPageState
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
+          if (widget.onSwitchMobile != null)
+            TextButton(
+              key: const ValueKey('switch-registration-mobile'),
+              onPressed: _switchingMobile
+                  ? null
+                  : () async {
+                      setState(() => _switchingMobile = true);
+                      try {
+                        await widget.onSwitchMobile!();
+                      } finally {
+                        if (mounted) setState(() => _switchingMobile = false);
+                      }
+                    },
+              child: const Text('切换手机号'),
+            ),
           FilledButton(
             onPressed: _saving || _isReal ? null : _next,
             style: FilledButton.styleFrom(shape: const StadiumBorder()),

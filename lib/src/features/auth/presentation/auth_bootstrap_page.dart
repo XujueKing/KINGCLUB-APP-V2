@@ -15,12 +15,14 @@ class AuthBootstrapPage extends ConsumerWidget {
     required this.onAuthenticated,
     this.onOpenTerms,
     this.onOpenPrivacy,
+    this.onReauthenticate,
   });
 
   final VoidCallback onAnonymous;
   final VoidCallback onAuthenticated;
   final VoidCallback? onOpenTerms;
   final VoidCallback? onOpenPrivacy;
+  final VoidCallback? onReauthenticate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,6 +32,7 @@ class AuthBootstrapPage extends ConsumerWidget {
         onAuthenticated: onAuthenticated,
         onOpenTerms: onOpenTerms,
         onOpenPrivacy: onOpenPrivacy,
+        onReauthenticate: onReauthenticate ?? onAnonymous,
       );
     }
     ref.listen(bootstrapOutcomeProvider, (previous, next) {
@@ -102,11 +105,13 @@ class _RealBootstrap extends ConsumerStatefulWidget {
     required this.onAuthenticated,
     this.onOpenTerms,
     this.onOpenPrivacy,
+    required this.onReauthenticate,
   });
   final VoidCallback onAnonymous;
   final VoidCallback onAuthenticated;
   final VoidCallback? onOpenTerms;
   final VoidCallback? onOpenPrivacy;
+  final VoidCallback onReauthenticate;
   @override
   ConsumerState<_RealBootstrap> createState() => _RealBootstrapState();
 }
@@ -138,6 +143,11 @@ class _RealBootstrapState extends ConsumerState<_RealBootstrap> {
         widget.onAuthenticated();
       }
     } on AuthFailure catch (error) {
+      if (error.code == 'MOBILE_REVERIFICATION_REQUIRED' && mounted) {
+        ref.read(authenticatedMemberProvider.notifier).clear();
+        widget.onReauthenticate();
+        return;
+      }
       _showError(error.message);
     } catch (_) {
       _showError('网络连接暂不可用，点击继续重试');

@@ -18,6 +18,7 @@ class _Store extends SecureSessionStore {
     'apiKey': 'fixture-secret',
     'refreshToken': 'fixture-refresh',
     'refreshTokenVersion': 1,
+    'mobileVerifiedAt': DateTime.now().toIso8601String(),
     'refreshExpiresAt': DateTime.now()
         .add(const Duration(days: 2))
         .toIso8601String(),
@@ -79,6 +80,86 @@ class _Client extends KingclubSecureClient {
 }
 
 void main() {
+  testWidgets(
+    'expired mobile window opens phone entry rather than restarting identity',
+    (tester) async {
+      final now = DateTime.utc(2026, 9, 11, 1);
+      final store = _Store();
+      store.saved!['mobileVerifiedAt'] = now
+          .subtract(const Duration(minutes: 15))
+          .toIso8601String();
+      final client = _Client();
+      final container = ProviderContainer(
+        overrides: [
+          authRepositoryProvider.overrideWith(
+            (ref) => RealAuthRepository(
+              client,
+              store,
+              now: () => now,
+              onAuthenticated: ref
+                  .read(authenticatedMemberProvider.notifier)
+                  .update,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const KingClubApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('mobile-login-next')), findsOneWidget);
+      expect(find.byKey(const ValueKey('real-name-id-field')), findsNothing);
+      expect(client.calls, isEmpty);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  test('15 minute mobile window requires SMS at the boundary without automatic token refresh', () async {
+    final verified = DateTime.utc(2026, 9, 11, 0, 0);
+    for (final minutes in [14, 15, 16]) {
+      final store = _Store();
+      store.saved!['mobileVerifiedAt'] = verified.toIso8601String();
+      final client = _Client();
+      final repository = RealAuthRepository(
+        client,
+        store,
+        now: () => verified.add(Duration(minutes: minutes)),
+      );
+      if (minutes < 15) {
+        expect((await repository.restoreSession())?.needsImages, true);
+      } else {
+        await expectLater(
+          repository.restoreSession(),
+          throwsA(
+            isA<AuthFailure>().having(
+              (e) => e.code,
+              'code',
+              'MOBILE_REVERIFICATION_REQUIRED',
+            ),
+          ),
+        );
+        expect(store.saved, isNull);
+        expect(client.calls, isEmpty);
+      }
+    }
+  });
+  test(
+    'refreshing member data does not extend the mobile verification window',
+    () async {
+      final verified = DateTime.utc(2026, 9, 11);
+      var now = verified.add(const Duration(minutes: 14));
+      final store = _Store();
+      store.saved!['mobileVerifiedAt'] = verified.toIso8601String();
+      final repository = RealAuthRepository(_Client(), store, now: () => now);
+      await repository.restoreSession();
+      await repository.refreshMembership();
+      now = verified.add(const Duration(minutes: 15));
+      expect(await repository.canResumeWithoutSms(), false);
+    },
+  );
   testWidgets(
     'pending cold restoration shows the existing welcome instead of a loading page',
     (tester) async {
@@ -213,6 +294,18 @@ void main() {
         await tester.pumpAndSettle();
         expect(client.calls.length, requestsBeforeContinue);
         expect(find.text('完善会员形象资料'), findsOneWidget);
+        if (launch == 1) {
+          await tester.tap(
+            find.byKey(const ValueKey('switch-registration-mobile')),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const ValueKey('mobile-login-next')),
+            findsOneWidget,
+          );
+          expect(store.saved, isNull);
+          expect(container.read(authenticatedMemberProvider), isNull);
+        }
         await tester.pumpWidget(const SizedBox());
         container.dispose();
       }
