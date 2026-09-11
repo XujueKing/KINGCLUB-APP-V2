@@ -1,5 +1,9 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-12 审核理由按空间展开（最新）
+
+- “为什么需要等待审核？”按可用高度（扣除安全区/头部）、屏宽与系统字体决定默认展开：长屏且空间充足展开，短屏或大字体收起；用户仍可手动切换，同尺寸刷新不重置选择。该折叠项无背景、无点击灰色矩形或水波纹。
+
 ## 2026-09-12 USB调试反复离线处理（最新）
 
 - 设备未物理移动也频繁断连。日志确认ADB37.0.1 LIBADBUSB反复AdbUsbConnection读取失败；Windows设备/调试开关仍正常。切换官方兼容变量ADB_USB_LEGACY=1后server-status为NATIVE，无需拔插即可重新识别。已设置Windows用户环境变量；现有Codex/Flutter进程可能保留旧环境，启动或重启ADB前显式设置 `$env:ADB_USB_LEGACY='1'` 并使用 `D:\SDK\Android\platform-tools\adb.exe`。不要反复kill-server后要求用户拔插，先查backend及adb.log。长期稳定性仍需观察。

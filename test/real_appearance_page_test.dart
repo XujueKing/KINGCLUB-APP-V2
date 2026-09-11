@@ -238,12 +238,13 @@ void main() {
             ),
           );
       for (final scenario in [
-        (size: const Size(320, 568), scale: 1.0, score: 77),
-        (size: const Size(360, 640), scale: 1.0, score: 77),
-        (size: const Size(393, 852), scale: 1.0, score: 77),
-        (size: const Size(430, 932), scale: 1.0, score: 77),
-        (size: const Size(320, 568), scale: 2.0, score: 77),
-        (size: const Size(360, 800), scale: 1.0, score: null),
+        (size: const Size(320, 568), scale: 1.0, score: 77, open: false),
+        (size: const Size(360, 640), scale: 1.0, score: 77, open: false),
+        (size: const Size(393, 852), scale: 1.0, score: 77, open: true),
+        (size: const Size(430, 932), scale: 1.0, score: 77, open: true),
+        (size: const Size(320, 568), scale: 2.0, score: 77, open: false),
+        (size: const Size(430, 932), scale: 2.0, score: 77, open: false),
+        (size: const Size(360, 800), scale: 1.0, score: null, open: false),
       ]) {
         final score = scenario.score;
         tester.view.physicalSize = scenario.size;
@@ -275,10 +276,12 @@ void main() {
         expect(find.text('希望更快了解审核进度？'), findsOneWidget);
         expect(find.text('为什么需要等待审核？'), findsOneWidget);
         final reason = find.textContaining('照片清晰度、拍摄角度或光线');
-        expect(reason, findsNothing);
-        await tester.ensureVisible(find.text('为什么需要等待审核？'));
-        await tester.tap(find.text('为什么需要等待审核？'));
-        await tester.pumpAndSettle();
+        expect(reason, scenario.open ? findsOneWidget : findsNothing);
+        if (!scenario.open) {
+          await tester.ensureVisible(find.text('为什么需要等待审核？'));
+          await tester.tap(find.text('为什么需要等待审核？'));
+          await tester.pumpAndSettle();
+        }
         expect(reason, findsOneWidget);
         expect(
           tester.getRect(find.widgetWithText(FilledButton, '刷新状态')).bottom,

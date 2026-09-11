@@ -102,6 +102,12 @@ class _RealMembershipStatusPageState
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).height < 740;
+    final media = MediaQuery.of(context);
+    final usableHeight = media.size.height - media.padding.vertical - 56;
+    final textScale = media.textScaler.scale(14) / 14;
+    final narrowScreenFactor = (360 / media.size.width).clamp(1.0, 1.25);
+    final expandReviewReason =
+        usableHeight >= 700 * textScale * narrowScreenFactor;
     final member = ref.watch(authenticatedMemberProvider);
     final approved = member?.canEnterApp == true;
     final blocked = member?.registrationStatus == 'blocked';
@@ -262,31 +268,47 @@ class _RealMembershipStatusPageState
                           if (!approved) ...[
                             const SizedBox(height: 16),
                             if (member.registrationStatus == 'pending_review')
-                              const ExpansionTile(
-                                key: ValueKey('review-reason'),
-                                tilePadding: EdgeInsets.zero,
-                                childrenPadding: EdgeInsets.only(bottom: 8),
-                                shape: Border(),
-                                collapsedShape: Border(),
-                                iconColor: KingColors.brandStrong,
-                                collapsedIconColor: KingColors.brandStrong,
-                                title: Text(
-                                  '为什么需要等待审核？',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: KingColors.brandStrong,
-                                  ),
+                              Theme(
+                                data: Theme.of(context).copyWith(
+                                  splashFactory: NoSplash.splashFactory,
+                                  splashColor: Colors.transparent,
+                                  highlightColor: Colors.transparent,
+                                  hoverColor: Colors.transparent,
+                                  focusColor: Colors.transparent,
                                 ),
-                                children: [
-                                  Text(
-                                    '照片清晰度、拍摄角度或光线可能影响自动评分，因此需要人工进一步确认。您也可以更换清晰、光线均匀的形象照片后重新提交。评分仅供本次申请参考。',
+                                child: ExpansionTile(
+                                  key: ValueKey(
+                                    'review-reason-$expandReviewReason',
+                                  ),
+                                  initiallyExpanded: expandReviewReason,
+                                  backgroundColor: Colors.transparent,
+                                  collapsedBackgroundColor: Colors.transparent,
+                                  tilePadding: EdgeInsets.zero,
+                                  childrenPadding: const EdgeInsets.only(
+                                    bottom: 8,
+                                  ),
+                                  shape: const Border(),
+                                  collapsedShape: const Border(),
+                                  iconColor: KingColors.brandStrong,
+                                  collapsedIconColor: KingColors.brandStrong,
+                                  title: const Text(
+                                    '为什么需要等待审核？',
                                     style: TextStyle(
-                                      fontSize: 13,
-                                      height: 1.45,
-                                      color: KingColors.textSecondary,
+                                      fontSize: 14,
+                                      color: KingColors.brandStrong,
                                     ),
                                   ),
-                                ],
+                                  children: const [
+                                    Text(
+                                      '照片清晰度、拍摄角度或光线可能影响自动评分，因此需要人工进一步确认。您也可以更换清晰、光线均匀的形象照片后重新提交。评分仅供本次申请参考。',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        height: 1.45,
+                                        color: KingColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               )
                             else
                               const Text(
