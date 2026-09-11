@@ -159,11 +159,7 @@ GoRouter appRouter(Ref ref) {
       if (realMode &&
           member != null &&
           (member.canEnterApp || member.needsImages) &&
-          {
-            '/auth/mobile',
-            '/auth/welcome',
-            '/onboarding/identity',
-          }.contains(state.uri.path)) {
+          {'/auth/mobile', '/onboarding/identity'}.contains(state.uri.path)) {
         return '/auth/bootstrap';
       }
       if (realMode &&
@@ -214,7 +210,17 @@ class LegacyWelcomeRoute extends GoRouteData with $LegacyWelcomeRoute {
       child: _ControlledRouteBackScope(
         onBack: SystemNavigator.pop,
         child: LegacyWelcomePage(
-          onNext: () => const MobileLoginRoute().push<void>(context),
+          onNext: () {
+            final member = ProviderScope.containerOf(
+              context,
+              listen: false,
+            ).read(authenticatedMemberProvider);
+            if (member?.isRealSession == true) {
+              const AuthBootstrapRoute().go(context);
+            } else {
+              const MobileLoginRoute().push<void>(context);
+            }
+          },
           onOpenTerms: () =>
               TermsConsentRoute(const ConsentRouteArgs(AgreementKind.terms))
                   .push<void>(context),
@@ -360,7 +366,7 @@ class MembershipImageSubmissionRoute extends GoRouteData
   @override
   Page<void> buildPage(BuildContext context, GoRouterState state) {
     void back() => $extra.flowId == 'real-registration'
-        ? SystemNavigator.pop()
+        ? const LegacyWelcomeRoute().go(context)
         : context.canPop()
         ? context.pop()
         : RealNameAdultVerificationRoute($extra).go(context);

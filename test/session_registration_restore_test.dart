@@ -6,6 +6,7 @@ import 'package:kingclub/src/core/networking/kingclub_secure_client.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/auth/data/auth_repository_provider.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
+import 'package:kingclub/src/features/auth/presentation/legacy_welcome_page.dart';
 import 'package:kingclub/src/navigation/app_router.dart';
 
 class _Store extends SecureSessionStore {
@@ -152,6 +153,23 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('完善会员形象资料'), findsOneWidget);
         expect(find.byKey(const ValueKey('real-name-id-field')), findsNothing);
+        await tester.tap(find.byIcon(Icons.arrow_back));
+        await tester.pumpAndSettle();
+        expect(
+          container
+              .read(appRouterProvider)
+              .routeInformationProvider
+              .value
+              .uri
+              .path,
+          '/auth/welcome',
+        );
+        expect(container.read(authenticatedMemberProvider)?.needsImages, true);
+        tester
+            .widget<LegacyWelcomePage>(find.byType(LegacyWelcomePage))
+            .onNext();
+        await tester.pumpAndSettle();
+        expect(find.text('完善会员形象资料'), findsOneWidget);
         await tester.pumpWidget(const SizedBox());
         container.dispose();
       }
