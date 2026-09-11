@@ -49,12 +49,7 @@ class KingRegistrationStepTitle extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     '当前步骤 $step/5',
     textAlign: TextAlign.center,
-    style: const TextStyle(
-      color: Color(0xB3C9B69E),
-      fontSize: 13,
-      fontWeight: FontWeight.w400,
-      height: 1.2,
-    ),
+    style: KingTheme.headerTitleStyle,
   );
 }
 
