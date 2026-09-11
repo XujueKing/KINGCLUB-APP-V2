@@ -1,5 +1,10 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-12 USB调试反复离线处理（最新）
+
+- 设备未物理移动也频繁断连。日志确认ADB37.0.1 LIBADBUSB反复AdbUsbConnection读取失败；Windows设备/调试开关仍正常。切换官方兼容变量ADB_USB_LEGACY=1后server-status为NATIVE，无需拔插即可重新识别。已设置Windows用户环境变量；现有Codex/Flutter进程可能保留旧环境，启动或重启ADB前显式设置 `$env:ADB_USB_LEGACY='1'` 并使用 `D:\SDK\Android\platform-tools\adb.exe`。不要反复kill-server后要求用户拔插，先查backend及adb.log。长期稳定性仍需观察。
+- a9d214b拒绝与实名限制新包已成功安装并启动，非待安装。没有把真实测试会员改成拒绝/限制。
+
 ## 2026-09-12 拒绝原因与跨号码实名限制（最新）
 
 - 用户确认黑名单按同一实名身份限制。后端030已部署：blocked准入状态、会员公开原因、身份HMAC限制及管理审计；登录/K104返回publicDecisionReason，拒绝和限制不允许上传/评分/偏好覆盖。新实名成功后按证件摘要拦截跨账号；历史管理首次限制需私有核对原身份与已验证摘要，无需重复付费核验。
