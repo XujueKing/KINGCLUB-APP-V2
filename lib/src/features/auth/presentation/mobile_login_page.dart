@@ -310,17 +310,6 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                         ),
                       ),
                     ),
-                    const Positioned(
-                      left: 72,
-                      right: 72,
-                      top: 4,
-                      height: 48,
-                      child: IgnorePointer(
-                        child: Center(
-                          child: KingRegistrationStepTitle(step: 1),
-                        ),
-                      ),
-                    ),
                     Positioned(
                       left: KingBackButton.leftOffset(context),
                       top: KingBackButton.safeAreaOffset.dy,
