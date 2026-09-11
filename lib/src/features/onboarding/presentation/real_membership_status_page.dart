@@ -42,7 +42,8 @@ class _RealMembershipStatusPageState
     final member = ref.read(authenticatedMemberProvider);
     if (member == null ||
         member.accountStatus != 'active' ||
-        member.membershipStatus != 'active') {
+        member.membershipStatus != 'active' ||
+        ['rejected', 'blocked'].contains(member.registrationStatus)) {
       if (mounted) setState(() => _scoreLoading = false);
       return;
     }
@@ -103,6 +104,8 @@ class _RealMembershipStatusPageState
     final compact = MediaQuery.sizeOf(context).height < 740;
     final member = ref.watch(authenticatedMemberProvider);
     final approved = member?.canEnterApp == true;
+    final blocked = member?.registrationStatus == 'blocked';
+    final rejected = member?.registrationStatus == 'rejected';
     final restricted =
         member == null ||
         member.accountStatus != 'active' ||
@@ -113,7 +116,8 @@ class _RealMembershipStatusPageState
             'pending_review' => '资料已收到，正在等待审核',
             'photos_required' => '实名认证已通过，请继续完善会员形象照片',
             'changes_required' => '会员资料需要补充，请按审核要求重新提交',
-            'rejected' => '本次申请暂未通过，可联系营销了解详情',
+            'rejected' => '本次申请暂未符合俱乐部入会标准。',
+            'blocked' => '您的入会资格已被限制，更换手机号或照片不会解除此限制。',
             'approved' => '您的会员申请已通过，开启 KINGCLUB 之旅。',
             _ => '暂时无法确认注册进度，请刷新重试',
           };
@@ -149,7 +153,13 @@ class _RealMembershipStatusPageState
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          approved ? '欢迎加入 KINGCLUB' : '感谢您的申请',
+                          approved
+                              ? '欢迎加入 KINGCLUB'
+                              : blocked
+                              ? '入会资格已受限'
+                              : rejected
+                              ? '本次申请未通过'
+                              : '感谢您的申请',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 8),
@@ -160,7 +170,48 @@ class _RealMembershipStatusPageState
                             height: 1.5,
                           ),
                         ),
-                        if (!restricted) ...[
+                        if (!restricted && (blocked || rejected)) ...[
+                          const SizedBox(height: 16),
+                          ExpansionTile(
+                            tilePadding: EdgeInsets.zero,
+                            shape: const Border(),
+                            collapsedShape: const Border(),
+                            iconColor: KingColors.brandStrong,
+                            collapsedIconColor: KingColors.brandStrong,
+                            title: const Text(
+                              '查看具体原因',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: KingColors.brandStrong,
+                              ),
+                            ),
+                            children: [
+                              Text(
+                                member.publicDecisionReason
+                                            ?.trim()
+                                            .isNotEmpty ==
+                                        true
+                                    ? member.publicDecisionReason!.trim()
+                                    : '暂无详细说明。如需了解详情或申请复核，请联系俱乐部工作人员。',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  height: 1.45,
+                                  color: KingColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            '如对决定有疑问，可联系俱乐部工作人员申请复核。',
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.45,
+                              color: KingColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                        if (!restricted && !blocked && !rejected) ...[
                           SizedBox(height: compact ? 16 : 20),
                           Container(
                             padding: EdgeInsets.all(compact ? 12 : 16),

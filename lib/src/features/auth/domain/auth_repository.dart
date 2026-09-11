@@ -12,6 +12,7 @@ class AuthLoginResult {
     this.accountStatus = 'active',
     this.isRealSession = false,
     this.onboardingFlowId,
+    this.publicDecisionReason,
   });
   final bool isNewMembership;
   final String membershipStatus;
@@ -19,6 +20,7 @@ class AuthLoginResult {
   final String accountStatus;
   final bool isRealSession;
   final String? onboardingFlowId;
+  final String? publicDecisionReason;
   bool get canEnterApp =>
       accountStatus == 'active' &&
       membershipStatus == 'active' &&

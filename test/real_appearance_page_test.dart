@@ -112,6 +112,58 @@ class _Auth extends RealAuthRepository {
 
 void main() {
   testWidgets(
+    'rejected and blocked members see only their public decision reason',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          realIdentityRepositoryProvider.overrideWithValue(_Photos()),
+        ],
+      );
+      addTearDown(container.dispose);
+      for (final status in ['rejected', 'blocked']) {
+        final member = RealAuthRepository.parseMembership({
+          'account': {'accountStatus': 'active'},
+          'membership': {
+            'status': 'active',
+            'registrationStatus': status,
+            'publicDecisionReason': '已核实的公开原因',
+          },
+        });
+        container.read(authenticatedMemberProvider.notifier).update(member);
+        expect(member.canEnterApp, isFalse);
+        expect(member.needsImages, isFalse);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: KingTheme.dark,
+              home: RealMembershipStatusPage(
+                key: ValueKey(status),
+                onApproved: () {},
+                onIdentity: () {},
+                onBack: () {},
+                onImages: () {},
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text(status == 'blocked' ? '入会资格已受限' : '本次申请未通过'),
+          findsOneWidget,
+        );
+        expect(find.text('形象参考评分'), findsNothing);
+        expect(find.text('更换形象照片'), findsNothing);
+        expect(find.text('进入 KINGCLUB'), findsNothing);
+        expect(find.text('希望更快了解审核进度？'), findsNothing);
+        await tester.tap(find.text('查看具体原因'));
+        await tester.pumpAndSettle();
+        expect(find.text('已核实的公开原因'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+  testWidgets(
     'approved welcome enters directly while restricted accounts cannot',
     (tester) async {
       final photos = _Photos()..score = 88;

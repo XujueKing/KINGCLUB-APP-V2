@@ -200,6 +200,9 @@ class RealAuthRepository implements AuthRepository {
       isNewMembership: result['isNewMembership'] == true,
       membershipStatus: '${membership['status']}',
       registrationStatus: '${membership['registrationStatus'] ?? 'unknown'}',
+      publicDecisionReason: membership['publicDecisionReason'] is String
+          ? membership['publicDecisionReason'] as String
+          : null,
       accountStatus: '${(result['account'] as Map)['accountStatus']}',
       isRealSession: true,
     );
