@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../../../core/design_system/king_components.dart';
+import '../../../core/design_system/king_theme.dart';
+import '../data/real_identity_repository.dart';
 
 class RealMembershipStatusPage extends ConsumerStatefulWidget {
   const RealMembershipStatusPage({
@@ -26,6 +28,44 @@ class _RealMembershipStatusPageState
     extends ConsumerState<RealMembershipStatusPage> {
   bool _loading = false;
   String? _error;
+  num? _score;
+  bool _scoreLoading = true;
+  String? _scoreError;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_loadScore);
+  }
+
+  Future<void> _loadScore() async {
+    final member = ref.read(authenticatedMemberProvider);
+    if (member == null ||
+        member.accountStatus != 'active' ||
+        member.membershipStatus != 'active') {
+      if (mounted) setState(() => _scoreLoading = false);
+      return;
+    }
+    try {
+      final status = await ref
+          .read(realIdentityRepositoryProvider)
+          .appearanceStatus();
+      final result = status['result'];
+      final value = result is Map ? result['score'] : null;
+      if (mounted) {
+        setState(() {
+          _score = value is num && value.isFinite && value >= 0 && value <= 100
+              ? value
+              : null;
+          _scoreError = null;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _scoreError = '评分暂未加载，您可以稍后刷新');
+    } finally {
+      if (mounted) setState(() => _scoreLoading = false);
+    }
+  }
 
   Future<void> _refresh() async {
     if (_loading) return;
@@ -46,6 +86,8 @@ class _RealMembershipStatusPageState
         widget.onIdentity();
       } else if (state.needsImages) {
         widget.onImages?.call();
+      } else {
+        await _loadScore();
       }
     } on AuthFailure catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -66,50 +108,159 @@ class _RealMembershipStatusPageState
     final message = restricted
         ? '会员状态暂不可用，请重新登录或联系客服'
         : switch (member.registrationStatus) {
-            'pending_review' => '入会资格审核中，请耐心等待',
+            'pending_review' => '资料已收到，正在等待审核',
             'photos_required' => '实名认证已通过，请继续完善会员形象照片',
             'changes_required' => '会员资料需要补充，请按审核要求重新提交',
-            'rejected' => '暂未通过入会审核，请联系客服',
+            'rejected' => '本次申请暂未通过，可联系营销了解详情',
             'approved' => '注册已通过，请刷新进入首页',
             _ => '暂时无法确认注册进度，请刷新重试',
           };
     return Scaffold(
       appBar: AppBar(
-        leadingWidth: 85,
+        leadingWidth: KingBackButton.leftOffset(context) + 48,
         toolbarHeight: 56,
         title: const Text('会员注册状态'),
         leading: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18.5, vertical: 4),
+          padding: EdgeInsets.only(
+            left: KingBackButton.leftOffset(context),
+            top: 4,
+            bottom: 4,
+          ),
           child: KingBackButton(onPressed: widget.onBack),
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            width: KingBackButton.contentWidth(context),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.person_outline, size: 48),
-                const SizedBox(height: 24),
-                Text(message, textAlign: TextAlign.center),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child: Text(_error!, textAlign: TextAlign.center),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(top: 24, bottom: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          !restricted && member.registrationStatus == 'approved'
+                              ? '欢迎加入 KINGCLUB'
+                              : '感谢您的申请',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          message,
+                          style: const TextStyle(
+                            color: KingColors.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
+                        if (!restricted) ...[
+                          const SizedBox(height: 28),
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: KingColors.surface,
+                              border: Border.all(color: KingColors.border),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Column(
+                              children: [
+                                const Text(
+                                  '形象参考评分',
+                                  style: TextStyle(
+                                    color: KingColors.textSecondary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _score == null
+                                      ? '—'
+                                      : _score!.toStringAsFixed(0),
+                                  key: const ValueKey(
+                                    'membership-appearance-score',
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 56,
+                                    fontWeight: FontWeight.w300,
+                                    color: KingColors.brandStrong,
+                                  ),
+                                ),
+                                Text(
+                                  _scoreLoading
+                                      ? '正在读取评分'
+                                      : _scoreError ??
+                                            (_score == null
+                                                ? '评分结果待确认'
+                                                : '三张照片平均分 · 满分 100'),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: KingColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            '自动评分是本次会员申请的参考信息，不代表对个人价值的评价。您可以更换形象照片，最终结果以会员审核为准。',
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.6,
+                              color: KingColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          const Text(
+                            '希望更快了解审核进度？',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: KingColors.brandStrong,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            '可联系为您服务的营销人员，协助跟进审核、确认需要补充的资料。',
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.6,
+                              color: KingColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                        if (_error != null) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            _error!,
+                            style: const TextStyle(
+                              color: KingColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _loading ? null : _refresh,
-                  child: Text(_loading ? '正在刷新' : '刷新状态'),
                 ),
-                TextButton(onPressed: widget.onBack, child: const Text('返回登录')),
                 if (!restricted &&
                     member.registrationStatus == 'pending_review')
                   TextButton(
                     onPressed: widget.onImages,
                     child: const Text('更换形象照片'),
                   ),
+                SizedBox(
+                  height: 45,
+                  child: FilledButton(
+                    onPressed: _loading ? null : _refresh,
+                    style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                    child: Text(_loading ? '正在刷新' : '刷新状态'),
+                  ),
+                ),
+                TextButton(onPressed: widget.onBack, child: const Text('返回登录')),
+                const SizedBox(height: 16),
               ],
             ),
           ),

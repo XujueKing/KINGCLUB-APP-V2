@@ -12,6 +12,8 @@ import 'package:kingclub/src/features/onboarding/data/real_identity_repository.d
 import 'package:kingclub/src/features/onboarding/presentation/membership_image_submission_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/style_music_preferences_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/drink_event_preferences_page.dart';
+import 'package:kingclub/src/features/onboarding/presentation/real_membership_status_page.dart';
+import 'package:kingclub/src/core/design_system/king_theme.dart';
 
 class _Photos extends RealIdentityRepository {
   _Photos()
@@ -23,6 +25,7 @@ class _Photos extends RealIdentityRepository {
   final slots = <String>[];
   var version = 1;
   var submits = 0;
+  num? score;
   String state = 'draft';
   Map<String, dynamic> draft = {
     'styles': <String>[],
@@ -67,6 +70,7 @@ class _Photos extends RealIdentityRepository {
 
   @override
   Future<Map<String, dynamic>> appearanceStatus() async => {
+    'result': {'score': score},
     'state': state,
     'version': version,
     'photos': slots
@@ -107,6 +111,57 @@ class _Auth extends RealAuthRepository {
 }
 
 void main() {
+  testWidgets(
+    'review displays saved score without resubmitting and handles missing score',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(360, 800);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final photos = _Photos()..score = 77;
+      final container = ProviderContainer(
+        overrides: [realIdentityRepositoryProvider.overrideWithValue(photos)],
+      );
+      addTearDown(container.dispose);
+      container
+          .read(authenticatedMemberProvider.notifier)
+          .update(
+            const AuthLoginResult(
+              isNewMembership: false,
+              membershipStatus: 'active',
+              registrationStatus: 'pending_review',
+              isRealSession: true,
+            ),
+          );
+      for (final score in <num?>[77, null]) {
+        photos.score = score;
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: KingTheme.dark,
+              home: RealMembershipStatusPage(
+                key: ValueKey(score),
+                onApproved: () {},
+                onIdentity: () {},
+                onBack: () {},
+                onImages: () {},
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(score == null ? '评分结果待确认' : '77'), findsOneWidget);
+        expect(find.text('希望更快了解审核进度？'), findsOneWidget);
+        expect(
+          tester.getRect(find.widgetWithText(FilledButton, '刷新状态')).bottom,
+          lessThan(800),
+        );
+        expect(photos.submits, 0);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
   testWidgets(
     'style and music save a draft, only final interest page submits admission',
     (tester) async {
