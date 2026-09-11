@@ -502,10 +502,13 @@ class _LegacyBottomBar extends StatelessWidget {
       final barHeight = 120 * unit - 1;
       // Keep a small visual gap above the actual system navigation area.
       // The mini-program's fixed 80rpx gap over-reserves space on Android.
-      final bottomGap = (MediaQuery.paddingOf(context).bottom + 8 * unit)
-          .clamp(12 * unit, double.infinity);
+      final bottomGap = (MediaQuery.paddingOf(context).bottom + 8 * unit).clamp(
+        12 * unit,
+        double.infinity,
+      );
       // Share the legacy indicator centers with the icon hit areas.
-      double centerFor(int index) => [60, 195, 330, 465, 598][index] * unit;
+      double centerFor(int index) =>
+          [60, 195, 330, 465, 598][index] * unit * 690 / 660;
       return SizedBox(
         height: 30 * unit + barHeight + bottomGap,
         child: Stack(
@@ -519,10 +522,10 @@ class _LegacyBottomBar extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Color(0x00000000),
-                        Color(0xDD000000),
-                        Colors.black,
+                        Color(0x10000000),
+                        Color(0x80000000),
                       ],
-                      stops: [0, 0.5, 0.86],
+                      stops: [0, 0.85, 1],
                     ),
                   ),
                 ),
@@ -535,13 +538,29 @@ class _LegacyBottomBar extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(barHeight / 2),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                     child: SizedBox(
                       key: const ValueKey('shell-bottom-bar'),
-                      width: 660 * unit,
+                      width: 690 * unit,
                       height: barHeight,
-                      child: ColoredBox(
-                        color: const Color(0xEE1A1611),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(barHeight / 2),
+                          border: Border.all(
+                            color: const Color(0x38FFFFFF),
+                            width: 0.7,
+                          ),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0x70494035),
+                              Color(0x551A1611),
+                              Color(0x70332D26),
+                            ],
+                            stops: [0, 0.48, 1],
+                          ),
+                        ),
                         child: Stack(
                           children: [
                             AnimatedPositioned(
