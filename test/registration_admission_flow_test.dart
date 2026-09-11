@@ -9,6 +9,7 @@ import 'package:kingclub/src/features/auth/presentation/mobile_login_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/membership_image_submission_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/membership_review_status_page.dart';
 import 'package:kingclub/src/features/onboarding/presentation/real_name_adult_verification_page.dart';
+import 'package:kingclub/src/features/onboarding/presentation/style_music_preferences_page.dart';
 
 Widget _app(MockRuntime runtime, Widget child) => ProviderScope(
   overrides: [mockRuntimeProvider.overrideWithValue(runtime)],
@@ -60,6 +61,44 @@ Future<void> _addPhoto(WidgetTester tester, String source) async {
 }
 
 void main() {
+  testWidgets(
+    'style preferences keep NEXT visible and remove redundant progress and skip',
+    (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      for (final size in [
+        const Size(360, 800),
+        const Size(393, 852),
+        const Size(430, 932),
+      ]) {
+        await tester.binding.setSurfaceSize(size);
+        final runtime = MockRuntime();
+        await tester.pumpWidget(
+          _app(
+            runtime,
+            StyleMusicPreferencesPage(
+              flowId: runtime.startOnboarding(),
+              onBack: () {},
+              onNext: () {},
+              onInvalidFlow: () {},
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(find.byType(LinearProgressIndicator), findsNothing);
+        expect(find.text('暂时跳过'), findsNothing);
+        expect(find.text('步骤 3/4'), findsNothing);
+        final next = tester.getRect(find.widgetWithText(FilledButton, 'NEXT'));
+        expect(next.bottom, lessThan(size.height));
+        expect(
+          tester
+              .getRect(find.byKey(const ValueKey('preference-big_room')))
+              .bottom,
+          lessThan(next.top),
+        );
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
   testWidgets(
     'registration back arrows share safe area position and small glyph',
     (tester) async {

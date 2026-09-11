@@ -147,8 +147,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('小清新'));
       await tester.tap(find.text('HOUSE'));
-      await tester.ensureVisible(find.text('下一步'));
-      await tester.tap(find.text('下一步'));
+      await tester.ensureVisible(find.text('NEXT'));
+      await tester.tap(find.text('NEXT'));
       await tester.pumpAndSettle();
       expect(advanced, true);
       expect(photos.finalizations, [false]);

@@ -44,7 +44,6 @@ class OnboardingScaffold extends StatelessWidget {
                 ),
                 child: KingBackButton(onPressed: onBack),
               ),
-        title: Text('步骤 $step/4'),
       ),
       body: SafeArea(
         child: Column(
@@ -55,19 +54,13 @@ class OnboardingScaffold extends StatelessWidget {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 600),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        LinearProgressIndicator(
-                          value: step / 4,
-                          minHeight: 3,
-                          backgroundColor: KingColors.border,
-                        ),
-                        const SizedBox(height: 28),
                         Text(
                           title,
-                          style: Theme.of(context).textTheme.headlineMedium,
+                          style: Theme.of(context).textTheme.headlineSmall,
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -75,7 +68,7 @@ class OnboardingScaffold extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: KingColors.textSecondary),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 20),
                         child,
                       ],
                     ),
@@ -120,10 +113,10 @@ class PreferenceSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: 8,
+          runSpacing: 8,
           children: options.map((option) {
             final isSelected = selected.contains(option.id);
             return FilterChip(
@@ -146,7 +139,7 @@ class PreferenceSection extends StatelessWidget {
                 width: isSelected ? 1.2 : 1,
               ),
               shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: VisualDensity.compact,
               onSelected: (_) => onChanged(option.id),

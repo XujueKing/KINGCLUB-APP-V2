@@ -97,11 +97,7 @@ class _StyleMusicPreferencesPageState
     }
   }
 
-  Future<void> _continue({bool skip = false}) async {
-    if (skip) {
-      _styles.clear();
-      _music.clear();
-    }
+  Future<void> _continue() async {
     setState(() => _saving = true);
     if (_isReal) {
       try {
@@ -145,8 +141,27 @@ class _StyleMusicPreferencesPageState
     return OnboardingScaffold(
       step: 3,
       title: '你的风格偏好',
-      subtitle: '可多选，也可以暂时跳过；偏好不作为实名或会员审核硬门槛。',
+      subtitle: '选择你喜欢的着装与音乐，可多选。',
       onBack: widget.onBack,
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 45,
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _saving || (_isReal && !_loaded) ? null : _continue,
+              style: FilledButton.styleFrom(shape: const StadiumBorder()),
+              child: _saving ? const _ButtonProgress() : const Text('NEXT'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'SHANGHAI . ZHUZHOU',
+            style: TextStyle(color: Color(0xB3C9B69E), fontSize: 13),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -163,25 +178,12 @@ class _StyleMusicPreferencesPageState
             selected: _styles,
             onChanged: (value) => _toggle(_styles, value),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
           PreferenceSection(
             title: '音乐类型',
             options: _musicOptions,
             selected: _music,
             onChanged: (value) => _toggle(_music, value),
-          ),
-          const SizedBox(height: 32),
-          FilledButton(
-            onPressed: _saving || (_isReal && !_loaded) ? null : _continue,
-            style: FilledButton.styleFrom(shape: const StadiumBorder()),
-            child: _saving ? const _ButtonProgress() : const Text('下一步'),
-          ),
-          const SizedBox(height: 10),
-          TextButton(
-            onPressed: _saving || (_isReal && !_loaded)
-                ? null
-                : () => _continue(skip: true),
-            child: const Text('暂时跳过'),
           ),
         ],
       ),
