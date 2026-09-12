@@ -120,7 +120,12 @@ class LegacyConversationTabs extends StatelessWidget {
       selected: selected,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: onTap,
+        onTap: onTap == null
+            ? null
+            : () {
+                FocusScope.of(context).unfocus();
+                onTap();
+              },
         child: Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: Text(
@@ -173,4 +178,79 @@ class LegacyConversationTabs extends StatelessWidget {
       ),
     );
   }
+}
+
+class LegacyConversationSearch extends StatelessWidget {
+  const LegacyConversationSearch({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+    this.hint = '搜索聊天',
+  });
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+  final String hint;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+    child: ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) => TextField(
+        controller: controller,
+        onChanged: onChanged,
+        maxLength: 40,
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) => FocusScope.of(context).unfocus(),
+        onTapOutside: (_) => FocusScope.of(context).unfocus(),
+        style: const TextStyle(color: legacyMessageGold, fontSize: 14),
+        cursorColor: legacyMessageGold,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: Color(0x80C9B69E), fontSize: 14),
+          counterText: '',
+          filled: true,
+          fillColor: const Color(0xFF191715),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 11,
+          ),
+          prefixIcon: const Icon(
+            Icons.search,
+            size: 19,
+            color: Color(0x80C9B69E),
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
+          ),
+          suffixIcon: value.text.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: '清除搜索',
+                  onPressed: onClear,
+                  icon: const Icon(
+                    Icons.close,
+                    size: 17,
+                    color: Color(0x80C9B69E),
+                  ),
+                ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    ),
+  );
 }

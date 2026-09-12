@@ -47,6 +47,15 @@ class ConversationsPage extends StatefulWidget {
 }
 
 class _ConversationsPageState extends State<ConversationsPage> {
+  final _searchController = TextEditingController();
+  String _query = "";
+  bool _matches(String name) => name.toLowerCase().contains(_query);
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   bool _pinnedExpanded = true;
   bool _friendPinned = false;
   bool _friendVisible = true;
@@ -73,12 +82,25 @@ class _ConversationsPageState extends State<ConversationsPage> {
         child: Column(
           children: [
             _header(),
+            LegacyConversationSearch(
+              controller: _searchController,
+              onChanged: (value) => setState(() {
+                _query = value.trim().toLowerCase();
+                _friendSlide = 0;
+              }),
+              onClear: () {
+                _searchController.clear();
+                setState(() => _query = '');
+              },
+            ),
             Expanded(
               child: RefreshIndicator(
                 color: _gold,
                 backgroundColor: const Color(0xFF1A1611),
                 onRefresh: _refreshConversations,
                 child: ListView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: EdgeInsets.fromLTRB(
                     10 * MediaQuery.sizeOf(context).width / 750,
@@ -92,22 +114,43 @@ class _ConversationsPageState extends State<ConversationsPage> {
                         refreshing: _refreshing,
                         onRetry: () => _refreshConversations(retry: true),
                       ),
-                    _PinnedToggle(
-                      count: 1 + (_friendPinned && _friendVisible ? 1 : 0),
-                      expanded: _pinnedExpanded,
-                      onTap: () => setState(() {
-                        _friendSlide = 0;
-                        _pinnedExpanded = !_pinnedExpanded;
-                      }),
-                    ),
-                    if (_pinnedExpanded)
+                    if (_query.isEmpty)
+                      _PinnedToggle(
+                        count: 1 + (_friendPinned && _friendVisible ? 1 : 0),
+                        expanded: _pinnedExpanded,
+                        onTap: () => setState(() {
+                          _friendSlide = 0;
+                          _pinnedExpanded = !_pinnedExpanded;
+                        }),
+                      ),
+                    if ((_pinnedExpanded || _query.isNotEmpty) &&
+                        _matches('KING CLUB'))
                       _KingClubConversation(
                         unreadCount: widget.systemUnreadCount,
                         onTap: widget.onOpenSystemNotifications,
                       ),
-                    if (_pinnedExpanded && _friendPinned && _friendVisible)
+                    if ((_pinnedExpanded || _query.isNotEmpty) &&
+                        _friendPinned &&
+                        _friendVisible &&
+                        _matches('卡座搭子'))
                       _friendConversation(),
-                    if (!_friendPinned && _friendVisible) _friendConversation(),
+                    if (!_friendPinned && _friendVisible && _matches('卡座搭子'))
+                      _friendConversation(),
+                    if (_query.isNotEmpty &&
+                        !_matches('KING CLUB') &&
+                        !(_friendVisible && _matches('卡座搭子')))
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Text(
+                            '未找到相关聊天',
+                            style: TextStyle(
+                              color: Color(0x80C9B69E),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

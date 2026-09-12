@@ -51,6 +51,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(dot, findsNothing);
     expect(mutedIcon, findsOneWidget);
+    await tester.enterText(find.byType(TextField), '  king  ');
+    await tester.pumpAndSettle();
+    expect(find.text('KING CLUB'), findsOneWidget);
+    expect(find.text('卡座搭子'), findsNothing);
+    await tester.enterText(find.byType(TextField), '不存在的会话');
+    await tester.pumpAndSettle();
+    expect(find.text('未找到相关聊天'), findsOneWidget);
+    await tester.tap(find.byTooltip('清除搜索'));
+    await tester.pumpAndSettle();
+    expect(find.text('卡座搭子'), findsOneWidget);
+    expect(mutedIcon, findsOneWidget);
   });
   testWidgets('details initializes mute and reports changes', (tester) async {
     bool? changed;

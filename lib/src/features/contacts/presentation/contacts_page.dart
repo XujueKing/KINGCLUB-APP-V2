@@ -3,10 +3,8 @@ import '../../messaging/presentation/legacy_messaging_components.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../core/design_system/king_theme.dart';
-
 
 enum ContactIntentKind { friendRequests, addFriend, blacklist, userProfile }
 
@@ -187,6 +185,12 @@ class _ContactsPageState extends State<ContactsPage> {
       child: Column(
         children: [
           _header(),
+          LegacyConversationSearch(
+            controller: _searchController,
+            onChanged: _onSearchChanged,
+            onClear: _clearSearch,
+            hint: '搜索备注或昵称',
+          ),
           Expanded(child: _buildBody(context)),
         ],
       ),
@@ -253,25 +257,6 @@ class _ContactsPageState extends State<ContactsPage> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                 sliver: SliverList.list(
                   children: [
-                    TextField(
-                      controller: _searchController,
-                      onChanged: _onSearchChanged,
-                      maxLength: 40,
-                      inputFormatters: [LengthLimitingTextInputFormatter(40)],
-                      decoration: InputDecoration(
-                        hintText: '搜索备注或昵称',
-                        counterText: '',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchController.text.isEmpty
-                            ? null
-                            : IconButton(
-                                onPressed: _clearSearch,
-                                tooltip: '清除搜索',
-                                icon: const Icon(Icons.close),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
                     _quickActions(context),
                     const SizedBox(height: 8),
                     _LegacyBlacklistEntry(
