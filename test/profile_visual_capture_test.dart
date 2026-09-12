@@ -79,6 +79,9 @@ void main() {
           ),
         )
         .controller!;
+    scroll.jumpTo(scroll.position.maxScrollExtent - 80);
+    await tester.pumpAndSettle();
+    await capture('approaching-pinned');
     scroll.jumpTo(scroll.position.maxScrollExtent);
     await tester.pumpAndSettle();
     await capture('pinned');

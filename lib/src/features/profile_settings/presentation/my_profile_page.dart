@@ -95,6 +95,30 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
   double get _offset => _scroll.hasClients ? _scroll.offset : 0;
 
+  double get _collapseProgress {
+    final distance = math.min(160.0, math.max(1.0, _menuPinOffset));
+    final t = ((_offset - _menuPinOffset + distance) / distance).clamp(
+      0.0,
+      1.0,
+    );
+    return t * t * (3 - 2 * t);
+  }
+
+  Widget _fadeProfile(Widget child, String id) => AnimatedBuilder(
+    animation: _scroll,
+    child: child,
+    builder: (context, child) {
+      final opacity = 1 - _collapseProgress;
+      return IgnorePointer(
+        ignoring: opacity <= .01,
+        child: ExcludeSemantics(
+          excluding: opacity <= .01,
+          child: Opacity(key: ValueKey(id), opacity: opacity, child: child),
+        ),
+      );
+    },
+  );
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -149,16 +173,20 @@ class _MyProfilePageState extends State<MyProfilePage> {
                         animation: _scroll,
                         child: Stack(children: [_buildTopTools()]),
                         builder: (context, tools) {
-                          final opacity =
-                              ((_offset - _menuPinOffset + 100) / 100).clamp(
-                                0.0,
-                                1.0,
-                              );
+                          final opacity = _collapseProgress;
                           return Stack(
                             fit: StackFit.expand,
                             children: [
                               Opacity(
-                                opacity: opacity,
+                                opacity: math.max(
+                                  opacity,
+                                  (_offset /
+                                          math.max(
+                                            1,
+                                            400 * scale - toolbarHeight,
+                                          ))
+                                      .clamp(0.0, 1.0),
+                                ),
                                 child: CustomPaint(
                                   painter: _ProfileBackground(
                                     400 * scale - _offset,
@@ -196,18 +224,21 @@ class _MyProfilePageState extends State<MyProfilePage> {
                     ),
                   ),
                   SliverToBoxAdapter(
-                    child: Stack(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.only(
-                            top: math.max(0, 400 * scale - toolbarHeight),
+                    child: _fadeProfile(
+                      Stack(
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.only(
+                              top: math.max(0, 400 * scale - toolbarHeight),
+                            ),
+                            child: _buildProfilePanel(),
                           ),
-                          child: _buildProfilePanel(),
-                        ),
-                        _buildIdentity(
-                          top: math.max(0, 260 * scale - toolbarHeight),
-                        ),
-                      ],
+                          _buildIdentity(
+                            top: math.max(0, 260 * scale - toolbarHeight),
+                          ),
+                        ],
+                      ),
+                      'my-profile-info-opacity',
                     ),
                   ),
                   SliverLayoutBuilder(
@@ -330,7 +361,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
               10 * legacyScale,
             ),
             decoration: BoxDecoration(
-              color: const Color(0x50000000),
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(30 * legacyScale),
             ),
             child: Row(
@@ -358,25 +389,28 @@ class _MyProfilePageState extends State<MyProfilePage> {
               ],
             ),
           ),
-          Material(
-            color: const Color(0xA6000000),
-            borderRadius: BorderRadius.circular(22),
-            child: InkWell(
-              key: const ValueKey('my-profile-exp'),
+          _fadeProfile(
+            Material(
+              color: const Color(0xA6000000),
               borderRadius: BorderRadius.circular(22),
-              onTap: _showLevel,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                child: Text(
-                  'EXP：0',
-                  style: TextStyle(
-                    color: _warmWhite,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
+              child: InkWell(
+                key: const ValueKey('my-profile-exp'),
+                borderRadius: BorderRadius.circular(22),
+                onTap: _showLevel,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  child: Text(
+                    'EXP：0',
+                    style: TextStyle(
+                      color: _warmWhite,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
             ),
+            'my-profile-exp-opacity',
           ),
         ],
       ),
@@ -403,6 +437,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
         child: InkResponse(
           onTap: onTap,
           radius: tapWidth / 2,
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
           child: Center(
             child: Image.asset(
               'assets/legacy/profile/$asset',

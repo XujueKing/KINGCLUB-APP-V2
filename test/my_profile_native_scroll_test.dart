@@ -99,6 +99,45 @@ void main() {
     },
   );
 
+  testWidgets(
+    'profile fades continuously only near pinning and reverses, tools have no background',
+    (tester) async {
+      await mount(tester);
+      final scroll = tester
+          .widget<CustomScrollView>(find.byType(CustomScrollView))
+          .controller!;
+      final pin = scroll.position.maxScrollExtent;
+      double opacity(String id) =>
+          tester.widget<Opacity>(find.byKey(ValueKey(id))).opacity;
+      scroll.jumpTo(pin - 160);
+      await tester.pump();
+      expect(opacity('my-profile-info-opacity'), closeTo(1, .01));
+      scroll.jumpTo(pin - 80);
+      await tester.pump();
+      expect(opacity('my-profile-info-opacity'), closeTo(.5, .01));
+      expect(opacity('my-profile-exp-opacity'), closeTo(.5, .01));
+      scroll.jumpTo(pin);
+      await tester.pump();
+      expect(opacity('my-profile-info-opacity'), closeTo(0, .01));
+      expect(
+        find.byKey(const ValueKey('my-profile-exp')).hitTestable(),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('my-profile-qr')).hitTestable(),
+        findsOneWidget,
+      );
+      final tools = tester.widget<Container>(
+        find.byKey(const ValueKey('my-profile-top-tools')),
+      );
+      expect((tools.decoration as BoxDecoration).color, Colors.transparent);
+      scroll.jumpTo(pin - 80);
+      await tester.pump();
+      expect(opacity('my-profile-info-opacity'), closeTo(.5, .01));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final size in [const Size(320, 568), const Size(430, 932)]) {
     testWidgets('profile fits $size with 200 percent text and switches pages', (
       tester,
