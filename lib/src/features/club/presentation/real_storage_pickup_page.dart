@@ -204,50 +204,65 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                   vertical: 20,
                 ),
                 children: [
-                  Center(
-                    child: SizedBox.square(
-                      dimension: MediaQuery.sizeOf(context).width * .58,
-                      child: ColoredBox(
-                        key: const ValueKey('storage-code-background'),
-                        color: _item.status == 'expired'
-                            ? Colors.transparent
-                            : Colors.white,
-                        child: _token != null
-                            ? QrImageView(
-                                key: const ValueKey('storage-real-code'),
-                                data: _token!,
-                                padding: const EdgeInsets.all(10),
-                                version: QrVersions.auto,
-                              )
-                            : _loading
-                            ? const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1,
-                                ),
-                              )
-                            : Center(
-                                child: Text(
-                                  _error ??
-                                      (_item.status == 'expired'
-                                          ? (_item.category == 'wine'
-                                                ? '存酒已过期，请联系工作人员核实'
-                                                : '物品已过期，请联系工作人员核实')
-                                          : _item.status == 'collected'
-                                          ? '已取出'
-                                          : '当前物品不可提取'),
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: _item.status == 'expired'
-                                        ? const Color(0xFFC9B69E)
-                                        : const Color(0xFF695B48),
+                  if (_item.status == 'expired')
+                    Text(
+                      _error ??
+                          (_item.category == 'wine'
+                              ? '存酒已过期，请联系工作人员核实'
+                              : '物品已过期，请联系工作人员核实'),
+                      key: const ValueKey('storage-expired-notice'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFFC9B69E),
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    )
+                  else
+                    Center(
+                      child: SizedBox.square(
+                        dimension: MediaQuery.sizeOf(context).width * .58,
+                        child: ColoredBox(
+                          key: const ValueKey('storage-code-background'),
+                          color: _item.status == 'expired'
+                              ? Colors.transparent
+                              : Colors.white,
+                          child: _token != null
+                              ? QrImageView(
+                                  key: const ValueKey('storage-real-code'),
+                                  data: _token!,
+                                  padding: const EdgeInsets.all(10),
+                                  version: QrVersions.auto,
+                                )
+                              : _loading
+                              ? const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1,
+                                  ),
+                                )
+                              : Center(
+                                  child: Text(
+                                    _error ??
+                                        (_item.status == 'expired'
+                                            ? (_item.category == 'wine'
+                                                  ? '存酒已过期，请联系工作人员核实'
+                                                  : '物品已过期，请联系工作人员核实')
+                                            : _item.status == 'collected'
+                                            ? '已取出'
+                                            : '当前物品不可提取'),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: _item.status == 'expired'
+                                          ? const Color(0xFFC9B69E)
+                                          : const Color(0xFF695B48),
+                                    ),
                                   ),
                                 ),
-                              ),
+                        ),
                       ),
                     ),
-                  ),
                   if (_item.category == 'item') ...[
-                    const SizedBox(height: 46),
+                    SizedBox(height: _item.status == 'expired' ? 20 : 46),
                     _detailRow('物品名', _item.name),
                     if (_item.description.isNotEmpty)
                       Padding(
@@ -280,16 +295,21 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                         '￥${_item.maximumValue!.toStringAsFixed(2)}',
                       ),
                   ] else ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _token != null ? '请向工作人员出示，提取码会自动更新' : '当前展示物品详情，暂不生成提取码',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0x99C9B69E),
-                        fontSize: 11,
+                    if (_item.status != 'expired') ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        _token != null
+                            ? '请向工作人员出示，提取码会自动更新'
+                            : '当前展示物品详情，暂不生成提取码',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0x99C9B69E),
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 30),
+                      const SizedBox(height: 30),
+                    ] else
+                      const SizedBox(height: 20),
                     for (final row in [
                       ('品名', _item.name),
                       ('英文名', _item.englishName),
