@@ -1672,7 +1672,7 @@ void main() {
     expect(find.text('互关'), findsOneWidget);
     expect(find.text('粉丝'), findsOneWidget);
     expect(find.text('余额：¥ 0.00'), findsOneWidget);
-    expect(find.text('♂ 24岁'), findsOneWidget);
+    expect(find.text('24岁'), findsOneWidget);
     expect(find.text('颜值：148'), findsOneWidget);
     expect(find.text('河南省 · 安阳市'), findsOneWidget);
     expect(find.text('木系灵根'), findsOneWidget);
@@ -1781,7 +1781,7 @@ void main() {
     expect(opened, isTrue);
   });
 
-  testWidgets('my profile asset and order pills have identical heights', (
+  testWidgets('my profile asset pills share compact legacy height', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -1796,13 +1796,13 @@ void main() {
       const ValueKey('my-profile-asset-我的余额'),
       const ValueKey('my-profile-asset-金币'),
       const ValueKey('my-profile-asset-钻石'),
-      const ValueKey('my-profile-orders'),
     ];
     final heights = keys
         .map((key) => tester.getSize(find.byKey(key)).height)
         .toList();
 
-    expect(heights, everyElement(34));
+    expect(heights, everyElement(closeTo(heights.first, .01)));
+    expect(heights.first, closeTo((28 * 1.3 + 8) * 800 / 750, 1));
   });
 
   testWidgets('my profile applies a saved local cover immediately', (

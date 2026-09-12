@@ -207,6 +207,7 @@ class _AppShellPageState extends State<AppShellPage> {
                   onOpenPersonalQr: widget.onOpenPersonalQr,
                   onOpenSettings: widget.onOpenSettings,
                   onOpenOrders: widget.onOpenOrders,
+                  onOpenReservations: widget.onOpenTogether,
                   onSessionResetRequested: widget.onSessionResetRequested,
                   coverStore: widget.profileCoverStore,
                 ),

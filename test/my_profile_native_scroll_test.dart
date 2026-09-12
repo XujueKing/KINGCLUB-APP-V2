@@ -61,6 +61,44 @@ void main() {
     },
   );
 
+  testWidgets(
+    'four legacy image service entries sit above content and support opens',
+    (tester) async {
+      await mount(tester);
+      final services = find.byKey(const ValueKey('my-profile-services'));
+      await tester.ensureVisible(services);
+      await tester.pumpAndSettle();
+      final rects = ['orders', 'reservations', 'creator', 'support']
+          .map((id) => tester.getRect(find.byKey(ValueKey('my-profile-$id'))))
+          .toList();
+      for (final rect in rects) {
+        expect(rect.top, rects.first.top);
+        expect(rect.width, closeTo(rects.first.width, .01));
+      }
+      expect(
+        tester.getBottomLeft(services).dy,
+        lessThanOrEqualTo(
+          tester
+              .getTopLeft(find.byKey(const ValueKey('my-profile-pinned-tabs')))
+              .dy,
+        ),
+      );
+      expect(
+        find.descendant(of: services, matching: find.byType(Icon)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: services, matching: find.byType(Image)),
+        findsNWidgets(4),
+      );
+      await tester.tap(find.byKey(const ValueKey('my-profile-support')));
+      await tester.pumpAndSettle();
+      expect(find.text('常见问题'), findsOneWidget);
+      expect(find.text('人工客服暂未开放'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final size in [const Size(320, 568), const Size(430, 932)]) {
     testWidgets('profile fits $size with 200 percent text and switches pages', (
       tester,

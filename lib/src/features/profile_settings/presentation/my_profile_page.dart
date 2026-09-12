@@ -17,6 +17,7 @@ class MyProfilePage extends StatefulWidget {
     this.onOpenPersonalQr,
     this.onOpenSettings,
     this.onOpenOrders,
+    this.onOpenReservations,
     this.onSessionResetRequested,
     this.coverStore,
     this.reselectSignal = 0,
@@ -32,6 +33,7 @@ class MyProfilePage extends StatefulWidget {
   final VoidCallback? onOpenPersonalQr;
   final VoidCallback? onOpenSettings;
   final VoidCallback? onOpenOrders;
+  final VoidCallback? onOpenReservations;
   final VoidCallback? onSessionResetRequested;
   final ProfileCoverStore? coverStore;
   final int reselectSignal;
@@ -542,6 +544,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
                 ),
               SizedBox(height: 30 * scale),
               _buildTags(),
+              const SizedBox(height: 26),
+              _buildServices(),
             ],
           ),
         ),
@@ -630,44 +634,114 @@ class _MyProfilePageState extends State<MyProfilePage> {
         _assetChip('余额：¥ 0.00', null, '我的余额', AssetLedgerType.cashBalance),
         _assetChip('50', 'gold.png', '金币', AssetLedgerType.goldCoin),
         _assetChip('0', 'diamond.png', '钻石', AssetLedgerType.diamond),
-        _ordersChip(),
       ],
     );
   }
 
-  Widget _ordersChip() {
-    return Material(
-      color: const Color(0xFFCDBB9E),
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        key: const ValueKey('my-profile-orders'),
-        borderRadius: BorderRadius.circular(20),
-        onTap: _showOrders,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 34),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.receipt_long_outlined,
-                  color: Color(0xFF21180F),
-                  size: 16,
-                ),
-                SizedBox(width: 6),
-                Text(
-                  '我的订单',
-                  style: TextStyle(
-                    color: Color(0xFF21180F),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+  Widget _buildServices() {
+    Widget entry(String id, String label, String asset, VoidCallback onTap) =>
+        Expanded(
+          child: InkWell(
+            key: ValueKey('my-profile-$id'),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 3),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/legacy/profile/$asset',
+                    width: 26,
+                    height: 26,
+                    color: _warmWhite,
+                    fit: BoxFit.contain,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: _warmWhite,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
+        );
+    return Row(
+      key: const ValueKey('my-profile-services'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        entry('orders', '我的订单', 'gouwudai.png', _showOrders),
+        entry('reservations', '我的预约', 'menu_list.png', () {
+          if (widget.onOpenReservations case final open?) {
+            open();
+          } else {
+            _showEmptyList('我的预约');
+          }
+        }),
+        entry('creator', '创作者中心', 'edit.png', _showCreatorCenter),
+        entry('support', '专属客服', 'tabBar_chat.png', _showSupportCenter),
+      ],
+    );
+  }
+
+  void _showSupportCenter() {
+    _showSheet(
+      title: '专属客服',
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('常见问题', style: TextStyle(color: _warmWhite, fontSize: 16)),
+          SizedBox(height: 18),
+          Text('在哪里查看过期储物？', style: TextStyle(color: _warmWhite)),
+          SizedBox(height: 6),
+          Text(
+            '进入私人储物柜，点击右上角“过期储物”查看。',
+            style: TextStyle(color: _muted, height: 1.5),
+          ),
+          SizedBox(height: 18),
+          Text('怎样更换主页封面？', style: TextStyle(color: _warmWhite)),
+          SizedBox(height: 6),
+          Text(
+            '进入“编辑主页”，选择封面并保存。',
+            style: TextStyle(color: _muted, height: 1.5),
+          ),
+          SizedBox(height: 24),
+          Text('人工客服暂未开放', style: TextStyle(color: _muted, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  void _showCreatorCenter() {
+    _showSheet(
+      title: '创作者中心',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final item in [(0, '我的作品'), (2, '我的相册')])
+            ListTile(
+              title: Text(item.$2, style: const TextStyle(color: _warmWhite)),
+              onTap: () {
+                Navigator.pop(context);
+                _pages.animateToPage(
+                  item.$1,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                );
+                _scroll.animateTo(
+                  _menuPinOffset.clamp(0, _scroll.position.maxScrollExtent),
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                );
+              },
+            ),
+        ],
       ),
     );
   }
@@ -678,38 +752,44 @@ class _MyProfilePageState extends State<MyProfilePage> {
     String title,
     AssetLedgerType type,
   ) {
+    final scale = _legacyScale;
+    final radius = BorderRadius.circular(20 * scale);
     return Material(
-      color: const Color(0xA6000000),
-      borderRadius: BorderRadius.circular(20),
+      color: const Color(0x50000000),
+      borderRadius: radius,
       child: InkWell(
         key: ValueKey('my-profile-asset-$title'),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: radius,
         onTap: () => _showAsset(type),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 34),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (asset != null) ...[
-                  Image.asset(
-                    'assets/legacy/profile/$asset',
-                    width: 16,
-                    height: 16,
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                Text(
-                  text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            8 * scale,
+            4 * scale,
+            20 * scale,
+            4 * scale,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (asset != null) ...[
+                Image.asset(
+                  'assets/legacy/profile/$asset',
+                  width: 30 * scale,
+                  height: 30 * scale,
                 ),
-              ],
-            ),
+                SizedBox(width: 16 * scale),
+              ] else
+                SizedBox(width: 16 * scale),
+              Text(
+                text,
+                style: TextStyle(
+                  color: _warmWhite,
+                  fontSize: 28 * scale,
+                  height: 1.3,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -729,13 +809,26 @@ class _MyProfilePageState extends State<MyProfilePage> {
                 vertical: 6 * _legacyScale,
               ),
               color: const Color(0x30000000),
-              child: Text(
-                tag,
-                style: TextStyle(
-                  color: const Color(0xBBFCE9D1),
-                  fontSize: 24 * _legacyScale,
-                  fontWeight: FontWeight.w400,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (tag.startsWith('♂')) ...[
+                    Image.asset(
+                      'assets/legacy/profile/man5.png',
+                      width: 20 * _legacyScale,
+                      height: 22 * _legacyScale,
+                    ),
+                    SizedBox(width: 10 * _legacyScale),
+                  ],
+                  Text(
+                    tag.replaceFirst('♂ ', ''),
+                    style: TextStyle(
+                      color: const Color(0xBBFCE9D1),
+                      fontSize: 24 * _legacyScale,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
               ),
             ),
           )
@@ -976,7 +1069,12 @@ class _MyProfilePageState extends State<MyProfilePage> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: _muted),
+                    icon: Image.asset(
+                      'assets/legacy/profile/close.png',
+                      width: 18,
+                      height: 18,
+                      color: _muted,
+                    ),
                   ),
                 ],
               ),
