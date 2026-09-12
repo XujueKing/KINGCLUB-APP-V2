@@ -4,9 +4,16 @@ import '../../contacts/presentation/relationship_permissions_page.dart';
 import 'legacy_messaging_components.dart';
 
 class DirectChatDetailsPage extends StatefulWidget {
-  const DirectChatDetailsPage({super.key, required this.peerName});
+  const DirectChatDetailsPage({
+    super.key,
+    required this.peerName,
+    this.initialMuted = false,
+    this.onMutedChanged,
+  });
 
   final String peerName;
+  final bool initialMuted;
+  final ValueChanged<bool>? onMutedChanged;
 
   @override
   State<DirectChatDetailsPage> createState() => _DirectChatDetailsPageState();
@@ -14,7 +21,7 @@ class DirectChatDetailsPage extends StatefulWidget {
 
 class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
   final _searchController = TextEditingController();
-  bool _muted = false;
+  late bool _muted = widget.initialMuted;
   bool _pinned = true;
   bool _searching = false;
 
@@ -102,7 +109,10 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                 key: const ValueKey('direct-chat-details-muted'),
                 value: _muted,
                 activeTrackColor: const Color(0xFF07C160),
-                onChanged: (value) => setState(() => _muted = value),
+                onChanged: (value) {
+                  setState(() => _muted = value);
+                  widget.onMutedChanged?.call(value);
+                },
               ),
             ),
             _SettingsRow(

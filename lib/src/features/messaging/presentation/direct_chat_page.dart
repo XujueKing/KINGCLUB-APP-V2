@@ -100,9 +100,16 @@ class _GiftItem {
 }
 
 class DirectChatPage extends StatefulWidget {
-  const DirectChatPage({super.key, this.peerName = '卡座搭子'});
+  const DirectChatPage({
+    super.key,
+    this.peerName = '卡座搭子',
+    this.initialMuted = false,
+    this.onMutedChanged,
+  });
 
   final String peerName;
+  final bool initialMuted;
+  final ValueChanged<bool>? onMutedChanged;
 
   @override
   State<DirectChatPage> createState() => _DirectChatPageState();
@@ -137,6 +144,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   @override
   void initState() {
     super.initState();
+    _muted = widget.initialMuted;
     WidgetsBinding.instance.addObserver(this);
     _inputFocusNode.addListener(_handleInputFocusChanged);
   }
@@ -939,12 +947,21 @@ class _DirectChatPageState extends State<DirectChatPage>
     });
   }
 
+  bool _muted = false;
+
   Future<void> _openDetails() async {
     final cleared = await Navigator.push<bool>(
       context,
       MaterialPageRoute<bool>(
         allowSnapshotting: false,
-        builder: (_) => DirectChatDetailsPage(peerName: widget.peerName),
+        builder: (_) => DirectChatDetailsPage(
+          peerName: widget.peerName,
+          initialMuted: _muted,
+          onMutedChanged: (value) {
+            _muted = value;
+            widget.onMutedChanged?.call(value);
+          },
+        ),
       ),
     );
     if (cleared == true && mounted) setState(_messages.clear);

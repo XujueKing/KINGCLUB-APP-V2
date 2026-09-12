@@ -1,3 +1,5 @@
+import 'package:flutter_svg/flutter_svg.dart';
+
 import 'legacy_messaging_components.dart';
 
 import 'package:flutter/material.dart';
@@ -20,6 +22,7 @@ class ConversationsPage extends StatefulWidget {
   const ConversationsPage({
     super.key,
     required this.active,
+    this.friendMuted = false,
     required this.systemUnreadCount,
     required this.initialFriendUnreadCount,
     required this.onFriendUnreadChanged,
@@ -30,6 +33,7 @@ class ConversationsPage extends StatefulWidget {
   });
 
   final bool active;
+  final bool friendMuted;
   final int systemUnreadCount;
   final int initialFriendUnreadCount;
   final ValueChanged<int> onFriendUnreadChanged;
@@ -129,6 +133,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     };
     return _FriendConversation(
       slide: _friendSlide,
+      muted: widget.friendMuted,
       unreadCount: _friendUnread,
       pinned: _friendPinned,
       preview: preview,
@@ -546,10 +551,11 @@ class _ConversationContent extends StatelessWidget {
     required this.unread,
     this.system = false,
     this.inactive = false,
+    this.muted = false,
   });
   final String name, preview, date;
   final int unread;
-  final bool system, inactive;
+  final bool system, inactive, muted;
   @override
   Widget build(BuildContext context) {
     final r = MediaQuery.sizeOf(context).width / 750;
@@ -587,24 +593,30 @@ class _ConversationContent extends StatelessWidget {
                                 ? 'system-conversation-unread-badge'
                                 : 'conversation-unread-badge',
                           ),
+                          width: muted ? 16 * r : null,
+                          height: muted ? 16 * r : null,
                           constraints: BoxConstraints(
-                            minWidth: 34 * r,
-                            minHeight: 34 * r,
+                            minWidth: (muted ? 16 : 34) * r,
+                            minHeight: (muted ? 16 : 34) * r,
                           ),
-                          padding: EdgeInsets.symmetric(horizontal: 5 * r),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: (muted ? 0 : 5) * r,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFB5352),
                             borderRadius: BorderRadius.circular(24 * r),
                           ),
                           alignment: Alignment.center,
-                          child: Text(
-                            unread > 99 ? '99+' : '$unread',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 22 * r,
-                              height: 1,
-                            ),
-                          ),
+                          child: muted
+                              ? null
+                              : Text(
+                                  unread > 99 ? '99' : '$unread',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22 * r,
+                                    height: 1,
+                                  ),
+                                ),
                         ),
                       ),
                   ],
@@ -642,14 +654,28 @@ class _ConversationContent extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 10 * r),
-              Padding(
-                padding: EdgeInsets.only(bottom: 50 * r),
-                child: Text(
-                  date,
-                  style: TextStyle(
-                    color: const Color(0x66FFFFFF),
-                    fontSize: 24 * r,
-                  ),
+              SizedBox(
+                height: 100 * r,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      date,
+                      style: TextStyle(
+                        color: const Color(0x66FFFFFF),
+                        fontSize: 24 * r,
+                      ),
+                    ),
+                    SizedBox(height: 12 * r),
+                    if (muted)
+                      SvgPicture.asset(
+                        'assets/legacy/messaging/muted.svg',
+                        key: const ValueKey('conversation-muted-icon'),
+                        semanticsLabel: '消息免打扰',
+                        width: 26 * r,
+                        height: 26 * r,
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -675,6 +701,7 @@ class _ConversationContent extends StatelessWidget {
 class _FriendConversation extends StatelessWidget {
   const _FriendConversation({
     required this.slide,
+    required this.muted,
     required this.unreadCount,
     required this.pinned,
     required this.preview,
@@ -689,6 +716,7 @@ class _FriendConversation extends StatelessWidget {
   });
 
   final double slide;
+  final bool muted;
   final int unreadCount;
   final bool pinned;
   final String preview;
@@ -755,6 +783,7 @@ class _FriendConversation extends StatelessWidget {
                   color: pinned ? const Color(0x20C9B69E) : Colors.black,
                   child: _ConversationContent(
                     name: '卡座搭子',
+                    muted: muted,
                     preview: preview,
                     date: '21:08',
                     unread: unreadCount,

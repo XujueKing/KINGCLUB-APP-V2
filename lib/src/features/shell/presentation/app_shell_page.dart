@@ -95,6 +95,7 @@ class _AppShellPageState extends State<AppShellPage> {
   late int _selectedIndex;
   bool _scannerOpening = false;
   int _messagesPageIndex = 1;
+  bool _friendMuted = false;
   late int _systemNotificationsUnread;
   late int _friendConversationUnread;
   late AppShellDemoState _shellState;
@@ -163,6 +164,7 @@ class _AppShellPageState extends State<AppShellPage> {
                       onSessionResetRequested: widget.onSessionResetRequested,
                     ),
                     ConversationsPage(
+                      friendMuted: _friendMuted,
                       active: _selectedIndex == 1 && _messagesPageIndex == 1,
                       systemUnreadCount: _systemNotificationsUnread,
                       initialFriendUnreadCount: _friendConversationUnread,
@@ -179,7 +181,12 @@ class _AppShellPageState extends State<AppShellPage> {
                       onOpenDirectChat: () => Navigator.of(context).push<void>(
                         MaterialPageRoute<void>(
                           allowSnapshotting: false,
-                          builder: (_) => const DirectChatPage(),
+                          builder: (_) => DirectChatPage(
+                            initialMuted: _friendMuted,
+                            onMutedChanged: (value) {
+                              if (mounted) setState(() => _friendMuted = value);
+                            },
+                          ),
                         ),
                       ),
                     ),
