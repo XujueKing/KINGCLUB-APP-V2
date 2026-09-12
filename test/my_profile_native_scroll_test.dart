@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:kingclub/src/features/profile_settings/presentation/edit_profile_page.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/my_profile_page.dart';
 
@@ -144,6 +145,66 @@ void main() {
       await tester.pump();
       expect(opacity('my-profile-info-opacity'), closeTo(.5, .01));
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('compact services keep creator label on one line at 320 wide', (
+    tester,
+  ) async {
+    await mount(tester, size: const Size(320, 640), textScale: 1.2);
+    final services = find.byKey(const ValueKey('my-profile-services'));
+    expect(tester.getSize(services).width, closeTo(320 * 718 / 750, .1));
+    final label = tester.widget<Text>(find.text('创作者中心'));
+    expect(label.maxLines, 1);
+    expect(label.style!.letterSpacing, 0);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('my-profile-creator'))).height,
+      lessThan(65),
+    );
+    expect(find.text('写下此刻的心情…'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'mood lives below balance and edit result replaces empty prompt',
+    (tester) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MyProfilePage(
+              onOpenEditProfile: (name, signature, cover) async =>
+                  EditableProfileResult(
+                    nickname: name,
+                    signature: '今天心情很好',
+                    coverAsset: cover,
+                  ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final mood = find.byKey(const ValueKey('my-profile-mood'));
+      expect(
+        tester.getTopLeft(mood).dy,
+        greaterThan(
+          tester
+              .getBottomLeft(
+                find.byKey(const ValueKey('my-profile-asset-我的余额')),
+              )
+              .dy,
+        ),
+      );
+      expect(
+        tester.getBottomLeft(mood).dy,
+        lessThan(tester.getTopLeft(find.text('24岁')).dy),
+      );
+      await tester.tap(mood);
+      await tester.pumpAndSettle();
+      expect(find.text('今天心情很好'), findsOneWidget);
+      expect(find.text('写下此刻的心情…'), findsNothing);
     },
   );
 

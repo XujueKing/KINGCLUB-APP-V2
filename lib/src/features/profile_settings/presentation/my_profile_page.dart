@@ -569,26 +569,46 @@ class _MyProfilePageState extends State<MyProfilePage> {
         child: Padding(
           key: const ValueKey('my-profile-panel'),
           padding: EdgeInsets.fromLTRB(
-            40 * scale,
+            16 * scale,
             70 * scale,
-            40 * scale,
-            20 * scale,
+            16 * scale,
+            10 * scale,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildStats(),
-              SizedBox(height: 26 * scale),
-              _buildAssets(),
-              SizedBox(height: 28 * scale),
-              if (_signature.isNotEmpty)
-                Text(
-                  _signature,
-                  style: TextStyle(color: _warmWhite, fontSize: 28 * scale),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildStats(),
+                    SizedBox(height: 20 * scale),
+                    _buildAssets(),
+                    SizedBox(height: 20 * scale),
+                    InkWell(
+                      key: const ValueKey('my-profile-mood'),
+                      onTap: _showEditProfile,
+                      splashFactory: NoSplash.splashFactory,
+                      highlightColor: Colors.transparent,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          _signature.isEmpty ? '写下此刻的心情…' : _signature,
+                          style: TextStyle(
+                            color: _signature.isEmpty ? _muted : _warmWhite,
+                            fontSize: 28 * scale,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 20 * scale),
+                    _buildTags(),
+                  ],
                 ),
-              SizedBox(height: 30 * scale),
-              _buildTags(),
-              const SizedBox(height: 26),
+              ),
+              SizedBox(height: 18 * scale),
               _buildServices(),
             ],
           ),
@@ -689,7 +709,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
             key: ValueKey('my-profile-$id'),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 3),
+              padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 1),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -703,15 +723,35 @@ class _MyProfilePageState extends State<MyProfilePage> {
                     ),
                     fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: _warmWhite,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                    ),
+                  const SizedBox(height: 2),
+                  SizedBox(
+                    width: double.infinity,
+                    child: MediaQuery.textScalerOf(context).scale(1) <= 1.3
+                        ? FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                color: _warmWhite,
+                                fontSize: 12,
+                                height: 1.15,
+                                letterSpacing: 0,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            label,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: _warmWhite,
+                              fontSize: 12,
+                              height: 1.15,
+                              letterSpacing: 0,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
                   ),
                 ],
               ),
