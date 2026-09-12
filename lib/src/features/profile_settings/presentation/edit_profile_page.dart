@@ -1,3 +1,7 @@
+import 'profile_choices.dart';
+import 'payment_security_page.dart';
+import '../../../core/session/secure_session_store.dart';
+
 import 'package:image_cropper/image_cropper.dart';
 import 'package:uuid/uuid.dart';
 import 'package:geolocator/geolocator.dart';
@@ -94,6 +98,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String _city = '河南省 · 安阳市';
   String _occupation = '自由职业';
   String _height = '168 cm';
+  double? _weight;
+  String _mobile = '已绑定';
+  Map<String, List<String>> _interests = {};
+  bool _interestsChanged = false;
   String _activeTime = '周末晚间';
   String _music = '流行 · R&B';
   String _drink = '微醺';
@@ -128,6 +136,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
           .catchError((_) {});
       final d = widget.realProfile?['details'] as Map? ?? {};
       final prefs = widget.realProfile?['preferences'] as Map? ?? {};
+      _weight = (d['weightKg'] as num?)?.toDouble();
+      final choices = d['interests'] as Map? ?? prefs;
+      _interests = {
+        for (final key in preferenceChoices.keys)
+          key: List<String>.from(choices[key] ?? []),
+      };
+      SecureSessionStore().readSession().then((session) {
+        if (mounted) {
+          setState(
+            () => _mobile = session?['maskedMobile'] as String? ?? '已绑定',
+          );
+        }
+      });
       _city = '${widget.realProfile?['locationCity'] ?? '点击授权定位'}';
       _relationship = d['relationship'] as String?;
       _occupation = '${d['occupation'] ?? ''}';
@@ -223,39 +244,58 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       ],
                       _buildMediaHeader(),
                       const SizedBox(height: 22),
-                      if (widget.realProfile != null) ...[
-                        _row(
-                          '会员号',
-                          '${widget.realProfile!['memberId'] ?? ''}',
-                          keyName: 'memberId',
-                          readOnly: true,
-                        ),
-                        _row(
-                          '性别',
-                          widget.realProfile!['gender'] == 1
-                              ? '男'
-                              : widget.realProfile!['gender'] == 2
-                              ? '女'
-                              : '未填写',
-                          keyName: 'gender',
-                          readOnly: true,
-                        ),
-                        if (widget.realProfile!['birthSource'] ==
-                            'verified_identity')
-                          _row(
-                            '生日',
-                            '${widget.realProfile!['birthDate'] ?? ''}',
-                            keyName: 'verifiedBirth',
-                            readOnly: true,
-                          ),
-                      ],
-                      _row('昵称', _nickname, keyName: 'nickname'),
+                      _row('会员称呼', _nickname, keyName: 'nickname'),
                       _row(
-                        '个性签名',
+                        '签名',
                         _signature.isEmpty ? '未填写' : _signature,
                         keyName: 'signature',
                         maxLength: 40,
                       ),
+                      if (widget.realProfile case final profile?) ...[
+                        _row(
+                          '年龄/性别',
+                          '${profile['age'] ?? '—'}岁/${profile['gender'] == 1
+                              ? '男'
+                              : profile['gender'] == 2
+                              ? '女'
+                              : '未填写'}',
+                          keyName: 'gender',
+                          readOnly: true,
+                        ),
+                        _row(
+                          '颜值',
+                          profile['appearanceScore'] == null
+                              ? '暂无评分'
+                              : '${profile['appearanceScore']}分',
+                          keyName: 'score',
+                          readOnly: true,
+                        ),
+                        _row(
+                          '能量值 | 等级',
+                          '${profile['experience'] ?? '0'} | ${profile['levelName'] ?? ''}',
+                          keyName: 'level',
+                          readOnly: true,
+                        ),
+                        _row(
+                          '灵根',
+                          '${profile['element'] ?? '未生成'}',
+                          keyName: 'element',
+                          readOnly: true,
+                        ),
+                        _row(
+                          '手机号码',
+                          _mobile,
+                          keyName: 'mobile',
+                          readOnly: true,
+                        ),
+                        _row(
+                          '会员号',
+                          '${profile['memberId'] ?? ''}',
+                          keyName: 'memberId',
+                          readOnly: true,
+                        ),
+                      ],
+                      _row('修改支付密码', '********', keyName: 'payment'),
                       _row('所在城市', _city, keyName: 'city', maxLength: 30),
                       if (widget.repository != null &&
                           widget.realProfile?['birthSource'] !=
@@ -280,11 +320,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           keyName: 'relationship',
                         ),
                       _row('身高', _height, keyName: 'height'),
+                      _row(
+                        '体重',
+                        _weight == null
+                            ? '未填写'
+                            : '${_weight!.toStringAsFixed(1)} kg',
+                        keyName: 'weight',
+                      ),
                       const _SectionLabel('兴趣偏好'),
                       _row('常去时段', _activeTime, keyName: 'activeTime'),
-                      _row('音乐偏好', _music, keyName: 'music'),
-                      _row('饮酒偏好', _drink, keyName: 'drink'),
-                      _row('组局偏好', _party, keyName: 'party'),
+                      _row(
+                        '兴趣偏好',
+                        '已选 ${_interests.values.fold<int>(0, (sum, items) => sum + items.length)} 项',
+                        keyName: 'interests',
+                      ),
                       const SizedBox(height: 34),
                       FilledButton(
                         key: const ValueKey('edit-profile-save'),
@@ -451,6 +500,66 @@ class _EditProfilePageState extends State<EditProfilePage> {
     String keyName,
     int maxLength,
   ) async {
+    if (keyName == 'payment') {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          allowSnapshotting: false,
+          builder: (_) => const PaymentSecurityPage(),
+        ),
+      );
+      return;
+    }
+    if (keyName == 'height' || keyName == 'weight') {
+      final height = keyName == 'height';
+      final selected = await selectProfileMeasure(
+        context,
+        title: height ? '身高' : '体重',
+        unit: height ? 'cm' : 'kg',
+        min: height ? 100 : 30,
+        max: 250,
+        step: height ? 1 : .5,
+        initial: height
+            ? double.tryParse(_height.replaceAll(' cm', '')) ?? 170
+            : _weight ?? 60,
+      );
+      if (selected != null && mounted) {
+        setState(() {
+          if (height) {
+            _height = '${selected.round()} cm';
+          } else {
+            _weight = selected;
+          }
+          _dirty = true;
+          _requestId = null;
+        });
+      }
+      return;
+    }
+    if (keyName == 'interests') {
+      final selected = await Navigator.of(context)
+          .push<Map<String, List<String>>>(
+            MaterialPageRoute(
+              allowSnapshotting: false,
+              builder: (_) => ProfileInterestsPage(initial: _interests),
+            ),
+          );
+      if (selected != null && mounted) {
+        setState(() {
+          _interests = selected;
+          _interestsChanged = true;
+          _dirty = true;
+          _requestId = null;
+          String labels(String key) => preferenceChoices[key]!
+              .where((o) => selected[key]!.contains(o.id))
+              .map((o) => o.label)
+              .join(' · ');
+          _music = labels('music');
+          _drink = labels('drinks');
+          _party = labels('events');
+        });
+      }
+      return;
+    }
     if (widget.repository != null && keyName == 'relationship') {
       final selected = await showDialog<String>(
         context: context,
@@ -476,7 +585,45 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
     if (widget.repository != null && keyName == 'city') {
-      await _locate();
+      final automatic = await showModalBottomSheet<bool>(
+        context: context,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('定位当前城市'),
+                leading: const Icon(Icons.my_location),
+                onTap: () => Navigator.pop(sheetContext, true),
+              ),
+              ListTile(
+                title: const Text('手动选择城市'),
+                leading: const Icon(Icons.location_city),
+                onTap: () => Navigator.pop(sheetContext, false),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (!mounted || automatic == null) return;
+      if (automatic) {
+        await _locate();
+      } else {
+        final city = await Navigator.of(context).push<String>(
+          MaterialPageRoute(
+            allowSnapshotting: false,
+            builder: (_) => const ProfileCityPage(),
+          ),
+        );
+        if (city != null && mounted) {
+          setState(() {
+            _city = city;
+            _locatedCity = city;
+            _dirty = true;
+            _requestId = null;
+          });
+        }
+      }
       return;
     }
     if (widget.repository != null && keyName == 'birthDate') {
@@ -741,6 +888,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
             if (_locatedCity != null) 'locationCity': _locatedCity,
             'details': {
               'relationship': _relationship,
+              'weightKg': _weight,
+              if (_interestsChanged) 'interests': _interests,
               'occupation': _occupation,
               'heightCm': int.tryParse(
                 _height.replaceAll(RegExp(r'[^0-9]'), ''),

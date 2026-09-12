@@ -143,7 +143,7 @@ void main() {
       find.byKey(const ValueKey('edit-profile-dialog-nickname')),
     );
     expect(dialog.backgroundColor, isNot(const Color(0xFFFBAFDA)));
-    expect(find.text('修改昵称'), findsOneWidget);
+    expect(find.text('修改会员称呼'), findsOneWidget);
   });
 
   testWidgets('昵称校验错误不会清空当前输入', (tester) async {
