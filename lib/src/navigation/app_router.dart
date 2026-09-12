@@ -1045,6 +1045,14 @@ class PersonalQrRoute extends GoRouteData with $PersonalQrRoute {
   const PersonalQrRoute();
 
   @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
+  @override
   Widget build(BuildContext context, GoRouterState state) => PersonalQrPage(
     onBack: () =>
         context.canPop() ? context.pop() : const AppShellRoute().go(context),

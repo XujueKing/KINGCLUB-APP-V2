@@ -44,6 +44,14 @@ abstract final class KingTheme {
     final base = ThemeData(
       brightness: Brightness.dark,
       useMaterial3: true,
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: {
+          ...const PageTransitionsTheme().builders,
+          TargetPlatform.android: const ZoomPageTransitionsBuilder(
+            allowSnapshotting: false,
+          ),
+        },
+      ),
       colorScheme: colorScheme,
       scaffoldBackgroundColor: KingColors.canvas,
       fontFamilyFallback: const ['PingFang SC', 'Microsoft YaHei'],

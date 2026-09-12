@@ -15,3 +15,7 @@
 密度修正：服务端改37字符Redis短期引用；App使用旧assets/legacy/aa/kingLogo.png黑色圆底白字Logo替换透明文字。新包覆盖安装Success，真机确认稀疏短码及Logo显示。2项布局测试通过，服务端185项及runtime通过；双机光学扫码仍待实测。
 
 用户要求Logo按旧版比例放大：从68rpx改100rpx，占500rpx二维码20%；二维码及布局不变，保留H级纠错。
+
+二维码切换反馈：手机3项动画倍率均1.0，路由本为Material；二维码异步加载时默认快照可能只捕获空背景。个人码路由明确MaterialPage并关闭快照，使用实时页面参与原生动画；不更改系统动画倍率。
+
+设置页同类反馈：全局Android显式ZoomPageTransitionsBuilder(allowSnapshotting:false)，其余平台沿用SDK默认。2项测试验证设置和个人码进入/返回动画处于中间进度且实际存在非单位缩放；analyze通过，APK构建并覆盖安装Success。视觉原因仍需用户确认，不将静态截图视为动态体验验收。
