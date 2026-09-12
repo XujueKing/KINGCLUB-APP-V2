@@ -82,6 +82,13 @@ flutter:
     - assets/legacy/navigation/content-heart.png
     - assets/legacy/storage/
     - assets/legacy/profile/
+    - assets/legacy/profile/secure.png
+    - assets/legacy/profile/yinsi.png
+    - assets/legacy/profile/agreement.png
+    - assets/legacy/profile/touxiang.png
+    - assets/legacy/profile/nengliang.png
+    - assets/legacy/profile/klztext.png
+    - assets/legacy/profile/kingLogo.png
     - assets/legacy/friendship/
     - assets/legacy/friendship/blacklist.png
     - assets/legacy/ordering/

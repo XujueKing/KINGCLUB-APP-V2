@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/club/data/storage_repository.dart';
@@ -26,7 +29,57 @@ class Repo extends PreviewStorageRepository {
   };
 }
 
+class DelayedRepo extends Repo {
+  Completer<Map<String, dynamic>>? pending;
+  @override
+  Future<Map<String, dynamic>> issue(String ref) {
+    if (calls == 0) return super.issue(ref);
+    calls++;
+    pending = Completer<Map<String, dynamic>>();
+    return pending!.future;
+  }
+}
+
 void main() {
+  testWidgets(
+    'refresh keeps code and white panel until atomic replacement, expires on slow network',
+    (tester) async {
+      final repo = DelayedRepo();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RealStoragePickupPage(item: fixture.first, repository: repo),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 26));
+      await tester.pump();
+      expect(repo.calls, 2);
+      expect(find.byType(QrImageView), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      repo.pending!.complete({
+        'token': 'next-test-token',
+        'expiresInSeconds': 30,
+      });
+      await tester.pump();
+      expect(find.byType(QrImageView), findsOneWidget);
+      await tester.pump(const Duration(seconds: 26));
+      await tester.pump();
+      expect(find.byType(QrImageView), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+      expect(find.byKey(const ValueKey('storage-real-code')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('storage-code-background')),
+        findsOneWidget,
+      );
+      repo.pending!.completeError(StateError('offline'));
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('storage-code-background')),
+        findsOneWidget,
+      );
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets(
     'real credential rotates, hides in background and stops after collection',
     (tester) async {

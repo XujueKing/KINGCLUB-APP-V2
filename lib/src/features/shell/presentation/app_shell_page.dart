@@ -35,8 +35,10 @@ class AppShellPage extends StatefulWidget {
     this.onOpenOrdering,
     this.onOpenAssets,
     this.onOpenEditProfile,
+    this.onOpenPersonalInfo,
     this.onOpenPersonalQr,
     this.onOpenSettings,
+    this.onOpenAbout,
     this.onOpenOrders,
     this.onSessionResetRequested,
     this.profileCoverStore,
@@ -69,8 +71,10 @@ class AppShellPage extends StatefulWidget {
     String coverAsset,
   )?
   onOpenEditProfile;
+  final VoidCallback? onOpenPersonalInfo;
   final VoidCallback? onOpenPersonalQr;
   final VoidCallback? onOpenSettings;
+  final VoidCallback? onOpenAbout;
   final VoidCallback? onOpenOrders;
   final VoidCallback? onSessionResetRequested;
   final ProfileCoverStore? profileCoverStore;
@@ -202,8 +206,10 @@ class _AppShellPageState extends State<AppShellPage> {
                 MyProfilePage(
                   onOpenAssets: widget.onOpenAssets,
                   onOpenEditProfile: widget.onOpenEditProfile,
+                  onOpenPersonalInfo: widget.onOpenPersonalInfo,
                   onOpenPersonalQr: widget.onOpenPersonalQr,
                   onOpenSettings: widget.onOpenSettings,
+                  onOpenAbout: widget.onOpenAbout,
                   onOpenOrders: widget.onOpenOrders,
                   onSessionResetRequested: widget.onSessionResetRequested,
                   coverStore: widget.profileCoverStore,

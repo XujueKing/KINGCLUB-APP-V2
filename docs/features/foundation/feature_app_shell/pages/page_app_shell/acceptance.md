@@ -28,3 +28,6 @@
 消息聚合设备证据：[初始 5 条](android_message_badge_five_chat.png)、[阅读一条系统后 4 条](android_message_badge_four.png)、[系统全部已读后 2 条](android_message_badge_two.png)、[好友会话已读后隐藏](android_message_badge_zero.png)。
 
 五分支设备证据与审核记录见 [ui-audit.md](ui-audit.md)。
+
+
+2026-09-12 GitHub合并：保留本会话确认的五按钮底栏、中央爱心/加号与90%茶色磨砂参数；合入个人信息与关于页面回调。远端四按钮方案未采用。

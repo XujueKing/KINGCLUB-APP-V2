@@ -5,129 +5,96 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 Widget _frame(
   PersonalQrScenario scenario, {
-  Duration tickInterval = const Duration(seconds: 1),
+  VoidCallback? onBack,
   VoidCallback? onSessionResetRequested,
 }) {
   return MaterialApp(
     home: PersonalQrPage(
       initialScenario: scenario,
-      tickInterval: tickInterval,
+      onBack: onBack,
       onSessionResetRequested: onSessionResetRequested,
     ),
   );
 }
 
 void main() {
-  testWidgets('ready state exposes only a short-lived mock QR', (tester) async {
+  testWidgets('ready state reproduces the permanent mini-program QR', (
+    tester,
+  ) async {
     await tester.pumpWidget(_frame(PersonalQrScenario.ready));
 
+    expect(find.text('我的二维码'), findsOneWidget);
+    expect(find.text('杨嘉琪'), findsNothing);
+    expect(find.text('K45600000799'), findsOneWidget);
     expect(find.byType(QrImageView), findsOneWidget);
-    expect(
-      tester.widget<QrImageView>(find.byType(QrImageView)).key,
-      isA<ValueKey<String>>(),
+    expect(find.text('扫一扫上面的二维码图案，加我成为朋友'), findsOneWidget);
+    expect(find.textContaining('有效期'), findsNothing);
+    expect(find.textContaining('过期'), findsNothing);
+    expect(find.textContaining('刷新'), findsNothing);
+    expect(find.textContaining('隐藏'), findsNothing);
+
+    final avatar = tester.getRect(
+      find.byKey(const ValueKey('personal-qr-avatar')),
     );
-    expect(find.text('杨嘉琪'), findsOneWidget);
-    expect(find.text('KingClub 好友邀请'), findsOneWidget);
-    expect(find.textContaining('K456'), findsNothing);
-    expect(find.textContaining('手机号'), findsOneWidget);
-    expect(find.textContaining('保存'), findsNothing);
-    expect(find.textContaining('分享'), findsNothing);
-    expect(find.textContaining('复制'), findsNothing);
+    final canvas = tester.getRect(
+      find.byKey(const ValueKey('personal-qr-code')),
+    );
+    final qrImage = tester.getRect(
+      find.byKey(const ValueKey('personal-qr-image')),
+    );
+    final viewportWidth = MediaQuery.sizeOf(
+      tester.element(find.byKey(const ValueKey('personal-qr-code'))),
+    ).width;
+    expect(canvas.width, closeTo(viewportWidth * 500 / 750, 0.5));
+    expect(qrImage.width, closeTo(viewportWidth * 412 / 750, 0.5));
+    expect(canvas.top - avatar.bottom, closeTo(viewportWidth * 40 / 750, 0.5));
   });
 
-  testWidgets('refresh destroys old QR immediately and issues a new one', (
+  testWidgets('QR payload stays stable across lifecycle changes', (
     tester,
   ) async {
     await tester.pumpWidget(_frame(PersonalQrScenario.ready));
-    final oldKey = tester.widget<QrImageView>(find.byType(QrImageView)).key;
-
-    await tester.tap(find.byKey(const ValueKey('personal-qr-refresh')));
-    await tester.pump();
-    expect(find.byType(QrImageView), findsNothing);
-    expect(find.text('正在刷新二维码'), findsWidgets);
-
-    // A second tap cannot create a second request because the action is gone.
-    expect(find.byKey(const ValueKey('personal-qr-refresh')), findsNothing);
-    await tester.pump(const Duration(milliseconds: 430));
-    final newKey = tester.widget<QrImageView>(find.byType(QrImageView)).key;
-    expect(newKey, isNot(oldKey));
-  });
-
-  testWidgets('refresh failure never restores the old QR', (tester) async {
-    await tester.pumpWidget(_frame(PersonalQrScenario.refreshError));
-    expect(find.byType(QrImageView), findsNothing);
-
-    await tester.tap(find.byKey(const ValueKey('personal-qr-refresh')));
-    await tester.pump(const Duration(milliseconds: 430));
-    expect(find.byType(QrImageView), findsNothing);
-    expect(find.text('二维码生成失败'), findsWidgets);
-    expect(find.textContaining('不会恢复'), findsOneWidget);
-  });
-
-  testWidgets('expired offline and initial error states never show a QR', (
-    tester,
-  ) async {
-    for (final scenario in <PersonalQrScenario>[
-      PersonalQrScenario.expired,
-      PersonalQrScenario.offline,
-      PersonalQrScenario.issueError,
-    ]) {
-      await tester.pumpWidget(_frame(scenario));
-      expect(find.byType(QrImageView), findsNothing, reason: scenario.name);
-    }
-  });
-
-  testWidgets('background hides QR and resume creates a fresh QR', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_frame(PersonalQrScenario.ready));
-    final oldKey = tester.widget<QrImageView>(find.byType(QrImageView)).key;
+    final before = tester.widget<QrImageView>(find.byType(QrImageView)).key;
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     await tester.pump();
-    expect(find.byType(QrImageView), findsNothing);
-    expect(find.text('二维码已隐藏'), findsWidgets);
-
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
-    expect(find.byType(QrImageView), findsNothing);
-    await tester.pump(const Duration(milliseconds: 430));
-    final newKey = tester.widget<QrImageView>(find.byType(QrImageView)).key;
-    expect(newKey, isNot(oldKey));
-  });
 
-  testWidgets('countdown expires and removes the scannable QR', (tester) async {
-    await tester.pumpWidget(
-      _frame(
-        PersonalQrScenario.nearlyExpired,
-        tickInterval: const Duration(milliseconds: 1),
-      ),
-    );
+    final after = tester.widget<QrImageView>(find.byType(QrImageView)).key;
+    expect(after, before);
     expect(find.byType(QrImageView), findsOneWidget);
-
-    await tester.pump(const Duration(milliseconds: 60));
-    expect(find.byType(QrImageView), findsNothing);
-    expect(find.text('二维码已过期'), findsWidgets);
   });
 
-  testWidgets('late issue response is ignored after scenario switch', (
+  testWidgets('legacy expiry scenarios no longer change the permanent page', (
     tester,
   ) async {
-    await tester.pumpWidget(_frame(PersonalQrScenario.delayedIssue));
-    expect(find.byType(QrImageView), findsNothing);
-
-    await tester.longPress(find.byKey(const ValueKey('personal-qr-title')));
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const ValueKey('personal-qr-scenario-offline')),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 700));
-    expect(find.byType(QrImageView), findsNothing);
-    expect(find.text('当前无法联网'), findsWidgets);
+    for (final scenario in const [
+      PersonalQrScenario.nearlyExpired,
+      PersonalQrScenario.expired,
+      PersonalQrScenario.offline,
+      PersonalQrScenario.issueError,
+      PersonalQrScenario.refreshError,
+      PersonalQrScenario.delayedIssue,
+    ]) {
+      await tester.pumpWidget(_frame(scenario));
+      expect(find.byType(QrImageView), findsOneWidget, reason: scenario.name);
+      expect(find.textContaining('刷新'), findsNothing, reason: scenario.name);
+      expect(find.textContaining('过期'), findsNothing, reason: scenario.name);
+    }
   });
 
-  testWidgets('session invalid clears state and requests auth reset', (
+  testWidgets('back delegates to the profile route', (tester) async {
+    var backCount = 0;
+    await tester.pumpWidget(
+      _frame(PersonalQrScenario.ready, onBack: () => backCount++),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('personal-qr-back')));
+    expect(backCount, 1);
+  });
+
+  testWidgets('session invalid hides the page and requests auth reset', (
     tester,
   ) async {
     var resetRequested = false;
@@ -139,7 +106,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(QrImageView), findsNothing);
     expect(find.byKey(const ValueKey('personal-qr-session-dialog')), findsOne);
     await tester.tap(find.byKey(const ValueKey('personal-qr-session-confirm')));
     await tester.pumpAndSettle();

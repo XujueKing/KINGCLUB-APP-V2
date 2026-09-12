@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/my_profile_page.dart';
 
 void main() {
-  testWidgets('我的主页字体遵循旧版 750rpx 标尺', (tester) async {
+  testWidgets('资产型我的主页字体遵循旧版 750rpx 标尺', (tester) async {
     await tester.binding.setSurfaceSize(const Size(393, 852));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -17,19 +17,35 @@ void main() {
     );
     await tester.pump();
 
-    TextStyle styleOf(String text) =>
-        tester.widget<Text>(find.text(text)).style!;
+    const scale = 393 / 750;
+    TextStyle styleForKey(String key) => tester
+        .widget<Text>(
+          find
+              .descendant(
+                of: find.byKey(ValueKey(key)),
+                matching: find.byType(Text),
+              )
+              .first,
+        )
+        .style!;
 
-    expect(styleOf('杨嘉琪').fontSize, 20);
-    expect(styleOf('杨嘉琪').fontWeight, FontWeight.w600);
-    expect(styleOf('账号：K45600000199').fontSize, 11.5);
-    expect(styleOf('获赞').fontSize, 13.5);
-    expect(styleOf('获赞').fontWeight, FontWeight.w400);
-    expect(styleOf('余额：¥ 0.00').fontSize, 14);
-    expect(styleOf('♂ 24岁').fontSize, 12.5);
-    expect(styleOf('动态').fontSize, 17);
-    expect(styleOf('动态').fontWeight, FontWeight.w600);
-    expect(styleOf('作品').fontSize, 14.5);
-    expect(styleOf('作品').fontWeight, FontWeight.w400);
+    final title = tester
+        .widget<Text>(find.byKey(const ValueKey('my-profile-total-title')))
+        .style!;
+    expect(title.fontSize, closeTo(30 * scale, .01));
+    expect(
+      styleForKey('my-profile-total-balance').fontSize,
+      closeTo(66 * scale, .01),
+    );
+    expect(styleForKey('my-profile-total-balance').fontWeight, FontWeight.w600);
+    expect(
+      styleForKey('my-profile-wallet-account').fontSize,
+      closeTo(36 * scale, .01),
+    );
+    expect(
+      styleForKey('my-profile-menu-qr').fontSize,
+      closeTo(31 * scale, .01),
+    );
+    expect(styleForKey('my-profile-menu-qr').fontWeight, FontWeight.w400);
   });
 }

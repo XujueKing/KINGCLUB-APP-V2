@@ -9,48 +9,66 @@ Widget _frame(
   VoidCallback? onSessionResetRequested,
 }) {
   return MaterialApp(
-    home: AboutLegalPage(
-      initialScenario: scenario,
-      initialDocumentIndex: initialDocumentIndex,
-      onBack: onBack,
-      onSessionResetRequested: onSessionResetRequested,
+    home: MediaQuery(
+      data: const MediaQueryData(size: Size(393, 852)),
+      child: AboutLegalPage(
+        initialScenario: scenario,
+        initialDocumentIndex: initialDocumentIndex,
+        onBack: onBack,
+        onSessionResetRequested: onSessionResetRequested,
+      ),
     ),
   );
 }
 
 void main() {
-  testWidgets('catalog exposes all required legal documents', (tester) async {
+  testWidgets('catalog reproduces the mini-program about screen', (
+    tester,
+  ) async {
     await tester.pumpWidget(_frame(AboutLegalScenario.catalog));
     expect(find.byKey(const ValueKey('about-legal-catalog')), findsOneWidget);
-    for (var index = 0; index < 4; index++) {
-      expect(
-        find.byKey(ValueKey('about-legal-document-$index')),
-        findsOneWidget,
-      );
-    }
+    expect(find.text('关于KINGBAR'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('about-legal-document-0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('about-legal-document-1')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('about-legal-document-2')), findsNothing);
+    expect(find.byKey(const ValueKey('about-legal-document-3')), findsNothing);
+    expect(find.textContaining('KINGBAR酒吧预定APP'), findsOneWidget);
+    expect(find.text('技术支持：548627@qq.com'), findsOneWidget);
+    expect(find.text('2025 版本号：1.1.17'), findsOneWidget);
+    expect(find.textContaining('湘ICP备2025115786号-2A'), findsOneWidget);
+    expect(find.textContaining('湖南领美网络科技有限公司'), findsOneWidget);
   });
 
-  testWidgets(
-    'document reader shows title version date and returns to catalog',
-    (tester) async {
-      await tester.pumpWidget(_frame(AboutLegalScenario.catalog));
-      await tester.tap(find.byKey(const ValueKey('about-legal-document-0')));
-      await tester.pumpAndSettle();
-      expect(find.text('《KING CLUB 会员服务协议》'), findsOneWidget);
-      expect(find.text('版本：预发布版'), findsOneWidget);
-      expect(find.text('生效日期：待权威目录确认'), findsOneWidget);
+  testWidgets('agreement reader uses the original title and full legacy body', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_frame(AboutLegalScenario.catalog));
+    await tester.tap(find.byKey(const ValueKey('about-legal-document-0')));
+    await tester.pumpAndSettle();
+    expect(find.text('KINGBAR用户协议'), findsOneWidget);
+    expect(find.text('《KINGBAR 服务条款和规则》'), findsOneWidget);
+    expect(find.textContaining('引言-您同意这些服务条款'), findsOneWidget);
+    expect(find.text('版本：预发布版'), findsNothing);
+    expect(find.text('生效日期：待权威目录确认'), findsNothing);
 
-      await tester.tap(find.byType(IconButton).first);
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('about-legal-catalog')), findsOneWidget);
-    },
-  );
+    await tester.tap(find.byType(IconButton).first);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('about-legal-catalog')), findsOneWidget);
+  });
 
   testWidgets('valid deep document reference opens directly', (tester) async {
     await tester.pumpWidget(
       _frame(AboutLegalScenario.catalog, initialDocumentIndex: 1),
     );
-    expect(find.text('《KingClub 隐私政策》'), findsOneWidget);
+    expect(find.text('KINGBAR隐私政策'), findsOneWidget);
+    expect(find.text('《KINGBAR 隐私政策》'), findsOneWidget);
+    expect(find.text('版本生效日期：2025年5月1日'), findsOneWidget);
   });
 
   testWidgets('offline trusted cache is marked in catalog and reader', (
@@ -64,7 +82,8 @@ void main() {
       find.byKey(const ValueKey('about-reader-offline-cached')),
       findsOneWidget,
     );
-    expect(find.text('版本：预发布版'), findsOneWidget);
+    expect(find.text('《KINGBAR 隐私政策》'), findsOneWidget);
+    expect(find.text('版本：预发布版'), findsNothing);
   });
 
   testWidgets('expired cache refuses to show blank or stale content', (

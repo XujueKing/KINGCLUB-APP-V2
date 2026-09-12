@@ -25,7 +25,7 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
   String? _token, _error;
   bool _loading = false, _foreground = true;
   int _epoch = 0;
-  Timer? _timer;
+  Timer? _timer, _expiryTimer;
   @override
   void initState() {
     super.initState();
@@ -38,6 +38,7 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
     _epoch++;
     _token = null;
     _timer?.cancel();
+    _expiryTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -47,6 +48,7 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
     _foreground = state == AppLifecycleState.resumed;
     _epoch++;
     _timer?.cancel();
+    _expiryTimer?.cancel();
     if (mounted) {
       setState(() {
         _token = null;
@@ -63,7 +65,6 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
     final elapsed = Stopwatch()..start();
     setState(() {
       _loading = true;
-      _token = null;
       _error = null;
     });
     try {
@@ -71,7 +72,11 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
       if (!mounted || epoch != _epoch) return;
       setState(() => _item = detail);
       if (!detail.canPickup) {
-        setState(() => _loading = false);
+        _expiryTimer?.cancel();
+        setState(() {
+          _loading = false;
+          _token = null;
+        });
         return;
       }
       final result = await widget.repository.issue(_item.ref);
@@ -84,15 +89,20 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
         _token = result['token'] as String;
         _loading = false;
       });
-      _timer = Timer(remaining, () {
-        if (mounted) {
-          setState(() => _token = null);
-          _renew();
-        }
+      _expiryTimer?.cancel();
+      _expiryTimer = Timer(remaining, () {
+        if (mounted) setState(() => _token = null);
       });
+      // Refresh before expiry while the current code remains visible.
+      // Never blend two QR patterns: replace the payload in a single frame.
+      final refreshAfter = remaining > const Duration(seconds: 10)
+          ? remaining - const Duration(seconds: 5)
+          : remaining;
+      _timer = Timer(refreshAfter, _renew);
     } catch (_) {
       if (mounted && epoch == _epoch) {
         setState(() {
+          _expiryTimer?.cancel();
           _token = null;
           _loading = false;
           _error = '提取码暂不可用，请刷新后重试';
@@ -148,110 +158,98 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                   Center(
                     child: SizedBox.square(
                       dimension: MediaQuery.sizeOf(context).width * .58,
-                      child: _loading
-                          ? const Center(
-                              child: CircularProgressIndicator(strokeWidth: 1),
-                            )
-                          : _token != null
-                          ? ColoredBox(
-                              color: Colors.white,
-                              child: QrImageView(
+                      child: ColoredBox(
+                        key: const ValueKey('storage-code-background'),
+                        color: Colors.white,
+                        child: _token != null
+                            ? QrImageView(
                                 key: const ValueKey('storage-real-code'),
                                 data: _token!,
                                 padding: const EdgeInsets.all(10),
                                 version: QrVersions.auto,
-                              ),
-                            )
-                          : Center(
-                              child: Text(
-                                _error ??
-                                    (_item.status == 'expired'
-                                        ? '存酒已过期，请联系工作人员核实'
-                                        : _item.status == 'collected'
-                                        ? '已取出'
-                                        : '当前物品不可提取'),
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFFC9B69E),
+                              )
+                            : _loading
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1,
                                 ),
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _token != null ? '请向工作人员出示，提取码会自动更新' : '当前展示物品详情，暂不生成提取码',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0x99C9B69E),
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  for (final row in [
-                    ('品名', _item.name),
-                    if (_item.category == 'wine') ('英文名', _item.englishName),
-                    ('数量', '${_item.quantity}'),
-                    if (_item.category == 'wine')
-                      ('剩余量', '${_item.remainingPercent.toStringAsFixed(0)}%'),
-                    if (_item.category == 'item' && _item.maximumValue != null)
-                      (
-                        '抵用金额',
-                        '最高 ${_item.maximumValue!.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '')} 元',
-                      ),
-                    if (_item.category == 'item' &&
-                        _item.description.isNotEmpty)
-                      ('功能说明', _item.description),
-                    ('储存日期', _date(_item.storedAt)),
-                    ('有效期', _date(_item.expiresAt)),
-                  ])
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 15),
-                      child: Row(
-                        crossAxisAlignment: row.$1 == '功能说明'
-                            ? CrossAxisAlignment.start
-                            : CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${row.$1}：',
-                            style: const TextStyle(
-                              color: Color(0xFF9E9589),
-                              fontSize: 15,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2B2115),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
+                              )
+                            : Center(
                                 child: Text(
-                                  row.$2,
-                                  textAlign: row.$1 == '功能说明'
-                                      ? TextAlign.left
-                                      : TextAlign.right,
+                                  _error ??
+                                      (_item.status == 'expired'
+                                          ? '存酒已过期，请联系工作人员核实'
+                                          : _item.status == 'collected'
+                                          ? '已取出'
+                                          : '当前物品不可提取'),
+                                  textAlign: TextAlign.center,
                                   style: const TextStyle(
-                                    color: Color(0xFFC9B69E),
-                                    fontSize: 15,
+                                    color: Color(0xFF695B48),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
-                  TextButton(
-                    onPressed: _loading ? null : _renew,
-                    child: const Text('刷新状态'),
                   ),
+                  if (_item.category == 'item') ...[
+                    const SizedBox(height: 46),
+                    _detailRow('物品名', _item.name),
+                    if (_item.description.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 15),
+                        child: ColoredBox(
+                          color: const Color(0xFF2B2115),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 4,
+                            ),
+                            child: Text(
+                              _item.description,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Color(0xFFC9B69E),
+                                fontSize: 13,
+                                height: 1.45,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    _detailRow('数量', '${_item.quantity}'),
+                    _detailRow('获取日期', _date(_item.storedAt)),
+                    _detailRow('过期日期', _date(_item.expiresAt)),
+                    if (_item.maximumValue != null)
+                      _detailRow(
+                        '最大抵用金额',
+                        '￥${_item.maximumValue!.toStringAsFixed(2)}',
+                      ),
+                  ] else ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _token != null ? '请向工作人员出示，提取码会自动更新' : '当前展示物品详情，暂不生成提取码',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0x99C9B69E),
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    for (final row in [
+                      ('品名', _item.name),
+                      ('英文名', _item.englishName),
+                      ('数量', '${_item.quantity}'),
+                      ('剩余量', '${_item.remainingPercent.toStringAsFixed(0)}%'),
+                      ('储存日期', _date(_item.storedAt)),
+                      ('有效期', _date(_item.expiresAt)),
+                    ])
+                      _detailRow(row.$1, row.$2),
+                  ],
+                  if (_item.category == 'wine' || (!_loading && _token == null))
+                    TextButton(
+                      onPressed: _loading ? null : _renew,
+                      child: const Text('刷新状态'),
+                    ),
                   if (_item.category == 'wine') ...[
                     const SizedBox(height: 18),
                     const Text(
@@ -271,6 +269,36 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
       ),
     ),
   );
+  Widget _detailRow(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 15),
+    child: Row(
+      children: [
+        Text(
+          '$label：',
+          style: const TextStyle(color: Color(0xFF9E9589), fontSize: 15),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2B2115),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: const TextStyle(color: Color(0xFFC9B69E), fontSize: 15),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
   String _date(String value) => value.isEmpty
       ? '—'
       : (DateTime.tryParse(value)?.toLocal().toString().split('.').first ??

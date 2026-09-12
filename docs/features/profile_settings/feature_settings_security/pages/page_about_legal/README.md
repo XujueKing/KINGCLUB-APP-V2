@@ -6,8 +6,8 @@
 - 所属功能：[设置与账号安全](../../README.md)
 - 旧版来源：`about/aggreement`
 - 路由：`AboutLegalRoute`，`/me/settings/about`，可选 `$extra: DocumentRef`
-- 设计版本：`Settings Wireframe v1 / About & Legal`
-- 最后更新：2026-08-25
+- 设计版本：`Mini Program About + Legacy Legal Reader Replica v3`
+- 最后更新：2026-09-12
 
 ## 线框
 
@@ -23,4 +23,6 @@
 文档阅读态：标题 · 版本 · 生效日期 · 正文
 ```
 
-目录与正文来自权威 DocumentRef；版本号来自构建元数据。状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。
+2026-09-12 起目录首屏按小程序“关于 KINGBAR”复刻；隐私政策与用户协议阅读态按用户图四、图五及旧版 `pages/aggreement` 原文、字号和间距复刻，不再显示预发布版卡片式摘要。正文为本地旧版发布文本；后续权威目录替换仍受项目级门禁约束。
+
+详细规格见 [mini_program_about_replication.md](mini_program_about_replication.md)，状态见 [states.md](states.md)，交互见 [interactions.md](interactions.md)，验收见 [acceptance.md](acceptance.md)。

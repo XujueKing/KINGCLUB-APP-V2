@@ -16,3 +16,19 @@
 - [x] 目录、阅读和重试页面使用正式发布占位文案，不在正常路径展示 Fake、Mock 或测试阶段说明
 
 设备证据：[Android 关于与法律页](screenshots/android_about_legal_v2.png)。自动化证据：`test/about_legal_flow_test.dart` 9 项；项目全量 172 项通过，`flutter analyze` 无问题。
+
+## 2026-09-12 小程序关于页复刻
+
+- [x] 标题、径向背景、King Club 标志、品牌副标题和正文纵向节奏与用户截图一致。
+- [x] 隐私政策与用户协议为蓝色下划线内联入口，可进入阅读态并正常返回。
+- [x] 技术支持、版本、软著、电子版权、APP/小程序备案和开发商信息完整显示。
+- [x] Android 真机同状态视觉复核、定向测试和 `flutter analyze` 通过。
+
+## 2026-09-12 原版法律正文修正
+
+- [x] 隐私政策标题栏、主标题、版本日期和首屏段落与用户图四一致。
+- [x] 用户协议标题栏、主标题和首屏长段落与用户图五一致。
+- [x] 两份正文使用旧版 `650rpx` 内容宽度及 H1/H2/H3/H8 字阶，不显示“预发布版”或“待权威目录确认”。
+- [x] 两份正文均可完整滚动、返回关于页，Android 真机及定向测试通过。
+
+设备证据：`C:\Users\Poplar\AppData\Local\Temp\kingclub_privacy_final3.png`、`C:\Users\Poplar\AppData\Local\Temp\kingclub_agreement_final.png`；同尺寸并排证据：`kingclub_compare_privacy_final.png`、`kingclub_compare_agreement_final.png`。自动化证据：个人信息、关于和 Shell 相关定向测试 26/26 通过；`flutter analyze` 无问题。

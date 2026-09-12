@@ -6,18 +6,22 @@
 - 所属功能：[个人中心与资料](../../README.md)
 - 旧版来源：`pages/index/index` 的“我的”分支
 - 路由语义：`MyProfileRoute`，`/me`，protectedShell/me 分支根
-- 设计版本：`Profile Center Wireframe v1 / Me / Legacy My Profile Replica v1`
-- 最后更新：2026-08-28
+- 设计版本：`Legacy Wallet Dashboard Replica v2`
+- 最后更新：2026-09-12
+
+## 2026-09-12 最新视觉覆盖
+
+用户要求“我的”改为其提供截图中的小程序资产型页面，并包含全部可见内容。当前唯一实现真值改为 [旧版资产型“我的”页面复刻规范](legacy_wallet_dashboard_replication.md)：总余额、钱包账户、代金券账户、金币、钻石及四行固定菜单。此前封面、头像、统计、资料标签和作品/动态/相册方案仅保留为历史审计，不再进入当前页面。
 
 ## 用户任务
 
-查看旧版会员主页信息，并进入资料编辑、个人二维码、等级、统计、资产和设置 Fake 流程。
+查看会员资产摘要，并进入设置、个人二维码、个人信息、账单记录和关于页面。
 
 ## 入口、出口与返回
 
 - 入口：App Shell“我的”Tab；重复点击当前 Tab 时回到顶部。
 - 前置：authenticated + membership approved；不满足时由全局守卫 reset。
-- 出口：`openEditProfile`、`openPersonalQr` 以及订单、资产、储物柜、设置的固定 RouteIntent。
+- 出口：`openEditProfile`、`openPersonalQr`、`openAssetLedger`、`openAboutLegal` 和 `openSettings` 固定 RouteIntent。
 - 返回：本页是“我的”分支根；系统返回由 App Shell 统一处理，不返回登录或准入页。
 
 ## 视觉基准

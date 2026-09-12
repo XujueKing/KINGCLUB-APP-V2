@@ -40,15 +40,15 @@ void main() {
     ]);
   });
 
-  testWidgets('设置页含有和不含辅助文字的箭头依然对齐', (tester) async {
+  testWidgets('设置页五行小程序菜单的箭头保持同列', (tester) async {
     await tester.pumpWidget(frame(const SettingsPage()));
 
     expectSameArrowColumn(tester, const [
-      'settings-arrow-payment',
-      'settings-arrow-notification',
-      'settings-arrow-cache',
-      'settings-arrow-about',
-      'settings-arrow-deletion',
+      'settings-arrow-personal-info',
+      'settings-arrow-account-security',
+      'settings-arrow-privacy-policy',
+      'settings-arrow-user-agreement',
+      'settings-arrow-about-kingbar',
     ]);
   });
 
