@@ -92,6 +92,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
           .currentState
           ?.push(
             MaterialPageRoute<void>(
+              allowSnapshotting: false,
               builder: (_) =>
                   RealStoragePickupPage(item: item, repository: repository),
             ),

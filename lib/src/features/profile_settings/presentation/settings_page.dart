@@ -217,7 +217,10 @@ class _SettingsPageState extends State<SettingsPage> {
       '关于与法律' => const AboutLegalPage(),
       _ => const SizedBox.shrink(),
     };
-    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => page));
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(allowSnapshotting: false, builder: (_) => page),
+    );
   }
 
   Future<void> _showNotificationStatus() async {

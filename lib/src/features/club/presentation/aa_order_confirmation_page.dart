@@ -446,6 +446,7 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
     }
     await Navigator.of(context).pushReplacement<void, void>(
       MaterialPageRoute<void>(
+        allowSnapshotting: false,
         builder: (paymentContext) => PaymentResultPage(
           repository: repository,
           intentRef: FakePaymentIntentRef(order.paymentIntentId),
@@ -453,6 +454,7 @@ class _AaOrderConfirmationPageState extends State<AaOrderConfirmationPage> {
           onOpenOrder: (orderRef) {
             Navigator.of(paymentContext).pushReplacement<void, void>(
               MaterialPageRoute<void>(
+                allowSnapshotting: false,
                 builder: (orderContext) => OrderDetailPage(
                   repository: repository,
                   orderRef: orderRef,

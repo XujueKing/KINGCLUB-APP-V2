@@ -153,6 +153,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     if (item == null) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
+        allowSnapshotting: false,
         builder: (_) =>
             RealStoragePickupPage(item: item, repository: _repository),
       ),
@@ -223,6 +224,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     if (!mounted || selected == null) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
+        allowSnapshotting: false,
         builder: (_) =>
             RealStoragePickupPage(item: selected, repository: _repository),
       ),

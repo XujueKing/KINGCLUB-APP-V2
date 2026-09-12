@@ -1224,6 +1224,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
+        allowSnapshotting: false,
         builder: (_) => PersonalQrPage(
           onSessionResetRequested: widget.onSessionResetRequested,
         ),
@@ -1288,6 +1289,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
     }
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
+        allowSnapshotting: false,
         builder: (_) => AssetLedgerPage(initialType: type),
       ),
     );
@@ -1298,8 +1300,12 @@ class _MyProfilePageState extends State<MyProfilePage> {
       widget.onOpenSettings!();
       return;
     }
-    Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const SettingsPage()));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        allowSnapshotting: false,
+        builder: (_) => const SettingsPage(),
+      ),
+    );
   }
 
   void _showOrders() {
@@ -1320,6 +1326,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
       }
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
+          allowSnapshotting: false,
           builder: (_) => EditProfilePage(
             nickname: _nickname,
             signature: _signature,
@@ -1336,6 +1343,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
         ? await widget.onOpenEditProfile!(_nickname, _signature, _coverAsset)
         : await Navigator.of(context).push<EditableProfileResult>(
             MaterialPageRoute<EditableProfileResult>(
+              allowSnapshotting: false,
               builder: (_) => EditProfilePage(
                 nickname: _nickname,
                 signature: _signature,

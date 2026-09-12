@@ -209,6 +209,7 @@ class _AaPackageDetailPageState extends State<AaPackageDetailPage> {
     }
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
+        allowSnapshotting: false,
         builder: (_) => AaOrderConfirmationPage(
           repository: widget.repository,
           package: _displayPackage,

@@ -60,6 +60,7 @@ class _MemberScannerPageState extends State<MemberScannerPage>
       await Navigator.push(
         context,
         MaterialPageRoute<void>(
+          allowSnapshotting: false,
           builder: (_) => MemberCardPreview(profile: result),
         ),
       );

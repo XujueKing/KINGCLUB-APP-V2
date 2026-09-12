@@ -122,6 +122,7 @@ class _AaReservationsPageState extends State<AaReservationsPage> {
     setState(() => _opening = true);
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
+        allowSnapshotting: false,
         builder: (_) => AaPackageDetailPage(
           repository: widget.repository,
           package: item,

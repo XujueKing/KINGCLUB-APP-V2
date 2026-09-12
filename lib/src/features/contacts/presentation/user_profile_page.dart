@@ -225,6 +225,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
     final result = await Navigator.of(context).push<SendFriendRequestResult>(
       MaterialPageRoute<SendFriendRequestResult>(
+        allowSnapshotting: false,
         builder: (_) => SendFriendRequestPage(
           targetRef: widget.targetRef,
           targetName: _remarkOverride ?? _profile.displayName,
@@ -262,6 +263,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
     final result = await Navigator.of(context).push<FriendRemarkResult>(
       MaterialPageRoute<FriendRemarkResult>(
+        allowSnapshotting: false,
         builder: (_) => FriendRemarkPage(
           targetRef: widget.targetRef,
           initialRemark: _remarkOverride ?? profile.displayName,
@@ -282,6 +284,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
     final result = await Navigator.of(context).push<RelationshipChangeResult>(
       MaterialPageRoute<RelationshipChangeResult>(
+        allowSnapshotting: false,
         builder: (_) => RelationshipPermissionsPage(
           targetRef: widget.targetRef,
           displayName: _remarkOverride ?? profile.displayName,

@@ -768,6 +768,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ? await widget.adjustCoverImage!(selectedReference)
           : await Navigator.of(context).push<String>(
               MaterialPageRoute<String>(
+                allowSnapshotting: false,
                 builder: (_) => CoverAdjustPage(imagePath: selectedReference),
               ),
             );

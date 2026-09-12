@@ -943,6 +943,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     final cleared = await Navigator.push<bool>(
       context,
       MaterialPageRoute<bool>(
+        allowSnapshotting: false,
         builder: (_) => DirectChatDetailsPage(peerName: widget.peerName),
       ),
     );
@@ -1009,6 +1010,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         await Navigator.push<bool>(
           context,
           MaterialPageRoute<bool>(
+            allowSnapshotting: false,
             builder: (_) => ContactSelectorPage(preview: message.text),
           ),
         );

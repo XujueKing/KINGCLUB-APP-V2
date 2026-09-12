@@ -135,17 +135,29 @@ Page<void> _authFlowPage({
   required GoRouterState state,
   required Widget child,
 }) {
-  return MaterialPage<void>(key: state.pageKey, child: child);
+  return MaterialPage<void>(
+    key: state.pageKey,
+    allowSnapshotting: false,
+    child: child,
+  );
 }
 
 Page<void> _horizontalEntryPage({
   required GoRouterState state,
   required Widget child,
-}) => MaterialPage<void>(key: state.pageKey, child: child);
+}) => MaterialPage<void>(
+  key: state.pageKey,
+  allowSnapshotting: false,
+  child: child,
+);
 Page<void> _bottomUpPage({
   required GoRouterState state,
   required Widget child,
-}) => MaterialPage<void>(key: state.pageKey, child: child);
+}) => MaterialPage<void>(
+  key: state.pageKey,
+  allowSnapshotting: false,
+  child: child,
+);
 
 @Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
@@ -182,6 +194,14 @@ GoRouter appRouter(Ref ref) {
 
 @TypedGoRoute<AuthBootstrapRoute>(path: '/auth/bootstrap')
 class AuthBootstrapRoute extends GoRouteData with $AuthBootstrapRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const AuthBootstrapRoute();
 
   @override
@@ -527,6 +547,14 @@ class _ControlledRouteBackScope extends StatelessWidget {
 
 @TypedGoRoute<AppShellRoute>(path: '/home')
 class AppShellRoute extends GoRouteData with $AppShellRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const AppShellRoute();
 
   @override
@@ -558,6 +586,14 @@ class AppShellRoute extends GoRouteData with $AppShellRoute {
 
 @TypedGoRoute<ContentFeedRoute>(path: '/discover')
 class ContentFeedRoute extends GoRouteData with $ContentFeedRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const ContentFeedRoute();
 
   @override
@@ -590,6 +626,14 @@ class ContentFeedRoute extends GoRouteData with $ContentFeedRoute {
 
 @TypedGoRoute<ContactsRoute>(path: '/messages/contacts')
 class ContactsRoute extends GoRouteData with $ContactsRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const ContactsRoute();
 
   @override
@@ -622,6 +666,14 @@ class ContactsRoute extends GoRouteData with $ContactsRoute {
 
 @TypedGoRoute<AddFriendRoute>(path: '/social/add')
 class AddFriendRoute extends GoRouteData with $AddFriendRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const AddFriendRoute();
 
   @override
@@ -646,6 +698,14 @@ class AddFriendRoute extends GoRouteData with $AddFriendRoute {
 
 @TypedGoRoute<FriendRequestsRoute>(path: '/social/requests')
 class FriendRequestsRoute extends GoRouteData with $FriendRequestsRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const FriendRequestsRoute();
 
   @override
@@ -670,6 +730,14 @@ class UserProfileRouteArgs {
 
 @TypedGoRoute<UserProfileRoute>(path: '/social/profile')
 class UserProfileRoute extends GoRouteData with $UserProfileRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const UserProfileRoute(this.$extra);
 
   final UserProfileRouteArgs $extra;
@@ -693,6 +761,14 @@ class SendFriendRequestRouteArgs {
 
 @TypedGoRoute<SendFriendRequestRoute>(path: '/social/request/send')
 class SendFriendRequestRoute extends GoRouteData with $SendFriendRequestRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const SendFriendRequestRoute(this.$extra);
 
   final SendFriendRequestRouteArgs $extra;
@@ -722,6 +798,14 @@ class FriendRemarkRouteArgs {
 
 @TypedGoRoute<FriendRemarkRoute>(path: '/social/friend/remark')
 class FriendRemarkRoute extends GoRouteData with $FriendRemarkRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const FriendRemarkRoute(this.$extra);
 
   final FriendRemarkRouteArgs $extra;
@@ -746,6 +830,14 @@ class RelationshipPermissionsRouteArgs {
 @TypedGoRoute<RelationshipPermissionsRoute>(path: '/social/friend/permissions')
 class RelationshipPermissionsRoute extends GoRouteData
     with $RelationshipPermissionsRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const RelationshipPermissionsRoute(this.$extra);
 
   final RelationshipPermissionsRouteArgs $extra;
@@ -762,6 +854,14 @@ class RelationshipPermissionsRoute extends GoRouteData
 
 @TypedGoRoute<BlacklistRoute>(path: '/social/blacklist')
 class BlacklistRoute extends GoRouteData with $BlacklistRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const BlacklistRoute();
 
   @override
@@ -786,6 +886,14 @@ class ScannerRouteArgs {
 
 @TypedGoRoute<SafeScannerRoute>(path: '/scan')
 class SafeScannerRoute extends GoRouteData with $SafeScannerRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const SafeScannerRoute(this.$extra);
 
   final ScannerRouteArgs $extra;
@@ -802,6 +910,14 @@ class SafeScannerRoute extends GoRouteData with $SafeScannerRoute {
 
 @TypedGoRoute<AaReservationsRoute>(path: '/club/aa')
 class AaReservationsRoute extends GoRouteData with $AaReservationsRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const AaReservationsRoute();
 
   @override
@@ -827,6 +943,14 @@ class AaReservationsRoute extends GoRouteData with $AaReservationsRoute {
 
 @TypedGoRoute<AaPositioningCardRoute>(path: '/club/aa/positioning-card')
 class AaPositioningCardRoute extends GoRouteData with $AaPositioningCardRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const AaPositioningCardRoute();
 
   @override
@@ -853,6 +977,14 @@ class AaPositioningCardRoute extends GoRouteData with $AaPositioningCardRoute {
   ],
 )
 class VipPartyRoute extends GoRouteData with $VipPartyRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const VipPartyRoute();
 
   @override
@@ -865,6 +997,14 @@ class VipPartyRoute extends GoRouteData with $VipPartyRoute {
 }
 
 class VipPartyCreateRoute extends GoRouteData with $VipPartyCreateRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const VipPartyCreateRoute(this.date);
 
   final String date;
@@ -876,6 +1016,14 @@ class VipPartyCreateRoute extends GoRouteData with $VipPartyCreateRoute {
 
 class VipPartyManagementRoute extends GoRouteData
     with $VipPartyManagementRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const VipPartyManagementRoute();
 
   @override
@@ -885,6 +1033,14 @@ class VipPartyManagementRoute extends GoRouteData
 
 @TypedGoRoute<AdmissionTicketRoute>(path: '/club/admission')
 class AdmissionTicketRoute extends GoRouteData with $AdmissionTicketRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const AdmissionTicketRoute([this.$extra]);
 
   final FakeAdmissionRef? $extra;
@@ -896,6 +1052,14 @@ class AdmissionTicketRoute extends GoRouteData with $AdmissionTicketRoute {
 
 @TypedGoRoute<ScanOrderingCartRoute>(path: '/commerce/ordering')
 class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const ScanOrderingCartRoute();
 
   @override
@@ -913,6 +1077,14 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
 @TypedGoRoute<ScanOrderConfirmationRoute>(path: '/commerce/ordering/confirm')
 class ScanOrderConfirmationRoute extends GoRouteData
     with $ScanOrderConfirmationRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const ScanOrderConfirmationRoute([this.$extra]);
 
   final FakeOrderingQuote? $extra;
@@ -941,6 +1113,14 @@ class ScanOrderConfirmationRoute extends GoRouteData
   routes: [TypedGoRoute<OrderDetailRoute>(path: 'detail')],
 )
 class OrderCenterRoute extends GoRouteData with $OrderCenterRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const OrderCenterRoute();
 
   @override
@@ -955,6 +1135,14 @@ class OrderCenterRoute extends GoRouteData with $OrderCenterRoute {
 }
 
 class OrderDetailRoute extends GoRouteData with $OrderDetailRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const OrderDetailRoute([this.$extra]);
 
   final FakeOrderRef? $extra;
@@ -976,6 +1164,14 @@ class OrderDetailRoute extends GoRouteData with $OrderDetailRoute {
 
 @TypedGoRoute<PaymentResultRoute>(path: '/commerce/payment')
 class PaymentResultRoute extends GoRouteData with $PaymentResultRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const PaymentResultRoute([this.$extra]);
 
   final FakePaymentIntentRef? $extra;
@@ -1001,6 +1197,14 @@ class PaymentResultRoute extends GoRouteData with $PaymentResultRoute {
 
 @TypedGoRoute<AssetLedgerRoute>(path: '/me/assets')
 class AssetLedgerRoute extends GoRouteData with $AssetLedgerRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const AssetLedgerRoute([this.$extra]);
 
   final AssetLedgerType? $extra;
@@ -1025,6 +1229,14 @@ class EditProfileRouteArgs {
 
 @TypedGoRoute<EditProfileRoute>(path: '/me/edit')
 class EditProfileRoute extends GoRouteData with $EditProfileRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const EditProfileRoute(this.$extra);
 
   final EditProfileRouteArgs $extra;
@@ -1094,6 +1306,14 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
 }
 
 class PaymentSecurityRoute extends GoRouteData with $PaymentSecurityRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const PaymentSecurityRoute();
 
   @override
@@ -1107,6 +1327,14 @@ class PaymentSecurityRoute extends GoRouteData with $PaymentSecurityRoute {
 }
 
 class AccountDeletionRoute extends GoRouteData with $AccountDeletionRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const AccountDeletionRoute();
 
   @override
@@ -1121,6 +1349,14 @@ class AccountDeletionRoute extends GoRouteData with $AccountDeletionRoute {
 }
 
 class AboutLegalRoute extends GoRouteData with $AboutLegalRoute {
+  @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
   const AboutLegalRoute();
 
   @override

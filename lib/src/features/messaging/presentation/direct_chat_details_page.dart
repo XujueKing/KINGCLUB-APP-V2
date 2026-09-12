@@ -120,6 +120,7 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
               onTap: () => Navigator.push<void>(
                 context,
                 MaterialPageRoute<void>(
+                  allowSnapshotting: false,
                   builder: (_) => RelationshipPermissionsPage(
                     targetRef: 'contact-seatmate',
                     displayName: widget.peerName,

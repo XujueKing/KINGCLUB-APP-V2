@@ -178,6 +178,7 @@ class _AppShellPageState extends State<AppShellPage> {
                       onOpenSystemNotifications: _openSystemNotifications,
                       onOpenDirectChat: () => Navigator.of(context).push<void>(
                         MaterialPageRoute<void>(
+                          allowSnapshotting: false,
                           builder: (_) => const DirectChatPage(),
                         ),
                       ),
@@ -286,6 +287,7 @@ class _AppShellPageState extends State<AppShellPage> {
   Future<void> _openSystemNotifications() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
+        allowSnapshotting: false,
         builder: (_) => SystemNotificationsPage(
           initialUnreadCount: _systemNotificationsUnread,
           onUnreadChanged: (count) {
@@ -306,10 +308,12 @@ class _AppShellPageState extends State<AppShellPage> {
         }
         Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
+            allowSnapshotting: false,
             builder: (_) => FriendRequestsPage(
               onOpenAddFriend: _openAddFriend,
               onOpenChat: (peerName) => Navigator.of(context).push<void>(
                 MaterialPageRoute<void>(
+                  allowSnapshotting: false,
                   builder: (_) => DirectChatPage(peerName: peerName),
                 ),
               ),
@@ -325,11 +329,13 @@ class _AppShellPageState extends State<AppShellPage> {
         }
         Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
+            allowSnapshotting: false,
             builder: (_) => BlacklistPage(
               onOpenAddFriend: _openAddFriend,
               onOpenUserProfile: (targetRef) {
                 Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
+                    allowSnapshotting: false,
                     builder: (_) => UserProfilePage(
                       targetRef: targetRef,
                       initialRelationship: UserProfileRelationship.blockedByMe,
@@ -347,6 +353,7 @@ class _AppShellPageState extends State<AppShellPage> {
         }
         Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
+            allowSnapshotting: false,
             builder: (_) => UserProfilePage(
               targetRef: intent.targetRef ?? 'contact-chenxi',
             ),
@@ -362,6 +369,7 @@ class _AppShellPageState extends State<AppShellPage> {
     }
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
+        allowSnapshotting: false,
         builder: (pageContext) => AddFriendPage(
           onOpenScanner: () async {
             final destination = await widget.onOpenScanner(pageContext, 1);
@@ -380,6 +388,7 @@ class _AppShellPageState extends State<AppShellPage> {
     if (destination == SafeScanDestination.friendProfile) {
       Navigator.of(pageContext).push<void>(
         MaterialPageRoute<void>(
+          allowSnapshotting: false,
           builder: (_) => const UserProfilePage(
             targetRef: 'contact-alice',
             initialRelationship: UserProfileRelationship.stranger,
