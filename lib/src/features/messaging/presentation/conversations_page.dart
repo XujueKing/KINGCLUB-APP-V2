@@ -102,12 +102,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(
-                    10 * MediaQuery.sizeOf(context).width / 750,
-                    0,
-                    10 * MediaQuery.sizeOf(context).width / 750,
-                    110,
-                  ),
+                  padding: const EdgeInsets.only(bottom: 110),
                   children: [
                     if (_showOfflineBanner)
                       _ConversationOfflineBanner(
@@ -535,26 +530,28 @@ class _PinnedToggle extends StatelessWidget {
       child: InkWell(
         key: const ValueKey('conversation-pinned-toggle'),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
         child: Ink(
           height: 84 * MediaQuery.sizeOf(context).width / 750,
-          decoration: BoxDecoration(
-            color: const Color(0x20C9B69E),
-            borderRadius: BorderRadius.circular(10),
+          decoration: const BoxDecoration(
+            color: Color(0x1AC9B69E),
+            border: Border(
+              top: BorderSide(color: Color(0x1CFFFFFF), width: .5),
+              bottom: BorderSide(color: Color(0x1CFFFFFF), width: .5),
+            ),
           ),
           child: Row(
             children: [
-              SizedBox(width: 60 * MediaQuery.sizeOf(context).width / 750),
+              SizedBox(width: 70 * MediaQuery.sizeOf(context).width / 750),
               Icon(
                 expanded ? Icons.format_list_bulleted : Icons.push_pin_outlined,
                 size: 30 * MediaQuery.sizeOf(context).width / 750,
-                color: const Color(0x66C9B69E),
+                color: const Color(0x66FFFFFF),
               ),
               SizedBox(width: 35 * MediaQuery.sizeOf(context).width / 750),
               Text(
                 expanded ? '折叠置顶聊天' : '$count 个置顶聊天',
                 style: TextStyle(
-                  color: const Color(0x80C9B69E),
+                  color: const Color(0x66FFFFFF),
                   fontSize: 28 * MediaQuery.sizeOf(context).width / 750,
                 ),
               ),
@@ -606,7 +603,7 @@ class _ConversationContent extends StatelessWidget {
       children: [
         Container(
           height: 140 * r,
-          padding: EdgeInsets.only(left: 30 * r, right: 40 * r),
+          padding: EdgeInsets.only(left: 40 * r, right: 50 * r),
           child: Row(
             children: [
               SizedBox(

@@ -1,3 +1,5 @@
+import 'package:flutter_svg/flutter_svg.dart';
+
 import '../../../core/design_system/king_theme.dart';
 
 import 'package:flutter/material.dart';
@@ -142,7 +144,7 @@ class LegacyConversationTabs extends StatelessWidget {
       ),
     );
     return SizedBox(
-      height: 64,
+      height: 58,
       child: Stack(
         children: [
           Positioned(
@@ -217,10 +219,17 @@ class LegacyConversationSearch extends StatelessWidget {
             horizontal: 12,
             vertical: 11,
           ),
-          prefixIcon: const Icon(
-            Icons.search,
-            size: 19,
-            color: Color(0x80C9B69E),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.all(7),
+            child: SvgPicture.asset(
+              'assets/legacy/messaging/search.svg',
+              width: 26,
+              height: 26,
+              colorFilter: const ColorFilter.mode(
+                Color(0x80C9B69E),
+                BlendMode.srcIn,
+              ),
+            ),
           ),
           prefixIconConstraints: const BoxConstraints(
             minWidth: 40,
