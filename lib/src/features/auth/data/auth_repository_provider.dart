@@ -246,7 +246,12 @@ class MockAuthRepository implements AuthRepository {
       final flow = await _runtime.requestSms(mobile);
       return AuthSmsChallenge(id: flow.id, retryAfterSeconds: 60);
     } on MockSmsRequestException catch (error) {
-      throw AuthFailure(error.failure.name, '短信请求失败');
+      throw AuthFailure(
+        error.failure == SmsRequestFailure.rateLimited
+            ? 'AUTH_SMS_RATE_LIMITED'
+            : 'SMS_PROVIDER_ERROR',
+        '短信请求失败',
+      );
     }
   }
 

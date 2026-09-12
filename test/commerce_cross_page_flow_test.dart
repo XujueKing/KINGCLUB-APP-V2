@@ -1,3 +1,4 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +13,7 @@ import 'package:kingclub/src/features/profile_settings/presentation/settings_pag
 import 'package:kingclub/src/navigation/app_router.dart';
 
 void main() {
+  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   Future<ProviderContainer> routed(
     WidgetTester tester,
     String path, {
@@ -388,6 +390,23 @@ void main() {
           .widget<SettingsPage>(find.byType(SettingsPage))
           .onLogoutCompleted
           ?.call();
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        for (
+          var i = 0;
+          i < 100 &&
+              container
+                      .read(appRouterProvider)
+                      .routeInformationProvider
+                      .value
+                      .uri
+                      .path !=
+                  '/auth/mobile';
+          i++
+        ) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      });
       await tester.pumpAndSettle();
       expect(repository.generation, generation + 1);
       expect(

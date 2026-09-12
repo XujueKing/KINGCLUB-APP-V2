@@ -21,8 +21,9 @@ void main() {
   });
 
   testWidgets('style and music catalog visual states', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(393, 852));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, 852);
+    addTearDown(tester.view.reset);
     final runtime = MockRuntime();
     final flowId = runtime.startOnboarding();
 
@@ -39,6 +40,12 @@ void main() {
     );
     await tester.tap(find.text('高级酒会小礼服'));
     await tester.tap(find.text('纯欲风'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      for (final element in find.byType(Image).evaluate()) {
+        await precacheImage((element.widget as Image).image, element);
+      }
+    });
     await tester.pumpAndSettle();
 
     await expectLater(
@@ -58,8 +65,9 @@ void main() {
   });
 
   testWidgets('drink and event catalog visual states', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(393, 852));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, 852);
+    addTearDown(tester.view.reset);
     final runtime = MockRuntime();
     final flowId = runtime.startOnboarding();
 
@@ -74,8 +82,14 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('无酒精'));
+    await tester.tap(find.text('威士忌'));
     await tester.tap(find.text('白兰地'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      for (final element in find.byType(Image).evaluate()) {
+        await precacheImage((element.widget as Image).image, element);
+      }
+    });
     await tester.pumpAndSettle();
 
     await expectLater(

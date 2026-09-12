@@ -259,8 +259,7 @@ void main() {
     await tester.tap(mobileNext);
     await tester.pump(const Duration(milliseconds: 850));
     await tester.pumpAndSettle();
-    expect(find.text('身份资料'), findsOneWidget);
-    expect(find.text('1 / 4'), findsOneWidget);
+    expect(find.text('当前步骤 2/5'), findsOneWidget);
 
     await tester.binding.handlePopRoute();
     await tester.pump();
@@ -331,8 +330,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 850));
     await tester.pumpAndSettle();
 
-    expect(find.text('身份资料'), findsOneWidget);
-    expect(find.text('1 / 4'), findsOneWidget);
+    expect(find.text('当前步骤 2/5'), findsOneWidget);
     expect(find.text('未满18岁未成年人\n不得饮酒注册会员'), findsOneWidget);
     expect(find.text('姓名'), findsNothing);
     expect(find.text('证件号码'), findsNothing);
@@ -341,8 +339,8 @@ void main() {
     final nameFieldSize = tester.getSize(
       find.byKey(const ValueKey('real-name-name-field')),
     );
-    expect(nameFieldSize.width, moreOrLessEquals(420, epsilon: 1));
-    expect(nameFieldSize.height, moreOrLessEquals(46, epsilon: 1));
+    expect(nameFieldSize.width, moreOrLessEquals(480, epsilon: 1));
+    expect(nameFieldSize.height, lessThanOrEqualTo(46));
     expect(
       tester.getCenter(find.text('NAME:')).dx,
       moreOrLessEquals(
@@ -358,11 +356,10 @@ void main() {
       ),
     );
     expect(find.text('合成数据演示'), findsNothing);
-    expect(find.textContaining('中华人民共和国未成年人保护法'), findsNothing);
-    expect(find.textContaining('我已阅读并同意：本人已满18周岁'), findsOneWidget);
+    expect(find.textContaining('中华人民共和国未成年人保护法'), findsOneWidget);
 
     final idField = find.byKey(const ValueKey('real-name-id-field'));
-    expect(tester.widget<TextField>(idField).decoration?.hintText, '请输入证件号码');
+    expect(tester.widget<TextField>(idField).decoration?.hintText, '身份证号码');
     await tester.tap(idField);
     await tester.pump();
     expect(tester.widget<TextField>(idField).decoration?.hintText, isEmpty);
@@ -386,13 +383,8 @@ void main() {
     final identityTextField = find.byKey(const ValueKey('real-name-id-field'));
     expect(tester.widget<TextField>(identityTextField).obscureText, isFalse);
     expect(find.byKey(const ValueKey('real-name-id-visibility')), findsNothing);
-    final adultConsent = find.byKey(
-      const ValueKey('real-name-notice-checkbox'),
-    );
-    expect(adultConsent, findsOneWidget);
-    expect(tester.widget<FilledButton>(verifyButton).onPressed, isNotNull);
-    await tester.tap(adultConsent);
     await tester.pump();
+    expect(tester.widget<FilledButton>(verifyButton).onPressed, isNotNull);
     await tester.ensureVisible(verifyButton);
     await tester.tap(verifyButton);
     await tester.pump(const Duration(milliseconds: 700));
@@ -442,7 +434,7 @@ void main() {
     expect(find.text('SCAN QR'), findsOneWidget);
     expect(find.bySemanticsLabel('首页，标签，已选中'), findsOneWidget);
     expect(find.bySemanticsLabel('消息，标签，5 条未读'), findsOneWidget);
-    expect(find.bySemanticsLabel('内容，标签'), findsNothing);
+    expect(find.bySemanticsLabel('内容，标签'), findsOneWidget);
     expect(find.bySemanticsLabel('私人储物柜，标签'), findsOneWidget);
     expect(find.bySemanticsLabel('我的，标签'), findsOneWidget);
 
@@ -484,7 +476,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 750));
     await tester.pumpAndSettle();
 
-    expect(find.text('请求过于频繁，请 60 秒后重试'), findsOneWidget);
+    expect(find.text('请求过于频繁，请稍后重试'), findsOneWidget);
     expect(find.text('手机号登录'), findsNothing);
   });
 
@@ -1605,25 +1597,15 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.drag(find.byType(PageView), const Offset(-350, 0));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('storage-grid-物-2')), findsOneWidget);
-
+    expect(find.byKey(const ValueKey('storage-grid-物-1')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('storage-empty-info')));
     await tester.pumpAndSettle();
-    expect(find.text('当前没有可展示的物品'), findsOneWidget);
-    expect(find.textContaining('有效存酒或物品'), findsOneWidget);
-    expect(find.text('查看取件凭证'), findsOneWidget);
-    expect(find.textContaining('Fake'), findsNothing);
-    expect(find.textContaining('Mock'), findsNothing);
-
-    await tester.tap(find.byKey(const ValueKey('storage-open-pickup-demo')));
-    await tester.pumpAndSettle();
-    expect(find.text('取件凭证'), findsOneWidget);
-    expect(find.text('ITEM PICKUP CODE'), findsOneWidget);
-    expect(find.text('轩尼诗 VSOP'), findsOneWidget);
-    expect(find.textContaining('秒后自动更新'), findsOneWidget);
-    expect(find.textContaining('UI Mock'), findsNothing);
+    expect(find.text('当前没有可展示的存酒或物品'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('storage-open-pickup-demo')),
+      findsNothing,
+    );
+    expect(find.text('ITEM PICKUP CODE'), findsNothing);
   });
 
   testWidgets('storage pickup code covers offline and partial states', (

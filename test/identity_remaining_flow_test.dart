@@ -86,20 +86,20 @@ void main() {
     expect(find.text('BOUNCE'), findsOneWidget);
     expect(find.text('BIG ROOM'), findsOneWidget);
 
-    await tester.tap(find.text('简约通勤'));
+    await tester.tap(find.text('小清新'));
     await tester.ensureVisible(find.text('HOUSE'));
     await tester.tap(find.text('HOUSE'));
     await tester.pump();
     expect(
       tester
-          .widget<FilterChip>(find.widgetWithText(FilterChip, '简约通勤'))
+          .widget<FilterChip>(find.widgetWithText(FilterChip, '小清新'))
           .selected,
       isTrue,
     );
     expect(find.textContaining('Mock'), findsNothing);
     expect(find.textContaining('Fake'), findsNothing);
 
-    await tester.tap(find.text('下一步'));
+    await tester.tap(find.text('NEXT'));
     await tester.pump(const Duration(milliseconds: 700));
     expect(continued, isTrue);
   });

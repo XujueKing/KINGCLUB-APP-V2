@@ -1,3 +1,5 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -128,6 +130,7 @@ class _ApprovalRefresh extends _Auth {
 }
 
 void main() {
+  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   testWidgets(
     'refresh approval stays on success screen until enter is tapped',
     (tester) async {

@@ -17,6 +17,12 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      for (final element in find.byType(Image).evaluate()) {
+        await precacheImage((element.widget as Image).image, element);
+      }
+    });
+    await tester.pumpAndSettle();
   }
 
   testWidgets('chat back control uses the global size and title alignment', (
