@@ -1,3 +1,5 @@
+import '../../../core/networking/kingclub_realtime.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -25,16 +27,29 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
   String? _token, _error;
   bool _loading = false, _foreground = true;
   int _epoch = 0;
+  bool _refreshPending = false;
   Timer? _timer, _expiryTimer;
+  StreamSubscription<Map<String, dynamic>>? _realtime;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _renew();
+    _realtime = KingclubRealtime.shared.events.listen((event) {
+      if (event['eventType'] == 'connection.ready' ||
+          event['eventType'] == 'storage.changed') {
+        if (_loading) {
+          _refreshPending = true;
+        } else {
+          _renew();
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _realtime?.cancel();
     _epoch++;
     _token = null;
     _timer?.cancel();
@@ -107,6 +122,11 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
           _loading = false;
           _error = '提取码暂不可用，请刷新后重试';
         });
+      }
+    } finally {
+      if (_refreshPending && mounted && _foreground && !_loading) {
+        _refreshPending = false;
+        scheduleMicrotask(_renew);
       }
     }
   }

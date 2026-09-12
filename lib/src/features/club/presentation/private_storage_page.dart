@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import '../../../core/networking/kingclub_realtime.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -34,6 +38,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   String? _selected, _error;
   int _page = 0;
   bool _loading = false, _back = false;
+  StreamSubscription<Map<String, dynamic>>? _realtime;
   StorageItem? get _item => _items.where((i) => i.ref == _selected).firstOrNull;
   List<List<StorageItem>> get _groups {
     final groups = <List<StorageItem>>[];
@@ -60,6 +65,16 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   void initState() {
     super.initState();
     if (widget.active) _load();
+    _realtime = KingclubRealtime.shared.events.listen((event) {
+      if (event['eventType'] == 'connection.ready' ||
+          event['eventType'] == 'storage.changed') {
+        if (widget.active && !_loading) {
+          _load();
+        } else {
+          _loaded = false;
+        }
+      }
+    });
   }
 
   @override
@@ -70,6 +85,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
 
   @override
   void dispose() {
+    _realtime?.cancel();
     _pages.dispose();
     _flip.dispose();
     super.dispose();

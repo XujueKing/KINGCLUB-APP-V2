@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -6,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../media/media_cache.dart';
 
 class SecureSessionStore {
+  static final changes = StreamController<void>.broadcast();
   SecureSessionStore([FlutterSecureStorage? storage])
     : _storage = storage ?? const FlutterSecureStorage();
 
@@ -21,11 +23,14 @@ class SecureSessionStore {
     return created;
   }
 
-  Future<void> saveSession(Map<String, dynamic> value) =>
-      _storage.write(key: _sessionKey, value: jsonEncode(value));
+  Future<void> saveSession(Map<String, dynamic> value) async {
+    await _storage.write(key: _sessionKey, value: jsonEncode(value));
+    changes.add(null);
+  }
 
   Future<void> clearSession() async {
     await _storage.delete(key: _sessionKey);
+    changes.add(null);
     try {
       await MediaCache.shared.clear(privateOnly: true);
     } catch (_) {
