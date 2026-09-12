@@ -115,42 +115,58 @@ class LegacyConversationTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = MediaQuery.sizeOf(context).width / 750;
-    Widget tab(String title, bool selected, VoidCallback? onTap) => TextButton(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(0, 48),
-        foregroundColor: legacyMessageGold,
-      ),
-      child: Text(
-        title,
-        style: selected
-            ? kingSectionTitleStyle
-            : const TextStyle(
-                color: Color(0x80C9B69E),
-                fontSize: 18,
-                fontWeight: FontWeight.w400,
-              ),
+    Widget tab(String title, bool selected, VoidCallback? onTap) => Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Text(
+            title,
+            style: selected
+                ? kingSectionTitleStyle
+                : const TextStyle(
+                    color: Color(0x80C9B69E),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                  ),
+          ),
+        ),
       ),
     );
-    return Padding(
-      // Match visible left text / right icon edges, including icon hit padding.
-      padding: EdgeInsets.fromLTRB(22, 6, 22 - (44 - 40 * r) / 2, 10 * r),
-      child: Row(
+    return SizedBox(
+      height: 64,
+      child: Stack(
         children: [
-          tab('聊天', chatSelected, onChat),
-          const SizedBox(width: 16),
-          tab('通讯录', !chatSelected, onContacts),
-          const Spacer(),
-          IconButton(
-            tooltip: '添加好友',
-            constraints: const BoxConstraints.tightFor(width: 44, height: 48),
-            padding: EdgeInsets.zero,
-            onPressed: onAdd,
-            icon: Image.asset(
-              'assets/legacy/messaging/add.png',
-              width: 40 * r,
-              height: 40 * r,
+          Positioned(
+            left: 18,
+            top: 10,
+            right: 70,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                tab('聊天', chatSelected, onChat),
+                const SizedBox(width: 16),
+                tab('通讯录', !chatSelected, onContacts),
+              ],
+            ),
+          ),
+          Positioned(
+            right: 18 - (44 - 40 * r) / 2,
+            top: 0,
+            child: IconButton(
+              tooltip: '添加好友',
+              constraints: const BoxConstraints.tightFor(width: 44, height: 48),
+              padding: EdgeInsets.zero,
+              onPressed: onAdd,
+              icon: Image.asset(
+                'assets/legacy/messaging/add.png',
+                width: 40 * r,
+                height: 40 * r,
+              ),
             ),
           ),
         ],
