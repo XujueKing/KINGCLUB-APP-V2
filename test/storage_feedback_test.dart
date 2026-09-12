@@ -24,6 +24,76 @@ class ExpiredRepo extends PreviewStorageRepository {
 
 void main() {
   testWidgets(
+    'same wine stored in different batches keeps separate cells, levels and detail dates',
+    (tester) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      const first = StorageItem(
+        ref: 'batch-a',
+        name: '同款存酒',
+        assetKey: 'vodka',
+        quantity: 2,
+        remainingPercent: 50,
+        storedAt: '2026-08-01T12:00:00',
+        expiresAt: '2026-08-31T12:00:00',
+        status: 'expired',
+        canPickup: false,
+      );
+      const second = StorageItem(
+        ref: 'batch-b',
+        name: '同款存酒',
+        assetKey: 'vodka',
+        quantity: 1,
+        remainingPercent: 100,
+        storedAt: '2026-08-10T12:00:00',
+        expiresAt: '2026-09-09T12:00:00',
+        status: 'expired',
+        canPickup: false,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PrivateStoragePage(
+            repository: PreviewStorageRepository([first, second]),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      for (final item in [first, second]) {
+        final cell = find.byKey(ValueKey('storage-select-${item.ref}'));
+        expect(cell, findsOneWidget);
+        expect(
+          find.descendant(of: cell, matching: find.text('${item.quantity}')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: cell,
+            matching: find.text('${item.remainingPercent.toStringAsFixed(0)}%'),
+          ),
+          findsOneWidget,
+        );
+      }
+      expect(find.text('3'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('storage-select-batch-b')));
+      await tester.tap(find.byKey(const ValueKey('storage-pickup')));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).last, const Offset(0, -500));
+      await tester.pumpAndSettle();
+      expect(find.text('2026-09-09 12:00:00'), findsOneWidget);
+      expect(find.text('2026-08-31 12:00:00'), findsNothing);
+      tester.state<NavigatorState>(find.byType(Navigator)).pop();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('storage-select-batch-a')));
+      await tester.tap(find.byKey(const ValueKey('storage-pickup')));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).last, const Offset(0, -500));
+      await tester.pumpAndSettle();
+      expect(find.text('2026-08-31 12:00:00'), findsOneWidget);
+      expect(find.text('50%'), findsWidgets);
+    },
+  );
+  testWidgets(
     'expired storage lists wine and items, excluding available stock',
     (tester) async {
       await tester.pumpWidget(

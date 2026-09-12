@@ -49,7 +49,13 @@ void main() {
       expect(find.byType(StorageLiquidBottle), findsNothing);
       await tester.pump(const Duration(milliseconds: 350));
       expect(find.byType(StorageLiquidBottle), findsOneWidget);
-      expect(find.text('65%'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(StorageLiquidBottle),
+          matching: find.text('65%'),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.byKey(const ValueKey('storage-flip')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));

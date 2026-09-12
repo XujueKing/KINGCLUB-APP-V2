@@ -406,6 +406,27 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                               fit: BoxFit.contain,
                                             ),
                                           ),
+                                          if (item.category == 'wine')
+                                            Positioned(
+                                              right: 12 * u,
+                                              bottom: 10 * u,
+                                              child: IgnorePointer(
+                                                child: Text(
+                                                  '${item.remainingPercent.toStringAsFixed(0)}%',
+                                                  key: ValueKey(
+                                                    'storage-level-${item.ref}',
+                                                  ),
+                                                  style: TextStyle(
+                                                    color: const Color(
+                                                      0x66E9D8C3,
+                                                    ),
+                                                    fontSize: 28 * u,
+                                                    fontWeight: FontWeight.w500,
+                                                    height: 1,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
                                           Positioned(
                                             left: 24 * u,
                                             top: 16 * u,
