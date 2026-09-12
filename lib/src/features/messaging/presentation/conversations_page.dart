@@ -628,53 +628,62 @@ class _ConversationContent extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: const Color(0xBBFFFFFF),
-                        fontSize: 30 * r,
-                        fontWeight: FontWeight.w400,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: const Color(0xBBFFFFFF),
+                              fontSize: 30 * r,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10 * r),
+                        Text(
+                          date,
+                          style: TextStyle(
+                            color: const Color(0x66FFFFFF),
+                            fontSize: 24 * r,
+                          ),
+                        ),
+                      ],
                     ),
                     SizedBox(height: 5 * r),
-                    Text(
-                      preview,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: inactive
-                            ? const Color(0x99C9B69E)
-                            : const Color(0x66FFFFFF),
-                        fontSize: 26 * r,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            preview,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: inactive
+                                  ? const Color(0x99C9B69E)
+                                  : const Color(0x66FFFFFF),
+                              fontSize: 26 * r,
+                            ),
+                          ),
+                        ),
+                        if (muted) ...[
+                          SizedBox(width: 10 * r),
+                          SvgPicture.asset(
+                            'assets/legacy/messaging/muted.svg',
+                            key: const ValueKey('conversation-muted-icon'),
+                            semanticsLabel: '消息免打扰',
+                            colorFilter: const ColorFilter.mode(
+                              Color(0x66FFFFFF),
+                              BlendMode.srcIn,
+                            ),
+                            width: 26 * r,
+                            height: 26 * r,
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 10 * r),
-              SizedBox(
-                height: 100 * r,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      date,
-                      style: TextStyle(
-                        color: const Color(0x66FFFFFF),
-                        fontSize: 24 * r,
-                      ),
-                    ),
-                    SizedBox(height: 12 * r),
-                    if (muted)
-                      SvgPicture.asset(
-                        'assets/legacy/messaging/muted.svg',
-                        key: const ValueKey('conversation-muted-icon'),
-                        semanticsLabel: '消息免打扰',
-                        width: 26 * r,
-                        height: 26 * r,
-                      ),
                   ],
                 ),
               ),

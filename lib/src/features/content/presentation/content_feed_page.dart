@@ -328,7 +328,7 @@ class _ContentFeedPageState extends State<ContentFeedPage>
             onLongPress: _showScenarios,
             child: Text(
               '发现',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              style: kingSectionTitleStyle.copyWith(
                 shadows: const [Shadow(blurRadius: 12, color: Colors.black)],
               ),
             ),

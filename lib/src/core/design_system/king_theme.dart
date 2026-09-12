@@ -169,6 +169,12 @@ abstract final class KingTheme {
 }
 
 /// Shared whole-page transition: enter from the right, pop back to the right.
+const kingSectionTitleStyle = TextStyle(
+  color: Colors.white,
+  fontSize: 22,
+  fontWeight: FontWeight.w600,
+);
+
 class KingSlidePageTransitionsBuilder extends PageTransitionsBuilder {
   const KingSlidePageTransitionsBuilder();
   @override

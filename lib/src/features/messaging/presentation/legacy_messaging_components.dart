@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_theme.dart';
+
 import 'package:flutter/material.dart';
 
 const legacyMessageGold = Color(0xFFC9B69E);
@@ -116,28 +118,34 @@ class LegacyConversationTabs extends StatelessWidget {
     Widget tab(String title, bool selected, VoidCallback? onTap) => TextButton(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        padding: EdgeInsets.symmetric(horizontal: 16 * r),
-        minimumSize: const Size(44, 48),
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(0, 48),
         foregroundColor: legacyMessageGold,
       ),
       child: Text(
         title,
-        style: TextStyle(
-          color: selected ? legacyMessageGold : const Color(0x80C9B69E),
-          fontSize: (selected ? 34 : 28) * r,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-        ),
+        style: selected
+            ? kingSectionTitleStyle
+            : const TextStyle(
+                color: Color(0x80C9B69E),
+                fontSize: 18,
+                fontWeight: FontWeight.w400,
+              ),
       ),
     );
     return Padding(
-      padding: EdgeInsets.fromLTRB(19 * r, 6, 19 * r, 10 * r),
+      // Match visible left text / right icon edges, including icon hit padding.
+      padding: EdgeInsets.fromLTRB(22, 6, 22 - (44 - 40 * r) / 2, 10 * r),
       child: Row(
         children: [
           tab('聊天', chatSelected, onChat),
+          const SizedBox(width: 16),
           tab('通讯录', !chatSelected, onContacts),
           const Spacer(),
           IconButton(
             tooltip: '添加好友',
+            constraints: const BoxConstraints.tightFor(width: 44, height: 48),
+            padding: EdgeInsets.zero,
             onPressed: onAdd,
             icon: Image.asset(
               'assets/legacy/messaging/add.png',

@@ -43,6 +43,10 @@ void main() {
       tester.getTopLeft(mutedIcon).dy,
       greaterThan(tester.getBottomLeft(find.text('21:08')).dy),
     );
+    expect(
+      tester.getCenter(mutedIcon).dy,
+      closeTo(tester.getCenter(find.text('周末 KING CLUB 见？')).dy, .01),
+    );
     await tester.pumpWidget(page(true, 0));
     await tester.pumpAndSettle();
     expect(dot, findsNothing);
