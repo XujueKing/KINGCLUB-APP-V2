@@ -1,3 +1,9 @@
+import 'package:uuid/uuid.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+
+import '../data/profile_repository.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -55,6 +61,8 @@ class EditProfilePage extends StatefulWidget {
     this.onBack,
     this.onSaved,
     this.onSessionResetRequested,
+    this.realProfile,
+    this.repository,
     this.pickCoverImage,
     this.adjustCoverImage,
     super.key,
@@ -63,6 +71,8 @@ class EditProfilePage extends StatefulWidget {
   final String nickname;
   final String signature;
   final String coverAsset;
+  final Map<String, dynamic>? realProfile;
+  final ProfileRepository? repository;
   final VoidCallback? onBack;
   final ValueChanged<EditableProfileResult>? onSaved;
   final VoidCallback? onSessionResetRequested;
@@ -87,6 +97,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String _music = '流行 · R&B';
   String _drink = '微醺';
   String _party = '朋友组局';
+  String? _avatarPath;
+  String? _avatarUploadId;
+  String? _coverUploadId;
+  bool _avatarChanged = false;
+  String? _relationship;
+  String? _birthDate;
+  String? _locatedCity;
+  String? _requestId;
   bool _dirty = false;
   bool _saving = false;
   EditProfileMockSaveOutcome _saveOutcome = EditProfileMockSaveOutcome.success;
@@ -98,6 +116,24 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _nickname = widget.nickname;
     _signature = widget.signature;
     _coverAsset = widget.coverAsset;
+    if (widget.repository != null) {
+      widget.repository!
+          .image(widget.realProfile?['avatar'] as Map?)
+          .then((file) {
+            if (mounted) setState(() => _avatarPath = file?.path);
+          })
+          .catchError((_) {});
+      final d = widget.realProfile?['details'] as Map? ?? {};
+      final prefs = widget.realProfile?['preferences'] as Map? ?? {};
+      _city = '${widget.realProfile?['locationCity'] ?? '点击授权定位'}';
+      _relationship = d['relationship'] as String?;
+      _occupation = '${d['occupation'] ?? ''}';
+      _height = d['heightCm'] == null ? '' : '${d['heightCm']} cm';
+      _activeTime = '${d['activeTime'] ?? ''}';
+      _music = '${d['music'] ?? (prefs['music'] as List? ?? []).join(' · ')}';
+      _drink = '${d['drink'] ?? (prefs['drinks'] as List? ?? []).join(' · ')}';
+      _party = '${d['party'] ?? (prefs['events'] as List? ?? []).join(' · ')}';
+    }
   }
 
   @override
@@ -166,7 +202,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 _LegacyHeader(
                   title: '我的个人信息',
                   onBack: _handleBack,
-                  onTitleLongPress: _showMockScenarios,
+                  onTitleLongPress: widget.repository == null
+                      ? _showMockScenarios
+                      : () {},
                 ),
                 Expanded(
                   child: ListView(
@@ -190,12 +228,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         maxLength: 40,
                       ),
                       _row('所在城市', _city, keyName: 'city', maxLength: 30),
+                      if (widget.repository != null &&
+                          widget.realProfile?['birthSource'] !=
+                              'verified_identity')
+                        _row(
+                          '生日',
+                          _birthDate ??
+                              '${widget.realProfile?['birthDate'] ?? '未填写'}',
+                          keyName: 'birthDate',
+                          maxLength: 10,
+                        ),
                       _row(
                         '职业',
                         _occupation,
                         keyName: 'occupation',
                         maxLength: 40,
                       ),
+                      if (widget.repository != null)
+                        _row(
+                          '婚姻状态',
+                          _relationship ?? '未填写',
+                          keyName: 'relationship',
+                        ),
                       _row('身高', _height, keyName: 'height'),
                       const _SectionLabel('兴趣偏好'),
                       _row('常去时段', _activeTime, keyName: 'activeTime'),
@@ -304,17 +358,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
               child: Semantics(
                 label: '头像暂未设置',
                 image: true,
-                child: Container(
-                  key: const ValueKey('edit-profile-empty-avatar'),
-                  width: 76,
-                  height: 76,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0ECE5),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _gold, width: 2),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0xAA000000), blurRadius: 14),
-                    ],
+                onTap: widget.repository == null ? null : _pickAvatar,
+                child: GestureDetector(
+                  onTap: widget.repository == null ? null : _pickAvatar,
+                  child: Container(
+                    key: const ValueKey('edit-profile-empty-avatar'),
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0ECE5),
+                      shape: BoxShape.circle,
+                      image: _avatarPath == null
+                          ? null
+                          : DecorationImage(
+                              image: profileImageProvider(_avatarPath!),
+                              fit: BoxFit.cover,
+                            ),
+                      border: Border.all(color: _gold, width: 2),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0xAA000000), blurRadius: 14),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -400,6 +464,52 @@ class _EditProfilePageState extends State<EditProfilePage> {
     String keyName,
     int maxLength,
   ) async {
+    if (widget.repository != null && keyName == 'relationship') {
+      final selected = await showDialog<String>(
+        context: context,
+        builder: (context) => SimpleDialog(
+          title: const Text('婚姻状态'),
+          children: ['不显示', '单身', '未婚', '已婚', '离异', '丧偶']
+              .map(
+                (v) => SimpleDialogOption(
+                  onPressed: () => Navigator.pop(context, v),
+                  child: Text(v),
+                ),
+              )
+              .toList(),
+        ),
+      );
+      if (selected != null && mounted) {
+        setState(() {
+          _relationship = selected == '不显示' ? null : selected;
+          _dirty = true;
+          _requestId = null;
+        });
+      }
+      return;
+    }
+    if (widget.repository != null && keyName == 'city') {
+      await _locate();
+      return;
+    }
+    if (widget.repository != null && keyName == 'birthDate') {
+      final now = DateTime.now();
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: DateTime(now.year - 18, now.month, now.day),
+        firstDate: DateTime(now.year - 120),
+        lastDate: DateTime(now.year - 18, now.month, now.day),
+      );
+      if (picked != null && mounted) {
+        setState(() {
+          _birthDate =
+              '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+          _dirty = true;
+          _requestId = null;
+        });
+      }
+      return;
+    }
     final controller = TextEditingController(text: value);
     String? error;
     final result = await showDialog<String>(
@@ -440,6 +550,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (result == null || !mounted) return;
     setState(() {
       _dirty = true;
+      _requestId = null;
       switch (keyName) {
         case 'nickname':
           _nickname = result;
@@ -476,6 +587,69 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return null;
   }
 
+  Future<void> _pickAvatar() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 85,
+    );
+    if (file != null && mounted) {
+      setState(() {
+        _avatarPath = file.path;
+        _avatarChanged = true;
+        _avatarUploadId = null;
+        _requestId = null;
+        _dirty = true;
+      });
+    }
+  }
+
+  Future<void> _locate() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw StateError('请先打开手机定位服务');
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw StateError('未获得定位权限');
+      }
+      final p = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+      final geocoding = Geocoding();
+      final places = await geocoding.placemarkFromCoordinates(
+        p.latitude,
+        p.longitude,
+        locale: const Locale('zh', 'CN'),
+      );
+      if (places.isEmpty) throw StateError('暂时无法识别所在城市');
+      final place = places.first;
+      final city = [
+        place.administrativeArea,
+        place.locality,
+      ].whereType<String>().where((s) => s.isNotEmpty).toSet().join(' · ');
+      if (city.isEmpty) throw StateError('暂时无法识别所在城市');
+      if (mounted) {
+        setState(() {
+          _city = city;
+          _locatedCity = city;
+          _dirty = true;
+          _requestId = null;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _statusMessage = '定位未完成，请检查定位权限和网络后重试');
+    }
+  }
+
   Future<void> _save() async {
     if (_saving) return;
     final nicknameError = _validateField('nickname', _nickname.trim());
@@ -485,6 +659,54 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
     setState(() => _saving = true);
+    if (widget.repository != null) {
+      try {
+        if (_coverAsset != widget.coverAsset) {
+          _coverUploadId ??= await widget.repository!.upload(
+            'cover',
+            _coverAsset,
+          );
+        }
+        if (_avatarChanged && _avatarPath != null) {
+          _avatarUploadId ??= await widget.repository!.upload(
+            'avatar',
+            _avatarPath!,
+          );
+        }
+        await widget.repository!.save(
+          widget.realProfile!['version'] as int,
+          _requestId ??= const Uuid().v4(),
+          {
+            if (_coverUploadId != null) 'coverFileId': _coverUploadId,
+            if (_avatarUploadId != null) 'avatarFileId': _avatarUploadId,
+            'nickname': _nickname.trim(),
+            'bio': _signature.trim(),
+            if (_birthDate != null) 'birthDate': _birthDate,
+            if (_locatedCity != null) 'locationCity': _locatedCity,
+            'details': {
+              'relationship': _relationship,
+              'occupation': _occupation,
+              'heightCm': int.tryParse(
+                _height.replaceAll(RegExp(r'[^0-9]'), ''),
+              ),
+              'activeTime': _activeTime,
+              'music': _music,
+              'drink': _drink,
+              'party': _party,
+            },
+          },
+        );
+        if (mounted) _finishSaved();
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _saving = false;
+            _statusMessage = '保存失败或资料版本已变化，草稿已保留，请重试或重新打开';
+          });
+        }
+      }
+      return;
+    }
     await Future<void>.delayed(const Duration(milliseconds: 420));
     if (!mounted) return;
 

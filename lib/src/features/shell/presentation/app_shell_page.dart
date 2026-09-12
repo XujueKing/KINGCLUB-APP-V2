@@ -201,6 +201,7 @@ class _AppShellPageState extends State<AppShellPage> {
                   repository: widget.storageRepository,
                 ),
                 MyProfilePage(
+                  active: _selectedIndex == 4,
                   reselectSignal: _profileReselectSignal,
                   onOpenAssets: widget.onOpenAssets,
                   onOpenEditProfile: widget.onOpenEditProfile,

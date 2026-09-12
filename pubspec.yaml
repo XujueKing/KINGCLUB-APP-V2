@@ -48,6 +48,8 @@ dependencies:
   elliptic: ^0.4.0
   video_player: ^2.14.0
   flutter_image_compress: ^2.5.1
+  geolocator: ^14.0.3
+  geocoding: ^5.0.0
 
 dev_dependencies:
   video_player_platform_interface: ^6.9.0

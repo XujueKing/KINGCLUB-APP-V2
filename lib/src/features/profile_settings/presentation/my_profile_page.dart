@@ -1,3 +1,8 @@
+import 'package:flutter/services.dart';
+
+import '../../auth/data/auth_repository_provider.dart';
+import '../data/profile_repository.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -22,6 +27,7 @@ class MyProfilePage extends StatefulWidget {
     this.onSessionResetRequested,
     this.coverStore,
     this.reselectSignal = 0,
+    this.active = true,
   });
 
   final ValueChanged<AssetLedgerType>? onOpenAssets;
@@ -38,6 +44,7 @@ class MyProfilePage extends StatefulWidget {
   final VoidCallback? onSessionResetRequested;
   final ProfileCoverStore? coverStore;
   final int reselectSignal;
+  final bool active;
 
   @override
   State<MyProfilePage> createState() => _MyProfilePageState();
@@ -46,6 +53,14 @@ class MyProfilePage extends StatefulWidget {
 class _MyProfilePageState extends State<MyProfilePage> {
   static const _warmWhite = Color(0xFFEAE3D8);
   static const _muted = Color(0xFFB7ADA0);
+  final ProfileRepository? _repository = kingclubApiBaseUrl.isEmpty
+      ? null
+      : ProfileRepository();
+  Map<String, dynamic>? _profile;
+  final Map<int, Future<Map<String, dynamic>>> _contentPages = {};
+  String? _avatarPath;
+  bool _profileLoading = false;
+  String? _profileError;
   int _selectedTab = 0;
   final _scroll = ScrollController();
   final _pages = PageController();
@@ -60,8 +75,48 @@ class _MyProfilePageState extends State<MyProfilePage> {
   @override
   void initState() {
     super.initState();
-    _loadSavedCover();
+    if (_repository == null) {
+      _loadSavedCover();
+    } else {
+      _nickname = '';
+      _loadProfile();
+    }
   }
+
+  Future<void> _loadProfile() async {
+    if (_repository == null || _profileLoading) return;
+    _profileLoading = true;
+    try {
+      final p = await _repository.load();
+      _contentPages.clear();
+      if (!mounted) return;
+      setState(() {
+        _profile = p;
+        _nickname = p['nickname'] as String;
+        _signature = p['bio'] as String;
+        _profileError = null;
+      });
+      final images = await Future.wait([
+        _repository.image(p['avatar'] as Map?),
+        _repository.image(p['cover'] as Map?),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _avatarPath = images[0]?.path;
+        _coverAsset = images[1]?.path ?? kDefaultProfileCoverAsset;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _profileError = '资料加载失败，点击重试');
+    } finally {
+      _profileLoading = false;
+    }
+  }
+
+  String _field(String key, String preview) =>
+      _repository == null ? preview : '${_profile?[key] ?? '—'}';
+  String _value(String group, String key, String preview) => _repository == null
+      ? preview
+      : '${(_profile?[group] as Map?)?[key] ?? '—'}';
 
   Future<void> _loadSavedCover() async {
     final store = widget.coverStore;
@@ -77,6 +132,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
   @override
   void didUpdateWidget(covariant MyProfilePage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active && _repository != null) {
+      _loadProfile();
+    }
     if (oldWidget.reselectSignal != widget.reselectSignal &&
         _scroll.hasClients) {
       _scroll.animateTo(
@@ -358,16 +416,16 @@ class _MyProfilePageState extends State<MyProfilePage> {
                               onTap: _showLevel,
                               splashFactory: NoSplash.splashFactory,
                               highlightColor: Colors.transparent,
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
                                   horizontal: 4,
                                   vertical: 4,
                                 ),
                                 child: Text(
-                                  '经验值：0',
+                                  '经验值：${_field('experience', '0')}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Color(0xFFC9B69E),
                                     fontSize: 12,
                                     height: 1.2,
@@ -480,7 +538,13 @@ class _MyProfilePageState extends State<MyProfilePage> {
             decoration: BoxDecoration(
               color: const Color(0xFFF4F0E9),
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
+              image: _avatarPath == null
+                  ? null
+                  : DecorationImage(
+                      image: profileImageProvider(_avatarPath!),
+                      fit: BoxFit.cover,
+                    ),
+
               boxShadow: const [
                 BoxShadow(color: Color(0x55000000), blurRadius: 10),
               ],
@@ -508,19 +572,36 @@ class _MyProfilePageState extends State<MyProfilePage> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 7),
-                      Image.asset(
-                        'assets/legacy/profile/diamond2.png',
-                        width: 18,
-                        height: 18,
-                      ),
-                      const SizedBox(width: 3),
-                      const Text(
-                        '青铜 L-0',
-                        style: TextStyle(
-                          color: _warmWhite,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w400,
+                      SizedBox(width: 18 * scale),
+                      Container(
+                        key: const ValueKey('my-profile-level-badge'),
+                        height: 26 * scale,
+                        color: const Color(0xFF362F24),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              'assets/legacy/profile/diamond2.png',
+                              width: 32 * scale,
+                              height: 28 * scale,
+                            ),
+                            SizedBox(width: 6 * scale),
+                            Text(
+                              _field('levelName', '青铜 L-0'),
+                              style: TextStyle(
+                                color: const Color(0xFFC9B69E),
+                                fontSize: 18 * scale,
+                                height: 1,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(width: 10 * scale),
+                            Image.asset(
+                              'assets/legacy/profile/diamond2_j.png',
+                              width: 14 * scale,
+                              height: 26 * scale,
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -531,9 +612,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
                     onTap: _copyFakeAccount,
                     child: Row(
                       children: [
-                        const Flexible(
+                        Flexible(
                           child: Text(
-                            '账号：K45600000199',
+                            '账号：${_field('memberId', 'K45600000199')}',
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: _muted,
@@ -583,6 +664,15 @@ class _MyProfilePageState extends State<MyProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_repository != null &&
+                        (_profileError != null || _profile == null))
+                      GestureDetector(
+                        onTap: _loadProfile,
+                        child: Text(
+                          _profileError ?? '正在加载资料…',
+                          style: const TextStyle(color: _muted),
+                        ),
+                      ),
                     _buildStats(),
                     SizedBox(height: 20 * scale),
                     Transform.translate(
@@ -624,7 +714,12 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
   Widget _buildStats() {
     final scale = _legacyScale;
-    const stats = [('获赞', '0'), ('关注', '0'), ('互关', '0'), ('粉丝', '0')];
+    final stats = [
+      ('获赞', _value('stats', 'praises', '0')),
+      ('关注', _value('stats', 'following', '0')),
+      ('互关', _value('stats', 'mutual', '0')),
+      ('粉丝', _value('stats', 'fans', '0')),
+    ];
     final counts = Wrap(
       spacing: 24 * scale,
       runSpacing: 12 * scale,
@@ -700,9 +795,24 @@ class _MyProfilePageState extends State<MyProfilePage> {
       spacing: 6,
       runSpacing: 8,
       children: [
-        _assetChip('余额：¥ 0.00', null, '我的余额', AssetLedgerType.cashBalance),
-        _assetChip('50', 'gold.png', '金币', AssetLedgerType.goldCoin),
-        _assetChip('0', 'diamond.png', '钻石', AssetLedgerType.diamond),
+        _assetChip(
+          '余额：¥ ${_value('assets', 'cashBalance', '0.00')}',
+          null,
+          '我的余额',
+          AssetLedgerType.cashBalance,
+        ),
+        _assetChip(
+          _value('assets', 'goldCoin', '50'),
+          'gold.png',
+          '金币',
+          AssetLedgerType.goldCoin,
+        ),
+        _assetChip(
+          _value('assets', 'diamond', '0'),
+          'diamond.png',
+          '钻石',
+          AssetLedgerType.diamond,
+        ),
       ],
     );
   }
@@ -898,7 +1008,24 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   Widget _buildTags() {
-    const tags = ['♂ 24岁', '颜值：148', '河南省 · 安阳市', '巨蟹座', '单身', '木系灵根'];
+    final tags = _repository == null
+        ? ['♂ 24岁', '颜值：148', '河南省 · 安阳市', '巨蟹座', '单身', '木系灵根']
+        : <String>[
+            if (_profile?['age'] != null)
+              '${_profile?['gender'] == 1
+                  ? '♂ '
+                  : _profile?['gender'] == 2
+                  ? '♀ '
+                  : ''}${_profile!['age']}岁',
+            if (_profile?['appearanceScore'] != null)
+              '颜值：${_profile!['appearanceScore']}',
+            if (_profile?['locationCity'] != null)
+              '${_profile!['locationCity']}',
+            if (_profile?['zodiac'] != null) '${_profile!['zodiac']}',
+            if ((_profile?['details'] as Map?)?['relationship'] != null)
+              '${(_profile!['details'] as Map)['relationship']}',
+            if (_profile?['element'] != null) '${_profile!['element']}系灵根',
+          ];
     return Wrap(
       spacing: 14 * _legacyScale,
       runSpacing: 16 * _legacyScale,
@@ -994,21 +1121,87 @@ class _MyProfilePageState extends State<MyProfilePage> {
       controller: _pages,
       itemCount: empty.length,
       onPageChanged: (index) => setState(() => _selectedTab = index),
-      itemBuilder: (context, index) => Align(
-        key: ValueKey('my-profile-content-$index'),
-        alignment: Alignment.topCenter,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 70),
-          child: Text(
-            empty[index],
-            style: const TextStyle(color: Color(0x99FCE9D1), fontSize: 13),
-          ),
-        ),
+      itemBuilder: (context, index) => _repository != null
+          ? _realContent(index)
+          : Align(
+              key: ValueKey('my-profile-content-$index'),
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 70),
+                child: Text(
+                  empty[index],
+                  style: const TextStyle(
+                    color: Color(0x99FCE9D1),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _realContent(int index) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _contentPages.putIfAbsent(
+        index,
+        () => _repository!.content(['work', 'post', 'album'][index], 0),
       ),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: TextButton(
+              onPressed: () => setState(() => _contentPages.remove(index)),
+              child: const Text('加载失败，点击重试'),
+            ),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+        final items = snapshot.data!['items'] as List;
+        if (items.isEmpty) {
+          return Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 70),
+              child: Text(
+                ['暂无作品', '暂无动态', '暂无相册内容'][index],
+                style: const TextStyle(color: Color(0x99FCE9D1), fontSize: 13),
+              ),
+            ),
+          );
+        }
+        return GridView.builder(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: .75,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, i) => FutureBuilder(
+            future: _repository!.image(items[i]['media'] as Map?),
+            builder: (context, image) {
+              if (image.data == null) return const SizedBox();
+              return Image(
+                image: profileImageProvider(image.data!.path),
+                fit: BoxFit.cover,
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
   void _copyFakeAccount() {
+    if (_repository != null) {
+      final id = _profile?['memberId'];
+      if (id != null) {
+        Clipboard.setData(ClipboardData(text: '$id'));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('账号已复制')));
+      }
+      return;
+    }
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -1031,6 +1224,16 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   void _showLevel() {
+    if (_repository != null) {
+      _showSheet(
+        title: '会员等级',
+        child: Text(
+          '经验值：${_field('experience', '0')}',
+          style: const TextStyle(color: _muted),
+        ),
+      );
+      return;
+    }
     _showSheet(
       title: '会员等级',
       child: const Column(
@@ -1102,6 +1305,25 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   Future<void> _showEditProfile() async {
+    if (_repository != null) {
+      if (_profile == null) {
+        await _loadProfile();
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => EditProfilePage(
+            nickname: _nickname,
+            signature: _signature,
+            coverAsset: _coverAsset,
+            realProfile: _profile,
+            repository: _repository,
+          ),
+        ),
+      );
+      await _loadProfile();
+      return;
+    }
     final result = widget.onOpenEditProfile != null
         ? await widget.onOpenEditProfile!(_nickname, _signature, _coverAsset)
         : await Navigator.of(context).push<EditableProfileResult>(

@@ -1,0 +1,66 @@
+import 'dart:convert';
+
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+
+import 'dart:io';
+
+import '../../../core/networking/kingclub_secure_client.dart';
+import '../../../core/session/secure_session_store.dart';
+import '../../../core/media/media_cache.dart';
+import '../../auth/data/auth_repository_provider.dart';
+import '../../auth/domain/auth_repository.dart';
+
+class ProfileRepository {
+  final _client = KingclubSecureClient(kingclubApiBaseUrl);
+  Future<Map<String, dynamic>> call(
+    String id,
+    Map<String, dynamic> params,
+  ) async {
+    final session = await SecureSessionStore().readSession();
+    if (session == null) throw const AuthFailure('SESSION_EXPIRED', '请重新登录');
+    final data = await _client.call(id, params, session: session);
+    return Map<String, dynamic>.from(data['result'] as Map);
+  }
+
+  Future<Map<String, dynamic>> load() => call('K260912000501', {});
+  Future<Map<String, dynamic>> save(
+    int version,
+    String requestId,
+    Map<String, dynamic> patch,
+  ) => call('K260912000502', {
+    'version': version,
+    'requestId': requestId,
+    'patch': patch,
+  });
+  Future<Map<String, dynamic>> content(String category, int offset) =>
+      call('K260912000504', {'category': category, 'offset': offset});
+  Future<String> upload(String slot, String path) async {
+    final bytes = await FlutterImageCompress.compressWithFile(
+      path,
+      minWidth: 1200,
+      minHeight: 1200,
+      quality: 82,
+      keepExif: false,
+    );
+    if (bytes == null || bytes.length > 800000) {
+      throw StateError('图片过大，请选择其他图片');
+    }
+    final result = await call('K260912000505', {
+      'slot': slot,
+      'base64': base64Encode(bytes),
+    });
+    return result['fileId'] as String;
+  }
+
+  Future<File?> image(Map? ref) async {
+    if (ref == null) return null;
+    final session = await SecureSessionStore().readSession();
+    final account = (session?['account'] as Map?)?['userAccount'];
+    if (account == null) throw const AuthFailure('SESSION_EXPIRED', '请重新登录');
+    return MediaCache.shared.get(
+      '$kingclubApiBaseUrl${ref['path']}',
+      scope: 'member:$account',
+      contentKey: 'profile:${ref['fileId']}',
+    );
+  }
+}
