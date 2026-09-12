@@ -64,3 +64,5 @@
 
 用户继续微调：服务文字12→11.5dp；资产整行左移2dp，文字28→26rpx；顶部二维码/设置移除染白，使用旧PNG原色，经验值恢复旧版app.wxss的#C9B69E。
 验证：flutter analyze 无问题；preview profile APK 构建成功；ADB 覆盖安装至 462606d8 返回 Success。顶部两个 PNG 哈希与旧版一致。
+下拉封面：对照旧版 e_scroll_pulling 增高图片，改为原生 BouncingScrollPhysics 弹性手势；封面顶部固定，图片容器随负滚动扩大并保持 cover 等比裁切，松手由滚动物理回弹。8 项滚动测试及 analyze 通过。
+封面下拉版 preview profile 构建成功，已覆盖安装至 462606d8（Success）。

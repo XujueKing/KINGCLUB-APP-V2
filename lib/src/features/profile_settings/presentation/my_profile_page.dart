@@ -145,17 +145,16 @@ class _MyProfilePageState extends State<MyProfilePage> {
               Positioned.fill(
                 child: AnimatedBuilder(
                   animation: _scroll,
-                  child: _buildCover(),
                   builder: (context, cover) => CustomPaint(
                     painter: _ProfileBackground(400 * scale - _offset, scale),
                     child: Stack(
                       clipBehavior: Clip.hardEdge,
                       children: [
                         Positioned(
-                          top: -_offset,
+                          top: -math.max(0.0, _offset),
                           left: 0,
                           right: 0,
-                          child: cover!,
+                          child: _buildCover(stretch: math.max(0.0, -_offset)),
                         ),
                       ],
                     ),
@@ -165,6 +164,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
               CustomScrollView(
                 key: const PageStorageKey('my-profile-scroll'),
                 controller: _scroll,
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
                 slivers: [
                   SliverPersistentHeader(
                     pinned: true,
@@ -281,16 +283,16 @@ class _MyProfilePageState extends State<MyProfilePage> {
     );
   }
 
-  Widget _buildCover() {
+  Widget _buildCover({double stretch = 0}) {
     final scale = _legacyScale;
     return SizedBox(
       key: const ValueKey('my-profile-cover'),
-      height: 400 * scale,
+      height: 400 * scale + stretch,
       width: double.infinity,
       child: OverflowBox(
         alignment: Alignment.topCenter,
-        minHeight: 430 * scale,
-        maxHeight: 430 * scale,
+        minHeight: 430 * scale + stretch,
+        maxHeight: 430 * scale + stretch,
         child: Stack(
           fit: StackFit.expand,
           children: [

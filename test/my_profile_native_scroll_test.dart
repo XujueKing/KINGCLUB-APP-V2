@@ -28,6 +28,26 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('pull stretches cover without a top gap and springs back', (
+    tester,
+  ) async {
+    await mount(tester);
+    final cover = find.byKey(const ValueKey('my-profile-cover'));
+    final initial = tester.getRect(cover);
+    final gesture = await tester.startGesture(const Offset(180, 320));
+    await gesture.moveBy(const Offset(0, 80));
+    await tester.pump();
+    await gesture.moveBy(const Offset(0, 140));
+    await tester.pump();
+    final stretched = tester.getRect(cover);
+    expect(stretched.height, greaterThan(initial.height + 20));
+    expect(stretched.top, closeTo(initial.top, .1));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(tester.getRect(cover).height, closeTo(initial.height, .1));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'native slivers pin menu below safe toolbar and reverse without jumping',
     (tester) async {
