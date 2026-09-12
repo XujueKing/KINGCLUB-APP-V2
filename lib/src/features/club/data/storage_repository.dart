@@ -68,12 +68,18 @@ class StorageItem {
 }
 
 abstract class StorageRepository {
+  Future<void> removeExpired(String ref);
   Future<List<StorageItem>> list();
   Future<StorageItem> detail(String ref);
   Future<Map<String, dynamic>> issue(String ref);
 }
 
 class RealStorageRepository implements StorageRepository {
+  @override
+  Future<void> removeExpired(String ref) async {
+    await _call('K260912000404', {'itemRef': ref});
+  }
+
   final _client = KingclubSecureClient(kingclubApiBaseUrl);
   Future<Map<String, dynamic>> _call(
     String id,
@@ -113,8 +119,16 @@ class RealStorageRepository implements StorageRepository {
 
 /// Explicit offline preview only. A real session never receives sample stock.
 class PreviewStorageRepository implements StorageRepository {
-  PreviewStorageRepository([this.items = const []]);
+  PreviewStorageRepository([List<StorageItem> items = const []])
+    : items = List.of(items);
   final List<StorageItem> items;
+  @override
+  Future<void> removeExpired(String ref) async {
+    final item = await detail(ref);
+    if (item.status != 'expired') throw StateError('仅可删除已过期的储物');
+    items.removeWhere((i) => i.ref == ref);
+  }
+
   @override
   Future<List<StorageItem>> list() async => items;
   @override

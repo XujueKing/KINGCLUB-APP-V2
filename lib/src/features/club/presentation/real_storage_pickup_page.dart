@@ -111,6 +111,26 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
     }
   }
 
+  Future<void> _delete() async {
+    if (_loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await widget.repository.removeExpired(_item.ref);
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('删除失败，请重试')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
@@ -130,6 +150,35 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
               child: Stack(
                 alignment: Alignment.center,
                 children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: KingBackButton.leftOffset(context),
+                      ),
+                      child: IconButton(
+                        key: ValueKey(
+                          _item.status == 'expired'
+                              ? 'storage-delete'
+                              : 'storage-refresh',
+                        ),
+                        tooltip: _item.status == 'expired' ? '删除' : '刷新',
+                        onPressed: _loading
+                            ? null
+                            : (_item.status == 'expired' ? _delete : _renew),
+                        icon: Icon(
+                          _item.status == 'expired'
+                              ? Icons.delete_outline
+                              : Icons.refresh,
+                          size: 17,
+                        ),
+                        style: IconButton.styleFrom(
+                          foregroundColor: const Color(0xFFC9B69E),
+                          highlightColor: Colors.transparent,
+                        ),
+                      ),
+                    ),
+                  ),
                   const Text(
                     'ITEM PICKUP CODE',
                     style: KingTheme.headerTitleStyle,
@@ -251,11 +300,6 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                     ])
                       _detailRow(row.$1, row.$2),
                   ],
-                  if (_item.category == 'wine' || (!_loading && _token == null))
-                    TextButton(
-                      onPressed: _loading ? null : _renew,
-                      child: const Text('刷新状态'),
-                    ),
                   if (_item.category == 'wine') ...[
                     const SizedBox(height: 18),
                     const Text(

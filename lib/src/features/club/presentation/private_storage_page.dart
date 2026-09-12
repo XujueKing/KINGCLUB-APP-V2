@@ -38,7 +38,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   List<List<StorageItem>> get _groups {
     final groups = <List<StorageItem>>[];
     for (final category in ['wine', 'item']) {
-      final items = _items.where((i) => i.category == category).toList();
+      final items = _items
+          .where((i) => i.category == category && i.status != 'expired')
+          .toList();
       if (items.isEmpty) groups.add([]);
       for (var i = 0; i < items.length; i += 9) {
         groups.add(items.sublist(i, math.min(i + 9, items.length)));
@@ -49,7 +51,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
 
   int get _itemPage => math.max(
     1,
-    (_items.where((i) => i.category == 'wine').length / 9).ceil(),
+    (_items.where((i) => i.category == 'wine' && i.status != 'expired').length /
+            9)
+        .ceil(),
   );
   String get _category => _page < _itemPage ? 'wine' : 'item';
   @override

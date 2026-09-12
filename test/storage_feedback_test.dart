@@ -37,7 +37,7 @@ void main() {
         remainingPercent: 50,
         storedAt: '2026-08-01T12:00:00',
         expiresAt: '2026-08-31T12:00:00',
-        status: 'expired',
+        status: 'available',
         canPickup: false,
       );
       const second = StorageItem(
@@ -48,7 +48,7 @@ void main() {
         remainingPercent: 100,
         storedAt: '2026-08-10T12:00:00',
         expiresAt: '2026-09-09T12:00:00',
-        status: 'expired',
+        status: 'available',
         canPickup: false,
       );
       await tester.pumpWidget(
@@ -152,12 +152,29 @@ void main() {
       MaterialApp(home: PrivateStoragePage(repository: repo)),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('storage-pickup')));
+    expect(
+      find.byKey(const ValueKey('storage-select-test-expired')),
+      findsNothing,
+    );
+    await tester.tap(find.byKey(const ValueKey('storage-expired-items')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('expired-item-test-expired')));
     await tester.pumpAndSettle();
     expect(find.text('ITEM PICKUP CODE'), findsOneWidget);
     expect(find.text('存酒已过期，请联系工作人员核实'), findsOneWidget);
     expect(find.byKey(const ValueKey('storage-real-code')), findsNothing);
     expect(repo.issued, 0);
+    expect(find.text('刷新状态'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('storage-delete')));
+    await tester.pumpAndSettle();
+    expect(find.text('私人储物柜'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('storage-expired-items')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('expired-item-test-expired')),
+      findsNothing,
+    );
+    expect(repo.items, isEmpty);
   });
   testWidgets(
     'full bottle keeps headspace and its liquid still moves; inactive pauses',
