@@ -190,16 +190,27 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                   const SizedBox(height: 30),
                   for (final row in [
                     ('品名', _item.name),
-                    ('英文名', _item.englishName),
+                    if (_item.category == 'wine') ('英文名', _item.englishName),
                     ('数量', '${_item.quantity}'),
-                    ('剩余量', '${_item.remainingPercent.toStringAsFixed(0)}%'),
+                    if (_item.category == 'wine')
+                      ('剩余量', '${_item.remainingPercent.toStringAsFixed(0)}%'),
+                    if (_item.category == 'item' && _item.maximumValue != null)
+                      (
+                        '抵用金额',
+                        '最高 ${_item.maximumValue!.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '')} 元',
+                      ),
+                    if (_item.category == 'item' &&
+                        _item.description.isNotEmpty)
+                      ('功能说明', _item.description),
                     ('储存日期', _date(_item.storedAt)),
                     ('有效期', _date(_item.expiresAt)),
                   ])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 15),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                        crossAxisAlignment: row.$1 == '功能说明'
+                            ? CrossAxisAlignment.start
+                            : CrossAxisAlignment.center,
                         children: [
                           Text(
                             '${row.$1}：',
@@ -223,7 +234,9 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                                 ),
                                 child: Text(
                                   row.$2,
-                                  textAlign: TextAlign.right,
+                                  textAlign: row.$1 == '功能说明'
+                                      ? TextAlign.left
+                                      : TextAlign.right,
                                   style: const TextStyle(
                                     color: Color(0xFFC9B69E),
                                     fontSize: 15,
@@ -239,15 +252,17 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                     onPressed: _loading ? null : _renew,
                     child: const Text('刷新状态'),
                   ),
-                  const SizedBox(height: 18),
-                  Text(
-                    _item.category == 'item' ? _item.description : 'STORAGE INSTRUCTIONS:\n\n1、开瓶后的洋酒、红酒、清酒有效期为30天；\n2、未开瓶的酒类有效期60天；\n3、各类饮料、食品恕不提供存取。',
-                    style: const TextStyle(
-                      color: Color(0xFF8B8174),
-                      fontSize: 12,
-                      height: 1.8,
+                  if (_item.category == 'wine') ...[
+                    const SizedBox(height: 18),
+                    const Text(
+                      'STORAGE INSTRUCTIONS:\n\n1、开瓶后的洋酒、红酒、清酒有效期为30天；\n2、未开瓶的酒类有效期60天；\n3、各类饮料、食品恕不提供存取。',
+                      style: TextStyle(
+                        color: Color(0xFF8B8174),
+                        fontSize: 12,
+                        height: 1.8,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
