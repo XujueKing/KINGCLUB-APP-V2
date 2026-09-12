@@ -581,35 +581,34 @@ class _MyProfilePageState extends State<MyProfilePage> {
                         ),
                       ),
                       SizedBox(width: 18 * scale),
-                      Container(
-                        key: const ValueKey('my-profile-level-badge'),
-                        height: 26 * scale,
-                        color: const Color(0xFF362F24),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'assets/legacy/profile/diamond2.png',
-                              width: 32 * scale,
-                              height: 28 * scale,
-                            ),
-                            SizedBox(width: 6 * scale),
-                            Text(
-                              _field('levelName', '青铜 L-0'),
-                              style: TextStyle(
-                                color: const Color(0xFFC9B69E),
-                                fontSize: 18 * scale,
-                                height: 1,
-                                fontWeight: FontWeight.w600,
+                      ClipPath(
+                        clipper: _LevelBadgeClipper(14 * scale),
+                        child: Container(
+                          key: const ValueKey('my-profile-level-badge'),
+                          height: 26 * scale,
+                          color: const Color(0xFF362F24),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                'assets/legacy/profile/diamond2.png',
+                                width: 32 * scale,
+                                height: 28 * scale,
                               ),
-                            ),
-                            SizedBox(width: 10 * scale),
-                            Image.asset(
-                              'assets/legacy/profile/diamond2_j.png',
-                              width: 14 * scale,
-                              height: 26 * scale,
-                            ),
-                          ],
+                              SizedBox(width: 6 * scale),
+                              Text(
+                                _field('levelName', '青铜 L-0'),
+                                style: TextStyle(
+                                  color: const Color(0xFFC9B69E),
+                                  fontSize: 18 * scale,
+                                  height: 1,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(width: 10 * scale),
+                              SizedBox(width: 14 * scale),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -1472,4 +1471,23 @@ class _ProfileBackground extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ProfileBackground oldDelegate) =>
       panelTop != oldDelegate.panelTop || scale != oldDelegate.scale;
+}
+
+/// Clip the background itself so the pointed end has transparent corners.
+class _LevelBadgeClipper extends CustomClipper<Path> {
+  const _LevelBadgeClipper(this.tipWidth);
+  final double tipWidth;
+
+  @override
+  Path getClip(Size size) => Path()
+    ..moveTo(0, 0)
+    ..lineTo(size.width - tipWidth, 0)
+    ..lineTo(size.width, size.height / 2)
+    ..lineTo(size.width - tipWidth, size.height)
+    ..lineTo(0, size.height)
+    ..close();
+
+  @override
+  bool shouldReclip(_LevelBadgeClipper oldClipper) =>
+      tipWidth != oldClipper.tipWidth;
 }
