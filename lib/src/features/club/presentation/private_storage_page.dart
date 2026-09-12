@@ -418,7 +418,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                                   ),
                                                   style: TextStyle(
                                                     color: const Color(
-                                                      0x66E9D8C3,
+                                                      0xA6E9D8C3,
                                                     ),
                                                     fontSize: 8,
                                                     fontWeight: FontWeight.w400,
