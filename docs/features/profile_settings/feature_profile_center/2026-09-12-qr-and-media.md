@@ -21,3 +21,5 @@
 设置页同类反馈：全局Android显式ZoomPageTransitionsBuilder(allowSnapshotting:false)，其余平台沿用SDK默认。2项测试验证设置和个人码进入/返回动画处于中间进度且实际存在非单位缩放；analyze通过，APK构建并覆盖安装Success。视觉原因仍需用户确认，不将静态截图视为动态体验验收。
 
 最终用户纠正：全部普通整页右入右退，注册/设置/二维码共享全局KingSlidePageTransitionsBuilder；取消之前Zoom解释和实现。个人码进入我的提前获取并合并并发请求，会话内用Stopwatch跟踪TTL且扣除网络耗时；session变化清除缓存及阻止迟到结果，二维码不持久化。8项测试通过（横向进入返回、缓存复用/失效/过期、布局、媒体路由检查），analyze无问题。首次网络未完成仍允许加载，不承诺离线首次签发。
+
+速度微调：统一进入240ms、返回220ms；SettingsRoute显式MaterialPage且allowSnapshotting:false，与PersonalQrRoute一致。两页进退动画测试和analyze通过。

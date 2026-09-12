@@ -1072,6 +1072,14 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
   const SettingsRoute();
 
   @override
+  Page<void> buildPage(BuildContext context, GoRouterState state) =>
+      MaterialPage<void>(
+        key: state.pageKey,
+        allowSnapshotting: false,
+        child: build(context, state),
+      );
+
+  @override
   Widget build(BuildContext context, GoRouterState state) => SettingsPage(
     onBack: () =>
         context.canPop() ? context.pop() : const AppShellRoute().go(context),

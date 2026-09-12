@@ -172,6 +172,10 @@ abstract final class KingTheme {
 class KingSlidePageTransitionsBuilder extends PageTransitionsBuilder {
   const KingSlidePageTransitionsBuilder();
   @override
+  Duration get transitionDuration => const Duration(milliseconds: 240);
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 220);
+  @override
   Widget buildTransitions<T>(
     PageRoute<T> route,
     BuildContext context,
