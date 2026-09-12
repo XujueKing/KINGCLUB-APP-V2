@@ -13,3 +13,5 @@
 最终安装：preview profile APK覆盖安装Success并冷启动成功，OPPO真机打开个人二维码，已确认真实昵称、会员号、缓存头像及真实码展示；截图仅保存忽略的build目录。
 
 密度修正：服务端改37字符Redis短期引用；App使用旧assets/legacy/aa/kingLogo.png黑色圆底白字Logo替换透明文字。新包覆盖安装Success，真机确认稀疏短码及Logo显示。2项布局测试通过，服务端185项及runtime通过；双机光学扫码仍待实测。
+
+用户要求Logo按旧版比例放大：从68rpx改100rpx，占500rpx二维码20%；二维码及布局不变，保留H级纠错。

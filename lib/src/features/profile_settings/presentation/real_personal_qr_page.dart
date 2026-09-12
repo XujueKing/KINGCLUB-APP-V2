@@ -192,7 +192,7 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
                                     'assets/legacy/aa/kingLogo.png',
                                   ),
                                   embeddedImageStyle: QrEmbeddedImageStyle(
-                                    size: Size(68 * r, 68 * r),
+                                    size: Size(100 * r, 100 * r),
                                   ),
                                 )
                               : (_busy
