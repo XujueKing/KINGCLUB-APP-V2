@@ -1,3 +1,4 @@
+import '../../../core/session/secure_session_store.dart';
 import '../../auth/presentation/terms_consent_page.dart';
 import '../data/profile_repository.dart';
 import 'edit_profile_page.dart';
@@ -57,7 +58,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ('cache', '清理缓存', '', Icons.cleaning_services_outlined),
     ('privacy', '隐私政策', '', Icons.policy_outlined),
     ('terms', '用户协议', '', Icons.description_outlined),
-    ('about', '关于 KINGBAR', '', Icons.touch_app_outlined),
+    ('about', '关于 KINGCLUB', '', Icons.touch_app_outlined),
   ];
 
   @override
@@ -197,6 +198,27 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _openChild(String title) {
+    if (title == '绑定手机' || title == '登录密码' || title == '账号关联') {
+      final message = switch (title) {
+        '绑定手机' => '绑定手机是当前账号的短信登录号码，暂不支持修改。',
+        '登录密码' => '当前使用手机短信验证码登录，登录密码功能暂未开放。',
+        _ => '第三方账号绑定与解绑功能暂未开放。',
+      };
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('知道了'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     if (title == '个人信息') {
       _openProfile();
       return;
@@ -205,16 +227,27 @@ class _SettingsPageState extends State<SettingsPage> {
       _push(
         Scaffold(
           backgroundColor: Colors.black,
-          appBar: AppBar(title: const Text('账号与支付安全'), centerTitle: true),
+          appBar: AppBar(title: const Text('安全中心'), centerTitle: true),
           body: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
             child: Column(
               children: [
+                FutureBuilder<Map<String, dynamic>?>(
+                  future: SecureSessionStore().readSession(),
+                  builder: (_, snapshot) => _settingRow((
+                    'phone',
+                    '绑定手机',
+                    snapshot.data?['maskedMobile'] as String? ?? '已绑定',
+                    Icons.sim_card_outlined,
+                  )),
+                ),
+                _settingRow(('password', '登录密码', '暂未开放', Icons.lock_outline)),
+                _settingRow(('linked', '账号关联', '暂未开放', Icons.link_outlined)),
                 _settingRow(('payment', '支付安全', '', Icons.shield_outlined)),
                 _settingRow((
                   'deletion',
-                  '账号注销',
-                  '',
+                  '永久注销账号',
+                  '注销后无法恢复',
                   Icons.no_accounts_outlined,
                 )),
               ],
@@ -246,18 +279,18 @@ class _SettingsPageState extends State<SettingsPage> {
       widget.onOpenPaymentSecurity!();
       return;
     }
-    if (title == '账号注销' && widget.onOpenAccountDeletion != null) {
+    if (title == '永久注销账号' && widget.onOpenAccountDeletion != null) {
       widget.onOpenAccountDeletion!();
       return;
     }
-    if (title == '关于 KINGBAR' && widget.onOpenAboutLegal != null) {
+    if (title == '关于 KINGCLUB' && widget.onOpenAboutLegal != null) {
       widget.onOpenAboutLegal!();
       return;
     }
     final Widget page = switch (title) {
       '支付安全' => const PaymentSecurityPage(),
-      '账号注销' => const AccountDeletionPage(),
-      '关于 KINGBAR' => const AboutLegalPage(),
+      '永久注销账号' => const AccountDeletionPage(),
+      '关于 KINGCLUB' => const AboutLegalPage(),
       _ => const SizedBox.shrink(),
     };
     Navigator.push(

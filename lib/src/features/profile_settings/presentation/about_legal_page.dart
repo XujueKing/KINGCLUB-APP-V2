@@ -1,3 +1,5 @@
+import '../../auth/presentation/terms_consent_page.dart';
+
 import 'package:flutter/material.dart';
 
 enum AboutLegalScenario {
@@ -114,135 +116,147 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
       },
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _AboutHeader(
-                title: _document?.title ?? '关于 KINGBAR',
-                onBack: _handleBack,
-                onTitleLongPress: _showScenarioPanel,
-              ),
-              Expanded(
-                child: _document != null
-                    ? _reader(_document!)
-                    : switch (_scenario) {
-                        AboutLegalScenario.offlineExpired => _failureState(
-                          key: 'offline-expired',
-                          icon: Icons.cloud_off_outlined,
-                          title: '离线缓存已过期',
-                          detail: '为避免展示失效法律文本，请联网后重新获取权威目录。',
-                        ),
-                        AboutLegalScenario.invalidRef => _failureState(
-                          key: 'invalid-ref',
-                          icon: Icons.link_off_outlined,
-                          title: '文档引用无效',
-                          detail: '该文档不在当前可见的权威目录中，已拒绝打开。',
-                        ),
-                        AboutLegalScenario.loadingError => _failureState(
-                          key: 'loading-error',
-                          icon: Icons.error_outline,
-                          title: '法律文档暂时无法加载',
-                          detail: '必需文档不会以空白正文代替，请稍后重试。',
-                        ),
-                        _ => _catalog(),
-                      },
-              ),
-            ],
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, -0.5),
+              radius: 1.1,
+              colors: [Color(0xEF252018), Colors.black],
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                _AboutHeader(
+                  title: _document?.title ?? '关于 KINGCLUB',
+                  onBack: _handleBack,
+                  onTitleLongPress: _showScenarioPanel,
+                ),
+                Expanded(
+                  child: _document != null
+                      ? _reader(_document!)
+                      : switch (_scenario) {
+                          AboutLegalScenario.offlineExpired => _failureState(
+                            key: 'offline-expired',
+                            icon: Icons.cloud_off_outlined,
+                            title: '离线缓存已过期',
+                            detail: '为避免展示失效法律文本，请联网后重新获取权威目录。',
+                          ),
+                          AboutLegalScenario.invalidRef => _failureState(
+                            key: 'invalid-ref',
+                            icon: Icons.link_off_outlined,
+                            title: '文档引用无效',
+                            detail: '该文档不在当前可见的权威目录中，已拒绝打开。',
+                          ),
+                          AboutLegalScenario.loadingError => _failureState(
+                            key: 'loading-error',
+                            icon: Icons.error_outline,
+                            title: '法律文档暂时无法加载',
+                            detail: '必需文档不会以空白正文代替，请稍后重试。',
+                          ),
+                          _ => _catalog(),
+                        },
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _catalog() {
-    return ListView(
-      key: const ValueKey('about-legal-catalog'),
-      padding: const EdgeInsets.fromLTRB(28, 32, 28, 36),
-      children: [
-        if (_scenario == AboutLegalScenario.offlineCached) ...[
-          const _AboutNotice(
-            key: ValueKey('about-offline-cached'),
-            icon: Icons.offline_pin_outlined,
-            text: '当前离线，展示已校验的可信缓存。正文将标记版本与生效日期。',
-          ),
-          const SizedBox(height: 22),
-        ],
-        Center(
-          child: Image.asset(
-            'assets/legacy/home/logo_2.png',
-            width: 126,
-            fit: BoxFit.contain,
-          ),
+  void _openAgreement(AgreementKind kind) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        allowSnapshotting: false,
+        builder: (pageContext) => TermsConsentPage(
+          initialAgreement: kind,
+          onClose: () => Navigator.of(pageContext).pop(),
         ),
-        const SizedBox(height: 18),
-        const Text(
-          'KINGBAR',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 23,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 5),
-        const Text(
-          'V2 1.0.0 (1)',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _muted, fontSize: 12),
-        ),
-        const SizedBox(height: 28),
-        const Text(
-          '感谢使用 KingClub。会员需阅读并遵守以下协议、政策及数据处理说明。',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _muted, height: 1.6, fontSize: 13),
-        ),
-        const SizedBox(height: 28),
-        ...List.generate(
-          _documents.length,
-          (index) => InkWell(
-            key: ValueKey('about-legal-document-$index'),
-            onTap: () => setState(() => _document = _documents[index]),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 60),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0x22C9B69E))),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _documents[index].title,
-                      style: const TextStyle(color: _gold, fontSize: 15),
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right, color: _muted),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 28),
-        const Text(
-          '技术支持：548627@qq.com',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _muted, fontSize: 12),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          '软件开发商：湖南领美网络科技有限公司',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _muted, fontSize: 12),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          '备案与版权信息发布前复核',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF6A6259), fontSize: 11),
-        ),
-        const SizedBox(height: 20),
-      ],
+      ),
     );
   }
+
+  Widget _catalog() {
+    final scale = MediaQuery.sizeOf(context).width / 750;
+    final bodyStyle = TextStyle(
+      color: const Color(0xCCC9B69E),
+      fontSize: 28 * scale,
+      height: 1.5,
+    );
+    return SingleChildScrollView(
+      key: const ValueKey('about-legal-catalog'),
+      padding: EdgeInsets.fromLTRB(
+        30 * scale,
+        150 * scale,
+        30 * scale,
+        50 * scale,
+      ),
+      child: Column(
+        children: [
+          Image.asset('assets/legacy/home/logo_2.png', width: 220 * scale),
+          SizedBox(height: 40 * scale),
+          Image.asset('assets/legacy/home/klztext.png', width: 350 * scale),
+          SizedBox(height: 90 * scale),
+          SizedBox(
+            width: 600 * scale,
+            child: Text(
+              '感谢您使用KINGCLUB酒吧预定APP，KINGCLUB预定APP是为广大会员提供全面服务的应用服务工具。',
+              textAlign: TextAlign.justify,
+              style: bodyStyle,
+            ),
+          ),
+          SizedBox(height: 70 * scale),
+          SizedBox(
+            width: 600 * scale,
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('会员需要遵守以下', style: bodyStyle),
+                _agreementLink('《隐私政策》', AgreementKind.privacy, bodyStyle),
+                Text('和', style: bodyStyle),
+                _agreementLink('《用户协议》', AgreementKind.terms, bodyStyle),
+              ],
+            ),
+          ),
+          SizedBox(height: 40 * scale),
+          for (final line in const [
+            '技术支持：548627@qq.com',
+            '版本号：1.0.0 (1)',
+            '软件著作权认证证书：软著认000255367号',
+            '电子版权认证证书：电子认证第 R20250000054907 号',
+            'ICP备案号：湘ICP备2025115786号-2A（APP）',
+            'ICP备案号：湘ICP备2025115786号-1X（小程序）',
+            '软件开发商：湖南领美网络科技有限公司',
+          ])
+            Padding(
+              padding: EdgeInsets.only(top: 10 * scale),
+              child: Text(
+                line,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: const Color(0xCCC9B69E),
+                  fontSize: 26 * scale,
+                  height: 1.4,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _agreementLink(String title, AgreementKind kind, TextStyle style) =>
+      GestureDetector(
+        onTap: () => _openAgreement(kind),
+        child: Text(
+          title,
+          style: style.copyWith(
+            color: const Color(0xFFA2D0FF),
+            decoration: TextDecoration.underline,
+          ),
+        ),
+      );
 
   Widget _reader(_LegalDocument document) {
     return ListView(
@@ -458,7 +472,7 @@ class _AboutHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 62,
+      height: 56,
       child: Row(
         children: [
           IconButton(
@@ -466,7 +480,7 @@ class _AboutHeader extends StatelessWidget {
             icon: const Icon(
               Icons.arrow_back_ios_new,
               color: Color(0xFFC9B69E),
-              size: 22,
+              size: 20,
             ),
           ),
           Expanded(
@@ -480,8 +494,8 @@ class _AboutHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFFC9B69E),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ),

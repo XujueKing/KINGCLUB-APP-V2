@@ -196,6 +196,9 @@ class RealAuthRepository implements AuthRepository {
     _mobileVerifiedAt = _now();
     await _sessionStore.saveSession({
       ...result,
+      'maskedMobile': mobile.length >= 7
+          ? '${mobile.substring(0, 3)}****${mobile.substring(mobile.length - 4)}'
+          : '',
       'mobileVerifiedAt': _mobileVerifiedAt!.toIso8601String(),
     });
     onAuthenticated?.call(snapshot);
