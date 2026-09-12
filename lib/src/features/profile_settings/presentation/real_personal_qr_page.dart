@@ -189,7 +189,7 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
                                   padding: EdgeInsets.zero,
                                   backgroundColor: Colors.white,
                                   embeddedImage: const AssetImage(
-                                    'assets/legacy/home/logo_2.png',
+                                    'assets/legacy/aa/kingLogo.png',
                                   ),
                                   embeddedImageStyle: QrEmbeddedImageStyle(
                                     size: Size(68 * r, 68 * r),
