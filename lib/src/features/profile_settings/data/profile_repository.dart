@@ -1,3 +1,5 @@
+import '../../../core/session/member_qr_memory.dart';
+
 import 'dart:convert';
 
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -22,7 +24,44 @@ class ProfileRepository {
     return Map<String, dynamic>.from(data['result'] as Map);
   }
 
-  Future<Map<String, dynamic>> load() => call('K260912000501', {});
+  Future<Map<String, dynamic>> load() async {
+    final generation = MemberQrMemory.generation;
+    final result = await call('K260912000501', {});
+    if (generation == MemberQrMemory.generation) {
+      MemberQrMemory.profile = result;
+    }
+    return result;
+  }
+
+  Future<Map<String, dynamic>> memberQr() {
+    final cached = MemberQrMemory.valid;
+    if (cached != null && (cached['ttlSeconds'] as int) > 60) {
+      return Future.value(cached);
+    }
+    return MemberQrMemory.pending ??= _fetchQr();
+  }
+
+  Future<Map<String, dynamic>> _fetchQr() async {
+    final generation = MemberQrMemory.generation;
+    final elapsed = Stopwatch()..start();
+    try {
+      final result = await call('K260912000506', {});
+      if (generation != MemberQrMemory.generation) throw StateError('会话已变化');
+      final adjusted = {
+        ...result,
+        'ttlSeconds':
+            ((result['ttlSeconds'] as num).toInt() - elapsed.elapsed.inSeconds)
+                .clamp(0, 600),
+      };
+      MemberQrMemory.put(adjusted);
+      return adjusted;
+    } finally {
+      if (generation == MemberQrMemory.generation) {
+        MemberQrMemory.pending = null;
+      }
+    }
+  }
+
   Future<Map<String, dynamic>> save(
     int version,
     String requestId,

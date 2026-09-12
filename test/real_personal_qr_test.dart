@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/session/member_qr_memory.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -26,6 +28,7 @@ class _Repo extends ProfileRepository {
 }
 
 void main() {
+  setUp(MemberQrMemory.clear);
   testWidgets('legacy dimensions, real identity and seamless refresh', (
     tester,
   ) async {

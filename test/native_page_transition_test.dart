@@ -21,12 +21,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       expect(route.animation!.value, greaterThan(0));
       expect(route.animation!.value, lessThan(1));
-      expect(
-        tester
-            .widgetList<Transform>(find.byType(Transform))
-            .any((w) => (w.transform.storage[0] - 1).abs() > 0.001),
-        isTrue,
-      );
+      expect(tester.widgetList<SlideTransition>(find.byType(SlideTransition)).any((w)=>w.position.value.dx>0&&w.position.value.dx<1),isTrue);
       await tester.pump(const Duration(seconds: 1));
       key.currentState!.pop();
       await tester.pump();

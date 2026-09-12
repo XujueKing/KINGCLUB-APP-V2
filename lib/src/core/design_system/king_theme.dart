@@ -44,12 +44,14 @@ abstract final class KingTheme {
     final base = ThemeData(
       brightness: Brightness.dark,
       useMaterial3: true,
-      pageTransitionsTheme: PageTransitionsTheme(
+      pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          ...const PageTransitionsTheme().builders,
-          TargetPlatform.android: const ZoomPageTransitionsBuilder(
-            allowSnapshotting: false,
-          ),
+          TargetPlatform.android: KingSlidePageTransitionsBuilder(),
+          TargetPlatform.iOS: KingSlidePageTransitionsBuilder(),
+          TargetPlatform.macOS: KingSlidePageTransitionsBuilder(),
+          TargetPlatform.windows: KingSlidePageTransitionsBuilder(),
+          TargetPlatform.linux: KingSlidePageTransitionsBuilder(),
+          TargetPlatform.fuchsia: KingSlidePageTransitionsBuilder(),
         },
       ),
       colorScheme: colorScheme,
@@ -162,6 +164,27 @@ abstract final class KingTheme {
         behavior: SnackBarBehavior.floating,
       ),
       dividerColor: KingColors.border,
+    );
+  }
+}
+
+/// Shared whole-page transition: enter from the right, pop back to the right.
+class KingSlidePageTransitionsBuilder extends PageTransitionsBuilder {
+  const KingSlidePageTransitionsBuilder();
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return SlideTransition(
+      position: Tween<Offset>(
+        begin: const Offset(1, 0),
+        end: Offset.zero,
+      ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(animation),
+      child: child,
     );
   }
 }

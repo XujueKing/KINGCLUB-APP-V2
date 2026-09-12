@@ -1,3 +1,5 @@
+import 'member_qr_memory.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -24,11 +26,13 @@ class SecureSessionStore {
   }
 
   Future<void> saveSession(Map<String, dynamic> value) async {
+    MemberQrMemory.clear();
     await _storage.write(key: _sessionKey, value: jsonEncode(value));
     changes.add(null);
   }
 
   Future<void> clearSession() async {
+    MemberQrMemory.clear();
     await _storage.delete(key: _sessionKey);
     changes.add(null);
     try {
@@ -44,6 +48,7 @@ class SecureSessionStore {
     try {
       return Map<String, dynamic>.from(jsonDecode(value) as Map);
     } catch (_) {
+      MemberQrMemory.clear();
       await _storage.delete(key: _sessionKey);
       return null;
     }

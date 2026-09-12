@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import '../../../core/session/member_qr_memory.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../auth/data/auth_repository_provider.dart';
@@ -88,6 +92,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
     _profileLoading = true;
     try {
       final p = await _repository.load();
+      unawaited(
+        _repository.memberQr().then<void>((_) {}, onError: (Object _) {}),
+      );
       _contentPages.clear();
       if (!mounted) return;
       setState(() {
@@ -100,6 +107,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
         _repository.image(p['avatar'] as Map?),
         _repository.image(p['cover'] as Map?),
       ]);
+      if (mounted) MemberQrMemory.avatar = images[0];
       if (!mounted) return;
       setState(() {
         _avatarPath = images[0]?.path;

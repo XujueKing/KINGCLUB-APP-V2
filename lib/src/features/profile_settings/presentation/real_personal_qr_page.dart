@@ -1,3 +1,5 @@
+import '../../../core/session/member_qr_memory.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -31,8 +33,18 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadProfile();
-    _refresh();
+    if (widget.repository == null) {
+      _profile = MemberQrMemory.profile;
+      _avatar = MemberQrMemory.avatar;
+      final cached = MemberQrMemory.valid;
+      if (cached != null) {
+        _code = cached['code'] as String;
+        _ttl = cached['ttlSeconds'] as int;
+        _validity = Stopwatch()..start();
+      }
+    }
+    if (_profile == null || _avatar == null) _loadProfile();
+    if (_code == null || _remaining <= 60) _refresh();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && _foreground) {
         setState(() {});
@@ -63,7 +75,7 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
       _error = null;
     });
     try {
-      final r = await _repo.call('K260912000506', {});
+      final r = await _repo.memberQr();
       if (!mounted || gen != _generation || !_foreground) return;
       setState(() {
         _code = r['code'] as String;
