@@ -18,10 +18,10 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# Local IDE state is machine-specific and must not enter the source repository.
-.vscode/
-.vs/
-.fleet/
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -73,10 +73,6 @@ app.*.map.json
 /reference/
 /screenshots/
 /recordings/
-**/references/
-**/reference/
-**/screenshots/
-**/recordings/
 
 # Local scratch files, caches and distributable builds.
 /tmp/
@@ -99,6 +95,3 @@ Desktop.ini
 *.apk
 *.aab
 *.ipa
-*.trace
-*.prof
-*.pid

@@ -37,7 +37,6 @@ import '../features/profile_settings/data/profile_cover_store.dart';
 import '../features/profile_settings/presentation/about_legal_page.dart';
 import '../features/profile_settings/presentation/account_deletion_page.dart';
 import '../features/profile_settings/presentation/payment_security_page.dart';
-import '../features/profile_settings/presentation/personal_info_page.dart';
 import '../features/profile_settings/presentation/personal_qr_page.dart';
 import '../features/profile_settings/presentation/settings_page.dart';
 import '../features/onboarding/presentation/drink_event_preferences_page.dart';
@@ -579,10 +578,8 @@ class AppShellRoute extends GoRouteData with $AppShellRoute {
     onOpenEditProfile: (nickname, signature, coverAsset) =>
         EditProfileRoute(EditProfileRouteArgs(nickname, signature, coverAsset))
             .push<EditableProfileResult>(context),
-    onOpenPersonalInfo: () => const PersonalInfoRoute().push<void>(context),
     onOpenPersonalQr: () => const PersonalQrRoute().push<void>(context),
     onOpenSettings: () => const SettingsRoute().push<void>(context),
-    onOpenAbout: () => const AboutLegalRoute().push<void>(context),
     onOpenOrders: () => const OrderCenterRoute().push<void>(context),
     onOpenFriendRequests: () => const FriendRequestsRoute().push<void>(context),
     onOpenAddFriend: () => const AddFriendRoute().push<void>(context),
@@ -613,10 +610,8 @@ class ContentFeedRoute extends GoRouteData with $ContentFeedRoute {
     onOpenEditProfile: (nickname, signature, coverAsset) =>
         EditProfileRoute(EditProfileRouteArgs(nickname, signature, coverAsset))
             .push<EditableProfileResult>(context),
-    onOpenPersonalInfo: () => const PersonalInfoRoute().push<void>(context),
     onOpenPersonalQr: () => const PersonalQrRoute().push<void>(context),
     onOpenSettings: () => const SettingsRoute().push<void>(context),
-    onOpenAbout: () => const AboutLegalRoute().push<void>(context),
     onOpenOrders: () => const OrderCenterRoute().push<void>(context),
     onOpenFriendRequests: () => const FriendRequestsRoute().push<void>(context),
     onOpenAddFriend: () => const AddFriendRoute().push<void>(context),
@@ -647,10 +642,8 @@ class ContactsRoute extends GoRouteData with $ContactsRoute {
     onOpenEditProfile: (nickname, signature, coverAsset) =>
         EditProfileRoute(EditProfileRouteArgs(nickname, signature, coverAsset))
             .push<EditableProfileResult>(context),
-    onOpenPersonalInfo: () => const PersonalInfoRoute().push<void>(context),
     onOpenPersonalQr: () => const PersonalQrRoute().push<void>(context),
     onOpenSettings: () => const SettingsRoute().push<void>(context),
-    onOpenAbout: () => const AboutLegalRoute().push<void>(context),
     onOpenOrders: () => const OrderCenterRoute().push<void>(context),
     onOpenFriendRequests: () => const FriendRequestsRoute().push<void>(context),
     onOpenAddFriend: () => const AddFriendRoute().push<void>(context),
@@ -1098,7 +1091,6 @@ class PersonalQrRoute extends GoRouteData with $PersonalQrRoute {
 @TypedGoRoute<SettingsRoute>(
   path: '/me/settings',
   routes: [
-    TypedGoRoute<PersonalInfoRoute>(path: 'personal-info'),
     TypedGoRoute<PaymentSecurityRoute>(path: 'payment-security'),
     TypedGoRoute<AccountDeletionRoute>(path: 'delete-account'),
     TypedGoRoute<AboutLegalRoute>(path: 'about'),
@@ -1113,24 +1105,11 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
         context.canPop() ? context.pop() : const AppShellRoute().go(context),
     onOpenPaymentSecurity: () =>
         const PaymentSecurityRoute().push<void>(context),
-    onOpenPersonalInfo: () => const PersonalInfoRoute().push<void>(context),
     onOpenAccountDeletion: () =>
         const AccountDeletionRoute().push<void>(context),
     onOpenAboutLegal: () => const AboutLegalRoute().push<void>(context),
     onLogoutCompleted: () => _clearCommerceAndLogin(context),
     onSessionResetRequested: () => _clearCommerceAndLogin(context),
-  );
-}
-
-class PersonalInfoRoute extends GoRouteData with $PersonalInfoRoute {
-  const PersonalInfoRoute();
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) => PersonalInfoPage(
-    onBack: () =>
-        context.canPop() ? context.pop() : const SettingsRoute().go(context),
-    onOpenPaymentSecurity: () =>
-        const PaymentSecurityRoute().push<void>(context),
   );
 }
 
