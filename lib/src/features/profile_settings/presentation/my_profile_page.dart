@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../membership_wallet/presentation/asset_ledger_page.dart';
 import '../data/profile_cover_store.dart';
@@ -194,28 +195,6 @@ class _MyProfilePageState extends State<MyProfilePage> {
                                   ),
                                 ),
                               ),
-                              if (opacity > 0)
-                                Positioned(
-                                  top: MediaQuery.paddingOf(context).top + 7,
-                                  left: 220 * scale,
-                                  right: 150 * scale,
-                                  child: Opacity(
-                                    opacity: opacity,
-                                    child: Text(
-                                      _nickname,
-                                      key: const ValueKey(
-                                        'my-profile-collapsed-name',
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: _warmWhite,
-                                        fontSize: 28 * scale,
-                                      ),
-                                    ),
-                                  ),
-                                ),
                               tools!,
                             ],
                           );
@@ -341,78 +320,106 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   Widget _buildTopTools() {
-    final legacyScale = _legacyScale;
-    final iconSize = 40 * legacyScale;
-    final tapWidth = 80 * legacyScale;
-    final tapHeight = 42 * legacyScale;
+    final scale = _legacyScale;
+    final height = math.max(32.0, 42 * scale);
     return Positioned(
-      left: 20 * legacyScale,
-      right: 16,
+      left: 20 * scale,
+      right: 20 * scale,
       top: MediaQuery.paddingOf(context).top + 5,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            key: const ValueKey('my-profile-top-tools'),
-            padding: EdgeInsets.fromLTRB(
-              20 * legacyScale,
-              10 * legacyScale,
-              10 * legacyScale,
-              10 * legacyScale,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(30 * legacyScale),
-            ),
-            child: Row(
-              children: [
-                _assetTool(
-                  key: const ValueKey('my-profile-qr'),
-                  imageKey: const ValueKey('my-profile-qr-image'),
-                  asset: 'menu_barcode.png',
-                  label: '个人二维码',
-                  iconSize: iconSize,
-                  tapWidth: tapWidth,
-                  tapHeight: tapHeight,
-                  onTap: _showQr,
-                ),
-                _assetTool(
-                  key: const ValueKey('my-profile-settings'),
-                  imageKey: const ValueKey('my-profile-settings-image'),
-                  asset: 'ic_setting.png',
-                  label: '设置',
-                  iconSize: iconSize,
-                  tapWidth: tapWidth,
-                  tapHeight: tapHeight,
-                  onTap: _showSettings,
-                ),
-              ],
-            ),
-          ),
-          _fadeProfile(
-            Material(
-              color: const Color(0xA6000000),
-              borderRadius: BorderRadius.circular(22),
-              child: InkWell(
-                key: const ValueKey('my-profile-exp'),
-                borderRadius: BorderRadius.circular(22),
-                onTap: _showLevel,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  child: Text(
-                    'EXP：0',
-                    style: TextStyle(
-                      color: _warmWhite,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
+      child: SizedBox(
+        height: height,
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                key: const ValueKey('my-profile-top-tools'),
+                color: Colors.transparent,
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    _fadeProfile(
+                      Row(
+                        children: [
+                          _assetTool(
+                            key: const ValueKey('my-profile-qr'),
+                            imageKey: const ValueKey('my-profile-qr-image'),
+                            asset: 'menu_barcode.png',
+                            label: '个人二维码',
+                            iconSize: 40 * scale,
+                            tapWidth: 80 * scale,
+                            tapHeight: height,
+                            onTap: _showQr,
+                          ),
+                          Flexible(
+                            child: InkWell(
+                              key: const ValueKey('my-profile-exp'),
+                              onTap: _showLevel,
+                              splashFactory: NoSplash.splashFactory,
+                              highlightColor: Colors.transparent,
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  '经验值：0',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: _warmWhite,
+                                    fontSize: 12,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      'my-profile-exp-opacity',
                     ),
-                  ),
+                    IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _scroll,
+                        builder: (context, _) => _collapseProgress == 0
+                            ? const SizedBox.shrink()
+                            : Opacity(
+                                opacity: _collapseProgress,
+                                child: Padding(
+                                  padding: EdgeInsets.only(left: 20 * scale),
+                                  child: Text(
+                                    _nickname,
+                                    key: const ValueKey(
+                                      'my-profile-collapsed-name',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: _warmWhite,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            'my-profile-exp-opacity',
-          ),
-        ],
+            _assetTool(
+              key: const ValueKey('my-profile-settings'),
+              imageKey: const ValueKey('my-profile-settings-image'),
+              asset: 'ic_setting.png',
+              label: '设置',
+              iconSize: 40 * scale,
+              tapWidth: 80 * scale,
+              tapHeight: height,
+              onTap: _showSettings,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -686,20 +693,23 @@ class _MyProfilePageState extends State<MyProfilePage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset(
+                  SvgPicture.asset(
                     'assets/legacy/profile/$asset',
-                    width: 26,
-                    height: 26,
-                    color: _warmWhite,
+                    width: 30,
+                    height: 30,
+                    colorFilter: const ColorFilter.mode(
+                      _warmWhite,
+                      BlendMode.srcIn,
+                    ),
                     fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
                     label,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: _warmWhite,
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -712,16 +722,25 @@ class _MyProfilePageState extends State<MyProfilePage> {
       key: const ValueKey('my-profile-services'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        entry('orders', '我的订单', 'gouwudai.png', _showOrders),
-        entry('reservations', '我的预约', 'menu_list.png', () {
+        entry(
+          'bump',
+          '初次碰碰',
+          'service_bump.svg',
+          () => _showSheet(
+            title: '初次碰碰',
+            child: const Text('功能暂未开放', style: TextStyle(color: _muted)),
+          ),
+        ),
+        entry('orders', '我的订单', 'service_orders.svg', _showOrders),
+        entry('reservations', '我的预约', 'service_reservations.svg', () {
           if (widget.onOpenReservations case final open?) {
             open();
           } else {
             _showEmptyList('我的预约');
           }
         }),
-        entry('creator', '创作者中心', 'edit.png', _showCreatorCenter),
-        entry('support', '专属客服', 'tabBar_chat.png', _showSupportCenter),
+        entry('creator', '创作者中心', 'service_creator.svg', _showCreatorCenter),
+        entry('support', '专属客服', 'service_support.svg', _showSupportCenter),
       ],
     );
   }

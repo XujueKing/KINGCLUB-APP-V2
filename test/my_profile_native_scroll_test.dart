@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/my_profile_page.dart';
 
@@ -62,13 +63,13 @@ void main() {
   );
 
   testWidgets(
-    'four legacy image service entries sit above content and support opens',
+    'five supplied SVG service entries sit above content and support opens',
     (tester) async {
       await mount(tester);
       final services = find.byKey(const ValueKey('my-profile-services'));
       await tester.ensureVisible(services);
       await tester.pumpAndSettle();
-      final rects = ['orders', 'reservations', 'creator', 'support']
+      final rects = ['bump', 'orders', 'reservations', 'creator', 'support']
           .map((id) => tester.getRect(find.byKey(ValueKey('my-profile-$id'))))
           .toList();
       for (final rect in rects) {
@@ -88,8 +89,8 @@ void main() {
         findsNothing,
       );
       expect(
-        find.descendant(of: services, matching: find.byType(Image)),
-        findsNWidgets(4),
+        find.descendant(of: services, matching: find.byType(SvgPicture)),
+        findsNWidgets(5),
       );
       await tester.tap(find.byKey(const ValueKey('my-profile-support')));
       await tester.pumpAndSettle();
@@ -125,12 +126,20 @@ void main() {
       );
       expect(
         find.byKey(const ValueKey('my-profile-qr')).hitTestable(),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('my-profile-settings')).hitTestable(),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('my-profile-collapsed-name')),
         findsOneWidget,
       );
       final tools = tester.widget<Container>(
         find.byKey(const ValueKey('my-profile-top-tools')),
       );
-      expect((tools.decoration as BoxDecoration).color, Colors.transparent);
+      expect(tools.color, Colors.transparent);
       scroll.jumpTo(pin - 80);
       await tester.pump();
       expect(opacity('my-profile-info-opacity'), closeTo(.5, .01));

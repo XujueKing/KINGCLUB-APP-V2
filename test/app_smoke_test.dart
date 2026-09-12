@@ -1737,6 +1737,11 @@ void main() {
       findsOneWidget,
     );
 
+    tester
+        .widget<CustomScrollView>(find.byType(CustomScrollView))
+        .controller!
+        .jumpTo(0);
+    await tester.pumpAndSettle();
     final qrEntry = find.byKey(const ValueKey('my-profile-qr'));
     await tester.ensureVisible(qrEntry);
     await tester.tap(qrEntry);

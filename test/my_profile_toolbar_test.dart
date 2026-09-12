@@ -45,11 +45,12 @@ void main() {
     expect(settingsImage.height, closeTo(40 * scale, .01));
     expect(qrTap.width / qrImage.width, closeTo(2, .01));
     expect(settingsTap.width / settingsImage.width, closeTo(2, .01));
-    expect(
-      settingsImage.center.dx - qrImage.center.dx,
-      closeTo(qrImage.width * 2, .01),
-    );
-    expect(toolbar.width, closeTo(190 * scale, .01));
+    expect(qrImage.center.dx, lessThan(60));
+    expect(settingsImage.center.dx, greaterThan(330));
+    final exp = tester.getRect(find.byKey(const ValueKey('my-profile-exp')));
+    expect(exp.left, greaterThanOrEqualTo(qrTap.right));
+    expect(exp.right, lessThan(settingsTap.left));
+    expect(toolbar.right, lessThanOrEqualTo(settingsTap.left));
 
     await tester.tap(find.byKey(const ValueKey('my-profile-qr')));
     await tester.tap(find.byKey(const ValueKey('my-profile-settings')));
