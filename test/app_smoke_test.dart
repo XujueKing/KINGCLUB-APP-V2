@@ -1649,6 +1649,9 @@ void main() {
   testWidgets('my profile reproduces legacy content and fake interactions', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
         theme: KingTheme.dark,
@@ -1674,7 +1677,7 @@ void main() {
     expect(find.text('河南省 · 安阳市'), findsOneWidget);
     expect(find.text('木系灵根'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('my-profile-selected-tab-arrow-动态')),
+      find.byKey(const ValueKey('my-profile-selected-tab-arrow-作品')),
       findsOneWidget,
     );
 
@@ -1687,7 +1690,16 @@ void main() {
       find.byKey(const ValueKey('my-profile-selected-tab-arrow-作品')),
       findsOneWidget,
     );
-    expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Image &&
+            widget.image is AssetImage &&
+            (widget.image as AssetImage).assetName ==
+                'assets/legacy/profile/select.png',
+      ),
+      findsOneWidget,
+    );
     final albumTab = find.byKey(const ValueKey('my-profile-tab-相册'));
     await tester.ensureVisible(albumTab);
     await tester.tap(albumTab);
@@ -1697,7 +1709,16 @@ void main() {
       find.byKey(const ValueKey('my-profile-selected-tab-arrow-相册')),
       findsOneWidget,
     );
-    expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Image &&
+            widget.image is AssetImage &&
+            (widget.image as AssetImage).assetName ==
+                'assets/legacy/profile/select.png',
+      ),
+      findsOneWidget,
+    );
     final activityTab = find.byKey(const ValueKey('my-profile-tab-动态'));
     await tester.tap(activityTab);
     await tester.pumpAndSettle();
@@ -1705,7 +1726,16 @@ void main() {
       find.byKey(const ValueKey('my-profile-selected-tab-arrow-动态')),
       findsOneWidget,
     );
-    expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Image &&
+            widget.image is AssetImage &&
+            (widget.image as AssetImage).assetName ==
+                'assets/legacy/profile/select.png',
+      ),
+      findsOneWidget,
+    );
 
     final qrEntry = find.byKey(const ValueKey('my-profile-qr'));
     await tester.ensureVisible(qrEntry);
@@ -1729,6 +1759,9 @@ void main() {
   testWidgets('my profile order entry opens the shared order center intent', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     var opened = false;
     await tester.pumpWidget(
       MaterialApp(
@@ -1742,7 +1775,7 @@ void main() {
     await tester.scrollUntilVisible(
       orders,
       180,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(orders);
     expect(opened, isTrue);

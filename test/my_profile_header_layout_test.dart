@@ -25,9 +25,9 @@ void main() {
       find.byKey(const ValueKey('my-profile-empty-avatar')),
     );
 
-    expect(cover.height, closeTo(540 * scale, .01));
-    expect(cover.bottom, closeTo(540 * scale, .01));
-    expect(avatar.top, closeTo(400 * scale, .01));
+    expect(cover.height, closeTo(400 * scale, .01));
+    expect(cover.bottom, closeTo(400 * scale, .01));
+    expect(avatar.top, closeTo(260 * scale, .01));
     expect(avatar.width, closeTo(180 * scale, .01));
     expect(avatar.bottom - cover.bottom, closeTo(40 * scale, .01));
 
@@ -42,7 +42,14 @@ void main() {
     final follows = tester.getRect(
       find.byKey(const ValueKey('my-profile-stat-关注')),
     );
-    expect(likes.width, closeTo(104 * scale, .01));
-    expect(follows.center.dx - likes.center.dx, closeTo(104 * scale, .01));
+    expect(follows.left - likes.right, closeTo(24 * scale, .01));
+    final likeLabel = tester.getRect(find.text('获赞'));
+    final likeNumber = tester.getRect(
+      find.descendant(
+        of: find.byKey(const ValueKey('my-profile-stat-获赞')),
+        matching: find.text('0'),
+      ),
+    );
+    expect(likeLabel.center.dy, closeTo(likeNumber.center.dy, .01));
   });
 }

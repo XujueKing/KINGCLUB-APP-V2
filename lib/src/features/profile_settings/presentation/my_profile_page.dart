@@ -19,6 +19,7 @@ class MyProfilePage extends StatefulWidget {
     this.onOpenOrders,
     this.onSessionResetRequested,
     this.coverStore,
+    this.reselectSignal = 0,
   });
 
   final ValueChanged<AssetLedgerType>? onOpenAssets;
@@ -33,6 +34,7 @@ class MyProfilePage extends StatefulWidget {
   final VoidCallback? onOpenOrders;
   final VoidCallback? onSessionResetRequested;
   final ProfileCoverStore? coverStore;
+  final int reselectSignal;
 
   @override
   State<MyProfilePage> createState() => _MyProfilePageState();
@@ -41,7 +43,10 @@ class MyProfilePage extends StatefulWidget {
 class _MyProfilePageState extends State<MyProfilePage> {
   static const _warmWhite = Color(0xFFEAE3D8);
   static const _muted = Color(0xFFB7ADA0);
-  int _selectedTab = 1;
+  int _selectedTab = 0;
+  final _scroll = ScrollController();
+  final _pages = PageController();
+  double _menuPinOffset = 300;
   String _nickname = '杨嘉琪';
   String _signature = '';
   String _coverAsset = kDefaultProfileCoverAsset;
@@ -67,28 +72,197 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   @override
+  void didUpdateWidget(covariant MyProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.reselectSignal != widget.reselectSignal &&
+        _scroll.hasClients) {
+      _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    _pages.dispose();
+    super.dispose();
+  }
+
+  double get _offset => _scroll.hasClients ? _scroll.offset : 0;
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final constrainedWidth = constraints.maxWidth.isFinite
-            ? constraints.maxWidth
-            : MediaQuery.sizeOf(context).width;
         _layoutWidth = math.min(
-          constrainedWidth,
+          constraints.maxWidth,
           MediaQuery.sizeOf(context).width,
         );
+        final scale = _legacyScale;
+        final toolbarHeight =
+            MediaQuery.paddingOf(context).top +
+            math.max(
+              6 + 60 * scale,
+              17 + MediaQuery.textScalerOf(context).scale(16),
+            );
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final tabsHeight =
+            24 * scale + math.max(32 * scale * textScale * 1.4, 28);
         return ColoredBox(
           color: Colors.black,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 118),
-            child: Stack(
-              children: [
-                _buildCover(),
-                _buildProfilePanel(),
-                _buildTopTools(),
-                _buildIdentity(),
-              ],
-            ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: _scroll,
+                  child: _buildCover(),
+                  builder: (context, cover) => CustomPaint(
+                    painter: _ProfileBackground(400 * scale - _offset, scale),
+                    child: Stack(
+                      clipBehavior: Clip.hardEdge,
+                      children: [
+                        Positioned(
+                          top: -_offset,
+                          left: 0,
+                          right: 0,
+                          child: cover!,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              CustomScrollView(
+                key: const PageStorageKey('my-profile-scroll'),
+                controller: _scroll,
+                slivers: [
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _ProfilePinnedHeader(
+                      height: toolbarHeight,
+                      child: AnimatedBuilder(
+                        animation: _scroll,
+                        child: Stack(children: [_buildTopTools()]),
+                        builder: (context, tools) {
+                          final opacity =
+                              ((_offset - _menuPinOffset + 100) / 100).clamp(
+                                0.0,
+                                1.0,
+                              );
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Opacity(
+                                opacity: opacity,
+                                child: CustomPaint(
+                                  painter: _ProfileBackground(
+                                    400 * scale - _offset,
+                                    scale,
+                                  ),
+                                ),
+                              ),
+                              if (opacity > 0)
+                                Positioned(
+                                  top: MediaQuery.paddingOf(context).top + 7,
+                                  left: 220 * scale,
+                                  right: 150 * scale,
+                                  child: Opacity(
+                                    opacity: opacity,
+                                    child: Text(
+                                      _nickname,
+                                      key: const ValueKey(
+                                        'my-profile-collapsed-name',
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: _warmWhite,
+                                        fontSize: 28 * scale,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              tools!,
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Stack(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: math.max(0, 400 * scale - toolbarHeight),
+                          ),
+                          child: _buildProfilePanel(),
+                        ),
+                        _buildIdentity(
+                          top: math.max(0, 260 * scale - toolbarHeight),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SliverLayoutBuilder(
+                    builder: (context, constraints) {
+                      final naturalTop = constraints.precedingScrollExtent;
+                      _menuPinOffset = naturalTop - toolbarHeight;
+                      return SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _ProfilePinnedHeader(
+                          height: tabsHeight,
+                          child: AnimatedBuilder(
+                            animation: _scroll,
+                            child: Container(
+                              key: const ValueKey('my-profile-pinned-tabs'),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 40 * scale,
+                              ),
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Color(0x20FCE9D1),
+                                    width: .5,
+                                  ),
+                                ),
+                              ),
+                              alignment: Alignment.centerLeft,
+                              child: _buildTabs(),
+                            ),
+                            builder: (context, tabs) => CustomPaint(
+                              painter: _ProfileBackground(
+                                400 * scale -
+                                    _offset -
+                                    math.max(
+                                      toolbarHeight,
+                                      naturalTop - _offset,
+                                    ),
+                                scale,
+                              ),
+                              child: tabs,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: math.max(
+                        260,
+                        constraints.maxHeight - toolbarHeight - tabsHeight,
+                      ),
+                      child: _buildTabContent(),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         );
       },
@@ -99,12 +273,36 @@ class _MyProfilePageState extends State<MyProfilePage> {
     final scale = _legacyScale;
     return SizedBox(
       key: const ValueKey('my-profile-cover'),
-      height: 540 * scale,
+      height: 400 * scale,
       width: double.infinity,
-      child: Image(
-        image: profileImageProvider(_coverAsset),
-        fit: BoxFit.cover,
-        alignment: const Alignment(-0.28, 0.28),
+      child: OverflowBox(
+        alignment: Alignment.topCenter,
+        minHeight: 430 * scale,
+        maxHeight: 430 * scale,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image(
+              image: profileImageProvider(_coverAsset),
+              fit: BoxFit.cover,
+              alignment: const Alignment(-0.28, 0.28),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.transparent,
+                    Color(0xBB000000),
+                  ],
+                  stops: [0, .45, 1],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -166,7 +364,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
               borderRadius: BorderRadius.circular(22),
               onTap: _showLevel,
               child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 child: Text(
                   'EXP：0',
                   style: TextStyle(
@@ -218,13 +416,13 @@ class _MyProfilePageState extends State<MyProfilePage> {
     );
   }
 
-  Widget _buildIdentity() {
+  Widget _buildIdentity({required double top}) {
     final scale = _legacyScale;
     return Positioned(
       key: const ValueKey('my-profile-identity'),
       left: 50 * scale,
       right: 42 * scale,
-      top: 400 * scale,
+      top: top,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -286,12 +484,15 @@ class _MyProfilePageState extends State<MyProfilePage> {
                     onTap: _copyFakeAccount,
                     child: Row(
                       children: [
-                        const Text(
-                          '账号：K45600000199',
-                          style: TextStyle(
-                            color: _muted,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w400,
+                        const Flexible(
+                          child: Text(
+                            '账号：K45600000199',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _muted,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w400,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 5),
@@ -315,42 +516,35 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
   Widget _buildProfilePanel() {
     final scale = _legacyScale;
-    return Container(
-      key: const ValueKey('my-profile-panel'),
-      margin: EdgeInsets.only(top: 540 * scale),
-      constraints: BoxConstraints(
-        minHeight: MediaQuery.sizeOf(context).height > 226
-            ? MediaQuery.sizeOf(context).height - 226
-            : 0,
-      ),
-      padding: EdgeInsets.fromLTRB(20 * scale, 60 * scale, 20 * scale, 120),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30 * scale)),
-        gradient: const RadialGradient(
-          center: Alignment.topCenter,
-          radius: 1.12,
-          colors: [Color(0xFF352F26), Color(0xFF0D0C0A), Colors.black],
-          stops: [0, .48, 1],
+    return ClipRRect(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(30 * scale)),
+      child: CustomPaint(
+        painter: _ProfileBackground(0, scale),
+        child: Padding(
+          key: const ValueKey('my-profile-panel'),
+          padding: EdgeInsets.fromLTRB(
+            40 * scale,
+            70 * scale,
+            40 * scale,
+            20 * scale,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildStats(),
+              SizedBox(height: 26 * scale),
+              _buildAssets(),
+              SizedBox(height: 28 * scale),
+              if (_signature.isNotEmpty)
+                Text(
+                  _signature,
+                  style: TextStyle(color: _warmWhite, fontSize: 28 * scale),
+                ),
+              SizedBox(height: 30 * scale),
+              _buildTags(),
+            ],
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildStats(),
-          SizedBox(height: 26 * scale),
-          _buildAssets(),
-          if (_signature.isNotEmpty) ...[
-            const SizedBox(height: 18),
-            Text(_signature, style: const TextStyle(color: _warmWhite)),
-          ],
-          const SizedBox(height: 28),
-          _buildTags(),
-          const SizedBox(height: 26),
-          _buildTabs(),
-          const SizedBox(height: 14),
-          const Divider(color: Color(0xFF27231E), height: 1),
-          _buildTabContent(),
-        ],
       ),
     );
   }
@@ -358,67 +552,79 @@ class _MyProfilePageState extends State<MyProfilePage> {
   Widget _buildStats() {
     final scale = _legacyScale;
     const stats = [('获赞', '0'), ('关注', '0'), ('互关', '0'), ('粉丝', '0')];
-    return Row(
-      children: [
-        ...stats.map(
-          (item) => SizedBox(
-            width: 104 * scale,
-            child: InkWell(
+    final counts = Wrap(
+      spacing: 24 * scale,
+      runSpacing: 12 * scale,
+      children: stats
+          .map(
+            (item) => InkWell(
               key: ValueKey('my-profile-stat-${item.$1}'),
               onTap: () => _showEmptyList(item.$1),
-              child: Column(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     item.$2,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 32 * scale,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(width: 8 * scale),
                   Text(
                     item.$1,
-                    style: const TextStyle(
-                      color: _warmWhite,
-                      fontSize: 13.5,
+                    style: TextStyle(
+                      color: const Color(0xD2FCE9D1),
+                      fontSize: 26 * scale,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
+          )
+          .toList(),
+    );
+    final edit = TextButton(
+      key: const ValueKey('my-profile-edit'),
+      style: TextButton.styleFrom(
+        backgroundColor: const Color(0x307E6951),
+        foregroundColor: Colors.white,
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: EdgeInsets.symmetric(
+          horizontal: 24 * scale,
+          vertical: 12 * scale,
         ),
-        const Spacer(),
-        SizedBox(
-          width: 212 * scale,
-          height: 70 * scale,
-          child: FilledButton(
-            key: const ValueKey('my-profile-edit'),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF3B3329),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: EdgeInsets.zero,
-            ),
-            onPressed: _showEditProfile,
-            child: const Text(
-              '编辑主页',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-          ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12 * scale),
         ),
+      ),
+      onPressed: _showEditProfile,
+      child: Text(
+        '编辑主页',
+        style: TextStyle(fontSize: 26 * scale, fontWeight: FontWeight.w400),
+      ),
+    );
+    if (MediaQuery.textScalerOf(context).scale(1) > 1.4) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [counts, const SizedBox(height: 12), edit],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: counts),
         SizedBox(width: 24 * scale),
+        edit,
       ],
     );
   }
 
   Widget _buildAssets() {
     return Wrap(
-      spacing: 8,
+      spacing: 6,
       runSpacing: 8,
       children: [
         _assetChip('余额：¥ 0.00', null, '我的余额', AssetLedgerType.cashBalance),
@@ -437,24 +643,24 @@ class _MyProfilePageState extends State<MyProfilePage> {
         key: const ValueKey('my-profile-orders'),
         borderRadius: BorderRadius.circular(20),
         onTap: _showOrders,
-        child: SizedBox(
-          height: 34,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 34),
           child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 11),
+            padding: EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.receipt_long_outlined,
                   color: Color(0xFF21180F),
-                  size: 20,
+                  size: 16,
                 ),
                 SizedBox(width: 6),
                 Text(
                   '我的订单',
                   style: TextStyle(
                     color: Color(0xFF21180F),
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -479,26 +685,26 @@ class _MyProfilePageState extends State<MyProfilePage> {
         key: ValueKey('my-profile-asset-$title'),
         borderRadius: BorderRadius.circular(20),
         onTap: () => _showAsset(type),
-        child: SizedBox(
-          height: 34,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 34),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (asset != null) ...[
                   Image.asset(
                     'assets/legacy/profile/$asset',
-                    width: 20,
-                    height: 20,
+                    width: 16,
+                    height: 16,
                   ),
-                  const SizedBox(width: 7),
+                  const SizedBox(width: 6),
                 ],
                 Text(
                   text,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -513,18 +719,21 @@ class _MyProfilePageState extends State<MyProfilePage> {
   Widget _buildTags() {
     const tags = ['♂ 24岁', '颜值：148', '河南省 · 安阳市', '巨蟹座', '单身', '木系灵根'];
     return Wrap(
-      spacing: 7,
-      runSpacing: 8,
+      spacing: 14 * _legacyScale,
+      runSpacing: 16 * _legacyScale,
       children: tags
           .map(
             (tag) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              color: const Color(0x80000000),
+              padding: EdgeInsets.symmetric(
+                horizontal: 14 * _legacyScale,
+                vertical: 6 * _legacyScale,
+              ),
+              color: const Color(0x30000000),
               child: Text(
                 tag,
-                style: const TextStyle(
-                  color: _muted,
-                  fontSize: 12.5,
+                style: TextStyle(
+                  color: const Color(0xBBFCE9D1),
+                  fontSize: 24 * _legacyScale,
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -541,29 +750,39 @@ class _MyProfilePageState extends State<MyProfilePage> {
         final selected = index == _selectedTab;
         return InkWell(
           key: ValueKey('my-profile-tab-${tabs[index]}'),
-          onTap: () => setState(() => _selectedTab = index),
+          onTap: () => _pages.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+          ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(0, 8, 28, 8),
+            padding: EdgeInsets.fromLTRB(
+              0,
+              4 * _legacyScale,
+              32 * _legacyScale,
+              4 * _legacyScale,
+            ),
             child: Row(
               children: [
                 Text(
                   tabs[index],
                   style: TextStyle(
                     color: selected ? Colors.white : _muted,
-                    fontSize: selected ? 17 : 14.5,
+                    fontSize: (selected ? 32 : 28) * _legacyScale,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
                 if (selected)
                   Padding(
                     padding: const EdgeInsets.only(left: 5),
-                    child: Icon(
+                    child: Image.asset(
+                      'assets/legacy/profile/select.png',
                       key: ValueKey(
                         'my-profile-selected-tab-arrow-${tabs[index]}',
                       ),
-                      Icons.arrow_drop_down,
                       color: _warmWhite,
-                      size: 20,
+                      width: 18 * _legacyScale,
+                      height: 13 * _legacyScale,
                     ),
                   ),
               ],
@@ -575,10 +794,23 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   Widget _buildTabContent() {
-    return SizedBox(
-      key: ValueKey('my-profile-content-$_selectedTab'),
-      height: 260,
-      width: double.infinity,
+    const empty = ['暂无作品', '暂无动态', '暂无相册内容'];
+    return PageView.builder(
+      key: const ValueKey('my-profile-pages'),
+      controller: _pages,
+      itemCount: empty.length,
+      onPageChanged: (index) => setState(() => _selectedTab = index),
+      itemBuilder: (context, index) => Align(
+        key: ValueKey('my-profile-content-$index'),
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 70),
+          child: Text(
+            empty[index],
+            style: const TextStyle(color: Color(0x99FCE9D1), fontSize: 13),
+          ),
+        ),
+      ),
     );
   }
 
@@ -756,4 +988,51 @@ class _MyProfilePageState extends State<MyProfilePage> {
       ),
     );
   }
+}
+
+/// Flutter performs the pinning in sliver layout, including scroll reversal.
+class _ProfilePinnedHeader extends SliverPersistentHeaderDelegate {
+  _ProfilePinnedHeader({required this.height, required this.child});
+  final double height;
+  final Widget child;
+  @override
+  double get minExtent => height;
+  @override
+  double get maxExtent => height;
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => SizedBox.expand(child: child);
+  @override
+  bool shouldRebuild(covariant _ProfilePinnedHeader oldDelegate) =>
+      height != oldDelegate.height || child != oldDelegate.child;
+}
+
+/// One fixed-radius source gradient, shared by the body and opaque pinned bars.
+class _ProfileBackground extends CustomPainter {
+  const _ProfileBackground(this.panelTop, this.scale);
+  final double panelTop;
+  final double scale;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(rect, Paint()..color = Colors.black);
+    final gradientRect = Rect.fromCircle(
+      center: Offset(size.width / 2, panelTop),
+      radius: 1000 * scale,
+    );
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: [Color(0xFF362F24), Colors.black],
+        ).createShader(gradientRect),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProfileBackground oldDelegate) =>
+      panelTop != oldDelegate.panelTop || scale != oldDelegate.scale;
 }

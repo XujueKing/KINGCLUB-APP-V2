@@ -23,13 +23,13 @@ void main() {
     expect(styleOf('杨嘉琪').fontSize, 20);
     expect(styleOf('杨嘉琪').fontWeight, FontWeight.w600);
     expect(styleOf('账号：K45600000199').fontSize, 11.5);
-    expect(styleOf('获赞').fontSize, 13.5);
+    expect(styleOf('获赞').fontSize, 26 * 393 / 750);
     expect(styleOf('获赞').fontWeight, FontWeight.w400);
-    expect(styleOf('余额：¥ 0.00').fontSize, 14);
-    expect(styleOf('♂ 24岁').fontSize, 12.5);
-    expect(styleOf('动态').fontSize, 17);
-    expect(styleOf('动态').fontWeight, FontWeight.w600);
-    expect(styleOf('作品').fontSize, 14.5);
-    expect(styleOf('作品').fontWeight, FontWeight.w400);
+    expect(styleOf('余额：¥ 0.00').fontSize, 12);
+    expect(styleOf('♂ 24岁').fontSize, 24 * 393 / 750);
+    expect(styleOf('动态').fontSize, 28 * 393 / 750);
+    expect(styleOf('动态').fontWeight, FontWeight.w400);
+    expect(styleOf('作品').fontSize, 32 * 393 / 750);
+    expect(styleOf('作品').fontWeight, FontWeight.w600);
   });
 }

@@ -99,6 +99,7 @@ class _AppShellPageState extends State<AppShellPage> {
   late int _friendConversationUnread;
   late AppShellDemoState _shellState;
   int _homeReselectSignal = 0;
+  int _profileReselectSignal = 0;
 
   static const _destinations = [
     _ShellDestination('首页', 'tabBar_home.png', 'tabBar_home_a.png'),
@@ -200,6 +201,7 @@ class _AppShellPageState extends State<AppShellPage> {
                   repository: widget.storageRepository,
                 ),
                 MyProfilePage(
+                  reselectSignal: _profileReselectSignal,
                   onOpenAssets: widget.onOpenAssets,
                   onOpenEditProfile: widget.onOpenEditProfile,
                   onOpenPersonalQr: widget.onOpenPersonalQr,
@@ -266,6 +268,9 @@ class _AppShellPageState extends State<AppShellPage> {
     }
     if (index == 0) {
       setState(() => _homeReselectSignal += 1);
+    }
+    if (index == 4) {
+      setState(() => _profileReselectSignal += 1);
     }
     widget.onDestinationReselected?.call(index);
   }
