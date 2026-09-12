@@ -1,3 +1,4 @@
+import 'package:image_cropper/image_cropper.dart';
 import 'package:uuid/uuid.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -120,7 +121,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       widget.repository!
           .image(widget.realProfile?['avatar'] as Map?)
           .then((file) {
-            if (mounted) setState(() => _avatarPath = file?.path);
+            if (mounted && !_avatarChanged) {
+              setState(() => _avatarPath = file?.path);
+            }
           })
           .catchError((_) {});
       final d = widget.realProfile?['details'] as Map? ?? {};
@@ -220,6 +223,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       ],
                       _buildMediaHeader(),
                       const SizedBox(height: 22),
+                      if (widget.realProfile != null) ...[
+                        _row(
+                          '会员号',
+                          '${widget.realProfile!['memberId'] ?? ''}',
+                          keyName: 'memberId',
+                          readOnly: true,
+                        ),
+                        _row(
+                          '性别',
+                          widget.realProfile!['gender'] == 1
+                              ? '男'
+                              : widget.realProfile!['gender'] == 2
+                              ? '女'
+                              : '未填写',
+                          keyName: 'gender',
+                          readOnly: true,
+                        ),
+                        if (widget.realProfile!['birthSource'] ==
+                            'verified_identity')
+                          _row(
+                            '生日',
+                            '${widget.realProfile!['birthDate'] ?? ''}',
+                            keyName: 'verifiedBirth',
+                            readOnly: true,
+                          ),
+                      ],
                       _row('昵称', _nickname, keyName: 'nickname'),
                       _row(
                         '个性签名',
@@ -292,100 +321,50 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildMediaHeader() {
-    return SizedBox(
-      height: 168,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 132,
-            child: Material(
-              key: const ValueKey('edit-profile-cover-preview'),
-              color: const Color(0xFF171411),
-              borderRadius: BorderRadius.circular(16),
-              clipBehavior: Clip.antiAlias,
-              child: Ink.image(
-                image: profileImageProvider(_coverAsset),
-                fit: BoxFit.cover,
-                child: InkWell(
-                  key: const ValueKey('edit-profile-cover'),
-                  onTap: _showCoverPicker,
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: Container(
-                      margin: const EdgeInsets.all(12),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 5,
+    final scale = MediaQuery.sizeOf(context).width / 750;
+    return Column(
+      children: [
+        SizedBox(height: 30 * scale),
+        Semantics(
+          label: '修改头像',
+          image: true,
+          button: true,
+          child: GestureDetector(
+            onTap: _saving ? null : _pickAvatar,
+            child: Container(
+              key: const ValueKey('edit-profile-empty-avatar'),
+              width: 200 * scale,
+              height: 200 * scale,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF29241D),
+                image: _avatarPath == null
+                    ? null
+                    : DecorationImage(
+                        image: profileImageProvider(_avatarPath!),
+                        fit: BoxFit.cover,
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xD91A1510),
-                        border: Border.all(color: const Color(0x99C9B69E)),
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x88000000), blurRadius: 12),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.photo_outlined, color: _gold, size: 15),
-                          SizedBox(width: 4),
-                          Text(
-                            '更换封面',
-                            style: TextStyle(
-                              color: Color(0xFFF1EAE0),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
               ),
+              child: _avatarPath == null
+                  ? const Icon(
+                      Icons.add_a_photo_outlined,
+                      color: _gold,
+                      size: 30,
+                    )
+                  : null,
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Center(
-              child: Semantics(
-                label: '头像暂未设置',
-                image: true,
-                onTap: widget.repository == null ? null : _pickAvatar,
-                child: GestureDetector(
-                  onTap: widget.repository == null ? null : _pickAvatar,
-                  child: Container(
-                    key: const ValueKey('edit-profile-empty-avatar'),
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0ECE5),
-                      shape: BoxShape.circle,
-                      image: _avatarPath == null
-                          ? null
-                          : DecorationImage(
-                              image: profileImageProvider(_avatarPath!),
-                              fit: BoxFit.cover,
-                            ),
-                      border: Border.all(color: _gold, width: 2),
-                      boxShadow: const [
-                        BoxShadow(color: Color(0xAA000000), blurRadius: 14),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+        ),
+        SizedBox(height: 40 * scale),
+        TextButton(
+          key: const ValueKey('edit-profile-cover'),
+          onPressed: _saving ? null : _showCoverPicker,
+          child: const Text(
+            '更换主页封面',
+            style: TextStyle(color: _muted, fontSize: 12),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -394,11 +373,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
     String value, {
     required String keyName,
     int maxLength = 16,
+    bool readOnly = false,
   }) {
     return InkWell(
       key: ValueKey('edit-profile-$keyName'),
-      onTap: () =>
-          _edit(label, value == '未填写' ? '' : value, keyName, maxLength),
+      onTap: readOnly || _saving
+          ? null
+          : () => _edit(label, value == '未填写' ? '' : value, keyName, maxLength),
       child: Container(
         constraints: const BoxConstraints(minHeight: 61),
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -432,7 +413,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      _EditRowArrow(keyName: keyName),
+                      if (!readOnly)
+                        _EditRowArrow(keyName: keyName)
+                      else
+                        const SizedBox(width: 20),
                     ],
                   ),
                 ],
@@ -449,7 +433,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                _EditRowArrow(keyName: keyName),
+                if (!readOnly)
+                  _EditRowArrow(keyName: keyName)
+                else
+                  const SizedBox(width: 20),
               ],
             );
           },
@@ -587,21 +574,90 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return null;
   }
 
+  bool _pickingAvatar = false;
   Future<void> _pickAvatar() async {
-    final file = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1600,
-      maxHeight: 1600,
-      imageQuality: 85,
-    );
-    if (file != null && mounted) {
+    if (_pickingAvatar || _saving) return;
+    _pickingAvatar = true;
+    try {
+      final source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('拍照'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('从相册选择'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+              ListTile(
+                title: const Center(child: Text('取消')),
+                onTap: () => Navigator.pop(sheetContext),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (source == null || !mounted) return;
+      final file = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 95,
+      );
+      if (file == null || !mounted) return;
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: file.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        maxWidth: 1024,
+        maxHeight: 1024,
+        compressQuality: 90,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: '调整头像',
+            toolbarColor: Colors.black,
+            toolbarWidgetColor: _gold,
+            backgroundColor: Colors.black,
+            activeControlsWidgetColor: _gold,
+            lockAspectRatio: true,
+            initAspectRatio: CropAspectRatioPreset.square,
+          ),
+          IOSUiSettings(
+            title: '调整头像',
+            doneButtonTitle: '完成',
+            cancelButtonTitle: '取消',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+          ),
+        ],
+      );
+      if (cropped == null || !mounted) return;
       setState(() {
-        _avatarPath = file.path;
+        _avatarPath = cropped.path;
         _avatarChanged = true;
         _avatarUploadId = null;
         _requestId = null;
         _dirty = true;
       });
+    } on PlatformException catch (error) {
+      if (mounted) {
+        setState(
+          () => _statusMessage =
+              error.code.toLowerCase().contains('access') ||
+                  error.code.toLowerCase().contains('permission')
+              ? '请在手机设置中允许相机或照片访问后重试'
+              : '图片无法打开，请重新选择',
+        );
+      }
+    } catch (_) {
+      if (mounted) setState(() => _statusMessage = '头像处理失败，请重新选择');
+    } finally {
+      _pickingAvatar = false;
     }
   }
 

@@ -227,12 +227,18 @@ void main() {
     expect(savedCount, 1);
   });
 
-  testWidgets('空白头像保持非交互状态', (tester) async {
-    await tester.pumpWidget(subject());
+  testWidgets('头像可选择拍照或相册，取消不产生草稿', (tester) async {
+    await tester.pumpWidget(subject(onBack: () {}));
     await tester.tap(find.byKey(const ValueKey('edit-profile-empty-avatar')));
     await tester.pumpAndSettle();
-    expect(find.text('请选择头像处理方式。'), findsNothing);
+    expect(find.text('拍照'), findsOneWidget);
+    expect(find.text('从相册选择'), findsOneWidget);
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
     expect(find.byType(BottomSheet), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('legacy-back')));
+    await tester.pumpAndSettle();
+    expect(find.text('放弃修改？'), findsNothing);
     expect(find.text('杨嘉琪'), findsOneWidget);
   });
 

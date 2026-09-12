@@ -79,6 +79,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
   @override
   void initState() {
     super.initState();
+    ProfileRepository.changes.addListener(_loadProfile);
     if (_repository == null) {
       _loadSavedCover();
     } else {
@@ -155,6 +156,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
   @override
   void dispose() {
+    ProfileRepository.changes.removeListener(_loadProfile);
     _scroll.dispose();
     _pages.dispose();
     super.dispose();

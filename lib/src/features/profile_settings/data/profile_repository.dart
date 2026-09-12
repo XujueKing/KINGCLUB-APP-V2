@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../core/session/member_qr_memory.dart';
 
 import 'dart:convert';
@@ -13,6 +15,7 @@ import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
 
 class ProfileRepository {
+  static final changes = ValueNotifier<int>(0);
   final _client = KingclubSecureClient(kingclubApiBaseUrl);
   Future<Map<String, dynamic>> call(
     String id,
@@ -66,23 +69,32 @@ class ProfileRepository {
     int version,
     String requestId,
     Map<String, dynamic> patch,
-  ) => call('K260912000502', {
-    'version': version,
-    'requestId': requestId,
-    'patch': patch,
-  });
+  ) async {
+    final result = await call('K260912000502', {
+      'version': version,
+      'requestId': requestId,
+      'patch': patch,
+    });
+    changes.value++;
+    return result;
+  }
+
   Future<Map<String, dynamic>> content(String category, int offset) =>
       call('K260912000504', {'category': category, 'offset': offset});
   Future<String> upload(String slot, String path) async {
-    final bytes = await FlutterImageCompress.compressWithFile(
-      path,
-      minWidth: 1200,
-      minHeight: 1200,
-      quality: 82,
-      keepExif: false,
-    );
+    Uint8List? bytes;
+    for (final size in [1200, 960, 720]) {
+      bytes = await FlutterImageCompress.compressWithFile(
+        path,
+        minWidth: size,
+        minHeight: size,
+        quality: size == 720 ? 76 : 85,
+        keepExif: false,
+      );
+      if (bytes != null && bytes.length <= 800000) break;
+    }
     if (bytes == null || bytes.length > 800000) {
-      throw StateError('图片过大，请选择其他图片');
+      throw StateError('图片无法压缩，请选择其他图片');
     }
     final result = await call('K260912000505', {
       'slot': slot,

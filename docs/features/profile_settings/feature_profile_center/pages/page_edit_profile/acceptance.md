@@ -59,3 +59,8 @@
 真机证据：[`audit/2026-08-29-cover-adjust/README.md`](audit/2026-08-29-cover-adjust/README.md)
 
 验收证据：[`audit/2026-08-29-gallery-picker/README.md`](audit/2026-08-29-gallery-picker/README.md)
+
+## 2026-09-12 原生头像与旧版资料布局
+用户要求参照 myinfo：居中 200rpx 圆形头像和资料行；保留封面编辑入口。拍照/相册→原生正方形裁剪（缩放旋转）→本地草稿预览→保存上传，取消不改变草稿，失败保留重试。上传前压缩并移除 EXIF。
+
+验证：flutter analyze 通过；20 项编辑资料、设置与路由测试通过，包括大字体无溢出、取消选择不产生草稿。原生裁剪依赖 image_cropper 12.2.1（https://pub.dev/packages/image_cropper），Android 已注册 UCropActivity，iOS 保留相机/相册用途说明；iOS 尚未构建验证。
