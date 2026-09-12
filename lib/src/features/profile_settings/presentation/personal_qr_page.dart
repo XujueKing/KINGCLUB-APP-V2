@@ -1,3 +1,6 @@
+import 'real_personal_qr_page.dart';
+import '../../auth/data/auth_repository_provider.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -64,13 +67,14 @@ class _PersonalQrPageState extends State<PersonalQrPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scenario = widget.initialScenario;
+    if (kingclubApiBaseUrl.isNotEmpty) return;
     _startTicker();
     _applyInitialScenario();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!mounted) return;
+    if (!mounted || kingclubApiBaseUrl.isNotEmpty) return;
     if (state == AppLifecycleState.resumed) {
       if (_viewState == PersonalQrViewState.backgroundHidden) {
         _refresh(forceNormalResult: true);
@@ -96,6 +100,9 @@ class _PersonalQrPageState extends State<PersonalQrPage>
 
   @override
   Widget build(BuildContext context) {
+    if (kingclubApiBaseUrl.isNotEmpty) {
+      return RealPersonalQrPage(onBack: widget.onBack);
+    }
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(

@@ -1,3 +1,5 @@
+import '../features/scanner/presentation/member_scanner_page.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -139,52 +141,11 @@ Page<void> _authFlowPage({
 Page<void> _horizontalEntryPage({
   required GoRouterState state,
   required Widget child,
-}) {
-  return CustomTransitionPage<void>(
-    key: state.pageKey,
-    transitionDuration: const Duration(milliseconds: 300),
-    reverseTransitionDuration: const Duration(milliseconds: 260),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return SlideTransition(
-        position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-            .animate(
-              CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-                reverseCurve: Curves.easeInCubic,
-              ),
-            ),
-        child: child,
-      );
-    },
-    child: child,
-  );
-}
-
+}) => MaterialPage<void>(key: state.pageKey, child: child);
 Page<void> _bottomUpPage({
   required GoRouterState state,
   required Widget child,
-}) {
-  return CustomTransitionPage<void>(
-    key: state.pageKey,
-    transitionDuration: const Duration(milliseconds: 300),
-    reverseTransitionDuration: const Duration(milliseconds: 240),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-            .animate(
-              CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-                reverseCurve: Curves.easeInCubic,
-              ),
-            ),
-        child: child,
-      );
-    },
-    child: child,
-  );
-}
+}) => MaterialPage<void>(key: state.pageKey, child: child);
 
 @Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
@@ -830,10 +791,13 @@ class SafeScannerRoute extends GoRouteData with $SafeScannerRoute {
   final ScannerRouteArgs $extra;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) => SafeScannerPage(
-    onClose: () => context.pop(),
-    onResolved: (destination) => context.pop(destination),
-  );
+  Widget build(BuildContext context, GoRouterState state) =>
+      kingclubApiBaseUrl.isNotEmpty
+      ? const MemberScannerPage()
+      : SafeScannerPage(
+          onClose: () => context.pop(),
+          onResolved: (destination) => context.pop(destination),
+        );
 }
 
 @TypedGoRoute<AaReservationsRoute>(path: '/club/aa')
