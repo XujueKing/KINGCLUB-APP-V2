@@ -610,6 +610,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
               ),
               SizedBox(height: 18 * scale),
               _buildServices(),
+              const SizedBox(height: 10),
             ],
           ),
         ),
@@ -715,10 +716,10 @@ class _MyProfilePageState extends State<MyProfilePage> {
                 children: [
                   SvgPicture.asset(
                     'assets/legacy/profile/$asset',
-                    width: 30,
-                    height: 30,
+                    width: 26,
+                    height: 26,
                     colorFilter: const ColorFilter.mode(
-                      _warmWhite,
+                      _muted,
                       BlendMode.srcIn,
                     ),
                     fit: BoxFit.contain,
@@ -733,7 +734,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
                               label,
                               maxLines: 1,
                               style: const TextStyle(
-                                color: _warmWhite,
+                                color: _muted,
                                 fontSize: 12,
                                 height: 1.15,
                                 letterSpacing: 0,
@@ -745,7 +746,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
                             label,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              color: _warmWhite,
+                              color: _muted,
                               fontSize: 12,
                               height: 1.15,
                               letterSpacing: 0,
