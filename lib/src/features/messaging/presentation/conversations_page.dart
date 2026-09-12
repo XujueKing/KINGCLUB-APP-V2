@@ -553,108 +553,121 @@ class _ConversationContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = MediaQuery.sizeOf(context).width / 750;
-    return Container(
-      height: 140 * r,
-      padding: EdgeInsets.only(left: 30 * r, right: 40 * r),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x30C9B69E), width: .5)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 96 * r,
-            height: 96 * r,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                if (system)
-                  _KingAvatar(size: 96 * r)
-                else
-                  ClipOval(
-                    child: Image.asset(
-                      'assets/legacy/friendship/touxiang.png',
-                      width: 96 * r,
-                      height: 96 * r,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                if (unread > 0)
-                  Positioned(
-                    left: 70 * r,
-                    top: -3 * r,
-                    child: Container(
-                      key: ValueKey(
-                        system
-                            ? 'system-conversation-unread-badge'
-                            : 'conversation-unread-badge',
-                      ),
-                      constraints: BoxConstraints(
-                        minWidth: 34 * r,
-                        minHeight: 34 * r,
-                      ),
-                      padding: EdgeInsets.symmetric(horizontal: 5 * r),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFB5352),
-                        borderRadius: BorderRadius.circular(24 * r),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        unread > 99 ? '99+' : '$unread',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22 * r,
-                          height: 1,
+    return Stack(
+      children: [
+        Container(
+          height: 140 * r,
+          padding: EdgeInsets.only(left: 30 * r, right: 40 * r),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 96 * r,
+                height: 96 * r,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    if (system)
+                      _KingAvatar(size: 96 * r)
+                    else
+                      ClipOval(
+                        child: Image.asset(
+                          'assets/legacy/friendship/touxiang.png',
+                          width: 96 * r,
+                          height: 96 * r,
+                          fit: BoxFit.cover,
                         ),
                       ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          SizedBox(width: 25 * r),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: const Color(0xBBFFFFFF),
-                    fontSize: 30 * r,
-                    fontWeight: FontWeight.w400,
-                  ),
+                    if (unread > 0)
+                      Positioned(
+                        left: 70 * r,
+                        top: -3 * r,
+                        child: Container(
+                          key: ValueKey(
+                            system
+                                ? 'system-conversation-unread-badge'
+                                : 'conversation-unread-badge',
+                          ),
+                          constraints: BoxConstraints(
+                            minWidth: 34 * r,
+                            minHeight: 34 * r,
+                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 5 * r),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFB5352),
+                            borderRadius: BorderRadius.circular(24 * r),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            unread > 99 ? '99+' : '$unread',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22 * r,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                SizedBox(height: 5 * r),
-                Text(
-                  preview,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: inactive
-                        ? const Color(0x99C9B69E)
-                        : const Color(0x66FFFFFF),
-                    fontSize: 26 * r,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(width: 10 * r),
-          Padding(
-            padding: EdgeInsets.only(bottom: 50 * r),
-            child: Text(
-              date,
-              style: TextStyle(
-                color: const Color(0x66FFFFFF),
-                fontSize: 24 * r,
               ),
+              SizedBox(width: 25 * r),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: const Color(0xBBFFFFFF),
+                        fontSize: 30 * r,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    SizedBox(height: 5 * r),
+                    Text(
+                      preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: inactive
+                            ? const Color(0x99C9B69E)
+                            : const Color(0x66FFFFFF),
+                        fontSize: 26 * r,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 10 * r),
+              Padding(
+                padding: EdgeInsets.only(bottom: 50 * r),
+                child: Text(
+                  date,
+                  style: TextStyle(
+                    color: const Color(0x66FFFFFF),
+                    fontSize: 24 * r,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Center(
+            child: SizedBox(
+              width: MediaQuery.sizeOf(context).width * .9 - 4,
+              height: .5,
+              child: const ColoredBox(color: Color(0x1CC9B69E)),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
