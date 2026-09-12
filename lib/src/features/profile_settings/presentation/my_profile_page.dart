@@ -366,7 +366,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: _warmWhite,
+                                    color: Color(0xFFC9B69E),
                                     fontSize: 12,
                                     height: 1.2,
                                   ),
@@ -453,7 +453,6 @@ class _MyProfilePageState extends State<MyProfilePage> {
               key: imageKey,
               width: iconSize,
               height: iconSize,
-              color: _warmWhite,
               fit: BoxFit.contain,
             ),
           ),
@@ -584,7 +583,10 @@ class _MyProfilePageState extends State<MyProfilePage> {
                   children: [
                     _buildStats(),
                     SizedBox(height: 20 * scale),
-                    _buildAssets(),
+                    Transform.translate(
+                      offset: const Offset(-2, 0),
+                      child: _buildAssets(),
+                    ),
                     SizedBox(height: 20 * scale),
                     InkWell(
                       key: const ValueKey('my-profile-mood'),
@@ -608,9 +610,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
                   ],
                 ),
               ),
-              SizedBox(height: 18 * scale),
+              SizedBox(height: 18 * scale + 6),
               _buildServices(),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
             ],
           ),
         ),
@@ -735,7 +737,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
                               maxLines: 1,
                               style: const TextStyle(
                                 color: _muted,
-                                fontSize: 12,
+                                fontSize: 11.5,
                                 height: 1.15,
                                 letterSpacing: 0,
                                 fontWeight: FontWeight.w400,
@@ -747,7 +749,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: _muted,
-                              fontSize: 12,
+                              fontSize: 11.5,
                               height: 1.15,
                               letterSpacing: 0,
                               fontWeight: FontWeight.w400,
@@ -881,7 +883,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
                 text,
                 style: TextStyle(
                   color: _warmWhite,
-                  fontSize: 28 * scale,
+                  fontSize: 26 * scale,
                   height: 1.3,
                   fontWeight: FontWeight.w400,
                 ),
