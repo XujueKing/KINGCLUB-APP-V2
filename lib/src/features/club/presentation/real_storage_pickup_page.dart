@@ -160,7 +160,9 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                       dimension: MediaQuery.sizeOf(context).width * .58,
                       child: ColoredBox(
                         key: const ValueKey('storage-code-background'),
-                        color: Colors.white,
+                        color: _item.status == 'expired'
+                            ? Colors.transparent
+                            : Colors.white,
                         child: _token != null
                             ? QrImageView(
                                 key: const ValueKey('storage-real-code'),
@@ -178,13 +180,17 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                                 child: Text(
                                   _error ??
                                       (_item.status == 'expired'
-                                          ? '存酒已过期，请联系工作人员核实'
+                                          ? (_item.category == 'wine'
+                                                ? '存酒已过期，请联系工作人员核实'
+                                                : '物品已过期，请联系工作人员核实')
                                           : _item.status == 'collected'
                                           ? '已取出'
                                           : '当前物品不可提取'),
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Color(0xFF695B48),
+                                  style: TextStyle(
+                                    color: _item.status == 'expired'
+                                        ? const Color(0xFFC9B69E)
+                                        : const Color(0xFF695B48),
                                   ),
                                 ),
                               ),

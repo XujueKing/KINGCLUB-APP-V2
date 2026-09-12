@@ -1,3 +1,9 @@
+# 2026-09-12 酒瓶轮廓配对修正
+
+- 逐SVG path对照旧小程序商品编号，修正chivas-A/B和hennessy-A/B；伏特加原文件不变。
+- 390×844中文截图build/storage-qa/wine-2-back.png、wine-3-back.png已检查，所选商品分别对应芝华士及轩尼诗VSOP独立瓶型。波纹、剩余量、底栏与布局不变。
+- 截图使用预览数据，不表示真实库存或有效期限。过期提取码底板透明规则见对应页面design-qa。
+
 # 2026-09-12 回归截图基线复核
 
 - 首页：对比test/failures/home_legacy_393x852_masterImage.png与testImage.png，内容相同，差异为已确认本地五按钮的90%茶色磨砂底栏、爱心素材及位置。按用户本地优先决定更新基线。

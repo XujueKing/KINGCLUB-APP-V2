@@ -80,6 +80,14 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 550));
     await capture('wine-back');
+    for (final ref in ['wine-2', 'wine-3']) {
+      await tester.tap(find.byKey(ValueKey('storage-select-$ref')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('storage-flip')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 550));
+      await capture('$ref-back');
+    }
     await tester.tap(find.byKey(const ValueKey('storage-tab-物-idle')));
     await tester.pumpAndSettle();
     await capture('coupon-front');
