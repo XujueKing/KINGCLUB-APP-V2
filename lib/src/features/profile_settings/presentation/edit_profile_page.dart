@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
 import 'profile_choices.dart';
 import 'payment_security_page.dart';
 import '../../../core/session/secure_session_store.dart';
@@ -113,6 +117,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _relationship;
   String? _birthDate;
   String? _locatedCity;
+  bool _locating = false;
+  String _locationPhase = '';
   String? _requestId;
   bool _dirty = false;
   bool _saving = false;
@@ -296,7 +302,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ),
                       ],
                       _row('修改支付密码', '********', keyName: 'payment'),
-                      _row('所在城市', _city, keyName: 'city', maxLength: 30),
+                      _row(
+                        '所在城市',
+                        _locating ? _locationPhase : _city,
+                        keyName: 'city',
+                        maxLength: 30,
+                      ),
                       if (widget.repository != null &&
                           widget.realProfile?['birthSource'] !=
                               'verified_identity')
@@ -585,6 +596,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
     if (widget.repository != null && keyName == 'city') {
+      if (_locating) return;
       final automatic = await showModalBottomSheet<bool>(
         context: context,
         builder: (sheetContext) => SafeArea(
@@ -809,9 +821,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _locate() async {
+    if (_locating) return;
+    setState(() {
+      _locating = true;
+      _locationPhase = '正在获取位置…';
+    });
+    String phase = 'permission';
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        throw StateError('请先打开手机定位服务');
+        if (mounted) {
+          _locationNotice(
+            '手机定位服务未开启',
+            action: '开启定位',
+            open: Geolocator.openLocationSettings,
+          );
+        }
+        return;
       }
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -819,38 +844,115 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        throw StateError('未获得定位权限');
+        if (mounted) {
+          _locationNotice(
+            '未获得定位权限，可授权后重试或手动选择城市',
+            action: '去设置',
+            open: Geolocator.openAppSettings,
+          );
+        }
+        return;
       }
-      final p = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 20),
+      phase = 'position';
+      Position? position;
+      try {
+        final recent = await Geolocator.getLastKnownPosition(
+          forceAndroidLocationManager: true,
+        ).timeout(const Duration(seconds: 2));
+        if (recent != null &&
+            DateTime.now().difference(recent.timestamp).inSeconds >= 0 &&
+            DateTime.now().difference(recent.timestamp) <
+                const Duration(minutes: 3) &&
+            recent.accuracy <= 3000) {
+          position = recent;
+        }
+      } catch (_) {
+        /* A recent fix is optional. */
+      }
+      position ??= await Geolocator.getCurrentPosition(
+        locationSettings: defaultTargetPlatform == TargetPlatform.android
+            ? AndroidSettings(
+                forceLocationManager: true,
+                accuracy: LocationAccuracy.medium,
+                timeLimit: const Duration(seconds: 15),
+              )
+            : const LocationSettings(
+                accuracy: LocationAccuracy.medium,
+                timeLimit: Duration(seconds: 15),
+              ),
+      ).timeout(const Duration(seconds: 17));
+      if (!mounted) return;
+      phase = 'city';
+      setState(() => _locationPhase = '正在识别城市…');
+      final places = await Geocoding()
+          .placemarkFromCoordinates(
+            position.latitude,
+            position.longitude,
+            // Android plugin forwards Locale.toString() to forLanguageTag;
+            // use a language-only tag so underscores cannot invalidate it.
+            locale: const Locale('zh'),
+          )
+          .timeout(const Duration(seconds: 8));
+      if (places.isEmpty) throw StateError('empty-city');
+      final place = places.first;
+      final locality = (place.locality?.trim().isNotEmpty ?? false)
+          ? place.locality
+          : place.subAdministrativeArea;
+      final city = [place.administrativeArea, locality]
+          .whereType<String>()
+          .map((part) => part.trim())
+          .where((part) => part.isNotEmpty)
+          .toSet()
+          .join(' · ');
+      if (city.isEmpty || locality == null || locality.trim().isEmpty) {
+        throw StateError('empty-city');
+      }
+      if (!mounted) return;
+      setState(() {
+        _city = city;
+        _locatedCity = city;
+        _dirty = true;
+        _requestId = null;
+      });
+      _locationNotice('已定位：$city，保存后生效');
+    } catch (error) {
+      // Keep diagnostics free of coordinates and other personal data.
+      debugPrint('profile-location failed at $phase: ${error.runtimeType}');
+      if (mounted) {
+        _locationNotice(
+          phase == 'city'
+              ? '已获取位置，但系统未能识别城市，请重试或手动选择'
+              : phase == 'position'
+              ? '暂未获取到位置，请确认定位开启并到信号较好的位置重试，或手动选择城市'
+              : '定位暂不可用，请重试或手动选择城市',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  void _locationNotice(
+    String message, {
+    String? action,
+    Future<bool> Function()? open,
+  }) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 6),
+          action: action == null || open == null
+              ? null
+              : SnackBarAction(
+                  label: action,
+                  onPressed: () {
+                    open();
+                  },
+                ),
         ),
       );
-      final geocoding = Geocoding();
-      final places = await geocoding.placemarkFromCoordinates(
-        p.latitude,
-        p.longitude,
-        locale: const Locale('zh', 'CN'),
-      );
-      if (places.isEmpty) throw StateError('暂时无法识别所在城市');
-      final place = places.first;
-      final city = [
-        place.administrativeArea,
-        place.locality,
-      ].whereType<String>().where((s) => s.isNotEmpty).toSet().join(' · ');
-      if (city.isEmpty) throw StateError('暂时无法识别所在城市');
-      if (mounted) {
-        setState(() {
-          _city = city;
-          _locatedCity = city;
-          _dirty = true;
-          _requestId = null;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _statusMessage = '定位未完成，请检查定位权限和网络后重试');
-    }
   }
 
   Future<void> _save() async {
