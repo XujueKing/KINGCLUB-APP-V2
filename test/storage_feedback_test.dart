@@ -23,6 +23,54 @@ class ExpiredRepo extends PreviewStorageRepository {
 }
 
 void main() {
+  testWidgets(
+    'expired storage lists wine and items, excluding available stock',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PrivateStoragePage(
+            repository: PreviewStorageRepository([
+              expired,
+              const StorageItem(
+                ref: 'expired-coupon',
+                name: '过期券',
+                assetKey: 'aa-ticket',
+                category: 'item',
+                status: 'expired',
+                canPickup: false,
+              ),
+              const StorageItem(
+                ref: 'available-wine',
+                name: '有效存酒',
+                assetKey: 'vodka',
+              ),
+            ]),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('storage-expired-items')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('expired-item-test-expired')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('expired-item-expired-coupon')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('expired-item-available-wine')),
+        findsNothing,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('expired-item-expired-coupon')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('物品已过期，请联系工作人员核实'), findsOneWidget);
+      expect(find.byKey(const ValueKey('storage-real-code')), findsNothing);
+    },
+  );
   testWidgets('expired wine QR icon opens details without issuing a code', (
     tester,
   ) async {

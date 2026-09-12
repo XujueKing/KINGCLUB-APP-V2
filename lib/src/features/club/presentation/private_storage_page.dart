@@ -140,6 +140,76 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     if (mounted) _load();
   }
 
+  Future<void> _showExpiredStorage() async {
+    final expired = _items.where((item) => item.status == 'expired').toList();
+    final selected = await showModalBottomSheet<StorageItem>(
+      context: context,
+      backgroundColor: const Color(0xFF1C1812),
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * .55,
+          child: Column(
+            children: [
+              const Text('过期储物', style: KingTheme.headerTitleStyle),
+              const SizedBox(height: 16),
+              Expanded(
+                child: expired.isEmpty
+                    ? const Center(
+                        child: Text('暂无过期储物', style: TextStyle(color: _gold)),
+                      )
+                    : ListView.builder(
+                        itemCount: expired.length,
+                        itemBuilder: (context, index) {
+                          final item = expired[index];
+                          return ListTile(
+                            key: ValueKey('expired-item-${item.ref}'),
+                            leading: Image.asset(
+                              item.thumbnail,
+                              width: 44,
+                              height: 60,
+                              fit: BoxFit.contain,
+                            ),
+                            title: Text(
+                              item.name,
+                              style: const TextStyle(
+                                color: _gold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '数量：${item.quantity}${item.category == 'wine' ? '   剩余：${item.remainingPercent.toStringAsFixed(0)}%' : ''}\n过期时间：${item.expiresLabel}',
+                              style: const TextStyle(
+                                color: Color(0x99C9B69E),
+                                fontSize: 11,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.chevron_right,
+                              color: _gold,
+                              size: 18,
+                            ),
+                            onTap: () => Navigator.pop(context, item),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || selected == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            RealStoragePickupPage(item: selected, repository: _repository),
+      ),
+    );
+    if (mounted) _load();
+  }
+
   @override
   Widget build(BuildContext context) => Material(
     color: Colors.black,
@@ -170,8 +240,46 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   children: [
                     SizedBox(
                       height: 60 * u,
-                      child: Center(
-                        child: Text('私人储物柜', style: KingTheme.headerTitleStyle),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          const Center(
+                            child: Text(
+                              '私人储物柜',
+                              style: KingTheme.headerTitleStyle,
+                            ),
+                          ),
+                          Positioned(
+                            right: c.maxWidth * .08,
+                            top: 0,
+                            bottom: 0,
+                            child: TextButton(
+                              key: const ValueKey('storage-expired-items'),
+                              onPressed: _loading || _error != null
+                                  ? null
+                                  : _showExpiredStorage,
+                              style:
+                                  TextButton.styleFrom(
+                                    foregroundColor: const Color(0xB3C9B69E),
+                                    textStyle: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ).copyWith(
+                                    overlayColor: const WidgetStatePropertyAll(
+                                      Colors.transparent,
+                                    ),
+                                  ),
+                              child: const Text('过期储物'),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     SizedBox(
