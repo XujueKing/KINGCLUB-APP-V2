@@ -533,7 +533,7 @@ class _PinnedToggle extends StatelessWidget {
         child: Ink(
           height: 84 * MediaQuery.sizeOf(context).width / 750,
           decoration: const BoxDecoration(
-            color: Color(0x1AC9B69E),
+            color: Color(0x0DC9B69E),
             border: Border(
               top: BorderSide(color: Color(0x1CFFFFFF), width: .5),
               bottom: BorderSide(color: Color(0x1CFFFFFF), width: .5),
