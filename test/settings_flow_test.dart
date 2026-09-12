@@ -35,11 +35,13 @@ void main() {
     await tester.pumpWidget(_frame(SettingsScenario.normal));
 
     for (final key in <String>[
-      'payment',
+      'profile',
+      'security',
+      'privacy',
+      'terms',
       'notification',
       'cache',
       'about',
-      'deletion',
     ]) {
       expect(find.byKey(ValueKey('settings-$key')), findsOneWidget);
       expect(find.byKey(ValueKey('settings-arrow-$key')), findsOneWidget);
@@ -59,6 +61,9 @@ void main() {
       find.byKey(const ValueKey('settings-capability-failure')),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const ValueKey('settings-security')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('settings-deletion')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('settings-payment')));
     expect(paymentOpened, isTrue);
   });

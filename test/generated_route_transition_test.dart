@@ -54,7 +54,7 @@ void main() {
 
     router.push('/me/settings');
     await checkSlide(SettingsPage);
-    await tester.tap(find.text('关于与法律'));
+    await tester.tap(find.text('关于 KINGBAR'));
     await checkSlide(AboutLegalPage);
     router.pop();
     await checkSlide(AboutLegalPage, returning: true);

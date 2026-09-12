@@ -1,3 +1,7 @@
+import '../../auth/presentation/terms_consent_page.dart';
+import '../data/profile_repository.dart';
+import 'edit_profile_page.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/media/media_cache.dart';
@@ -47,11 +51,13 @@ class _SettingsPageState extends State<SettingsPage> {
   late SettingsScenario _scenario;
 
   static const _entries = [
-    ('payment', '支付安全', '支付密码与验证', Icons.shield_outlined),
-    ('notification', '通知权限', '跟随系统', Icons.notifications_none),
+    ('profile', '个人信息', '', Icons.account_circle_outlined),
+    ('security', '账号与支付安全', '', Icons.verified_user_outlined),
+    ('notification', '通知权限', '', Icons.notifications_none),
     ('cache', '清理缓存', '', Icons.cleaning_services_outlined),
-    ('about', '关于与法律', 'KingClub V2', Icons.info_outline),
-    ('deletion', '账号注销', '', Icons.no_accounts_outlined),
+    ('privacy', '隐私政策', '', Icons.policy_outlined),
+    ('terms', '用户协议', '', Icons.description_outlined),
+    ('about', '关于 KINGBAR', '', Icons.touch_app_outlined),
   ];
 
   @override
@@ -73,68 +79,67 @@ class _SettingsPageState extends State<SettingsPage> {
       body: SafeArea(
         child: Column(
           children: [
-            SizedBox(
-              height: 64,
-              child: Row(
-                children: [
-                  IconButton(
-                    key: const ValueKey('settings-back'),
-                    onPressed: _finishBack,
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new,
-                      color: _gold,
-                      size: 22,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              child: SizedBox(
+                height: 56,
+                child: Row(
+                  children: [
+                    IconButton(
+                      key: const ValueKey('settings-back'),
+                      onPressed: _finishBack,
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: _gold,
+                        size: 20,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      key: const ValueKey('settings-title'),
-                      onLongPress: _showScenarioPanel,
-                      child: const Center(
-                        child: Text(
-                          '设置',
-                          style: TextStyle(
-                            color: _gold,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w700,
+                    Expanded(
+                      child: GestureDetector(
+                        key: const ValueKey('settings-title'),
+                        onLongPress: _showScenarioPanel,
+                        child: const Center(
+                          child: Text(
+                            '设置',
+                            style: TextStyle(color: _gold, fontSize: 14),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
+                    const SizedBox(width: 48),
+                  ],
+                ),
               ),
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(18, 24, 18, 20),
+                padding: const EdgeInsets.fromLTRB(28, 32, 28, 20),
                 children: [
-                  if (_scenario == SettingsScenario.capabilityFailure) ...[
+                  if (_scenario == SettingsScenario.capabilityFailure)
                     const _SettingsNotice(
                       key: ValueKey('settings-capability-failure'),
                       icon: Icons.cloud_off_outlined,
                       text: '部分能力状态暂时无法读取，固定安全入口仍可使用。',
                     ),
-                    const SizedBox(height: 14),
-                  ],
-                  ..._entries.map((entry) => _settingRow(entry)),
-                  const SizedBox(height: 50),
-                  OutlinedButton(
-                    key: const ValueKey('settings-logout'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      foregroundColor: _gold,
-                      side: const BorderSide(color: Color(0xFF4A4035)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                    onPressed: _confirmLogout,
-                    child: const Text('注销登录'),
-                  ),
-                  const SizedBox(height: 12),
+                  ..._entries.map(_settingRow),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(36, 16, 36, 48),
+              child: FilledButton(
+                key: const ValueKey('settings-logout'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF291C0B),
+                  foregroundColor: _gold,
+                  minimumSize: const Size.fromHeight(46),
+                  shape: const StadiumBorder(),
+                ),
+                onPressed: _confirmLogout,
+                child: const Text(
+                  '注销登录',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                ),
               ),
             ),
           ],
@@ -155,11 +160,8 @@ class _SettingsPageState extends State<SettingsPage> {
       borderRadius: BorderRadius.circular(28),
       onTap: entry.$1 == 'cache' ? _clearCache : () => _openChild(entry.$2),
       child: Container(
-        constraints: const BoxConstraints(minHeight: 62),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0x22C9B69E))),
-        ),
+        constraints: const BoxConstraints(minHeight: 53),
+        padding: const EdgeInsets.symmetric(horizontal: 0),
         child: Row(
           children: [
             Icon(entry.$4, color: _gold, size: 22),
@@ -185,7 +187,7 @@ class _SettingsPageState extends State<SettingsPage> {
               key: ValueKey('settings-arrow-${entry.$1}'),
               width: 24,
               child: const Center(
-                child: Icon(Icons.chevron_right, color: _muted, size: 21),
+                child: Icon(Icons.chevron_right, color: _gold, size: 21),
               ),
             ),
           ],
@@ -195,6 +197,47 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _openChild(String title) {
+    if (title == '个人信息') {
+      _openProfile();
+      return;
+    }
+    if (title == '账号与支付安全') {
+      _push(
+        Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(title: const Text('账号与支付安全'), centerTitle: true),
+          body: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            child: Column(
+              children: [
+                _settingRow(('payment', '支付安全', '', Icons.shield_outlined)),
+                _settingRow((
+                  'deletion',
+                  '账号注销',
+                  '',
+                  Icons.no_accounts_outlined,
+                )),
+              ],
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    if (title == '隐私政策' || title == '用户协议') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          allowSnapshotting: false,
+          builder: (pageContext) => TermsConsentPage(
+            initialAgreement: title == '隐私政策'
+                ? AgreementKind.privacy
+                : AgreementKind.terms,
+            onClose: () => Navigator.of(pageContext).pop(),
+          ),
+        ),
+      );
+      return;
+    }
     if (title == '通知权限') {
       _showNotificationStatus();
       return;
@@ -207,20 +250,52 @@ class _SettingsPageState extends State<SettingsPage> {
       widget.onOpenAccountDeletion!();
       return;
     }
-    if (title == '关于与法律' && widget.onOpenAboutLegal != null) {
+    if (title == '关于 KINGBAR' && widget.onOpenAboutLegal != null) {
       widget.onOpenAboutLegal!();
       return;
     }
     final Widget page = switch (title) {
       '支付安全' => const PaymentSecurityPage(),
       '账号注销' => const AccountDeletionPage(),
-      '关于与法律' => const AboutLegalPage(),
+      '关于 KINGBAR' => const AboutLegalPage(),
       _ => const SizedBox.shrink(),
     };
     Navigator.push(
       context,
       MaterialPageRoute<void>(allowSnapshotting: false, builder: (_) => page),
     );
+  }
+
+  void _push(Widget page) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(allowSnapshotting: false, builder: (_) => page),
+    );
+  }
+
+  bool _loadingProfile = false;
+  Future<void> _openProfile() async {
+    if (_loadingProfile) return;
+    _loadingProfile = true;
+    try {
+      final repository = ProfileRepository();
+      final profile = await repository.load();
+      if (!mounted) return;
+      _push(
+        EditProfilePage(
+          nickname: profile['nickname'] as String? ?? '',
+          signature: profile['bio'] as String? ?? '',
+          realProfile: profile,
+          repository: repository,
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('个人信息暂时无法加载，请重试')));
+      }
+    } finally {
+      _loadingProfile = false;
+    }
   }
 
   Future<void> _showNotificationStatus() async {

@@ -118,7 +118,7 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
           child: Column(
             children: [
               _AboutHeader(
-                title: _document?.title ?? '关于 KingClub',
+                title: _document?.title ?? '关于 KINGBAR',
                 onBack: _handleBack,
                 onTitleLongPress: _showScenarioPanel,
               ),
@@ -176,7 +176,7 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
         ),
         const SizedBox(height: 18),
         const Text(
-          'KingClub',
+          'KINGBAR',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white,
