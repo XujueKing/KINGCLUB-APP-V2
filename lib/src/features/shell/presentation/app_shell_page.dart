@@ -94,7 +94,7 @@ class AppShellPage extends StatefulWidget {
 class _AppShellPageState extends State<AppShellPage> {
   late int _selectedIndex;
   bool _scannerOpening = false;
-  int _messagesPageIndex = 0;
+  int _messagesPageIndex = 1;
   late int _systemNotificationsUnread;
   late int _friendConversationUnread;
   late AppShellDemoState _shellState;
@@ -265,8 +265,8 @@ class _AppShellPageState extends State<AppShellPage> {
       return;
     }
 
-    if (index == 1 && _messagesPageIndex != 0) {
-      setState(() => _messagesPageIndex = 0);
+    if (index == 1 && _messagesPageIndex != 1) {
+      setState(() => _messagesPageIndex = 1);
       return;
     }
     if (index == 0) {

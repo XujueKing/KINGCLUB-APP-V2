@@ -1,3 +1,5 @@
+import 'legacy_messaging_components.dart';
+
 import 'package:flutter/material.dart';
 
 const _gold = Color(0xFFC9B69E);
@@ -74,7 +76,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
                 onRefresh: _refreshConversations,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 110),
+                  padding: EdgeInsets.fromLTRB(
+                    10 * MediaQuery.sizeOf(context).width / 750,
+                    0,
+                    10 * MediaQuery.sizeOf(context).width / 750,
+                    110,
+                  ),
                   children: [
                     if (_showOfflineBanner)
                       _ConversationOfflineBanner(
@@ -107,53 +114,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
     );
   }
 
-  Widget _header() {
-    return SizedBox(
-      height: 66,
-      width: double.infinity,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            left: 17,
-            child: IconButton(
-              tooltip: '添加好友',
-              onPressed: widget.onAddFriend,
-              icon: const Icon(
-                Icons.add_circle_outline,
-                color: _gold,
-                size: 29,
-              ),
-            ),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: widget.onOpenContacts,
-                child: const Text(
-                  '通讯录',
-                  style: TextStyle(color: Color(0x66C9B69E), fontSize: 16),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(6, 0, 0, 11),
-                child: Text(
-                  '聊天',
-                  style: TextStyle(
-                    color: _gold,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _header() => LegacyConversationTabs(
+    chatSelected: true,
+    onChat: () {},
+    onContacts: widget.onOpenContacts,
+    onAdd: widget.onAddFriend,
+  );
 
   Widget _friendConversation() {
     final preview = switch (_friendStatus) {
@@ -523,23 +489,26 @@ class _PinnedToggle extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Ink(
-          height: 62,
+          height: 84 * MediaQuery.sizeOf(context).width / 750,
           decoration: BoxDecoration(
-            color: const Color(0x202E2922),
+            color: const Color(0x20C9B69E),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             children: [
-              const SizedBox(width: 38),
+              SizedBox(width: 60 * MediaQuery.sizeOf(context).width / 750),
               Icon(
                 expanded ? Icons.format_list_bulleted : Icons.push_pin_outlined,
-                size: 22,
+                size: 30 * MediaQuery.sizeOf(context).width / 750,
                 color: const Color(0x66C9B69E),
               ),
-              const SizedBox(width: 22),
+              SizedBox(width: 35 * MediaQuery.sizeOf(context).width / 750),
               Text(
                 expanded ? '折叠置顶聊天' : '$count 个置顶聊天',
-                style: const TextStyle(color: Color(0x66C9B69E), fontSize: 15),
+                style: TextStyle(
+                  color: const Color(0x80C9B69E),
+                  fontSize: 28 * MediaQuery.sizeOf(context).width / 750,
+                ),
               ),
             ],
           ),
@@ -551,95 +520,140 @@ class _PinnedToggle extends StatelessWidget {
 
 class _KingClubConversation extends StatelessWidget {
   const _KingClubConversation({required this.unreadCount, required this.onTap});
-
   final int unreadCount;
   final VoidCallback onTap;
-
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          height: 116,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: Color(0x332E2922), width: 1),
-            ),
-          ),
-          child: Row(
-            children: [
-              const _KingAvatar(size: 58),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'KING CLUB',
-                      style: TextStyle(
-                        color: Color(0xCCFFFFFF),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      '收到50枚金币',
-                      style: TextStyle(color: Color(0x66FFFFFF), fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text(
-                    '08月23日',
-                    style: TextStyle(color: Color(0x66FFFFFF), fontSize: 13),
-                  ),
-                  const SizedBox(height: 8),
-                  if (unreadCount > 0)
-                    _UnreadBadge(
-                      key: const ValueKey('system-conversation-unread-badge'),
-                      count: unreadCount,
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      child: _ConversationContent(
+        name: 'KING CLUB',
+        preview: '收到50枚金币',
+        date: '08月23日',
+        unread: unreadCount,
+        system: true,
       ),
-    );
-  }
+    ),
+  );
 }
 
-class _UnreadBadge extends StatelessWidget {
-  const _UnreadBadge({super.key, required this.count});
-
-  final int count;
-
+class _ConversationContent extends StatelessWidget {
+  const _ConversationContent({
+    required this.name,
+    required this.preview,
+    required this.date,
+    required this.unread,
+    this.system = false,
+    this.inactive = false,
+  });
+  final String name, preview, date;
+  final int unread;
+  final bool system, inactive;
   @override
   Widget build(BuildContext context) {
+    final r = MediaQuery.sizeOf(context).width / 750;
     return Container(
-      constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      height: 140 * r,
+      padding: EdgeInsets.only(left: 30 * r, right: 40 * r),
       decoration: const BoxDecoration(
-        color: Color(0xFFE84848),
-        shape: BoxShape.circle,
+        border: Border(bottom: BorderSide(color: Color(0x30C9B69E), width: .5)),
       ),
-      alignment: Alignment.center,
-      child: Text(
-        count > 99 ? '99+' : '$count',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 96 * r,
+            height: 96 * r,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                if (system)
+                  _KingAvatar(size: 96 * r)
+                else
+                  ClipOval(
+                    child: Image.asset(
+                      'assets/legacy/friendship/touxiang.png',
+                      width: 96 * r,
+                      height: 96 * r,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                if (unread > 0)
+                  Positioned(
+                    left: 70 * r,
+                    top: -3 * r,
+                    child: Container(
+                      key: ValueKey(
+                        system
+                            ? 'system-conversation-unread-badge'
+                            : 'conversation-unread-badge',
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth: 34 * r,
+                        minHeight: 34 * r,
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 5 * r),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFB5352),
+                        borderRadius: BorderRadius.circular(24 * r),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        unread > 99 ? '99+' : '$unread',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22 * r,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(width: 25 * r),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: const Color(0xBBFFFFFF),
+                    fontSize: 30 * r,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                SizedBox(height: 5 * r),
+                Text(
+                  preview,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: inactive
+                        ? const Color(0x99C9B69E)
+                        : const Color(0x66FFFFFF),
+                    fontSize: 26 * r,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 10 * r),
+          Padding(
+            padding: EdgeInsets.only(bottom: 50 * r),
+            child: Text(
+              date,
+              style: TextStyle(
+                color: const Color(0x66FFFFFF),
+                fontSize: 24 * r,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -679,7 +693,7 @@ class _FriendConversation extends StatelessWidget {
     const actionsWidth = _rowActionWidth * 3;
     return SizedBox(
       key: const ValueKey('conversation-seatmate-row'),
-      height: 92,
+      height: 140 * MediaQuery.sizeOf(context).width / 750,
       child: ClipRect(
         child: Stack(
           children: [
@@ -725,97 +739,13 @@ class _FriendConversation extends StatelessWidget {
                 },
                 onHorizontalDragEnd: (_) => onSlideEnd(),
                 child: ColoredBox(
-                  color: pinned ? const Color(0x202E2922) : Colors.black,
-                  child: Container(
-                    height: 92,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: Color(0x332E2922), width: 1),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.asset(
-                            'assets/legacy/friendship/touxiang.png',
-                            width: 54,
-                            height: 54,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                '卡座搭子',
-                                style: TextStyle(
-                                  color: Color(0xCCFFFFFF),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              SizedBox(height: 5),
-                              Text(
-                                preview,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: inactive
-                                      ? const Color(0x99C9B69E)
-                                      : const Color(0x66FFFFFF),
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            const Text(
-                              '21:08',
-                              style: TextStyle(
-                                color: Color(0x66FFFFFF),
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (unreadCount > 0)
-                              Container(
-                                key: const ValueKey(
-                                  'conversation-unread-badge',
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 20,
-                                  minHeight: 20,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                ),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFE84848),
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  unreadCount > 99 ? '99+' : '$unreadCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
+                  color: pinned ? const Color(0x20C9B69E) : Colors.black,
+                  child: _ConversationContent(
+                    name: '卡座搭子',
+                    preview: preview,
+                    date: '21:08',
+                    unread: unreadCount,
+                    inactive: inactive,
                   ),
                 ),
               ),
@@ -843,7 +773,7 @@ class _ConversationRowAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: _rowActionWidth,
-      height: 92,
+      height: 140 * MediaQuery.sizeOf(context).width / 750,
       child: Material(
         color: color,
         child: InkWell(

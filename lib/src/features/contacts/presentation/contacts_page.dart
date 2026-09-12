@@ -1,3 +1,5 @@
+import '../../messaging/presentation/legacy_messaging_components.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -5,7 +7,6 @@ import 'package:flutter/services.dart';
 
 import '../../../core/design_system/king_theme.dart';
 
-const _legacyGold = Color(0xFFC9B69E);
 
 enum ContactIntentKind { friendRequests, addFriend, blacklist, userProfile }
 
@@ -192,65 +193,18 @@ class _ContactsPageState extends State<ContactsPage> {
     );
   }
 
-  Widget _header() {
-    return SizedBox(
-      height: 67,
-      width: double.infinity,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            left: 17,
-            child: IconButton(
-              tooltip: '添加好友',
-              onPressed: _state == ContactsDemoState.sessionInvalid
-                  ? null
-                  : () => widget.onIntent(
-                      const ContactRouteIntent(ContactIntentKind.addFriend),
-                    ),
-              icon: const Icon(
-                Icons.add_circle_outline,
-                color: _legacyGold,
-                size: 29,
-              ),
-            ),
+  Widget _header() => LegacyConversationTabs(
+    chatSelected: false,
+    onChat: _state == ContactsDemoState.sessionInvalid
+        ? null
+        : widget.onOpenChat,
+    onContacts: () {},
+    onAdd: _state == ContactsDemoState.sessionInvalid
+        ? null
+        : () => widget.onIntent(
+            const ContactRouteIntent(ContactIntentKind.addFriend),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(0, 0, 0, 11),
-                child: Text(
-                  '通讯录',
-                  style: TextStyle(
-                    color: _legacyGold,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: _state == ContactsDemoState.sessionInvalid
-                    ? null
-                    : widget.onOpenChat,
-                child: const Text(
-                  '聊天',
-                  style: TextStyle(color: Color(0x66C9B69E), fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-          const Positioned(
-            left: 24,
-            right: 24,
-            bottom: 0,
-            child: Divider(height: 1, thickness: 1, color: Color(0x332E2922)),
-          ),
-        ],
-      ),
-    );
-  }
+  );
 
   Widget _buildBody(BuildContext context) {
     if (!widget.active && !_loadedOnce) {

@@ -45,7 +45,10 @@ void main() {
         final bar = find.byKey(const ValueKey('shell-bottom-bar'));
         final indicator = find.byKey(const ValueKey('shell-nav-indicator'));
         expect(tester.getSize(bar).width, closeTo(width * 0.9, 0.001));
-        expect(tester.getSize(bar).height, closeTo(width * 120 / 750 - 1, 0.001));
+        expect(
+          tester.getSize(bar).height,
+          closeTo(width * 120 / 750 - 1, 0.001),
+        );
         expect(
           tester.getSize(indicator).width,
           closeTo(width * 80 / 750, 0.001),
@@ -140,7 +143,20 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('消息，标签，5 条未读'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('聊天'));
+    // Opening messages defaults to conversations, with the native header order.
+    expect(find.text('KING CLUB'), findsOneWidget);
+    expect(
+      tester.getCenter(find.text('聊天')).dx,
+      lessThan(tester.getCenter(find.text('通讯录')).dx),
+    );
+    expect(
+      tester.getCenter(find.text('通讯录')).dx,
+      lessThan(tester.getCenter(find.byTooltip('添加好友')).dx),
+    );
+    await tester.tap(find.text('通讯录'));
+    await tester.pumpAndSettle();
+    expect(find.text('新的朋友'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('消息，标签，5 条未读，已选中'));
     await tester.pumpAndSettle();
     expect(find.text('KING CLUB'), findsOneWidget);
 

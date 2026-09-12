@@ -827,8 +827,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
 
-    expect(find.text('新的朋友'), findsOneWidget);
-    expect(find.text('添加好友'), findsOneWidget);
+    expect(find.text('KING CLUB'), findsOneWidget);
+    expect(find.byTooltip('添加好友'), findsOneWidget);
 
     await tester.tap(find.text('聊天'));
     await tester.pumpAndSettle();
@@ -847,6 +847,8 @@ void main() {
   testWidgets('conversation list manages unread pin and delete locally', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       MaterialApp(
         theme: KingTheme.dark,
