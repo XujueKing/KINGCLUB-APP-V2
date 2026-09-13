@@ -5,3 +5,5 @@
 解除需确认，调用602/unblock成功后移除，失败保留，不自动关注/恢复好友。刷新与解除请求存在竞态时用generation废弃旧列表。已拉黑资料仍由612拒绝，当前点击只会显示资料不可用，需要后续完善专门的受限资料交互。
 
 验证：通讯录/底栏/黑名单组合22项通过，新增3项真实操作测试覆盖失败保留、等待确认及退出登录拒绝迟到数据；相关静态分析无问题。613已部署测试服务profile-fbb8ffc，038/039迁移完成。手机ADB462606d8仍offline，本轮APK编译日志build/profile-blacklist-build.log；未真机验收。
+
+构建结果：assemblePreviewProfile成功（209.2秒），2026-09-13 16:41生成app-preview-profile.apk，124372351字节；手机offline，未覆盖安装。PowerShell进程因JAVA_TOOL_OPTIONS警告stderr返回1，Gradle实际exit0且Flutter输出Built，以编译日志和产物为准。
