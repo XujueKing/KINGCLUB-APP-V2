@@ -1,0 +1,430 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../../../core/design_system/king_notice.dart';
+import 'legacy_emoji_data.dart';
+import 'legacy_messaging_components.dart';
+
+/// Device-local sticker library. Chat transport remains owned by the caller.
+class ChatEmojiPanel extends StatefulWidget {
+  const ChatEmojiPanel({
+    super.key,
+    required this.onEmoji,
+    required this.onSticker,
+    required this.onDelete,
+    required this.onSend,
+  });
+  final ValueChanged<String> onEmoji;
+  final ValueChanged<String> onSticker;
+  final VoidCallback onDelete;
+  final VoidCallback onSend;
+
+  @override
+  State<ChatEmojiPanel> createState() => _ChatEmojiPanelState();
+}
+
+class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
+  static final List<List<String>> _images = [[]];
+  static final List<String> _names = ['添加的单个表情'];
+  static Future<void>? _load;
+  int _category = 0;
+  int _page = 0;
+  bool _importing = false;
+
+  static Future<Directory> _directory() async {
+    final root = await getApplicationDocumentsDirectory();
+    return Directory('${root.path}/chat_stickers').create(recursive: true);
+  }
+
+  static Future<void> _restore() async {
+    try {
+      final file = File('${(await _directory()).path}/library.json');
+      if (!await file.exists()) return;
+      final records = jsonDecode(await file.readAsString()) as List;
+      final names = <String>[];
+      final images = <List<String>>[];
+      for (final record in records) {
+        names.add(record['name'] as String);
+        images.add((record['images'] as List).cast<String>());
+      }
+      if (names.isNotEmpty) {
+        _names
+          ..clear()
+          ..addAll(names);
+        _images
+          ..clear()
+          ..addAll(images);
+      }
+    } catch (_) {
+      // A missing plugin in widget tests or unavailable local storage must not
+      // prevent the built-in emoji categories from opening immediately.
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    (_load ??= _restore()).then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _add({required bool pack}) async {
+    if (_importing) return;
+    setState(() => _importing = true);
+    try {
+      final selected = await ImagePicker().pickMultiImage();
+      if (selected.isEmpty || !mounted) return;
+      String? name;
+      if (pack) {
+        name = await showDialog<String>(
+          context: context,
+          builder: (context) {
+            var value = '';
+            return AlertDialog(
+              backgroundColor: const Color(0xFF202020),
+              title: const Text('添加表情包'),
+              content: TextField(
+                autofocus: true,
+                maxLength: 20,
+                decoration: const InputDecoration(hintText: '表情包名称'),
+                onChanged: (text) => value = text.trim(),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (value.isNotEmpty) Navigator.pop(context, value);
+                  },
+                  child: const Text('添加'),
+                ),
+              ],
+            );
+          },
+        );
+        if (name == null || !mounted) return;
+      }
+      await (_load ??= _restore());
+      final directory = await _directory();
+      final paths = <String>[];
+      final batch = DateTime.now().microsecondsSinceEpoch;
+      for (var i = 0; i < selected.length; i++) {
+        final path = '${directory.path}/$batch-$i.image';
+        await selected[i].saveTo(path);
+        paths.add(path);
+      }
+      final nextNames = [..._names];
+      final nextImages = _images.map((images) => [...images]).toList();
+      if (pack) {
+        nextNames.add(name!);
+        nextImages.add(paths);
+      } else {
+        nextImages[0].addAll(paths);
+      }
+      final file = File('${directory.path}/library.json');
+      final temp = File('${file.path}.tmp');
+      await temp.writeAsString(
+        jsonEncode([
+          for (var i = 0; i < nextNames.length; i++)
+            {'name': nextNames[i], 'images': nextImages[i]},
+        ]),
+        flush: true,
+      );
+      await temp.rename(file.path);
+      _names
+        ..clear()
+        ..addAll(nextNames);
+      _images
+        ..clear()
+        ..addAll(nextImages);
+      if (mounted) setState(() => _category = pack ? _names.length + 2 : 3);
+    } catch (_) {
+      if (mounted) KingNotice.of(context).show('添加失败，请检查相册权限后重试');
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
+
+  Widget _tab(int category, String label, Widget child) => Tooltip(
+    message: label,
+    child: InkWell(
+      onTap: () => setState(() {
+        _category = category;
+        _page = 0;
+      }),
+      child: Container(
+        width: 46,
+        height: 42,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: BoxDecoration(
+          color: _category == category
+              ? const Color(0xFF302C26)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(5),
+        ),
+        alignment: Alignment.center,
+        child: child,
+      ),
+    ),
+  );
+
+  Widget _image(String path) => Image.file(
+    File(path),
+    fit: BoxFit.contain,
+    errorBuilder: (_, _, _) =>
+        const Icon(Icons.broken_image_outlined, color: legacyMessageGold),
+  );
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 300,
+    child: ColoredBox(
+      color: legacyMessagePanel,
+      child: Column(
+        children: [
+          SizedBox(
+            height: 52,
+            child: Row(
+              children: [
+                Expanded(
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    children: [
+                      for (var i = 0; i < 3; i++)
+                        _tab(
+                          i,
+                          ['表情', '动物', '食物'][i],
+                          Text(
+                            ['😀', '🐶', '🍏'][i],
+                            style: const TextStyle(fontSize: 25),
+                          ),
+                        ),
+                      _tab(
+                        3,
+                        '添加的单个表情',
+                        const Icon(
+                          Icons.favorite_border,
+                          size: 25,
+                          color: legacyMessageGold,
+                        ),
+                      ),
+                      for (var i = 1; i < _names.length; i++)
+                        _tab(
+                          i + 3,
+                          _names[i],
+                          Padding(
+                            padding: const EdgeInsets.all(5),
+                            child: _image(_images[i].first),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: '添加表情包',
+                  onPressed: _importing ? null : () => _add(pack: true),
+                  icon: const Icon(
+                    Icons.add_circle_outline,
+                    size: 24,
+                    color: legacyMessageGold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: .5, color: Color(0x184F473D)),
+          Expanded(child: _category < 3 ? _unicodeGrid() : _stickerGrid()),
+        ],
+      ),
+    ),
+  );
+
+  Widget _unicodeGrid() {
+    final emojis = legacyEmojiCategories[_category];
+    final pages = (emojis.length / 29).ceil();
+    return Column(
+      children: [
+        Expanded(
+          child: PageView.builder(
+            key: ValueKey('emoji-pages-$_category'),
+            itemCount: pages,
+            onPageChanged: (page) => setState(() => _page = page),
+            itemBuilder: (context, page) => LayoutBuilder(
+              builder: (context, box) => Column(
+                children: [
+                  for (var row = 0; row < 4; row++)
+                    SizedBox(
+                      height: box.maxHeight / 4,
+                      child: Row(
+                        children: [
+                          for (var col = 0; col < (row == 3 ? 5 : 8); col++)
+                            Expanded(
+                              child: Builder(
+                                builder: (context) {
+                                  final index = page * 29 + row * 8 + col;
+                                  return index < emojis.length
+                                      ? InkWell(
+                                          onTap: () =>
+                                              widget.onEmoji(emojis[index]),
+                                          child: Center(
+                                            child: Text(
+                                              emojis[index],
+                                              style: const TextStyle(
+                                                fontSize: 27,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : const SizedBox();
+                                },
+                              ),
+                            ),
+                          if (row == 3) ...[
+                            Expanded(
+                              child: IconButton(
+                                tooltip: '删除表情',
+                                onPressed: widget.onDelete,
+                                icon: const Icon(
+                                  Icons.backspace_outlined,
+                                  color: Color(0xFFAAAAAA),
+                                  size: 21,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                ),
+                                child: TextButton(
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: const Color(0xFF2D6646),
+                                    foregroundColor: const Color(0xFFE1E8E2),
+                                    minimumSize: const Size(0, 34),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  onPressed: widget.onSend,
+                                  child: const Text('发送'),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 24,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < pages; i++)
+                Container(
+                  width: 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: i == _page
+                        ? legacyMessageGold
+                        : const Color(0xFF555555),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _stickerGrid() {
+    final index = _category - 3;
+    final images = _images[index];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 7),
+          child: Text(
+            _names[index],
+            style: const TextStyle(fontSize: 12, color: Color(0xFF8F8A82)),
+          ),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+            ),
+            itemCount: images.length + (index == 0 ? 1 : 0),
+            itemBuilder: (context, item) {
+              if (index == 0 && item == 0) {
+                return InkWell(
+                  key: const ValueKey('add-single-sticker'),
+                  onTap: _importing ? null : () => _add(pack: false),
+                  child: CustomPaint(
+                    painter: _DashedAddBorder(),
+                    child: const Center(
+                      child: Icon(
+                        Icons.add,
+                        size: 34,
+                        color: Color(0xFFAAAAAA),
+                      ),
+                    ),
+                  ),
+                );
+              }
+              final path = images[item - (index == 0 ? 1 : 0)];
+              return InkWell(
+                onTap: () => widget.onSticker(path),
+                child: _image(path),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DashedAddBorder extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(6)),
+      );
+    final paint = Paint()
+      ..color = const Color(0xFF999999)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    for (final metric in path.computeMetrics()) {
+      for (double start = 0; start < metric.length; start += 10) {
+        canvas.drawPath(metric.extractPath(start, start + 5), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedAddBorder oldDelegate) => false;
+}

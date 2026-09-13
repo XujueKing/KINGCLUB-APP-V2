@@ -73,7 +73,7 @@ void main() {
       find.byKey(const ValueKey('direct-chat-emoji-panel')),
       findsOneWidget,
     );
-    await tester.tap(find.text('😀').first);
+    await tester.tap(find.text('😀').last);
     await tester.pump();
     final field = tester.widget<TextField>(
       find.byKey(const ValueKey('direct-chat-input')),
@@ -176,6 +176,55 @@ void main() {
         await tester.pump();
         expect(controller.position.extentAfter, lessThan(1));
       }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'emoji categories page horizontally and include local sticker entry',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(360, 640);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      await tester.pumpWidget(
+        MaterialApp(theme: KingTheme.dark, home: const DirectChatPage()),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('direct-chat-emoji')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('动物'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('🐱').last);
+      await tester.pump();
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('direct-chat-input')))
+            .controller!
+            .text,
+        '🐱',
+      );
+      await tester.drag(
+        find.byKey(const ValueKey('emoji-pages-1')),
+        const Offset(-320, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('emoji-pages-1')),
+              matching: find.text('🐱'),
+            )
+            .hitTestable(),
+        findsNothing,
+      );
+      await tester.tap(find.byTooltip('添加的单个表情'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('add-single-sticker')).hitTestable(),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('添加表情包').hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

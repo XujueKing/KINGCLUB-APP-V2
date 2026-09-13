@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'chat_emoji_panel.dart';
 import 'voice_hold_overlay.dart';
 
 import 'package:flutter_svg/flutter_svg.dart';
@@ -1035,134 +1038,43 @@ class _DirectChatPageState extends State<DirectChatPage> {
     );
   }
 
-  Widget _emojiPanel() {
-    const emojis = [
-      '😀',
-      '😃',
-      '😄',
-      '😁',
-      '😆',
-      '😅',
-      '😂',
-      '🤣',
-      '😊',
-      '😇',
-      '🙂',
-      '🙃',
-      '😉',
-      '😌',
-      '😍',
-      '🥰',
-      '😘',
-      '😗',
-      '😙',
-      '😚',
-      '😋',
-      '😛',
-      '😝',
-      '😜',
-      '🤪',
-      '🤨',
-      '🧐',
-      '🤓',
-      '😎',
-      '🤩',
-      '🥳',
-      '😏',
-      '😒',
-      '😞',
-      '😔',
-      '😟',
-      '😕',
-      '🙁',
-      '☹️',
-      '😣',
-      '😖',
-      '😫',
-      '😩',
-      '🥺',
-      '😢',
-      '😭',
-      '😤',
-      '😠',
-    ];
-    return Container(
-      key: const ValueKey('direct-chat-emoji-panel'),
-      height: 260,
-      color: legacyMessagePanel,
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 8,
-              ),
-              itemCount: emojis.length,
-              itemBuilder: (context, index) => InkWell(
-                onTap: () {
-                  final selection = _controller.selection;
-                  final start = selection.isValid
-                      ? selection.start
-                      : _controller.text.length;
-                  final end = selection.isValid ? selection.end : start;
-                  _controller.value = TextEditingValue(
-                    text: _controller.text.replaceRange(
-                      start,
-                      end,
-                      emojis[index],
-                    ),
-                    selection: TextSelection.collapsed(
-                      offset: start + emojis[index].length,
-                    ),
-                  );
-                },
-                child: Center(
-                  child: Text(
-                    emojis[index],
-                    style: const TextStyle(fontSize: 27),
-                  ),
-                ),
-              ),
-            ),
+  Widget _emojiPanel() => ChatEmojiPanel(
+    key: const ValueKey('direct-chat-emoji-panel'),
+    onEmoji: (emoji) {
+      final selection = _controller.selection;
+      final start = selection.isValid
+          ? selection.start
+          : _controller.text.length;
+      final end = selection.isValid ? selection.end : start;
+      _controller.value = TextEditingValue(
+        text: _controller.text.replaceRange(start, end, emoji),
+        selection: TextSelection.collapsed(offset: start + emoji.length),
+      );
+    },
+    onSticker: (path) {
+      setState(
+        () => _messages.add(
+          _FakeMessage(
+            '[表情]',
+            mine: true,
+            kind: _FakeMessageKind.image,
+            assetPath: path,
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(15, 4, 15, 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  tooltip: '删除表情',
-                  onPressed: () {
-                    final text = _controller.text.characters;
-                    _controller.text = text.isEmpty
-                        ? ''
-                        : text.take(text.length - 1).toString();
-                    _controller.selection = TextSelection.collapsed(
-                      offset: _controller.text.length,
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.backspace_outlined,
-                    size: 22,
-                    color: legacyMessageGold,
-                  ),
-                ),
-                TextButton(
-                  onPressed: _send,
-                  child: const Text(
-                    '发送',
-                    style: TextStyle(color: legacyMessageGold),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      );
+      _scrollToLatest();
+    },
+    onDelete: () {
+      final text = _controller.text.characters;
+      _controller.text = text.isEmpty
+          ? ''
+          : text.take(text.length - 1).toString();
+      _controller.selection = TextSelection.collapsed(
+        offset: _controller.text.length,
+      );
+    },
+    onSend: _send,
+  );
 
   void _addAttachment(_FakeMessageKind kind) {
     final message = switch (kind) {
@@ -1553,8 +1465,8 @@ class _DirectChatPageState extends State<DirectChatPage> {
             children: [
               Center(
                 child: InteractiveViewer(
-                  child: Image.asset(
-                    message.assetPath!,
+                  child: Image(
+                    image: message.imageProvider,
                     key: const ValueKey('direct-chat-media-preview'),
                     fit: BoxFit.contain,
                   ),
@@ -1722,8 +1634,8 @@ class _MessageContent extends StatelessWidget {
       case _FakeMessageKind.image:
         return ClipRRect(
           borderRadius: BorderRadius.circular(5),
-          child: Image.asset(
-            message.assetPath!,
+          child: Image(
+            image: message.imageProvider,
             key: const ValueKey('direct-chat-image-message'),
             width: 142,
             height: 180,
@@ -1736,8 +1648,8 @@ class _MessageContent extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(5),
-              child: Image.asset(
-                message.assetPath!,
+              child: Image(
+                image: message.imageProvider,
                 key: const ValueKey('direct-chat-video-message'),
                 width: 172,
                 height: 112,
@@ -1831,8 +1743,8 @@ class _MessageContent extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Image.asset(
-                message.assetPath!,
+              Image(
+                image: message.imageProvider,
                 width: 70,
                 height: 70,
                 fit: BoxFit.contain,
@@ -2017,6 +1929,9 @@ class _FakeMessage {
   final bool system;
   final _FakeMessageKind kind;
   final String? assetPath;
+  ImageProvider get imageProvider => assetPath!.startsWith('assets/')
+      ? AssetImage(assetPath!)
+      : FileImage(File(assetPath!));
   final _FakeMessageStatus status;
 
   _FakeMessage copyWith({_FakeMessageStatus? status}) => _FakeMessage(
