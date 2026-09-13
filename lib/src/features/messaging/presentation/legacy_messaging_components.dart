@@ -4,6 +4,36 @@ import '../../../core/design_system/king_theme.dart';
 
 import 'package:flutter/material.dart';
 
+const legacyActionMenuBackground = Color(0xFF28231C);
+const legacyActionMenuForeground = Color(0xFFB7ADA0);
+const legacyActionMenuTextStyle = TextStyle(
+  color: legacyActionMenuForeground,
+  fontSize: 15,
+  fontWeight: FontWeight.w400,
+);
+
+class LegacyActionMenuStyle extends StatelessWidget {
+  const LegacyActionMenuStyle({super.key, required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => IconTheme(
+    data: const IconThemeData(color: legacyActionMenuForeground, size: 21),
+    child: ListTileTheme(
+      data: const ListTileThemeData(
+        textColor: legacyActionMenuForeground,
+        iconColor: legacyActionMenuForeground,
+        titleTextStyle: legacyActionMenuTextStyle,
+        subtitleTextStyle: TextStyle(color: Color(0x80B7ADA0), fontSize: 12),
+        minTileHeight: 52,
+        minLeadingWidth: 21,
+        horizontalTitleGap: 11,
+        contentPadding: EdgeInsets.symmetric(horizontal: 18),
+      ),
+      child: child,
+    ),
+  );
+}
+
 const legacyMessageGold = Color(0xFFC9B69E);
 const legacyMessagePanel = Color(0xFF191715);
 const legacyMessageLine = Color(0x40C9B69E);
@@ -224,7 +254,7 @@ class LegacyConversationTabs extends StatelessWidget {
                   ),
                 ),
                 Material(
-                  color: const Color(0xFF28231C),
+                  color: legacyActionMenuBackground,
                   borderRadius: BorderRadius.circular(5),
                   clipBehavior: Clip.antiAlias,
                   child: Column(
@@ -257,18 +287,14 @@ class LegacyConversationTabs extends StatelessWidget {
                                       Icons.qr_code_scanner_rounded,
                                       Icons.qr_code_rounded,
                                     ][i],
-                                    color: const Color(0xFFB7ADA0),
+                                    color: legacyActionMenuForeground,
                                     size: 21,
                                   ),
                                   const SizedBox(width: 11),
                                   Flexible(
                                     child: Text(
                                       ['发起群聊', '添加朋友', '扫一扫', '我的二维码'][i],
-                                      style: const TextStyle(
-                                        color: Color(0xFFB7ADA0),
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w400,
-                                      ),
+                                      style: legacyActionMenuTextStyle,
                                     ),
                                   ),
                                 ],
@@ -318,7 +344,7 @@ class _MenuPointer extends CustomPainter {
         ..lineTo(size.width / 2, 0)
         ..lineTo(size.width, size.height)
         ..close(),
-      Paint()..color = const Color(0xFF28231C),
+      Paint()..color = legacyActionMenuBackground,
     );
   }
 

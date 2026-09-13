@@ -246,73 +246,72 @@ class _ConversationsPageState extends State<ConversationsPage> {
     setState(() => _friendSlide = 0);
     final action = await showModalBottomSheet<_ConversationAction>(
       context: context,
-      backgroundColor: const Color(0xFF171411),
+      backgroundColor: legacyActionMenuBackground,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_friendStatus == _FriendConversationStatus.active)
-              ListTile(
-                key: const ValueKey('conversation-menu-read'),
-                leading: const Icon(Icons.mark_chat_read_outlined),
-                title: Text(_friendUnread > 0 ? '标为已读' : '标为未读'),
-                onTap: () =>
-                    Navigator.pop(context, _ConversationAction.toggleRead),
-              ),
-            ListTile(
-              key: const ValueKey('conversation-menu-pin'),
-              leading: Icon(
-                _friendPinned
-                    ? Icons.push_pin_outlined
-                    : Icons.push_pin_rounded,
-              ),
-              title: Text(_friendPinned ? '取消置顶' : '置顶聊天'),
-              onTap: () =>
-                  Navigator.pop(context, _ConversationAction.togglePin),
-            ),
-            if (_friendStatus != _FriendConversationStatus.relationshipEnded)
-              ListTile(
-                key: const ValueKey('conversation-menu-relationship-ended'),
-                leading: const Icon(Icons.person_off_outlined),
-                title: const Text('模拟关系已结束'),
-                subtitle: const Text('会话摘要改为只读'),
-                onTap: () => Navigator.pop(
-                  context,
-                  _ConversationAction.markRelationshipEnded,
+      builder: (context) => LegacyActionMenuStyle(
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_friendStatus == _FriendConversationStatus.active)
+                ListTile(
+                  key: const ValueKey('conversation-menu-read'),
+                  leading: const Icon(Icons.mark_chat_read_outlined),
+                  title: Text(_friendUnread > 0 ? '标为已读' : '标为未读'),
+                  onTap: () =>
+                      Navigator.pop(context, _ConversationAction.toggleRead),
                 ),
-              ),
-            if (_friendStatus != _FriendConversationStatus.invalid)
               ListTile(
-                key: const ValueKey('conversation-menu-invalid'),
-                leading: const Icon(Icons.link_off_outlined),
-                title: const Text('模拟会话失效'),
-                subtitle: const Text('阻止错误导航并提供恢复'),
+                key: const ValueKey('conversation-menu-pin'),
+                leading: Icon(
+                  _friendPinned
+                      ? Icons.push_pin_outlined
+                      : Icons.push_pin_rounded,
+                ),
+                title: Text(_friendPinned ? '取消置顶' : '置顶聊天'),
                 onTap: () =>
-                    Navigator.pop(context, _ConversationAction.invalidate),
+                    Navigator.pop(context, _ConversationAction.togglePin),
               ),
-            if (_friendStatus != _FriendConversationStatus.active)
+              if (_friendStatus != _FriendConversationStatus.relationshipEnded)
+                ListTile(
+                  key: const ValueKey('conversation-menu-relationship-ended'),
+                  leading: const Icon(Icons.person_off_outlined),
+                  title: const Text('模拟关系已结束'),
+                  subtitle: const Text('会话摘要改为只读'),
+                  onTap: () => Navigator.pop(
+                    context,
+                    _ConversationAction.markRelationshipEnded,
+                  ),
+                ),
+              if (_friendStatus != _FriendConversationStatus.invalid)
+                ListTile(
+                  key: const ValueKey('conversation-menu-invalid'),
+                  leading: const Icon(Icons.link_off_outlined),
+                  title: const Text('模拟会话失效'),
+                  subtitle: const Text('阻止错误导航并提供恢复'),
+                  onTap: () =>
+                      Navigator.pop(context, _ConversationAction.invalidate),
+                ),
+              if (_friendStatus != _FriendConversationStatus.active)
+                ListTile(
+                  key: const ValueKey('conversation-menu-restore'),
+                  leading: const Icon(Icons.restart_alt_rounded),
+                  title: const Text('恢复正常 Mock 状态'),
+                  onTap: () =>
+                      Navigator.pop(context, _ConversationAction.restore),
+                ),
               ListTile(
-                key: const ValueKey('conversation-menu-restore'),
-                leading: const Icon(Icons.restart_alt_rounded),
-                title: const Text('恢复正常 Mock 状态'),
-                onTap: () =>
-                    Navigator.pop(context, _ConversationAction.restore),
+                key: const ValueKey('conversation-menu-delete'),
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: legacyActionMenuForeground,
+                ),
+                title: const Text('删除会话', style: legacyActionMenuTextStyle),
+                onTap: () => Navigator.pop(context, _ConversationAction.delete),
               ),
-            ListTile(
-              key: const ValueKey('conversation-menu-delete'),
-              leading: const Icon(
-                Icons.delete_outline,
-                color: Colors.redAccent,
-              ),
-              title: const Text(
-                '删除会话',
-                style: TextStyle(color: Colors.redAccent),
-              ),
-              onTap: () => Navigator.pop(context, _ConversationAction.delete),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

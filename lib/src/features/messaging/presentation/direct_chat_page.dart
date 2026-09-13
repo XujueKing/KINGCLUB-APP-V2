@@ -971,47 +971,49 @@ class _DirectChatPageState extends State<DirectChatPage>
     final message = _messages[index];
     final action = await showModalBottomSheet<_FakeMessageAction>(
       context: context,
-      backgroundColor: legacyMessagePanel,
-      builder: (sheetContext) => SafeArea(
-        child: Wrap(
-          children: [
-            if (message.kind == _FakeMessageKind.text)
+      backgroundColor: legacyActionMenuBackground,
+      builder: (sheetContext) => LegacyActionMenuStyle(
+        child: SafeArea(
+          child: Wrap(
+            children: [
+              if (message.kind == _FakeMessageKind.text)
+                ListTile(
+                  key: const ValueKey('direct-chat-copy'),
+                  leading: const Icon(Icons.copy_outlined),
+                  title: const Text('复制'),
+                  onTap: () =>
+                      Navigator.pop(sheetContext, _FakeMessageAction.copy),
+                ),
               ListTile(
-                key: const ValueKey('direct-chat-copy'),
-                leading: const Icon(Icons.copy_outlined),
-                title: const Text('复制'),
+                leading: const Icon(Icons.format_quote),
+                title: const Text('引用'),
                 onTap: () =>
-                    Navigator.pop(sheetContext, _FakeMessageAction.copy),
+                    Navigator.pop(sheetContext, _FakeMessageAction.quote),
               ),
-            ListTile(
-              leading: const Icon(Icons.format_quote),
-              title: const Text('引用'),
-              onTap: () =>
-                  Navigator.pop(sheetContext, _FakeMessageAction.quote),
-            ),
-            ListTile(
-              key: const ValueKey('direct-chat-forward'),
-              leading: const Icon(Icons.forward),
-              title: const Text('转发'),
-              onTap: () =>
-                  Navigator.pop(sheetContext, _FakeMessageAction.forward),
-            ),
-            ListTile(
-              key: const ValueKey('direct-chat-delete'),
-              leading: const Icon(Icons.delete_outline),
-              title: const Text('为我删除'),
-              onTap: () =>
-                  Navigator.pop(sheetContext, _FakeMessageAction.delete),
-            ),
-            if (message.mine)
               ListTile(
-                key: const ValueKey('direct-chat-recall'),
-                leading: const Icon(Icons.undo),
-                title: const Text('撤回'),
+                key: const ValueKey('direct-chat-forward'),
+                leading: const Icon(Icons.forward),
+                title: const Text('转发'),
                 onTap: () =>
-                    Navigator.pop(sheetContext, _FakeMessageAction.recall),
+                    Navigator.pop(sheetContext, _FakeMessageAction.forward),
               ),
-          ],
+              ListTile(
+                key: const ValueKey('direct-chat-delete'),
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('为我删除'),
+                onTap: () =>
+                    Navigator.pop(sheetContext, _FakeMessageAction.delete),
+              ),
+              if (message.mine)
+                ListTile(
+                  key: const ValueKey('direct-chat-recall'),
+                  leading: const Icon(Icons.undo),
+                  title: const Text('撤回'),
+                  onTap: () =>
+                      Navigator.pop(sheetContext, _FakeMessageAction.recall),
+                ),
+            ],
+          ),
         ),
       ),
     );
