@@ -253,8 +253,24 @@ class _DirectChatPageState extends State<DirectChatPage>
                 },
               ),
             ),
-            _composer(),
-            if (!_readOnly) _activeComposerPanel(),
+            ClipRRect(
+              key: const ValueKey('direct-chat-bottom-card'),
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(
+                  60 * MediaQuery.sizeOf(context).width / 750,
+                ),
+              ),
+              child: ColoredBox(
+                color: legacyMessagePanel,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _composer(),
+                    if (!_readOnly) _activeComposerPanel(),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -262,6 +278,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Widget _composer() {
+    final r = MediaQuery.sizeOf(context).width / 750;
     return Container(
       color: legacyMessagePanel,
       child: Column(
@@ -302,11 +319,11 @@ class _DirectChatPageState extends State<DirectChatPage>
             ),
           Container(
             key: const ValueKey('direct-chat-composer-capsule'),
-            margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+            margin: EdgeInsets.symmetric(horizontal: 30 * r, vertical: 22 * r),
+            padding: EdgeInsets.symmetric(vertical: 5 * r),
             decoration: BoxDecoration(
               color: const Color(0xFF312C27),
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(40 * r),
             ),
             child: Row(
               children: [
@@ -324,9 +341,10 @@ class _DirectChatPageState extends State<DirectChatPage>
                     enabled: !_readOnly,
                     minLines: 1,
                     maxLines: 4,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: legacyMessageGold,
+                    style: TextStyle(
+                      fontSize: 32 * r,
+                      height: 1,
+                      color: const Color(0xFFBBBBBB),
                     ),
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _send(),
@@ -334,9 +352,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                       hintText: _readOnly ? '当前不可发送消息' : '',
                       isDense: true,
                       filled: false,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 10,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12 * r,
+                        vertical: 19 * r,
                       ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -719,20 +737,39 @@ class _DirectChatPageState extends State<DirectChatPage>
     String label,
     String asset,
     VoidCallback? onTap,
-  ) => IconButton(
-    key: ValueKey(key),
-    tooltip: label,
-    onPressed: onTap,
-    constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-    padding: const EdgeInsets.all(7),
-    icon: Image.asset(
-      'assets/legacy/messaging/$asset',
-      width: 26,
-      height: 26,
-      color: legacyMessageGold,
-      colorBlendMode: BlendMode.srcIn,
-    ),
-  );
+  ) {
+    final r = MediaQuery.sizeOf(context).width / 750;
+    final gift = asset == 'gift2.png';
+    return Padding(
+      padding: EdgeInsets.only(
+        left: gift ? 10 * r : 0,
+        right: gift ? 0 : (asset == 'add.png' ? 16 : 30) * r,
+      ),
+      child: SizedBox(
+        width: (gift ? 60 : 54) * r,
+        height: (gift ? 60 : 54) * r,
+        child: IconButton(
+          key: ValueKey(key),
+          tooltip: label,
+          onPressed: onTap,
+          constraints: const BoxConstraints(),
+          padding: EdgeInsets.zero,
+          style: IconButton.styleFrom(
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            backgroundColor: gift ? legacyMessageGold : Colors.transparent,
+          ),
+          icon: Padding(
+            padding: EdgeInsets.only(bottom: gift ? 6 * r : 0),
+            child: Image.asset(
+              'assets/legacy/messaging/$asset',
+              width: (gift ? 32 : 54) * r,
+              height: (gift ? 32 : 54) * r,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _emojiPanel() {
     const emojis = [
