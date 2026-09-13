@@ -276,6 +276,9 @@ class _DirectChatPageState extends State<DirectChatPage>
       _chatEvents = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
         final data = event['data'];
+        if (type == 'connection.ready' && chat is GroupChatController) {
+          chat.invalidateMemberNames();
+        }
         if (widget.groupId != null && type == 'chat.group.changed') {
           chat.resetVisibleHistory();
           chat.synchronize();
@@ -1581,6 +1584,7 @@ class _DirectChatPageState extends State<DirectChatPage>
           ),
         ),
       );
+      if (mounted) await _chat?.synchronize();
       return;
     }
     final cleared = await Navigator.push<bool>(

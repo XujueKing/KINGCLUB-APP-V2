@@ -38,6 +38,52 @@ Map<String, dynamic> message(String id) => {
   'createdDate': '2026-09-13T01:00:00Z',
 };
 void main() {
+  test(
+    'reconnect rejects in-flight stale names while retaining messages',
+    () async {
+      final stale = Completer<Map<String, dynamic>>();
+      var lookups = 0;
+      final chat = GroupChatController(
+        groupId: 'group',
+        outbox: Queue(),
+        repository: GroupChatRepository(
+          MessagingRepository(
+            account: 'me',
+            call: (id, _) async {
+              if (id == 'K260913000619') {
+                lookups++;
+                return lookups == 1
+                    ? stale.future
+                    : {
+                        'members': [
+                          {'account': 'friend', 'nickname': '当前昵称'},
+                        ],
+                      };
+              }
+              return history([
+                {...message('one'), 'sender': 'friend'},
+              ]);
+            },
+          ),
+        ),
+      );
+      final sync = chat.synchronize();
+      await Future<void>.delayed(Duration.zero);
+      chat.invalidateMemberNames();
+      chat.synchronize();
+      stale.complete({
+        'members': [
+          {'account': 'friend', 'nickname': '旧昵称'},
+        ],
+      });
+      await sync;
+      expect(chat.messages.single['senderName'], '当前昵称');
+      expect(chat.messages.single['messageId'], 'server-one');
+      expect(lookups, 2);
+      chat.dispose();
+    },
+  );
+
   test('member names map by sender and late member lookup cannot restore cleared data', () async {
     var name = '真实昵称';
     Completer<Map<String, dynamic>>? pending;
@@ -65,7 +111,9 @@ void main() {
     );
     await chat.synchronize();
     expect(chat.messages.single['senderName'], '真实昵称');
-    chat.clearVisibleHistory();
+    chat.invalidateMemberNames();
+    expect(chat.messages.single['senderName'], 'friend');
+    expect(chat.messages.single['messageId'], 'server-one');
     name = '新昵称';
     await chat.synchronize();
     expect(chat.messages.single['senderName'], '新昵称');

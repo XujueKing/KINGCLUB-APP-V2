@@ -22,6 +22,7 @@ class GroupChatController extends ChatSessionController {
   final _settings = <String, dynamic>{};
   final _memberNames = <String, String>{};
   bool _membersLoaded = false;
+  int _memberGeneration = 0;
   @override
   Map<String, dynamic> get settings => {
     ..._settings,
@@ -160,9 +161,15 @@ class GroupChatController extends ChatSessionController {
 
   Future<void> _loadMemberNames(int generation) async {
     if (_membersLoaded || _disposed) return;
+    final memberGeneration = _memberGeneration;
     try {
       final result = await repository.details(groupId);
-      if (_disposed || generation != _historyGeneration || !hasAccess) return;
+      if (_disposed ||
+          generation != _historyGeneration ||
+          memberGeneration != _memberGeneration ||
+          !hasAccess) {
+        return;
+      }
       _memberNames.clear();
       for (final raw in result['members'] as List) {
         final member = raw as Map;
@@ -317,8 +324,17 @@ class GroupChatController extends ChatSessionController {
     }
   }
 
+  /// Revalidate names after reconnect without discarding loaded message pages.
+  void invalidateMemberNames() {
+    _memberGeneration++;
+    _membersLoaded = false;
+    _memberNames.clear();
+    _changed();
+  }
+
   /// Clear visible data after membership or session revocation.
   void clearVisibleHistory() {
+    _memberGeneration++;
     _memberNames.clear();
     _membersLoaded = false;
     _historyGeneration++;
