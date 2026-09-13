@@ -1,0 +1,197 @@
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+
+typedef CallCapture = Future<MediaStream> Function(
+  Map<String, dynamic> constraints,
+);
+typedef CallPeerFactory = Future<RTCPeerConnection> Function(
+  Map<String, dynamic> configuration,
+);
+
+/// Owns one native call. Creating this object never requests media permissions.
+class NativeCallMedia {
+  NativeCallMedia({
+    required this.video,
+    required this.iceServers,
+    CallCapture? capture,
+    CallPeerFactory? peerFactory,
+    this.onCandidate,
+    this.onConnection,
+    this.onRemoteStream,
+  }) : _capture = capture ?? navigator.mediaDevices.getUserMedia,
+       _peerFactory = peerFactory ?? ((config) => createPeerConnection(config));
+  final bool video;
+  final List<Map<String, dynamic>> iceServers;
+  final CallCapture _capture;
+  final CallPeerFactory _peerFactory;
+  final void Function(RTCIceCandidate)? onCandidate;
+  final void Function(RTCPeerConnectionState)? onConnection;
+  final void Function(MediaStream)? onRemoteStream;
+  MediaStream? _local, _remote;
+  RTCPeerConnection? _peer;
+  Future<void>? _opening, _closing;
+  bool _closed = false, _remoteReady = false;
+  final _candidates = <RTCIceCandidate>[];
+  MediaStream? get localStream => _local;
+  MediaStream? get remoteStream => _remote;
+
+  Future<void> open() {
+    if (_closed) return Future.error(StateError('Call media closed'));
+    return _opening ??= _open();
+  }
+
+  void _check() {
+    if (_closed) throw StateError('Call media closed');
+  }
+
+  Future<void> _open() async {
+    try {
+      _local = await _capture({
+        'audio': {
+          'echoCancellation': true,
+          'noiseSuppression': true,
+          'autoGainControl': true,
+        },
+        'video': video
+            ? {
+                'facingMode': 'user',
+                'width': {'ideal': 1280},
+                'height': {'ideal': 720},
+                'frameRate': {'ideal': 24, 'max': 30},
+              }
+            : false,
+      });
+      _check();
+      _peer = await _peerFactory({
+        'iceServers': iceServers,
+        'sdpSemantics': 'unified-plan',
+      });
+      _check();
+      _peer!.onIceCandidate = (candidate) {
+        if (!_closed) onCandidate?.call(candidate);
+      };
+      _peer!.onConnectionState = (state) {
+        if (!_closed) onConnection?.call(state);
+      };
+      _peer!.onTrack = (event) {
+        if (_closed || event.streams.isEmpty) return;
+        _remote = event.streams.first;
+        onRemoteStream?.call(_remote!);
+      };
+      for (final track in _local!.getTracks()) {
+        await _peer!.addTrack(track, _local!);
+        _check();
+      }
+    } catch (_) {
+      await _release();
+      rethrow;
+    }
+  }
+
+  RTCPeerConnection get _ready {
+    _check();
+    final peer = _peer;
+    if (peer == null) throw StateError('Call media not ready');
+    return peer;
+  }
+
+  Future<RTCSessionDescription> offer() async {
+    final peer = _ready, description = await _ready.createOffer();
+    _check();
+    await peer.setLocalDescription(description);
+    _check();
+    return description;
+  }
+
+  Future<RTCSessionDescription> answer() async {
+    final peer = _ready, description = await _ready.createAnswer();
+    _check();
+    await peer.setLocalDescription(description);
+    _check();
+    return description;
+  }
+
+  Future<void> remoteDescription(RTCSessionDescription description) async {
+    await _ready.setRemoteDescription(description);
+    _check();
+    _remoteReady = true;
+    while (_candidates.isNotEmpty) {
+      await _ready.addCandidate(_candidates.removeAt(0));
+      _check();
+    }
+  }
+
+  Future<void> remoteCandidate(RTCIceCandidate candidate) async {
+    _check();
+    if (!_remoteReady) {
+      if (_candidates.length >= 256) {
+        throw StateError('Too many queued ICE candidates');
+      }
+      _candidates.add(candidate);
+      return;
+    }
+    await _ready.addCandidate(candidate);
+    _check();
+  }
+
+  void mute(bool muted) {
+    _check();
+    for (final track in _local?.getAudioTracks() ?? <MediaStreamTrack>[]) {
+      track.enabled = !muted;
+    }
+  }
+
+  Future<void> close() {
+    _closed = true;
+    return _closing ??= _close();
+  }
+
+  Future<void> _close() async {
+    try {
+      await _opening;
+    } catch (_) {
+      /* Opening failure already released resources. */
+    }
+    await _release();
+  }
+
+  Future<void> _release() async {
+    final peer = _peer;
+    _peer = null;
+    final streams = {?_local, ?_remote};
+    _local = null;
+    _remote = null;
+    _candidates.clear();
+    _remoteReady = false;
+    Object? failure;
+    for (final stream in streams) {
+      for (final track in stream.getTracks()) {
+        try {
+          await track.stop();
+        } catch (e) {
+          failure ??= e;
+        }
+      }
+      try {
+        await stream.dispose();
+      } catch (e) {
+        failure ??= e;
+      }
+    }
+    if (peer != null) {
+      peer.onIceCandidate = null;
+      peer.onConnectionState = null;
+      peer.onTrack = null;
+      try {
+        await peer.close();
+      } catch (e) {
+        failure ??= e;
+      }
+      try {
+        await peer.dispose();
+      } catch (e) {
+        failure ??= e;
+      }
+    }
+    if (failure != null) throw StateError('Native call media cleanup failed');
+  }
+}
