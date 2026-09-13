@@ -287,7 +287,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
             final date = DateTime.tryParse(item['createdAt']?.toString() ?? '')
                 ?.toLocal();
             return Padding(
-              padding: EdgeInsets.fromLTRB(20 * scale, 20, 20 * scale, 4),
+              padding: EdgeInsets.fromLTRB(20 * scale, 20 * scale, 20 * scale, 4 * scale),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -315,7 +315,8 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                   Expanded(
                     child: Container(
                       color: const Color(0xFFF6F6F6),
-                      padding: const EdgeInsets.all(10),
+                      constraints: BoxConstraints(minHeight: 146 * scale),
+                      padding: EdgeInsets.all(10 * scale),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -487,7 +488,8 @@ class _PublicMemberPageState extends State<PublicMemberPage>
               slivers: [
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: top + 132 * scale,
+                    // The old profile leaves room above the overlapping 92dp avatar.
+                    height: top + 152 * scale,
                     child: Stack(
                       children: [
                         Positioned.fill(
