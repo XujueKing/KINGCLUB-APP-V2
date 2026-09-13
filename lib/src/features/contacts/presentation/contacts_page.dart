@@ -332,29 +332,17 @@ class _ContactsPageState extends State<ContactsPage> {
     );
   }
 
-  Widget _quickActions(BuildContext context) {
-    return Column(
-      children: [
-        _QuickActionCard(
-          icon: Icons.person_add_alt_1_outlined,
-          title: '新的朋友',
-          subtitle: '2 个新申请',
-          badge: 2,
-          onTap: () => widget.onIntent(
-            const ContactRouteIntent(ContactIntentKind.friendRequests),
-          ),
-        ),
-        _QuickActionCard(
-          icon: Icons.add_circle_outline,
-          title: '添加好友',
-          subtitle: '昵称或好友码',
-          onTap: () => widget.onIntent(
-            const ContactRouteIntent(ContactIntentKind.addFriend),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _quickActions(BuildContext context) => _ContactRow(
+    title: '新的朋友',
+    badge: 2,
+    leading: Image.asset(
+      'assets/legacy/friendship/addfriend.png',
+      fit: BoxFit.cover,
+    ),
+    onTap: () => widget.onIntent(
+      const ContactRouteIntent(ContactIntentKind.friendRequests),
+    ),
+  );
 
   List<Widget> _contactsSlivers(BuildContext context) {
     if (_state == ContactsDemoState.empty) {
@@ -471,7 +459,7 @@ class _ContactRow extends StatelessWidget {
         child: Stack(
           children: [
             Container(
-              constraints: BoxConstraints(minHeight: 140 * r),
+              constraints: BoxConstraints(minHeight: 124 * r),
               padding: EdgeInsets.fromLTRB(40 * r, 12 * r, 50 * r, 12 * r),
               child: Row(
                 children: [
@@ -479,13 +467,13 @@ class _ContactRow extends StatelessWidget {
                     clipBehavior: Clip.none,
                     children: [
                       SizedBox(
-                        width: 96 * r,
-                        height: 96 * r,
+                        width: 84 * r,
+                        height: 84 * r,
                         child: ClipOval(child: leading),
                       ),
                       if (badge != null && badge! > 0)
                         Positioned(
-                          left: 70 * r,
+                          left: 60 * r,
                           top: -3 * r,
                           child: Container(
                             constraints: BoxConstraints(
@@ -522,7 +510,7 @@ class _ContactRow extends StatelessWidget {
                                 title,
                                 style: TextStyle(
                                   color: const Color(0xBBFFFFFF),
-                                  fontSize: 30 * r,
+                                  fontSize: 28 * r,
                                   fontWeight: FontWeight.w400,
                                 ),
                               ),
@@ -546,7 +534,7 @@ class _ContactRow extends StatelessWidget {
                             subtitle!,
                             style: TextStyle(
                               color: const Color(0x66FFFFFF),
-                              fontSize: 26 * r,
+                              fontSize: 24 * r,
                             ),
                           ),
                         ],
@@ -573,31 +561,6 @@ class _ContactRow extends StatelessWidget {
       ),
     );
   }
-}
-
-class _QuickActionCard extends StatelessWidget {
-  const _QuickActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.badge,
-  });
-  final IconData icon;
-  final String title, subtitle;
-  final VoidCallback onTap;
-  final int? badge;
-  @override
-  Widget build(BuildContext context) => _ContactRow(
-    title: title,
-    subtitle: subtitle,
-    badge: badge,
-    onTap: onTap,
-    leading: ColoredBox(
-      color: legacyMessagePanel,
-      child: Icon(icon, color: const Color(0xFFB7ADA0), size: 25),
-    ),
-  );
 }
 
 class _LegacyBlacklistEntry extends StatelessWidget {
@@ -641,7 +604,7 @@ class _ContactTile extends StatelessWidget {
               )
             : Text(
                 contact.initial,
-                style: const TextStyle(fontSize: 20, color: Color(0xFFB7ADA0)),
+                style: const TextStyle(fontSize: 18, color: Color(0xFFB7ADA0)),
               ),
       ),
     ),
