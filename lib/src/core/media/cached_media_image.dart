@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../session/secure_session_store.dart';
 import 'media_cache.dart';
@@ -10,6 +11,8 @@ class CachedMediaImage extends StatefulWidget {
     this.url, {
     super.key,
     this.contentKey,
+    this.headers,
+    this.placeholder,
     this.private = false,
     this.width,
     this.height,
@@ -18,6 +21,8 @@ class CachedMediaImage extends StatefulWidget {
   });
   final String url;
   final String? contentKey;
+  final Map<String, String>? headers;
+  final Widget? placeholder;
   final bool private;
   final double? width, height;
   final BoxFit fit;
@@ -39,7 +44,8 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
     super.didUpdateWidget(old);
     if (old.url != widget.url ||
         old.contentKey != widget.contentKey ||
-        old.private != widget.private) {
+        old.private != widget.private ||
+        !mapEquals(old.headers, widget.headers)) {
       _file = _load();
     }
   }
@@ -57,6 +63,7 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
       widget.url,
       scope: scope,
       contentKey: widget.contentKey,
+      headers: widget.headers,
     );
   }
 
@@ -77,6 +84,7 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
         return widget.errorBuilder?.call(context, snapshot.error!, null) ??
             const Icon(Icons.broken_image_outlined);
       }
+      if (widget.placeholder != null) return widget.placeholder!;
       return SizedBox(
         width: widget.width,
         height: widget.height,
