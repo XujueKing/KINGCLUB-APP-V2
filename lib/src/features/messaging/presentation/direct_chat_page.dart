@@ -360,6 +360,9 @@ class _DirectChatPageState extends State<DirectChatPage>
               repository: GroupChatRepository(repository),
               groupId: widget.groupId!,
               outbox: outbox,
+              openHistory: repository.persistHistory
+                  ? () => ChatHistoryStore.open(repository.account)
+                  : null,
             )
           : DirectChatController(
               repository: repository,

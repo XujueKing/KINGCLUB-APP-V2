@@ -46,3 +46,15 @@ SQLite 事务与 FFI 使用依据：https://pub.dev/documentation/sqflite/latest
 621 新增当前成员 membershipVersion/joinedSequence（后台尚未部署）；GroupChatController 保留单调可见下界 max(joinedSequence, hiddenThrough)，收到较旧成员版本时拒绝合并，当前成员版本变化则失效成员名称缓存。解决仅按 hiddenThrough 清理时重新入群仍可能保留内存旧消息的问题。
 
 群控制器 9 项测试通过；后台 241 项检查与隔离 HTTP 首次入群／重新入群准入边界通过。控制器源文件静态分析无问题，既有测试文件仍有与本次改动无关的非空断言／花括号提示。群历史仍未写入本地 SQLite，不能声明群聊离线恢复已实现。本次未重新打包。
+
+
+## 群离线历史接通
+
+SQLite v3 给会话增加 membershipVersion，旧版无损迁移；群历史页、成员版本、可见下界与 cursor 同事务提交，较旧成员版本的写入直接拒绝。群控制器恢复本地最近 50 条并支持离线向上分页；缓存不赋予当前发送权限，联网确认后才能发送。服务端拒绝群访问时等待缓存清理完成，确保之后离线重开不恢复旧数据。
+
+重新入群后按 joinedSequence/hiddenThrough 清理旧数据，迟到写入受 epoch 和成员版本共同保护。新待发送消息记录成员版本，版本变化时停止自动发送并保留失败队列供重新确认（当前需要用户重新发起，尚无专用批量确认界面）。群成员名称目前仍需联网读取，离线可能显示账号，未视作最终体验完成。
+
+26 项群／单聊／真实 SQLite 回归通过，静态分析通过。群缓存相关字段已部署 group-history-065。群历史容量策略、手机性能、双机一致性仍待验证，本轮不视作全部聊天交付。
+
+
+群历史 preview profile arm64 APK 构建通过：59.7 秒、131.7 MB，SHA256 `bc8e57be69ec7b49e2b3b3b1d342948b02f16b08a533274bf77a766ee8a028d3`。包含既有 onboarding 未提交改动，本轮未修改或提交它们；手机 462606d8 仍 offline，未安装。

@@ -1,3 +1,4 @@
+import 'chat_history_store.dart';
 import 'chat_location.dart';
 import 'chat_session_controller.dart';
 import 'messaging_repository.dart';
@@ -14,6 +15,7 @@ class GroupChatController extends ChatSessionController {
     required this.repository,
     required this.groupId,
     required this.outbox,
+    this.openHistory,
   });
   final GroupChatRepository repository;
   @override
@@ -35,6 +37,39 @@ class GroupChatController extends ChatSessionController {
   void resetVisibleHistory() => clearVisibleHistory();
   final String groupId;
   final ChatOutbox outbox;
+  final Future<ChatHistoryStore> Function()? openHistory;
+  ChatHistoryStore? _history;
+  Future<void>? _historyReady, _historyBarrier;
+  int _diskEpoch = 0;
+  String get _historyKey => 'group:$groupId';
+  Future<void> _ensureHistory() => _historyReady ??= _restoreHistory();
+  Future<void> _restoreHistory() async {
+    if (openHistory == null) return;
+    final generation = _historyGeneration;
+    final store = await openHistory!();
+    if (store.account != repository.account) throw StateError('聊天记录账号不符');
+    if (_disposed) return;
+    _history = store;
+    final page = await store.read(_historyKey);
+    _diskEpoch = page.epoch;
+    if (_disposed || generation != _historyGeneration) return;
+    _membershipVersion = page.membershipVersion;
+    _visibleAfter = page.hiddenThrough;
+    if (page.membershipVersion == null) return;
+    for (final message in page.messages) {
+      if (message['groupId'] != groupId) {
+        throw const FormatException('Wrong cached group');
+      }
+      _confirmed[message['messageId'] as String] = message;
+    }
+    _lastSynced = page.cursor;
+    if (page.messages.isNotEmpty) {
+      _oldest = page.messages.first['sequence'] as int;
+      hasOlder = true;
+    }
+    _changed();
+  }
+
   final _confirmed = <String, Map<String, dynamic>>{};
   final _pending = <String, Map<String, dynamic>>{};
   final _sending = <String>{};
@@ -85,7 +120,10 @@ class GroupChatController extends ChatSessionController {
   @override
   Future<void> initialize() async {
     try {
+      if (openHistory != null) await _ensureHistory();
+      if (_disposed) return;
       for (final message in await outbox.read()) {
+        if (_disposed) return;
         if (message['groupId'] == groupId) {
           _pending[message['clientMessageId'] as String] = message;
         }
@@ -95,11 +133,8 @@ class GroupChatController extends ChatSessionController {
       await retryQueued();
     } catch (e) {
       if (e is AuthFailure && e.code == 'CHAT_GROUP_ACCESS_DENIED') {
-        _confirmed.clear();
-        hasAccess = false;
-        _lastSynced = 0;
-        _oldest = null;
-        hasOlder = false;
+        clearVisibleHistory();
+        await _historyBarrier;
       }
       error = e.toString();
       _changed();
@@ -108,6 +143,7 @@ class GroupChatController extends ChatSessionController {
 
   @override
   Future<void> synchronize() {
+    if (_disposed) return Future<void>.value();
     final active = _syncing;
     if (active != null) {
       _syncAgain = true;
@@ -128,6 +164,11 @@ class GroupChatController extends ChatSessionController {
 
   Future<void> _synchronize(int generation) async {
     try {
+      if (openHistory != null) {
+        await _ensureHistory();
+        await _historyBarrier;
+      }
+      if (_disposed || generation != _historyGeneration) return;
       bool more;
       do {
         final initial = _lastSynced == 0;
@@ -136,7 +177,7 @@ class GroupChatController extends ChatSessionController {
           after: initial ? null : _lastSynced,
         );
         if (_disposed || generation != _historyGeneration) return;
-        await _merge(result, generation);
+        await _merge(result, generation, advanceCursor: true);
         if (_disposed || generation != _historyGeneration) return;
         final rows = result['messages'] as List;
         if (rows.isNotEmpty) {
@@ -153,11 +194,8 @@ class GroupChatController extends ChatSessionController {
     } catch (e) {
       if (_disposed || generation != _historyGeneration) return;
       if (e is AuthFailure && e.code == 'CHAT_GROUP_ACCESS_DENIED') {
-        _confirmed.clear();
-        hasAccess = false;
-        _lastSynced = 0;
-        _oldest = null;
-        hasOlder = false;
+        clearVisibleHistory();
+        await _historyBarrier;
       }
       error = e.toString();
       _changed();
@@ -195,6 +233,25 @@ class GroupChatController extends ChatSessionController {
     if (!hasOlder || _oldest == null || _disposed) return;
     final generation = _historyGeneration;
     try {
+      if (_history != null) {
+        await _historyBarrier;
+        if (_disposed || generation != _historyGeneration) return;
+        final local = await _history!.read(_historyKey, before: _oldest);
+        if (_disposed || generation != _historyGeneration) return;
+        if (local.epoch != _diskEpoch ||
+            local.membershipVersion != _membershipVersion) {
+          clearVisibleHistory();
+          return;
+        }
+        if (local.messages.isNotEmpty) {
+          for (final message in local.messages) {
+            _confirmed[message['messageId'] as String] = message;
+          }
+          _oldest = local.messages.first['sequence'] as int;
+          _changed();
+          return;
+        }
+      }
       final result = await repository.history(groupId, before: _oldest);
       if (_disposed || generation != _historyGeneration) return;
       await _merge(result, generation);
@@ -206,20 +263,24 @@ class GroupChatController extends ChatSessionController {
     } catch (e) {
       if (_disposed || generation != _historyGeneration) return;
       if (e is AuthFailure && e.code == 'CHAT_GROUP_ACCESS_DENIED') {
-        _confirmed.clear();
-        hasAccess = false;
-        _lastSynced = 0;
-        _oldest = null;
-        hasOlder = false;
+        clearVisibleHistory();
+        await _historyBarrier;
       }
       error = e.toString();
       _changed();
     }
   }
 
-  Future<void> _merge(Map<String, dynamic> result, int generation) async {
+  Future<void> _merge(
+    Map<String, dynamic> result,
+    int generation, {
+    bool advanceCursor = false,
+  }) async {
     final version = result['membershipVersion'];
     final joined = result['joinedSequence'];
+    if (_history != null && (version == null || joined == null)) {
+      throw StateError('服务端尚未提供群历史同步信息');
+    }
     if (version != null || joined != null) {
       if (version is! int || version < 0 || joined is! int || joined < 0) {
         throw const FormatException('Invalid group admission boundary');
@@ -242,16 +303,59 @@ class GroupChatController extends ChatSessionController {
       );
     final hidden = (_settings['hiddenThrough'] as num?)?.toInt() ?? 0;
     if (hidden > _visibleAfter) _visibleAfter = hidden;
+    final rows = (result['messages'] as List)
+        .map((raw) => Map<String, dynamic>.from(raw as Map))
+        .toList();
+    if (_history != null) {
+      if (rows.any((row) => row['groupId'] != groupId)) {
+        throw const FormatException('Wrong group message');
+      }
+      final committed = await _history!.commit(
+        _historyKey,
+        rows,
+        expectedEpoch: _diskEpoch,
+        membershipVersion: _membershipVersion,
+        hiddenThrough: _visibleAfter,
+        cursor: advanceCursor && rows.isNotEmpty
+            ? rows.last['sequence'] as int
+            : null,
+      );
+      if (_disposed || generation != _historyGeneration) return;
+      if (!committed) throw StateError('群历史状态已变化，请重新进入');
+    }
     _confirmed.removeWhere(
       (_, message) => (message['sequence'] as num).toInt() <= _visibleAfter,
     );
     for (final raw in result['messages'] as List) {
       if (_disposed || generation != _historyGeneration) return;
-      await _acknowledge(Map<String, dynamic>.from(raw as Map));
+      await _acknowledge(Map<String, dynamic>.from(raw as Map), persist: false);
     }
   }
 
-  Future<void> _acknowledge(Map<String, dynamic> message) async {
+  Future<void> _acknowledge(
+    Map<String, dynamic> message, {
+    bool persist = true,
+  }) async {
+    final generation = _historyGeneration;
+    if (persist && openHistory != null) {
+      await _ensureHistory();
+      await _historyBarrier;
+      if (_disposed || generation != _historyGeneration) return;
+      if (_membershipVersion == null) throw StateError('群成员状态尚未确认');
+      if (message['groupId'] != groupId) {
+        throw const FormatException('Wrong group message');
+      }
+      if (!await _history!.commit(
+        _historyKey,
+        [message],
+        expectedEpoch: _diskEpoch,
+        membershipVersion: _membershipVersion,
+        hiddenThrough: _visibleAfter,
+      )) {
+        throw StateError('群历史状态已变化');
+      }
+      if (_disposed || generation != _historyGeneration) return;
+    }
     if (message['groupId'] != groupId) {
       throw const FormatException('Wrong group message');
     }
@@ -278,6 +382,7 @@ class GroupChatController extends ChatSessionController {
     final message = <String, dynamic>{
       'clientMessageId': id,
       'groupId': groupId,
+      if (_membershipVersion != null) 'membershipVersion': _membershipVersion,
       'sender': repository.account,
       'text': text,
       'createdDate': DateTime.now().toUtc().toIso8601String(),
@@ -304,6 +409,7 @@ class GroupChatController extends ChatSessionController {
     final message = <String, dynamic>{
       'clientMessageId': id,
       'groupId': groupId,
+      if (_membershipVersion != null) 'membershipVersion': _membershipVersion,
       'sender': repository.account,
       'messageType': 'image',
       'imageAssetId': assetId,
@@ -330,6 +436,7 @@ class GroupChatController extends ChatSessionController {
     final message = <String, dynamic>{
       'clientMessageId': id,
       'groupId': groupId,
+      if (_membershipVersion != null) 'membershipVersion': _membershipVersion,
       'sender': repository.account,
       'messageType': 'location',
       'location': location.toJson(),
@@ -363,6 +470,7 @@ class GroupChatController extends ChatSessionController {
     final message = <String, dynamic>{
       'clientMessageId': id,
       'groupId': groupId,
+      if (_membershipVersion != null) 'membershipVersion': _membershipVersion,
       'sender': repository.account,
       'messageType': 'voice',
       'voiceAssetId': assetId,
@@ -392,11 +500,21 @@ class GroupChatController extends ChatSessionController {
 
   @override
   Future<void> retry(String id) async {
+    final historyGeneration = _historyGeneration;
     final pending = _pending[id];
     if (pending == null || _disposed || !_sending.add(id)) return;
     _pending[id] = {...pending, 'status': 'sending'};
     _changed();
     try {
+      if (openHistory != null &&
+              pending['membershipVersion'] != _membershipVersion ||
+          pending['membershipVersion'] != null &&
+              pending['membershipVersion'] != _membershipVersion) {
+        throw const AuthFailure(
+          'CHAT_GROUP_MEMBERSHIP_CONFLICT',
+          '群成员状态已变化，请重新确认后发送',
+        );
+      }
       final kind = pending['messageType'];
       if (kind != null &&
           kind != 'text' &&
@@ -457,6 +575,7 @@ class GroupChatController extends ChatSessionController {
                   received['imageAssetId'] != pending['imageAssetId']))) {
         throw const FormatException('消息回执与发送内容不符');
       }
+      if (historyGeneration != _historyGeneration) return;
       await _acknowledge(received);
       error = null;
     } catch (e) {
@@ -502,6 +621,15 @@ class GroupChatController extends ChatSessionController {
     _memberNames.clear();
     _membersLoaded = false;
     _historyGeneration++;
+    if (openHistory != null) {
+      _historyBarrier = (_historyBarrier ?? _ensureHistory()).then((_) async {
+        if (_history != null) _diskEpoch = await _history!.clear(_historyKey);
+      });
+      _historyBarrier!.catchError((Object e) {
+        error = e.toString();
+        _changed();
+      });
+    }
     _syncing = null;
     _syncAgain = false;
     hasAccess = false;

@@ -14,9 +14,11 @@ class ChatHistoryPage {
     this.cursor,
     this.epoch, [
     this.hiddenThrough = 0,
+    this.membershipVersion,
   ]);
   final List<Map<String, dynamic>> messages;
   final int cursor, epoch, hiddenThrough;
+  final int? membershipVersion;
 }
 
 /// Message payloads are AES-256-GCM encrypted. Sequence/index metadata is not.
@@ -78,17 +80,22 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 3,
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 2) {
             await db.execute(
               'ALTER TABLE conversation ADD COLUMN hiddenThrough INTEGER NOT NULL DEFAULT 0',
             );
           }
+          if (oldVersion < 3) {
+            await db.execute(
+              'ALTER TABLE conversation ADD COLUMN membershipVersion INTEGER',
+            );
+          }
         },
         onCreate: (db, _) async {
           await db.execute(
-            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0)',
+            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER)',
           );
           await db.execute(
             'CREATE TABLE message (conversation TEXT NOT NULL, sequence INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(conversation, sequence))',
@@ -198,6 +205,7 @@ class ChatHistoryStore {
         state.isEmpty ? 0 : state.single['cursor'] as int,
         state.isEmpty ? 0 : state.single['epoch'] as int,
         state.isEmpty ? 0 : state.single['hiddenThrough'] as int,
+        state.isEmpty ? null : state.single['membershipVersion'] as int?,
       );
     });
   }
@@ -209,8 +217,10 @@ class ChatHistoryStore {
     required int expectedEpoch,
     int? cursor,
     int hiddenThrough = 0,
+    int? membershipVersion,
   }) async {
-    if (expectedEpoch < 0 ||
+    if ((membershipVersion != null && membershipVersion < 0) ||
+        expectedEpoch < 0 ||
         hiddenThrough < 0 ||
         (cursor != null && cursor < 0)) {
       throw ArgumentError('Invalid history cursor');
@@ -241,6 +251,11 @@ class ChatHistoryStore {
         whereArgs: [id],
       )).single;
       if (state['epoch'] != expectedEpoch) return false;
+      final savedVersion = state['membershipVersion'] as int?;
+      if (savedVersion != null &&
+          (membershipVersion == null || membershipVersion < savedVersion)) {
+        return false;
+      }
       final savedHidden = state['hiddenThrough'] as int;
       final floor = hiddenThrough > savedHidden ? hiddenThrough : savedHidden;
       final batch = tx.batch();
@@ -251,7 +266,7 @@ class ChatHistoryStore {
       );
       batch.update(
         'conversation',
-        {'hiddenThrough': floor},
+        {'hiddenThrough': floor, 'membershipVersion': ?membershipVersion},
         where: 'id=?',
         whereArgs: [id],
       );
