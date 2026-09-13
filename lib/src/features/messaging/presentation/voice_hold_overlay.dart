@@ -149,8 +149,8 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                                 child: Center(
                                   child: SvgPicture.asset(
                                     'assets/legacy/messaging/microphone.svg',
-                                    width: 30,
-                                    height: 30,
+                                    width: 24,
+                                    height: 24,
                                     colorFilter: const ColorFilter.mode(
                                       Color(0xFF624326),
                                       BlendMode.srcIn,

@@ -578,6 +578,8 @@ class _DirectChatPageState extends State<DirectChatPage>
                                                 '按住 说话',
                                                 style: legacyChatBodyTextStyle
                                                     .copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
                                                       color: const Color(
                                                         0xFF312C27,
                                                       ),
