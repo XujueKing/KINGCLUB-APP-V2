@@ -3,6 +3,7 @@ import '../../messaging/presentation/legacy_messaging_components.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../core/design_system/king_theme.dart';
 
@@ -60,6 +61,9 @@ class ContactsPage extends StatefulWidget {
 
 class _ContactsPageState extends State<ContactsPage> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
+  final _sectionKeys = <String, GlobalKey>{};
+  int _indexRequest = 0;
   Timer? _searchDebounce;
   late ContactsDemoState _state;
   String _query = '';
@@ -178,6 +182,8 @@ class _ContactsPageState extends State<ContactsPage> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _indexRequest++;
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -251,6 +257,7 @@ class _ContactsPageState extends State<ContactsPage> {
           color: KingColors.onBrand,
           backgroundColor: KingColors.brand,
           child: CustomScrollView(
+            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
@@ -304,32 +311,53 @@ class _ContactsPageState extends State<ContactsPage> {
         ),
         if (!hideIndex && _state != ContactsDemoState.empty && _query.isEmpty)
           Positioned(
-            right: 5,
-            top: 258,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: const DefaultTextStyle(
-                style: TextStyle(fontSize: 11, color: Color(0x80C9B69E)),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('A'),
-                    Text('C'),
-                    Text('L'),
-                    Text('S'),
-                    Text('Z'),
-                    Text('#'),
-                  ],
-                ),
-              ),
-            ),
+            right: 0,
+            top: 48,
+            bottom: 110,
+            child: _ContactAlphabetIndex(onSelect: _jumpToLetter),
           ),
       ],
     );
+  }
+
+  Future<void> _jumpToLetter(String letter) async {
+    final request = ++_indexRequest;
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#';
+    final sections = _visibleContacts.map((c) => c.section).toSet().toList();
+    if (sections.isEmpty || !_scrollController.hasClients) return;
+    final target = sections.firstWhere(
+      (s) => alphabet.indexOf(s) >= alphabet.indexOf(letter),
+      orElse: () => sections.last,
+    );
+    // Seek lazily built sections without assuming row heights or font metrics.
+    while (mounted &&
+        request == _indexRequest &&
+        _scrollController.hasClients) {
+      final sectionContext = _sectionKeys[target]?.currentContext;
+      final render = sectionContext?.findRenderObject();
+      if (render != null && render.attached) {
+        final viewport = RenderAbstractViewport.of(render);
+        final offset = viewport.getOffsetToReveal(render, 0).offset;
+        _scrollController.jumpTo(
+          offset.clamp(0, _scrollController.position.maxScrollExtent),
+        );
+        return;
+      }
+      final built = sections
+          .where((s) => _sectionKeys[s]?.currentContext != null)
+          .toList();
+      final backwards =
+          built.isNotEmpty &&
+          sections.indexOf(target) < sections.indexOf(built.first);
+      final position = _scrollController.position;
+      final next =
+          (position.pixels +
+                  (backwards ? -1 : 1) * position.viewportDimension * .7)
+              .clamp(0.0, position.maxScrollExtent);
+      if ((next - position.pixels).abs() < .5) return;
+      _scrollController.jumpTo(next);
+      await WidgetsBinding.instance.endOfFrame;
+    }
   }
 
   Widget _quickActions(BuildContext context) => _ContactRow(
@@ -388,6 +416,7 @@ class _ContactsPageState extends State<ContactsPage> {
       result.add(
         SliverToBoxAdapter(
           child: Padding(
+            key: _sectionKeys.putIfAbsent(entry.key, () => GlobalKey()),
             padding: EdgeInsets.fromLTRB(
               40 * MediaQuery.sizeOf(context).width / 750,
               12,
@@ -718,4 +747,120 @@ class _FakeContact {
   final String? remark;
   final String initial;
   final bool verified;
+}
+
+class _ContactAlphabetIndex extends StatefulWidget {
+  const _ContactAlphabetIndex({required this.onSelect});
+  final ValueChanged<String> onSelect;
+  @override
+  State<_ContactAlphabetIndex> createState() => _ContactAlphabetIndexState();
+}
+
+class _ContactAlphabetIndexState extends State<_ContactAlphabetIndex> {
+  static const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#';
+  int? _active;
+  void _select(double y, double height) {
+    final index = (y / (height / letters.length)).floor().clamp(
+      0,
+      letters.length - 1,
+    );
+    if (_active == index) return;
+    setState(() => _active = index);
+    widget.onSelect(letters[index]);
+  }
+
+  void _clear() => setState(() => _active = null);
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 36,
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final height = constraints.maxHeight;
+        final cell = height / letters.length;
+        return GestureDetector(
+          key: const ValueKey('contacts-alphabet-index'),
+          behavior: HitTestBehavior.opaque,
+          onVerticalDragStart: (d) => _select(d.localPosition.dy, height),
+          onVerticalDragUpdate: (d) => _select(d.localPosition.dy, height),
+          onVerticalDragEnd: (_) => _clear(),
+          onVerticalDragCancel: _clear,
+          onTapDown: (d) => _select(d.localPosition.dy, height),
+          onTapUp: (_) => _clear(),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Column(
+                children: [
+                  for (var i = 0; i < letters.length; i++)
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          letters[i],
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _active == i
+                                ? legacyMessageGold
+                                : const Color(0xA6C9B69E),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              if (_active != null)
+                Positioned(
+                  right: 44,
+                  top: ((_active! + .5) * cell - 28).clamp(
+                    0.0,
+                    (height - 56).clamp(0.0, double.infinity),
+                  ),
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: _AlphabetBubblePainter(),
+                      child: SizedBox(
+                        width: 64,
+                        height: 56,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Center(
+                            child: Text(
+                              letters[_active!],
+                              key: const ValueKey('contacts-index-bubble'),
+                              style: const TextStyle(
+                                fontSize: 26,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _AlphabetBubblePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = const Color(0xFFA6A6A6);
+    canvas.drawCircle(const Offset(28, 28), 28, paint);
+    canvas.drawPath(
+      Path()
+        ..moveTo(52, 21)
+        ..lineTo(64, 28)
+        ..lineTo(52, 35)
+        ..close(),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _AlphabetBubblePainter oldDelegate) => false;
 }

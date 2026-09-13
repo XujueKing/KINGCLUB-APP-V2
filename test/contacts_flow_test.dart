@@ -30,6 +30,42 @@ Widget _app(
 }
 
 void main() {
+  testWidgets('alphabet drag shows bubble, scrolls, and clears on release', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_app(ContactsDemoState.ready));
+    final rail = find.byKey(const ValueKey('contacts-alphabet-index'));
+    final rect = tester.getRect(rail);
+    final gesture = await tester.startGesture(
+      Offset(rect.center.dx, rect.top + rect.height * 5.5 / 27),
+    );
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('contacts-index-bubble')))
+          .data,
+      'F',
+    );
+    await gesture.moveTo(
+      Offset(rect.center.dx, rect.top + rect.height * 25.5 / 27),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('contacts-index-bubble')))
+          .data,
+      'Z',
+    );
+    expect(find.text('周末组局官').hitTestable(), findsOneWidget);
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('contacts-index-bubble')), findsNothing);
+  });
+
   testWidgets('ready contacts expose every approved exit', (tester) async {
     tester.view.physicalSize = const Size(393, 852);
     tester.view.devicePixelRatio = 1;
