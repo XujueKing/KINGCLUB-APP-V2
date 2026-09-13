@@ -1,3 +1,4 @@
+import '../data/chat_voice_playback.dart';
 import '../data/voice_draft_sender.dart';
 import '../../../core/design_system/king_components.dart';
 import 'chat_image_view.dart';
@@ -175,6 +176,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   Offset? _voiceStart;
 
   void _beginVoiceHold(PointerDownEvent details) {
+    _voicePlayback?.stop();
     if (_readOnly) return;
     _capture ??= widget.voiceCapture ?? VoiceCapture.native();
     if (!_capture!.begin(onLimit: _endVoiceHold)) return;
@@ -205,7 +207,67 @@ class _DirectChatPageState extends State<DirectChatPage>
     _finishRecording(interrupted || target == VoiceHoldTarget.cancel, target);
   }
 
+  Widget _voiceBubble(_FakeMessage message) {
+    final playback = _voicePlayback ??= ChatVoicePlayback();
+    return AnimatedBuilder(
+      animation: playback,
+      builder: (context, _) {
+        final active =
+            message.messageId != null && playback.activeId == message.messageId;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: message.messageId == null || _chat == null
+              ? null
+              : () async {
+                  await playback.toggle(
+                    _chat!.messaging,
+                    message.messageId!,
+                    group: widget.groupId != null,
+                  );
+                  if (context.mounted && playback.error != null) {
+                    KingNotice.of(context).show(playback.error!);
+                  }
+                },
+          child: SizedBox(
+            width: (74 + (message.voiceDurationMs! / 1000) * 2)
+                .clamp(76, 190)
+                .toDouble(),
+            child: Row(
+              mainAxisAlignment: message.mine
+                  ? MainAxisAlignment.end
+                  : MainAxisAlignment.start,
+              children: [
+                Icon(
+                  active
+                      ? (playback.loading
+                            ? Icons.more_horiz
+                            : Icons.stop_rounded)
+                      : Icons.volume_up_rounded,
+                  size: 22,
+                  color: message.mine
+                      ? const Color(0xFF174A2C)
+                      : const Color(0xFFC9B69E),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${(message.voiceDurationMs! / 1000).ceil()}″',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: message.mine
+                        ? const Color(0xFF111111)
+                        : const Color(0xFFC9B69E),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   final _voiceSender = VoiceDraftSender();
+  ChatVoicePlayback? _voicePlayback;
 
   Future<void> _finishRecording(bool cancel, VoiceHoldTarget target) async {
     final session = _voiceSession;
@@ -359,6 +421,9 @@ class _DirectChatPageState extends State<DirectChatPage>
             (message) => _FakeMessage(
               message['text'] as String,
               messageId: message['messageId'] as String?,
+              voiceDurationMs: message['messageType'] == 'voice'
+                  ? message['voiceDurationMs'] as int?
+                  : null,
               kind: message['messageType'] == 'image'
                   ? _FakeMessageKind.image
                   : _FakeMessageKind.text,
@@ -429,6 +494,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     _chatEvents?.cancel();
     _sessionEvents?.cancel();
     _voiceSender.dispose();
+    _voicePlayback?.dispose();
     _chat?.removeListener(_realChatChanged);
     _chat?.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -521,9 +587,10 @@ class _DirectChatPageState extends State<DirectChatPage>
                           : ValueKey(message.clientMessageId),
                       child: _MessageRow(
                         message: message,
-                        imageContent:
-                            _realTarget != null &&
-                                message.kind == _FakeMessageKind.image
+                        imageContent: message.voiceDurationMs != null
+                            ? _voiceBubble(message)
+                            : _realTarget != null &&
+                                  message.kind == _FakeMessageKind.image
                             ? message.messageId == null || _chat == null
                                   ? const SizedBox(
                                       width: 142,
@@ -539,6 +606,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                         onAvatarTap: _realTarget == null
                             ? null
                             : () {
+                                _voicePlayback?.stop();
                                 Navigator.of(context).push<void>(
                                   MaterialPageRoute(
                                     builder: (_) => PublicMemberPage(
@@ -1451,6 +1519,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       }
       final bytes = await file.readAsBytes();
       if (!mounted || !identical(chat, _chat)) return;
+      _voicePlayback?.stop();
       await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => ChatImageSendPage(bytes: bytes, chat: chat),
@@ -1663,6 +1732,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     if (widget.groupId != null) {
       final repository = _chat?.messaging;
       if (repository == null) return;
+      _voicePlayback?.stop();
       final departed = await Navigator.of(context).push<bool>(
         MaterialPageRoute<bool>(
           builder: (_) => GroupDetailsPage(
@@ -1683,6 +1753,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       }
       return;
     }
+    _voicePlayback?.stop();
     final cleared = await Navigator.push<bool>(
       context,
       MaterialPageRoute<bool>(
@@ -1780,6 +1851,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       case _FakeMessageAction.quote:
         setState(() => _quotedDraft = _messagePreview(message));
       case _FakeMessageAction.forward:
+        _voicePlayback?.stop();
         await Navigator.push<bool>(
           context,
           MaterialPageRoute<bool>(
@@ -1859,6 +1931,7 @@ class _DirectChatPageState extends State<DirectChatPage>
           message.kind != _FakeMessageKind.image) {
         return;
       }
+      _voicePlayback?.stop();
       await Navigator.of(context).push<void>(
         MaterialPageRoute(
           builder: (_) => Scaffold(
@@ -2376,6 +2449,7 @@ class _FakeMessage {
     this.quoted,
     this.clientMessageId,
     this.messageId,
+    this.voiceDurationMs,
     this.senderAccount,
     this.senderName,
     this.createdDate,
@@ -2387,6 +2461,7 @@ class _FakeMessage {
 
   final String? clientMessageId;
   final String? messageId;
+  final int? voiceDurationMs;
   final String? senderAccount;
   final String? senderName;
   final String? createdDate;
@@ -2405,6 +2480,7 @@ class _FakeMessage {
     text,
     clientMessageId: clientMessageId,
     messageId: messageId,
+    voiceDurationMs: voiceDurationMs,
     senderAccount: senderAccount,
     senderName: senderName,
     createdDate: createdDate,

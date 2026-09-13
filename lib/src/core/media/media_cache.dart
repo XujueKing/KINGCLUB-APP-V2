@@ -5,7 +5,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 
-enum MediaKind { image, video }
+enum MediaKind { image, video, audio }
 
 /// Persistent, bounded media cache. URLs (including signed query strings) are
 /// never written to disk. Private media must use an account-specific scope.
@@ -15,6 +15,7 @@ class MediaCache {
     Dio? dio,
     this.imageBudget = 200 * 1024 * 1024,
     this.videoBudget = 800 * 1024 * 1024,
+    this.audioBudget = 100 * 1024 * 1024,
   }) : _directory =
            directory ??
            (() async => Directory(
@@ -31,7 +32,7 @@ class MediaCache {
   static final shared = MediaCache();
   final Future<Directory> Function() _directory;
   final Dio _dio;
-  final int imageBudget, videoBudget;
+  final int imageBudget, videoBudget, audioBudget;
   final Map<String, Future<File>> _pending = {};
   final Set<CancelToken> _downloads = {};
   int _generation = 0;
@@ -72,7 +73,11 @@ class MediaCache {
       '${root.path}/${scope == 'public' ? 'public' : 'private'}/${await _hash(scope)}/${kind.name}',
     );
     await dir.create(recursive: true);
-    final extension = kind == MediaKind.video ? '.mp4' : '.media';
+    final extension = switch (kind) {
+      MediaKind.video => '.mp4',
+      MediaKind.audio => '.m4a',
+      MediaKind.image => '.media',
+    };
     final file = File('${dir.path}/$key$extension');
     if (await file.exists() && await file.length() > 0) {
       await file.setLastModified(DateTime.now());
@@ -81,7 +86,9 @@ class MediaCache {
     final temp = File('${file.path}.part');
     final cancel = CancelToken();
     _downloads.add(cancel);
-    final limit = kind == MediaKind.image
+    final limit = kind == MediaKind.audio
+        ? 512 * 1024
+        : kind == MediaKind.image
         ? 20 * 1024 * 1024
         : 200 * 1024 * 1024;
     try {
@@ -124,7 +131,11 @@ class MediaCache {
       entries.add((file, stat));
     }
     entries.sort((a, b) => a.$2.modified.compareTo(b.$2.modified));
-    final budget = kind == MediaKind.image ? imageBudget : videoBudget;
+    final budget = switch (kind) {
+      MediaKind.image => imageBudget,
+      MediaKind.video => videoBudget,
+      MediaKind.audio => audioBudget,
+    };
     for (final entry in entries) {
       if (bytes <= budget) break;
       if (entry.$1.path == except) continue;
