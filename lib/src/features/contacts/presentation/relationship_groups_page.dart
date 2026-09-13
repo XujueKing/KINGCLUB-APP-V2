@@ -41,7 +41,7 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
   late List<ContactGroup> _groups = widget.repository == null
       ? List.of(widget.groups)
       : [];
-  bool _ready = false, _sessionInvalid = false;
+  bool _ready = false, _sessionInvalid = false, _cleaning = false;
   String? _loadError;
   int _generation = 0;
   StreamSubscription<void>? _session;
@@ -113,6 +113,95 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
     _update(saved);
   }
 
+  Future<void> _cleanUnavailableMembers() async {
+    if (!_ready || _sessionInvalid || _cleaning || widget.repository == null) {
+      return;
+    }
+    final generation = _generation;
+    setState(() => _cleaning = true);
+    try {
+      final allowed = <String>{};
+      var offset = 0;
+      while (true) {
+        final result = await widget.repository!.messaging.call(
+          'K260913000608',
+          {'offset': offset, 'limit': 100},
+        );
+        if (!mounted || generation != _generation || _sessionInvalid) return;
+        final items = result['items'] as List;
+        for (final item in items) {
+          allowed.add((item as Map)['peer'] as String);
+        }
+        if (result['hasMore'] != true) break;
+        if (items.isEmpty || offset >= 100000) throw StateError('通讯录分页无效');
+        offset += items.length;
+      }
+      final cleaned = _groups
+          .map(
+            (group) => ContactGroup(
+              group.id,
+              group.name,
+              group.icon,
+              group.members.intersection(allowed),
+            ),
+          )
+          .toList();
+      final removed =
+          _groups.fold<int>(0, (count, group) => count + group.members.length) -
+          cleaned.fold<int>(0, (count, group) => count + group.members.length);
+      if (removed == 0) {
+        setState(() => _loadError = '没有需要清理的失效成员');
+        return;
+      }
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('清理失效成员'),
+          content: Text('将 $removed 位已不在通讯录中的成员移出关系分组。分组和聊天记录会保留。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('确认清理'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted ||
+          confirmed != true ||
+          generation != _generation ||
+          _sessionInvalid) {
+        return;
+      }
+      final saved = await widget.repository!.save(cleaned);
+      if (!mounted || generation != _generation || _sessionInvalid) return;
+      _update(saved);
+      setState(() => _loadError = null);
+    } catch (error) {
+      if (mounted && !_sessionInvalid) {
+        setState(() => _loadError = '清理失败，请刷新分组后重试');
+      }
+    } finally {
+      if (mounted) setState(() => _cleaning = false);
+    }
+  }
+
+  Future<void> _deleteGroup(ContactGroup group) async {
+    if (!_ready || _sessionInvalid) throw StateError('请重新读取关系分组');
+    final generation = _generation;
+    final remaining = _groups.where((item) => item.id != group.id).toList();
+    final saved = widget.repository == null
+        ? remaining
+        : await widget.repository!.save(remaining);
+    if (!mounted || _sessionInvalid || generation != _generation) {
+      throw StateError('登录或分组状态已变化');
+    }
+    _update(saved);
+  }
+
   void _update(List<ContactGroup> groups) {
     setState(() => _groups = groups);
     widget.onChanged(List.of(groups));
@@ -126,6 +215,7 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
           contacts: widget.contacts,
           onSave: widget.repository == null ? null : _saveReal,
           onReload: widget.repository == null ? null : _load,
+          onDelete: group == null ? null : () => _deleteGroup(group),
         ),
       ),
     );
@@ -156,13 +246,18 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
             onBack: () => Navigator.pop(context),
             trailing: IconButton(
               tooltip: '新建分组',
-              onPressed: _ready ? () => _edit(null) : null,
+              onPressed: _ready && !_cleaning ? () => _edit(null) : null,
               icon: const Icon(Icons.add, color: legacyMessageGold),
             ),
           ),
           Expanded(
             child: ListView(
               children: [
+                if (widget.repository != null && _ready)
+                  TextButton(
+                    onPressed: _cleaning ? null : _cleanUnavailableMembers,
+                    child: const Text('清理失效成员'),
+                  ),
                 if (_loadError != null)
                   TextButton(
                     onPressed: _sessionInvalid ? null : _load,
@@ -180,7 +275,7 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
                   Column(
                     children: [
                       ListTile(
-                        onTap: _ready ? () => _edit(group) : null,
+                        onTap: _ready && !_cleaning ? () => _edit(group) : null,
                         leading: Icon(
                           relationshipIcons[group.icon],
                           color: legacyMessageGold,
@@ -221,9 +316,11 @@ class _GroupEditor extends StatefulWidget {
     required this.contacts,
     this.onSave,
     this.onReload,
+    this.onDelete,
   });
   final Future<void> Function(ContactGroup)? onSave;
   final Future<void> Function()? onReload;
+  final Future<void> Function()? onDelete;
   final ContactGroup? group;
   final Map<String, String> contacts;
   @override
@@ -260,6 +357,40 @@ class _GroupEditorState extends State<_GroupEditor> {
     _session?.cancel();
     _name.dispose();
     super.dispose();
+  }
+
+  Future<void> _delete() async {
+    if (_saving || _expired || widget.onDelete == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除分组'),
+        content: const Text('仅删除这个关系分组，好友和聊天记录会保留。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('确认删除'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true || _expired) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.onDelete!();
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _save() async {
@@ -334,6 +465,14 @@ class _GroupEditorState extends State<_GroupEditor> {
                             }
                           },
                     child: const Text('刷新分组并保留编辑'),
+                  ),
+                if (widget.onDelete != null)
+                  TextButton(
+                    onPressed: _saving || _expired ? null : _delete,
+                    child: const Text(
+                      '删除分组',
+                      style: TextStyle(color: Color(0xFFFF7373)),
+                    ),
                   ),
                 const SizedBox(height: 20),
                 const Text(
