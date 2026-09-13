@@ -1,18 +1,20 @@
 import 'dart:convert';
 
-import 'package:uuid/uuid.dart';
+import 'group_request_store.dart';
 
 import 'messaging_repository.dart';
 
 /// Uses the authenticated account-bound client, never a caller supplied owner.
 class GroupChatRepository {
-  GroupChatRepository(this.messaging);
+  GroupChatRepository(this.messaging, {GroupRequestStore? requestStore})
+    : _requestStore = requestStore ?? GroupRequestStore(messaging.account);
+  final GroupRequestStore _requestStore;
   final MessagingRepository messaging;
   String get account => messaging.account;
-  String? _createFingerprint, _createRequestId;
+  String? _createRequestId;
   bool _creating = false;
   bool _transferring = false;
-  String? _transferFingerprint, _transferRequestId;
+  String? _transferRequestId;
 
   Future<Map<String, dynamic>> create({
     required String name,
@@ -28,13 +30,14 @@ class GroupChatRepository {
         selected.contains(account)) {
       throw ArgumentError('请选择1至199位好友，并填写群名称');
     }
-    final fingerprint = jsonEncode({'name': name, 'members': selected});
-    if (_createFingerprint != fingerprint) {
-      _createFingerprint = fingerprint;
-      _createRequestId = const Uuid().v4();
-    }
+    final fingerprint = jsonEncode({
+      'operation': 'create',
+      'name': name,
+      'members': selected,
+    });
     _creating = true;
     try {
+      _createRequestId = await _requestStore.identity(fingerprint);
       final result = await messaging.call('K260913000617', {
         'requestId': _createRequestId,
         'name': name,
@@ -44,7 +47,7 @@ class GroupChatRepository {
           (result['groupId'] as String).isEmpty) {
         throw const FormatException('Invalid group acknowledgement');
       }
-      _createFingerprint = null;
+      await _requestStore.acknowledge(fingerprint, _createRequestId!);
       _createRequestId = null;
       return result;
     } finally {
@@ -120,13 +123,15 @@ class GroupChatRepository {
   ) async {
     if (_transferring) throw StateError('正在转让群主');
     if (target.isEmpty || target == account) throw ArgumentError('请选择其他群成员');
-    final fingerprint = jsonEncode([groupId, target, expectedVersion]);
-    if (_transferFingerprint != fingerprint) {
-      _transferFingerprint = fingerprint;
-      _transferRequestId = const Uuid().v4();
-    }
+    final fingerprint = jsonEncode([
+      'transfer',
+      groupId,
+      target,
+      expectedVersion,
+    ]);
     _transferring = true;
     try {
+      _transferRequestId = await _requestStore.identity(fingerprint);
       final result = await messaging.call('K260913000626', {
         'groupId': groupId,
         'target': target,
@@ -138,7 +143,7 @@ class GroupChatRepository {
           result['metadataVersion'] is! num) {
         throw const FormatException('转让结果无效');
       }
-      _transferFingerprint = null;
+      await _requestStore.acknowledge(fingerprint, _transferRequestId!);
       _transferRequestId = null;
       return result;
     } finally {

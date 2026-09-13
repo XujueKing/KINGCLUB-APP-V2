@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/group_chat_repository.dart';
@@ -13,6 +15,7 @@ void main() {
   testWidgets(
     'real selected friends create a group only after acknowledgement and send through group API',
     (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
       final created = Completer<Map<String, dynamic>>();
       final queue = Queue();
       Map<String, dynamic>? createRequest, sendRequest;
@@ -75,6 +78,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('创建（1）'));
       await tester.pump();
+      await tester.pumpAndSettle();
       expect(createRequest!['members'], ['actual-peer']);
       expect(find.byType(DirectChatPage), findsNothing);
       created.complete({'groupId': 'actual-group'});

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
@@ -38,6 +40,8 @@ Map<String, dynamic> message(String id) => {
   'createdDate': '2026-09-13T01:00:00Z',
 };
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  FlutterSecureStorage.setMockInitialValues({});
   test(
     'reconnect rejects in-flight stale names while retaining messages',
     () async {
