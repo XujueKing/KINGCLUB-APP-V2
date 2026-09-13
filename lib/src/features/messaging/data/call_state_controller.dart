@@ -49,6 +49,15 @@ class CallStateController extends ChangeNotifier {
   Object? get error => _error;
   CallMediaSession? _media;
   CallMediaSession? get media => _media;
+  bool get isClosed => _closed;
+  bool get isEnding => _ending;
+  bool get needsAccept =>
+      !_closed &&
+      !_ending &&
+      !_captureAuthorized &&
+      _call.callee == repository.messaging.account;
+  RTCPeerConnectionState? _connectionState;
+  RTCPeerConnectionState? get connectionState => _connectionState;
   Timer? _timer;
   Future<void> _tail = Future.value();
   Future<void>? _refreshing, _closing;
@@ -173,6 +182,8 @@ class CallStateController extends ChangeNotifier {
 
   void _onConnection(RTCPeerConnectionState state) {
     if (_closed || _ending) return;
+    _connectionState = state;
+    _notify();
     if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
       _connected = true;
       unawaited(refresh().catchError((Object _) {}));
@@ -249,9 +260,11 @@ class CallStateController extends ChangeNotifier {
   }
 
   Future<void> close() {
+    final wasClosed = _closed;
     _closed = true;
     _timer?.cancel();
     _timer = null;
+    if (!wasClosed) _notify();
     return _closing ??= _close();
   }
 
