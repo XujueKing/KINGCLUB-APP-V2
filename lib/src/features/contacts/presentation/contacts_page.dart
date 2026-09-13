@@ -44,7 +44,7 @@ class ContactsPage extends StatefulWidget {
     this.onOpenChat,
     this.onScan,
     this.onPersonalQr,
-    this.initialState = ContactsDemoState.initialLoading,
+    this.initialState = ContactsDemoState.ready,
     this.onSessionResetRequested,
   });
 
@@ -104,8 +104,6 @@ class _ContactsPageState extends State<ContactsPage> {
   }
 
   Future<void> _loadFirst() async {
-    setState(() => _state = ContactsDemoState.initialLoading);
-    await Future<void>.delayed(const Duration(milliseconds: 550));
     if (!mounted || !widget.active) return;
     setState(() {
       _loadedOnce = true;
@@ -140,7 +138,6 @@ class _ContactsPageState extends State<ContactsPage> {
   Future<void> _refresh() async {
     if (_refreshing) return;
     setState(() => _refreshing = true);
-    await Future<void>.delayed(const Duration(milliseconds: 550));
     if (!mounted) return;
     setState(() {
       _refreshing = false;
@@ -279,10 +276,10 @@ class _ContactsPageState extends State<ContactsPage> {
                     _ContactRow(
                       title: '我的关系',
                       leading: const ColoredBox(
-                        color: legacyMessagePanel,
+                        color: Color(0xFFAD8B55),
                         child: Icon(
                           Icons.people_alt_outlined,
-                          color: legacyMessageGold,
+                          color: Colors.white,
                           size: 25,
                         ),
                       ),
@@ -621,12 +618,12 @@ class _ContactRow extends StatelessWidget {
                           ],
                         ),
                         if (subtitle != null) ...[
-                          SizedBox(height: 5 * r),
+                          SizedBox(height: 2 * r),
                           Text(
                             subtitle!,
                             style: TextStyle(
                               color: const Color(0x66FFFFFF),
-                              fontSize: 24 * r,
+                              fontSize: 22 * r,
                             ),
                           ),
                         ],
@@ -844,70 +841,77 @@ class _ContactAlphabetIndexState extends State<_ContactAlphabetIndex> {
     width: 36,
     child: LayoutBuilder(
       builder: (context, constraints) {
-        final height = constraints.maxHeight;
+        final height = constraints.maxHeight.clamp(0.0, 432.0);
         final cell = height / letters.length;
-        return GestureDetector(
-          key: const ValueKey('contacts-alphabet-index'),
-          behavior: HitTestBehavior.opaque,
-          onVerticalDragStart: (d) => _select(d.localPosition.dy, height),
-          onVerticalDragUpdate: (d) => _select(d.localPosition.dy, height),
-          onVerticalDragEnd: (_) => _clear(),
-          onVerticalDragCancel: _clear,
-          onTapDown: (d) => _select(d.localPosition.dy, height),
-          onTapUp: (_) => _clear(),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Column(
+        return Align(
+          alignment: Alignment.centerRight,
+          child: SizedBox(
+            width: 36,
+            height: height,
+            child: GestureDetector(
+              key: const ValueKey('contacts-alphabet-index'),
+              behavior: HitTestBehavior.opaque,
+              onVerticalDragStart: (d) => _select(d.localPosition.dy, height),
+              onVerticalDragUpdate: (d) => _select(d.localPosition.dy, height),
+              onVerticalDragEnd: (_) => _clear(),
+              onVerticalDragCancel: _clear,
+              onTapDown: (d) => _select(d.localPosition.dy, height),
+              onTapUp: (_) => _clear(),
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  for (var i = 0; i < letters.length; i++)
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          letters[i],
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: _active == i
-                                ? legacyMessageGold
-                                : const Color(0xA6C9B69E),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              if (_active != null)
-                Positioned(
-                  right: 44,
-                  top: ((_active! + .5) * cell - 28).clamp(
-                    0.0,
-                    (height - 56).clamp(0.0, double.infinity),
-                  ),
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: _AlphabetBubblePainter(),
-                      child: SizedBox(
-                        width: 64,
-                        height: 56,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                  Column(
+                    children: [
+                      for (var i = 0; i < letters.length; i++)
+                        Expanded(
                           child: Center(
                             child: Text(
-                              letters[_active!],
-                              key: const ValueKey('contacts-index-bubble'),
-                              style: const TextStyle(
-                                fontSize: 26,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w400,
+                              letters[i],
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: _active == i
+                                    ? legacyMessageGold
+                                    : const Color(0xA6C9B69E),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (_active != null)
+                    Positioned(
+                      right: 44,
+                      top: ((_active! + .5) * cell - 28).clamp(
+                        0.0,
+                        (height - 56).clamp(0.0, double.infinity),
+                      ),
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                          painter: _AlphabetBubblePainter(),
+                          child: SizedBox(
+                            width: 64,
+                            height: 56,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Center(
+                                child: Text(
+                                  letters[_active!],
+                                  key: const ValueKey('contacts-index-bubble'),
+                                  style: const TextStyle(
+                                    fontSize: 26,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
         );
       },

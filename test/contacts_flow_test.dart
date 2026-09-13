@@ -30,6 +30,24 @@ Widget _app(
 }
 
 void main() {
+  testWidgets('first entry displays contacts without artificial loading', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: ContactsPage(active: true, onIntent: (_) {})),
+      ),
+    );
+    expect(find.text('新的朋友'), findsOneWidget);
+    expect(find.text('艾琳'), findsOneWidget);
+    expect(find.text('正在加载好友'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
   testWidgets('relationship group edit adds badge to selected contact', (
     tester,
   ) async {
