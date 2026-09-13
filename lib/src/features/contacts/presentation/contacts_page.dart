@@ -1,3 +1,4 @@
+import '../data/contact_groups_repository.dart';
 import '../data/contacts_controller.dart';
 import '../../messaging/data/messaging_repository.dart';
 import '../../../core/networking/kingclub_realtime.dart';
@@ -80,6 +81,7 @@ class _ContactsPageState extends State<ContactsPage> {
   bool _loadedOnce = false;
   bool _refreshing = false;
   ContactsController? _real;
+  ContactGroupsRepository? _groupRepository;
   StreamSubscription<void>? _sessions;
   StreamSubscription<Map<String, dynamic>>? _events;
   int _connectionGeneration = 0;
@@ -91,6 +93,8 @@ class _ContactsPageState extends State<ContactsPage> {
       if (!mounted || generation != _connectionGeneration) return;
       final controller = ContactsController(repository);
       _real = controller;
+      _groupRepository = ContactGroupsRepository(repository);
+      unawaited(_loadGroups());
       controller.addListener(() {
         if (!mounted) return;
         setState(() {
@@ -163,6 +167,8 @@ class _ContactsPageState extends State<ContactsPage> {
         _events?.cancel();
         _real?.dispose();
         _real = null;
+        _groupRepository = null;
+        _groups = [];
         if (mounted) {
           setState(() {
             _query = '';
@@ -474,14 +480,32 @@ class _ContactsPageState extends State<ContactsPage> {
     }
   }
 
+  Future<void> _loadGroups() async {
+    final generation = _connectionGeneration;
+    try {
+      final groups = await _groupRepository?.load();
+      if (mounted && generation == _connectionGeneration && groups != null) {
+        setState(() => _groups = groups);
+      }
+    } catch (_) {
+      /* The groups page exposes an explicit retry. */
+    }
+  }
+
   void _openRelationships() {
+    if (widget.realData &&
+        (_groupRepository == null || _real?.hasSnapshot != true)) {
+      return;
+    }
     Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => RelationshipGroupsPage(
           contacts: {
-            for (final c in _visibleContacts) c.ref: c.remark ?? c.nickname,
+            for (final c in (widget.realData ? _realContacts : _allContacts))
+              c.ref: c.remark ?? c.nickname,
           },
           groups: _groups,
+          repository: widget.realData ? _groupRepository : null,
           onChanged: (groups) {
             if (mounted) setState(() => _groups = groups);
           },
