@@ -15,10 +15,12 @@ class ChatHistoryPage {
     this.epoch, [
     this.hiddenThrough = 0,
     this.membershipVersion,
+    this.presentation,
   ]);
   final List<Map<String, dynamic>> messages;
   final int cursor, epoch, hiddenThrough;
   final int? membershipVersion;
+  final Map<String, dynamic>? presentation;
 }
 
 /// Message payloads are AES-256-GCM encrypted. Sequence/index metadata is not.
@@ -80,7 +82,7 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 4,
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 2) {
             await db.execute(
@@ -92,10 +94,15 @@ class ChatHistoryStore {
               'ALTER TABLE conversation ADD COLUMN membershipVersion INTEGER',
             );
           }
+          if (oldVersion < 4) {
+            await db.execute(
+              'ALTER TABLE conversation ADD COLUMN presentation BLOB',
+            );
+          }
         },
         onCreate: (db, _) async {
           await db.execute(
-            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER)',
+            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER, presentation BLOB)',
           );
           await db.execute(
             'CREATE TABLE message (conversation TEXT NOT NULL, sequence INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(conversation, sequence))',
@@ -200,12 +207,29 @@ class ChatHistoryStore {
           'status': 'sent',
         });
       }
+      Map<String, dynamic>? presentation;
+      final encoded = state.isEmpty ? null : state.single['presentation'];
+      if (encoded is List) {
+        final bytes = await _cipher.decrypt(
+          SecretBox.fromConcatenation(
+            encoded.cast<int>(),
+            nonceLength: 12,
+            macLength: 16,
+          ),
+          secretKey: _key,
+          aad: _aad(id, 0),
+        );
+        presentation = Map<String, dynamic>.from(
+          jsonDecode(utf8.decode(bytes)) as Map,
+        );
+      }
       return ChatHistoryPage(
         messages,
         state.isEmpty ? 0 : state.single['cursor'] as int,
         state.isEmpty ? 0 : state.single['epoch'] as int,
         state.isEmpty ? 0 : state.single['hiddenThrough'] as int,
         state.isEmpty ? null : state.single['membershipVersion'] as int?,
+        presentation,
       );
     });
   }
@@ -266,7 +290,11 @@ class ChatHistoryStore {
       );
       batch.update(
         'conversation',
-        {'hiddenThrough': floor, 'membershipVersion': ?membershipVersion},
+        {
+          'hiddenThrough': floor,
+          'membershipVersion': ?membershipVersion,
+          if (savedVersion != membershipVersion) 'presentation': null,
+        },
         where: 'id=?',
         whereArgs: [id],
       );
@@ -291,6 +319,43 @@ class ChatHistoryStore {
     });
   }
 
+  /// A presentation snapshot has no authority to allow sending or media reads.
+  Future<bool> saveGroupPresentation(
+    String conversation, {
+    required int expectedEpoch,
+    required int membershipVersion,
+    required String groupName,
+    required Map<String, String> memberNames,
+  }) async {
+    if (groupName.length > 100 ||
+        memberNames.length > 200 ||
+        expectedEpoch < 0 ||
+        membershipVersion < 0 ||
+        memberNames.entries.any(
+          (entry) =>
+              entry.key.isEmpty ||
+              entry.key.length > 64 ||
+              entry.value.length > 100,
+        )) {
+      throw const FormatException('Invalid group presentation');
+    }
+    final id = await _conversation(conversation);
+    final box = await _cipher.encrypt(
+      utf8.encode(
+        jsonEncode({'groupName': groupName, 'memberNames': memberNames}),
+      ),
+      secretKey: _key,
+      aad: _aad(id, 0),
+    );
+    return await _db.update(
+          'conversation',
+          {'presentation': box.concatenation()},
+          where: 'id=? AND epoch=? AND membershipVersion=?',
+          whereArgs: [id, expectedEpoch, membershipVersion],
+        ) ==
+        1;
+  }
+
   Future<int> clear(String conversation) async {
     final id = await _conversation(conversation);
     return _db.transaction((tx) async {
@@ -307,7 +372,7 @@ class ChatHistoryStore {
       await tx.delete('message', where: 'conversation=?', whereArgs: [id]);
       await tx.update(
         'conversation',
-        {'cursor': 0, 'epoch': epoch + 1},
+        {'cursor': 0, 'epoch': epoch + 1, 'presentation': null},
         where: 'id=?',
         whereArgs: [id],
       );

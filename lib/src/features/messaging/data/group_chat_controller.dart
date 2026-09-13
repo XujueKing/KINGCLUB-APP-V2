@@ -55,6 +55,13 @@ class GroupChatController extends ChatSessionController {
     if (_disposed || generation != _historyGeneration) return;
     _membershipVersion = page.membershipVersion;
     _visibleAfter = page.hiddenThrough;
+    final presentation = page.presentation;
+    if (presentation != null) {
+      _groupName = presentation['groupName'] as String?;
+      _memberNames.addAll(
+        Map<String, String>.from(presentation['memberNames'] as Map),
+      );
+    }
     if (page.membershipVersion == null) return;
     for (final message in page.messages) {
       if (message['groupId'] != groupId) {
@@ -213,13 +220,32 @@ class GroupChatController extends ChatSessionController {
           !hasAccess) {
         return;
       }
-      _groupName = result['groupName'] as String?;
-      _memberNames.clear();
+      final names = <String, String>{};
       for (final raw in result['members'] as List) {
         final member = raw as Map;
-        _memberNames[member['account'] as String] =
-            member['nickname'] as String;
+        names[member['account'] as String] = member['nickname'] as String;
       }
+      final name = result['groupName'] as String?;
+      if (_history != null && _membershipVersion != null) {
+        final saved = await _history!.saveGroupPresentation(
+          _historyKey,
+          expectedEpoch: _diskEpoch,
+          membershipVersion: _membershipVersion!,
+          groupName: name ?? '',
+          memberNames: names,
+        );
+        if (!saved) return;
+      }
+      if (_disposed ||
+          generation != _historyGeneration ||
+          memberGeneration != _memberGeneration ||
+          !hasAccess) {
+        return;
+      }
+      _groupName = name;
+      _memberNames
+        ..clear()
+        ..addAll(names);
       _membersLoaded = true;
       _changed();
     } catch (_) {
@@ -619,6 +645,7 @@ class GroupChatController extends ChatSessionController {
   void clearVisibleHistory() {
     _memberGeneration++;
     _memberNames.clear();
+    _groupName = null;
     _membersLoaded = false;
     _historyGeneration++;
     if (openHistory != null) {

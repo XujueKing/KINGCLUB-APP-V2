@@ -37,6 +37,94 @@ void main() {
       MessagingRepository(account: 'me', call: call),
     ),
   );
+  test('confirmed group and member names survive offline reopen and clear with access', () async {
+    final chat = controller((id, _) async {
+      if (id == 'K260913000619') {
+        return {
+          'groupName': 'Fixture group',
+          'members': [
+            {'account': 'me', 'nickname': 'Fixture name'},
+          ],
+        };
+      }
+      return {
+        ...history([row(1)]),
+        'membershipVersion': 0,
+        'joinedSequence': 0,
+        'settings': {'hiddenThrough': 0},
+      };
+    });
+    await chat.initialize();
+    expect(chat.messages.single['senderName'], 'Fixture name');
+    chat.dispose();
+    final offline = controller(
+      (_, _) async => throw const AuthFailure('NETWORK_ERROR', 'offline'),
+    );
+    await offline.initialize();
+    expect(offline.messages.single['senderName'], 'Fixture name');
+    expect(offline.settings['groupName'], 'Fixture group');
+    expect(offline.hasAccess, false);
+    offline.dispose();
+    final raw = String.fromCharCodes(
+      await File('${dir.path}/history.db').readAsBytes(),
+    );
+    expect(raw.contains('Fixture name'), false);
+    expect(raw.contains('Fixture group'), false);
+    final removed = controller(
+      (_, _) async =>
+          throw const AuthFailure('CHAT_GROUP_ACCESS_DENIED', 'removed'),
+    );
+    await removed.initialize();
+    expect(removed.settings['groupName'], null);
+    expect((await store.read('group:group')).presentation, null);
+    removed.dispose();
+  });
+  test('old member-name snapshots cannot overwrite a new membership or clear epoch', () async {
+    await store.commit(
+      'group:group',
+      [],
+      expectedEpoch: 0,
+      membershipVersion: 0,
+    );
+    expect(
+      await store.saveGroupPresentation(
+        'group:group',
+        expectedEpoch: 0,
+        membershipVersion: 0,
+        groupName: 'Old',
+        memberNames: {'me': 'Old name'},
+      ),
+      true,
+    );
+    await store.commit(
+      'group:group',
+      [],
+      expectedEpoch: 0,
+      membershipVersion: 1,
+    );
+    expect((await store.read('group:group')).presentation, null);
+    expect(
+      await store.saveGroupPresentation(
+        'group:group',
+        expectedEpoch: 0,
+        membershipVersion: 0,
+        groupName: 'Old',
+        memberNames: {'me': 'Old name'},
+      ),
+      false,
+    );
+    await store.clear('group:group');
+    expect(
+      await store.saveGroupPresentation(
+        'group:group',
+        expectedEpoch: 0,
+        membershipVersion: 1,
+        groupName: 'Late',
+        memberNames: {'me': 'Late name'},
+      ),
+      false,
+    );
+  });
   test(
     'offline group restores pages without granting current send permission',
     () async {
