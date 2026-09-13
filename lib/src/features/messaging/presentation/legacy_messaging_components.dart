@@ -241,21 +241,27 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
             hintStyle: const TextStyle(color: Color(0x80C9B69E), fontSize: 14),
             counterText: '',
             filled: true,
-            fillColor: const Color(0xFF191715),
+            fillColor: const Color(0xB3191715),
             isDense: true,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
               vertical: 0,
             ),
-            prefixIcon: Padding(
-              padding: const EdgeInsets.all(7),
-              child: SvgPicture.asset(
-                'assets/legacy/messaging/search.svg',
-                width: 26,
-                height: 26,
-                colorFilter: const ColorFilter.mode(
-                  Color(0x80C9B69E),
-                  BlendMode.srcIn,
+            prefixIcon: SizedBox(
+              width: 40,
+              height: 40,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Center(
+                  child: SvgPicture.asset(
+                    'assets/legacy/messaging/search.svg',
+                    width: 22,
+                    height: 22,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0x80C9B69E),
+                      BlendMode.srcIn,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -275,15 +281,15 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
                     ),
                   ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(6),
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(6),
               borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(6),
               borderSide: BorderSide.none,
             ),
           ),
