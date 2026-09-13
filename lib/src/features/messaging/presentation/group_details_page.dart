@@ -1,3 +1,4 @@
+import 'create_group_page.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 
 import 'dart:async';
@@ -449,6 +450,30 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     onTap: _invalid ? null : _load,
                   ),
                 if (_details != null) ...[
+                  ListTile(
+                    leading: const Icon(
+                      Icons.person_add_alt,
+                      color: Color(0xFFC9B69E),
+                    ),
+                    title: const Text(
+                      '邀请好友',
+                      style: TextStyle(color: Color(0xFFC9B69E), fontSize: 16),
+                    ),
+                    onTap: _saving || _invalid
+                        ? null
+                        : () async {
+                            await Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CreateGroupPage(
+                                  repository: widget.repository,
+                                  inviteGroupId: widget.groupId,
+                                ),
+                              ),
+                            );
+                            if (mounted && !_invalid) await _load();
+                          },
+                  ),
                   ListTile(
                     key: const ValueKey('group-name-row'),
                     onTap:

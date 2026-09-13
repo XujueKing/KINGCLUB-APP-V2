@@ -11,9 +11,15 @@ import 'direct_chat_page.dart';
 import 'legacy_messaging_components.dart';
 
 class CreateGroupPage extends StatefulWidget {
-  const CreateGroupPage({super.key, this.repository, this.chatOutbox});
+  const CreateGroupPage({
+    super.key,
+    this.repository,
+    this.chatOutbox,
+    this.inviteGroupId,
+  });
   final GroupChatRepository? repository;
   final ChatOutbox? chatOutbox;
+  final String? inviteGroupId;
   @override
   State<CreateGroupPage> createState() => _CreateGroupPageState();
 }
@@ -21,6 +27,7 @@ class CreateGroupPage extends StatefulWidget {
 class _CreateGroupPageState extends State<CreateGroupPage> {
   final _name = TextEditingController();
   final _selected = <String>{};
+  final _existing = <String>{};
   ContactsController? _contacts;
   GroupChatRepository? _repository;
   StreamSubscription<void>? _session;
@@ -55,6 +62,16 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       _contacts ??= ContactsController(repository.messaging)
         ..addListener(_changed);
       await _contacts!.refresh();
+      if (widget.inviteGroupId != null) {
+        final details = await repository.details(widget.inviteGroupId!);
+        if (!mounted || _invalid) return;
+        _existing.clear();
+        _existing.addAll(
+          (details['members'] as List).map(
+            (m) => (m as Map)['account'] as String,
+          ),
+        );
+      }
       if (mounted && !_invalid) {
         setState(() {
           _error = _contacts!.error;
@@ -80,6 +97,27 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       _error = null;
     });
     try {
+      if (widget.inviteGroupId != null) {
+        // Individual acknowledgements retain failed selections for safe retries.
+        for (final target in _selected.toList()) {
+          final invitation = await _repository!.invite(
+            widget.inviteGroupId!,
+            target,
+          );
+          if (!mounted || _invalid) return;
+          if (invitation['status'] != 'pending') {
+            throw StateError(
+              '邀请已${invitation['status'] == 'expired' ? '过期' : '处理'}，请重新发送',
+            );
+          }
+          setState(() {
+            _selected.remove(target);
+            _existing.add(target);
+          });
+        }
+        if (mounted && !_invalid) Navigator.pop(context, true);
+        return;
+      }
       final result = await _repository!.create(
         name: _name.text,
         members: _selected,
@@ -129,28 +167,31 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       child: Column(
         children: [
           LegacyMessagingHeader(
-            title: '发起群聊',
+            title: widget.inviteGroupId == null ? '发起群聊' : '邀请好友',
             onBack: () => Navigator.maybePop(context),
             trailing: TextButton(
               onPressed: _invalid || _saving || _selected.isEmpty
                   ? null
                   : _create,
-              child: Text('创建（${_selected.length}）'),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            child: TextField(
-              controller: _name,
-              enabled: !_invalid && !_saving,
-              maxLength: 64,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: '群名称',
-                counterText: '',
+              child: Text(
+                '${widget.inviteGroupId == null ? '创建' : '邀请'}（${_selected.length}）',
               ),
             ),
           ),
+          if (widget.inviteGroupId == null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: TextField(
+                controller: _name,
+                enabled: !_invalid && !_saving,
+                maxLength: 64,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: '群名称',
+                  counterText: '',
+                ),
+              ),
+            ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -175,7 +216,8 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                 final contact = _contacts!.contacts[index];
                 return CheckboxListTile(
                   value: _selected.contains(contact.account),
-                  onChanged: _invalid || _saving
+                  onChanged:
+                      _invalid || _saving || _existing.contains(contact.account)
                       ? null
                       : (value) {
                           setState(() {

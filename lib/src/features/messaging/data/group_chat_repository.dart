@@ -165,6 +165,58 @@ class GroupChatRepository {
     'membershipVersion': membershipVersion,
   });
 
+  final _inviting = <String>{};
+  Future<Map<String, dynamic>> invite(String groupId, String target) async {
+    if (target.isEmpty || target == account) throw ArgumentError('请选择其他好友');
+    final fingerprint = jsonEncode(['invite', groupId, target]);
+    if (!_inviting.add(fingerprint)) throw StateError('正在发送邀请');
+    try {
+      final requestId = await _requestStore.identity(fingerprint);
+      final result = await messaging.call('K260913000628', {
+        'groupId': groupId,
+        'target': target,
+        'requestId': requestId,
+      });
+      if (result['groupId'] != groupId ||
+          result['target'] != target ||
+          result['invitationId'] is! String ||
+          ![
+            'pending',
+            'accepted',
+            'rejected',
+            'expired',
+            'canceled',
+          ].contains(result['status'])) {
+        throw const FormatException('邀请结果无效');
+      }
+      await _requestStore.acknowledge(fingerprint, requestId);
+      return result;
+    } finally {
+      _inviting.remove(fingerprint);
+    }
+  }
+
+  Future<Map<String, dynamic>> invitations({String? before}) =>
+      messaging.call('K260913000629', {'before': ?before, 'limit': 50});
+  Future<Map<String, dynamic>> respondInvitation(
+    String groupId,
+    String invitationId, {
+    required bool accept,
+  }) async {
+    final result = await messaging.call('K260913000630', {
+      'groupId': groupId,
+      'invitationId': invitationId,
+      'action': accept ? 'accept' : 'reject',
+    });
+    if (result['groupId'] != groupId ||
+        result['invitationId'] != invitationId ||
+        result['changed'] is! bool ||
+        !['accepted', 'rejected', 'expired'].contains(result['status'])) {
+      throw const FormatException('邀请处理结果无效');
+    }
+    return result;
+  }
+
   Future<Map<String, dynamic>> markRead(String groupId, int sequence) =>
       messaging.call('K260913000622', {
         'groupId': groupId,

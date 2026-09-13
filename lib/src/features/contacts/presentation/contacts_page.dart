@@ -1,3 +1,5 @@
+import '../../messaging/presentation/group_invitations_page.dart';
+import '../../messaging/data/group_chat_repository.dart';
 import '../data/contact_groups_repository.dart';
 import '../data/contacts_controller.dart';
 import '../../messaging/data/messaging_repository.dart';
@@ -395,6 +397,28 @@ class _ContactsPageState extends State<ContactsPage> {
                 sliver: SliverList.list(
                   children: [
                     _quickActions(context),
+                    if (widget.realData)
+                      _ContactRow(
+                        title: '群邀请',
+                        leading: const ColoredBox(
+                          color: Color(0xFF5E8D7A),
+                          child: Icon(
+                            Icons.group_add_outlined,
+                            color: Colors.white,
+                            size: 25,
+                          ),
+                        ),
+                        onTap: () => Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => GroupInvitationsPage(
+                              repository: widget.repository == null
+                                  ? null
+                                  : GroupChatRepository(widget.repository!),
+                            ),
+                          ),
+                        ),
+                      ),
                     _ContactRow(
                       title: '我的关系',
                       leading: const ColoredBox(

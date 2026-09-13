@@ -39,4 +39,32 @@ void main() {
     expect(requests[1]['expectedVersion'], 3);
     expect(requests[1]['target'], 'b');
   });
+  test(
+    'invitation retries retain identity across repository recreation',
+    () async {
+      final requests = <Map<String, dynamic>>[];
+      final messaging = MessagingRepository(
+        account: 'a',
+        call: (id, params) async {
+          expect(id, 'K260913000628');
+          requests.add(params);
+          if (requests.length == 1) throw StateError('lost acknowledgement');
+          return {
+            'groupId': 'group',
+            'target': 'b',
+            'invitationId': 'invite',
+            'status': 'pending',
+          };
+        },
+      );
+      await expectLater(
+        GroupChatRepository(messaging).invite('group', 'b'),
+        throwsStateError,
+      );
+      await GroupChatRepository(messaging).invite('group', 'b');
+      expect(requests[0]['requestId'], requests[1]['requestId']);
+      await GroupChatRepository(messaging).invite('group', 'b');
+      expect(requests[2]['requestId'], isNot(requests[1]['requestId']));
+    },
+  );
 }
