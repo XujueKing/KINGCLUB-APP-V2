@@ -87,6 +87,8 @@ flutter:
     - assets/legacy/storage/
     - assets/legacy/profile/
     - assets/legacy/friendship/
+    - assets/legacy/friendship/man3.png
+    - assets/legacy/friendship/woman3.png
     - assets/legacy/friendship/addfriend.png
     - assets/legacy/friendship/blacklist.png
     - assets/legacy/ordering/

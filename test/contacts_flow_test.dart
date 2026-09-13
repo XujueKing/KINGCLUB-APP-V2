@@ -30,6 +30,36 @@ Widget _app(
 }
 
 void main() {
+  testWidgets('relationship group edit adds badge to selected contact', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_app(ContactsDemoState.ready));
+    await tester.tap(find.text('我的关系'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('新建分组'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('保存'));
+    await tester.pump();
+    expect(find.text('请输入分组名称'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '同学');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.school_rounded));
+    await tester.tap(find.text('艾琳'));
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect(find.text('同学'), findsOneWidget);
+    expect(find.text('1 人 ›'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('messaging-back')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('contact-relation-艾琳')), findsOneWidget);
+    expect(find.byTooltip('同学'), findsOneWidget);
+  });
+
   testWidgets('alphabet drag shows bubble, scrolls, and clears on release', (
     tester,
   ) async {

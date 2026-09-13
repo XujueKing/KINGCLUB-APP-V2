@@ -1,3 +1,4 @@
+import 'relationship_groups_page.dart';
 import '../../messaging/presentation/legacy_messaging_components.dart';
 
 import 'dart:async';
@@ -64,6 +65,7 @@ class _ContactsPageState extends State<ContactsPage> {
   final _scrollController = ScrollController();
   final _sectionKeys = <String, GlobalKey>{};
   int _indexRequest = 0;
+  List<ContactGroup> _groups = [];
   Timer? _searchDebounce;
   late ContactsDemoState _state;
   String _query = '';
@@ -71,12 +73,12 @@ class _ContactsPageState extends State<ContactsPage> {
   bool _refreshing = false;
 
   static const _allContacts = [
-    _FakeContact('A', 'contact-alice', 'Alice', '艾琳', 'A', true),
-    _FakeContact('C', 'contact-chenxi', '晨曦', null, '晨', true),
-    _FakeContact('L', 'contact-lucas', 'Lucas', '卡座搭子', 'L', false),
-    _FakeContact('S', 'contact-summer', 'Summer', null, 'S', false),
-    _FakeContact('Z', 'contact-zhou', '周末组局官', null, '局', true),
-    _FakeContact('#', 'contact-77', '77号朋友', '阿七', '7', false),
+    _FakeContact('A', 'contact-alice', 'Alice', '艾琳', 'A', true, 2),
+    _FakeContact('C', 'contact-chenxi', '晨曦', null, '晨', true, 1),
+    _FakeContact('L', 'contact-lucas', 'Lucas', '卡座搭子', 'L', false, 1),
+    _FakeContact('S', 'contact-summer', 'Summer', null, 'S', false, 2),
+    _FakeContact('Z', 'contact-zhou', '周末组局官', null, '局', true, null),
+    _FakeContact('#', 'contact-77', '77号朋友', '阿七', '7', false, null),
   ];
 
   @override
@@ -274,6 +276,18 @@ class _ContactsPageState extends State<ContactsPage> {
                 sliver: SliverList.list(
                   children: [
                     _quickActions(context),
+                    _ContactRow(
+                      title: '我的关系',
+                      leading: const ColoredBox(
+                        color: legacyMessagePanel,
+                        child: Icon(
+                          Icons.people_alt_outlined,
+                          color: legacyMessageGold,
+                          size: 25,
+                        ),
+                      ),
+                      onTap: _openRelationships,
+                    ),
                     _LegacyBlacklistEntry(
                       onTap: () => widget.onIntent(
                         const ContactRouteIntent(ContactIntentKind.blacklist),
@@ -360,6 +374,29 @@ class _ContactsPageState extends State<ContactsPage> {
     }
   }
 
+  void _openRelationships() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => RelationshipGroupsPage(
+          contacts: {
+            for (final c in _visibleContacts) c.ref: c.remark ?? c.nickname,
+          },
+          groups: _groups,
+          onChanged: (groups) {
+            if (mounted) setState(() => _groups = groups);
+          },
+        ),
+      ),
+    );
+  }
+
+  ContactGroup? _groupFor(String ref) {
+    for (final g in _groups) {
+      if (g.members.contains(ref)) return g;
+    }
+    return null;
+  }
+
   Widget _quickActions(BuildContext context) => _ContactRow(
     title: '新的朋友',
     badge: 2,
@@ -442,6 +479,7 @@ class _ContactsPageState extends State<ContactsPage> {
               final contact = entry.value[index];
               return _ContactTile(
                 contact: contact,
+                group: _groupFor(contact.ref),
                 avatarFailed:
                     _state == ContactsDemoState.avatarFailure && index == 0,
                 onTap: () => widget.onIntent(
@@ -468,6 +506,8 @@ class _ContactRow extends StatelessWidget {
     this.subtitle,
     this.badge,
     this.verified = false,
+    this.gender,
+    this.group,
     this.rowKey,
   });
   final Widget leading;
@@ -476,6 +516,8 @@ class _ContactRow extends StatelessWidget {
   final VoidCallback onTap;
   final int? badge;
   final bool verified;
+  final int? gender;
+  final ContactGroup? group;
   final Key? rowKey;
   @override
   Widget build(BuildContext context) {
@@ -544,6 +586,27 @@ class _ContactRow extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            if (gender == 1 || gender == 2) ...[
+                              const SizedBox(width: 4),
+                              Image.asset(
+                                'assets/legacy/friendship/${gender == 1 ? 'man3' : 'woman3'}.png',
+                                width: 12,
+                                height: 12,
+                                semanticLabel: gender == 1 ? '男' : '女',
+                              ),
+                            ],
+                            if (group != null) ...[
+                              const SizedBox(width: 4),
+                              Tooltip(
+                                message: group!.name,
+                                child: Icon(
+                                  relationshipIcons[group!.icon],
+                                  key: ValueKey('contact-relation-$title'),
+                                  size: 12,
+                                  color: legacyMessageGold,
+                                ),
+                              ),
+                            ],
                             if (verified) ...[
                               const SizedBox(width: 5),
                               const Tooltip(
@@ -611,16 +674,20 @@ class _ContactTile extends StatelessWidget {
   const _ContactTile({
     required this.contact,
     required this.avatarFailed,
+    this.group,
     required this.onTap,
   });
   final _FakeContact contact;
   final bool avatarFailed;
+  final ContactGroup? group;
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => _ContactRow(
     title: contact.remark ?? contact.nickname,
     subtitle: contact.remark == null ? null : '昵称：${contact.nickname}',
     verified: contact.verified,
+    gender: contact.gender,
+    group: group,
     onTap: onTap,
     leading: ColoredBox(
       color: legacyMessagePanel,
@@ -739,6 +806,7 @@ class _FakeContact {
     this.remark,
     this.initial,
     this.verified,
+    this.gender,
   );
 
   final String section;
@@ -747,6 +815,7 @@ class _FakeContact {
   final String? remark;
   final String initial;
   final bool verified;
+  final int? gender;
 }
 
 class _ContactAlphabetIndex extends StatefulWidget {
