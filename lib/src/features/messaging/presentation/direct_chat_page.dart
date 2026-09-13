@@ -335,6 +335,7 @@ class _DirectChatPageState extends State<DirectChatPage>
               borderRadius: BorderRadius.circular(40 * r),
             ),
             child: Stack(
+              clipBehavior: Clip.none,
               alignment: Alignment.centerLeft,
               children: [
                 IgnorePointer(
@@ -445,9 +446,13 @@ class _DirectChatPageState extends State<DirectChatPage>
                     ),
                   ),
                 ),
-                Positioned.fill(
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: -5 * r,
+                  bottom: -5 * r,
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10 * r),
+                    padding: EdgeInsets.zero,
                     child: LayoutBuilder(
                       builder: (context, bounds) => Align(
                         alignment: Alignment.centerLeft,
@@ -458,13 +463,13 @@ class _DirectChatPageState extends State<DirectChatPage>
                             duration: const Duration(milliseconds: 100),
                             child: AnimatedContainer(
                               key: const ValueKey('direct-chat-voice-surface'),
-                              duration: const Duration(milliseconds: 420),
-                              curve: Curves.easeOutBack,
+                              duration: const Duration(milliseconds: 650),
+                              curve: _voiceMode ? const ElasticOutCurve(0.65) : Curves.easeOutCubic,
                               width: _voiceMode ? bounds.maxWidth : 60 * r,
-                              height: 60 * r,
+                              height: _voiceMode ? bounds.maxHeight : 60 * r,
                               decoration: BoxDecoration(
                                 color: legacyMessageGold,
-                                borderRadius: BorderRadius.circular(30 * r),
+                                borderRadius: BorderRadius.circular(40 * r),
                               ),
                               clipBehavior: Clip.hardEdge,
                               child: _voiceMode
