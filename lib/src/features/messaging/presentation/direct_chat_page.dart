@@ -611,11 +611,10 @@ class _DirectChatPageState extends State<DirectChatPage>
                                               onPressed: () => setState(
                                                 () => _voiceMode = false,
                                               ),
-                                              icon: Image.asset(
-                                                'assets/legacy/messaging/keynote.png',
-                                                width: 60 * r,
-                                                height: 60 * r,
-                                                color: const Color(0xFF312C27),
+                                              icon: SvgPicture.asset(
+                                                'assets/legacy/messaging/keyboard.svg',
+                                                width: 56 * r,
+                                                height: 56 * r,
                                               ),
                                             ),
                                           ),
