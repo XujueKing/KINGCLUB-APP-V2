@@ -248,9 +248,17 @@ class GroupChatController extends ChatSessionController {
         ..addAll(names);
       _membersLoaded = true;
       _changed();
-    } catch (_) {
-      // Sender accounts remain visible while a member lookup is unavailable.
-      // History authorization is checked independently on every synchronization.
+    } catch (e) {
+      if (_disposed ||
+          generation != _historyGeneration ||
+          memberGeneration != _memberGeneration) {
+        return;
+      }
+      // Membership may be revoked after history succeeds but before details.
+      // Propagate that denial so synchronization clears memory and disk before
+      // initialize can retry any queued sends.
+      if (e is AuthFailure && e.code == 'CHAT_GROUP_ACCESS_DENIED') rethrow;
+      // A transient name lookup failure does not discard authorized history.
     }
   }
 

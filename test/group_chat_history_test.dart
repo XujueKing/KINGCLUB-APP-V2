@@ -79,6 +79,56 @@ void main() {
     expect((await store.read('group:group')).presentation, null);
     removed.dispose();
   });
+  for (final denied in [false, true]) {
+    test(
+      'member lookup ${denied ? "denial revokes" : "network failure preserves"} cached access',
+      () async {
+        await store.commit(
+          'group:group',
+          [row(1)],
+          expectedEpoch: 0,
+          cursor: 1,
+          membershipVersion: 0,
+        );
+        await store.saveGroupPresentation(
+          'group:group',
+          expectedEpoch: 0,
+          membershipVersion: 0,
+          groupName: 'Cached group',
+          memberNames: {'me': 'Cached name'},
+        );
+        final chat = controller((id, _) async {
+          if (id == 'K260913000619') {
+            throw AuthFailure(
+              denied ? 'CHAT_GROUP_ACCESS_DENIED' : 'NETWORK_ERROR',
+              'fixture',
+            );
+          }
+          return {
+            ...history([]),
+            'membershipVersion': 0,
+            'joinedSequence': 0,
+            'settings': {'hiddenThrough': 0},
+          };
+        });
+        await chat.initialize();
+        final disk = await store.read('group:group');
+        if (denied) {
+          expect(chat.hasAccess, false);
+          expect(chat.messages, isEmpty);
+          expect(chat.settings['groupName'], null);
+          expect(disk.messages, isEmpty);
+          expect(disk.presentation, null);
+          await expectLater(chat.send('not allowed'), throwsStateError);
+        } else {
+          expect(chat.hasAccess, true);
+          expect(chat.messages.single['senderName'], 'Cached name');
+          expect(disk.presentation!['groupName'], 'Cached group');
+        }
+        chat.dispose();
+      },
+    );
+  }
   test('old member-name snapshots cannot overwrite a new membership or clear epoch', () async {
     await store.commit(
       'group:group',
