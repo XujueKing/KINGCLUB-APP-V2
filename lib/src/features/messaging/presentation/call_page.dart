@@ -22,6 +22,7 @@ class CallPage extends StatefulWidget {
     required CallSnapshot initial,
     required String peerName,
     required CallRelayConfiguration relay,
+    bool outgoingAttempt = false,
   }) {
     relay.requireUsable(initial.id);
     return CallPage(
@@ -30,6 +31,7 @@ class CallPage extends StatefulWidget {
       controller: CallStateController(
         repository: repository,
         initial: initial,
+        outgoingAttempt: outgoingAttempt,
         sessionChanges: SecureSessionStore.changes.stream,
         sessionFactory: (call, onConnection) {
           relay.requireUsable(call.id);

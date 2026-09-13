@@ -14,20 +14,24 @@ typedef CallSessionFactory = CallMediaSession Function(
 );
 
 /// Owns one explicitly opened call attempt, not background call discovery.
-/// A caller may watch only their newly created ringing attempt. A callee must
+/// A caller owns a newly created attempt (possibly accepted during setup). A callee must
 /// explicitly accept before this controller is allowed to open native media.
 class CallStateController extends ChangeNotifier {
   CallStateController({
     required this.repository,
     required CallSnapshot initial,
     required this.sessionFactory,
+    bool outgoingAttempt = false,
     required Stream<void> sessionChanges,
     this.pollInterval = const Duration(seconds: 2),
   }) : _call = initial {
-    if (initial.phase != CallPhase.ringing ||
+    if ((initial.phase != CallPhase.ringing &&
+            !(outgoingAttempt &&
+                initial.phase == CallPhase.connecting &&
+                initial.caller == repository.messaging.account)) ||
         (initial.caller != repository.messaging.account &&
             initial.callee != repository.messaging.account)) {
-      throw StateError('A new ringing call is required');
+      throw StateError('A new incoming call or owned outgoing attempt is required');
     }
     _captureAuthorized = initial.caller == repository.messaging.account;
     _sessionChanges = sessionChanges.listen((_) {
