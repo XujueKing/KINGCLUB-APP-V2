@@ -1,3 +1,5 @@
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
+
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +33,67 @@ Map<String, dynamic> relay() {
 }
 
 void main() {
+  test('leaving during start cancels the late call and handles simultaneous acceptance', () async {
+    final start = Completer<Map<String, dynamic>>();
+    var reads = 0;
+    final actions = <Map<String, dynamic>>[];
+    final launch = CallLaunchCoordinator(
+      CallRepository(
+        MessagingRepository(
+          account: 'a',
+          call: (method, params) async {
+            if (method == 'K260913000643') return start.future;
+            if (method == 'K260913000645') {
+              expect(params['callId'], id);
+              reads++;
+              return {'call': call(reads == 1 ? 'ringing' : 'connecting')};
+            }
+            expect(method, 'K260913000644');
+            actions.add(params);
+            if (actions.length == 1) {
+              throw const AuthFailure('CHAT_CALL_VERSION_CONFLICT', 'changed');
+            }
+            return {...call('ended'), 'version': 2};
+          },
+        ),
+      ),
+    );
+    final outgoing = launch.outgoing(peer: 'b', media: CallMedia.audio);
+    final rejected = expectLater(outgoing, throwsStateError);
+    final abandoned = launch.abandonOutgoing();
+    expect(identical(abandoned, launch.abandonOutgoing()), true);
+    start.complete(call('ringing'));
+    await rejected;
+    await abandoned;
+    expect(actions.map((a) => a['action']), ['cancel', 'hangup']);
+    expect(actions.map((a) => a['expectedVersion']), [0, 1]);
+    expect(actions.first['requestId'], isNot(actions.last['requestId']));
+  });
+
+  test(
+    'abandon with no acknowledged ID does not redial or end another call',
+    () async {
+      var requests = 0;
+      final launch = CallLaunchCoordinator(
+        CallRepository(
+          MessagingRepository(
+            account: 'a',
+            call: (_, _) async {
+              requests++;
+              throw Exception('start response lost');
+            },
+          ),
+        ),
+      );
+      await expectLater(
+        launch.outgoing(peer: 'b', media: CallMedia.audio),
+        throwsException,
+      );
+      await launch.abandonOutgoing();
+      expect(requests, 1);
+    },
+  );
+
   test('double dial coalesces, lost relay response retries same request and accepts early answer', () async {
     var failed = true;
     final ids = <String>[];

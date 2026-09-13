@@ -574,7 +574,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   @override
   void dispose() {
     _leaving = true;
-    _callLauncher?.close();
+    unawaited(_callLauncher?.abandonOutgoing().catchError((Object _) {}));
     _chatEvents?.cancel();
     _sessionEvents?.cancel();
     _voiceSender.dispose();

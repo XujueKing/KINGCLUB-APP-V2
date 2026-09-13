@@ -1,3 +1,5 @@
+import '../../auth/domain/auth_repository.dart';
+
 import 'package:uuid/uuid.dart';
 
 import 'call_relay_configuration.dart';
@@ -18,6 +20,7 @@ class CallLaunchCoordinator {
   ({String peer, CallMedia media, String requestId})? _attempt;
   Future<PreparedCall>? _outgoing;
   Future<PreparedCall?>? _incoming;
+  Future<void>? _abandoning;
   bool _closed = false;
   String? _callId;
 
@@ -50,8 +53,8 @@ class CallLaunchCoordinator {
       media: attempt.media,
       requestId: attempt.requestId,
     );
-    _check();
     _callId = call.id;
+    _check();
     if (call.phase == CallPhase.ended) {
       _attempt = null;
       throw StateError('Call attempt already ended');
@@ -114,6 +117,52 @@ class CallLaunchCoordinator {
       throw StateError('Outgoing call is not finished');
     }
     _attempt = null;
+  }
+
+  /// Close immediately, then cancel only this launcher's known outgoing call.
+  /// Never redial to discover a lost start acknowledgement, or touch an
+  /// unrelated current call. The bound repository rejects a changed login.
+  Future<void> abandonOutgoing() {
+    final pending = _outgoing;
+    close();
+    return _abandoning ??= _cancelAfterSetup(pending);
+  }
+
+  Future<void> _cancelAfterSetup(Future<PreparedCall>? pending) async {
+    if (pending != null) {
+      try {
+        await pending;
+      } catch (_) {
+        // Closing intentionally rejects setup; its validated start response
+        // still records the exact call ID for cleanup.
+      }
+    }
+    final id = _callId;
+    if (id == null) return;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      final call = await repository.read(callId: id);
+      if (call == null || call.caller != repository.messaging.account) {
+        throw StateError('Abandoned call identity mismatch');
+      }
+      if (call.phase == CallPhase.ended) return;
+      try {
+        final ended = await repository.act(
+          call: call,
+          action: call.phase == CallPhase.ringing
+              ? CallAction.cancel
+              : CallAction.hangup,
+          requestId: const Uuid().v4(),
+        );
+        if (ended.phase != CallPhase.ended) {
+          throw StateError('Abandoned call did not end');
+        }
+        return;
+      } on AuthFailure catch (error) {
+        // The recipient may accept between read and cancel. Only a definitive
+        // version rejection permits a new action with a fresh request ID.
+        if (error.code != 'CHAT_CALL_VERSION_CONFLICT' || attempt == 2) rethrow;
+      }
+    }
   }
 
   void close() {
