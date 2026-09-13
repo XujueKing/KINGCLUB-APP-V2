@@ -1,3 +1,5 @@
+import 'create_group_page.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -327,6 +329,10 @@ class LegacyConversationTabs extends StatelessWidget {
       onScan!();
     } else if (selected == 3 && onPersonalQr != null) {
       onPersonalQr!();
+    } else if (selected == 0) {
+      await Navigator.of(
+        context,
+      ).push<void>(MaterialPageRoute(builder: (_) => const CreateGroupPage()));
     } else {
       KingNotice.of(context).showSnackBar(
         SnackBar(

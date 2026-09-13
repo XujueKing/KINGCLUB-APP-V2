@@ -1,3 +1,6 @@
+import 'chat_session_controller.dart';
+import 'messaging_repository.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -5,13 +8,21 @@ import '../../auth/domain/auth_repository.dart';
 import 'chat_outbox.dart';
 import 'group_chat_repository.dart';
 
-class GroupChatController extends ChangeNotifier {
+class GroupChatController extends ChatSessionController {
   GroupChatController({
     required this.repository,
     required this.groupId,
     required this.outbox,
   });
   final GroupChatRepository repository;
+  @override
+  MessagingRepository get messaging => repository.messaging;
+  @override
+  String get conversationId => groupId;
+  @override
+  Map<String, dynamic> get settings => {'readSequence': readSequence};
+  @override
+  void resetVisibleHistory() => clearVisibleHistory();
   final String groupId;
   final ChatOutbox outbox;
   final _confirmed = <String, Map<String, dynamic>>{};
@@ -22,13 +33,16 @@ class GroupChatController extends ChangeNotifier {
   int _historyGeneration = 0;
   int _lastSynced = 0;
   int? _oldest;
+  @override
   bool hasOlder = false;
   bool hasAccess = false;
   bool _syncAgain = false;
+  @override
   String? error;
   int readSequence = 0;
   int _readRequested = 0;
 
+  @override
   List<Map<String, dynamic>> get messages {
     final confirmed = _confirmed.values.toList()
       ..sort((a, b) => (a['sequence'] as num).compareTo(b['sequence'] as num));
@@ -54,6 +68,7 @@ class GroupChatController extends ChangeNotifier {
     super.dispose();
   }
 
+  @override
   Future<void> initialize() async {
     try {
       for (final message in await outbox.read()) {
@@ -77,6 +92,7 @@ class GroupChatController extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> synchronize() {
     final active = _syncing;
     if (active != null) {
@@ -133,6 +149,7 @@ class GroupChatController extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> loadOlder() async {
     if (!hasOlder || _oldest == null || _disposed) return;
     final generation = _historyGeneration;
@@ -182,6 +199,7 @@ class GroupChatController extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> send(String text, {VoidCallback? onQueued}) async {
     text = text.trim();
     if (text.isEmpty || _disposed) return;
@@ -204,6 +222,7 @@ class GroupChatController extends ChangeNotifier {
     await retry(id);
   }
 
+  @override
   Future<void> retryQueued() async {
     if (!hasAccess) return;
     for (final message in _pending.values.toList()) {
@@ -214,6 +233,7 @@ class GroupChatController extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> retry(String id) async {
     final pending = _pending[id];
     if (pending == null || _disposed || !_sending.add(id)) return;
@@ -245,6 +265,7 @@ class GroupChatController extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> markVisibleRead(int sequence) async {
     if (_disposed || sequence <= _readRequested) return;
     final previous = _readRequested;

@@ -1,3 +1,5 @@
+import 'chat_session_controller.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -5,13 +7,15 @@ import '../../auth/domain/auth_repository.dart';
 import 'chat_outbox.dart';
 import 'messaging_repository.dart';
 
-class DirectChatController extends ChangeNotifier {
+class DirectChatController extends ChatSessionController {
   DirectChatController({
     required this.repository,
     required this.peer,
     required this.outbox,
   });
   final MessagingRepository repository;
+  @override
+  MessagingRepository get messaging => repository;
   final String peer;
   final ChatOutbox outbox;
   final _confirmed = <String, Map<String, dynamic>>{};
@@ -22,14 +26,19 @@ class DirectChatController extends ChangeNotifier {
   int _historyGeneration = 0;
   int _lastSynced = 0;
   int? _oldest;
+  @override
   bool hasOlder = false;
+  @override
   String? conversationId;
+  @override
   String? error;
   Map<String, dynamic> permission = {};
+  @override
   Map<String, dynamic> settings = {};
   int peerReadSequence = 0;
   int _readRequested = 0;
 
+  @override
   List<Map<String, dynamic>> get messages {
     final confirmed = _confirmed.values.toList()
       ..sort((a, b) => (a['sequence'] as num).compareTo(b['sequence'] as num));
@@ -55,6 +64,7 @@ class DirectChatController extends ChangeNotifier {
     super.dispose();
   }
 
+  @override
   Future<void> initialize() async {
     try {
       for (final message in await outbox.read()) {
@@ -71,6 +81,7 @@ class DirectChatController extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> synchronize() {
     final active = _syncing;
     if (active != null) return active;
@@ -109,6 +120,7 @@ class DirectChatController extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> loadOlder() async {
     if (!hasOlder || _oldest == null || _disposed) return;
     final generation = _historyGeneration;
@@ -151,6 +163,7 @@ class DirectChatController extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> send(String text, {VoidCallback? onQueued}) async {
     text = text.trim();
     if (text.isEmpty || _disposed) return;
@@ -172,6 +185,7 @@ class DirectChatController extends ChangeNotifier {
     await retry(id);
   }
 
+  @override
   Future<void> retryQueued() async {
     for (final message in _pending.values.toList()) {
       if (_disposed) return;
@@ -181,6 +195,7 @@ class DirectChatController extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> retry(String id) async {
     final pending = _pending[id];
     if (pending == null || _disposed || !_sending.add(id)) return;
@@ -212,6 +227,7 @@ class DirectChatController extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> markVisibleRead(int sequence) async {
     if (_disposed || sequence <= _readRequested) return;
     final previous = _readRequested;
@@ -224,6 +240,7 @@ class DirectChatController extends ChangeNotifier {
   }
 
   /// Called only after the server has committed the owner's hide cursor.
+  @override
   void resetVisibleHistory() {
     _historyGeneration++;
     _syncing = null;

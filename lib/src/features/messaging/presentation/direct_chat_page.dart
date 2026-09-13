@@ -1,3 +1,7 @@
+import '../data/chat_session_controller.dart';
+import '../data/group_chat_controller.dart';
+import '../data/group_chat_repository.dart';
+import 'group_details_page.dart';
 import '../../contacts/presentation/public_member_page.dart';
 import '../data/messaging_repository.dart';
 import '../data/direct_chat_controller.dart';
@@ -124,11 +128,13 @@ class DirectChatPage extends StatefulWidget {
     this.onMutedChanged,
     this.voiceCapture,
     this.peerAccount,
+    this.groupId,
     this.repository,
     this.chatOutbox,
-  });
+  }) : assert(peerAccount == null || groupId == null);
 
   final String? peerAccount;
+  final String? groupId;
   final MessagingRepository? repository;
   final ChatOutbox? chatOutbox;
   final VoiceCapture? voiceCapture;
@@ -142,7 +148,8 @@ class DirectChatPage extends StatefulWidget {
 
 class _DirectChatPageState extends State<DirectChatPage>
     with WidgetsBindingObserver {
-  DirectChatController? _chat;
+  ChatSessionController? _chat;
+  String? get _realTarget => widget.groupId ?? widget.peerAccount;
   StreamSubscription<Map<String, dynamic>>? _chatEvents;
   StreamSubscription<void>? _sessionEvents;
   bool _loadingOlder = false;
@@ -222,8 +229,8 @@ class _DirectChatPageState extends State<DirectChatPage>
   int? _selectedGift;
   int _goldBalance = 501;
   String? _quotedDraft;
-  bool get _readOnly => widget.peerAccount != null && _chat == null;
-  late final List<_FakeMessage> _messages = widget.peerAccount != null
+  bool get _readOnly => _realTarget != null && _chat == null;
+  late final List<_FakeMessage> _messages = _realTarget != null
       ? []
       : [
           _FakeMessage(
@@ -242,7 +249,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     WidgetsBinding.instance.addObserver(this);
     _muted = widget.initialMuted;
     _inputFocusNode.addListener(_handleInputFocusChanged);
-    if (widget.peerAccount != null) {
+    if (_realTarget != null) {
       _scrollController.addListener(_onRealScroll);
       _connectRealChat();
     }
@@ -252,21 +259,36 @@ class _DirectChatPageState extends State<DirectChatPage>
     try {
       final repository = widget.repository ?? await MessagingRepository.open();
       if (!mounted) return;
-      final chat = DirectChatController(
-        repository: repository,
-        peer: widget.peerAccount!,
-        outbox: widget.chatOutbox ?? SecureChatOutbox(repository.account),
-      );
+      final outbox = widget.chatOutbox ?? SecureChatOutbox(repository.account);
+      final ChatSessionController chat = widget.groupId != null
+          ? GroupChatController(
+              repository: GroupChatRepository(repository),
+              groupId: widget.groupId!,
+              outbox: outbox,
+            )
+          : DirectChatController(
+              repository: repository,
+              peer: widget.peerAccount!,
+              outbox: outbox,
+            );
       _chat = chat;
       chat.addListener(_realChatChanged);
       _chatEvents = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
         final data = event['data'];
+        if (widget.groupId != null && type == 'chat.group.changed') {
+          chat.resetVisibleHistory();
+          chat.synchronize();
+          return;
+        }
         if (type == 'connection.ready' ||
             (type.startsWith('chat.') &&
                 (chat.conversationId == null ||
                     data is Map &&
-                        data['conversationId'] == chat.conversationId))) {
+                        data[widget.groupId == null
+                                ? 'conversationId'
+                                : 'groupId'] ==
+                            chat.conversationId))) {
           chat.synchronize().then((_) => chat.retryQueued());
         }
       });
@@ -302,7 +324,8 @@ class _DirectChatPageState extends State<DirectChatPage>
           chat.messages.map(
             (message) => _FakeMessage(
               message['text'] as String,
-              mine: message['sender'] == chat.repository.account,
+              mine: message['sender'] == chat.messaging.account,
+              senderAccount: message['sender'] as String?,
               clientMessageId: message['clientMessageId'] as String,
               createdDate: message['createdDate'] as String?,
               status: switch (message['status']) {
@@ -433,7 +456,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                   itemCount: _messages.length + 1,
                   itemBuilder: (context, index) {
                     if (index == 0) {
-                      if (widget.peerAccount != null) {
+                      if (_realTarget != null) {
                         return const SizedBox.shrink();
                       }
                       return const Padding(
@@ -454,19 +477,21 @@ class _DirectChatPageState extends State<DirectChatPage>
                       key: ObjectKey(message),
                       child: _MessageRow(
                         message: message,
-                        onAvatarTap: widget.peerAccount == null
+                        onAvatarTap: _realTarget == null
                             ? null
                             : () {
                                 Navigator.of(context).push<void>(
                                   MaterialPageRoute(
                                     builder: (_) => PublicMemberPage(
-                                      account: widget.peerAccount!,
-                                      repository: _chat?.repository,
+                                      account:
+                                          message.senderAccount ??
+                                          widget.peerAccount!,
+                                      repository: _chat?.messaging,
                                     ),
                                   ),
                                 );
                               },
-                        onRetry: () => widget.peerAccount != null
+                        onRetry: () => _realTarget != null
                             ? _chat?.retry(message.clientMessageId!)
                             : setState(
                                 () => _messages[messageIndex] =
@@ -1129,7 +1154,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty || _readOnly) return;
-    if (widget.peerAccount != null) {
+    if (_realTarget != null) {
       final chat = _chat;
       if (chat == null) return;
       _sendRealText(chat, text);
@@ -1153,7 +1178,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     if (message.status == _FakeMessageStatus.sending) _completeSend(message);
   }
 
-  Future<void> _sendRealText(DirectChatController chat, String text) async {
+  Future<void> _sendRealText(ChatSessionController chat, String text) async {
     try {
       await chat.send(
         text,
@@ -1178,7 +1203,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   bool _requiresRealMedia() {
-    if (widget.peerAccount == null) return false;
+    if (_realTarget == null) return false;
     KingNotice.of(context).show('该消息功能正在接入，尚未发送');
     return true;
   }
@@ -1542,6 +1567,19 @@ class _DirectChatPageState extends State<DirectChatPage>
   bool _muted = false;
 
   Future<void> _openDetails() async {
+    if (widget.groupId != null) {
+      final repository = _chat?.messaging;
+      if (repository == null) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => GroupDetailsPage(
+            groupId: widget.groupId!,
+            repository: GroupChatRepository(repository),
+          ),
+        ),
+      );
+      return;
+    }
     final cleared = await Navigator.push<bool>(
       context,
       MaterialPageRoute<bool>(
@@ -1549,7 +1587,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         builder: (_) => DirectChatDetailsPage(
           peerName: widget.peerName,
           peerAccount: widget.peerAccount,
-          repository: _chat?.repository,
+          repository: _chat?.messaging,
           initialPinned: _chat?.settings['pinned'] == true,
           initialOnlyChat: _chat?.settings['onlyChat'] == true,
           loadedHistory:
@@ -1627,7 +1665,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
     );
     if (!mounted || action == null) return;
-    if (widget.peerAccount != null && action != _FakeMessageAction.copy) {
+    if (_realTarget != null && action != _FakeMessageAction.copy) {
       KingNotice.of(context).show('该消息操作正在接入');
       return;
     }
@@ -2183,6 +2221,7 @@ class _FakeMessage {
     required this.mine,
     this.quoted,
     this.clientMessageId,
+    this.senderAccount,
     this.createdDate,
     this.system = false,
     this.kind = _FakeMessageKind.text,
@@ -2191,6 +2230,7 @@ class _FakeMessage {
   });
 
   final String? clientMessageId;
+  final String? senderAccount;
   final String? createdDate;
   final String text;
   final bool mine;
@@ -2206,6 +2246,7 @@ class _FakeMessage {
   _FakeMessage copyWith({_FakeMessageStatus? status}) => _FakeMessage(
     text,
     clientMessageId: clientMessageId,
+    senderAccount: senderAccount,
     createdDate: createdDate,
     mine: mine,
     quoted: quoted,
