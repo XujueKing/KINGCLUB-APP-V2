@@ -375,12 +375,13 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   ),
                 ),
                 SizedBox(
-                  height: heroHeight + 6,
+                  height: heroHeight,
                   child: Padding(
                     padding: EdgeInsets.only(top: 48 * u),
                     child: _hero(u),
                   ),
                 ),
+                const SizedBox(height: 24),
                 SizedBox(
                   width: width,
                   height: 48 * u,
@@ -511,7 +512,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                     ),
                   ),
                 ),
-                SizedBox(height: math.max(0.0, bottom - 6)),
+                SizedBox(height: math.max(0.0, bottom - 24)),
               ],
             );
           },
