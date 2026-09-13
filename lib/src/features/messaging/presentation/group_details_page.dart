@@ -117,6 +117,102 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     if (mounted && !_invalid) await _load();
   }
 
+  Future<void> _transfer() async {
+    if (_invalid ||
+        _saving ||
+        _details?['ownerAccount'] != widget.repository.account) {
+      return;
+    }
+    final version = (_details!['metadataVersion'] as num).toInt();
+    final members = (_details!['members'] as List)
+        .cast<Map>()
+        .where((m) => m['account'] != widget.repository.account)
+        .toList();
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final target = await showDialog<Map>(
+        context: context,
+        builder: (dialogContext) => SimpleDialog(
+          backgroundColor: const Color(0xFF202020),
+          title: const Text(
+            '选择新群主',
+            style: TextStyle(color: Color(0xFFC9B69E)),
+          ),
+          children: [
+            SizedBox(
+              width: double.maxFinite,
+              height: 280,
+              child: ListView(
+                children: [
+                  for (final member in members)
+                    SimpleDialogOption(
+                      onPressed: () => Navigator.pop(dialogContext, member),
+                      child: Text(
+                        member['nickname'] as String,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  if (members.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        '暂无可选成员',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+          ],
+        ),
+      );
+      if (target == null || !mounted || _invalid) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xFF202020),
+          title: const Text(
+            '转让群主？',
+            style: TextStyle(color: Color(0xFFC9B69E)),
+          ),
+          content: Text(
+            '将群主转让给${target['nickname']}，你将成为普通成员。',
+            style: const TextStyle(color: Colors.grey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              key: const ValueKey('group-transfer-confirm'),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('确认转让'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted || _invalid) return;
+      await widget.repository.transfer(
+        widget.groupId,
+        target['account'] as String,
+        version,
+      );
+      if (mounted && !_invalid) await _load();
+    } catch (error) {
+      if (mounted && !_invalid) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _depart() async {
     if (_invalid || _saving || _details == null) return;
     final dissolve = _details!['ownerAccount'] == widget.repository.account;
@@ -301,6 +397,22 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                           ),
                         ],
                       ),
+                    ),
+                  if (_details!['ownerAccount'] == widget.repository.account)
+                    ListTile(
+                      key: const ValueKey('group-transfer'),
+                      title: const Text(
+                        '转让群主',
+                        style: TextStyle(
+                          color: Color(0xFFC9B69E),
+                          fontSize: 16,
+                        ),
+                      ),
+                      trailing: const Icon(
+                        Icons.chevron_right,
+                        color: Color(0xFFC9B69E),
+                      ),
+                      onTap: _saving ? null : _transfer,
                     ),
                   _settingRow('消息免打扰', 'muted'),
                   const Divider(

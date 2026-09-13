@@ -11,6 +11,8 @@ class GroupChatRepository {
   String get account => messaging.account;
   String? _createFingerprint, _createRequestId;
   bool _creating = false;
+  bool _transferring = false;
+  String? _transferFingerprint, _transferRequestId;
 
   Future<Map<String, dynamic>> create({
     required String name,
@@ -110,6 +112,39 @@ class GroupChatRepository {
     'action': dissolve ? 'dissolve' : 'leave',
     'membershipVersion': membershipVersion,
   });
+
+  Future<Map<String, dynamic>> transfer(
+    String groupId,
+    String target,
+    int expectedVersion,
+  ) async {
+    if (_transferring) throw StateError('正在转让群主');
+    if (target.isEmpty || target == account) throw ArgumentError('请选择其他群成员');
+    final fingerprint = jsonEncode([groupId, target, expectedVersion]);
+    if (_transferFingerprint != fingerprint) {
+      _transferFingerprint = fingerprint;
+      _transferRequestId = const Uuid().v4();
+    }
+    _transferring = true;
+    try {
+      final result = await messaging.call('K260913000626', {
+        'groupId': groupId,
+        'target': target,
+        'expectedVersion': expectedVersion,
+        'requestId': _transferRequestId,
+      });
+      if (result['groupId'] != groupId ||
+          result['ownerAccount'] != target ||
+          result['metadataVersion'] is! num) {
+        throw const FormatException('转让结果无效');
+      }
+      _transferFingerprint = null;
+      _transferRequestId = null;
+      return result;
+    } finally {
+      _transferring = false;
+    }
+  }
 
   Future<Map<String, dynamic>> markRead(String groupId, int sequence) =>
       messaging.call('K260913000622', {
