@@ -1,3 +1,6 @@
+import '../../../core/design_system/king_components.dart';
+import 'chat_image_view.dart';
+
 import 'package:image_picker/image_picker.dart';
 
 import 'chat_image_send_page.dart';
@@ -331,6 +334,10 @@ class _DirectChatPageState extends State<DirectChatPage>
           chat.messages.map(
             (message) => _FakeMessage(
               message['text'] as String,
+              messageId: message['messageId'] as String?,
+              kind: message['messageType'] == 'image'
+                  ? _FakeMessageKind.image
+                  : _FakeMessageKind.text,
               mine: message['sender'] == chat.messaging.account,
               senderAccount: message['sender'] as String?,
               senderName: widget.groupId == null
@@ -484,9 +491,25 @@ class _DirectChatPageState extends State<DirectChatPage>
                     final messageIndex = index - 1;
                     final message = _messages[messageIndex];
                     return RepaintBoundary(
-                      key: ObjectKey(message),
+                      key: message.clientMessageId == null
+                          ? ObjectKey(message)
+                          : ValueKey(message.clientMessageId),
                       child: _MessageRow(
                         message: message,
+                        imageContent:
+                            _realTarget != null &&
+                                message.kind == _FakeMessageKind.image
+                            ? message.messageId == null || _chat == null
+                                  ? const SizedBox(
+                                      width: 142,
+                                      height: 100,
+                                      child: Center(child: Text('[图片]')),
+                                    )
+                                  : ChatImageView(
+                                      repository: _chat!.messaging,
+                                      messageId: message.messageId!,
+                                    )
+                            : null,
                         onAvatarTap: _realTarget == null
                             ? null
                             : () {
@@ -1804,6 +1827,35 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Future<void> _openMediaPreview(_FakeMessage message) async {
+    if (_realTarget != null) {
+      final repository = _chat?.messaging;
+      if (message.messageId == null ||
+          repository == null ||
+          message.kind != _FakeMessageKind.image) {
+        return;
+      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+            backgroundColor: Colors.black,
+            appBar: AppBar(
+              backgroundColor: Colors.black,
+              leading: KingBackButton(
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+            body: Center(
+              child: ChatImageView(
+                repository: repository,
+                messageId: message.messageId!,
+                full: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
     if (message.kind != _FakeMessageKind.image &&
         message.kind != _FakeMessageKind.video) {
       return;
@@ -1858,6 +1910,7 @@ class _MessageRow extends StatelessWidget {
     required this.onLongPress,
     required this.onTap,
     this.onAvatarTap,
+    this.imageContent,
   });
 
   final _FakeMessage message;
@@ -1865,6 +1918,7 @@ class _MessageRow extends StatelessWidget {
   final VoidCallback onLongPress;
   final VoidCallback onTap;
   final VoidCallback? onAvatarTap;
+  final Widget? imageContent;
 
   @override
   Widget build(BuildContext context) {
@@ -1958,7 +2012,7 @@ class _MessageRow extends StatelessWidget {
                               ),
                               const SizedBox(height: 5),
                             ],
-                            _MessageContent(message: message),
+                            imageContent ?? _MessageContent(message: message),
                           ],
                         ),
                       ),
@@ -2295,6 +2349,7 @@ class _FakeMessage {
     required this.mine,
     this.quoted,
     this.clientMessageId,
+    this.messageId,
     this.senderAccount,
     this.senderName,
     this.createdDate,
@@ -2305,6 +2360,7 @@ class _FakeMessage {
   });
 
   final String? clientMessageId;
+  final String? messageId;
   final String? senderAccount;
   final String? senderName;
   final String? createdDate;
@@ -2322,6 +2378,7 @@ class _FakeMessage {
   _FakeMessage copyWith({_FakeMessageStatus? status}) => _FakeMessage(
     text,
     clientMessageId: clientMessageId,
+    messageId: messageId,
     senderAccount: senderAccount,
     senderName: senderName,
     createdDate: createdDate,
