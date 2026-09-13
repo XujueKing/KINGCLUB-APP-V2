@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -937,7 +939,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     String? action,
     Future<bool> Function()? open,
   }) {
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(

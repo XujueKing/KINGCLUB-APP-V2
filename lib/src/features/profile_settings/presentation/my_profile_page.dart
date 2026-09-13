@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import 'dart:async';
 
 import '../../../core/session/member_qr_memory.dart';
@@ -1206,12 +1208,12 @@ class _MyProfilePageState extends State<MyProfilePage> {
       final id = _profile?['memberId'];
       if (id != null) {
         Clipboard.setData(ClipboardData(text: '$id'));
-        ScaffoldMessenger.of(context)
+        KingNotice.of(context)
             .showSnackBar(const SnackBar(content: Text('账号已复制')));
       }
       return;
     }
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(content: Text('已复制 Fake 账号：K45600000199（未写入系统剪贴板）')),
@@ -1314,7 +1316,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
       callback();
       return;
     }
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(content: Text('订单入口正在准备中，请稍后重试')));
   }
@@ -1373,7 +1375,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
       _coverAsset = nextCover;
     });
     if (coverSaveFailed) {
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text('封面保存失败，已保留原封面。')));
     }

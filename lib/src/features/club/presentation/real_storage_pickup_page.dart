@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import '../../../core/networking/kingclub_realtime.dart';
 
 import 'dart:async';
@@ -145,7 +147,7 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
         setState(() {
           _loading = false;
         });
-        ScaffoldMessenger.of(context)
+        KingNotice.of(context)
             .showSnackBar(const SnackBar(content: Text('删除失败，请重试')));
       }
     }

@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'legacy_messaging_components.dart';
@@ -476,7 +477,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   void _showFeedback(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }

@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import 'dart:async';
 
 import 'core/networking/kingclub_realtime.dart';
@@ -98,9 +100,17 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
             ),
           );
     } catch (_) {
-      _messenger.currentState?.showSnackBar(
-        const SnackBar(content: Text('该记录暂不可查看，请刷新储物柜')),
-      );
+      (ref.read(appRouterProvider).routerDelegate.navigatorKey.currentContext ==
+                  null
+              ? null
+              : KingNotice.of(
+                  ref
+                      .read(appRouterProvider)
+                      .routerDelegate
+                      .navigatorKey
+                      .currentContext!,
+                ))
+          ?.showSnackBar(const SnackBar(content: Text('该记录暂不可查看，请刷新储物柜')));
     }
   }
 

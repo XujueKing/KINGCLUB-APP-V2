@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -424,7 +425,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
   }
 
   void _showBlockerIntent(String action) {
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
         .showSnackBar(SnackBar(content: Text('$action，请处理完成后返回本页')));
   }
 

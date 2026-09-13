@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 
 const _legacyGold = Color(0xFFC9B69E);
@@ -83,7 +84,7 @@ class _BlacklistPageState extends State<BlacklistPage> {
   Future<void> _refresh() async {
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(content: Text('已刷新本地 Fake 黑名单')));
   }
@@ -214,7 +215,7 @@ class _BlacklistPageState extends State<BlacklistPage> {
     if (!mounted) return;
     if (_scenario == BlacklistScenario.unblockError) {
       setState(() => _unblockingTarget = null);
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
           .showSnackBar(const SnackBar(content: Text('解除失败，黑名单状态未改变')));
       return;
     }
@@ -222,7 +223,7 @@ class _BlacklistPageState extends State<BlacklistPage> {
       _users.removeWhere((candidate) => candidate.targetRef == user.targetRef);
       _unblockingTarget = null;
     });
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('已在本地演示中解除 ${user.nickname}')));
   }

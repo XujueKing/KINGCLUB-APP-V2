@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -52,7 +54,7 @@ class _SmsVerificationPageState extends ConsumerState<SmsVerificationPage> {
     if (_remaining == 0) {
       setState(() => _remaining = 60);
       _startCountdown();
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
           .showSnackBar(const SnackBar(content: Text('验证码已重新发送')));
       return;
     }

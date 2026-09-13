@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -240,7 +241,7 @@ class _SendFriendRequestPageState extends State<SendFriendRequestPage> {
   Future<void> _submit() async {
     if (_containsControlCharacters(_messageController.text) ||
         _containsControlCharacters(_remarkController.text)) {
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
           .showSnackBar(const SnackBar(content: Text('内容中不能包含控制字符')));
       return;
     }

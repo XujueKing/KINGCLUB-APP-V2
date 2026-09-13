@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/design_system/king_theme.dart';
@@ -320,7 +321,7 @@ class LegacyConversationTabs extends StatelessWidget {
     } else if (selected == 3 && onPersonalQr != null) {
       onPersonalQr!();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
+      KingNotice.of(context).showSnackBar(
         SnackBar(
           content: Text(
             selected == 0

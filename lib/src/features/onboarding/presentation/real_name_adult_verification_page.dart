@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -205,7 +206,7 @@ class _RealNameAdultVerificationPageState
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }

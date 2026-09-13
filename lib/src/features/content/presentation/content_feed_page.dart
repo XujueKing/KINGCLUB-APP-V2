@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -308,7 +310,7 @@ class _ContentFeedPageState extends State<ContentFeedPage>
 
   void _openAuthor(String authorRef) {
     if (_state == ContentFeedDemoState.authorUnavailable) {
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text('作者资料暂不可见')));
       return;

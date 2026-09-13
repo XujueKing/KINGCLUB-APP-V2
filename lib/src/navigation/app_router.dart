@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import '../features/scanner/presentation/member_scanner_page.dart';
 
 import 'package:flutter/material.dart';
@@ -712,7 +714,7 @@ class FriendRequestsRoute extends GoRouteData with $FriendRequestsRoute {
   Widget build(BuildContext context, GoRouterState state) => FriendRequestsPage(
     onBack: () => context.pop(),
     onOpenAddFriend: () => const AddFriendRoute().push<void>(context),
-    onOpenChat: (peerName) => ScaffoldMessenger.of(context)
+    onOpenChat: (peerName) => KingNotice.of(context)
         .showSnackBar(SnackBar(content: Text('已打开与 $peerName 的 Fake 会话入口'))),
     onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );

@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -158,8 +159,7 @@ class _RealBootstrapState extends ConsumerState<_RealBootstrap> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    KingNotice.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

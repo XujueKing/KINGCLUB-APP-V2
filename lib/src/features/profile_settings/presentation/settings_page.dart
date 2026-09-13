@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/presentation/terms_consent_page.dart';
 import '../data/profile_repository.dart';
@@ -323,7 +325,7 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
+        KingNotice.of(context)
             .showSnackBar(const SnackBar(content: Text('个人信息暂时无法加载，请重试')));
       }
     } finally {
@@ -357,7 +359,7 @@ class _SettingsPageState extends State<SettingsPage> {
           FilledButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              ScaffoldMessenger.of(
+              KingNotice.of(
                 context,
               ).showSnackBar(const SnackBar(content: Text('请前往手机系统设置管理通知权限')));
             },
@@ -393,14 +395,14 @@ class _SettingsPageState extends State<SettingsPage> {
         PaintingBinding.instance.imageCache.clearLiveImages();
       } catch (_) {
         if (mounted) {
-          ScaffoldMessenger.of(context)
+          KingNotice.of(context)
               .showSnackBar(const SnackBar(content: Text('缓存清理失败，请重试')));
         }
         return;
       }
       if (!mounted) return;
       setState(() => _cache = '0 B');
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
           .showSnackBar(const SnackBar(content: Text('缓存已清理')));
     }
   }
@@ -455,7 +457,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context)
+        KingNotice.of(context)
             .showSnackBar(const SnackBar(content: Text('已退出登录')));
       }
       if (mounted) widget.onLogoutCompleted?.call();

@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -217,7 +218,7 @@ class _MembershipReviewStatusPageState
                     ref
                         .read(mockRuntimeProvider)
                         .setReviewFixture(widget.flowId, status);
-                    ScaffoldMessenger.of(context)
+                    KingNotice.of(context)
                       ..hideCurrentSnackBar()
                       ..showSnackBar(
                         const SnackBar(content: Text('服务端测试状态已更新，请刷新查看')),

@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import 'dart:async';
 
 import '../../../core/networking/kingclub_realtime.dart';
@@ -159,6 +161,8 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
       _flip.value = 0;
     });
   }
+
+  void _showShopNotice() => KingNotice.of(context).show('商店暂未开放');
 
   void _select(StorageItem item) {
     setState(() {
@@ -322,10 +326,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                               button: true,
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
-                                onTap: () => ScaffoldMessenger.of(context)
-                                    .showSnackBar(
-                                      const SnackBar(content: Text('商店暂未开放')),
-                                    ),
+                                onTap: _showShopNotice,
                                 child: const Padding(
                                   padding: EdgeInsets.only(bottom: 14),
                                   child: Text(

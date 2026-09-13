@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 
 const _legacyGold = Color(0xFFC9B69E);
@@ -208,13 +209,13 @@ class _RelationshipPermissionsPageState
     if (!mounted) return;
     if (_scenario == RelationshipPermissionsScenario.mutationError) {
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
           .showSnackBar(const SnackBar(content: Text('操作失败，好友关系和权限未改变')));
       return;
     }
     if (_scenario == RelationshipPermissionsScenario.stateConflict) {
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
           .showSnackBar(const SnackBar(content: Text('好友关系已变化，请返回后刷新')));
       return;
     }

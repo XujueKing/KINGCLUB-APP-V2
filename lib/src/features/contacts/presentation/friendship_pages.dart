@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -505,7 +506,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
   Future<void> _openScanner() async {
     if (_navigationPending) return;
     if (_scenario == AddFriendScenario.destinationUnavailable) {
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
           .showSnackBar(const SnackBar(content: Text('扫码入口暂时不可用，请稍后重试')));
       return;
     }

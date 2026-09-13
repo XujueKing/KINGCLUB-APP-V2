@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -125,7 +126,7 @@ class _FriendRemarkPageState extends State<FriendRemarkPage> {
       description: _description,
     );
     if (_scenario == FriendRemarkScenario.saveError) {
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
           .showSnackBar(const SnackBar(content: Text('保存失败，修改内容仍保留在当前页面')));
       return;
     }

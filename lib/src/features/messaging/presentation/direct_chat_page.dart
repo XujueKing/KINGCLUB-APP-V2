@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -890,7 +892,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   void _sendGift(_GiftItem item) {
     if (item.price > _goldBalance) {
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(content: Text('金币不足，还差 ${item.price - _goldBalance} 枚')),
@@ -1021,7 +1023,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     switch (action) {
       case _FakeMessageAction.copy:
         Clipboard.setData(ClipboardData(text: message.text));
-        ScaffoldMessenger.of(context)
+        KingNotice.of(context)
             .showSnackBar(const SnackBar(content: Text('已复制')));
       case _FakeMessageAction.quote:
         setState(() => _quotedDraft = _messagePreview(message));

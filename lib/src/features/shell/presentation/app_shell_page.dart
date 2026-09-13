@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -290,7 +292,7 @@ class _AppShellPageState extends State<AppShellPage> {
   }
 
   void _showIntent(String label) {
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('已生成$label；目标 UI 将在对应页面批次接入。')));
   }
@@ -413,7 +415,7 @@ class _AppShellPageState extends State<AppShellPage> {
       widget.onOpenOrdering!();
       return;
     }
-    ScaffoldMessenger.of(pageContext).showSnackBar(
+    KingNotice.of(pageContext).showSnackBar(
       SnackBar(content: Text('已生成${destination.label}安全分流意图；当前为 UI Mock。')),
     );
   }

@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -626,7 +628,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   void _showActionFeedback(String message) {
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }

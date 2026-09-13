@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 
 const legacyGold = Color(0xFFC9B69E);
@@ -211,7 +212,7 @@ class LegacyClubButton extends StatelessWidget {
 }
 
 void showFakeResult(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
+  KingNotice.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(message)));
 }

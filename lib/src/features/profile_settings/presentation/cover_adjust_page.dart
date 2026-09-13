@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
+
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -178,7 +180,7 @@ class _CoverAdjustPageState extends State<CoverAdjustPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context)
+      KingNotice.of(context)
           .showSnackBar(const SnackBar(content: Text('封面调整失败，请重新选择图片。')));
     }
   }

@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 
 import 'friend_remark_page.dart';
@@ -251,7 +252,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   void _showLocalResult(String message) {
-    ScaffoldMessenger.of(context)
+    KingNotice.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }
