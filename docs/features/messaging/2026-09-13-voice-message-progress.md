@@ -38,3 +38,10 @@
 真实语音消息显示服务端时长、播放/停止状态，沿用现有气泡颜色、圆角和字体。ChatVoicePlayback为每个会话提供单播放器，点击先调用638/640重新授权，再读取账号隔离的audio缓存；音频缓存独立100MiB预算、单文件512KiB、m4a扩展名。NativeChatVoiceOutput使用audioplayers本地文件播放。切换账号永久失效当前播放控制器，关系/群权限/清空/重连事件、退后台、导航和开始录音停止播放；异步代次与串行播放器操作阻止迟到下载恢复播放。
 
 验证：build/voice-playback-test.log 16项通过，覆盖重复播放重新授权、同会话互斥、拒绝权限不读缓存、账号变化丢弃迟到下载、群事件丢弃迟到授权、既有缓存和队列/草稿回归；4项相关文件静态分析无问题。播放器测试使用受控音频输出，未证明真机发声与音频路由，尚未打包或双手机端到端验收。
+
+
+## 测试服务发布与APK
+
+后端voice-064已启动并通过health/ready/runtime检查，059至064已迁移，真实音频处理与发布镜像隔离完整回归通过。App de4acdb语音版本profile/preview/arm64编译成功（build/voice-release-build.log，61.3秒，118.6MB），APK为build/app/outputs/flutter-apk/app-preview-profile.apk，SHA256=600fcab0ec2d5d05ab66f24dec3248f7731595cf8536d029bb0fcfc96d968ad0。构建包含本机已有未提交注册偏好文件修改，本任务未修改或提交这些文件。
+
+ADB462606d8持续offline，本包未覆盖安装；真机发声、双手机真实语音收发与原生录音降噪效果仍未验收，不能按已交付列入完整聊天清单。
