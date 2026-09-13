@@ -94,3 +94,12 @@ FrameV0 的 SHA-256 checksum 是完整性校验，不等价于端到端加密或
 - 结构化编码在业务层，对相同表情包使用版本/内容引用；不把APFL转账算子当作通用音视频压缩器。每种编码需版本协商、无损还原测试和不支持时回退。
 - 现有WebSocket AES-256-GCM是服务端传输加密；NovoRUDP checksum不是加密。P2P需要成熟端到端密钥协议、设备认证、防重放、nonce唯一性和密钥更新；目前未接通E2EE，禁止宣传“无法截获”。
 - 旧 K_SendMessage 调用 k_setCount_Exp(user, IF(message_Type<2,-1,-10), ...)；须继续追查实际函数语义后确认新版经验规则，不能在纯传输重试中扣减资产或经验。
+
+
+### 压缩与人声处理追加要求
+
+用户要求成熟压缩与去杂音。当前录音配置启用设备支持的 noiseSuppress、echoCancel、autoGain，并使用 Android voiceCommunication 音源；具体效果取决于系统实现，不保证设备全部支持，也不视作已完成 WebRTC 通话降噪。酒吧强音乐环境、耳机/扬声器和人声失真须真机试听，避免系统处理与软件降噪重复叠加。
+
+压缩目标按媒体分层：结构化文字/历史以 Zstandard 作为待评测候选，小消息不因压缩增加延迟；语音通话评估 Opus，当前录音已使用 AAC-LC；图片保留原图，适配WebP/JPEG等双方支持格式；视频按硬件与双方能力协商H.264/HEVC/AV1，不强制所有手机软件转码。既有压缩媒体不盲目再压。格式协商、压缩后大小比较、解压大小上限和先压缩再认证加密都须纳入契约；这些传输压缩尚未接通，不以本段设计代表完成。
+
+依据： https://facebook.github.io/zstd/ ，https://developer.android.com/media/platform/supported-formats ，本机 record_android/AudioEffectsManager.kt。

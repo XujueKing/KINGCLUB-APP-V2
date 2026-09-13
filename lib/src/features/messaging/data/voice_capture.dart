@@ -29,6 +29,12 @@ class NativeVoiceCaptureDevice implements VoiceCaptureDevice {
       sampleRate: 24000,
       bitRate: 48000,
       numChannels: 1,
+      noiseSuppress: true,
+      echoCancel: true,
+      autoGain: true,
+      androidConfig: AndroidRecordConfig(
+        audioSource: AndroidAudioSource.voiceCommunication,
+      ),
     ),
     path: path,
   );
