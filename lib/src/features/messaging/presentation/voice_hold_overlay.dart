@@ -195,7 +195,7 @@ class _VoiceBubbleClipper extends CustomClipper<Path> {
   bool shouldReclip(_VoiceBubbleClipper oldClipper) => false;
 }
 
-// Geometry follows the reference: concentric circles and round stroke caps.
+// Continuous concentric band, divided at its center with a fine radial line.
 class _VoiceRingPainter extends CustomPainter {
   _VoiceRingPainter(this.target, this.progress);
   final VoiceHoldTarget target;
@@ -206,20 +206,18 @@ class _VoiceRingPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height - 115 + radius);
     final thickness = size.width * (78 / 504);
     final ringRadius = radius + size.width * (58 / 504);
-    final halfGap = size.width * (22 / 504) / 2;
-    final split = math.asin((halfGap + thickness / 2) / ringRadius);
     final rect = Rect.fromCircle(center: center, radius: ringRadius);
     for (final left in [true, false]) {
       final kind = left ? VoiceHoldTarget.cancel : VoiceHoldTarget.text;
       final paint = Paint()
         ..color = target == kind
             ? (left ? const Color(0xFFB76450) : const Color(0xFF64CB99))
-            : const Color(0xFF292929)
+            : const Color(0xFFD3D3D3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = thickness
-        ..strokeCap = StrokeCap.round;
-      final start = left ? -math.pi : -math.pi / 2 + split;
-      final sweep = math.pi / 2 - split;
+        ..strokeCap = StrokeCap.butt;
+      final start = left ? -math.pi : -math.pi / 2;
+      final sweep = math.pi / 2;
       canvas.drawArc(rect, start, sweep, false, paint);
       final textAngle = (left ? -1 : 1) * .215;
       final anchor =
@@ -234,7 +232,7 @@ class _VoiceRingPainter extends CustomPainter {
           style: TextStyle(
             color: target == kind
                 ? const Color(0xFF15271F)
-                : const Color(0xFFCCCCCC),
+                : const Color(0xFF242424),
             fontSize: 15,
             fontWeight: FontWeight.w400,
           ),
@@ -247,6 +245,13 @@ class _VoiceRingPainter extends CustomPainter {
       text.paint(canvas, Offset(-text.width / 2, -text.height / 2));
       canvas.restore();
     }
+    canvas.drawLine(
+      Offset(center.dx, center.dy - ringRadius - thickness / 2),
+      Offset(center.dx, center.dy - ringRadius + thickness / 2),
+      Paint()
+        ..color = const Color(0x66808080)
+        ..strokeWidth = .7,
+    );
     final t = progress;
     final startWidth = size.width * .92;
     final width = startWidth + (radius * 2 - startWidth) * t;
