@@ -252,7 +252,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
             final bottom = 100 * u + MediaQuery.paddingOf(context).bottom;
             final heroHeight = math.max(
               210.0,
-              c.maxHeight - bottom - width - 155 * u,
+              c.maxHeight - bottom - width - 155 * u - (58 - 60 * u),
             );
             return RefreshIndicator(
               onRefresh: _load,
@@ -261,18 +261,54 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                 child: Column(
                   children: [
                     SizedBox(
-                      height: 60 * u,
+                      height: 58,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          const Center(
-                            child: Text(
-                              '私人储物柜',
-                              style: KingTheme.headerTitleStyle,
+                          Positioned(
+                            left: 18,
+                            top: 10,
+                            right: 82,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                const Flexible(
+                                  child: Text(
+                                    '私人储物柜',
+                                    style: kingSectionTitleStyle,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Semantics(
+                                  button: true,
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () => ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                          const SnackBar(
+                                            content: Text('商店暂未开放'),
+                                          ),
+                                        ),
+                                    child: const Padding(
+                                      padding: EdgeInsets.only(bottom: 14),
+                                      child: Text(
+                                        '商店',
+                                        style: TextStyle(
+                                          color: Color(0x80C9B69E),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           Positioned(
-                            right: c.maxWidth * .08,
+                            right: 18,
                             top: 0,
                             bottom: 0,
                             child: TextButton(

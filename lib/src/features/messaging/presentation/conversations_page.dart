@@ -252,13 +252,26 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final action = await showModalBottomSheet<_ConversationAction>(
       context: context,
       backgroundColor: legacyActionMenuBackground,
-      showDragHandle: true,
+      showDragHandle: false,
       isScrollControlled: true,
       builder: (context) => LegacyActionMenuStyle(
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              SizedBox(
+                height: 24,
+                child: Center(
+                  child: Container(
+                    width: 30,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: const Color(0x66B7ADA0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
               if (_friendStatus == _FriendConversationStatus.active)
                 ListTile(
                   key: const ValueKey('conversation-menu-read'),
@@ -310,6 +323,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
                 title: const Text('删除会话', style: legacyActionMenuTextStyle),
                 onTap: () => Navigator.pop(context, _ConversationAction.delete),
               ),
+              const SizedBox(height: 18),
             ],
           ),
         ),
