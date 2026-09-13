@@ -1,3 +1,4 @@
+import '../data/voice_draft_sender.dart';
 import '../../../core/design_system/king_components.dart';
 import 'chat_image_view.dart';
 
@@ -204,6 +205,8 @@ class _DirectChatPageState extends State<DirectChatPage>
     _finishRecording(interrupted || target == VoiceHoldTarget.cancel, target);
   }
 
+  final _voiceSender = VoiceDraftSender();
+
   Future<void> _finishRecording(bool cancel, VoiceHoldTarget target) async {
     final session = _voiceSession;
     try {
@@ -211,6 +214,17 @@ class _DirectChatPageState extends State<DirectChatPage>
       if (!mounted || _leaving || draft == null || session != _voiceSession) {
         return;
       }
+      final chat = _chat;
+      if (target != VoiceHoldTarget.text && chat != null) {
+        try {
+          await _voiceSender.send(chat, draft);
+          return;
+        } catch (_) {
+          if (!mounted || _leaving || session != _voiceSession) return;
+          KingNotice.of(context).show('语音发送未完成，录音已保留');
+        }
+      }
+      if (!mounted || _leaving || session != _voiceSession) return;
       if (target == VoiceHoldTarget.text) {
         KingNotice.of(context).show('录音已保留，转文字服务尚未接通');
       }
@@ -218,7 +232,10 @@ class _DirectChatPageState extends State<DirectChatPage>
         context: context,
         backgroundColor: legacyMessagePanel,
         showDragHandle: true,
-        builder: (_) => VoiceDraftPreview(draft: draft),
+        builder: (_) => VoiceDraftPreview(
+          draft: draft,
+          onSend: chat == null ? null : () => _voiceSender.send(chat, draft),
+        ),
       );
     } catch (error) {
       if (mounted && !_leaving && !cancel) {
@@ -411,6 +428,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     _leaving = true;
     _chatEvents?.cancel();
     _sessionEvents?.cancel();
+    _voiceSender.dispose();
     _chat?.removeListener(_realChatChanged);
     _chat?.dispose();
     WidgetsBinding.instance.removeObserver(this);

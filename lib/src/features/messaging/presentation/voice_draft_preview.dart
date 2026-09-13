@@ -14,8 +14,9 @@ import '../../../core/design_system/king_notice.dart';
 import '../data/voice_capture.dart';
 
 class VoiceDraftPreview extends StatefulWidget {
-  const VoiceDraftPreview({super.key, required this.draft});
+  const VoiceDraftPreview({super.key, required this.draft, this.onSend});
   final VoiceDraft draft;
+  final Future<void> Function()? onSend;
   @override
   State<VoiceDraftPreview> createState() => _VoiceDraftPreviewState();
 }
@@ -23,6 +24,7 @@ class VoiceDraftPreview extends StatefulWidget {
 class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
   late final _player = AudioPlayer();
   bool _playing = false;
+  bool _sending = false;
   bool _valid = true;
   StreamSubscription<void>? _session;
   @override
@@ -63,6 +65,20 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
     }
   }
 
+  Future<void> _send() async {
+    if (!_valid || _sending || widget.onSend == null) return;
+    setState(() => _sending = true);
+    try {
+      await _player.stop();
+      await widget.onSend!();
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) KingNotice.of(context).show('发送未完成，录音已保留，请重试');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
   @override
   void dispose() {
     _session?.cancel();
@@ -83,7 +99,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
             Text('${widget.draft.duration.inSeconds} 秒'),
           IconButton(
             tooltip: _playing ? '停止播放' : '播放录音',
-            onPressed: _valid ? _toggle : null,
+            onPressed: _valid && !_sending ? _toggle : null,
             icon: Icon(
               _playing ? Icons.stop_circle_outlined : Icons.play_circle_outline,
               size: 40,
@@ -93,11 +109,16 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
             '已保存在本机，尚未发送',
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
+          if (widget.onSend != null)
+            FilledButton(
+              onPressed: _valid && !_sending ? _send : null,
+              child: Text(_sending ? '正在发送…' : '发送语音'),
+            ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               TextButton(
-                onPressed: !_valid
+                onPressed: !_valid || _sending
                     ? null
                     : () async {
                         try {
