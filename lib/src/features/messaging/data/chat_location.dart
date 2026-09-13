@@ -44,6 +44,19 @@ class ChatLocation {
       address.trim(),
     );
   }
+
+  /// Corrupt or older history must not crash the entire conversation.
+  static ChatLocation? tryParse(dynamic value) {
+    if (value is! Map) return null;
+    try {
+      return ChatLocation.fromJson(Map<String, dynamic>.from(value));
+    } on FormatException {
+      return null;
+    } on TypeError {
+      return null;
+    }
+  }
+
   final int latitudeE6, longitudeE6;
   final String coordinateSystem, name, address;
   Map<String, dynamic> toJson() => {

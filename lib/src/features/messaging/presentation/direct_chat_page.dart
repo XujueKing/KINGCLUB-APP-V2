@@ -1,3 +1,4 @@
+import 'chat_location_message.dart';
 import '../data/chat_location.dart';
 import 'chat_location_picker_page.dart';
 import '../data/chat_voice_playback.dart';
@@ -426,6 +427,9 @@ class _DirectChatPageState extends State<DirectChatPage>
               voiceDurationMs: message['messageType'] == 'voice'
                   ? message['voiceDurationMs'] as int?
                   : null,
+              location: message['messageType'] == 'location'
+                  ? ChatLocation.tryParse(message['location'])
+                  : null,
               kind: message['messageType'] == 'image'
                   ? _FakeMessageKind.image
                   : _FakeMessageKind.text,
@@ -590,7 +594,23 @@ class _DirectChatPageState extends State<DirectChatPage>
                           : ValueKey(message.clientMessageId),
                       child: _MessageRow(
                         message: message,
-                        imageContent: message.voiceDurationMs != null
+                        imageContent: message.location != null
+                            ? ChatLocationMessage(
+                                location: message.location!,
+                                mine: message.mine,
+                                onTap: () {
+                                  _voicePlayback?.stop();
+                                  _inputFocusNode.unfocus();
+                                  Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) => ChatLocationDetailsPage(
+                                        location: message.location!,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : message.voiceDurationMs != null
                             ? _voiceBubble(message)
                             : _realTarget != null &&
                                   message.kind == _FakeMessageKind.image
@@ -2483,6 +2503,7 @@ class _FakeMessage {
     this.clientMessageId,
     this.messageId,
     this.voiceDurationMs,
+    this.location,
     this.senderAccount,
     this.senderName,
     this.createdDate,
@@ -2495,6 +2516,7 @@ class _FakeMessage {
   final String? clientMessageId;
   final String? messageId;
   final int? voiceDurationMs;
+  final ChatLocation? location;
   final String? senderAccount;
   final String? senderName;
   final String? createdDate;
@@ -2514,6 +2536,7 @@ class _FakeMessage {
     clientMessageId: clientMessageId,
     messageId: messageId,
     voiceDurationMs: voiceDurationMs,
+    location: location,
     senderAccount: senderAccount,
     senderName: senderName,
     createdDate: createdDate,
