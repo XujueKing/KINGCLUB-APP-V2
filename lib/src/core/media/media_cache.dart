@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:dio/dio.dart';
@@ -56,6 +57,61 @@ class MediaCache {
         return await _load(key, url, scope, kind, headers);
       } finally {
         _pending.remove(key);
+      }
+    });
+  }
+
+  /// Derivatives share image eviction and account cleanup with other media.
+  /// The caller must have a current authorization before requesting a poster.
+  Future<File> videoPoster(
+    String url, {
+    required String scope,
+    required String contentKey,
+    required Future<Uint8List?> Function(File) decode,
+    Map<String, String>? headers,
+  }) async {
+    if (Uri.parse(url).scheme != 'https') {
+      throw const FormatException('媒体地址必须使用HTTPS');
+    }
+    final generation = _generation;
+    final key = await _hash('$scope|poster-v1|$contentKey');
+    return _pending.putIfAbsent(key, () async {
+      File? temp;
+      try {
+        final root = await _directory();
+        final dir = Directory(
+          '${root.path}/${scope == 'public' ? 'public' : 'private'}/${await _hash(scope)}/image',
+        );
+        if (generation != _generation) throw StateError('缓存请求已取消');
+        await dir.create(recursive: true);
+        final poster = File('${dir.path}/$key.media');
+        if (await poster.exists() && await poster.length() > 0) {
+          await poster.setLastModified(DateTime.now());
+          if (generation != _generation) throw StateError('缓存请求已取消');
+          return poster;
+        }
+        final source = await get(
+          url,
+          scope: scope,
+          contentKey: contentKey,
+          kind: MediaKind.video,
+          headers: headers,
+        );
+        if (generation != _generation) throw StateError('缓存请求已取消');
+        final bytes = await decode(source);
+        if (generation != _generation) throw StateError('缓存请求已取消');
+        if (bytes == null || bytes.isEmpty || bytes.length > 1024 * 1024) {
+          throw StateError('无法生成视频预览');
+        }
+        temp = File('${poster.path}.part');
+        await temp.writeAsBytes(bytes, flush: true);
+        if (generation != _generation) throw StateError('缓存请求已取消');
+        await temp.rename(poster.path);
+        await _trim(root, MediaKind.image, except: poster.path);
+        return poster;
+      } finally {
+        _pending.remove(key);
+        if (temp != null && await temp.exists()) await temp.delete();
       }
     });
   }

@@ -1,3 +1,4 @@
+import '../../../core/media/cached_video_poster.dart';
 import 'profile_media_page.dart';
 import '../../../core/media/cached_media_image.dart';
 import '../../auth/data/auth_repository_provider.dart';
@@ -261,7 +262,29 @@ class _PublicMemberPageState extends State<PublicMemberPage>
     );
     return GestureDetector(
       onTap: () => _openMedia(item),
-      child: video ? fallback : _mediaImage(item['media'], fallback),
+      child: video
+          ? _videoPoster(item['media'], fallback)
+          : _mediaImage(item['media'], fallback),
+    );
+  }
+
+  Widget _videoPoster(dynamic media, Widget fallback) {
+    if (media is! Map || _repository == null || kingclubApiBaseUrl.isEmpty) {
+      return fallback;
+    }
+    final path = media['path'];
+    if (path is! String || !path.startsWith('/kingclub/profile-media/')) {
+      return fallback;
+    }
+    return CachedVideoPoster(
+      key: ValueKey('${_visibility.value}:${media['fileId']}'),
+      url: '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}$path',
+      scope: 'member:${_repository!.account}',
+      contentKey: 'profile:${widget.account}:${media['fileId']}',
+      headers: (media['headers'] as Map? ?? {}).map(
+        (key, value) => MapEntry(key.toString(), value.toString()),
+      ),
+      placeholder: fallback,
     );
   }
 
@@ -287,7 +310,12 @@ class _PublicMemberPageState extends State<PublicMemberPage>
             final date = DateTime.tryParse(item['createdAt']?.toString() ?? '')
                 ?.toLocal();
             return Padding(
-              padding: EdgeInsets.fromLTRB(20 * scale, 20 * scale, 20 * scale, 4 * scale),
+              padding: EdgeInsets.fromLTRB(
+                20 * scale,
+                20 * scale,
+                20 * scale,
+                4 * scale,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
