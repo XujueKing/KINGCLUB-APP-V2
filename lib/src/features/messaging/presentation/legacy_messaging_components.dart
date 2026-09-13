@@ -205,7 +205,7 @@ class LegacyConversationTabs extends StatelessWidget {
           Positioned(
             top: origin.dy + box.size.height - 2,
             right: 12,
-            width: 176,
+            width: 164,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -224,7 +224,7 @@ class LegacyConversationTabs extends StatelessWidget {
                   ),
                 ),
                 Material(
-                  color: const Color(0xFF3D3D3D),
+                  color: const Color(0xFF28231C),
                   borderRadius: BorderRadius.circular(5),
                   clipBehavior: Clip.antiAlias,
                   child: Column(
@@ -233,17 +233,17 @@ class LegacyConversationTabs extends StatelessWidget {
                       for (var i = 0; i < 4; i++) ...[
                         if (i > 0)
                           const Padding(
-                            padding: EdgeInsets.only(left: 56),
+                            padding: EdgeInsets.only(left: 50),
                             child: Divider(
                               height: .5,
                               thickness: .5,
-                              color: Color(0x18FFFFFF),
+                              color: Color(0x18C9B69E),
                             ),
                           ),
                         InkWell(
                           onTap: () => Navigator.of(dialogContext).pop(i),
                           child: SizedBox(
-                            height: 58,
+                            height: 52,
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 18,
@@ -257,16 +257,16 @@ class LegacyConversationTabs extends StatelessWidget {
                                       Icons.qr_code_scanner_rounded,
                                       Icons.qr_code_rounded,
                                     ][i],
-                                    color: const Color(0xFFF2F2F2),
-                                    size: 25,
+                                    color: const Color(0xFFB7ADA0),
+                                    size: 21,
                                   ),
-                                  const SizedBox(width: 13),
+                                  const SizedBox(width: 11),
                                   Flexible(
                                     child: Text(
                                       ['发起群聊', '添加朋友', '扫一扫', '我的二维码'][i],
                                       style: const TextStyle(
-                                        color: Color(0xFFF2F2F2),
-                                        fontSize: 18,
+                                        color: Color(0xFFB7ADA0),
+                                        fontSize: 15,
                                         fontWeight: FontWeight.w400,
                                       ),
                                     ),
@@ -318,7 +318,7 @@ class _MenuPointer extends CustomPainter {
         ..lineTo(size.width / 2, 0)
         ..lineTo(size.width, size.height)
         ..close(),
-      Paint()..color = const Color(0xFF3D3D3D),
+      Paint()..color = const Color(0xFF28231C),
     );
   }
 
