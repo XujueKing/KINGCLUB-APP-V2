@@ -275,7 +275,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                               children: [
                                 const Flexible(
                                   child: Text(
-                                    '私人储物柜',
+                                    '储物袋',
                                     style: kingSectionTitleStyle,
                                     maxLines: 1,
                                   ),

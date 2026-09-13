@@ -106,7 +106,7 @@ class _AppShellPageState extends State<AppShellPage> {
     _ShellDestination('首页', 'tabBar_home.png', 'tabBar_home_a.png'),
     _ShellDestination('消息', 'tabBar_chat.png', 'tabBar_chat_a.png'),
     _ShellDestination('内容', 'content-heart.png', 'content-heart.png'),
-    _ShellDestination('私人储物柜', 'tabBar_bx.png', 'tabBar_bx_a.png'),
+    _ShellDestination('储物袋', 'tabBar_bx.png', 'tabBar_bx_a.png'),
     _ShellDestination('我的', 'tabBar_my.png', 'tabBar_my_a.png'),
   ];
 

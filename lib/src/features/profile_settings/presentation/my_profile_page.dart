@@ -921,7 +921,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
           Text('在哪里查看过期储物？', style: TextStyle(color: _warmWhite)),
           SizedBox(height: 6),
           Text(
-            '进入私人储物柜，点击右上角“过期储物”查看。',
+            '进入储物袋，点击右上角“过期储物”查看。',
             style: TextStyle(color: _muted, height: 1.5),
           ),
           SizedBox(height: 18),

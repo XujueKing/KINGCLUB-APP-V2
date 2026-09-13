@@ -96,7 +96,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
         '去处理资产',
       ),
       (
-        '私人储物柜物品',
+        '储物袋物品',
         _scenario == AccountDeletionScenario.assetStorageBlocker
             ? '有 1 件待取物品'
             : '无待取物品',
