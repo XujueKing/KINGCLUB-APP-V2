@@ -20,3 +20,14 @@ CallSignal 保留不可变请求字段，补收拒绝逆序/重复序号、跨�
 close 等待正在打开的资源并停止全部媒体轨道、释放 stream、close/dispose PeerConnection；关闭后迟到采集结果释放而不建立连接。7 项媒体生命周期和接口测试通过，变更静态分析通过。测试注入模拟原生接口验证竞态与释放，不能代表麦克风/摄像头采集或双机连通已实测。Android 补 CAMERA/MODIFY_AUDIO_SETTINGS，摄像头硬件非必需；蓝牙路由和后台服务尚待专项接入。
 
 官方参考：https://pub.dev/packages/flutter_webrtc 和 https://flutter-webrtc.org/docs/flutter-webrtc/api-docs/rtc-peerconnection/ 。目前未接通页面和控制器，TURN 未配置，实际降噪效果及前后台资源行为还需真机验证。
+
+
+## 原生构建与信令协商衔接
+
+WebRTC 首次 Android preview/profile arm64 构建通过：443.8 秒、147.2 MB，SHA256 `6fdccf96b7323ef61ca739c8b16998290188c8edd9f76a9d9b35fe79e6504440`。这是 e270d92 阶段的包，包含工作树原有 onboarding 三文件改动；不包含之后的好友资料布局和本节协商层。未安装，不能据此声称双机音视频连通。
+
+新增 CallMediaSession，限定已接听 connecting 通话及当前参与账号；使用真实 CallRepository 和可注入的 NativeCallMedia。发送 SDP 前产生的 ICE 排队，确保 offer/answer 在前；出站信令使用固定 UUID，发送失败保留队首原内容供重试。入站按服务端序号应用，远端 offer 仅应用一次，answer 回执丢失不重复创建 answer。关闭时立即禁止后续信令并释放媒体，原生部分应用异常关闭本地采集。不同协商代次明确拒绝，尚未实现 ICE restart。
+
+10 项接口/原生生命周期/协商测试通过，静态分析通过。新增三项覆盖同步产生 ICE 的发送顺序、信令失败编号复用、answer 回执丢失和采集未打开就关闭；这些为注入式竞态测试，不是真机音视频测试。Android 主清单增加 INTERNET，避免网络权限仅在 debug/profile 存在。
+
+仍需将协商层接到通话页面与会话生命周期：服务端状态刷新、来电接听、连接状态上报、定时补收/重试、会话退出强制 close、TURN 短期凭据、ICE 重启、后台与双机实测。当前没有开放假通话入口，也没有把服务端信令回执当作媒体已接通。
