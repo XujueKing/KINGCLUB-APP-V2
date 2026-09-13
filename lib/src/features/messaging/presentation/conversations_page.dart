@@ -10,8 +10,8 @@ const _rowActionWidth = 72.0;
 enum _ConversationAction {
   toggleRead,
   togglePin,
-  markRelationshipEnded,
-  invalidate,
+  hide,
+  toggleBlock,
   restore,
   delete,
 }
@@ -69,6 +69,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   bool _pinnedExpanded = true;
   bool _friendPinned = false;
   bool _friendVisible = true;
+  bool _friendBlocked = false;
   late int _friendUnread;
   double _friendSlide = 0;
   bool _refreshing = false;
@@ -221,6 +222,10 @@ class _ConversationsPageState extends State<ConversationsPage> {
           setState(() => _friendSlide = 0);
           return;
         }
+        if (_friendBlocked) {
+          _showFeedback('已拉黑，请先从长按菜单解除拉黑');
+          return;
+        }
         switch (_friendStatus) {
           case _FriendConversationStatus.active:
             _setFriendUnread(0);
@@ -276,22 +281,17 @@ class _ConversationsPageState extends State<ConversationsPage> {
               if (_friendStatus != _FriendConversationStatus.relationshipEnded)
                 ListTile(
                   key: const ValueKey('conversation-menu-relationship-ended'),
-                  leading: const Icon(Icons.person_off_outlined),
-                  title: const Text('模拟关系已结束'),
-                  subtitle: const Text('会话摘要改为只读'),
-                  onTap: () => Navigator.pop(
-                    context,
-                    _ConversationAction.markRelationshipEnded,
-                  ),
+                  leading: const Icon(Icons.visibility_off_outlined),
+                  title: const Text('不显示'),
+                  onTap: () => Navigator.pop(context, _ConversationAction.hide),
                 ),
               if (_friendStatus != _FriendConversationStatus.invalid)
                 ListTile(
                   key: const ValueKey('conversation-menu-invalid'),
-                  leading: const Icon(Icons.link_off_outlined),
-                  title: const Text('模拟会话失效'),
-                  subtitle: const Text('阻止错误导航并提供恢复'),
+                  leading: const Icon(Icons.block_outlined),
+                  title: Text(_friendBlocked ? '解除拉黑' : '拉黑'),
                   onTap: () =>
-                      Navigator.pop(context, _ConversationAction.invalidate),
+                      Navigator.pop(context, _ConversationAction.toggleBlock),
                 ),
               if (_friendStatus != _FriendConversationStatus.active)
                 ListTile(
@@ -335,22 +335,20 @@ class _ConversationsPageState extends State<ConversationsPage> {
           if (pinned) _pinnedExpanded = true;
         });
         _showFeedback(pinned ? '已置顶' : '已取消置顶');
-      case _ConversationAction.markRelationshipEnded:
+      case _ConversationAction.hide:
         setState(() {
           _friendSlide = 0;
-          _friendStatus = _FriendConversationStatus.relationshipEnded;
-          _conversationGeneration++;
+          _friendVisible = false;
         });
         _setFriendUnread(0);
-        _showFeedback('已切换为只读摘要（UI Mock）');
-      case _ConversationAction.invalidate:
+        _showFeedback('已隐藏会话');
+      case _ConversationAction.toggleBlock:
         setState(() {
           _friendSlide = 0;
-          _friendStatus = _FriendConversationStatus.invalid;
-          _conversationGeneration++;
+          _friendBlocked = !_friendBlocked;
         });
-        _setFriendUnread(0);
-        _showFeedback('会话引用已失效（UI Mock）');
+        if (_friendBlocked) _setFriendUnread(0);
+        _showFeedback(_friendBlocked ? '已拉黑（本地演示）' : '已解除拉黑（本地演示）');
       case _ConversationAction.restore:
         _restoreFriendConversation();
       case _ConversationAction.delete:
