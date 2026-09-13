@@ -125,7 +125,6 @@ class _DirectChatPageState extends State<DirectChatPage>
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _inputFocusNode = FocusNode();
-  final _attachmentPageController = PageController();
   Timer? _keyboardScrollDebounce;
   bool _scrollScheduled = false;
   _ComposerPanel _composerPanel = _ComposerPanel.none;
@@ -165,7 +164,6 @@ class _DirectChatPageState extends State<DirectChatPage>
     }
   }
 
-  int _attachmentPage = 0;
   int _giftCategory = 0;
   int? _selectedGift;
   int _goldBalance = 501;
@@ -211,7 +209,6 @@ class _DirectChatPageState extends State<DirectChatPage>
       ..dispose();
     _controller.dispose();
     _scrollController.dispose();
-    _attachmentPageController.dispose();
     super.dispose();
   }
 
@@ -649,87 +646,70 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Widget _attachmentPanel() {
+    final actions = <Widget>[
+      _AttachmentAction(
+        assetPath: 'assets/legacy/messaging/more_1.png',
+        label: '照片',
+        onTap: () => _addAttachment(_FakeMessageKind.image),
+      ),
+      _AttachmentAction(
+        assetPath: 'assets/legacy/messaging/more_2.png',
+        label: '拍摄',
+        onTap: _takeFakePhoto,
+      ),
+      _AttachmentAction(
+        icon: Icons.videocam_outlined,
+        label: '视频通话',
+        onTap: () => KingNotice.of(context).show('视频通话暂未开放'),
+      ),
+      _AttachmentAction(
+        icon: Icons.location_on_outlined,
+        label: '位置',
+        onTap: () => KingNotice.of(context).show('位置分享暂未开放'),
+      ),
+      _AttachmentAction(
+        assetPath: 'assets/legacy/messaging/more_3.png',
+        label: '金币',
+        onTap: _openGoldCoinComposer,
+      ),
+      _AttachmentAction(
+        assetPath: 'assets/legacy/messaging/more_4.png',
+        label: '红包',
+        onTap: _openRedPacketComposer,
+      ),
+      _AttachmentAction(
+        assetPath: 'assets/legacy/messaging/gift2.png',
+        label: '礼物',
+        onTap: _toggleGifts,
+      ),
+      _AttachmentAction(
+        icon: Icons.mic_none,
+        label: '语音输入',
+        onTap: () {
+          _inputFocusNode.unfocus();
+          setState(() {
+            _voiceMode = true;
+            _composerPanel = _ComposerPanel.none;
+          });
+        },
+      ),
+    ];
     return Container(
       key: const ValueKey('direct-chat-attachment-panel'),
-      height: 210,
       width: double.infinity,
       color: legacyMessagePanel,
-      padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: PageView(
-              controller: _attachmentPageController,
-              onPageChanged: (value) => setState(() => _attachmentPage = value),
+          for (var row = 0; row < 2; row++)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _AttachmentAction(
-                      assetPath: 'assets/legacy/messaging/more_1.png',
-                      label: '照片',
-                      onTap: () => _addAttachment(_FakeMessageKind.image),
-                    ),
-                    _AttachmentAction(
-                      assetPath: 'assets/legacy/messaging/more_2.png',
-                      label: '拍照',
-                      onTap: _takeFakePhoto,
-                    ),
-                    _AttachmentAction(
-                      assetPath: 'assets/legacy/messaging/more_3.png',
-                      label: '金币',
-                      onTap: _openGoldCoinComposer,
-                    ),
-                    _AttachmentAction(
-                      assetPath: 'assets/legacy/messaging/more_4.png',
-                      label: '红包',
-                      onTap: _openRedPacketComposer,
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    const SizedBox(width: 15),
-                    _AttachmentAction(
-                      assetPath: 'assets/legacy/messaging/gift2.png',
-                      label: '礼物',
-                      onTap: _toggleGifts,
-                    ),
-                    _AttachmentAction(
-                      icon: Icons.videocam_outlined,
-                      label: '短视频',
-                      onTap: () => _addAttachment(_FakeMessageKind.video),
-                    ),
-                    _AttachmentAction(
-                      icon: Icons.confirmation_number_outlined,
-                      label: '业务卡片',
-                      onTap: () =>
-                          _addAttachment(_FakeMessageKind.businessCard),
-                    ),
-                  ],
-                ),
+                for (var column = 0; column < 4; column++)
+                  Expanded(child: actions[row * 4 + column]),
               ],
             ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              2,
-              (index) => AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                width: 7,
-                height: 7,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: index == _attachmentPage
-                      ? legacyMessageGold
-                      : const Color(0x55777777),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
