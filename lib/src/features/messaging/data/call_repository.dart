@@ -143,6 +143,7 @@ class CallRepository {
   Future<CallSignalPage> readSignals({
     required String callId,
     int after = 0,
+    bool renewLease = true,
   }) async {
     if (!_uuid(callId)) throw ArgumentError('Invalid call ID');
     _integer(after);
@@ -150,6 +151,7 @@ class CallRepository {
       'callId': callId,
       'after': after,
       'limit': 50,
+      'renewLease': renewLease,
     });
     final generation = _integer(raw['generation'], 65535);
     final rows = raw['items'];

@@ -33,15 +33,29 @@ class Session extends CallMediaSession {
           capture: (_) async => throw StateError('unused'),
         ),
       );
-  int starts = 0, syncs = 0, closes = 0;
+  int starts = 0, syncs = 0, closes = 0, restarts = 0;
+  final renewals = <bool>[];
+  bool restartable = false;
+  int? expiry;
+  @override
+  bool get canRestart => restartable;
+  @override
+  int? get relayExpiresAtMs => expiry;
+  @override
+  Future<void> restart() async {
+    restarts++;
+    expiry = null;
+  }
+
   @override
   Future<void> start() async {
     starts++;
   }
 
   @override
-  Future<void> sync() async {
+  Future<void> sync({bool renewLease = true}) async {
     syncs++;
+    renewals.add(renewLease);
   }
 
   @override
@@ -51,6 +65,92 @@ class Session extends CallMediaSession {
 }
 
 void main() {
+  for (final account in ['a', 'b']) {
+    test(
+      '$account renews relay and recovers ICE only when it owns offers',
+      () async {
+        var now = 1000000;
+        var server = state('ringing', 0);
+        final changes = StreamController<void>.broadcast();
+        final repository = CallRepository(
+          MessagingRepository(
+            account: account,
+            call: (method, params) async {
+              if (method == 'K260913000645') return {'call': server};
+              if (params['action'] == 'accept') {
+                return server = state('connecting', 1);
+              }
+              if (params['action'] == 'connected') {
+                return server = state('active', 3);
+              }
+              return server = state('ended', 4);
+            },
+          ),
+        );
+        late Session session;
+        late void Function(RTCPeerConnectionState) connection;
+        final controller = CallStateController(
+          repository: repository,
+          initial: CallSnapshot.parse(server, account),
+          sessionChanges: changes.stream,
+          nowMs: () => now,
+          sessionFactory: (call, callback) {
+            connection = callback;
+            return session = Session(repository, call)..restartable = true;
+          },
+        );
+        if (account == 'b') {
+          await controller.accept();
+        } else {
+          server = state('connecting', 1);
+          await controller.refresh();
+        }
+        connection(RTCPeerConnectionState.RTCPeerConnectionStateConnected);
+        await controller.refresh();
+        session.expiry = now + 59000;
+        await controller.refresh();
+        final expected = account == 'a' ? 1 : 0;
+        expect(session.restarts, expected);
+        expect(session.renewals.last, true);
+        now += 11000;
+        session.expiry = null;
+        connection(RTCPeerConnectionState.RTCPeerConnectionStateDisconnected);
+        await controller.refresh();
+        expect(session.restarts, expected);
+        now += 1999;
+        await controller.refresh();
+        expect(session.restarts, expected);
+        now++;
+        await controller.refresh();
+        expect(session.restarts, expected * 2);
+        expect(session.renewals.last, false);
+        // A burst of polls cannot create further offers during the cooldown.
+        await controller.refresh();
+        await controller.refresh();
+        expect(session.restarts, expected * 2);
+        // Failed in an active call still allows recovery before server expiry.
+        connection(RTCPeerConnectionState.RTCPeerConnectionStateFailed);
+        expect(controller.isEnding, false);
+        now += 10000;
+        await controller.refresh();
+        expect(session.restarts, expected * 3);
+        connection(RTCPeerConnectionState.RTCPeerConnectionStateConnected);
+        await controller.refresh();
+        expect(session.renewals.last, true);
+        now += 10000;
+        server = {...state('active', 3), 'deadlineMs': now + 20000};
+        await controller.refresh();
+        expect(session.restarts, expected * 4);
+        server = state('ended', 4);
+        await controller.refresh();
+        expect(controller.isClosed, true);
+        expect(session.restarts, expected * 4);
+        controller.dispose();
+        await changes.close();
+      },
+    );
+  }
+
   test('active disconnect pauses lease renewal while state polling and recovery remain live', () async {
     final changes = StreamController<void>.broadcast();
     var server = state('ringing', 0), reads = 0;
@@ -90,11 +190,13 @@ void main() {
     await controller.refresh();
     await controller.refresh();
     expect(reads, beforeReads + 2);
-    expect(session.syncs, beforeDisconnect);
+    expect(session.syncs, beforeDisconnect + 2);
+    expect(session.renewals.skip(beforeDisconnect), [false, false]);
     expect(controller.isClosed, false);
     connection(RTCPeerConnectionState.RTCPeerConnectionStateConnected);
     await controller.refresh();
-    expect(session.syncs, beforeDisconnect + 1);
+    expect(session.syncs, beforeDisconnect + 3);
+    expect(session.renewals.last, true);
     connection(RTCPeerConnectionState.RTCPeerConnectionStateDisconnected);
     server = state('ended', 4);
     await controller.refresh();

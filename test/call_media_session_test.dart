@@ -115,6 +115,9 @@ void main() {
             };
           }
           if (method == 'K260913000647') {
+            if (account == 'b' && generation == 1) {
+              expect(params['renewLease'], false);
+            }
             final rows = signals
                 .where(
                   (row) =>
@@ -193,8 +196,12 @@ void main() {
     calleeMedia.emit(RTCIceCandidate('candidate:old', '0', 0));
     await expectLater(caller.restart(), throwsA(isA<AuthFailure>()));
     expect(caller.generation, 1);
-    await callee.sync();
+    await callee.sync(renewLease: false);
     expect(callee.generation, 1);
+    expect(
+      callee.relayExpiresAtMs,
+      greaterThan(DateTime.now().millisecondsSinceEpoch),
+    );
     expect(calleeMedia.prepared, 1);
     await caller.sync();
     expect(offerIds, hasLength(2));

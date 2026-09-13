@@ -24,7 +24,9 @@ class CallStateController extends ChangeNotifier {
     bool outgoingAttempt = false,
     required Stream<void> sessionChanges,
     this.pollInterval = const Duration(seconds: 2),
-  }) : _call = initial {
+    int Function()? nowMs,
+  }) : _call = initial,
+       _nowMs = nowMs ?? (() => DateTime.now().millisecondsSinceEpoch) {
     if ((initial.phase != CallPhase.ringing &&
             !(outgoingAttempt &&
                 initial.phase == CallPhase.connecting &&
@@ -48,6 +50,9 @@ class CallStateController extends ChangeNotifier {
   final CallRepository repository;
   final CallSessionFactory sessionFactory;
   final Duration pollInterval;
+  final int Function() _nowMs;
+  int? _recoverySinceMs;
+  int _nextRestartAtMs = 0;
   late final StreamSubscription<void> _sessionChanges;
   CallSnapshot _call;
   CallSnapshot get call => _call;
@@ -159,12 +164,34 @@ class CallStateController extends ChangeNotifier {
   });
 
   Future<void> _syncMedia() async {
-    // Active signal reads renew only this device's server lease. Keep reading
-    // call state via 645, but do not renew a media path that has disconnected.
-    // Initial negotiation still needs SDP/ICE before native Connected exists.
-    if (_call.phase == CallPhase.active && !_connected) return;
     try {
-      await _media?.sync();
+      // Disconnected devices must still receive restart SDP/ICE, without
+      // prolonging their lease merely because the control network works.
+      await _media?.sync(
+        renewLease: _call.phase != CallPhase.active || _connected,
+      );
+      if (_closed ||
+          _ending ||
+          _call.phase != CallPhase.active ||
+          _call.caller != repository.messaging.account ||
+          _media?.canRestart != true) {
+        return;
+      }
+      final now = _nowMs(), expiry = _media!.relayExpiresAtMs;
+      final disconnected =
+          !_connected &&
+          _recoverySinceMs != null &&
+          now - _recoverySinceMs! >= 2000;
+      final expiring = expiry != null && expiry - now <= 60000;
+      // If the other side loses media first, our native peer may not yet have
+      // detected it. Its stopped lease renewal gives the caller a bounded
+      // recovery window, while only the server decides whether time is up.
+      final peerLeaseExpiring = _connected && _call.deadlineMs - now <= 30000;
+      if ((disconnected || expiring || peerLeaseExpiring) &&
+          now >= _nextRestartAtMs) {
+        _nextRestartAtMs = now + 10000;
+        await _media!.restart();
+      }
     } catch (_) {
       // A native negotiation error can already have stopped capture. The next
       // refresh must terminate the server call instead of retrying a dead peer.
@@ -196,11 +223,17 @@ class CallStateController extends ChangeNotifier {
     _connectionState = state;
     _connected =
         state == RTCPeerConnectionState.RTCPeerConnectionStateConnected;
+    if (_connected) {
+      _recoverySinceMs = null;
+    } else if (_call.phase == CallPhase.active) {
+      _recoverySinceMs ??= _nowMs();
+    }
     _notify();
     if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
       unawaited(refresh().catchError((Object _) {}));
-    } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-        state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+    } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed ||
+        (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed &&
+            _call.phase != CallPhase.active)) {
       unawaited(end().catchError((Object _) {}));
     }
   }

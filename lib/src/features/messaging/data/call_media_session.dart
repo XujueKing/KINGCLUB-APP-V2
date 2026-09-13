@@ -20,6 +20,7 @@ class CallMediaSession {
     required this.repository,
     required this.call,
     required CallMediaFactory mediaFactory,
+    this.initialRelayExpiresAtMs,
   }) {
     if (call.phase != CallPhase.connecting ||
         (call.caller != repository.messaging.account &&
@@ -40,6 +41,17 @@ class CallMediaSession {
   int _cursor = 0, _generation = 0;
   Future<void>? _restarting;
   int get generation => _generation;
+  final int? initialRelayExpiresAtMs;
+  int? _relayExpiresAtMs;
+  int? get relayExpiresAtMs => _relayExpiresAtMs ?? initialRelayExpiresAtMs;
+  bool get canRestart =>
+      !_closed &&
+      _caller &&
+      _remoteDescriptionApplied &&
+      _generation < 65535 &&
+      _restarting == null &&
+      _syncing == null &&
+      _flushing == null;
   Object? _candidateFailure;
   bool get _caller => call.caller == repository.messaging.account;
   bool get isClosed => _closed;
@@ -134,15 +146,15 @@ class CallMediaSession {
     }
   }
 
-  Future<void> sync() {
+  Future<void> sync({bool renewLease = true}) {
     _check();
     if (_restarting != null) {
       return Future.error(StateError('ICE restart in progress'));
     }
-    return _syncing ??= _sync().whenComplete(() => _syncing = null);
+    return _syncing ??= _sync(renewLease).whenComplete(() => _syncing = null);
   }
 
-  Future<void> _sync() async {
+  Future<void> _sync(bool renewLease) async {
     await start();
     AuthFailure? oldGenerationConflict;
     try {
@@ -156,6 +168,7 @@ class CallMediaSession {
       final page = await repository.readSignals(
         callId: call.id,
         after: _cursor,
+        renewLease: renewLease,
       );
       _check();
       if (page.generation != _generation) {
@@ -177,6 +190,7 @@ class CallMediaSession {
         }
         _check();
         _beginGeneration(page.generation);
+        _relayExpiresAtMs = relay.expiresAtMs;
       } else if (oldGenerationConflict != null) {
         throw oldGenerationConflict;
       }
@@ -261,6 +275,7 @@ class CallMediaSession {
       );
       _check();
       _queueDescription(description, 'offer');
+      _relayExpiresAtMs = relay.expiresAtMs;
     } catch (_) {
       await close();
       rethrow;

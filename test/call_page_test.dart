@@ -35,7 +35,7 @@ class Session extends CallMediaSession {
   @override
   Future<void> start() async {}
   @override
-  Future<void> sync() async {}
+  Future<void> sync({bool renewLease = true}) async {}
   @override
   Future<void> close() async {}
 }

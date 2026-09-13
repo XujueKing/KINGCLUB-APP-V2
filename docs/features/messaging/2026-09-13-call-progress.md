@@ -153,3 +153,12 @@ CallMediaSession 接入 caller 主动 restart：仅 active 且上一代已收到
 NativeCallMedia.prepareRemoteRestart 在配置更新后重新等待远端 SDP，再应用新候选；没有重新调用 getUserMedia。验证为 18 项媒体会话/原生媒体/控制器测试及四文件静态分析通过，包含丢失重启 offer 确认重放、接收端旧 ICE 冲突、原生候选等待新 SDP、配置失败停采集。
 
 本批尚未自动触发。下一步需将断线信令读取与设备租期续期分开，然后接入断线恢复和中继临期更新。测试使用隔离的信令/原生接口替身，不等于真实 SDK 网络重连或双机长通话验收；未安装新包。
+
+
+## 自动 ICE 恢复与中继临期更新
+
+CallStateController 的原两秒同步循环接入主叫 restart：active 原生断线持续至少两秒，或本代凭据剩余一分钟以内，或本机仍 connected 而服务端最早设备租期仅剩三十秒时尝试；两次尝试至少间隔十秒。仅上一代已获远端 SDP 且无在途协商时可开始，丢失发送确认由会话队列重试，不创建新 offer。CallPage 传入已验证配置的初始有效期，双方更新成功后记录新有效期。
+
+active 未 connected 继续 sync(renewLease:false)，接收新 offer/answer/ICE，恢复 connected 才续期。active 原生 failed 留在服务端原期限内尝试恢复，closed/初始连接 failed 仍结束；服务端到期/撤权继续停止本地采集。依赖服务端 073 的可选 renewLease 契约；当前共享 API 尚未部署，不能给旧 065 服务声称通话可用。临期调度使用设备时间，最终超时仍由服务器决定；设备时钟异常、真实无线网络切换和长通话仍待实测。
+
+验证：repository/session/native/controller/page 合计 26 项通过，七文件 analyze 无问题。新增主被叫角色、两秒门槛、十秒间隔、临期刷新、对端租期临近、failed 后恢复、ended 停止、断线补收 false 贯通到仓库测试。073 真实隔离数据库与加密 HTTP 测试已通过，未安装新包。下一步以独立测试包在单手机做无麦克风/摄像头的原生 WebRTC data channel 回环，验证 SDK 实际 ICE restart；它不能替代真实音视频、双机 NAT 或公网中继验收。

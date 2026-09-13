@@ -38,6 +38,7 @@ class CallPage extends StatefulWidget {
           return CallMediaSession(
             repository: repository,
             call: call,
+            initialRelayExpiresAtMs: relay.expiresAtMs,
             mediaFactory: (onCandidate) => NativeCallMedia(
               video: call.media == CallMedia.video,
               iceServers: relay.iceServers,
