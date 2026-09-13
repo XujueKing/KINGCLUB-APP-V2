@@ -1,3 +1,6 @@
+import 'package:image_picker/image_picker.dart';
+
+import 'chat_image_send_page.dart';
 import '../data/chat_session_controller.dart';
 import '../data/group_chat_controller.dart';
 import '../data/group_chat_repository.dart';
@@ -153,6 +156,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   StreamSubscription<Map<String, dynamic>>? _chatEvents;
   StreamSubscription<void>? _sessionEvents;
   bool _loadingOlder = false;
+  bool _selectingImage = false;
   VoiceCapture? _capture;
   bool _leaving = false;
   final _controller = TextEditingController();
@@ -872,12 +876,16 @@ class _DirectChatPageState extends State<DirectChatPage>
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/more_1.png',
         label: '照片',
-        onTap: () => _addAttachment(_FakeMessageKind.image),
+        onTap: () => _realTarget == null
+            ? _addAttachment(_FakeMessageKind.image)
+            : _selectChatImage(ImageSource.gallery),
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/more_2.png',
         label: '拍摄',
-        onTap: _takeFakePhoto,
+        onTap: () => _realTarget == null
+            ? _takeFakePhoto()
+            : _selectChatImage(ImageSource.camera),
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_video_call.svg',
@@ -1374,6 +1382,37 @@ class _DirectChatPageState extends State<DirectChatPage>
     });
     _scrollToLatest();
     _completeSend(message);
+  }
+
+  Future<void> _selectChatImage(ImageSource source) async {
+    if (_selectingImage) return;
+    final chat = _chat;
+    if (chat is! DirectChatController) {
+      KingNotice.of(context)
+          .show(widget.groupId != null ? '群图片正在接入，尚未发送' : '会话尚未就绪');
+      return;
+    }
+    _selectingImage = true;
+    try {
+      _dismissComposer();
+      final file = await ImagePicker().pickImage(source: source);
+      if (file == null || !mounted || !identical(chat, _chat)) return;
+      final length = await file.length();
+      if (length == 0 || length > 20 * 1024 * 1024) {
+        throw StateError('请选择不超过20MB的静态图片');
+      }
+      final bytes = await file.readAsBytes();
+      if (!mounted || !identical(chat, _chat)) return;
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => ChatImageSendPage(bytes: bytes, chat: chat),
+        ),
+      );
+    } catch (error) {
+      if (mounted) KingNotice.of(context).show(error.toString());
+    } finally {
+      _selectingImage = false;
+    }
   }
 
   void _takeFakePhoto() {
