@@ -50,6 +50,41 @@ class Session extends CallMediaSession {
 
 void main() {
   test(
+    'expired relay factory failure ends the attempt without retrying capture',
+    () async {
+      final changes = StreamController<void>.broadcast();
+      var server = state('ringing', 0), opens = 0;
+      final repository = CallRepository(
+        MessagingRepository(
+          account: 'a',
+          call: (method, params) async {
+            if (method == 'K260913000645') return {'call': server};
+            expect(params['action'], 'hangup');
+            return state('ended', 2);
+          },
+        ),
+      );
+      final controller = CallStateController(
+        repository: repository,
+        initial: CallSnapshot.parse(server, 'a'),
+        sessionChanges: changes.stream,
+        sessionFactory: (_, _) {
+          opens++;
+          throw StateError('Expired relay');
+        },
+      );
+      server = state('connecting', 1);
+      await expectLater(controller.refresh(), throwsStateError);
+      expect(controller.isEnding, true);
+      await controller.refresh();
+      expect(controller.isClosed, true);
+      expect(opens, 1);
+      controller.dispose();
+      await changes.close();
+    },
+  );
+
+  test(
     'incoming refresh never captures; accept retry uses its original identity',
     () async {
       var server = state('ringing', 0);

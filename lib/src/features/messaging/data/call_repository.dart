@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'messaging_repository.dart';
+import 'call_relay_configuration.dart';
 
 enum CallPhase { ringing, connecting, active, ended }
 
@@ -121,6 +122,12 @@ class CallSignalPage {
 class CallRepository {
   CallRepository(this.messaging);
   final MessagingRepository messaging;
+
+  Future<CallRelayConfiguration> readRelay({required String callId}) async {
+    if (!_uuid(callId)) throw ArgumentError('Invalid call ID');
+    final raw = await messaging.call('K260914000648', {'callId': callId});
+    return CallRelayConfiguration.parse(callId, raw);
+  }
 
   Future<int> sendSignal(CallSignal signal) async {
     final raw = await messaging.call('K260913000646', {'signal': signal.data});

@@ -169,13 +169,12 @@ class CallStateController extends ChangeNotifier {
         _call.phase != CallPhase.connecting) {
       return;
     }
-    final media = sessionFactory(_call, _onConnection);
-    _media = media;
     try {
-      await media.start();
+      _media = sessionFactory(_call, _onConnection);
+      await _media!.start();
     } catch (_) {
       _ending = true;
-      await media.close();
+      await _media?.close();
       rethrow;
     }
   }

@@ -7,6 +7,7 @@ import '../../../core/design_system/king_components.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/call_media_session.dart';
 import '../data/call_repository.dart';
+import '../data/call_relay_configuration.dart';
 import '../data/call_state_controller.dart';
 import '../data/native_call_media.dart';
 
@@ -20,26 +21,32 @@ class CallPage extends StatefulWidget {
     required CallRepository repository,
     required CallSnapshot initial,
     required String peerName,
-    required List<Map<String, dynamic>> iceServers,
-  }) => CallPage(
-    key: key,
-    peerName: peerName,
-    controller: CallStateController(
-      repository: repository,
-      initial: initial,
-      sessionChanges: SecureSessionStore.changes.stream,
-      sessionFactory: (call, onConnection) => CallMediaSession(
+    required CallRelayConfiguration relay,
+  }) {
+    relay.requireUsable(initial.id);
+    return CallPage(
+      key: key,
+      peerName: peerName,
+      controller: CallStateController(
         repository: repository,
-        call: call,
-        mediaFactory: (onCandidate) => NativeCallMedia(
-          video: call.media == CallMedia.video,
-          iceServers: iceServers,
-          onCandidate: onCandidate,
-          onConnection: onConnection,
-        ),
+        initial: initial,
+        sessionChanges: SecureSessionStore.changes.stream,
+        sessionFactory: (call, onConnection) {
+          relay.requireUsable(call.id);
+          return CallMediaSession(
+            repository: repository,
+            call: call,
+            mediaFactory: (onCandidate) => NativeCallMedia(
+              video: call.media == CallMedia.video,
+              iceServers: relay.iceServers,
+              onCandidate: onCandidate,
+              onConnection: onConnection,
+            ),
+          );
+        },
       ),
-    ),
-  );
+    );
+  }
 
   final CallStateController controller;
   final String peerName;
