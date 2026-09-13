@@ -1,3 +1,6 @@
+import '../data/call_launch_coordinator.dart';
+import '../data/call_repository.dart';
+import 'call_page.dart';
 import 'chat_member_avatar.dart';
 import '../data/chat_history_store.dart';
 import 'chat_location_message.dart';
@@ -162,6 +165,8 @@ class DirectChatPage extends StatefulWidget {
 class _DirectChatPageState extends State<DirectChatPage>
     with WidgetsBindingObserver {
   ChatSessionController? _chat;
+  CallLaunchCoordinator? _callLauncher;
+  bool _openingCall = false;
   String? get _realTarget => widget.groupId ?? widget.peerAccount;
   StreamSubscription<Map<String, dynamic>>? _chatEvents;
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
@@ -404,6 +409,8 @@ class _DirectChatPageState extends State<DirectChatPage>
         }
       });
       _sessionEvents = SecureSessionStore.changes.stream.listen((_) {
+        _callLauncher?.close();
+        _callLauncher = null;
         _voiceSession++;
         _endVoiceHold(interrupted: true);
         _chatEvents?.cancel();
@@ -422,6 +429,60 @@ class _DirectChatPageState extends State<DirectChatPage>
       }
     } catch (error) {
       if (mounted) KingNotice.of(context).show(error.toString());
+    }
+  }
+
+  Future<void> _openVideoCall() async {
+    if (_openingCall || _leaving) return;
+    final chat = _chat;
+    final peer = widget.peerAccount;
+    if (widget.groupId != null) {
+      KingNotice.of(context).show('群视频通话尚未接通');
+      return;
+    }
+    if (chat == null || peer == null) {
+      KingNotice.of(context).show('请在已连接的好友会话中发起通话');
+      return;
+    }
+    _openingCall = true;
+    _dismissComposer();
+    final launcher = _callLauncher ??= CallLaunchCoordinator(
+      CallRepository(chat.messaging),
+    );
+    try {
+      final prepared = await launcher.outgoing(
+        peer: peer,
+        media: CallMedia.video,
+      );
+      if (!mounted || _leaving || !identical(_callLauncher, launcher)) return;
+      final page = CallPage.native(
+        repository: launcher.repository,
+        initial: prepared.call,
+        peerName: widget.peerName,
+        relay: prepared.relay,
+        outgoingAttempt: prepared.outgoingAttempt,
+      );
+      // A completed setup must not open the camera behind another page or
+      // after this app has moved to the background.
+      if (ModalRoute.of(context)?.isCurrent != true ||
+          WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        try {
+          await page.controller.end();
+        } finally {
+          page.controller.dispose();
+        }
+      } else {
+        await Navigator.of(context)
+            .push<void>(MaterialPageRoute(builder: (_) => page));
+      }
+      if (!mounted || _leaving || !identical(_callLauncher, launcher)) return;
+      await launcher.finishOutgoing(prepared.call.id);
+    } catch (error) {
+      if (mounted && !_leaving && identical(_callLauncher, launcher)) {
+        KingNotice.of(context).show('通话未能完成：$error');
+      }
+    } finally {
+      _openingCall = false;
     }
   }
 
@@ -513,6 +574,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   @override
   void dispose() {
     _leaving = true;
+    _callLauncher?.close();
     _chatEvents?.cancel();
     _sessionEvents?.cancel();
     _voiceSender.dispose();
@@ -1081,7 +1143,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         assetPath: 'assets/legacy/messaging/action_video_call.svg',
         glyphSize: 32,
         label: '视频通话',
-        onTap: () => KingNotice.of(context).show('视频通话暂未开放'),
+        onTap: _openVideoCall,
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_location.svg',
