@@ -440,6 +440,45 @@ class _PublicMemberPageState extends State<PublicMemberPage>
         ];
         return Scaffold(
           backgroundColor: Colors.white,
+          bottomNavigationBar: profile == null
+              ? null
+              : SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _saving ? null : _follow,
+                            child: Text(
+                              profile['friends'] == true
+                                  ? '互相关注'
+                                  : profile['following'] == true
+                                  ? '已关注'
+                                  : '关注',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => Navigator.of(context).push<void>(
+                              MaterialPageRoute(
+                                builder: (_) => DirectChatPage(
+                                  peerName: profile['nickname'] as String,
+                                  peerAccount: widget.account,
+                                  repository: _repository,
+                                ),
+                              ),
+                            ),
+                            child: const Text('私信'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
           body: RefreshIndicator(
             onRefresh: _load,
             child: CustomScrollView(
@@ -452,7 +491,6 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                     child: Stack(
                       children: [
                         Positioned.fill(
-                          bottom: 22 * scale,
                           child: _memberImage(
                             'cover',
                             const ColoredBox(color: Color(0xFF161A22)),
@@ -633,49 +671,34 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                                       horizontal: 7,
                                       vertical: 3,
                                     ),
-                                    child: Text(
-                                      tag,
-                                      style: const TextStyle(
-                                        color: Color(0xFF777777),
-                                        fontSize: 12,
-                                      ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (tag == '${profile['age']}岁' &&
+                                            (profile['gender'] == 1 ||
+                                                profile['gender'] == 2)) ...[
+                                          Image.asset(
+                                            'assets/legacy/friendship/${profile['gender'] == 1 ? 'man3' : 'woman3'}.png',
+                                            width: 12,
+                                            height: 12,
+                                            semanticLabel:
+                                                profile['gender'] == 1
+                                                ? '男'
+                                                : '女',
+                                          ),
+                                          const SizedBox(width: 4),
+                                        ],
+                                        Text(
+                                          tag,
+                                          style: const TextStyle(
+                                            color: Color(0xFF777777),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: _saving ? null : _follow,
-                                  child: Text(
-                                    profile['friends'] == true
-                                        ? '互相关注'
-                                        : profile['following'] == true
-                                        ? '已关注'
-                                        : '关注',
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: FilledButton(
-                                  onPressed: () => Navigator.of(context)
-                                      .push<void>(
-                                        MaterialPageRoute(
-                                          builder: (_) => DirectChatPage(
-                                            peerName:
-                                                profile['nickname'] as String,
-                                            peerAccount: widget.account,
-                                            repository: _repository,
-                                          ),
-                                        ),
-                                      ),
-                                  child: const Text('私信'),
-                                ),
-                              ),
                             ],
                           ),
                         ],
