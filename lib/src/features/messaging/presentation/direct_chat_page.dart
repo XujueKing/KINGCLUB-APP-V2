@@ -22,7 +22,7 @@ enum _FakeMessageKind {
   gift,
 }
 
-enum _ComposerPanel { none, attachments, gifts }
+enum _ComposerPanel { none, attachments, gifts, emoji }
 
 enum _FakeMessageAction { copy, quote, forward, delete, recall }
 
@@ -300,33 +300,21 @@ class _DirectChatPageState extends State<DirectChatPage>
                 ],
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+          Container(
+            key: const ValueKey('direct-chat-composer-capsule'),
+            margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFF312C27),
+              borderRadius: BorderRadius.circular(24),
+            ),
             child: Row(
               children: [
-                IconButton(
-                  key: const ValueKey('direct-chat-gifts'),
-                  tooltip: '礼物',
-                  onPressed: _readOnly ? null : _toggleGifts,
-                  icon: ColorFiltered(
-                    key: ValueKey(
-                      _composerPanel == _ComposerPanel.gifts
-                          ? 'direct-chat-gifts-icon-active'
-                          : 'direct-chat-gifts-icon-inactive',
-                    ),
-                    colorFilter: ColorFilter.mode(
-                      _composerPanel == _ComposerPanel.gifts
-                          ? legacyMessageGold
-                          : const Color(0xFF37322C),
-                      BlendMode.srcIn,
-                    ),
-                    child: Image.asset(
-                      'assets/legacy/messaging/gift2.png',
-                      width: 30,
-                      height: 30,
-                      filterQuality: FilterQuality.high,
-                    ),
-                  ),
+                _composerIcon(
+                  'direct-chat-gifts',
+                  '礼物',
+                  'gift2.png',
+                  _readOnly ? null : _toggleGifts,
                 ),
                 Expanded(
                   child: TextField(
@@ -336,83 +324,70 @@ class _DirectChatPageState extends State<DirectChatPage>
                     enabled: !_readOnly,
                     minLines: 1,
                     maxLines: 4,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: legacyMessageGold,
+                    ),
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
-                      hintText: _readOnly ? '当前不可发送消息' : '发消息',
-                      filled: true,
-                      fillColor: const Color(0xFF312C27),
+                      hintText: _readOnly ? '当前不可发送消息' : '',
+                      isDense: true,
+                      filled: false,
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
+                        horizontal: 4,
                         vertical: 10,
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: BorderSide.none,
-                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _controller,
                   builder: (context, value, _) {
-                    final enabled = !_readOnly && value.text.trim().isNotEmpty;
-                    if (enabled) {
-                      return SizedBox(
-                        width: 58,
-                        height: 40,
+                    if (!_readOnly && value.text.trim().isNotEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 3),
                         child: TextButton(
                           key: const ValueKey('direct-chat-send'),
                           onPressed: _send,
                           style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            backgroundColor: const Color(0xFF07C160),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            textStyle: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            minimumSize: const Size(66, 32),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            backgroundColor: const Color(0xFF29B463),
+                            foregroundColor: Colors.black,
+                            shape: const StadiumBorder(),
+                            textStyle: const TextStyle(fontSize: 14),
                           ),
-                          child: const Text('发送'),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('发送'),
+                              SizedBox(width: 4),
+                              Icon(Icons.send, size: 12),
+                            ],
+                          ),
                         ),
                       );
                     }
                     return Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          key: const ValueKey('direct-chat-emoji'),
-                          tooltip: '表情',
-                          visualDensity: VisualDensity.compact,
-                          onPressed: _insertEmoji,
-                          icon: Image.asset(
-                            'assets/legacy/messaging/smail.png',
-                            width: 29,
-                            height: 29,
-                          ),
+                        _composerIcon(
+                          'direct-chat-emoji',
+                          '表情',
+                          _composerPanel == _ComposerPanel.emoji
+                              ? 'keynote.png'
+                              : 'smail.png',
+                          _readOnly ? null : _insertEmoji,
                         ),
-                        IconButton(
-                          key: const ValueKey('direct-chat-attachments'),
-                          tooltip: '更多',
-                          visualDensity: VisualDensity.compact,
-                          onPressed: _toggleAttachments,
-                          icon: Image.asset(
-                            'assets/legacy/messaging/add.png',
-                            width: 29,
-                            height: 29,
-                          ),
+                        _composerIcon(
+                          'direct-chat-attachments',
+                          '更多',
+                          'add.png',
+                          _readOnly ? null : _toggleAttachments,
                         ),
                       ],
                     );
@@ -431,13 +406,14 @@ class _DirectChatPageState extends State<DirectChatPage>
       _ComposerPanel.none => const SizedBox.shrink(),
       _ComposerPanel.attachments => _attachmentPanel(),
       _ComposerPanel.gifts => _giftPanel(),
+      _ComposerPanel.emoji => _emojiPanel(),
     };
   }
 
   Widget _attachmentPanel() {
     return Container(
       key: const ValueKey('direct-chat-attachment-panel'),
-      height: 178,
+      height: 210,
       width: double.infinity,
       color: legacyMessagePanel,
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
@@ -729,10 +705,162 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   void _insertEmoji() {
-    _controller
-      ..text = '${_controller.text}😀'
-      ..selection = TextSelection.collapsed(offset: _controller.text.length);
-    _inputFocusNode.requestFocus();
+    if (_composerPanel == _ComposerPanel.emoji) {
+      setState(() => _composerPanel = _ComposerPanel.none);
+      _inputFocusNode.requestFocus();
+    } else {
+      _inputFocusNode.unfocus();
+      setState(() => _composerPanel = _ComposerPanel.emoji);
+    }
+  }
+
+  Widget _composerIcon(
+    String key,
+    String label,
+    String asset,
+    VoidCallback? onTap,
+  ) => IconButton(
+    key: ValueKey(key),
+    tooltip: label,
+    onPressed: onTap,
+    constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+    padding: const EdgeInsets.all(7),
+    icon: Image.asset(
+      'assets/legacy/messaging/$asset',
+      width: 26,
+      height: 26,
+      color: legacyMessageGold,
+      colorBlendMode: BlendMode.srcIn,
+    ),
+  );
+
+  Widget _emojiPanel() {
+    const emojis = [
+      '😀',
+      '😃',
+      '😄',
+      '😁',
+      '😆',
+      '😅',
+      '😂',
+      '🤣',
+      '😊',
+      '😇',
+      '🙂',
+      '🙃',
+      '😉',
+      '😌',
+      '😍',
+      '🥰',
+      '😘',
+      '😗',
+      '😙',
+      '😚',
+      '😋',
+      '😛',
+      '😝',
+      '😜',
+      '🤪',
+      '🤨',
+      '🧐',
+      '🤓',
+      '😎',
+      '🤩',
+      '🥳',
+      '😏',
+      '😒',
+      '😞',
+      '😔',
+      '😟',
+      '😕',
+      '🙁',
+      '☹️',
+      '😣',
+      '😖',
+      '😫',
+      '😩',
+      '🥺',
+      '😢',
+      '😭',
+      '😤',
+      '😠',
+    ];
+    return Container(
+      key: const ValueKey('direct-chat-emoji-panel'),
+      height: 260,
+      color: legacyMessagePanel,
+      child: Column(
+        children: [
+          const SizedBox(height: 10),
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 8,
+              ),
+              itemCount: emojis.length,
+              itemBuilder: (context, index) => InkWell(
+                onTap: () {
+                  final selection = _controller.selection;
+                  final start = selection.isValid
+                      ? selection.start
+                      : _controller.text.length;
+                  final end = selection.isValid ? selection.end : start;
+                  _controller.value = TextEditingValue(
+                    text: _controller.text.replaceRange(
+                      start,
+                      end,
+                      emojis[index],
+                    ),
+                    selection: TextSelection.collapsed(
+                      offset: start + emojis[index].length,
+                    ),
+                  );
+                },
+                child: Center(
+                  child: Text(
+                    emojis[index],
+                    style: const TextStyle(fontSize: 27),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(15, 4, 15, 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  tooltip: '删除表情',
+                  onPressed: () {
+                    final text = _controller.text.characters;
+                    _controller.text = text.isEmpty
+                        ? ''
+                        : text.take(text.length - 1).toString();
+                    _controller.selection = TextSelection.collapsed(
+                      offset: _controller.text.length,
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.backspace_outlined,
+                    size: 22,
+                    color: legacyMessageGold,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _send,
+                  child: const Text(
+                    '发送',
+                    style: TextStyle(color: legacyMessageGold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _addAttachment(_FakeMessageKind kind) {
@@ -1527,23 +1655,23 @@ class _AttachmentAction extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(7),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
-                color: const Color(0xFF312C27),
-                borderRadius: BorderRadius.circular(10),
+                color: const Color(0x4D323232),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: assetPath != null
                   ? Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(19),
                       child: Image.asset(
                         assetPath!,
-                        color: legacyMessageGold,
+                        color: const Color(0x99C9B69E),
                         colorBlendMode: BlendMode.srcIn,
                         fit: BoxFit.contain,
                       ),
