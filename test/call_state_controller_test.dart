@@ -64,7 +64,96 @@ class Session extends CallMediaSession {
   }
 }
 
+class RecoveryTimer implements Timer {
+  RecoveryTimer(this.callback);
+  final void Function() callback;
+  @override
+  bool isActive = true;
+  @override
+  int tick = 0;
+  @override
+  void cancel() => isActive = false;
+  void fire() {
+    if (!isActive) return;
+    isActive = false;
+    tick++;
+    callback();
+  }
+}
+
 void main() {
+  test(
+    'recovery timeout stops local capture while state HTTP is stuck',
+    () async {
+      final timers = <RecoveryTimer>[];
+      final timerZone = ZoneSpecification(
+        createTimer: (self, parent, zone, duration, callback) {
+          expect(duration, const Duration(seconds: 45));
+          final timer = RecoveryTimer(callback);
+          timers.add(timer);
+          return timer;
+        },
+      );
+      final changes = StreamController<void>.broadcast();
+      final stalled = Completer<Map<String, dynamic>>();
+      var server = state('ringing', 0), blockReads = false;
+      final repository = CallRepository(
+        MessagingRepository(
+          account: 'a',
+          call: (method, _) async {
+            if (method == 'K260913000645') {
+              return blockReads ? stalled.future : {'call': server};
+            }
+            return server = state('active', 3);
+          },
+        ),
+      );
+      late Session session;
+      late void Function(RTCPeerConnectionState) connection;
+      final controller = CallStateController(
+        repository: repository,
+        initial: CallSnapshot.parse(server, 'a'),
+        sessionChanges: changes.stream,
+        sessionFactory: (call, callback) {
+          connection = callback;
+          return session = Session(repository, call);
+        },
+      );
+      server = state('connecting', 1);
+      await controller.refresh();
+      connection(RTCPeerConnectionState.RTCPeerConnectionStateConnected);
+      await controller.refresh();
+      runZoned(
+        () => connection(
+          RTCPeerConnectionState.RTCPeerConnectionStateDisconnected,
+        ),
+        zoneSpecification: timerZone,
+      );
+      connection(RTCPeerConnectionState.RTCPeerConnectionStateConnected);
+      await controller.refresh();
+      expect(timers.single.isActive, false);
+      timers.single.fire();
+      expect(controller.isEnding, false); // Recovery canceled the old timer.
+      blockReads = true;
+      final pending = controller.refresh();
+      await Future<void>.delayed(Duration.zero);
+      runZoned(
+        () => connection(RTCPeerConnectionState.RTCPeerConnectionStateFailed),
+        zoneSpecification: timerZone,
+      );
+      expect(session.closes, 0);
+      expect(timers, hasLength(2));
+      timers.last.fire();
+      expect(controller.isEnding, true);
+      expect(session.closes, 1); // HTTP still has not returned.
+      stalled.complete({'call': state('ended', 4)});
+      await pending;
+      expect(controller.isClosed, true);
+      controller.dispose();
+      await changes.close();
+    },
+  );
+
   for (final account in ['a', 'b']) {
     test(
       '$account renews relay and recovers ICE only when it owns offers',

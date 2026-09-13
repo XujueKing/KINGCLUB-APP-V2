@@ -69,7 +69,7 @@ class CallStateController extends ChangeNotifier {
       _call.callee == repository.messaging.account;
   RTCPeerConnectionState? _connectionState;
   RTCPeerConnectionState? get connectionState => _connectionState;
-  Timer? _timer;
+  Timer? _timer, _recoveryTimer;
   Future<void> _tail = Future.value();
   Future<void>? _refreshing, _closing;
   final _pending = <CallAction, ({CallSnapshot call, String id})>{};
@@ -147,6 +147,7 @@ class CallStateController extends ChangeNotifier {
     }
     _call = next;
     if (next.phase == CallPhase.ended) await close();
+    if (next.phase == CallPhase.active) _trackRecovery();
   }
 
   Future<void> accept() => _serialize(() async {
@@ -223,11 +224,7 @@ class CallStateController extends ChangeNotifier {
     _connectionState = state;
     _connected =
         state == RTCPeerConnectionState.RTCPeerConnectionStateConnected;
-    if (_connected) {
-      _recoverySinceMs = null;
-    } else if (_call.phase == CallPhase.active) {
-      _recoverySinceMs ??= _nowMs();
-    }
+    _trackRecovery();
     _notify();
     if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
       unawaited(refresh().catchError((Object _) {}));
@@ -235,6 +232,23 @@ class CallStateController extends ChangeNotifier {
         (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed &&
             _call.phase != CallPhase.active)) {
       unawaited(end().catchError((Object _) {}));
+    }
+  }
+
+  void _trackRecovery() {
+    if (_closed || _ending || _connected) {
+      _recoverySinceMs = null;
+      _recoveryTimer?.cancel();
+      _recoveryTimer = null;
+    } else if (_call.phase == CallPhase.active && _connectionState != null) {
+      _recoverySinceMs ??= _nowMs();
+      _recoveryTimer ??= Timer(const Duration(seconds: 45), () {
+        // Local capture must stop even if a serialized signaling request is
+        // stuck. end() releases media before waiting for the network queue.
+        if (!_closed && !_ending && !_connected) {
+          unawaited(end().catchError((Object _) {}));
+        }
+      });
     }
   }
 
@@ -275,6 +289,7 @@ class CallStateController extends ChangeNotifier {
   Future<void> end() {
     if (_closed) return Future.value();
     _ending = true;
+    _trackRecovery();
     // Release local capture immediately, even while a network request is stuck.
     final stopping = _media?.close() ?? Future<void>.value();
     // Attach a handler now; the serialized operation may wait for HTTP.
@@ -307,6 +322,7 @@ class CallStateController extends ChangeNotifier {
   Future<void> close() {
     final wasClosed = _closed;
     _closed = true;
+    _trackRecovery();
     _timer?.cancel();
     _timer = null;
     if (!wasClosed) _notify();

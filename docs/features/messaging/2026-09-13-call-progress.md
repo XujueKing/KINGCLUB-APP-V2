@@ -162,3 +162,10 @@ CallStateController 的原两秒同步循环接入主叫 restart：active 原生
 active 未 connected 继续 sync(renewLease:false)，接收新 offer/answer/ICE，恢复 connected 才续期。active 原生 failed 留在服务端原期限内尝试恢复，closed/初始连接 failed 仍结束；服务端到期/撤权继续停止本地采集。依赖服务端 073 的可选 renewLease 契约；当前共享 API 尚未部署，不能给旧 065 服务声称通话可用。临期调度使用设备时间，最终超时仍由服务器决定；设备时钟异常、真实无线网络切换和长通话仍待实测。
 
 验证：repository/session/native/controller/page 合计 26 项通过，七文件 analyze 无问题。新增主被叫角色、两秒门槛、十秒间隔、临期刷新、对端租期临近、failed 后恢复、ended 停止、断线补收 false 贯通到仓库测试。073 真实隔离数据库与加密 HTTP 测试已通过，未安装新包。下一步以独立测试包在单手机做无麦克风/摄像头的原生 WebRTC data channel 回环，验证 SDK 实际 ICE restart；它不能替代真实音视频、双机 NAT 或公网中继验收。
+
+
+## 断线恢复期间的本地采集超时
+
+active 原生 disconnected/failed/connecting 时启动独立 45 秒恢复计时器；恢复 connected、开始结束或关闭时取消。计时器到期调用现有 end，先关闭本地媒体，再等待串行网络队列，避免 645 请求阻塞导致摄像头/麦克风持续占用。服务端期限仍是最终忙线回收依据；后台系统挂起定时器、进程杀死及 OS 通话保活仍待实现。
+
+控制器 8 项测试与两文件静态分析通过，新增恢复后撤销旧计时器、到期时状态 HTTP 未返回也先停止采集、迟到已结束状态收尾。初次 widget 假时钟测试在取消订阅的异步收尾阶段挂起；改为普通异步测试，仅用 Zone 可控 Timer 驱动真实控制器，保持网络 Future 和订阅收尾走正常异步队列。没有修改产品等待时间来迎合测试，也未用挂起用例当作通过。
