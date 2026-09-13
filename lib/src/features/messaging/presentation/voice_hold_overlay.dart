@@ -66,6 +66,8 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                                 padding: const EdgeInsets.only(bottom: 5),
                                 color: cancel
                                     ? const Color(0xFFB76450)
+                                    : target == VoiceHoldTarget.text
+                                    ? const Color(0xFF64CB99)
                                     : const Color(0xFFE4B780),
                                 child: AnimatedBuilder(
                                   animation: motion,
@@ -237,7 +239,9 @@ class _VoiceRingPainter extends CustomPainter {
                 text: character,
                 style: legacyChatBodyTextStyle.copyWith(
                   color: target == kind
-                      ? const Color(0xFF15271F)
+                      ? (left
+                            ? const Color(0xFFFFEDE6)
+                            : const Color(0xFF15271F))
                       : const Color(0xFFCCCCCC),
                 ),
               ),
