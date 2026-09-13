@@ -1,3 +1,5 @@
+import '../../../core/networking/kingclub_realtime.dart';
+
 import 'dart:async';
 
 import '../../messaging/data/messaging_repository.dart';
@@ -29,10 +31,12 @@ class FriendRequestsPage extends StatefulWidget {
     this.realData = false,
     this.repository,
     this.initialScenario = FriendRequestsScenario.ready,
+    this.events,
     this.onBack,
     this.onSessionResetRequested,
   });
 
+  final Stream<Map<String, dynamic>>? events;
   final bool realData;
   final MessagingRepository? repository;
   final VoidCallback onOpenAddFriend;
@@ -45,18 +49,24 @@ class FriendRequestsPage extends StatefulWidget {
   State<FriendRequestsPage> createState() => _FriendRequestsPageState();
 }
 
-class _FriendRequestsPageState extends State<FriendRequestsPage> {
+class _FriendRequestsPageState extends State<FriendRequestsPage>
+    with WidgetsBindingObserver {
   late FriendRequestsScenario _scenario;
   MessagingRepository? _repository;
   StreamSubscription<void>? _session;
+  StreamSubscription<Map<String, dynamic>>? _events;
+  bool _sessionInvalid = false;
+  BuildContext? _requestSheetContext;
   int _generation = 0;
   final _resolving = <String>{};
 
   Future<void> _loadReal() async {
+    if (_sessionInvalid || !mounted) return;
     final generation = ++_generation;
     try {
       final repository =
           _repository ?? widget.repository ?? await MessagingRepository.open();
+      if (!mounted || _sessionInvalid || generation != _generation) return;
       final requests = <_FriendRequest>[];
       var offset = 0;
       while (true) {
@@ -110,7 +120,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
       widget.onOpenChat(request.name);
       return;
     }
-    if (_repository == null || request.peer == null) return;
+    if (_sessionInvalid || _repository == null || request.peer == null) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => DirectChatPage(
@@ -126,6 +136,8 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
   void dispose() {
     _generation++;
     _session?.cancel();
+    _events?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -137,12 +149,20 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scenario = widget.initialScenario;
     if (widget.realData) {
       _requests.clear();
       _scenario = FriendRequestsScenario.ready;
       _session = SecureSessionStore.changes.stream.listen((_) {
+        _sessionInvalid = true;
         _generation++;
+        final sheet = _requestSheetContext;
+        if (sheet != null &&
+            sheet.mounted &&
+            ModalRoute.of(sheet)?.isCurrent == true) {
+          Navigator.of(sheet).pop();
+        }
         if (mounted) {
           setState(() {
             _requests.clear();
@@ -151,12 +171,27 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
           });
         }
       });
+      _events = (widget.events ?? KingclubRealtime.shared.events).listen((
+        event,
+      ) {
+        if (event['eventType'] == 'chat.friend-request.changed' ||
+            event['eventType'] == 'connection.ready') {
+          unawaited(_loadReal());
+        }
+      });
       unawaited(_loadReal());
     }
     if (_scenario == FriendRequestsScenario.sessionInvalid) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _showSessionInvalid(),
       );
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (widget.realData && state == AppLifecycleState.resumed) {
+      unawaited(_loadReal());
     }
   }
 
@@ -356,6 +391,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
   }
 
   Future<void> _showRequest(int index) async {
+    if (_sessionInvalid) return;
     final request = _requests[index];
     if (request.requestId != null && _resolving.contains(request.requestId)) {
       return;
@@ -366,90 +402,96 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
-      builder: (sheetContext) => SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                request.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                request.message,
-                style: const TextStyle(color: _legacyMuted),
-              ),
-              const SizedBox(height: 22),
-              if (request.status == '待查看')
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        key: const ValueKey('friend-request-reject'),
-                        onPressed: () => Navigator.pop(sheetContext, '已拒绝'),
-                        child: const Text('拒绝'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        key: const ValueKey('friend-request-accept'),
-                        onPressed: () => Navigator.pop(sheetContext, '已添加'),
-                        child: const Text('接受'),
-                      ),
-                    ),
-                  ],
-                )
-              else if (request.status == '已添加')
-                FilledButton(
-                  key: const ValueKey('friend-request-message'),
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    _openRequestChat(request);
-                  },
-                  child: const Text('发消息'),
-                )
-              else
+      builder: (sheetContext) {
+        _requestSheetContext = sheetContext;
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Text(
-                  request.status,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: _legacyGold),
+                  request.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              const SizedBox(height: 12),
-              if (!widget.realData)
-                const Text(
-                  '当前为离线 UI Mock，不会建立真实好友关系。',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFF746D65), fontSize: 12),
+                const SizedBox(height: 8),
+                Text(
+                  request.message,
+                  style: const TextStyle(color: _legacyMuted),
                 ),
-            ],
+                const SizedBox(height: 22),
+                if (request.status == '待查看')
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          key: const ValueKey('friend-request-reject'),
+                          onPressed: () => Navigator.pop(sheetContext, '已拒绝'),
+                          child: const Text('拒绝'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          key: const ValueKey('friend-request-accept'),
+                          onPressed: () => Navigator.pop(sheetContext, '已添加'),
+                          child: const Text('接受'),
+                        ),
+                      ),
+                    ],
+                  )
+                else if (request.status == '已添加')
+                  FilledButton(
+                    key: const ValueKey('friend-request-message'),
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _openRequestChat(request);
+                    },
+                    child: const Text('发消息'),
+                  )
+                else
+                  Text(
+                    request.status,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: _legacyGold),
+                  ),
+                const SizedBox(height: 12),
+                if (!widget.realData)
+                  const Text(
+                    '当前为离线 UI Mock，不会建立真实好友关系。',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFF746D65), fontSize: 12),
+                  ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
-    if (!mounted || resolution == null) return;
+    _requestSheetContext = null;
+    if (!mounted || _sessionInvalid || resolution == null) return;
     if (widget.realData) {
       final id = request.requestId;
       final repository = _repository;
       if (id == null || repository == null || !_resolving.add(id)) return;
       try {
         await repository.resolveRequest(id, accept: resolution == '已添加');
-        if (!mounted) return;
+        if (!mounted || _sessionInvalid) return;
         await _loadReal();
-        if (mounted) {
+        if (mounted && !_sessionInvalid) {
           KingNotice.of(context)
               .show(resolution == '已添加' ? '已互相关注，可以聊天了' : '已拒绝');
         }
       } catch (e) {
-        if (mounted) KingNotice.of(context).show(e.toString());
+        if (mounted && !_sessionInvalid) {
+          KingNotice.of(context).show(e.toString());
+        }
       } finally {
         _resolving.remove(id);
       }
