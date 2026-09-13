@@ -106,6 +106,10 @@ class _ContactsPageState extends State<ContactsPage> {
         });
       });
       _events = KingclubRealtime.shared.events.listen((event) {
+        if (event['eventType'] == 'chat.friend-request.changed' ||
+            event['eventType'] == 'connection.ready') {
+          unawaited(controller.refreshRequests());
+        }
         if (event['eventType'] == 'chat.groups.changed' ||
             event['eventType'] == 'connection.ready') {
           unawaited(_loadGroups());
@@ -114,9 +118,10 @@ class _ContactsPageState extends State<ContactsPage> {
             event['eventType'] == 'chat.friend-request.changed' ||
             event['eventType'] == 'chat.settings.changed' ||
             event['eventType'] == 'connection.ready') {
-          unawaited(controller.refresh());
+          unawaited(controller.refresh(afterCurrent: true));
         }
       });
+      unawaited(controller.refreshRequests());
       await controller.refresh();
     } catch (e) {
       if (!mounted || generation != _connectionGeneration) return;
@@ -197,7 +202,8 @@ class _ContactsPageState extends State<ContactsPage> {
   void didUpdateWidget(covariant ContactsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.realData && widget.active && !oldWidget.active) {
-      unawaited(_real?.refresh());
+      unawaited(_real?.refresh(afterCurrent: true));
+      unawaited(_real?.refreshRequests());
     }
     if (!oldWidget.active && widget.active && !_loadedOnce) {
       unawaited(_loadFirst());
@@ -241,7 +247,10 @@ class _ContactsPageState extends State<ContactsPage> {
       if (_real == null) {
         await _connectReal();
       } else {
-        await _real!.refresh();
+        await Future.wait([
+          _real!.refresh(afterCurrent: true),
+          _real!.refreshRequests(),
+        ]);
       }
       return;
     }
@@ -529,7 +538,7 @@ class _ContactsPageState extends State<ContactsPage> {
 
   Widget _quickActions(BuildContext context) => _ContactRow(
     title: '新的朋友',
-    badge: widget.realData ? 0 : 2,
+    badge: widget.realData ? (_real?.pendingRequests ?? 0) : 2,
     leading: Image.asset(
       'assets/legacy/friendship/addfriend.png',
       fit: BoxFit.cover,

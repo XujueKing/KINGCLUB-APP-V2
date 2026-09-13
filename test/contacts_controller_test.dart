@@ -20,6 +20,146 @@ Map<String, dynamic> page(
 }) => {'items': rows, 'hasMore': more};
 
 void main() {
+  test('session reset discards an in-flight badge response', () async {
+    final response = Completer<Map<String, dynamic>>();
+    final controller = ContactsController(
+      MessagingRepository(account: 'me', call: (_, _) => response.future),
+    );
+    final reading = controller.refreshRequests();
+    controller.invalidate();
+    response.complete(
+      page([
+        {'requestId': 'private', 'recipient': 'me', 'requestStatus': 'pending'},
+      ]),
+    );
+    await reading;
+    expect(controller.pendingRequests, 0);
+    controller.dispose();
+  });
+
+  testWidgets('new friends shows a real incoming count even without contacts', (
+    tester,
+  ) async {
+    final repository = MessagingRepository(
+      account: 'me',
+      call: (id, _) async {
+        if (id == 'K260913000611')
+          return page([
+            {
+              'requestId': 'actual-request',
+              'recipient': 'me',
+              'requestStatus': 'pending',
+            },
+          ]);
+        if (id == 'K260913000615') return {'version': 0, 'groups': []};
+        return page([]);
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ContactsPage(
+            active: true,
+            realData: true,
+            repository: repository,
+            onIntent: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('新的朋友'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
+    expect(find.text('还没有好友'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  test(
+    'relationship notification during refresh drains one additional snapshot',
+    () async {
+      final old = Completer<Map<String, dynamic>>();
+      var reads = 0;
+      final controller = ContactsController(
+        MessagingRepository(
+          account: 'me',
+          call: (_, _) async {
+            reads++;
+            return reads == 1 ? old.future : page([contact('new-friend')]);
+          },
+        ),
+      );
+      final refreshing = controller.refresh();
+      controller.refresh(afterCurrent: true);
+      controller.refresh(afterCurrent: true);
+      old.complete(page([contact('old-friend')]));
+      await refreshing;
+      expect(reads, 2);
+      expect(controller.contacts.single.account, 'new-friend');
+      controller.dispose();
+    },
+  );
+
+  test('incoming pending badge deduplicates pages and excludes outgoing or resolved', () async {
+    final offsets = <int>[];
+    Map<String, dynamic> request(String id, String recipient, String status) =>
+        {'requestId': id, 'recipient': recipient, 'requestStatus': status};
+    final controller = ContactsController(
+      MessagingRepository(
+        account: 'me',
+        call: (id, params) async {
+          expect(id, 'K260913000611');
+          final offset = params['offset'] as int;
+          offsets.add(offset);
+          return offset == 0
+              ? page([
+                  request('incoming', 'me', 'pending'),
+                  request('outgoing', 'peer', 'pending'),
+                  request('accepted', 'me', 'accepted'),
+                  request('rejected', 'me', 'rejected'),
+                ], more: true)
+              : page([
+                  request('incoming', 'me', 'pending'),
+                  request('second', 'me', 'pending'),
+                ]);
+        },
+      ),
+    );
+    await controller.refreshRequests();
+    expect(controller.pendingRequests, 2);
+    expect(offsets, [0, 4]);
+    controller.invalidate();
+    expect(controller.pendingRequests, 0);
+    controller.dispose();
+  });
+
+  test(
+    'badge drops obsolete responses and clears on session invalidation',
+    () async {
+      final late = Completer<Map<String, dynamic>>();
+      var reads = 0;
+      final controller = ContactsController(
+        MessagingRepository(
+          account: 'me',
+          call: (_, _) async {
+            reads++;
+            if (reads == 1) return late.future;
+            return page([]);
+          },
+        ),
+      );
+      final oldRead = controller.refreshRequests();
+      await controller.refreshRequests();
+      late.complete(
+        page([
+          {'requestId': 'old', 'recipient': 'me', 'requestStatus': 'pending'},
+        ]),
+      );
+      await oldRead;
+      expect(controller.pendingRequests, 0);
+      controller.dispose();
+    },
+  );
+
   testWidgets(
     'real contacts page emits the actual account without demo contacts',
     (tester) async {

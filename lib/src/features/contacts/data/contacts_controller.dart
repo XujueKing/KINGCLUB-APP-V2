@@ -47,6 +47,9 @@ class ContactsController extends ChangeNotifier {
   int _generation = 0;
   String? error;
   bool hasSnapshot = false;
+  bool _refreshAgain = false;
+  int pendingRequests = 0;
+  int _requestsGeneration = 0;
 
   List<MemberContact> search(String query) {
     final needle = query.trim().toLowerCase();
@@ -60,14 +63,59 @@ class ContactsController extends ChangeNotifier {
         .toList();
   }
 
-  Future<void> refresh() {
+  Future<void> refresh({bool afterCurrent = false}) {
     if (_disposed) return Future.value();
     final active = _refreshing;
-    if (active != null) return active;
+    if (active != null) {
+      if (afterCurrent) _refreshAgain = true;
+      return active;
+    }
     final generation = _generation;
-    return _refreshing = _fetch(generation).whenComplete(() {
+    return _refreshing = _drainRefresh(generation).whenComplete(() {
       if (generation == _generation) _refreshing = null;
     });
+  }
+
+  Future<void> _drainRefresh(int generation) async {
+    do {
+      _refreshAgain = false;
+      await _fetch(generation);
+    } while (!_disposed && generation == _generation && _refreshAgain);
+  }
+
+  /// Count only unresolved incoming requests; sent and resolved rows are not badges.
+  Future<void> refreshRequests() async {
+    if (_disposed) return;
+    final generation = ++_requestsGeneration;
+    final pending = <String>{};
+    var offset = 0;
+    try {
+      while (true) {
+        final result = await repository.requests(offset: offset);
+        if (_disposed || generation != _requestsGeneration) return;
+        final items = result['items'] as List;
+        for (final raw in items) {
+          final row = raw as Map;
+          if (row['recipient'] == repository.account &&
+              row['requestStatus'] == 'pending') {
+            final id = row['requestId'];
+            if (id is! String || id.isEmpty) {
+              throw const FormatException('Invalid request identity');
+            }
+            pending.add(id);
+          }
+        }
+        if (result['hasMore'] != true) break;
+        if (items.isEmpty) {
+          throw const FormatException('Empty request continuation');
+        }
+        offset += items.length;
+      }
+      pendingRequests = pending.length;
+      notifyListeners();
+    } catch (_) {
+      // Preserve the last confirmed count during temporary connection failures.
+    }
   }
 
   Future<void> _fetch(int generation) async {
@@ -104,6 +152,9 @@ class ContactsController extends ChangeNotifier {
   /// Call on session change before opening the next account's controller.
   void invalidate() {
     _generation++;
+    _requestsGeneration++;
+    _refreshAgain = false;
+    pendingRequests = 0;
     _refreshing = null;
     _contacts = const [];
     hasSnapshot = false;
