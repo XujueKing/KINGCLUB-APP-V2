@@ -117,6 +117,58 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     if (mounted && !_invalid) await _load();
   }
 
+  Future<void> _depart() async {
+    if (_invalid || _saving || _details == null) return;
+    final dissolve = _details!['ownerAccount'] == widget.repository.account;
+    final version = (_details!['membershipVersion'] as num).toInt();
+    setState(() => _saving = true);
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xFF202020),
+          title: Text(
+            dissolve ? '解散群聊？' : '退出群聊？',
+            style: const TextStyle(color: Color(0xFFC9B69E)),
+          ),
+          content: Text(
+            dissolve ? '解散后所有成员都无法继续在此群聊天。' : '退出后将无法继续收发此群消息。',
+            style: const TextStyle(color: Colors.grey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              key: const ValueKey('group-depart-confirm'),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(
+                dissolve ? '解散' : '退出',
+                style: const TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted || _invalid) return;
+      final result = await widget.repository.depart(
+        widget.groupId,
+        dissolve: dissolve,
+        membershipVersion: version,
+      );
+      if (result['action'] != (dissolve ? 'dissolve' : 'leave') ||
+          result['changed'] is! bool) {
+        throw const FormatException('退出结果无效');
+      }
+      if (mounted && !_invalid) Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted && !_invalid) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _rename() async {
     if (_invalid ||
         _saving ||
@@ -280,14 +332,16 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                               style: TextStyle(color: Colors.grey),
                             )
                           : null,
-                      onTap: () => Navigator.of(context).push<void>(
-                        MaterialPageRoute(
-                          builder: (_) => PublicMemberPage(
-                            account: raw['account'] as String,
-                            repository: widget.repository.messaging,
-                          ),
-                        ),
-                      ),
+                      onTap: _saving
+                          ? null
+                          : () => Navigator.of(context).push<void>(
+                              MaterialPageRoute(
+                                builder: (_) => PublicMemberPage(
+                                  account: raw['account'] as String,
+                                  repository: widget.repository.messaging,
+                                ),
+                              ),
+                            ),
                     ),
                     const Divider(
                       indent: 72,
@@ -296,6 +350,19 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                       color: Color(0xFF1A1611),
                     ),
                   ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+                    child: TextButton(
+                      key: const ValueKey('group-depart'),
+                      onPressed: _saving ? null : _depart,
+                      child: Text(
+                        _details!['ownerAccount'] == widget.repository.account
+                            ? '解散群聊'
+                            : '退出群聊',
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ),
+                  ),
                 ],
               ],
             ),

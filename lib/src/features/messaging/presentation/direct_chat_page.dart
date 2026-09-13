@@ -1576,8 +1576,8 @@ class _DirectChatPageState extends State<DirectChatPage>
     if (widget.groupId != null) {
       final repository = _chat?.messaging;
       if (repository == null) return;
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute(
+      final departed = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
           builder: (_) => GroupDetailsPage(
             groupId: widget.groupId!,
             repository: GroupChatRepository(repository),
@@ -1585,6 +1585,11 @@ class _DirectChatPageState extends State<DirectChatPage>
         ),
       );
       if (mounted) {
+        if (departed == true) {
+          _chat?.resetVisibleHistory();
+          Navigator.pop(context);
+          return;
+        }
         final chat = _chat;
         if (chat is GroupChatController) chat.invalidateMemberNames();
         await chat?.synchronize();

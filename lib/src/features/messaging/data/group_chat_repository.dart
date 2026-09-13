@@ -101,6 +101,16 @@ class GroupChatRepository {
     'expectedVersion': expectedVersion,
   });
 
+  Future<Map<String, dynamic>> depart(
+    String groupId, {
+    required bool dissolve,
+    required int membershipVersion,
+  }) => messaging.call('K260913000625', {
+    'groupId': groupId,
+    'action': dissolve ? 'dissolve' : 'leave',
+    'membershipVersion': membershipVersion,
+  });
+
   Future<Map<String, dynamic>> markRead(String groupId, int sequence) =>
       messaging.call('K260913000622', {
         'groupId': groupId,
