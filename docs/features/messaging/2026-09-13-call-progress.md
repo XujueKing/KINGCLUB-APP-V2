@@ -144,3 +144,12 @@ NativeCallMedia.restartOffer 接收同一 callId 的有效 CallRelayConfiguratio
 依据已安装 flutter_webrtc 的 RTCPeerConnection.setConfiguration/createOffer 接口实现。当前 CallMediaSession 仍拒绝非零代次，需下一步接入发起端新代次、接收端同代次响应及过期凭据刷新触发；本入口未接自动轮询，因此不宣称网络切换或十分钟以上通话已恢复正常。
 
 验证：原生媒体/媒体会话 11 项通过，新增配置先于 SDP、保留非 ICE 配置、不重新采集、凭据 callId 不匹配时不改原生状态、部分失败停轨道和 peer 测试；两文件静态分析通过。未重新构建安装，未真实 ICE restart 或长通话测试。
+
+
+## 同一通话的新代次 ICE 协商
+
+CallMediaSession 接入 caller 主动 restart：仅 active 且上一代已收到远端 SDP 才读取新凭据，代次递增并将新 offer 排在 ICE 前。发送确认丢失保留原 offer/request ID，后续 sync 重试，不重复生成 offer。callee 读取紧邻的新代次 offer 后刷新自己绑定设备的中继凭据，复用原生轨道更新配置并应答；旧 ICE 被服务端拒绝时仍允许读取新 offer，防止旧队列堵住重连。非法跳代、角色/SDP 不符或原生部分应用失败关闭媒体。
+
+NativeCallMedia.prepareRemoteRestart 在配置更新后重新等待远端 SDP，再应用新候选；没有重新调用 getUserMedia。验证为 18 项媒体会话/原生媒体/控制器测试及四文件静态分析通过，包含丢失重启 offer 确认重放、接收端旧 ICE 冲突、原生候选等待新 SDP、配置失败停采集。
+
+本批尚未自动触发。下一步需将断线信令读取与设备租期续期分开，然后接入断线恢复和中继临期更新。测试使用隔离的信令/原生接口替身，不等于真实 SDK 网络重连或双机长通话验收；未安装新包。

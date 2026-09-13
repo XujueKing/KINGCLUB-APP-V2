@@ -1,3 +1,5 @@
+import '../../auth/domain/auth_repository.dart';
+
 import 'dart:collection';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -35,7 +37,9 @@ class CallMediaSession {
   Future<void>? _starting, _flushing, _syncing, _closing;
   bool _closed = false, _localDescriptionQueued = false;
   bool _remoteDescriptionApplied = false;
-  int _cursor = 0;
+  int _cursor = 0, _generation = 0;
+  Future<void>? _restarting;
+  int get generation => _generation;
   Object? _candidateFailure;
   bool get _caller => call.caller == repository.messaging.account;
   bool get isClosed => _closed;
@@ -49,7 +53,7 @@ class CallMediaSession {
   CallSignal _signal(Map<String, dynamic> payload) => CallSignal({
     'callId': call.id,
     'clientSignalId': const Uuid().v4(),
-    'generation': 0,
+    'generation': _generation,
     ...payload,
   });
 
@@ -113,6 +117,9 @@ class CallMediaSession {
 
   Future<void> flush() {
     _check();
+    if (_restarting != null) {
+      return Future.error(StateError('ICE restart in progress'));
+    }
     return _flushing ??= _flush().whenComplete(() => _flushing = null);
   }
 
@@ -129,12 +136,21 @@ class CallMediaSession {
 
   Future<void> sync() {
     _check();
+    if (_restarting != null) {
+      return Future.error(StateError('ICE restart in progress'));
+    }
     return _syncing ??= _sync().whenComplete(() => _syncing = null);
   }
 
   Future<void> _sync() async {
     await start();
-    await flush();
+    AuthFailure? oldGenerationConflict;
+    try {
+      await flush();
+    } on AuthFailure catch (error) {
+      if (_caller || error.code != 'CHAT_CALL_NEGOTIATION_CONFLICT') rethrow;
+      oldGenerationConflict = error;
+    }
     _check();
     while (true) {
       final page = await repository.readSignals(
@@ -142,12 +158,29 @@ class CallMediaSession {
         after: _cursor,
       );
       _check();
-      // Resume/ICE restart needs a fresh native session and explicit ownership;
-      // never apply a different generation to the original peer silently.
-      if (page.generation != 0) {
-        await close();
-        throw StateError('Call renegotiation required');
+      if (page.generation != _generation) {
+        if (_caller ||
+            page.generation != _generation + 1 ||
+            !_remoteDescriptionApplied ||
+            page.items.isEmpty ||
+            page.items.first.signal.data['kind'] != 'offer') {
+          await close();
+          throw StateError('Unexpected call negotiation generation');
+        }
+        final relay = await repository.readRelay(callId: call.id);
+        _check();
+        try {
+          await media.prepareRemoteRestart(callId: call.id, relay: relay);
+        } catch (_) {
+          await close();
+          rethrow;
+        }
+        _check();
+        _beginGeneration(page.generation);
+      } else if (oldGenerationConflict != null) {
+        throw oldGenerationConflict;
       }
+      oldGenerationConflict = null;
       for (final item in page.items) {
         final data = item.signal.data, kind = data['kind'];
         try {
@@ -187,6 +220,54 @@ class CallMediaSession {
       await flush();
       if (!page.hasMore) return;
     }
+  }
+
+  void _beginGeneration(int generation) {
+    _generation = generation;
+    _outgoing.clear();
+    _earlyCandidates.clear();
+    _localDescriptionQueued = false;
+    _remoteDescriptionApplied = false;
+  }
+
+  Future<void> restart() {
+    _check();
+    if (_restarting != null) return _restarting!;
+    if (!_caller ||
+        !_remoteDescriptionApplied ||
+        _generation >= 65535 ||
+        _syncing != null ||
+        _flushing != null) {
+      return Future.error(StateError('Cannot restart this negotiation'));
+    }
+    return _restarting = _restart().whenComplete(() => _restarting = null);
+  }
+
+  Future<void> _restart() async {
+    final current = await repository.read(callId: call.id);
+    _check();
+    if (current?.phase != CallPhase.active) {
+      throw StateError('Call is not active');
+    }
+    final relay = await repository.readRelay(callId: call.id);
+    _check();
+    await _flush();
+    _check();
+    _beginGeneration(_generation + 1);
+    try {
+      final description = await media.restartOffer(
+        callId: call.id,
+        relay: relay,
+      );
+      _check();
+      _queueDescription(description, 'offer');
+    } catch (_) {
+      await close();
+      rethrow;
+    }
+    // Transport failure retains exactly this offer and its ID. The next sync
+    // flushes it; it must never generate another restart offer to retry an ACK.
+    await _flush();
   }
 
   Future<void> close() {

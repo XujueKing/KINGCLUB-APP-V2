@@ -157,6 +157,27 @@ class NativeCallMedia {
     }
   }
 
+  Future<void> prepareRemoteRestart({
+    required String callId,
+    required CallRelayConfiguration relay,
+  }) async {
+    _check();
+    relay.requireUsable(callId);
+    final peer = _ready;
+    try {
+      await peer.setConfiguration({
+        ...peer.getConfiguration,
+        'iceServers': relay.iceServers,
+      });
+      _check();
+      _remoteReady = false;
+      _candidates.clear();
+    } catch (_) {
+      await close();
+      rethrow;
+    }
+  }
+
   Future<RTCSessionDescription> answer() async {
     final peer = _ready, description = await _ready.createAnswer();
     _check();

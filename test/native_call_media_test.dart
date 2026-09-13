@@ -118,6 +118,43 @@ class RestartPeer extends Peer {
 
 void main() {
   test(
+    'remote restart keeps capture and queues ICE until the new remote SDP',
+    () async {
+      final stream = StreamFixture(), peer = RestartPeer();
+      var captures = 0;
+      final media = NativeCallMedia(
+        video: true,
+        iceServers: [],
+        capture: (_) async {
+          captures++;
+          return stream;
+        },
+        peerFactory: (_) async => peer,
+      );
+      await media.open();
+      await media.remoteDescription(RTCSessionDescription('v=0\r\n', 'offer'));
+      await media.prepareRemoteRestart(
+        callId: restartCallId,
+        relay: freshRelay(),
+      );
+      await media.remoteCandidate(RTCIceCandidate('candidate:new', '0', 0));
+      expect(peer.candidates, 0);
+      expect(peer.operations, ['configuration']);
+      expect(captures, 1);
+      expect(stream.track.stops, 0);
+      await media.remoteDescription(RTCSessionDescription('v=0\r\n', 'offer'));
+      expect(peer.candidates, 1);
+      peer.fail = true;
+      await expectLater(
+        media.prepareRemoteRestart(callId: restartCallId, relay: freshRelay()),
+        throwsStateError,
+      );
+      expect(stream.track.stops, 1);
+      expect(peer.closes, 1);
+    },
+  );
+
+  test(
     'ICE restart replaces credentials before SDP without recapturing tracks',
     () async {
       final stream = StreamFixture(), peer = RestartPeer();

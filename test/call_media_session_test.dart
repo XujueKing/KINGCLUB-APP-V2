@@ -1,3 +1,6 @@
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
+import 'package:kingclub/src/features/messaging/data/call_relay_configuration.dart';
+
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -26,7 +29,7 @@ class Media extends NativeCallMedia {
         capture: (_) async => throw StateError('unused capture'),
       );
   final void Function(RTCIceCandidate) emit;
-  int descriptions = 0, answers = 0, closes = 0;
+  int descriptions = 0, answers = 0, closes = 0, restarts = 0, prepared = 0;
   Completer<void>? opening;
   @override
   Future<void> open() async {
@@ -52,12 +55,160 @@ class Media extends NativeCallMedia {
   }
 
   @override
+  Future<RTCSessionDescription> restartOffer({
+    required String callId,
+    required CallRelayConfiguration relay,
+  }) async {
+    restarts++;
+    return offer();
+  }
+
+  @override
+  Future<void> prepareRemoteRestart({
+    required String callId,
+    required CallRelayConfiguration relay,
+  }) async {
+    prepared++;
+  }
+
+  @override
   Future<void> close() async {
     closes++;
   }
 }
 
 void main() {
+  test('both peers renegotiate one generation and retry a lost restart offer acknowledgement', () async {
+    var generation = 0, lostRestartAck = true;
+    final signals = <Map<String, dynamic>>[];
+    final offerIds = <String>[];
+    CallRepository repository(String account) => CallRepository(
+      MessagingRepository(
+        account: account,
+        call: (method, params) async {
+          if (method == 'K260913000645') {
+            return {
+              'call': {
+                'callId': callId,
+                'caller': 'a',
+                'callee': 'b',
+                'mediaKind': 'audio',
+                'phase': 'active',
+                'version': 3,
+                'deadlineMs': 9999999999999,
+              },
+            };
+          }
+          if (method == 'K260914000648') {
+            final expiry =
+                (DateTime.now().millisecondsSinceEpoch ~/ 1000 + 600) * 1000;
+            return {
+              'expiresAtMs': expiry,
+              'iceServers': [
+                {
+                  'urls': ['turn:relay.example'],
+                  'username':
+                      '${expiry ~/ 1000}:0123456789abcdef0123456789abcdef',
+                  'credential': 'AAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+                },
+              ],
+            };
+          }
+          if (method == 'K260913000647') {
+            final rows = signals
+                .where(
+                  (row) =>
+                      row['sender'] != account &&
+                      row['sequence'] > params['after'] &&
+                      row['signal']['generation'] == generation,
+                )
+                .toList();
+            return {
+              'items': rows,
+              'generation': generation,
+              'hasMore': false,
+              'nextSequence': rows.isEmpty
+                  ? params['after']
+                  : rows.last['sequence'],
+            };
+          }
+          final signal = Map<String, dynamic>.from(params['signal'] as Map);
+          if (signal['kind'] == 'offer' && signal['generation'] == 1) {
+            offerIds.add(signal['clientSignalId']);
+          }
+          final existing = signals
+              .where(
+                (row) =>
+                    row['signal']['clientSignalId'] == signal['clientSignalId'],
+              )
+              .toList();
+          if (existing.isNotEmpty) {
+            return {
+              'sequence': existing.first['sequence'],
+              'generation': generation,
+              'replay': true,
+            };
+          }
+          if (signal['kind'] == 'offer' &&
+              signal['generation'] == generation + 1) {
+            generation++;
+          }
+          if (signal['generation'] != generation) {
+            throw const AuthFailure('CHAT_CALL_NEGOTIATION_CONFLICT', 'stale');
+          }
+          signals.add({
+            'sender': account,
+            'sequence': signals.length + 1,
+            'signal': signal,
+          });
+          if (signal['kind'] == 'offer' && generation == 1 && lostRestartAck) {
+            lostRestartAck = false;
+            throw const AuthFailure('NETWORK_ERROR', 'lost ACK');
+          }
+          return {
+            'sequence': signals.length,
+            'generation': generation,
+            'replay': false,
+          };
+        },
+      ),
+    );
+    late Media callerMedia, calleeMedia;
+    final caller = CallMediaSession(
+      repository: repository('a'),
+      call: snapshot('a'),
+      mediaFactory: (emit) => callerMedia = Media(emit),
+    );
+    final callee = CallMediaSession(
+      repository: repository('b'),
+      call: snapshot('b'),
+      mediaFactory: (emit) => calleeMedia = Media(emit),
+    );
+    await caller.flush();
+    await callee.sync();
+    await caller.sync();
+    expect(callerMedia.descriptions, 1);
+    expect(calleeMedia.descriptions, 1);
+    // An old queued ICE must not prevent the recipient reading the new offer.
+    calleeMedia.emit(RTCIceCandidate('candidate:old', '0', 0));
+    await expectLater(caller.restart(), throwsA(isA<AuthFailure>()));
+    expect(caller.generation, 1);
+    await callee.sync();
+    expect(callee.generation, 1);
+    expect(calleeMedia.prepared, 1);
+    await caller.sync();
+    expect(offerIds, hasLength(2));
+    expect(offerIds.first, offerIds.last);
+    expect(callerMedia.restarts, 1);
+    expect(callerMedia.descriptions, 2);
+    expect(calleeMedia.descriptions, 2);
+    expect(calleeMedia.answers, 2);
+    expect(caller.pendingSignals, 0);
+    expect(callee.pendingSignals, 0);
+    await caller.close();
+    await callee.close();
+  });
+
   test(
     'SDP precedes synchronous ICE and failed send reuses the same identity',
     () async {
