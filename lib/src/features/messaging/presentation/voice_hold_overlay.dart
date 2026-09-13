@@ -52,39 +52,31 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                     VoiceHoldTarget kind,
                     IconData icon,
                     String label,
-                  ) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 84,
-                    height: 84,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: target == kind
-                          ? (kind == VoiceHoldTarget.cancel
-                                ? const Color(0xFFB76450)
-                                : const Color(0xFFE4B780))
-                          : const Color(0xFF302A24),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          icon,
-                          size: 25,
+                  ) => Transform.rotate(
+                    angle: kind == VoiceHoldTarget.cancel ? -.16 : .16,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: bounds.maxWidth * .44,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(40),
+                        color: target == kind
+                            ? (kind == VoiceHoldTarget.cancel
+                                  ? const Color(0xFFB76450)
+                                  : const Color(0xFF64CB99))
+                            : const Color(0xFF292929),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        kind == VoiceHoldTarget.text ? '滑到这里 转文字' : '取消',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w400,
                           color: target == kind
-                              ? const Color(0xFF211810)
-                              : const Color(0xFFC9B69E),
+                              ? const Color(0xFF15271F)
+                              : const Color(0xFFCCCCCC),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: target == kind
-                                ? const Color(0xFF211810)
-                                : const Color(0xFFC9B69E),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   );
                   return Stack(
@@ -98,9 +90,9 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                             AnimatedContainer(
                               duration: const Duration(milliseconds: 160),
                               width: math.min(240, bounds.maxWidth * .66),
-                              height: 88,
+                              height: 62,
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(28),
+                                borderRadius: BorderRadius.circular(22),
                                 gradient: LinearGradient(
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
@@ -110,9 +102,9 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                                           const Color(0xFFB76450),
                                         ]
                                       : [
-                                          const Color(0xFFF2D2A6),
-                                          const Color(0xFFE4B780),
-                                          const Color(0xFFD19A60),
+                                          const Color(0xFFA0EDC3),
+                                          const Color(0xFF65D89C),
+                                          const Color(0xFF38B978),
                                         ],
                                 ),
                                 border: Border.all(
@@ -144,7 +136,7 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                                           horizontal: 1.5,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF624326),
+                                          color: const Color(0xFF20553D),
                                           borderRadius: BorderRadius.circular(
                                             2,
                                           ),
@@ -156,7 +148,7 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                                       '${DateTime.now().difference(started).inSeconds}″',
                                       style: const TextStyle(
                                         fontSize: 15,
-                                        color: Color(0xFF624326),
+                                        color: Color(0xFF20553D),
                                       ),
                                     ),
                                   ],
@@ -173,7 +165,7 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                                   decoration: BoxDecoration(
                                     color: cancel
                                         ? const Color(0xFFB76450)
-                                        : const Color(0xFFD19A60),
+                                        : const Color(0xFF38B978),
                                     borderRadius: BorderRadius.circular(3),
                                   ),
                                 ),
@@ -195,9 +187,9 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                         ),
                       ),
                       Positioned(
-                        left: 42,
-                        right: 42,
-                        bottom: 102,
+                        left: -12,
+                        right: -12,
+                        bottom: 115,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [

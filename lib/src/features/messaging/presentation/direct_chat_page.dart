@@ -134,8 +134,8 @@ class _DirectChatPageState extends State<DirectChatPage>
   final _voiceTarget = ValueNotifier(VoiceHoldTarget.send);
   Offset? _voiceStart;
 
-  void _beginVoiceHold(LongPressStartDetails details) {
-    _voiceStart = details.globalPosition;
+  void _beginVoiceHold(PointerDownEvent details) {
+    _voiceStart = details.position;
     _voiceTarget.value = VoiceHoldTarget.send;
     _voiceOverlay?.remove();
     _voiceOverlay = OverlayEntry(
@@ -144,12 +144,10 @@ class _DirectChatPageState extends State<DirectChatPage>
     Overlay.of(context, rootOverlay: true).insert(_voiceOverlay!);
   }
 
-  void _moveVoiceHold(LongPressMoveUpdateDetails details) {
-    final dy =
-        details.globalPosition.dy -
-        (_voiceStart?.dy ?? details.globalPosition.dy);
+  void _moveVoiceHold(PointerMoveEvent details) {
+    final dy = details.position.dy - (_voiceStart?.dy ?? details.position.dy);
     _voiceTarget.value = dy < -60
-        ? (details.globalPosition.dx < MediaQuery.sizeOf(context).width / 2
+        ? (details.position.dx < MediaQuery.sizeOf(context).width / 2
               ? VoiceHoldTarget.cancel
               : VoiceHoldTarget.text)
         : VoiceHoldTarget.send;
@@ -563,17 +561,15 @@ class _DirectChatPageState extends State<DirectChatPage>
                                           ),
                                         ),
                                         Positioned.fill(
-                                          child: GestureDetector(
+                                          child: Listener(
                                             key: const ValueKey(
                                               'direct-chat-hold-to-talk',
                                             ),
                                             behavior: HitTestBehavior.opaque,
-                                            onLongPressStart: _beginVoiceHold,
-                                            onLongPressMoveUpdate:
-                                                _moveVoiceHold,
-                                            onLongPressEnd: (_) =>
-                                                _endVoiceHold(),
-                                            onLongPressCancel: () =>
+                                            onPointerDown: _beginVoiceHold,
+                                            onPointerMove: _moveVoiceHold,
+                                            onPointerUp: (_) => _endVoiceHold(),
+                                            onPointerCancel: (_) =>
                                                 _endVoiceHold(
                                                   interrupted: true,
                                                 ),

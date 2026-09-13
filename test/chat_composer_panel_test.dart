@@ -10,7 +10,7 @@ void main() {
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('direct-chat-microphone'))); await tester.pumpAndSettle();
   final gesture = await tester.startGesture(tester.getCenter(find.byKey(const ValueKey('direct-chat-hold-to-talk'))));
-  await tester.pump(const Duration(milliseconds: 600));
+  await tester.pump(const Duration(milliseconds: 16));
   expect(find.text('松手发送'), findsOneWidget);
   await gesture.moveBy(const Offset(-100, -100)); await tester.pump(const Duration(milliseconds: 180));
   expect(find.text('松开取消'), findsOneWidget);
