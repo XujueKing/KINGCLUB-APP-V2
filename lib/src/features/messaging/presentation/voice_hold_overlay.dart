@@ -267,7 +267,7 @@ class _VoiceRingPainter extends CustomPainter {
         Offset(center.dx, center.dy - ringRadius - thickness / 2),
         Offset(center.dx, center.dy - ringRadius + thickness / 2),
         Paint()
-          ..color = const Color(0x66808080)
+          ..color = const Color(0xFF101010)
           ..strokeWidth = .7,
       );
     }
