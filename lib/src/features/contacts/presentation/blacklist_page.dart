@@ -1,3 +1,9 @@
+import 'dart:async';
+
+import '../../../core/session/secure_session_store.dart';
+import '../../../core/networking/kingclub_realtime.dart';
+import '../../messaging/data/messaging_repository.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +27,8 @@ class BlacklistPage extends StatefulWidget {
     required this.onOpenAddFriend,
     required this.onOpenUserProfile,
     this.initialScenario = BlacklistScenario.ready,
+    this.realData = false,
+    this.repository,
     this.onBack,
     this.onSessionResetRequested,
   });
@@ -28,6 +36,8 @@ class BlacklistPage extends StatefulWidget {
   final VoidCallback onOpenAddFriend;
   final ValueChanged<String> onOpenUserProfile;
   final BlacklistScenario initialScenario;
+  final bool realData;
+  final MessagingRepository? repository;
   final VoidCallback? onBack;
   final VoidCallback? onSessionResetRequested;
 
@@ -36,25 +46,31 @@ class BlacklistPage extends StatefulWidget {
 }
 
 class _BlacklistPageState extends State<BlacklistPage> {
+  bool get _real => widget.realData || widget.repository != null;
+  MessagingRepository? _repository;
+  StreamSubscription<void>? _session;
+  StreamSubscription<Map<String, dynamic>>? _events;
+  int _generation = 0;
+  bool _sessionInvalid = false;
   bool _loading = true;
   String? _unblockingTarget;
-  late List<_FakeBlockedUser> _users;
+  late List<_BlockedUser> _users;
   late BlacklistScenario _scenario;
 
   static const _seedUsers = [
-    _FakeBlockedUser(
+    _BlockedUser(
       targetRef: 'contact-alice',
       nickname: '艾琳',
       blockedAt: '2026-08-20',
       signature: '愿每一次相遇都有好心情',
     ),
-    _FakeBlockedUser(
+    _BlockedUser(
       targetRef: 'contact-noah',
       nickname: '阿浩',
       blockedAt: '2026-08-12',
       signature: '今晚不见不散',
     ),
-    _FakeBlockedUser(
+    _BlockedUser(
       targetRef: 'contact-momo',
       nickname: '墨墨',
       blockedAt: '2026-07-28',
@@ -66,7 +82,31 @@ class _BlacklistPageState extends State<BlacklistPage> {
   void initState() {
     super.initState();
     _scenario = widget.initialScenario;
-    _users = List<_FakeBlockedUser>.of(_seedUsers);
+    if (_real) {
+      _scenario = BlacklistScenario.ready;
+      _users = [];
+      _session = SecureSessionStore.changes.stream.listen((_) {
+        _generation++;
+        _sessionInvalid = true;
+        if (mounted) {
+          setState(() {
+            _users = [];
+            _repository = null;
+            _loading = false;
+            _scenario = BlacklistScenario.sessionInvalid;
+          });
+        }
+      });
+      _events = KingclubRealtime.shared.events.listen((event) {
+        if (event['eventType'] == 'chat.relationship.changed' ||
+            event['eventType'] == 'connection.ready') {
+          unawaited(_load());
+        }
+      });
+      unawaited(_load());
+      return;
+    }
+    _users = List<_BlockedUser>.of(_seedUsers);
     if (_scenario == BlacklistScenario.empty) _users.clear();
     if (_scenario == BlacklistScenario.sessionInvalid) {
       WidgetsBinding.instance.addPostFrameCallback(
@@ -76,13 +116,72 @@ class _BlacklistPageState extends State<BlacklistPage> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _generation++;
+    _session?.cancel();
+    _events?.cancel();
+    super.dispose();
+  }
+
   Future<void> _load() async {
+    if (_real) {
+      if (_sessionInvalid) return;
+      final generation = ++_generation;
+      try {
+        final repository =
+            _repository ??
+            widget.repository ??
+            await MessagingRepository.open();
+        final collected = <String, _BlockedUser>{};
+        var offset = 0;
+        while (true) {
+          final response = await repository.call('K260913000613', {
+            'offset': offset,
+            'limit': 50,
+          });
+          if (!mounted || generation != _generation) return;
+          final items = response['items'] as List;
+          for (final value in items) {
+            final row = value as Map;
+            final account = row['peer'] as String;
+            final remark = row['remark'] as String? ?? '';
+            collected[account] = _BlockedUser(
+              targetRef: account,
+              nickname: remark.isNotEmpty ? remark : row['nickname'] as String,
+              blockedAt: '',
+              signature: '',
+            );
+          }
+          if (response['hasMore'] != true) break;
+          if (items.isEmpty || offset >= 100000) throw StateError('黑名单分页无效');
+          offset += items.length;
+        }
+        setState(() {
+          _repository = repository;
+          _users = collected.values.toList();
+          _scenario = BlacklistScenario.ready;
+          _loading = false;
+        });
+      } catch (_) {
+        if (!mounted || generation != _generation) return;
+        setState(() {
+          _loading = false;
+          _scenario = BlacklistScenario.loadError;
+        });
+      }
+      return;
+    }
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
     setState(() => _loading = false);
   }
 
   Future<void> _refresh() async {
+    if (_real) {
+      await _load();
+      return;
+    }
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
     KingNotice.of(context)
@@ -101,6 +200,8 @@ class _BlacklistPageState extends State<BlacklistPage> {
               onBack: _back,
               onAddFriend: widget.onOpenAddFriend,
             ),
+            if (_real && _sessionInvalid)
+              const _BlacklistBanner(text: '登录状态已变化，请重新打开'),
             if (_scenario == BlacklistScenario.offlineCached)
               const _BlacklistBanner(text: '当前离线，仅可查看已缓存黑名单'),
             if (_scenario == BlacklistScenario.sessionInvalid)
@@ -133,8 +234,9 @@ class _BlacklistPageState extends State<BlacklistPage> {
             const Text('黑名单加载失败', style: TextStyle(color: _legacyGold)),
             const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: () =>
-                  setState(() => _scenario = BlacklistScenario.ready),
+              onPressed: _real
+                  ? _load
+                  : () => setState(() => _scenario = BlacklistScenario.ready),
               child: const Text('重新加载'),
             ),
           ],
@@ -186,8 +288,9 @@ class _BlacklistPageState extends State<BlacklistPage> {
     );
   }
 
-  Future<void> _confirmUnblock(_FakeBlockedUser user) async {
-    if (_unblockingTarget != null) return;
+  Future<void> _confirmUnblock(_BlockedUser user) async {
+    if (_unblockingTarget != null || !_canMutate) return;
+    final sessionGeneration = _generation;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -210,8 +313,33 @@ class _BlacklistPageState extends State<BlacklistPage> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true ||
+        !mounted ||
+        !_canMutate ||
+        (_real && sessionGeneration != _generation)) {
+      return;
+    }
     setState(() => _unblockingTarget = user.targetRef);
+    if (_real) {
+      try {
+        await _repository!.setRelationship(user.targetRef, 'unblock');
+        if (!mounted || _sessionInvalid) return;
+        // Invalidate any older list fetch before removing the acknowledged row.
+        _generation++;
+        setState(
+          () => _users.removeWhere((item) => item.targetRef == user.targetRef),
+        );
+        KingNotice.of(context).show('已解除黑名单');
+        await _load();
+      } catch (_) {
+        if (mounted && !_sessionInvalid) {
+          KingNotice.of(context).show('解除失败，请重试');
+        }
+      } finally {
+        if (mounted) setState(() => _unblockingTarget = null);
+      }
+      return;
+    }
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
     if (_scenario == BlacklistScenario.unblockError) {
@@ -343,7 +471,7 @@ class _LegacyBlacklistRow extends StatelessWidget {
     required this.onUnblock,
   });
 
-  final _FakeBlockedUser user;
+  final _BlockedUser user;
   final bool busy;
   final bool first;
   final VoidCallback onOpen;
@@ -409,16 +537,18 @@ class _LegacyBlacklistRow extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              user.signature,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0x80FFFFFF),
-                                fontSize: 13,
+                            if (user.signature.isNotEmpty)
+                              const SizedBox(height: 2),
+                            if (user.signature.isNotEmpty)
+                              Text(
+                                user.signature,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0x80FFFFFF),
+                                  fontSize: 13,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -455,8 +585,8 @@ class _LegacyBlacklistRow extends StatelessWidget {
   }
 }
 
-class _FakeBlockedUser {
-  const _FakeBlockedUser({
+class _BlockedUser {
+  const _BlockedUser({
     required this.targetRef,
     required this.nickname,
     required this.blockedAt,

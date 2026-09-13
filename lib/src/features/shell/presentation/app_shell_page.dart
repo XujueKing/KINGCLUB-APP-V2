@@ -354,7 +354,7 @@ class _AppShellPageState extends State<AppShellPage> {
       case ContactIntentKind.addFriend:
         _openAddFriend();
       case ContactIntentKind.blacklist:
-        if (widget.onOpenBlacklist != null) {
+        if (!widget.realChat && widget.onOpenBlacklist != null) {
           widget.onOpenBlacklist!();
           return;
         }
@@ -362,15 +362,19 @@ class _AppShellPageState extends State<AppShellPage> {
           MaterialPageRoute<void>(
             allowSnapshotting: false,
             builder: (_) => BlacklistPage(
+              realData: widget.realChat,
               onOpenAddFriend: _openAddFriend,
               onOpenUserProfile: (targetRef) {
                 Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
                     allowSnapshotting: false,
-                    builder: (_) => UserProfilePage(
-                      targetRef: targetRef,
-                      initialRelationship: UserProfileRelationship.blockedByMe,
-                    ),
+                    builder: (_) => widget.realChat
+                        ? PublicMemberPage(account: targetRef)
+                        : UserProfilePage(
+                            targetRef: targetRef,
+                            initialRelationship:
+                                UserProfileRelationship.blockedByMe,
+                          ),
                   ),
                 );
               },
