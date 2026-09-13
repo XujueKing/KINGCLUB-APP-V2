@@ -32,3 +32,9 @@
 消息行使用稳定 clientMessageId key，正常消息更新不会因对象重建反复重新加载全部图片。图片限制在聊天卡片区域内按比例显示；完整预览使用全局返回控件与页面切换。
 
 验证：chat-image-view-test.log 11 项通过，含真实私有缓存组件构造、异源地址拒绝、账号切换、关系变化期间迟到响应、上传及发送队列。此处组件测试未验证真实图片字节在两台手机间传输，服务端部署及真机验收仍未完成。
+
+## 图片聊天测试包
+
+本轮 ARM64 preview profile APK 编译成功（chat-image-release-build.log，70.8 秒），文件 build/app/outputs/flutter-apk/app-preview-profile.apk；SHA-256 `1b83d1a008fea313e4d1f9710479fe05ba737ddf633161eeeb1dbb235f0e86f1`。构建包含已提交图片入口／气泡功能，并保留工作区原有三个 onboarding 文件修改，未将这些修改归入聊天提交。
+
+后端 chat-image-056 已运行，053–056 完成测试库迁移，健康和隔离数据库验收通过。手机 462606d8 当前 ADB offline，未覆盖安装。没有宣称双机真机发送、拍摄、下载缓存及预览验收完成。
