@@ -24,6 +24,7 @@ class DirectChatController extends ChatSessionController {
   final _sending = <String>{};
   Future<void>? _syncing;
   bool _disposed = false;
+  bool _syncAgain = false;
   int _historyGeneration = 0;
   int _lastSynced = 0;
   int? _oldest;
@@ -85,11 +86,22 @@ class DirectChatController extends ChatSessionController {
   @override
   Future<void> synchronize() {
     final active = _syncing;
-    if (active != null) return active;
+    if (_disposed) return Future<void>.value();
+    if (active != null) {
+      _syncAgain = true;
+      return active;
+    }
     final generation = _historyGeneration;
-    return _syncing = _synchronize(generation).whenComplete(() {
+    return _syncing = _drainSync(generation).whenComplete(() {
       if (generation == _historyGeneration) _syncing = null;
     });
+  }
+
+  Future<void> _drainSync(int generation) async {
+    do {
+      _syncAgain = false;
+      await _synchronize(generation);
+    } while (!_disposed && generation == _historyGeneration && _syncAgain);
   }
 
   Future<void> _synchronize(int generation) async {
@@ -385,6 +397,7 @@ class DirectChatController extends ChatSessionController {
   @override
   void resetVisibleHistory() {
     _historyGeneration++;
+    _syncAgain = false;
     _syncing = null;
     _confirmed.clear();
     _lastSynced = 0;

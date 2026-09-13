@@ -53,6 +53,59 @@ Map<String, dynamic> history(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    'notification during in-flight history triggers one more catch-up',
+    () async {
+      final first = Completer<Map<String, dynamic>>();
+      final paramsSeen = <Map<String, dynamic>>[];
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: MemoryOutbox(),
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, params) async {
+            paramsSeen.add({...params});
+            if (paramsSeen.length == 1) return first.future;
+            return history([
+              ack({'clientMessageId': 'two', 'text': 'second'}, sequence: 2),
+            ]);
+          },
+        ),
+      );
+      final sync = controller.synchronize();
+      final signals = List.generate(8, (_) => controller.synchronize());
+      first.complete(
+        history([
+          ack({'clientMessageId': 'one', 'text': 'first'}),
+        ]),
+      );
+      await Future.wait([sync, ...signals]);
+      expect(paramsSeen.length, 2);
+      expect(paramsSeen.last['after'], 1);
+      expect(controller.messages.map((m) => m['sequence']), [1, 2]);
+      controller.dispose();
+    },
+  );
+  test(
+    'disposed controller never starts a catch-up requested after disposal',
+    () async {
+      var calls = 0;
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: MemoryOutbox(),
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, _) async {
+            calls++;
+            return history([]);
+          },
+        ),
+      );
+      controller.dispose();
+      await controller.synchronize();
+      expect(calls, 0);
+    },
+  );
+  test(
     'clearing history rejects an old response without blocking fresh sync',
     () async {
       final oldResponse = Completer<Map<String, dynamic>>();
