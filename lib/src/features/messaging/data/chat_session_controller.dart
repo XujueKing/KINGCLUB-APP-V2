@@ -1,3 +1,5 @@
+import 'chat_location.dart';
+
 import 'package:flutter/foundation.dart';
 
 import 'messaging_repository.dart';
@@ -21,6 +23,7 @@ abstract class ChatSessionController extends ChangeNotifier {
     int durationMs, {
     VoidCallback? onQueued,
   });
+  Future<void> sendLocation(ChatLocation location, {VoidCallback? onQueued});
   Future<void> loadOlder();
   Future<void> markVisibleRead(int sequence);
   void resetVisibleHistory();

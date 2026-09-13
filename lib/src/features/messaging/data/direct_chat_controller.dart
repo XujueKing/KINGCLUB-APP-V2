@@ -1,3 +1,4 @@
+import 'chat_location.dart';
 import 'chat_session_controller.dart';
 
 import 'package:flutter/foundation.dart';
@@ -215,6 +216,31 @@ class DirectChatController extends ChatSessionController {
   }
 
   @override
+  Future<void> sendLocation(
+    ChatLocation location, {
+    VoidCallback? onQueued,
+  }) async {
+    if (_disposed) return;
+    final id = const Uuid().v4();
+    final message = <String, dynamic>{
+      'clientMessageId': id,
+      'recipient': peer,
+      'sender': repository.account,
+      'messageType': 'location',
+      'location': location.toJson(),
+      'text': '[位置]',
+      'createdDate': DateTime.now().toUtc().toIso8601String(),
+      'status': 'queued',
+    };
+    await outbox.put(message);
+    if (_disposed) return;
+    _pending[id] = message;
+    _changed();
+    onQueued?.call();
+    await retry(id);
+  }
+
+  @override
   Future<void> sendVoice(
     String assetId,
     int durationMs, {
@@ -268,7 +294,8 @@ class DirectChatController extends ChatSessionController {
       if (kind != null &&
           kind != 'text' &&
           kind != 'image' &&
-          kind != 'voice') {
+          kind != 'voice' &&
+          kind != 'location') {
         throw const FormatException('不支持的待发送消息类型');
       }
       final result = kind == 'image'
@@ -283,6 +310,14 @@ class DirectChatController extends ChatSessionController {
               clientMessageId: id,
               assetId: pending['voiceAssetId'] as String,
             )
+          : kind == 'location'
+          ? await repository.sendLocation(
+              peer: peer,
+              clientMessageId: id,
+              location: ChatLocation.fromJson(
+                Map<String, dynamic>.from(pending['location'] as Map),
+              ),
+            )
           : await repository.sendText(
               peer: peer,
               clientMessageId: id,
@@ -290,6 +325,17 @@ class DirectChatController extends ChatSessionController {
             );
       if (_disposed) return;
       final received = Map<String, dynamic>.from(result['message'] as Map);
+      if (kind == 'location' &&
+          (received['messageType'] != 'location' ||
+              !ChatLocation.fromJson(
+                Map<String, dynamic>.from(received['location'] as Map),
+              ).sameAs(
+                ChatLocation.fromJson(
+                  Map<String, dynamic>.from(pending['location'] as Map),
+                ),
+              ))) {
+        throw const FormatException('位置回执与发送内容不符');
+      }
       if (kind == 'voice' &&
           (received['messageType'] != 'voice' ||
               received['voiceAssetId'] != pending['voiceAssetId'] ||

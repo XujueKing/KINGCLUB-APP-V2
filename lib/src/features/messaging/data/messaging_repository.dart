@@ -1,3 +1,4 @@
+import 'chat_location.dart';
 import '../../../core/networking/kingclub_secure_client.dart';
 import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
@@ -60,6 +61,15 @@ class MessagingRepository {
     'recipient': peer,
     'clientMessageId': clientMessageId,
     'assetId': assetId,
+  });
+  Future<Map<String, dynamic>> sendLocation({
+    required String peer,
+    required String clientMessageId,
+    required ChatLocation location,
+  }) => call('K260913000641', {
+    'recipient': peer,
+    'clientMessageId': clientMessageId,
+    'location': location.toJson(),
   });
   Future<Map<String, dynamic>> sendVoice({
     required String peer,

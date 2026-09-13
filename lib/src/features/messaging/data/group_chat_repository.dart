@@ -1,3 +1,5 @@
+import 'chat_location.dart';
+
 import 'dart:convert';
 
 import 'group_request_store.dart';
@@ -67,6 +69,15 @@ class GroupChatRepository {
     'groupId': groupId,
     'clientMessageId': clientMessageId,
     'assetId': assetId,
+  });
+  Future<Map<String, dynamic>> sendLocation({
+    required String groupId,
+    required String clientMessageId,
+    required ChatLocation location,
+  }) => messaging.call('K260913000642', {
+    'groupId': groupId,
+    'clientMessageId': clientMessageId,
+    'location': location.toJson(),
   });
   Future<Map<String, dynamic>> sendVoice({
     required String groupId,
