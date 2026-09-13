@@ -38,3 +38,11 @@
 本轮 ARM64 preview profile APK 编译成功（chat-image-release-build.log，70.8 秒），文件 build/app/outputs/flutter-apk/app-preview-profile.apk；SHA-256 `1b83d1a008fea313e4d1f9710479fe05ba737ddf633161eeeb1dbb235f0e86f1`。构建包含已提交图片入口／气泡功能，并保留工作区原有三个 onboarding 文件修改，未将这些修改归入聊天提交。
 
 后端 chat-image-056 已运行，053–056 完成测试库迁移，健康和隔离数据库验收通过。手机 462606d8 当前 ADB offline，未覆盖安装。没有宣称双机真机发送、拍摄、下载缓存及预览验收完成。
+
+## App 群图片接入
+
+群图片复用系统相册／拍摄预览和 631 二进制上传，ChatSessionController 增加 sendImage 契约。群控制器先写账号安全发送队列，再调用 634；重试保留群、资产及 clientMessageId，按消息类型选择接口，禁止把图片退化为文字发送。回执必须匹配群、发送者、消息编号及资产，错误回执不移除队列；群访问失效不允许新图片入队。
+
+缩略图和独立放大预览使用 635 与 group-chat-image 路径；群成员变更／群会话设置变更清除显示并重新授权，单聊仍使用 633 与原单聊路径。原本 pending 图片占位、发送失败重试仍有效。
+
+验证 group-image-client-test.log：23 项通过，含重建控制器后的图片重试、错误回执保留、撤销群权限、群媒体授权路由及通知失效，以及原群文字和单聊图片测试。group-image-client-analyze.log 静态检查通过。057–058 仍仅隔离数据库执行，共享测试服务和新 APK 尚待更新，未完成真机群发图验收。

@@ -15,6 +15,7 @@ abstract class ChatSessionController extends ChangeNotifier {
   Future<void> retryQueued();
   Future<void> retry(String id);
   Future<void> send(String text, {VoidCallback? onQueued});
+  Future<void> sendImage(String assetId, {VoidCallback? onQueued});
   Future<void> loadOlder();
   Future<void> markVisibleRead(int sequence);
   void resetVisibleHistory();

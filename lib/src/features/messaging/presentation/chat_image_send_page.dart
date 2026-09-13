@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../../../core/design_system/king_components.dart';
 import '../data/chat_image_uploader.dart';
-import '../data/direct_chat_controller.dart';
+import '../data/chat_session_controller.dart';
 
 /// Selected local image stays on screen until it is durably queued.
 class ChatImageSendPage extends StatefulWidget {
   const ChatImageSendPage({super.key, required this.bytes, required this.chat});
   final Uint8List bytes;
-  final DirectChatController chat;
+  final ChatSessionController chat;
   @override
   State<ChatImageSendPage> createState() => _ChatImageSendPageState();
 }

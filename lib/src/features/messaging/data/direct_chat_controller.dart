@@ -187,6 +187,7 @@ class DirectChatController extends ChatSessionController {
 
   /// Queue the owned, completed upload reference; credentials/bytes never enter
   /// the secure message queue. Network retries reuse this message identifier.
+  @override
   Future<void> sendImage(String assetId, {VoidCallback? onQueued}) async {
     if (_disposed) return;
     if (!RegExp(

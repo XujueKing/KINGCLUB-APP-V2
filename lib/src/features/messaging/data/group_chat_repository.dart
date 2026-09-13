@@ -59,6 +59,15 @@ class GroupChatRepository {
       messaging.call('K260913000618', {'before': ?before, 'limit': limit});
   Future<Map<String, dynamic>> details(String groupId) =>
       messaging.call('K260913000619', {'groupId': groupId});
+  Future<Map<String, dynamic>> sendImage({
+    required String groupId,
+    required String clientMessageId,
+    required String assetId,
+  }) => messaging.call('K260913000634', {
+    'groupId': groupId,
+    'clientMessageId': clientMessageId,
+    'assetId': assetId,
+  });
   Future<Map<String, dynamic>> sendText({
     required String groupId,
     required String clientMessageId,

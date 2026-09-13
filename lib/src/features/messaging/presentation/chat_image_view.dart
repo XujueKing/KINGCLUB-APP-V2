@@ -15,11 +15,13 @@ class ChatImageView extends StatefulWidget {
     required this.repository,
     required this.messageId,
     this.full = false,
+    this.group = false,
     this.events,
   });
   final MessagingRepository repository;
   final String messageId;
   final bool full;
+  final bool group;
   final Stream<Map<String, dynamic>>? events;
   @override
   State<ChatImageView> createState() => _ChatImageViewState();
@@ -49,6 +51,8 @@ class _ChatImageViewState extends State<ChatImageView>
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
       if ([
         'chat.settings.changed',
+        'chat.group.changed',
+        'chat.group.read',
         'chat.relationship.changed',
         'connection.ready',
       ].contains(event['eventType'])) {
@@ -63,6 +67,7 @@ class _ChatImageViewState extends State<ChatImageView>
     super.didUpdateWidget(old);
     if (old.messageId != widget.messageId ||
         old.full != widget.full ||
+        old.group != widget.group ||
         old.repository != widget.repository) {
       _load();
     }
@@ -81,12 +86,16 @@ class _ChatImageViewState extends State<ChatImageView>
       _failed = false;
     });
     try {
-      final result = await widget.repository.imageMedia(widget.messageId);
+      final result = await widget.repository.imageMedia(
+        widget.messageId,
+        group: widget.group,
+      );
       if (!mounted || _invalid || generation != _generation) return;
       final slot = widget.full ? 'image' : 'thumbnail';
       final media = Map<String, dynamic>.from(result[slot] as Map);
       if (result['messageId'] != widget.messageId ||
-          media['path'] != '/kingclub/chat-image/${widget.messageId}/$slot' ||
+          media['path'] !=
+              '/kingclub/${widget.group ? 'group-chat-image' : 'chat-image'}/${widget.messageId}/$slot' ||
           media['fileId'] is! String ||
           media['width'] is! int ||
           media['height'] is! int ||

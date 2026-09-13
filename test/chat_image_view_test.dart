@@ -131,4 +131,38 @@ void main() {
       expect(find.byType(CachedMediaImage), findsNothing);
     },
   );
+  testWidgets(
+    'group images use group authorization and clear on membership change',
+    (tester) async {
+      final events = StreamController<Map<String, dynamic>>();
+      var allowed = true;
+      final repository = MessagingRepository(
+        account: 'me',
+        call: (id, _) async {
+          expect(id, 'K260913000635');
+          if (!allowed) throw StateError('removed');
+          return grant(path: '/kingclub/group-chat-image/m/thumbnail');
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatImageView(
+            repository: repository,
+            messageId: 'm',
+            group: true,
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(CachedMediaImage), findsOneWidget);
+      allowed = false;
+      events.add({'eventType': 'chat.group.changed'});
+      await tester.pumpAndSettle();
+      expect(find.byType(CachedMediaImage), findsNothing);
+      expect(find.text('图片暂不可查看'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      unawaited(events.close());
+    },
+  );
 }

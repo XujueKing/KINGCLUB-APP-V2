@@ -508,6 +508,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                                   : ChatImageView(
                                       repository: _chat!.messaging,
                                       messageId: message.messageId!,
+                                      group: widget.groupId != null,
                                     )
                             : null,
                         onAvatarTap: _realTarget == null
@@ -1410,9 +1411,8 @@ class _DirectChatPageState extends State<DirectChatPage>
   Future<void> _selectChatImage(ImageSource source) async {
     if (_selectingImage) return;
     final chat = _chat;
-    if (chat is! DirectChatController) {
-      KingNotice.of(context)
-          .show(widget.groupId != null ? '群图片正在接入，尚未发送' : '会话尚未就绪');
+    if (chat == null) {
+      KingNotice.of(context).show('会话尚未就绪');
       return;
     }
     _selectingImage = true;
@@ -1848,6 +1848,7 @@ class _DirectChatPageState extends State<DirectChatPage>
               child: ChatImageView(
                 repository: repository,
                 messageId: message.messageId!,
+                group: widget.groupId != null,
                 full: true,
               ),
             ),
