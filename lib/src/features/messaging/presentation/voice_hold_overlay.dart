@@ -220,30 +220,42 @@ class _VoiceRingPainter extends CustomPainter {
       final sweep = math.pi / 2;
       canvas.drawArc(rect, start, sweep, false, paint);
       final textAngle = (left ? -1 : 1) * .215;
-      final anchor =
-          center +
-          Offset(
-            math.sin(textAngle) * ringRadius,
-            -math.cos(textAngle) * ringRadius,
-          );
-      final text = TextPainter(
-        text: TextSpan(
-          text: left ? '取消' : '滑到这里 转文字',
-          style: TextStyle(
-            color: target == kind
-                ? const Color(0xFF15271F)
-                : const Color(0xFF242424),
-            fontSize: 15,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      canvas.save();
-      canvas.translate(anchor.dx, anchor.dy);
-      canvas.rotate(textAngle);
-      text.paint(canvas, Offset(-text.width / 2, -text.height / 2));
-      canvas.restore();
+      final label = left ? '取消' : '滑到这里 转文字';
+      final glyphs = label.characters
+          .map(
+            (character) => TextPainter(
+              text: TextSpan(
+                text: character,
+                style: TextStyle(
+                  color: target == kind
+                      ? const Color(0xFF15271F)
+                      : const Color(0xFF242424),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              textDirection: TextDirection.ltr,
+            )..layout(),
+          )
+          .toList();
+      final totalWidth = glyphs.fold<double>(
+        0,
+        (sum, glyph) => sum + glyph.width,
+      );
+      var distance = -totalWidth / 2;
+      for (final glyph in glyphs) {
+        final angle = textAngle + (distance + glyph.width / 2) / ringRadius;
+        final anchor =
+            center +
+            Offset(math.sin(angle) * ringRadius, -math.cos(angle) * ringRadius);
+        canvas.save();
+        canvas.translate(anchor.dx, anchor.dy);
+        canvas.rotate(angle);
+        glyph.paint(canvas, Offset(-glyph.width / 2, -glyph.height / 2));
+        canvas.restore();
+        distance += glyph.width;
+        glyph.dispose();
+      }
     }
     canvas.drawLine(
       Offset(center.dx, center.dy - ringRadius - thickness / 2),
