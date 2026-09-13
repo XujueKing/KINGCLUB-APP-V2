@@ -1,3 +1,5 @@
+import 'package:flutter_svg/flutter_svg.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -208,39 +210,78 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                           ],
                         ),
                       ),
-                      Positioned(
-                        left: -bounds.maxWidth * .2,
-                        right: -bounds.maxWidth * .2,
-                        bottom: -100,
-                        height: 180,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.elliptical(300, 90),
-                            ),
-                            gradient: const LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Color(0xFF655343), Color(0xFF272019)],
-                            ),
-                            border: Border.all(
-                              color: const Color(0x337E6C59),
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 28,
-                        child: Text(
-                          '上滑取消 · 滑向右侧转文字',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0x99C9B69E),
-                            fontSize: 12,
-                          ),
+                      Positioned.fill(
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: 1),
+                          duration: const Duration(milliseconds: 650),
+                          curve: const ElasticOutCurve(.7),
+                          builder: (context, t, _) {
+                            final r = bounds.maxWidth / 750;
+                            final width =
+                                (bounds.maxWidth - 60 * r) +
+                                (bounds.maxWidth * .4 + 60 * r) * t;
+                            final height = 80 * r + (180 - 80 * r) * t;
+                            final bottom = 22 * r + (-65 - 22 * r) * t;
+                            return Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Positioned(
+                                  key: const ValueKey('voice-hold-jelly-morph'),
+                                  left: (bounds.maxWidth - width) / 2,
+                                  bottom: bottom,
+                                  width: width,
+                                  height: height,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.elliptical(
+                                          width / 2,
+                                          24 + 90 * t,
+                                        ),
+                                        bottom: const Radius.circular(28),
+                                      ),
+                                      gradient: const LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Color(0xFFF2D2A6),
+                                          Color(0xFFE4B780),
+                                          Color(0xFFD19A60),
+                                        ],
+                                      ),
+                                      border: Border.all(
+                                        color: const Color(0x88FFE6C6),
+                                        width: 1.2,
+                                      ),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(0x44C99254),
+                                          blurRadius: 12,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          top: 8 + 24 * t,
+                                        ),
+                                        child: SvgPicture.asset(
+                                          'assets/legacy/messaging/microphone.svg',
+                                          width: 30,
+                                          height: 30,
+                                          colorFilter: const ColorFilter.mode(
+                                            Color(0xFF624326),
+                                            BlendMode.srcIn,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                     ],

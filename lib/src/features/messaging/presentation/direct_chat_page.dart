@@ -616,8 +616,8 @@ class _DirectChatPageState extends State<DirectChatPage>
                                               ),
                                               icon: Image.asset(
                                                 'assets/legacy/messaging/keynote.png',
-                                                width: 32 * r,
-                                                height: 32 * r,
+                                                width: 60 * r,
+                                                height: 60 * r,
                                                 color: const Color(0xFF312C27),
                                               ),
                                             ),
