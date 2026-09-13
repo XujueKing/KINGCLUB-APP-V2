@@ -43,6 +43,45 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   FlutterSecureStorage.setMockInitialValues({});
   test(
+    'rejoining drops pre-admission messages and rejects an old member snapshot',
+    () async {
+      var version = 0, joined = 0;
+      final chat = GroupChatController(
+        groupId: 'group',
+        outbox: Queue(),
+        repository: GroupChatRepository(
+          MessagingRepository(
+            account: 'me',
+            call: (id, _) async {
+              if (id == 'K260913000619') return {'members': []};
+              return {
+                ...history([
+                  {...message('old'), 'sequence': 1},
+                  {...message('new'), 'sequence': 3},
+                ]),
+                'membershipVersion': version,
+                'joinedSequence': joined,
+                'settings': {'hiddenThrough': 0},
+              };
+            },
+          ),
+        ),
+      );
+      await chat.synchronize();
+      expect(chat.messages.length, 2);
+      version = 1;
+      joined = 2;
+      await chat.synchronize();
+      expect(chat.messages.single['sequence'], 3);
+      version = 0;
+      joined = 0;
+      await chat.synchronize();
+      expect(chat.messages.single['sequence'], 3);
+      expect(chat.error, isNotNull);
+      chat.dispose();
+    },
+  );
+  test(
     'reconnect rejects in-flight stale names while retaining messages',
     () async {
       final stale = Completer<Map<String, dynamic>>();

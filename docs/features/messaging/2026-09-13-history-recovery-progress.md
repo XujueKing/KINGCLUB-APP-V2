@@ -39,3 +39,10 @@ SQLite 事务与 FFI 使用依据：https://pub.dev/documentation/sqflite/latest
 
 
 原生 preview profile arm64 重试构建通过：45.7 秒、118.6 MB，SHA256 `9ebd4dabe0961bd58b5398585a8d63c209eaa78a8a3be236b05aba92dc8c4877`。包含既有 onboarding 未提交改动，本轮未修改／提交它们。未安装真机、未完成性能或双机验收。
+
+
+## 群聊准入范围（存储接入前置修复）
+
+621 新增当前成员 membershipVersion/joinedSequence（后台尚未部署）；GroupChatController 保留单调可见下界 max(joinedSequence, hiddenThrough)，收到较旧成员版本时拒绝合并，当前成员版本变化则失效成员名称缓存。解决仅按 hiddenThrough 清理时重新入群仍可能保留内存旧消息的问题。
+
+群控制器 9 项测试通过；后台 241 项检查与隔离 HTTP 首次入群／重新入群准入边界通过。控制器源文件静态分析无问题，既有测试文件仍有与本次改动无关的非空断言／花括号提示。群历史仍未写入本地 SQLite，不能声明群聊离线恢复已实现。本次未重新打包。

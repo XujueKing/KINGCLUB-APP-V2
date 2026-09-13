@@ -41,6 +41,8 @@ class GroupChatController extends ChatSessionController {
   Future<void>? _syncing;
   bool _disposed = false;
   int _historyGeneration = 0;
+  int? _membershipVersion;
+  int _visibleAfter = 0;
   int _lastSynced = 0;
   int? _oldest;
   @override
@@ -216,6 +218,22 @@ class GroupChatController extends ChatSessionController {
   }
 
   Future<void> _merge(Map<String, dynamic> result, int generation) async {
+    final version = result['membershipVersion'];
+    final joined = result['joinedSequence'];
+    if (version != null || joined != null) {
+      if (version is! int || version < 0 || joined is! int || joined < 0) {
+        throw const FormatException('Invalid group admission boundary');
+      }
+      if (_membershipVersion != null && version < _membershipVersion!) {
+        throw const AuthFailure(
+          'CHAT_GROUP_MEMBERSHIP_CONFLICT',
+          '群成员状态已变化，请重新同步',
+        );
+      }
+      if (_membershipVersion != version) invalidateMemberNames();
+      _membershipVersion = version;
+      if (joined > _visibleAfter) _visibleAfter = joined;
+    }
     readSequence = (result['readSequence'] as num).toInt();
     _settings
       ..clear()
@@ -223,8 +241,9 @@ class GroupChatController extends ChatSessionController {
         Map<String, dynamic>.from(result['settings'] as Map? ?? const {}),
       );
     final hidden = (_settings['hiddenThrough'] as num?)?.toInt() ?? 0;
+    if (hidden > _visibleAfter) _visibleAfter = hidden;
     _confirmed.removeWhere(
-      (_, message) => (message['sequence'] as num).toInt() <= hidden,
+      (_, message) => (message['sequence'] as num).toInt() <= _visibleAfter,
     );
     for (final raw in result['messages'] as List) {
       if (_disposed || generation != _historyGeneration) return;
@@ -237,8 +256,7 @@ class GroupChatController extends ChatSessionController {
       throw const FormatException('Wrong group message');
     }
     final id = message['messageId'] as String;
-    if ((message['sequence'] as num).toInt() >
-        ((_settings['hiddenThrough'] as num?)?.toInt() ?? 0)) {
+    if ((message['sequence'] as num).toInt() > _visibleAfter) {
       _confirmed[id] = {...message, 'status': 'sent'};
     }
     if (message['sender'] == repository.account) {
