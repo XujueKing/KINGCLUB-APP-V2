@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -284,18 +285,12 @@ class _LegacyTitleBar extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Positioned(
-            left: 18,
-            child: IconButton(
+            left: KingBackButton.leftOffset(context),
+            top: KingBackButton.safeAreaOffset.dy,
+            child: KingBackButton(
               key: ValueKey('relationship-back-$title'),
               tooltip: '返回',
               onPressed: onBack,
-              icon: Image.asset(
-                'assets/legacy/friendship/back.png',
-                width: 11,
-                height: 22,
-                fit: BoxFit.contain,
-                color: _legacyGold,
-              ),
             ),
           ),
           Text(title, style: const TextStyle(color: _legacyGold, fontSize: 17)),

@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -512,14 +513,7 @@ class _SecurityHeader extends StatelessWidget {
       height: 62,
       child: Row(
         children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              color: Color(0xFFC9B69E),
-              size: 22,
-            ),
-          ),
+          KingBackButton(onPressed: onBack),
           Expanded(
             child: GestureDetector(
               key: const ValueKey('payment-security-title'),

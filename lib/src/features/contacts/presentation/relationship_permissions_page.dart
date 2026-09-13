@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 
@@ -288,18 +289,12 @@ class _PermissionTitleBar extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Positioned(
-            left: 18,
-            child: IconButton(
+            left: KingBackButton.leftOffset(context),
+            top: KingBackButton.safeAreaOffset.dy,
+            child: KingBackButton(
               key: const ValueKey('relationship-permissions-back'),
               tooltip: '返回',
               onPressed: onBack,
-              icon: Image.asset(
-                'assets/legacy/friendship/back.png',
-                width: 11,
-                height: 22,
-                fit: BoxFit.contain,
-                color: _legacyGold,
-              ),
             ),
           ),
           const Text('权限', style: TextStyle(color: _legacyGold, fontSize: 17)),

@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -56,8 +57,8 @@ class LegacyMessagingHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 68,
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      width: double.infinity,
+      height: 56,
       decoration: BoxDecoration(
         color: backgroundColor,
         border: const Border(bottom: BorderSide(color: legacyMessageLine)),
@@ -65,18 +66,13 @@ class LegacyMessagingHeader extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
+          Positioned(
+            left: KingBackButton.leftOffset(context),
+            top: KingBackButton.safeAreaOffset.dy,
+            child: KingBackButton(
               key: const ValueKey('messaging-back'),
               tooltip: '返回',
               onPressed: onBack,
-              icon: Image.asset(
-                'assets/legacy/friendship/back.png',
-                width: 11,
-                height: 22,
-                fit: BoxFit.contain,
-              ),
             ),
           ),
           Text(
@@ -90,7 +86,7 @@ class LegacyMessagingHeader extends StatelessWidget {
             ),
           ),
           if (trailing != null)
-            Align(alignment: Alignment.centerRight, child: trailing!),
+            Positioned(right: 18, top: 4, bottom: 4, child: trailing!),
         ],
       ),
     );

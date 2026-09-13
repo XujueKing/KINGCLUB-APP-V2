@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 
@@ -367,18 +368,11 @@ class _LegacyBackButton extends StatelessWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
-        padding: const EdgeInsets.only(left: 18),
-        child: IconButton(
+        padding: EdgeInsets.only(left: KingBackButton.leftOffset(context)),
+        child: KingBackButton(
           key: const ValueKey('user-profile-back'),
           tooltip: '返回',
           onPressed: onPressed,
-          icon: Image.asset(
-            'assets/legacy/friendship/back.png',
-            width: 11,
-            height: 22,
-            fit: BoxFit.contain,
-            color: _legacyGold,
-          ),
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import '../../auth/presentation/terms_consent_page.dart';
 
 import 'package:flutter/material.dart';
@@ -475,14 +477,7 @@ class _AboutHeader extends StatelessWidget {
       height: 56,
       child: Row(
         children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              color: Color(0xFFC9B69E),
-              size: 20,
-            ),
-          ),
+          KingBackButton(onPressed: onBack),
           Expanded(
             child: GestureDetector(
               key: const ValueKey('about-legal-title'),

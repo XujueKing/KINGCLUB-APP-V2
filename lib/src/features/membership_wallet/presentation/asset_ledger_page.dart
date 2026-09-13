@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 
 import '../../commerce/presentation/order_center_page.dart';
@@ -144,16 +145,12 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
         alignment: Alignment.center,
         children: [
           Positioned(
-            left: 12,
-            child: IconButton(
+            left: KingBackButton.leftOffset(context),
+            top: KingBackButton.safeAreaOffset.dy,
+            child: KingBackButton(
               key: const ValueKey('asset-ledger-back'),
               tooltip: '返回',
               onPressed: widget.onBack ?? () => Navigator.maybePop(context),
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: _text,
-                size: 22,
-              ),
             ),
           ),
           GestureDetector(

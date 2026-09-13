@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -139,16 +141,9 @@ class _AdmissionTicketPageState extends State<AdmissionTicketPage>
         alignment: Alignment.center,
         children: [
           Positioned(
-            left: 5,
-            child: IconButton(
-              tooltip: '返回',
-              onPressed: widget.onBack,
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: legacyPink,
-                size: 22,
-              ),
-            ),
+            left: KingBackButton.leftOffset(context),
+            top: KingBackButton.safeAreaOffset.dy,
+            child: KingBackButton(tooltip: '返回', onPressed: widget.onBack),
           ),
           GestureDetector(
             key: const ValueKey('admission-ticket-title'),

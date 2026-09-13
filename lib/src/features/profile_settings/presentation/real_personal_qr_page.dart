@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import '../../../core/session/member_qr_memory.dart';
 
 import 'dart:async';
@@ -120,9 +122,17 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('我的二维码'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-          onPressed: widget.onBack ?? () => Navigator.pop(context),
+        toolbarHeight: 56,
+        leadingWidth: KingBackButton.leftOffset(context) + 48,
+        leading: Padding(
+          padding: EdgeInsets.only(
+            left: KingBackButton.leftOffset(context),
+            top: 4,
+            bottom: 4,
+          ),
+          child: KingBackButton(
+            onPressed: widget.onBack ?? () => Navigator.pop(context),
+          ),
         ),
       ),
       body: SafeArea(

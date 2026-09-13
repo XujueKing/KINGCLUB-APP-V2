@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -607,18 +608,12 @@ class _LegacyFriendHeader extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Positioned(
-            left: 14,
-            child: IconButton(
+            left: KingBackButton.leftOffset(context),
+            top: KingBackButton.safeAreaOffset.dy,
+            child: KingBackButton(
               key: ValueKey('friend-page-back-$title'),
               tooltip: '返回',
               onPressed: onBack,
-              icon: Image.asset(
-                'assets/legacy/friendship/back.png',
-                width: 11,
-                height: 22,
-                fit: BoxFit.contain,
-                color: _legacyGold,
-              ),
             ),
           ),
           GestureDetector(

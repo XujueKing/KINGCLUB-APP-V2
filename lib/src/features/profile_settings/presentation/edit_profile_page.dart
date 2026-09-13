@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:async';
@@ -1388,15 +1389,7 @@ class _LegacyHeader extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 58),
       child: Row(
         children: [
-          IconButton(
-            key: const ValueKey('legacy-back'),
-            onPressed: onBack,
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              color: Color(0xFFC9B69E),
-              size: 22,
-            ),
-          ),
+          KingBackButton(key: const ValueKey('legacy-back'), onPressed: onBack),
           Expanded(
             child: GestureDetector(
               key: const ValueKey('edit-profile-title'),

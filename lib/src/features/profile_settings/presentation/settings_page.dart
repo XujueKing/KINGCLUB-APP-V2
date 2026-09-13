@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import '../../../core/session/secure_session_store.dart';
@@ -83,19 +84,16 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 22),
+              padding: EdgeInsets.symmetric(
+                horizontal: KingBackButton.leftOffset(context),
+              ),
               child: SizedBox(
                 height: 56,
                 child: Row(
                   children: [
-                    IconButton(
+                    KingBackButton(
                       key: const ValueKey('settings-back'),
                       onPressed: _finishBack,
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new,
-                        color: _gold,
-                        size: 20,
-                      ),
                     ),
                     Expanded(
                       child: GestureDetector(

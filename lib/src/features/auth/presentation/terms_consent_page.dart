@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -40,11 +42,19 @@ class _TermsConsentPageState extends State<TermsConsentPage> {
         appBar: AppBar(
           backgroundColor: Colors.black,
           foregroundColor: KingColors.textPrimary,
-          leading: IconButton(
-            key: const ValueKey('agreement-back'),
-            onPressed: widget.onClose,
-            tooltip: '返回',
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          toolbarHeight: 56,
+          leadingWidth: KingBackButton.leftOffset(context) + 48,
+          leading: Padding(
+            padding: EdgeInsets.only(
+              left: KingBackButton.leftOffset(context),
+              top: 4,
+              bottom: 4,
+            ),
+            child: KingBackButton(
+              key: const ValueKey('agreement-back'),
+              onPressed: widget.onClose,
+              tooltip: '返回',
+            ),
           ),
           title: Text(isTerms ? 'KINGBAR用户协议' : 'KINGBAR隐私政策'),
           centerTitle: true,

@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -199,16 +201,10 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
           SizedBox(
             width: 42,
             height: 48,
-            child: IconButton(
+            child: KingBackButton(
               key: const ValueKey('ordering-back'),
               tooltip: '返回',
               onPressed: widget.onBack,
-              padding: EdgeInsets.zero,
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Color(0xFFF0ECE7),
-                size: 22,
-              ),
             ),
           ),
           const SizedBox(width: 8),

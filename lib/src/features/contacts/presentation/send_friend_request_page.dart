@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -392,20 +393,15 @@ class _LegacyRequestHeader extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: Padding(
-              padding: const EdgeInsets.only(left: 18),
+              padding: EdgeInsets.only(
+                left: KingBackButton.leftOffset(context),
+              ),
               child: SizedBox.square(
                 dimension: 48,
-                child: IconButton(
+                child: KingBackButton(
                   key: const ValueKey('send-friend-back'),
                   tooltip: '返回',
                   onPressed: onBack,
-                  icon: Image.asset(
-                    'assets/legacy/friendship/back.png',
-                    width: 11,
-                    height: 22,
-                    fit: BoxFit.contain,
-                    color: _legacyGold,
-                  ),
                 ),
               ),
             ),

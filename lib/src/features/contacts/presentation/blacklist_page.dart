@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 
@@ -298,17 +299,10 @@ class _LegacyBlacklistHeader extends StatelessWidget {
           children: [
             SizedBox.square(
               dimension: 48,
-              child: IconButton(
+              child: KingBackButton(
                 key: const ValueKey('blacklist-back'),
                 tooltip: '返回',
                 onPressed: onBack,
-                icon: Image.asset(
-                  'assets/legacy/friendship/back.png',
-                  width: 11,
-                  height: 22,
-                  fit: BoxFit.contain,
-                  color: _legacyGold,
-                ),
               ),
             ),
             const Expanded(

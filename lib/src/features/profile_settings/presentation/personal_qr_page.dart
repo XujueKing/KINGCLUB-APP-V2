@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import 'real_personal_qr_page.dart';
 import '../../auth/data/auth_repository_provider.dart';
 
@@ -620,14 +622,9 @@ class _QrHeader extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 58),
       child: Row(
         children: [
-          IconButton(
+          KingBackButton(
             key: const ValueKey('personal-qr-back'),
             onPressed: onBack,
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              color: Color(0xFFC9B69E),
-              size: 22,
-            ),
           ),
           Expanded(
             child: GestureDetector(

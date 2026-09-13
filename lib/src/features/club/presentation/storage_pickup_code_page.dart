@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -135,10 +137,9 @@ class _StoragePickupCodePageState extends State<StoragePickupCodePage>
       height: 62,
       child: Row(
         children: [
-          IconButton(
+          KingBackButton(
             key: const ValueKey('storage-pickup-back'),
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new, color: _gold, size: 22),
           ),
           Expanded(
             child: Center(

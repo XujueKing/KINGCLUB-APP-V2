@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -76,15 +78,11 @@ class _AaPositioningCardPageState extends State<AaPositioningCardPage>
                   alignment: Alignment.center,
                   children: [
                     Positioned(
-                      left: 6,
-                      child: IconButton(
+                      left: KingBackButton.leftOffset(context),
+                      top: KingBackButton.safeAreaOffset.dy,
+                      child: KingBackButton(
                         tooltip: '返回',
                         onPressed: widget.onBack,
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: legacyPink,
-                          size: 22,
-                        ),
                       ),
                     ),
                     const Text(

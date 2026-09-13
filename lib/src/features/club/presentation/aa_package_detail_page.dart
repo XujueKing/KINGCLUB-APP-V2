@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 
 import '../../commerce/data/fake_commerce_repository.dart';
@@ -486,16 +487,9 @@ class _LegacyHeader extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Positioned(
-            left: 6,
-            child: IconButton(
-              tooltip: '返回',
-              onPressed: onBack,
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: legacyGold,
-                size: 22,
-              ),
-            ),
+            left: KingBackButton.leftOffset(context),
+            top: KingBackButton.safeAreaOffset.dy,
+            child: KingBackButton(tooltip: '返回', onPressed: onBack),
           ),
           GestureDetector(
             key: const ValueKey('aa-package-title'),
