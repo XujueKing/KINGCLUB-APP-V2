@@ -52,33 +52,51 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                     VoiceHoldTarget kind,
                     IconData icon,
                     String label,
-                  ) => Transform.rotate(
-                    angle: kind == VoiceHoldTarget.cancel ? -.16 : .16,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: bounds.maxWidth * .44,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(40),
-                        color: target == kind
-                            ? (kind == VoiceHoldTarget.cancel
-                                  ? const Color(0xFFB76450)
-                                  : const Color(0xFF64CB99))
-                            : const Color(0xFF292929),
+                  ) {
+                    final left = kind == VoiceHoldTarget.cancel;
+                    final color = target == kind
+                        ? (left ? '#B76450' : '#64CB99')
+                        : '#292929';
+                    return SizedBox(
+                      width: bounds.maxWidth * .48,
+                      height: 82,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Positioned.fill(
+                            child: Transform.flip(
+                              flipX: !left,
+                              child: SvgPicture.string(
+                                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><path fill="$color" d="M0 35 C48 22 95 13 146 10 C173 8 190 23 190 45 C190 66 177 78 153 80 C98 83 48 93 0 108 Z"/></svg>',
+                                fit: BoxFit.fill,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.only(
+                              left: left ? 8 : 0,
+                              right: left ? 0 : 8,
+                              top: 12,
+                            ),
+                            child: Transform.rotate(
+                              angle: left ? -.16 : .16,
+                              child: Text(
+                                left ? '取消' : '滑到这里 转文字',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w400,
+                                  color: target == kind
+                                      ? const Color(0xFF15271F)
+                                      : const Color(0xFFCCCCCC),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        kind == VoiceHoldTarget.text ? '滑到这里 转文字' : '取消',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w400,
-                          color: target == kind
-                              ? const Color(0xFF15271F)
-                              : const Color(0xFFCCCCCC),
-                        ),
-                      ),
-                    ),
-                  );
+                    );
+                  }
+
                   return Stack(
                     children: [
                       Positioned(
@@ -87,86 +105,68 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                         bottom: 220,
                         child: Column(
                           children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 160),
-                              width: math.min(240, bounds.maxWidth * .66),
-                              height: 62,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(22),
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: cancel
-                                      ? [
-                                          const Color(0xFFE4A28E),
-                                          const Color(0xFFB76450),
-                                        ]
-                                      : [
-                                          const Color(0xFFA0EDC3),
-                                          const Color(0xFF65D89C),
-                                          const Color(0xFF38B978),
-                                        ],
+                            ClipPath(
+                              clipper: const _VoiceBubbleClipper(),
+                              child: Container(
+                                width: math.min(240, bounds.maxWidth * .66),
+                                height: 72,
+                                padding: const EdgeInsets.only(bottom: 10),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: cancel
+                                        ? [
+                                            const Color(0xFFE4A28E),
+                                            const Color(0xFFB76450),
+                                          ]
+                                        : [
+                                            const Color(0xFFA0EDC3),
+                                            const Color(0xFF65D89C),
+                                            const Color(0xFF38B978),
+                                          ],
+                                  ),
                                 ),
-                                border: Border.all(
-                                  color: const Color(0x55FFFFFF),
-                                  width: .7,
-                                ),
-                              ),
-                              child: AnimatedBuilder(
-                                animation: motion,
-                                builder: (context, _) => Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    ...List.generate(
-                                      23,
-                                      (i) => Container(
-                                        width: 3,
-                                        height:
-                                            5 +
-                                            17 *
-                                                (math
-                                                    .sin(
-                                                      i * .7 +
-                                                          motion.value *
-                                                              math.pi *
-                                                              2,
-                                                    )
-                                                    .abs()),
-                                        margin: const EdgeInsets.symmetric(
-                                          horizontal: 1.5,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF20553D),
-                                          borderRadius: BorderRadius.circular(
-                                            2,
+                                child: AnimatedBuilder(
+                                  animation: motion,
+                                  builder: (context, _) => Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      ...List.generate(
+                                        23,
+                                        (i) => Container(
+                                          width: 3,
+                                          height:
+                                              5 +
+                                              17 *
+                                                  (math
+                                                      .sin(
+                                                        i * .7 +
+                                                            motion.value *
+                                                                math.pi *
+                                                                2,
+                                                      )
+                                                      .abs()),
+                                          margin: const EdgeInsets.symmetric(
+                                            horizontal: 1.5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF20553D),
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      '${DateTime.now().difference(started).inSeconds}″',
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        color: Color(0xFF20553D),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        '${DateTime.now().difference(started).inSeconds}″',
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          color: Color(0xFF20553D),
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Transform.translate(
-                              offset: const Offset(0, -5),
-                              child: Transform.rotate(
-                                angle: math.pi / 4,
-                                child: Container(
-                                  width: 14,
-                                  height: 14,
-                                  decoration: BoxDecoration(
-                                    color: cancel
-                                        ? const Color(0xFFB76450)
-                                        : const Color(0xFF38B978),
-                                    borderRadius: BorderRadius.circular(3),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -286,4 +286,30 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
       ),
     ),
   );
+}
+
+// One continuous outline: rounded body and curved tail share the same fill.
+class _VoiceBubbleClipper extends CustomClipper<Path> {
+  const _VoiceBubbleClipper();
+  @override
+  Path getClip(Size size) {
+    final w = size.width, h = size.height - 10, c = size.width / 2;
+    return Path()
+      ..moveTo(24, 0)
+      ..lineTo(w - 24, 0)
+      ..quadraticBezierTo(w, 0, w, 24)
+      ..lineTo(w, h - 24)
+      ..quadraticBezierTo(w, h, w - 24, h)
+      ..lineTo(c + 16, h)
+      ..cubicTo(c + 9, h, c + 5, h + 10, c, h + 10)
+      ..cubicTo(c - 5, h + 10, c - 9, h, c - 16, h)
+      ..lineTo(24, h)
+      ..quadraticBezierTo(0, h, 0, h - 24)
+      ..lineTo(0, 24)
+      ..quadraticBezierTo(0, 0, 24, 0)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(_VoiceBubbleClipper oldClipper) => false;
 }
