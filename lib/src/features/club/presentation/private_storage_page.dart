@@ -30,8 +30,10 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
           ? PreviewStorageRepository()
           : RealStorageRepository());
   final _pages = PageController();
-  final _verticalPages = [PageController(), PageController()];
-  final _verticalIndex = [0, 0];
+  static const _categories = ['wine', 'coupon', 'item'];
+  static const _labels = ['酒', '券', '物'];
+  final _verticalPages = List.generate(3, (_) => PageController());
+  final _verticalIndex = [0, 0, 0];
   late final _flip = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 440),
@@ -44,9 +46,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   StorageItem? get _item => _items.where((i) => i.ref == _selected).firstOrNull;
   List<List<StorageItem>> get _groups {
     final groups = <List<StorageItem>>[];
-    for (final category in ['wine', 'item']) {
+    for (final category in _categories) {
       final items = _items
-          .where((i) => i.category == category && i.status != 'expired')
+          .where((i) => i.storageCategory == category && i.status != 'expired')
           .toList();
       if (items.isEmpty) groups.add([]);
       for (var i = 0; i < items.length; i += 9) {
@@ -56,13 +58,27 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     return groups;
   }
 
-  int get _itemPage => math.max(
+  int _pageCount(int category) => math.max(
     1,
-    (_items.where((i) => i.category == 'wine' && i.status != 'expired').length /
+    (_items
+                .where(
+                  (i) =>
+                      i.storageCategory == _categories[category] &&
+                      i.status != 'expired',
+                )
+                .length /
             9)
         .ceil(),
   );
-  String get _category => _page < _itemPage ? 'wine' : 'item';
+  int _startPage(int category) =>
+      List.generate(category, _pageCount).fold(0, (a, b) => a + b);
+  int _categoryForPage(int page) => page < _startPage(1)
+      ? 0
+      : page < _startPage(2)
+      ? 1
+      : 2;
+  int get _categoryIndex => _categoryForPage(_page);
+  String get _category => _categories[_categoryIndex];
   @override
   void initState() {
     super.initState();
@@ -108,21 +124,19 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
       final items = await _repository.list();
       if (!mounted) return;
       setState(() {
-        final category = _category == 'wine' ? 0 : 1;
+        final category = _categoryIndex;
         _items = items;
-        _verticalIndex[0] = math.min(_verticalIndex[0], _itemPage - 1);
-        _verticalIndex[1] = math.min(
-          _verticalIndex[1],
-          _groups.length - _itemPage - 1,
-        );
-        _page = (category == 0 ? 0 : _itemPage) + _verticalIndex[category];
+        for (var i = 0; i < 3; i++) {
+          _verticalIndex[i] = math.min(_verticalIndex[i], _pageCount(i) - 1);
+        }
+        _page = _startPage(category) + _verticalIndex[category];
         _selected = _groups[_page].firstOrNull?.ref;
         _loading = false;
         _back = false;
         _flip.value = 0;
       });
-      if (_pages.hasClients) _pages.jumpToPage(_category == 'wine' ? 0 : 1);
-      for (var i = 0; i < 2; i++) {
+      if (_pages.hasClients) _pages.jumpToPage(_categoryIndex);
+      for (var i = 0; i < 3; i++) {
         if (_verticalPages[i].hasClients) {
           _verticalPages[i].jumpToPage(_verticalIndex[i]);
         }
@@ -361,7 +375,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   ),
                 ),
                 SizedBox(
-                  height: heroHeight,
+                  height: heroHeight + 6,
                   child: Padding(
                     padding: EdgeInsets.only(top: 48 * u),
                     child: _hero(u),
@@ -372,7 +386,11 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   height: 48 * u,
                   child: Row(
                     children: [
-                      for (final entry in [('wine', '酒', 0), ('item', '物', 1)])
+                      for (final entry in [
+                        ('wine', '酒', 0),
+                        ('coupon', '券', 1),
+                        ('item', '物', 2),
+                      ])
                         Semantics(
                           key: ValueKey(
                             'storage-tab-${entry.$2}-${_category == entry.$1 ? 'selected' : 'idle'}',
@@ -422,37 +440,29 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                           child: PageView.builder(
                             key: const ValueKey('storage-category-pages'),
                             controller: _pages,
-                            itemCount: 2,
+                            itemCount: 3,
                             onPageChanged: (category) => _changePage(
-                              (category == 0 ? 0 : _itemPage) +
-                                  _verticalIndex[category],
+                              _startPage(category) + _verticalIndex[category],
                             ),
                             itemBuilder: (context, category) =>
                                 PageView.builder(
-                                  key: PageStorageKey('storage-vertical-$category'),
+                                  key: PageStorageKey(
+                                    'storage-vertical-$category',
+                                  ),
                                   controller: _verticalPages[category],
                                   scrollDirection: Axis.vertical,
-                                  itemCount: category == 0
-                                      ? _itemPage
-                                      : _groups.length - _itemPage,
+                                  itemCount: _pageCount(category),
                                   onPageChanged: (index) {
                                     _verticalIndex[category] = index;
-                                    _changePage(
-                                      (category == 0 ? 0 : _itemPage) + index,
-                                    );
+                                    _changePage(_startPage(category) + index);
                                   },
-                                  itemBuilder: (context, index) => _grid(
-                                    (category == 0 ? 0 : _itemPage) + index,
-                                    u,
-                                  ),
+                                  itemBuilder: (context, index) =>
+                                      _grid(_startPage(category) + index, u),
                                 ),
                           ),
                         ),
                       ),
-                      if ((_category == 'wine'
-                              ? _itemPage
-                              : _groups.length - _itemPage) >
-                          1)
+                      if (_pageCount(_categoryIndex) > 1)
                         Positioned(
                           right: 8,
                           top: 0,
@@ -462,9 +472,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                               key: const ValueKey('storage-vertical-dots'),
                               mainAxisSize: MainAxisSize.min,
                               children: List.generate(
-                                _category == 'wine'
-                                    ? _itemPage
-                                    : _groups.length - _itemPage,
+                                _pageCount(_categoryIndex),
                                 (i) => Container(
                                   width: 5,
                                   height: 5,
@@ -473,11 +481,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                   ),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color:
-                                        i ==
-                                            _verticalIndex[_category == 'wine'
-                                                ? 0
-                                                : 1]
+                                    color: i == _verticalIndex[_categoryIndex]
                                         ? _gold
                                         : const Color(0x30FFFFFF),
                                   ),
@@ -493,21 +497,21 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
-                    2,
+                    3,
                     (i) => Container(
                       width: 15 * u,
                       height: 15 * u,
                       margin: EdgeInsets.symmetric(horizontal: 8 * u),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: i == (_category == 'wine' ? 0 : 1)
+                        color: i == _categoryIndex
                             ? _gold
                             : const Color(0x30FFFFFF),
                       ),
                     ),
                   ),
                 ),
-                SizedBox(height: bottom),
+                SizedBox(height: math.max(0.0, bottom - 6)),
               ],
             );
           },
@@ -517,7 +521,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   );
   Widget _grid(int p, double u) => GridView.builder(
     key: ValueKey(
-      'storage-grid-${p < _itemPage ? '酒' : '物'}-${p < _itemPage ? p + 1 : p - _itemPage + 1}',
+      'storage-grid-${_labels[_categoryForPage(p)]}-${p - _startPage(_categoryForPage(p)) + 1}',
     ),
     padding: EdgeInsets.zero,
     physics: const NeverScrollableScrollPhysics(),

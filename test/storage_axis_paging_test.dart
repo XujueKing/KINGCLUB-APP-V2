@@ -4,6 +4,36 @@ import 'package:kingclub/src/features/club/data/storage_repository.dart';
 import 'package:kingclub/src/features/club/presentation/private_storage_page.dart';
 
 void main() {
+  test('coupon classification uses explicit type and legacy asset', () {
+    expect(
+      const StorageItem(
+        ref: 'a',
+        name: '任意',
+        assetKey: 'aa-ticket',
+        category: 'item',
+      ).storageCategory,
+      'coupon',
+    );
+    expect(
+      const StorageItem(
+        ref: 'b',
+        name: '券字不决定分类',
+        assetKey: 'other',
+        category: 'item',
+      ).storageCategory,
+      'item',
+    );
+    expect(
+      const StorageItem(
+        ref: 'c',
+        name: '新券',
+        assetKey: 'other',
+        category: 'coupon',
+      ).storageCategory,
+      'coupon',
+    );
+  });
+
   for (final size in [const Size(360, 640), const Size(393, 852)]) {
     testWidgets('fixed storage with independent axes $size', (tester) async {
       tester.view.physicalSize = size;

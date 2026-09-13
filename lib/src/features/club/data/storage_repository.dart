@@ -60,7 +60,15 @@ class StorageItem {
         'aa-ticket' => 'freeticket.png',
         _ => 'fail.png',
       }}';
-  String get thumbnail => category == 'item'
+  // Existing AA coupons are returned as item; explicit coupon types are also supported.
+  bool get isCoupon =>
+      category == 'coupon' || category == 'ticket' || assetKey == 'aa-ticket';
+  String get storageCategory => isCoupon
+      ? 'coupon'
+      : category == 'wine'
+      ? 'wine'
+      : 'item';
+  String get thumbnail => isCoupon
       ? 'assets/legacy/storage/freeticket2.png'
       : ['vodka', 'chivas', 'hennessy'].contains(assetKey)
       ? image.replaceFirst('.png', '_mini.png')
