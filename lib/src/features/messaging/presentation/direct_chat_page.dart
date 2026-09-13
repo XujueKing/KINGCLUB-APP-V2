@@ -1,3 +1,4 @@
+import '../data/chat_history_store.dart';
 import 'chat_location_message.dart';
 import '../data/chat_location.dart';
 import 'chat_location_picker_page.dart';
@@ -364,6 +365,9 @@ class _DirectChatPageState extends State<DirectChatPage>
               repository: repository,
               peer: widget.peerAccount!,
               outbox: outbox,
+              openHistory: repository.persistHistory
+                  ? () => ChatHistoryStore.open(repository.account)
+                  : null,
             );
       _chat = chat;
       chat.addListener(_realChatChanged);

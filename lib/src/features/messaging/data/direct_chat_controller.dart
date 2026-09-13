@@ -1,3 +1,4 @@
+import 'chat_history_store.dart';
 import 'chat_location.dart';
 import 'chat_session_controller.dart';
 
@@ -13,12 +14,44 @@ class DirectChatController extends ChatSessionController {
     required this.repository,
     required this.peer,
     required this.outbox,
+    this.openHistory,
   });
   final MessagingRepository repository;
   @override
   MessagingRepository get messaging => repository;
   final String peer;
   final ChatOutbox outbox;
+  final Future<ChatHistoryStore> Function()? openHistory;
+  ChatHistoryStore? _history;
+  Future<void>? _historyReady, _historyBarrier;
+  int _diskEpoch = 0;
+  int _hiddenThrough = 0;
+  String get _historyKey => 'direct:$peer';
+
+  Future<void> _ensureHistory() => _historyReady ??= _restoreHistory();
+  Future<void> _restoreHistory() async {
+    if (openHistory == null) return;
+    final generation = _historyGeneration;
+    final store = await openHistory!();
+    if (store.account != repository.account) throw StateError('聊天记录账号不符');
+    if (_disposed) return;
+    _history = store;
+    final page = await store.read(_historyKey);
+    _diskEpoch = page.epoch;
+    _hiddenThrough = page.hiddenThrough;
+    if (_disposed || generation != _historyGeneration) return;
+    for (final message in page.messages) {
+      _confirmed[message['messageId'] as String] = message;
+    }
+    _lastSynced = page.cursor;
+    if (page.messages.isNotEmpty) {
+      _oldest = page.messages.first['sequence'] as int;
+      conversationId = page.messages.first['conversationId'] as String?;
+      hasOlder = true;
+    }
+    _changed();
+  }
+
   final _confirmed = <String, Map<String, dynamic>>{};
   final _pending = <String, Map<String, dynamic>>{};
   final _sending = <String>{};
@@ -69,7 +102,10 @@ class DirectChatController extends ChatSessionController {
   @override
   Future<void> initialize() async {
     try {
+      if (openHistory != null) await _ensureHistory();
+      if (_disposed) return;
       for (final message in await outbox.read()) {
+        if (_disposed) return;
         if (message['recipient'] == peer) {
           _pending[message['clientMessageId'] as String] = message;
         }
@@ -106,6 +142,11 @@ class DirectChatController extends ChatSessionController {
 
   Future<void> _synchronize(int generation) async {
     try {
+      if (openHistory != null) {
+        await _ensureHistory();
+        await _historyBarrier;
+      }
+      if (_disposed || generation != _historyGeneration) return;
       bool more;
       do {
         final initial = _lastSynced == 0;
@@ -114,7 +155,7 @@ class DirectChatController extends ChatSessionController {
           after: initial ? null : _lastSynced,
         );
         if (_disposed || generation != _historyGeneration) return;
-        await _merge(result, generation);
+        await _merge(result, generation, advanceCursor: true);
         if (_disposed || generation != _historyGeneration) return;
         final rows = result['messages'] as List;
         if (rows.isNotEmpty) {
@@ -138,6 +179,24 @@ class DirectChatController extends ChatSessionController {
     if (!hasOlder || _oldest == null || _disposed) return;
     final generation = _historyGeneration;
     try {
+      if (_history != null) {
+        await _historyBarrier;
+        if (_disposed || generation != _historyGeneration) return;
+        final local = await _history!.read(_historyKey, before: _oldest);
+        if (_disposed || generation != _historyGeneration) return;
+        if (local.epoch != _diskEpoch) {
+          resetVisibleHistory();
+          return;
+        }
+        if (local.messages.isNotEmpty) {
+          for (final message in local.messages) {
+            _confirmed[message['messageId'] as String] = message;
+          }
+          _oldest = local.messages.first['sequence'] as int;
+          _changed();
+          return;
+        }
+      }
       final result = await repository.history(peer, before: _oldest);
       if (_disposed || generation != _historyGeneration) return;
       await _merge(result, generation);
@@ -153,20 +212,69 @@ class DirectChatController extends ChatSessionController {
     }
   }
 
-  Future<void> _merge(Map<String, dynamic> result, int generation) async {
+  Future<void> _merge(
+    Map<String, dynamic> result,
+    int generation, {
+    bool advanceCursor = false,
+  }) async {
+    final rows = (result['messages'] as List)
+        .map((raw) => Map<String, dynamic>.from(raw as Map))
+        .toList();
+    final hidden = (result['settings'] as Map)['hiddenThrough'];
+    if (_history != null) {
+      if (hidden is! int || hidden < 0) throw StateError('服务端尚未提供聊天记录同步信息');
+      final committed = await _history!.commit(
+        _historyKey,
+        rows,
+        expectedEpoch: _diskEpoch,
+        hiddenThrough: hidden,
+        cursor: advanceCursor && rows.isNotEmpty
+            ? rows.last['sequence'] as int
+            : null,
+      );
+      if (_disposed || generation != _historyGeneration) return;
+      if (!committed) {
+        resetVisibleHistory();
+        throw StateError('聊天记录已清空，请重新同步');
+      }
+    }
+    if (hidden is int) {
+      if (hidden > _hiddenThrough) _hiddenThrough = hidden;
+      _confirmed.removeWhere(
+        (_, message) => (message['sequence'] as int) <= hidden,
+      );
+    }
     conversationId = result['conversationId'] as String;
     permission = Map<String, dynamic>.from(result['sendPermission'] as Map);
     settings = Map<String, dynamic>.from(result['settings'] as Map);
     peerReadSequence = (result['peerReadSequence'] as num).toInt();
-    for (final raw in result['messages'] as List) {
+    for (final message in rows) {
       if (_disposed || generation != _historyGeneration) return;
-      await _acknowledge(Map<String, dynamic>.from(raw as Map));
+      if (hidden is int && (message['sequence'] as int) <= hidden) continue;
+      await _acknowledge(message, persist: false);
     }
   }
 
-  Future<void> _acknowledge(Map<String, dynamic> message) async {
+  Future<void> _acknowledge(
+    Map<String, dynamic> message, {
+    bool persist = true,
+  }) async {
+    final generation = _historyGeneration;
+    if (persist && openHistory != null) {
+      await _ensureHistory();
+      await _historyBarrier;
+      if (_disposed || generation != _historyGeneration) return;
+      if (!await _history!.commit(_historyKey, [
+        message,
+      ], expectedEpoch: _diskEpoch)) {
+        throw StateError('聊天记录已变化，请重新同步');
+      }
+      if (_disposed || generation != _historyGeneration) return;
+    }
     final id = message['messageId'] as String;
-    _confirmed[id] = {...message, 'status': 'sent'};
+    if ((message['sequence'] as int) > _hiddenThrough) {
+      _confirmed[id] = {...message, 'status': 'sent'};
+    }
     if (message['sender'] == repository.account) {
       final clientId = message['clientMessageId'] as String;
       if (_pending.containsKey(clientId)) {
@@ -297,6 +405,7 @@ class DirectChatController extends ChatSessionController {
 
   @override
   Future<void> retry(String id) async {
+    final historyGeneration = _historyGeneration;
     final pending = _pending[id];
     if (pending == null || _disposed || !_sending.add(id)) return;
     _pending[id] = {...pending, 'status': 'sending'};
@@ -362,6 +471,7 @@ class DirectChatController extends ChatSessionController {
                   received['imageAssetId'] != pending['imageAssetId']))) {
         throw const FormatException('消息回执与发送内容不符');
       }
+      if (historyGeneration != _historyGeneration) return;
       await _acknowledge(received);
       error = null;
     } catch (e) {
@@ -397,6 +507,16 @@ class DirectChatController extends ChatSessionController {
   @override
   void resetVisibleHistory() {
     _historyGeneration++;
+    if (openHistory != null) {
+      _historyBarrier = (_historyBarrier ?? _ensureHistory()).then((_) async {
+        if (_history != null) _diskEpoch = await _history!.clear(_historyKey);
+      });
+      // Observe failures even if the caller leaves without another sync.
+      _historyBarrier!.catchError((Object e) {
+        error = e.toString();
+        _changed();
+      });
+    }
     _syncAgain = false;
     _syncing = null;
     _confirmed.clear();

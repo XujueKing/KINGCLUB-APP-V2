@@ -12,7 +12,13 @@ typedef ChatApiCall = Future<Map<String, dynamic>> Function(
 
 /// All requests are bound to the account which opened this repository.
 class MessagingRepository {
-  MessagingRepository({required this.account, required this.call});
+  MessagingRepository({
+    required this.account,
+    required this.call,
+    this.persistHistory = false,
+  });
+
+  final bool persistHistory;
 
   final String account;
   final ChatApiCall call;
@@ -27,6 +33,7 @@ class MessagingRepository {
     final client = KingclubSecureClient(kingclubApiBaseUrl);
     return MessagingRepository(
       account: account,
+      persistHistory: true,
       call: (id, params) async {
         final generation = MemberQrMemory.generation;
         final current = await store.readSession();

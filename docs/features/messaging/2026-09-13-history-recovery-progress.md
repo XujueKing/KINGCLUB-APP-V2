@@ -27,3 +27,15 @@ SQLite 事务与 FFI 使用依据：https://pub.dev/documentation/sqflite/latest
 接控制器前发现 604 缺少当前查看者 hiddenThrough 投影，已在后台补齐（未部署）。SQLite 升为 v2，增加 conversation.hiddenThrough；commit 在同一事务中删除 <= hiddenThrough 的行，之后收到较旧页面也按已存界限过滤。不会因迟到结果降低该值。
 
 8 项真实 SQLite 测试通过，包含 v1 无损迁移、远端清空后迟到记录和重开后旧记录不复活；后台 241 项检查及隔离全链路通过。控制器和页面接入仍待完成，不能宣称离线展示已经可用。
+
+
+## 单聊控制器与真实入口接通
+
+真实 MessagingRepository.open 创建的会话启用持久历史；测试注入仓库默认不触发原生存储。DirectChatController 启动读取本地最近 50 条，向上翻页优先本机，联网后从落盘 cursor 继续补收。历史页和 cursor 原子提交，发送回执单独持久化但不推进补收 cursor，防止未收到的中间消息被跳过。历史信息缺少 hiddenThrough 时拒绝不安全的缓存同步。
+
+清空操作形成持久化屏障；旧代同步及旧发送回执不写回。缓存账号与仓库账号必须一致，销毁后迟到初始化不展示。当前实时清空游标已部署 history-065（后台 d3dcd0c）。群聊仍未连接本地库。
+
+验证：既有控制器／存储组合 23 项通过，新增发送回执用例后单聊磁盘集成 5 项通过（离线 75 条分页、after 游标、多端清空、迟到响应、账号错误、发送回执不推进 cursor），静态分析通过。无真实用户验收消息。原生构建首轮因 sqlite3 测试依赖原生资产下载超时失败；随后从官方地址获取 arm64 Android 资产并匹配包内 SHA256 `0c2d3bfc8c87abceb21ed72a4bb49964121c5fe1a8ef3848d83ba907d01b6161`，仅写项目构建缓存后重试，未修改供应商包。
+
+
+原生 preview profile arm64 重试构建通过：45.7 秒、118.6 MB，SHA256 `9ebd4dabe0961bd58b5398585a8d63c209eaa78a8a3be236b05aba92dc8c4877`。包含既有 onboarding 未提交改动，本轮未修改／提交它们。未安装真机、未完成性能或双机验收。

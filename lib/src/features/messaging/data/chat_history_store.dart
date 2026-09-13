@@ -9,9 +9,14 @@ import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 
 class ChatHistoryPage {
-  const ChatHistoryPage(this.messages, this.cursor, this.epoch);
+  const ChatHistoryPage(
+    this.messages,
+    this.cursor,
+    this.epoch, [
+    this.hiddenThrough = 0,
+  ]);
   final List<Map<String, dynamic>> messages;
-  final int cursor, epoch;
+  final int cursor, epoch, hiddenThrough;
 }
 
 /// Message payloads are AES-256-GCM encrypted. Sequence/index metadata is not.
@@ -192,6 +197,7 @@ class ChatHistoryStore {
         messages,
         state.isEmpty ? 0 : state.single['cursor'] as int,
         state.isEmpty ? 0 : state.single['epoch'] as int,
+        state.isEmpty ? 0 : state.single['hiddenThrough'] as int,
       );
     });
   }

@@ -1,0 +1,158 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:cryptography/cryptography.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
+import 'package:kingclub/src/features/messaging/data/direct_chat_controller.dart';
+import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+
+import 'direct_chat_controller_test.dart' show MemoryOutbox, ack, history;
+
+void main() {
+  sqfliteFfiInit();
+  late Directory dir;
+  late ChatHistoryStore store;
+  setUp(() async {
+    dir = await Directory.systemTemp.createTemp('direct-history-');
+    store = await ChatHistoryStore.openDatabaseWithKey(
+      factory: databaseFactoryFfi,
+      file: '${dir.path}/history.db',
+      key: await AesGcm.with256bits().newSecretKey(),
+      account: 'me',
+    );
+  });
+  tearDown(() async {
+    await store.close();
+    await dir.delete(recursive: true);
+  });
+  Map<String, dynamic> response(
+    List<Map<String, dynamic>> rows, {
+    int hidden = 0,
+  }) => {
+    ...history(rows),
+    'settings': {'hiddenThrough': hidden},
+  };
+  Map<String, dynamic> message(int n) =>
+      ack({'clientMessageId': 'c$n', 'text': 'message$n'}, sequence: n);
+  DirectChatController controller(ChatApiCall call) => DirectChatController(
+    peer: 'peer',
+    outbox: MemoryOutbox(),
+    openHistory: () async => store,
+    repository: MessagingRepository(account: 'me', call: call),
+  );
+
+  test(
+    'reopening offline restores messages and loads older pages from disk',
+    () async {
+      await store.commit(
+        'direct:peer',
+        List.generate(75, (i) => message(i + 1)),
+        expectedEpoch: 0,
+        cursor: 75,
+      );
+      var calls = 0;
+      final chat = controller((_, _) async {
+        calls++;
+        throw StateError('offline');
+      });
+      await chat.initialize();
+      expect(chat.messages.length, 50);
+      expect(chat.messages.first['sequence'], 26);
+      await chat.loadOlder();
+      expect(chat.messages.length, 75);
+      expect(calls, 1);
+      chat.dispose();
+    },
+  );
+  test(
+    'catch-up starts at committed cursor and remote clear survives reopen',
+    () async {
+      await store.commit(
+        'direct:peer',
+        [message(1)],
+        expectedEpoch: 0,
+        cursor: 1,
+      );
+      final chat = controller((_, params) async {
+        expect(params['after'], 1);
+        return response([message(2)], hidden: 1);
+      });
+      await chat.initialize();
+      expect(chat.messages.single['sequence'], 2);
+      final saved = await store.read('direct:peer');
+      expect(saved.cursor, 2);
+      expect(saved.hiddenThrough, 1);
+      expect(saved.messages.single['sequence'], 2);
+      chat.dispose();
+      final offline = controller((_, _) async => throw StateError('offline'));
+      await offline.initialize();
+      expect(offline.messages.single['sequence'], 2);
+      offline.dispose();
+    },
+  );
+  test(
+    'clearing during an in-flight fetch rejects old disk and memory writes',
+    () async {
+      final late = Completer<Map<String, dynamic>>();
+      var calls = 0;
+      final chat = controller((_, _) async {
+        calls++;
+        if (calls == 1) return response([message(1)]);
+        if (calls == 2) return late.future;
+        return response([], hidden: 2);
+      });
+      await chat.initialize();
+      final sync = chat.synchronize();
+      await Future<void>.delayed(Duration.zero);
+      chat.resetVisibleHistory();
+      late.complete(response([message(2)]));
+      await sync;
+      // A fresh sync waits for the persistent clear barrier before reading.
+      final fresh = controller((_, _) async => throw StateError('offline'));
+      await chat.synchronize();
+      await fresh.initialize();
+      expect(fresh.messages, isEmpty);
+      chat.dispose();
+      fresh.dispose();
+    },
+  );
+  test(
+    'send acknowledgement persists without skipping unseen history',
+    () async {
+      final chat = controller((id, params) async {
+        if (id == 'K260913000601') return {'message': ack(params, sequence: 5)};
+        return response([]);
+      });
+      await chat.initialize();
+      await chat.send('saved outbound');
+      final page = await store.read('direct:peer');
+      expect(page.messages.single['text'], 'saved outbound');
+      expect(page.cursor, 0);
+      chat.dispose();
+      final offline = controller((_, _) async => throw StateError('offline'));
+      await offline.initialize();
+      expect(offline.messages.single['text'], 'saved outbound');
+      offline.dispose();
+    },
+  );
+  test(
+    'a store bound to another account cannot restore into this conversation',
+    () async {
+      final bad = DirectChatController(
+        peer: 'peer',
+        outbox: MemoryOutbox(),
+        openHistory: () async => store,
+        repository: MessagingRepository(
+          account: 'other',
+          call: (_, _) async => throw StateError('must not call'),
+        ),
+      );
+      await bad.initialize();
+      expect(bad.messages, isEmpty);
+      expect(bad.error, isNotNull);
+      bad.dispose();
+    },
+  );
+}
