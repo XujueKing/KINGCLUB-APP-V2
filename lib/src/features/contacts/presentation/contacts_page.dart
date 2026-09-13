@@ -866,7 +866,7 @@ class _ContactAlphabetIndexState extends State<_ContactAlphabetIndex> {
                         child: Text(
                           letters[i],
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             color: _active == i
                                 ? legacyMessageGold
                                 : const Color(0xA6C9B69E),
