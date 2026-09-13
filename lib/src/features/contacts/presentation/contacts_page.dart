@@ -1,3 +1,7 @@
+import '../data/contacts_controller.dart';
+import '../../messaging/data/messaging_repository.dart';
+import '../../../core/networking/kingclub_realtime.dart';
+import '../../../core/session/secure_session_store.dart';
 import 'relationship_groups_page.dart';
 import '../../messaging/presentation/legacy_messaging_components.dart';
 
@@ -42,6 +46,8 @@ class ContactsPage extends StatefulWidget {
     required this.active,
     required this.onIntent,
     this.onOpenChat,
+    this.realData = false,
+    this.repository,
     this.onScan,
     this.onPersonalQr,
     this.initialState = ContactsDemoState.ready,
@@ -49,6 +55,8 @@ class ContactsPage extends StatefulWidget {
   });
 
   final bool active;
+  final bool realData;
+  final MessagingRepository? repository;
   final ValueChanged<ContactRouteIntent> onIntent;
   final VoidCallback? onOpenChat;
   final VoidCallback? onScan;
@@ -71,6 +79,70 @@ class _ContactsPageState extends State<ContactsPage> {
   String _query = '';
   bool _loadedOnce = false;
   bool _refreshing = false;
+  ContactsController? _real;
+  StreamSubscription<void>? _sessions;
+  StreamSubscription<Map<String, dynamic>>? _events;
+  int _connectionGeneration = 0;
+
+  Future<void> _connectReal() async {
+    final generation = ++_connectionGeneration;
+    try {
+      final repository = widget.repository ?? await MessagingRepository.open();
+      if (!mounted || generation != _connectionGeneration) return;
+      final controller = ContactsController(repository);
+      _real = controller;
+      controller.addListener(() {
+        if (!mounted) return;
+        setState(() {
+          _state = controller.error != null
+              ? ContactsDemoState.partialError
+              : controller.hasSnapshot && controller.contacts.isEmpty
+              ? ContactsDemoState.empty
+              : ContactsDemoState.ready;
+        });
+      });
+      _events = KingclubRealtime.shared.events.listen((event) {
+        if (event['eventType'] == 'chat.relationship.changed' ||
+            event['eventType'] == 'chat.friend-request.changed' ||
+            event['eventType'] == 'chat.settings.changed' ||
+            event['eventType'] == 'connection.ready') {
+          unawaited(controller.refresh());
+        }
+      });
+      await controller.refresh();
+    } catch (e) {
+      if (!mounted || generation != _connectionGeneration) return;
+      setState(() => _state = ContactsDemoState.partialError);
+    }
+  }
+
+  List<_FakeContact> get _realContacts {
+    final rows = (_real?.contacts ?? const <MemberContact>[]).map((contact) {
+      final initial = contact.displayName.characters.firstOrNull ?? '#';
+      final section = RegExp(r'^[A-Za-z]$').hasMatch(initial)
+          ? initial.toUpperCase()
+          : '#';
+      return _FakeContact(
+        section,
+        contact.account,
+        contact.nickname,
+        contact.remark,
+        initial,
+        false,
+        contact.gender,
+      );
+    }).toList();
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#';
+    rows.sort((a, b) {
+      final section = alphabet
+          .indexOf(a.section)
+          .compareTo(alphabet.indexOf(b.section));
+      return section != 0
+          ? section
+          : (a.remark ?? a.nickname).compareTo(b.remark ?? b.nickname);
+    });
+    return rows;
+  }
 
   static const _allContacts = [
     _FakeContact('A', 'contact-alice', 'Alice', '艾琳', 'A', true, 2),
@@ -84,7 +156,23 @@ class _ContactsPageState extends State<ContactsPage> {
   @override
   void initState() {
     super.initState();
-    _state = widget.initialState;
+    _state = widget.realData ? ContactsDemoState.ready : widget.initialState;
+    if (widget.realData) {
+      _sessions = SecureSessionStore.changes.stream.listen((_) {
+        _connectionGeneration++;
+        _events?.cancel();
+        _real?.dispose();
+        _real = null;
+        if (mounted) {
+          setState(() {
+            _query = '';
+            _searchController.clear();
+            _state = ContactsDemoState.empty;
+          });
+        }
+      });
+      unawaited(_connectReal());
+    }
     _loadedOnce = _state != ContactsDemoState.initialLoading;
     if (_state == ContactsDemoState.sessionInvalid) {
       WidgetsBinding.instance.addPostFrameCallback(
@@ -98,6 +186,9 @@ class _ContactsPageState extends State<ContactsPage> {
   @override
   void didUpdateWidget(covariant ContactsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.realData && widget.active && !oldWidget.active) {
+      unawaited(_real?.refresh());
+    }
     if (!oldWidget.active && widget.active && !_loadedOnce) {
       unawaited(_loadFirst());
     }
@@ -136,6 +227,14 @@ class _ContactsPageState extends State<ContactsPage> {
   }
 
   Future<void> _refresh() async {
+    if (widget.realData) {
+      if (_real == null) {
+        await _connectReal();
+      } else {
+        await _real!.refresh();
+      }
+      return;
+    }
     if (_refreshing) return;
     setState(() => _refreshing = true);
     if (!mounted) return;
@@ -156,7 +255,7 @@ class _ContactsPageState extends State<ContactsPage> {
   }
 
   List<_FakeContact> get _visibleContacts {
-    var contacts = _allContacts;
+    var contacts = widget.realData ? _realContacts : _allContacts;
     if (_state == ContactsDemoState.relationshipChanged) {
       contacts = contacts
           .where((contact) => contact.ref != 'contact-lucas')
@@ -180,6 +279,10 @@ class _ContactsPageState extends State<ContactsPage> {
 
   @override
   void dispose() {
+    _connectionGeneration++;
+    _sessions?.cancel();
+    _events?.cancel();
+    _real?.dispose();
     _searchDebounce?.cancel();
     _indexRequest++;
     _scrollController.dispose();
@@ -396,7 +499,7 @@ class _ContactsPageState extends State<ContactsPage> {
 
   Widget _quickActions(BuildContext context) => _ContactRow(
     title: '新的朋友',
-    badge: 2,
+    badge: widget.realData ? 0 : 2,
     leading: Image.asset(
       'assets/legacy/friendship/addfriend.png',
       fit: BoxFit.cover,

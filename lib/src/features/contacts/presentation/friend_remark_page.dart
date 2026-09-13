@@ -1,3 +1,5 @@
+import '../../messaging/data/messaging_repository.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
@@ -24,11 +26,13 @@ class FriendRemarkPage extends StatefulWidget {
     required this.signature,
     this.initialDescription = '周末一起听现场，也喜欢摄影和旅行',
     this.initialScenario = FriendRemarkScenario.ready,
+    this.repository,
     this.onBack,
     this.onSaved,
     this.onSessionResetRequested,
   });
 
+  final MessagingRepository? repository;
   final String targetRef;
   final String initialRemark;
   final String initialDescription;
@@ -43,6 +47,7 @@ class FriendRemarkPage extends StatefulWidget {
 }
 
 class _FriendRemarkPageState extends State<FriendRemarkPage> {
+  bool _saving = false;
   late String _remark;
   late String _description;
   late FriendRemarkScenario _scenario;
@@ -51,7 +56,7 @@ class _FriendRemarkPageState extends State<FriendRemarkPage> {
   void initState() {
     super.initState();
     _remark = widget.initialRemark;
-    _description = widget.initialDescription;
+    _description = widget.repository == null ? widget.initialDescription : '';
     _scenario = widget.initialScenario;
     if (_scenario == FriendRemarkScenario.sessionInvalid) {
       WidgetsBinding.instance.addPostFrameCallback(
@@ -92,25 +97,37 @@ class _FriendRemarkPageState extends State<FriendRemarkPage> {
                     )
                   : null,
             ),
-            _LegacyInfoRow(
-              key: const ValueKey('friend-remark-description'),
-              label: '说明',
-              value: _description,
-              onTap: _canEdit
-                  ? () => _editField(
-                      title: '说明',
-                      value: _description,
-                      maxLength: 120,
-                      maxLines: 4,
-                      onSaved: (value) => setState(() => _description = value),
-                    )
-                  : null,
-            ),
+            if (widget.repository == null)
+              _LegacyInfoRow(
+                key: const ValueKey('friend-remark-description'),
+                label: '说明',
+                value: _description,
+                onTap: _canEdit
+                    ? () => _editField(
+                        title: '说明',
+                        value: _description,
+                        maxLength: 120,
+                        maxLines: 4,
+                        onSaved: (value) =>
+                            setState(() => _description = value),
+                      )
+                    : null,
+              ),
             const _SectionLabel('更多信息'),
             _LegacyInfoRow(label: '签名', value: widget.signature),
-            const _LegacyInfoRow(label: '来源', value: '来自 扫一扫'),
-            const _LegacyInfoRow(label: '添加时间', value: '2026-08-25'),
+            if (widget.repository == null)
+              const _LegacyInfoRow(label: '来源', value: '来自 扫一扫'),
+            if (widget.repository == null)
+              const _LegacyInfoRow(label: '添加时间', value: '2026-08-25'),
             const Spacer(),
+            if (widget.repository != null)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: FilledButton(
+                  onPressed: _saving ? null : _popPage,
+                  child: Text(_saving ? '正在保存' : '保存'),
+                ),
+              ),
           ],
         ),
       ),
@@ -118,10 +135,27 @@ class _FriendRemarkPageState extends State<FriendRemarkPage> {
   }
 
   bool get _canEdit =>
-      _scenario == FriendRemarkScenario.ready ||
-      _scenario == FriendRemarkScenario.saveError;
+      !_saving &&
+      (_scenario == FriendRemarkScenario.ready ||
+          _scenario == FriendRemarkScenario.saveError);
 
-  void _popPage() {
+  Future<void> _popPage() async {
+    if (_saving) return;
+    if (widget.repository != null) {
+      setState(() => _saving = true);
+      try {
+        await widget.repository!.settings(
+          widget.targetRef,
+          remark: _remark.trim(),
+        );
+        if (!mounted) return;
+      } catch (e) {
+        if (mounted) KingNotice.of(context).show(e.toString());
+        return;
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
+    }
     final result = FriendRemarkResult(
       remark: _remark,
       description: _description,

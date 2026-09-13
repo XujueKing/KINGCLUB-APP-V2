@@ -1,3 +1,9 @@
+import 'dart:async';
+
+import '../../messaging/data/messaging_repository.dart';
+import '../../messaging/presentation/direct_chat_page.dart';
+import '../../../core/session/secure_session_store.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
@@ -20,11 +26,15 @@ class FriendRequestsPage extends StatefulWidget {
     super.key,
     required this.onOpenAddFriend,
     required this.onOpenChat,
+    this.realData = false,
+    this.repository,
     this.initialScenario = FriendRequestsScenario.ready,
     this.onBack,
     this.onSessionResetRequested,
   });
 
+  final bool realData;
+  final MessagingRepository? repository;
   final VoidCallback onOpenAddFriend;
   final ValueChanged<String> onOpenChat;
   final FriendRequestsScenario initialScenario;
@@ -37,6 +47,88 @@ class FriendRequestsPage extends StatefulWidget {
 
 class _FriendRequestsPageState extends State<FriendRequestsPage> {
   late FriendRequestsScenario _scenario;
+  MessagingRepository? _repository;
+  StreamSubscription<void>? _session;
+  int _generation = 0;
+  final _resolving = <String>{};
+
+  Future<void> _loadReal() async {
+    final generation = ++_generation;
+    try {
+      final repository =
+          _repository ?? widget.repository ?? await MessagingRepository.open();
+      final requests = <_FriendRequest>[];
+      var offset = 0;
+      while (true) {
+        final result = await repository.requests(offset: offset);
+        if (!mounted || generation != _generation) return;
+        final rows = result['items'] as List;
+        for (final raw in rows) {
+          final r = Map<String, dynamic>.from(raw as Map);
+          final incoming = r['recipient'] == repository.account;
+          final peer = (incoming ? r['requester'] : r['recipient']) as String;
+          final date = DateTime.tryParse(r['createdDate'].toString())
+              ?.toLocal();
+          requests.add(
+            _FriendRequest(
+              peer,
+              r['note'] as String? ?? '',
+              date == null ? '' : '${date.month}/${date.day}',
+              switch (r['requestStatus']) {
+                'accepted' => '已添加',
+                'rejected' => '已拒绝',
+                _ => incoming ? '待查看' : '等待对方确认',
+              },
+              requestId: r['requestId'] as String,
+              peer: peer,
+            ),
+          );
+        }
+        if (result['hasMore'] != true) break;
+        if (rows.isEmpty) {
+          throw const FormatException('Invalid request continuation');
+        }
+        offset += rows.length;
+      }
+      setState(() {
+        _repository = repository;
+        _requests
+          ..clear()
+          ..addAll(requests);
+        _scenario = requests.isEmpty
+            ? FriendRequestsScenario.empty
+            : FriendRequestsScenario.ready;
+      });
+    } catch (e) {
+      if (!mounted || generation != _generation) return;
+      setState(() => _scenario = FriendRequestsScenario.partialError);
+    }
+  }
+
+  void _openRequestChat(_FriendRequest request) {
+    if (!widget.realData) {
+      widget.onOpenChat(request.name);
+      return;
+    }
+    if (_repository == null || request.peer == null) return;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => DirectChatPage(
+          peerName: request.name,
+          peerAccount: request.peer,
+          repository: _repository,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _generation++;
+    _session?.cancel();
+    super.dispose();
+  }
+
   final _requests = <_FriendRequest>[
     _FriendRequest('林晓悦', '想认识一下，一起参加周末活动', '10:36', '待查看'),
     _FriendRequest('阿澈', '我是通过扫一扫添加的', '昨天', '待查看'),
@@ -46,6 +138,21 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
   void initState() {
     super.initState();
     _scenario = widget.initialScenario;
+    if (widget.realData) {
+      _requests.clear();
+      _scenario = FriendRequestsScenario.ready;
+      _session = SecureSessionStore.changes.stream.listen((_) {
+        _generation++;
+        if (mounted) {
+          setState(() {
+            _requests.clear();
+            _repository = null;
+            _scenario = FriendRequestsScenario.empty;
+          });
+        }
+      });
+      unawaited(_loadReal());
+    }
     if (_scenario == FriendRequestsScenario.sessionInvalid) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _showSessionInvalid(),
@@ -64,7 +171,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
             _LegacyFriendHeader(
               title: '新的朋友',
               onBack: _finishBack,
-              onTitleLongPress: _showScenarioPanel,
+              onTitleLongPress: widget.realData ? () {} : _showScenarioPanel,
               trailing: IconButton(
                 key: const ValueKey('friend-requests-add'),
                 tooltip: '添加好友',
@@ -78,33 +185,38 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
               ),
             ),
             Expanded(
-              child: _scenario == FriendRequestsScenario.empty
-                  ? _emptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      itemCount: _requests.length + (_hasStatusBanner ? 1 : 0),
-                      separatorBuilder: (_, _) =>
-                          const Divider(height: 1, color: _legacyLine),
-                      itemBuilder: (context, index) {
-                        if (_hasStatusBanner && index == 0) {
-                          return _statusBanner();
-                        }
-                        final request =
-                            _requests[index - (_hasStatusBanner ? 1 : 0)];
-                        return _RequestTile(
-                          key: ValueKey(
-                            'friend-request-${index - (_hasStatusBanner ? 1 : 0)}',
-                          ),
-                          request: request,
-                          onTap:
-                              _scenario == FriendRequestsScenario.offlineCached
-                              ? null
-                              : () => _showRequest(
-                                  index - (_hasStatusBanner ? 1 : 0),
-                                ),
-                        );
-                      },
-                    ),
+              child: RefreshIndicator(
+                onRefresh: widget.realData ? _loadReal : () async {},
+                child: _scenario == FriendRequestsScenario.empty
+                    ? _emptyState()
+                    : ListView.separated(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        itemCount:
+                            _requests.length + (_hasStatusBanner ? 1 : 0),
+                        separatorBuilder: (_, _) =>
+                            const Divider(height: 1, color: _legacyLine),
+                        itemBuilder: (context, index) {
+                          if (_hasStatusBanner && index == 0) {
+                            return _statusBanner();
+                          }
+                          final request =
+                              _requests[index - (_hasStatusBanner ? 1 : 0)];
+                          return _RequestTile(
+                            key: ValueKey(
+                              'friend-request-${index - (_hasStatusBanner ? 1 : 0)}',
+                            ),
+                            request: request,
+                            onTap:
+                                _scenario ==
+                                    FriendRequestsScenario.offlineCached
+                                ? null
+                                : () => _showRequest(
+                                    index - (_hasStatusBanner ? 1 : 0),
+                                  ),
+                          );
+                        },
+                      ),
+              ),
             ),
           ],
         ),
@@ -245,6 +357,9 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
 
   Future<void> _showRequest(int index) async {
     final request = _requests[index];
+    if (request.requestId != null && _resolving.contains(request.requestId)) {
+      return;
+    }
     final resolution = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: const Color(0xFF171411),
@@ -298,7 +413,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
                   key: const ValueKey('friend-request-message'),
                   onPressed: () {
                     Navigator.pop(sheetContext);
-                    widget.onOpenChat(request.name);
+                    _openRequestChat(request);
                   },
                   child: const Text('发消息'),
                 )
@@ -309,17 +424,37 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
                   style: const TextStyle(color: _legacyGold),
                 ),
               const SizedBox(height: 12),
-              const Text(
-                '当前为离线 UI Mock，不会建立真实好友关系。',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF746D65), fontSize: 12),
-              ),
+              if (!widget.realData)
+                const Text(
+                  '当前为离线 UI Mock，不会建立真实好友关系。',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFF746D65), fontSize: 12),
+                ),
             ],
           ),
         ),
       ),
     );
     if (!mounted || resolution == null) return;
+    if (widget.realData) {
+      final id = request.requestId;
+      final repository = _repository;
+      if (id == null || repository == null || !_resolving.add(id)) return;
+      try {
+        await repository.resolveRequest(id, accept: resolution == '已添加');
+        if (!mounted) return;
+        await _loadReal();
+        if (mounted) {
+          KingNotice.of(context)
+              .show(resolution == '已添加' ? '已互相关注，可以聊天了' : '已拒绝');
+        }
+      } catch (e) {
+        if (mounted) KingNotice.of(context).show(e.toString());
+      } finally {
+        _resolving.remove(id);
+      }
+      return;
+    }
     setState(() => request.status = resolution);
     if (resolution == '已添加') await _showFriendAccepted(request.name);
   }
@@ -739,7 +874,16 @@ class _RequestTile extends StatelessWidget {
 }
 
 class _FriendRequest {
-  _FriendRequest(this.name, this.message, this.time, this.status);
+  _FriendRequest(
+    this.name,
+    this.message,
+    this.time,
+    this.status, {
+    this.requestId,
+    this.peer,
+  });
+  final String? requestId;
+  final String? peer;
 
   final String name;
   final String message;

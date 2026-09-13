@@ -1,3 +1,10 @@
+import 'dart:async';
+
+import '../data/messaging_repository.dart';
+import 'direct_chat_page.dart';
+import '../../../core/networking/kingclub_realtime.dart';
+import '../../../core/session/secure_session_store.dart';
+
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -23,6 +30,8 @@ class ConversationsPage extends StatefulWidget {
   const ConversationsPage({
     super.key,
     required this.active,
+    this.realData = false,
+    this.repository,
     this.friendMuted = false,
     this.networkUnavailable = false,
     this.otherDeviceCount = 0,
@@ -38,6 +47,8 @@ class ConversationsPage extends StatefulWidget {
     required this.onOpenDirectChat,
   });
 
+  final bool realData;
+  final MessagingRepository? repository;
   final bool active;
   final bool friendMuted;
   final bool networkUnavailable;
@@ -58,11 +69,22 @@ class ConversationsPage extends StatefulWidget {
 }
 
 class _ConversationsPageState extends State<ConversationsPage> {
+  MessagingRepository? _repository;
+  final _realItems = <Map<String, dynamic>>[];
+  final _slides = <String, double>{};
+  StreamSubscription<Map<String, dynamic>>? _events;
+  StreamSubscription<void>? _sessions;
+  int _realGeneration = 0;
+  bool _realReady = false;
+  bool _hasMore = false;
   final _searchController = TextEditingController();
   String _query = "";
   bool _matches(String name) => name.toLowerCase().contains(_query);
   @override
   void dispose() {
+    _realGeneration++;
+    _events?.cancel();
+    _sessions?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -83,6 +105,226 @@ class _ConversationsPageState extends State<ConversationsPage> {
   void initState() {
     super.initState();
     _friendUnread = widget.initialFriendUnreadCount;
+    if (widget.realData) _connectReal();
+  }
+
+  Future<void> _connectReal() async {
+    try {
+      final repository = widget.repository ?? await MessagingRepository.open();
+      if (!mounted) return;
+      _repository = repository;
+      _events = KingclubRealtime.shared.events.listen((event) {
+        final type = event['eventType'] as String? ?? '';
+        if (type.startsWith('chat.') || type == 'connection.ready') {
+          _refreshReal();
+        }
+      });
+      _sessions = SecureSessionStore.changes.stream.listen((_) {
+        _realGeneration++;
+        _repository = null;
+        _events?.cancel();
+        if (mounted) {
+          setState(() {
+            _realItems.clear();
+            _realReady = false;
+          });
+        }
+      });
+      await _refreshReal();
+    } catch (_) {
+      if (mounted) setState(() => _showOfflineBanner = true);
+    }
+  }
+
+  Future<void> _refreshReal({bool more = false}) async {
+    final repository = _repository;
+    if (repository == null) return;
+    final generation = ++_realGeneration;
+    try {
+      final result = await repository.conversations(
+        offset: more ? _realItems.length : 0,
+      );
+      if (!mounted || generation != _realGeneration) return;
+      setState(() {
+        if (!more) _realItems.clear();
+        _realItems.addAll(
+          (result['items'] as List).map(
+            (item) => Map<String, dynamic>.from(item as Map),
+          ),
+        );
+        _hasMore = result['hasMore'] == true;
+        _realReady = true;
+        _showOfflineBanner = false;
+      });
+      widget.onFriendUnreadChanged(
+        _realItems.fold<int>(
+          0,
+          (sum, item) => sum + (item['unreadCount'] as num).toInt(),
+        ),
+      );
+    } catch (_) {
+      if (mounted && generation == _realGeneration) {
+        setState(() => _showOfflineBanner = true);
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ConversationsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.realData && widget.active && !oldWidget.active) _refreshReal();
+  }
+
+  Future<void> _realAction(Map<String, dynamic> item, String action) async {
+    final repository = _repository;
+    if (repository == null) return;
+    final peer = item['peer'] as String;
+    try {
+      switch (action) {
+        case 'read':
+          await repository.markRead(
+            peer,
+            (item['lastSequence'] as num).toInt(),
+          );
+        case 'pin':
+          await repository.settings(peer, pinned: item['pinned'] != true);
+        case 'hide':
+          await repository.settings(peer, hide: true);
+        case 'block':
+          await repository.setRelationship(peer, 'block');
+      }
+      await _refreshReal();
+    } catch (error) {
+      if (mounted) KingNotice.of(context).show(error.toString());
+    }
+  }
+
+  Future<void> _realMenu(Map<String, dynamic> item) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: legacyActionMenuBackground,
+      builder: (sheet) => LegacyActionMenuStyle(
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('标为已读'),
+                onTap: () => Navigator.pop(sheet, 'read'),
+              ),
+              ListTile(
+                title: Text(item['pinned'] == true ? '取消置顶' : '置顶'),
+                onTap: () => Navigator.pop(sheet, 'pin'),
+              ),
+              ListTile(
+                title: const Text('不显示'),
+                onTap: () => Navigator.pop(sheet, 'hide'),
+              ),
+              ListTile(
+                title: const Text('拉黑'),
+                onTap: () => Navigator.pop(sheet, 'block'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (action != null && mounted) await _realAction(item, action);
+  }
+
+  Widget _realRow(Map<String, dynamic> item) {
+    final peer = item['peer'] as String;
+    final name = (item['remark'] as String?)?.isNotEmpty == true
+        ? item['remark'] as String
+        : item['nickname'] as String? ?? peer;
+    final time = DateTime.tryParse(item['messageDate'] as String? ?? '')
+        ?.toLocal();
+    final date = time == null
+        ? ''
+        : '${time.month}/${time.day} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    return _FriendConversation(
+      name: name,
+      date: date,
+      slide: _slides[peer] ?? 0,
+      muted: item['muted'] == true,
+      unreadCount: (item['unreadCount'] as num).toInt(),
+      pinned: item['pinned'] == true,
+      preview: item['preview'] as String? ?? '',
+      inactive: false,
+      onTap: () async {
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute<void>(
+            allowSnapshotting: false,
+            builder: (_) => DirectChatPage(
+              peerAccount: peer,
+              peerName: name,
+              repository: _repository,
+              initialMuted: item['muted'] == true,
+            ),
+          ),
+        );
+        await _refreshReal();
+      },
+      onLongPress: () => _realMenu(item),
+      onSlideChanged: (value) => setState(() => _slides[peer] = value),
+      onSlideEnd: () =>
+          setState(() => _slides[peer] = (_slides[peer] ?? 0) < -72 ? -216 : 0),
+      onToggleRead: () => _realAction(item, 'read'),
+      onTogglePin: () => _realAction(item, 'pin'),
+      onDelete: () => _realAction(item, 'hide'),
+    );
+  }
+
+  List<Widget> _realRows() {
+    final filtered = _realItems
+        .where(
+          (item) => _matches(
+            '${item['remark'] ?? ''} ${item['nickname'] ?? ''} ${item['peer']} ${item['preview']}',
+          ),
+        )
+        .toList();
+    final pinned = filtered.where((item) => item['pinned'] == true).toList();
+    return [
+      if (pinned.isNotEmpty)
+        Container(
+          decoration: const BoxDecoration(
+            color: Color(0x0DC9B69E),
+            border: Border(
+              top: BorderSide(color: Color(0x12C9B69E), width: .5),
+              bottom: BorderSide(color: Color(0x12C9B69E), width: .5),
+            ),
+          ),
+          child: Column(
+            children: [
+              if (_pinnedExpanded || _query.isNotEmpty) ...pinned.map(_realRow),
+              if (_query.isEmpty)
+                _PinnedToggle(
+                  count: pinned.length,
+                  expanded: _pinnedExpanded,
+                  onTap: () =>
+                      setState(() => _pinnedExpanded = !_pinnedExpanded),
+                ),
+            ],
+          ),
+        ),
+      ...filtered.where((item) => item['pinned'] != true).map(_realRow),
+      if (_hasMore)
+        TextButton(
+          onPressed: () => _refreshReal(more: true),
+          child: const Text('加载更多'),
+        ),
+      if (_realReady && filtered.isEmpty)
+        Padding(
+          padding: const EdgeInsets.all(40),
+          child: Center(
+            child: Text(
+              _query.isEmpty ? '暂无聊天' : '未找到相关聊天',
+              style: const TextStyle(color: Color(0x80C9B69E), fontSize: 14),
+            ),
+          ),
+        ),
+    ];
   }
 
   @override
@@ -133,7 +375,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
                         text:
                             '已登录 ${widget.otherDeviceCount} 台其他设备${widget.mobileNotificationsDisabled ? '，手机通知已关闭' : ''}',
                       ),
-                    if (_friendPinned && _friendVisible && _matches('卡座搭子'))
+                    if (widget.realData) ..._realRows(),
+                    if (!widget.realData &&
+                        _friendPinned &&
+                        _friendVisible &&
+                        _matches('卡座搭子'))
                       Container(
                         decoration: const BoxDecoration(
                           color: Color(0x0DC9B69E),
@@ -164,14 +410,18 @@ class _ConversationsPageState extends State<ConversationsPage> {
                           ],
                         ),
                       ),
-                    if (_matches('KING CLUB'))
+                    if (!widget.realData && _matches('KING CLUB'))
                       _KingClubConversation(
                         unreadCount: widget.systemUnreadCount,
                         onTap: widget.onOpenSystemNotifications,
                       ),
-                    if (!_friendPinned && _friendVisible && _matches('卡座搭子'))
+                    if (!widget.realData &&
+                        !_friendPinned &&
+                        _friendVisible &&
+                        _matches('卡座搭子'))
                       _friendConversation(),
-                    if (_query.isNotEmpty &&
+                    if (!widget.realData &&
+                        _query.isNotEmpty &&
                         !_matches('KING CLUB') &&
                         !(_friendVisible && _matches('卡座搭子')))
                       const Padding(
@@ -483,6 +733,10 @@ class _ConversationsPageState extends State<ConversationsPage> {
   }
 
   Future<void> _refreshConversations({bool retry = false}) async {
+    if (widget.realData) {
+      await _refreshReal();
+      return;
+    }
     if (_refreshing) return;
     setState(() => _refreshing = true);
     await Future<void>.delayed(const Duration(milliseconds: 450));
@@ -782,6 +1036,8 @@ class _ConversationContent extends StatelessWidget {
 
 class _FriendConversation extends StatelessWidget {
   const _FriendConversation({
+    this.name = '卡座搭子',
+    this.date = '21:08',
     required this.slide,
     required this.muted,
     required this.unreadCount,
@@ -797,6 +1053,7 @@ class _FriendConversation extends StatelessWidget {
     required this.onDelete,
   });
 
+  final String name, date;
   final double slide;
   final bool muted;
   final int unreadCount;
@@ -869,11 +1126,11 @@ class _FriendConversation extends StatelessWidget {
                       ? Color.alphaBlend(const Color(0x0DC9B69E), Colors.black)
                       : Colors.black,
                   child: _ConversationContent(
-                    name: '卡座搭子',
+                    name: name,
                     pinned: pinned,
                     muted: muted,
                     preview: preview,
-                    date: '21:08',
+                    date: date,
                     unread: unreadCount,
                     inactive: inactive,
                   ),

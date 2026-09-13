@@ -65,14 +65,14 @@ void main() {
           closeTo(width * 12 / 750, 0.001),
         );
         expect(find.byKey(const ValueKey('content-heart')), findsOneWidget);
-        await tester.tap(find.bySemanticsLabel('私人储物柜，标签'));
+        await tester.tap(find.bySemanticsLabel('储物袋，标签'));
         await tester.pump();
         expect(tester.getCenter(indicator).dx, closeTo(start, 0.001));
         await tester.pump(const Duration(milliseconds: 100));
         final middle = tester.getCenter(indicator).dx;
         expect(middle, greaterThan(start));
         final destination = tester
-            .getCenter(find.bySemanticsLabel('私人储物柜，标签，已选中'))
+            .getCenter(find.bySemanticsLabel('储物袋，标签，已选中'))
             .dx;
         expect(middle, lessThan(destination));
         // Retarget during motion without snapping to the previous destination.
@@ -138,7 +138,7 @@ void main() {
     expect(find.bySemanticsLabel('首页，标签，已选中'), findsOneWidget);
     expect(find.bySemanticsLabel('消息，标签，5 条未读'), findsOneWidget);
     expect(find.bySemanticsLabel('内容，标签'), findsOneWidget);
-    expect(find.bySemanticsLabel('私人储物柜，标签'), findsOneWidget);
+    expect(find.bySemanticsLabel('储物袋，标签'), findsOneWidget);
     expect(find.bySemanticsLabel('我的，标签'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('消息，标签，5 条未读'));
@@ -301,7 +301,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        for (final label in ['首页', '消息', '内容', '私人储物柜', '我的']) {
+        for (final label in ['首页', '消息', '内容', '储物袋', '我的']) {
           final destination = find.bySemanticsLabel(RegExp('^$label，标签'));
           expect(destination, findsOneWidget);
           final size = tester.getSize(destination);

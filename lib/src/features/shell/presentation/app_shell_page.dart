@@ -1,3 +1,5 @@
+import '../../contacts/presentation/public_member_page.dart';
+
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:ui';
@@ -52,6 +54,7 @@ class AppShellPage extends StatefulWidget {
     this.onDestinationReselected,
     this.initialDemoState = AppShellDemoState.ready,
     this.initialIndex = 0,
+    this.realChat = false,
     this.initialSystemUnreadCount = 3,
     this.initialFriendUnreadCount = 2,
   });
@@ -75,6 +78,7 @@ class AppShellPage extends StatefulWidget {
   final VoidCallback? onOpenSettings;
   final VoidCallback? onOpenOrders;
   final VoidCallback? onSessionResetRequested;
+  final bool realChat;
   final ProfileCoverStore? profileCoverStore;
   final StorageRepository? storageRepository;
   final VoidCallback? onOpenFriendRequests;
@@ -160,6 +164,7 @@ class _AppShellPageState extends State<AppShellPage> {
                   index: _messagesPageIndex,
                   children: [
                     ContactsPage(
+                      realData: widget.realChat,
                       active: _selectedIndex == 1 && _messagesPageIndex == 0,
                       onOpenChat: () => setState(() => _messagesPageIndex = 1),
                       onScan: _openScanner,
@@ -168,6 +173,7 @@ class _AppShellPageState extends State<AppShellPage> {
                       onSessionResetRequested: widget.onSessionResetRequested,
                     ),
                     ConversationsPage(
+                      realData: widget.realChat,
                       friendMuted: _friendMuted,
                       active: _selectedIndex == 1 && _messagesPageIndex == 1,
                       systemUnreadCount: _systemNotificationsUnread,
@@ -315,6 +321,18 @@ class _AppShellPageState extends State<AppShellPage> {
   void _handleContactIntent(ContactRouteIntent intent) {
     switch (intent.kind) {
       case ContactIntentKind.friendRequests:
+        if (widget.realChat) {
+          Navigator.of(context).push<void>(
+            MaterialPageRoute(
+              builder: (_) => FriendRequestsPage(
+                realData: true,
+                onOpenAddFriend: _openAddFriend,
+                onOpenChat: (_) {},
+              ),
+            ),
+          );
+          return;
+        }
         if (widget.onOpenFriendRequests != null) {
           widget.onOpenFriendRequests!();
           return;
@@ -360,6 +378,14 @@ class _AppShellPageState extends State<AppShellPage> {
           ),
         );
       case ContactIntentKind.userProfile:
+        if (widget.realChat && intent.targetRef != null) {
+          Navigator.of(context).push<void>(
+            MaterialPageRoute(
+              builder: (_) => PublicMemberPage(account: intent.targetRef!),
+            ),
+          );
+          return;
+        }
         if (widget.onOpenUserProfile != null) {
           widget.onOpenUserProfile!(intent.targetRef ?? 'contact-chenxi');
           return;

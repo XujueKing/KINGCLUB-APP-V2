@@ -1,3 +1,6 @@
+import '../data/messaging_repository.dart';
+import '../../../core/design_system/king_notice.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../contacts/presentation/relationship_permissions_page.dart';
@@ -9,8 +12,17 @@ class DirectChatDetailsPage extends StatefulWidget {
     required this.peerName,
     this.initialMuted = false,
     this.onMutedChanged,
+    this.peerAccount,
+    this.repository,
+    this.initialPinned = false,
+    this.initialOnlyChat = false,
+    this.loadedHistory = const [],
   });
 
+  final String? peerAccount;
+  final MessagingRepository? repository;
+  final bool initialPinned, initialOnlyChat;
+  final List<String> loadedHistory;
   final String peerName;
   final bool initialMuted;
   final ValueChanged<bool>? onMutedChanged;
@@ -22,7 +34,9 @@ class DirectChatDetailsPage extends StatefulWidget {
 class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
   final _searchController = TextEditingController();
   late bool _muted = widget.initialMuted;
-  bool _pinned = true;
+  late bool _pinned = widget.peerAccount == null ? true : widget.initialPinned;
+  late bool _onlyChat = widget.initialOnlyChat;
+  bool _saving = false;
   bool _searching = false;
 
   static const _history = ['周末 KING CLUB 见', '好，晚上九点', 'A6 卡座见'];
@@ -109,10 +123,9 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                 key: const ValueKey('direct-chat-details-muted'),
                 value: _muted,
                 activeTrackColor: const Color(0xFF07C160),
-                onChanged: (value) {
-                  setState(() => _muted = value);
-                  widget.onMutedChanged?.call(value);
-                },
+                onChanged: _saving
+                    ? null
+                    : (value) => _saveSettings(muted: value),
               ),
             ),
             _SettingsRow(
@@ -121,23 +134,38 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                 key: const ValueKey('direct-chat-details-pinned'),
                 value: _pinned,
                 activeTrackColor: const Color(0xFF07C160),
-                onChanged: (value) => setState(() => _pinned = value),
+                onChanged: _saving
+                    ? null
+                    : (value) => _saveSettings(pinned: value),
               ),
             ),
-            _SettingsRow(
-              key: const ValueKey('direct-chat-details-permissions'),
-              label: '关系权限',
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(
-                  allowSnapshotting: false,
-                  builder: (_) => RelationshipPermissionsPage(
-                    targetRef: 'contact-seatmate',
-                    displayName: widget.peerName,
+            if (widget.peerAccount != null)
+              _SettingsRow(
+                label: '仅聊天',
+                trailing: Switch(
+                  key: const ValueKey('direct-chat-details-only-chat'),
+                  value: _onlyChat,
+                  activeTrackColor: const Color(0xFF07C160),
+                  onChanged: _saving
+                      ? null
+                      : (value) => _saveSettings(onlyChat: value),
+                ),
+              )
+            else
+              _SettingsRow(
+                key: const ValueKey('direct-chat-details-permissions'),
+                label: '关系权限',
+                onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    allowSnapshotting: false,
+                    builder: (_) => RelationshipPermissionsPage(
+                      targetRef: 'contact-seatmate',
+                      displayName: widget.peerName,
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 10),
@@ -151,21 +179,25 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
             ),
           ],
         ),
-        const Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            '当前设置和聊天记录均为离线 Fake，仅用于 UI 流程演示。',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0x55FFFFFF), fontSize: 11),
+        if (widget.peerAccount == null)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              '当前设置和聊天记录均为离线 Fake，仅用于 UI 流程演示。',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0x55FFFFFF), fontSize: 11),
+            ),
           ),
-        ),
       ],
     );
   }
 
   Widget _searchView() {
     final query = _searchController.text.trim();
-    final results = _history.where((item) => item.contains(query)).toList();
+    final history = widget.peerAccount == null
+        ? _history
+        : widget.loadedHistory;
+    final results = history.where((item) => item.contains(query)).toList();
     return Column(
       children: [
         Padding(
@@ -183,9 +215,11 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
         ),
         Expanded(
           child: query.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
-                    '输入关键词查找 Fake 文本消息',
+                    widget.peerAccount == null
+                        ? '输入关键词查找 Fake 文本消息'
+                        : '输入关键词查找已加载的消息',
                     style: TextStyle(color: Color(0x66FFFFFF)),
                   ),
                 )
@@ -215,6 +249,36 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
     );
   }
 
+  Future<void> _saveSettings({
+    bool? muted,
+    bool? pinned,
+    bool? onlyChat,
+  }) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      if (widget.peerAccount != null) {
+        await widget.repository!.settings(
+          widget.peerAccount!,
+          muted: muted,
+          pinned: pinned,
+          onlyChat: onlyChat,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _muted = muted ?? _muted;
+        _pinned = pinned ?? _pinned;
+        _onlyChat = onlyChat ?? _onlyChat;
+      });
+      if (muted != null) widget.onMutedChanged?.call(muted);
+    } catch (error) {
+      if (mounted) KingNotice.of(context).show(error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _confirmClear() async {
     final clear = await showDialog<bool>(
       context: context,
@@ -234,7 +298,16 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
         ],
       ),
     );
-    if (clear == true && mounted) Navigator.pop(context, true);
+    if (clear == true && mounted) {
+      try {
+        if (widget.peerAccount != null) {
+          await widget.repository!.settings(widget.peerAccount!, hide: true);
+        }
+        if (mounted) Navigator.pop(context, true);
+      } catch (error) {
+        if (mounted) KingNotice.of(context).show(error.toString());
+      }
+    }
   }
 }
 

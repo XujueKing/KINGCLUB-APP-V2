@@ -1,0 +1,118 @@
+import 'dart:async';
+
+import 'package:kingclub/src/core/session/secure_session_store.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/contacts/presentation/public_member_page.dart';
+import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
+
+void main() {
+  testWidgets(
+    'permission changes hide stale profile immediately and logout rejects refresh',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      final response = Completer<Map<String, dynamic>>();
+      var calls = 0;
+      final profile = <String, dynamic>{
+        'peer': 'peer',
+        'memberId': 'TEST001',
+        'nickname': 'Private fixture',
+        'bio': '',
+        'details': {},
+        'contentVisible': true,
+      };
+      final repository = MessagingRepository(
+        account: 'me',
+        call: (_, _) async {
+          calls++;
+          return calls == 1 ? profile : response.future;
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PublicMemberPage(
+            account: 'peer',
+            repository: repository,
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Private fixture'), findsOneWidget);
+      events.add({'eventType': 'chat.settings.changed'});
+      await tester.pump(); // Deliver the asynchronous stream event.
+      await tester.pump(); // Render the invalidated state before HTTP returns.
+      expect(find.text('Private fixture'), findsNothing);
+      expect(calls, 2);
+      SecureSessionStore.changes.add(null);
+      await tester.pump();
+      response.complete({...profile, 'contentVisible': false});
+      await tester.pumpAndSettle();
+      expect(find.text('Private fixture'), findsNothing);
+      events.add({'eventType': 'connection.ready'});
+      await tester.pumpAndSettle();
+      expect(calls, 2);
+      await tester.pumpWidget(const SizedBox());
+      await events.close();
+    },
+  );
+
+  testWidgets('real profile retains chat when contents are restricted', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final calls = <String>[];
+    final repo = MessagingRepository(
+      account: 'me',
+      call: (id, params) async {
+        calls.add(id);
+        expect(params['peer'], 'peer');
+        if (id == 'K260913000604') {
+          return {
+            'conversationId': 'pair',
+            'messages': [],
+            'hasMore': false,
+            'settings': {},
+            'sendPermission': {'allowed': true},
+            'peerReadSequence': 0,
+          };
+        }
+        return {
+          'peer': 'peer',
+          'memberId': 'TEST001',
+          'nickname': 'Test friend',
+          'bio': 'Public bio',
+          'age': 30,
+          'details': {},
+          'friends': true,
+          'following': true,
+          'contentVisible': false,
+        };
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PublicMemberPage(account: 'peer', repository: repo),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Test friend'), findsOneWidget);
+    expect(find.text('作品'), findsOneWidget);
+    expect(find.text('动态'), findsOneWidget);
+    expect(find.text('相册'), findsOneWidget);
+    expect(find.text('暂时无法查看'), findsOneWidget);
+    expect(find.text('KING官方'), findsNothing);
+    await tester.tap(find.text('私信'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<DirectChatPage>(find.byType(DirectChatPage)).peerAccount,
+      'peer',
+    );
+    expect(calls.first, 'K260913000612');
+    expect(tester.takeException(), isNull);
+  });
+}

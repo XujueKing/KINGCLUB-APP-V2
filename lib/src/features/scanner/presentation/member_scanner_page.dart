@@ -1,3 +1,8 @@
+import 'package:uuid/uuid.dart';
+
+import '../../messaging/data/messaging_repository.dart';
+import '../../../core/design_system/king_notice.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -55,13 +60,18 @@ class _MemberScannerPageState extends State<MemberScannerPage>
     });
     await _controller.stop();
     try {
+      final messaging = await MessagingRepository.open();
       final result = await _repo.call('K260912000507', {'code': code});
       if (!mounted || !_active) return;
       await Navigator.push(
         context,
         MaterialPageRoute<void>(
           allowSnapshotting: false,
-          builder: (_) => MemberCardPreview(profile: result),
+          builder: (_) => MemberCardPreview(
+            profile: result,
+            code: code,
+            repository: messaging,
+          ),
         ),
       );
     } catch (_) {
@@ -122,13 +132,65 @@ class _MemberScannerPageState extends State<MemberScannerPage>
 }
 
 class MemberCardPreview extends StatefulWidget {
-  const MemberCardPreview({super.key, required this.profile});
+  const MemberCardPreview({
+    super.key,
+    required this.profile,
+    this.code,
+    this.repository,
+  });
+  final String? code;
+  final MessagingRepository? repository;
   final Map<String, dynamic> profile;
   @override
   State<MemberCardPreview> createState() => _MemberCardPreviewState();
 }
 
 class _MemberCardPreviewState extends State<MemberCardPreview> {
+  final _note = TextEditingController();
+  final _requestId = const Uuid().v4();
+  String? _sentNote;
+  String? _status;
+  bool _sending = false;
+
+  Future<void> _requestFriend() async {
+    if (_sending ||
+        _status != null ||
+        widget.code == null ||
+        widget.repository == null) {
+      return;
+    }
+    setState(() => _sending = true);
+    _sentNote ??= _note.text.trim();
+    try {
+      final result = await widget.repository!.requestFromQr(
+        code: widget.code!,
+        requestId: _requestId,
+        note: _sentNote!,
+      );
+      if (!mounted) return;
+      setState(
+        () => _status = switch (result['status']) {
+          'friends' => '你们已经互相关注',
+          'incoming' => '对方已申请，请到新的朋友中处理',
+          'accepted' => '申请已通过',
+          'rejected' => '申请已被拒绝',
+          'pending' => '申请已发送，等待对方确认',
+          _ => throw const FormatException('申请状态无效'),
+        },
+      );
+    } catch (e) {
+      if (mounted) KingNotice.of(context).show(e.toString());
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
   late final Future<File?> _avatar = ProfileRepository().image(
     widget.profile['avatar'] as Map?,
   );
@@ -156,6 +218,30 @@ class _MemberCardPreviewState extends State<MemberCardPreview> {
             ),
             const SizedBox(height: 14),
             Text(widget.profile['bio'] as String? ?? ''),
+            if (widget.profile['isSelf'] != true &&
+                widget.code != null &&
+                widget.repository != null) ...[
+              const SizedBox(height: 20),
+              TextField(
+                controller: _note,
+                maxLength: 120,
+                enabled: !_sending && _sentNote == null && _status == null,
+                decoration: const InputDecoration(hintText: '填写申请说明'),
+              ),
+              if (_status == null)
+                FilledButton(
+                  onPressed: _sending ? null : _requestFriend,
+                  child: Text(
+                    _sending
+                        ? '正在提交'
+                        : _sentNote == null
+                        ? '申请好友'
+                        : '重试申请',
+                  ),
+                )
+              else
+                Text(_status!, textAlign: TextAlign.center),
+            ],
             if (widget.profile['isSelf'] == true)
               const Padding(
                 padding: EdgeInsets.only(top: 20),

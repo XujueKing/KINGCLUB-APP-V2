@@ -1,3 +1,9 @@
+import '../../contacts/presentation/public_member_page.dart';
+import '../data/messaging_repository.dart';
+import '../data/direct_chat_controller.dart';
+import '../data/chat_outbox.dart';
+import '../../../core/networking/kingclub_realtime.dart';
+import '../../../core/session/secure_session_store.dart';
 import '../data/voice_capture.dart';
 import 'voice_draft_preview.dart';
 
@@ -117,8 +123,14 @@ class DirectChatPage extends StatefulWidget {
     this.initialMuted = false,
     this.onMutedChanged,
     this.voiceCapture,
+    this.peerAccount,
+    this.repository,
+    this.chatOutbox,
   });
 
+  final String? peerAccount;
+  final MessagingRepository? repository;
+  final ChatOutbox? chatOutbox;
   final VoiceCapture? voiceCapture;
   final String peerName;
   final bool initialMuted;
@@ -130,6 +142,10 @@ class DirectChatPage extends StatefulWidget {
 
 class _DirectChatPageState extends State<DirectChatPage>
     with WidgetsBindingObserver {
+  DirectChatController? _chat;
+  StreamSubscription<Map<String, dynamic>>? _chatEvents;
+  StreamSubscription<void>? _sessionEvents;
+  bool _loadingOlder = false;
   VoiceCapture? _capture;
   bool _leaving = false;
   final _controller = TextEditingController();
@@ -196,6 +212,9 @@ class _DirectChatPageState extends State<DirectChatPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) _endVoiceHold(interrupted: true);
+    if (state == AppLifecycleState.resumed) {
+      _chat?.synchronize().then((_) => _chat?.retryQueued());
+    }
   }
 
   int _attachmentPage = 0;
@@ -203,17 +222,19 @@ class _DirectChatPageState extends State<DirectChatPage>
   int? _selectedGift;
   int _goldBalance = 501;
   String? _quotedDraft;
-  final bool _readOnly = false;
-  late final List<_FakeMessage> _messages = [
-    _FakeMessage(
-      '你已添加了${widget.peerName}，现在可以开始聊天了。',
-      mine: false,
-      system: true,
-    ),
-    const _FakeMessage('周末 KING CLUB 见？', mine: false),
-    const _FakeMessage('好，晚上九点。', mine: true),
-    const _FakeMessage('A6 卡座见', mine: false, quoted: '好，晚上九点。'),
-  ];
+  bool get _readOnly => widget.peerAccount != null && _chat == null;
+  late final List<_FakeMessage> _messages = widget.peerAccount != null
+      ? []
+      : [
+          _FakeMessage(
+            '你已添加了${widget.peerName}，现在可以开始聊天了。',
+            mine: false,
+            system: true,
+          ),
+          const _FakeMessage('周末 KING CLUB 见？', mine: false),
+          const _FakeMessage('好，晚上九点。', mine: true),
+          const _FakeMessage('A6 卡座见', mine: false, quoted: '好，晚上九点。'),
+        ];
 
   @override
   void initState() {
@@ -221,6 +242,114 @@ class _DirectChatPageState extends State<DirectChatPage>
     WidgetsBinding.instance.addObserver(this);
     _muted = widget.initialMuted;
     _inputFocusNode.addListener(_handleInputFocusChanged);
+    if (widget.peerAccount != null) {
+      _scrollController.addListener(_onRealScroll);
+      _connectRealChat();
+    }
+  }
+
+  Future<void> _connectRealChat() async {
+    try {
+      final repository = widget.repository ?? await MessagingRepository.open();
+      if (!mounted) return;
+      final chat = DirectChatController(
+        repository: repository,
+        peer: widget.peerAccount!,
+        outbox: widget.chatOutbox ?? SecureChatOutbox(repository.account),
+      );
+      _chat = chat;
+      chat.addListener(_realChatChanged);
+      _chatEvents = KingclubRealtime.shared.events.listen((event) {
+        final type = event['eventType'] as String? ?? '';
+        final data = event['data'];
+        if (type == 'connection.ready' ||
+            (type.startsWith('chat.') &&
+                (chat.conversationId == null ||
+                    data is Map &&
+                        data['conversationId'] == chat.conversationId))) {
+          chat.synchronize().then((_) => chat.retryQueued());
+        }
+      });
+      _sessionEvents = SecureSessionStore.changes.stream.listen((_) {
+        _chatEvents?.cancel();
+        _chat?.removeListener(_realChatChanged);
+        _chat?.dispose();
+        _chat = null;
+        if (mounted) {
+          setState(_messages.clear);
+          KingNotice.of(context).show('登录状态已变化，请重新进入会话');
+        }
+      });
+      await chat.initialize();
+      if (mounted && chat.error != null) {
+        KingNotice.of(context).show(chat.error!);
+      }
+    } catch (error) {
+      if (mounted) KingNotice.of(context).show(error.toString());
+    }
+  }
+
+  void _realChatChanged() {
+    final chat = _chat;
+    if (!mounted || chat == null) return;
+    final nearBottom =
+        !_scrollController.hasClients ||
+        _scrollController.position.extentAfter < 48;
+    setState(() {
+      _messages
+        ..clear()
+        ..addAll(
+          chat.messages.map(
+            (message) => _FakeMessage(
+              message['text'] as String,
+              mine: message['sender'] == chat.repository.account,
+              clientMessageId: message['clientMessageId'] as String,
+              createdDate: message['createdDate'] as String?,
+              status: switch (message['status']) {
+                'sent' => _FakeMessageStatus.sent,
+                'sending' => _FakeMessageStatus.sending,
+                _ => _FakeMessageStatus.failed,
+              },
+            ),
+          ),
+        );
+      _muted = chat.settings['muted'] == true;
+    });
+    if (nearBottom) _scrollToLatest();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _markRealRead());
+  }
+
+  void _markRealRead() {
+    final chat = _chat;
+    if (!mounted ||
+        chat == null ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed ||
+        !_scrollController.hasClients ||
+        _scrollController.position.extentAfter > 24) {
+      return;
+    }
+    final confirmed = chat.messages.where(
+      (message) => message['sequence'] is num,
+    );
+    if (confirmed.isNotEmpty) {
+      chat.markVisibleRead((confirmed.last['sequence'] as num).toInt());
+    }
+  }
+
+  void _onRealScroll() {
+    _markRealRead();
+    final chat = _chat;
+    if (chat == null ||
+        _loadingOlder ||
+        !chat.hasOlder ||
+        _scrollController.position.pixels > 32) {
+      return;
+    }
+    _loadingOlder = true;
+    chat.loadOlder().whenComplete(() {
+      _loadingOlder = false;
+    });
   }
 
   void _dismissComposer() {
@@ -233,6 +362,10 @@ class _DirectChatPageState extends State<DirectChatPage>
   @override
   void dispose() {
     _leaving = true;
+    _chatEvents?.cancel();
+    _sessionEvents?.cancel();
+    _chat?.removeListener(_realChatChanged);
+    _chat?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _endVoiceHold(interrupted: true);
     _capture?.dispose().catchError((Object _) {});
@@ -300,6 +433,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                   itemCount: _messages.length + 1,
                   itemBuilder: (context, index) {
                     if (index == 0) {
+                      if (widget.peerAccount != null) {
+                        return const SizedBox.shrink();
+                      }
                       return const Padding(
                         padding: EdgeInsets.only(bottom: 12),
                         child: Text(
@@ -318,11 +454,26 @@ class _DirectChatPageState extends State<DirectChatPage>
                       key: ObjectKey(message),
                       child: _MessageRow(
                         message: message,
-                        onRetry: () => setState(
-                          () =>
-                              _messages[messageIndex] = _messages[messageIndex]
-                                  .copyWith(status: _FakeMessageStatus.sent),
-                        ),
+                        onAvatarTap: widget.peerAccount == null
+                            ? null
+                            : () {
+                                Navigator.of(context).push<void>(
+                                  MaterialPageRoute(
+                                    builder: (_) => PublicMemberPage(
+                                      account: widget.peerAccount!,
+                                      repository: _chat?.repository,
+                                    ),
+                                  ),
+                                );
+                              },
+                        onRetry: () => widget.peerAccount != null
+                            ? _chat?.retry(message.clientMessageId!)
+                            : setState(
+                                () => _messages[messageIndex] =
+                                    _messages[messageIndex].copyWith(
+                                      status: _FakeMessageStatus.sent,
+                                    ),
+                              ),
                         onLongPress: () => _showMessageMenu(messageIndex),
                         onTap: () => _openMediaPreview(message),
                       ),
@@ -978,6 +1129,12 @@ class _DirectChatPageState extends State<DirectChatPage>
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty || _readOnly) return;
+    if (widget.peerAccount != null) {
+      final chat = _chat;
+      if (chat == null) return;
+      _sendRealText(chat, text);
+      return;
+    }
     final message = _FakeMessage(
       text,
       mine: true,
@@ -994,6 +1151,36 @@ class _DirectChatPageState extends State<DirectChatPage>
     });
     _scrollToLatest();
     if (message.status == _FakeMessageStatus.sending) _completeSend(message);
+  }
+
+  Future<void> _sendRealText(DirectChatController chat, String text) async {
+    try {
+      await chat.send(
+        text,
+        onQueued: () {
+          if (mounted && _controller.text.trim() == text) {
+            setState(() {
+              _controller.clear();
+              _quotedDraft = null;
+              _composerPanel = _ComposerPanel.none;
+            });
+          }
+        },
+      );
+      if (mounted && chat.error != null) {
+        KingNotice.of(context).show(chat.error!);
+      }
+    } catch (error) {
+      if (mounted) {
+        KingNotice.of(context).show(error.toString());
+      }
+    }
+  }
+
+  bool _requiresRealMedia() {
+    if (widget.peerAccount == null) return false;
+    KingNotice.of(context).show('该消息功能正在接入，尚未发送');
+    return true;
   }
 
   void _handleInputFocusChanged() {
@@ -1015,6 +1202,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   void _toggleGifts() {
+    if (_requiresRealMedia()) return;
     final opening = _composerPanel != _ComposerPanel.gifts;
     if (opening) _inputFocusNode.unfocus();
     setState(() {
@@ -1096,6 +1284,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       );
     },
     onSticker: (path) {
+      if (_requiresRealMedia()) return;
       setState(
         () => _messages.add(
           _FakeMessage(
@@ -1121,6 +1310,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   );
 
   void _addAttachment(_FakeMessageKind kind) {
+    if (_requiresRealMedia()) return;
     final message = switch (kind) {
       _FakeMessageKind.image => const _FakeMessage(
         '现场照片',
@@ -1156,6 +1346,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   void _takeFakePhoto() {
+    if (_requiresRealMedia()) return;
     const message = _FakeMessage(
       '刚刚拍摄',
       mine: true,
@@ -1167,6 +1358,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Future<void> _openGoldCoinComposer() async {
+    if (_requiresRealMedia()) return;
     setState(() => _composerPanel = _ComposerPanel.none);
     final amount = await _showNumberComposer(
       title: '转赠金币',
@@ -1187,6 +1379,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Future<void> _openRedPacketComposer() async {
+    if (_requiresRealMedia()) return;
     setState(() => _composerPanel = _ComposerPanel.none);
     final amount = await _showNumberComposer(
       title: '发红包',
@@ -1286,6 +1479,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   void _sendGift(_GiftItem item) {
+    if (_requiresRealMedia()) return;
     if (item.price > _goldBalance) {
       KingNotice.of(context)
         ..hideCurrentSnackBar()
@@ -1310,6 +1504,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   void _appendFakeMessage(_FakeMessage message) {
+    if (_requiresRealMedia()) return;
     setState(() {
       _messages.add(message);
       _composerPanel = _ComposerPanel.none;
@@ -1353,6 +1548,16 @@ class _DirectChatPageState extends State<DirectChatPage>
         allowSnapshotting: false,
         builder: (_) => DirectChatDetailsPage(
           peerName: widget.peerName,
+          peerAccount: widget.peerAccount,
+          repository: _chat?.repository,
+          initialPinned: _chat?.settings['pinned'] == true,
+          initialOnlyChat: _chat?.settings['onlyChat'] == true,
+          loadedHistory:
+              _chat?.messages
+                  .where((m) => m['sequence'] is num)
+                  .map((m) => m['text'] as String)
+                  .toList() ??
+              const [],
           initialMuted: _muted,
           onMutedChanged: (value) {
             _muted = value;
@@ -1361,7 +1566,14 @@ class _DirectChatPageState extends State<DirectChatPage>
         ),
       ),
     );
-    if (cleared == true && mounted) setState(_messages.clear);
+    if (cleared == true && mounted) {
+      if (_chat != null) {
+        _chat!.resetVisibleHistory();
+      } else {
+        setState(_messages.clear);
+      }
+    }
+    await _chat?.synchronize();
   }
 
   Future<void> _showMessageMenu(int index) async {
@@ -1415,6 +1627,10 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
     );
     if (!mounted || action == null) return;
+    if (widget.peerAccount != null && action != _FakeMessageAction.copy) {
+      KingNotice.of(context).show('该消息操作正在接入');
+      return;
+    }
     switch (action) {
       case _FakeMessageAction.copy:
         Clipboard.setData(ClipboardData(text: message.text));
@@ -1548,12 +1764,14 @@ class _MessageRow extends StatelessWidget {
     required this.onRetry,
     required this.onLongPress,
     required this.onTap,
+    this.onAvatarTap,
   });
 
   final _FakeMessage message;
   final VoidCallback onRetry;
   final VoidCallback onLongPress;
   final VoidCallback onTap;
+  final VoidCallback? onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1589,7 +1807,10 @@ class _MessageRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (!message.mine) ...[
-                const LegacyFakeAvatar(size: 42),
+                GestureDetector(
+                  onTap: onAvatarTap,
+                  child: const LegacyFakeAvatar(size: 42),
+                ),
                 const SizedBox(width: 10),
               ],
               Flexible(
@@ -1961,12 +2182,16 @@ class _FakeMessage {
     this.text, {
     required this.mine,
     this.quoted,
+    this.clientMessageId,
+    this.createdDate,
     this.system = false,
     this.kind = _FakeMessageKind.text,
     this.assetPath,
     this.status = _FakeMessageStatus.sent,
   });
 
+  final String? clientMessageId;
+  final String? createdDate;
   final String text;
   final bool mine;
   final String? quoted;
@@ -1980,6 +2205,8 @@ class _FakeMessage {
 
   _FakeMessage copyWith({_FakeMessageStatus? status}) => _FakeMessage(
     text,
+    clientMessageId: clientMessageId,
+    createdDate: createdDate,
     mine: mine,
     quoted: quoted,
     system: system,

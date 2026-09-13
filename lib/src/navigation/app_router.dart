@@ -561,6 +561,12 @@ class AppShellRoute extends GoRouteData with $AppShellRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) => AppShellPage(
+    realChat:
+        ProviderScope.containerOf(
+          context,
+          listen: false,
+        ).read(authenticatedMemberProvider)?.isRealSession ==
+        true,
     profileCoverStore: LocalProfileCoverStore.instance,
     onOpenTogether: () => const AaReservationsRoute().push<void>(context),
     onOpenParty: () => const VipPartyRoute().push<void>(context),
@@ -600,6 +606,12 @@ class ContentFeedRoute extends GoRouteData with $ContentFeedRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) => AppShellPage(
+    realChat:
+        ProviderScope.containerOf(
+          context,
+          listen: false,
+        ).read(authenticatedMemberProvider)?.isRealSession ==
+        true,
     profileCoverStore: LocalProfileCoverStore.instance,
     initialIndex: 2,
     onOpenTogether: () => const AaReservationsRoute().push<void>(context),
@@ -640,6 +652,12 @@ class ContactsRoute extends GoRouteData with $ContactsRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) => AppShellPage(
+    realChat:
+        ProviderScope.containerOf(
+          context,
+          listen: false,
+        ).read(authenticatedMemberProvider)?.isRealSession ==
+        true,
     profileCoverStore: LocalProfileCoverStore.instance,
     initialIndex: 1,
     onOpenTogether: () => const AaReservationsRoute().push<void>(context),
