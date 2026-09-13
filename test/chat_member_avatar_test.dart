@@ -25,6 +25,48 @@ void main() {
       expect(find.byType(CachedMediaImage), findsNothing);
     },
   );
+  for (final own in [false, true]) {
+    testWidgets(
+      'authorized ${own ? "owner" : "visitor"} descriptor uses private cache and drops stale image',
+      (tester) async {
+        final initial = Future<Map<String, dynamic>>.value({
+          'avatar': {
+            'fileId': 'fixture-file',
+            'path': own
+                ? '/attachments/fixture-file?token=fixture.token'
+                : '/kingclub/profile-media/fixture-file',
+            'headers': own
+                ? <String, String>{}
+                : {'x-profile-media-token': 'fixture'},
+          },
+        });
+        Widget frame(Future<Map<String, dynamic>> profile) => MaterialApp(
+          home: Scaffold(
+            body: ChatMemberAvatar(
+              account: 'peer',
+              baseUrl: 'https://test.wuyexin.cn/kingclub-v2',
+              own: own,
+              profile: profile,
+            ),
+          ),
+        );
+        await tester.pumpWidget(frame(initial));
+        await tester.pump();
+        final image = tester.widget<CachedMediaImage>(
+          find.byType(CachedMediaImage),
+        );
+        expect(image.private, true);
+        expect(image.contentKey, 'profile:peer:fixture-file');
+        expect(image.url, startsWith('https://test.wuyexin.cn/kingclub-v2/'));
+        final refresh = Completer<Map<String, dynamic>>();
+        await tester.pumpWidget(frame(refresh.future));
+        expect(find.byType(CachedMediaImage), findsNothing);
+        refresh.completeError(StateError('permission changed'));
+        await tester.pump();
+        expect(find.byIcon(Icons.person), findsOneWidget);
+      },
+    );
+  }
   testWidgets('foreign avatar URL cannot receive private headers', (
     tester,
   ) async {

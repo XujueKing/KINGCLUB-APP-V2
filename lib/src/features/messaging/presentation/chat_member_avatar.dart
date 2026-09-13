@@ -10,10 +10,12 @@ class ChatMemberAvatar extends StatelessWidget {
     required this.profile,
     required this.account,
     this.own = false,
+    this.baseUrl = kingclubApiBaseUrl,
   });
   final Future<Map<String, dynamic>> profile;
   final String account;
   final bool own;
+  final String baseUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -48,11 +50,11 @@ class ChatMemberAvatar extends StatelessWidget {
             if (!validPath ||
                 fileId is! String ||
                 fileId.isEmpty ||
-                kingclubApiBaseUrl.isEmpty) {
+                baseUrl.isEmpty) {
               return fallback;
             }
             return CachedMediaImage(
-              '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}$path',
+              '${baseUrl.replaceFirst(RegExp(r'/+$'), '')}$path',
               private: true,
               contentKey: 'profile:$account:$fileId',
               headers: (avatar['headers'] as Map? ?? {}).map(
