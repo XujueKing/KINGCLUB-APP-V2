@@ -128,7 +128,7 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                       Positioned.fill(
                         child: TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0, end: 1),
-                          duration: const Duration(milliseconds: 650),
+                          duration: const Duration(milliseconds: 420),
                           curve: Curves.linear,
                           builder: (context, t, _) => Stack(
                             children: [
@@ -208,9 +208,9 @@ class _VoiceRingPainter extends CustomPainter {
     final thickness = size.width * (78 / 504);
     final ringRadius = radius + size.width * (58 / 504);
     final rect = Rect.fromCircle(center: center, radius: ringRadius);
-    final arrival = Curves.easeOutCubic.transform(
-      (progress / .75).clamp(0.0, 1.0),
-    );
+    final arrival = const ElasticOutCurve(.7)
+        .transform(progress)
+        .clamp(0.0, 1.0);
     final orbitalOffset = (1 - arrival) * .65;
     for (final left in [true, false]) {
       final kind = left ? VoiceHoldTarget.cancel : VoiceHoldTarget.text;
