@@ -183,13 +183,23 @@ class _DirectChatPageState extends State<DirectChatPage>
         child: Column(
           children: [
             LegacyMessagingHeader(
+              alignToConversationTitle: true,
               title: widget.peerName,
               onBack: () => Navigator.pop(context),
               trailing: IconButton(
                 key: const ValueKey('direct-chat-details'),
+                constraints: const BoxConstraints.tightFor(
+                  width: 48,
+                  height: 48,
+                ),
+                padding: EdgeInsets.zero,
                 tooltip: '聊天详情',
                 onPressed: _openDetails,
-                icon: const Icon(Icons.more_horiz, color: legacyMessageGold),
+                icon: const Icon(
+                  Icons.more_horiz,
+                  color: legacyMessageGold,
+                  size: 24,
+                ),
               ),
             ),
             if (_readOnly)

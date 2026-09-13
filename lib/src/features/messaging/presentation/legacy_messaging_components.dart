@@ -47,12 +47,14 @@ class LegacyMessagingHeader extends StatelessWidget {
     required this.onBack,
     this.trailing,
     this.backgroundColor = Colors.black,
+    this.alignToConversationTitle = false,
   });
 
   final String title;
   final VoidCallback onBack;
   final Widget? trailing;
   final Color backgroundColor;
+  final bool alignToConversationTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +69,10 @@ class LegacyMessagingHeader extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Positioned(
-            left: KingBackButton.leftOffset(context),
+            // The 8 dp glyph has 20 dp inset inside its 48 dp target.
+            left: alignToConversationTitle
+                ? -2
+                : KingBackButton.leftOffset(context),
             top: KingBackButton.safeAreaOffset.dy,
             child: KingBackButton(
               key: const ValueKey('messaging-back'),
@@ -86,7 +91,12 @@ class LegacyMessagingHeader extends StatelessWidget {
             ),
           ),
           if (trailing != null)
-            Positioned(right: 18, top: 4, bottom: 4, child: trailing!),
+            Positioned(
+              right: alignToConversationTitle ? 6 : 18,
+              top: 4,
+              bottom: 4,
+              child: trailing!,
+            ),
         ],
       ),
     );
