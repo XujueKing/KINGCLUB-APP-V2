@@ -1,3 +1,4 @@
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:async';
@@ -328,10 +329,12 @@ class _DirectChatPageState extends State<DirectChatPage>
             child: Row(
               children: [
                 _composerIcon(
-                  'direct-chat-gifts',
-                  '礼物',
-                  'gift2.png',
-                  _readOnly ? null : _toggleGifts,
+                  'direct-chat-microphone',
+                  '语音',
+                  'microphone.svg',
+                  _readOnly
+                      ? null
+                      : () => KingNotice.of(context).show('语音消息暂未开放'),
                 ),
                 Expanded(
                   child: TextField(
@@ -471,6 +474,11 @@ class _DirectChatPageState extends State<DirectChatPage>
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     const SizedBox(width: 15),
+                    _AttachmentAction(
+                      assetPath: 'assets/legacy/messaging/gift2.png',
+                      label: '礼物',
+                      onTap: _toggleGifts,
+                    ),
                     _AttachmentAction(
                       icon: Icons.videocam_outlined,
                       label: '短视频',
@@ -739,7 +747,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     VoidCallback? onTap,
   ) {
     final r = MediaQuery.sizeOf(context).width / 750;
-    final gift = asset == 'gift2.png';
+    final gift = asset == 'microphone.svg';
     return Padding(
       padding: EdgeInsets.only(
         left: gift ? 10 * r : 0,
@@ -759,12 +767,22 @@ class _DirectChatPageState extends State<DirectChatPage>
             backgroundColor: gift ? legacyMessageGold : Colors.transparent,
           ),
           icon: Padding(
-            padding: EdgeInsets.only(bottom: gift ? 6 * r : 0),
-            child: Image.asset(
-              'assets/legacy/messaging/$asset',
-              width: (gift ? 32 : 54) * r,
-              height: (gift ? 32 : 54) * r,
-            ),
+            padding: EdgeInsets.zero,
+            child: gift
+                ? SvgPicture.asset(
+                    'assets/legacy/messaging/microphone.svg',
+                    width: 32 * r,
+                    height: 32 * r,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFF312C27),
+                      BlendMode.srcIn,
+                    ),
+                  )
+                : Image.asset(
+                    'assets/legacy/messaging/$asset',
+                    width: (gift ? 32 : 54) * r,
+                    height: (gift ? 32 : 54) * r,
+                  ),
           ),
         ),
       ),
