@@ -69,6 +69,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(dot, findsNothing);
     expect(mutedIcon, findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).decoration?.hintText,
+      '搜索',
+    );
+    await tester.tap(find.byType(TextField));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).decoration?.hintText,
+      isNull,
+    );
+    expect(
+      tester.getBottomLeft(find.text('KING CLUB')).dy,
+      lessThan(
+        tester
+            .getTopLeft(
+              find.byKey(const ValueKey('conversation-pinned-toggle')),
+            )
+            .dy,
+      ),
+    );
     await tester.enterText(find.byType(TextField), '  king  ');
     await tester.pumpAndSettle();
     expect(find.text('KING CLUB'), findsOneWidget);

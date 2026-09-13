@@ -88,17 +88,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
         child: Column(
           children: [
             _header(),
-            LegacyConversationSearch(
-              controller: _searchController,
-              onChanged: (value) => setState(() {
-                _query = value.trim().toLowerCase();
-                _friendSlide = 0;
-              }),
-              onClear: () {
-                _searchController.clear();
-                setState(() => _query = '');
-              },
-            ),
             Expanded(
               child: RefreshIndicator(
                 color: _gold,
@@ -110,6 +99,18 @@ class _ConversationsPageState extends State<ConversationsPage> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 110),
                   children: [
+                    LegacyConversationSearch(
+                      controller: _searchController,
+                      onChanged: (value) => setState(() {
+                        _query = value.trim().toLowerCase();
+                        _friendSlide = 0;
+                      }),
+                      onClear: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                    ),
+
                     if (widget.networkUnavailable || _showOfflineBanner)
                       _ConversationStatusRow(
                         key: const ValueKey('conversation-offline-banner'),
@@ -126,26 +127,34 @@ class _ConversationsPageState extends State<ConversationsPage> {
                         text:
                             '已登录 ${widget.otherDeviceCount} 台其他设备${widget.mobileNotificationsDisabled ? '，手机通知已关闭' : ''}',
                       ),
-                    if (_query.isEmpty)
-                      _PinnedToggle(
-                        count: 1 + (_friendPinned && _friendVisible ? 1 : 0),
-                        expanded: _pinnedExpanded,
-                        onTap: () => setState(() {
-                          _friendSlide = 0;
-                          _pinnedExpanded = !_pinnedExpanded;
-                        }),
+                    ColoredBox(
+                      color: const Color(0x0DC9B69E),
+                      child: Column(
+                        children: [
+                          if ((_pinnedExpanded || _query.isNotEmpty) &&
+                              _matches('KING CLUB'))
+                            _KingClubConversation(
+                              unreadCount: widget.systemUnreadCount,
+                              onTap: widget.onOpenSystemNotifications,
+                            ),
+                          if ((_pinnedExpanded || _query.isNotEmpty) &&
+                              _friendPinned &&
+                              _friendVisible &&
+                              _matches('卡座搭子'))
+                            _friendConversation(),
+                          if (_query.isEmpty)
+                            _PinnedToggle(
+                              count:
+                                  1 + (_friendPinned && _friendVisible ? 1 : 0),
+                              expanded: _pinnedExpanded,
+                              onTap: () => setState(() {
+                                _friendSlide = 0;
+                                _pinnedExpanded = !_pinnedExpanded;
+                              }),
+                            ),
+                        ],
                       ),
-                    if ((_pinnedExpanded || _query.isNotEmpty) &&
-                        _matches('KING CLUB'))
-                      _KingClubConversation(
-                        unreadCount: widget.systemUnreadCount,
-                        onTap: widget.onOpenSystemNotifications,
-                      ),
-                    if ((_pinnedExpanded || _query.isNotEmpty) &&
-                        _friendPinned &&
-                        _friendVisible &&
-                        _matches('卡座搭子'))
-                      _friendConversation(),
+                    ),
                     if (!_friendPinned && _friendVisible && _matches('卡座搭子'))
                       _friendConversation(),
                     if (_query.isNotEmpty &&
@@ -532,7 +541,7 @@ class _PinnedToggle extends StatelessWidget {
         child: Ink(
           height: 84 * MediaQuery.sizeOf(context).width / 750,
           decoration: const BoxDecoration(
-            color: Color(0x0DC9B69E),
+            color: Colors.transparent,
             border: Border(
               top: BorderSide(color: Color(0x1CC9B69E), width: .5),
               bottom: BorderSide(color: Color(0x1CC9B69E), width: .5),
@@ -828,7 +837,7 @@ class _FriendConversation extends StatelessWidget {
                 },
                 onHorizontalDragEnd: (_) => onSlideEnd(),
                 child: ColoredBox(
-                  color: pinned ? const Color(0x20C9B69E) : Colors.black,
+                  color: pinned ? Colors.transparent : Colors.black,
                   child: _ConversationContent(
                     name: '卡座搭子',
                     muted: muted,

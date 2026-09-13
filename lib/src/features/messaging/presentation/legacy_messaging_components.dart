@@ -182,81 +182,110 @@ class LegacyConversationTabs extends StatelessWidget {
   }
 }
 
-class LegacyConversationSearch extends StatelessWidget {
+class LegacyConversationSearch extends StatefulWidget {
   const LegacyConversationSearch({
     super.key,
     required this.controller,
     required this.onChanged,
     required this.onClear,
-    this.hint = '搜索聊天',
+    this.hint = '搜索',
   });
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
   final String hint;
   @override
+  State<LegacyConversationSearch> createState() =>
+      _LegacyConversationSearchState();
+}
+
+class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
+  final _focus = FocusNode();
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_focusChanged);
+  }
+
+  void _focusChanged() {
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _focus.removeListener(_focusChanged);
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+    padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
     child: ValueListenableBuilder<TextEditingValue>(
-      valueListenable: controller,
-      builder: (context, value, _) => TextField(
-        controller: controller,
-        onChanged: onChanged,
-        maxLength: 40,
-        textInputAction: TextInputAction.search,
-        onSubmitted: (_) => FocusScope.of(context).unfocus(),
-        onTapOutside: (_) => FocusScope.of(context).unfocus(),
-        style: const TextStyle(color: legacyMessageGold, fontSize: 14),
-        cursorColor: legacyMessageGold,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Color(0x80C9B69E), fontSize: 14),
-          counterText: '',
-          filled: true,
-          fillColor: const Color(0xFF191715),
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 11,
-          ),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.all(7),
-            child: SvgPicture.asset(
-              'assets/legacy/messaging/search.svg',
-              width: 26,
-              height: 26,
-              colorFilter: const ColorFilter.mode(
-                Color(0x80C9B69E),
-                BlendMode.srcIn,
+      valueListenable: widget.controller,
+      builder: (context, value, _) => SizedBox(
+        height: 84 * MediaQuery.sizeOf(context).width / 750,
+        child: TextField(
+          controller: widget.controller,
+          focusNode: _focus,
+          onChanged: widget.onChanged,
+          maxLength: 40,
+          textAlignVertical: TextAlignVertical.center,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => FocusScope.of(context).unfocus(),
+          onTapOutside: (_) => FocusScope.of(context).unfocus(),
+          style: const TextStyle(color: legacyMessageGold, fontSize: 14),
+          cursorColor: legacyMessageGold,
+          decoration: InputDecoration(
+            hintText: _focus.hasFocus ? null : widget.hint,
+            hintStyle: const TextStyle(color: Color(0x80C9B69E), fontSize: 14),
+            counterText: '',
+            filled: true,
+            fillColor: const Color(0xFF191715),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 0,
+            ),
+            prefixIcon: Padding(
+              padding: const EdgeInsets.all(7),
+              child: SvgPicture.asset(
+                'assets/legacy/messaging/search.svg',
+                width: 26,
+                height: 26,
+                colorFilter: const ColorFilter.mode(
+                  Color(0x80C9B69E),
+                  BlendMode.srcIn,
+                ),
               ),
             ),
-          ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 40,
-            minHeight: 40,
-          ),
-          suffixIcon: value.text.isEmpty
-              ? null
-              : IconButton(
-                  tooltip: '清除搜索',
-                  onPressed: onClear,
-                  icon: const Icon(
-                    Icons.close,
-                    size: 17,
-                    color: Color(0x80C9B69E),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 40,
+              minHeight: 40,
+            ),
+            suffixIcon: value.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: '清除搜索',
+                    onPressed: widget.onClear,
+                    icon: const Icon(
+                      Icons.close,
+                      size: 17,
+                      color: Color(0x80C9B69E),
+                    ),
                   ),
-                ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
       ),

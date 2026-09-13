@@ -185,12 +185,6 @@ class _ContactsPageState extends State<ContactsPage> {
       child: Column(
         children: [
           _header(),
-          LegacyConversationSearch(
-            controller: _searchController,
-            onChanged: _onSearchChanged,
-            onClear: _clearSearch,
-            hint: '搜索备注或昵称',
-          ),
           Expanded(child: _buildBody(context)),
         ],
       ),
@@ -253,6 +247,15 @@ class _ContactsPageState extends State<ContactsPage> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
+              SliverToBoxAdapter(
+                child: LegacyConversationSearch(
+                  controller: _searchController,
+                  onChanged: _onSearchChanged,
+                  onClear: _clearSearch,
+                  hint: '搜索',
+                ),
+              ),
+
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                 sliver: SliverList.list(
