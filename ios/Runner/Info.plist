@@ -30,6 +30,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>用于选择会员资料照片</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>用于录制聊天语音和语音通话</string>
 	<key>NSCameraUsageDescription</key>
 	<string>用于拍摄会员实名核验照片。</string>
 	<key>UIApplicationSceneManifest</key>

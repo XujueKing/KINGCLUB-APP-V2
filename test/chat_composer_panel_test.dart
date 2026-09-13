@@ -1,3 +1,4 @@
+import 'package:kingclub/src/features/messaging/data/voice_capture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
@@ -12,7 +13,15 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(
-      MaterialApp(theme: KingTheme.dark, home: const DirectChatPage()),
+      MaterialApp(
+        theme: KingTheme.dark,
+        home: DirectChatPage(
+          voiceCapture: VoiceCapture(
+            device: _NoMicrophone(),
+            allocatePath: () async => 'unused',
+          ),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('direct-chat-microphone')));
@@ -38,7 +47,15 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(
-      MaterialApp(theme: KingTheme.dark, home: const DirectChatPage()),
+      MaterialApp(
+        theme: KingTheme.dark,
+        home: DirectChatPage(
+          voiceCapture: VoiceCapture(
+            device: _NoMicrophone(),
+            allocatePath: () async => 'unused',
+          ),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     final input = find.byKey(const ValueKey('direct-chat-input'));
@@ -64,7 +81,15 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(
-      MaterialApp(theme: KingTheme.dark, home: const DirectChatPage()),
+      MaterialApp(
+        theme: KingTheme.dark,
+        home: DirectChatPage(
+          voiceCapture: VoiceCapture(
+            device: _NoMicrophone(),
+            allocatePath: () async => 'unused',
+          ),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('direct-chat-emoji')));
@@ -100,7 +125,15 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(tester.view.resetPhysicalSize);
       await tester.pumpWidget(
-        MaterialApp(theme: KingTheme.dark, home: const DirectChatPage()),
+        MaterialApp(
+          theme: KingTheme.dark,
+          home: DirectChatPage(
+            voiceCapture: VoiceCapture(
+              device: _NoMicrophone(),
+              allocatePath: () async => 'unused',
+            ),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('direct-chat-attachments')));
@@ -141,7 +174,15 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetViewInsets);
       await tester.pumpWidget(
-        MaterialApp(theme: KingTheme.dark, home: const DirectChatPage()),
+        MaterialApp(
+          theme: KingTheme.dark,
+          home: DirectChatPage(
+            voiceCapture: VoiceCapture(
+              device: _NoMicrophone(),
+              allocatePath: () async => 'unused',
+            ),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
       final input = find.byKey(const ValueKey('direct-chat-input'));
@@ -188,7 +229,15 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(tester.view.resetPhysicalSize);
       await tester.pumpWidget(
-        MaterialApp(theme: KingTheme.dark, home: const DirectChatPage()),
+        MaterialApp(
+          theme: KingTheme.dark,
+          home: DirectChatPage(
+            voiceCapture: VoiceCapture(
+              device: _NoMicrophone(),
+              allocatePath: () async => 'unused',
+            ),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('direct-chat-emoji')));
@@ -228,4 +277,17 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+}
+
+class _NoMicrophone implements VoiceCaptureDevice {
+  @override
+  Future<bool> hasPermission() async => false;
+  @override
+  Future<void> start(String path) async {}
+  @override
+  Future<String?> stop() async => null;
+  @override
+  Future<void> cancel() async {}
+  @override
+  Future<void> dispose() async {}
 }

@@ -1,3 +1,6 @@
+import '../data/voice_capture.dart';
+import 'voice_draft_preview.dart';
+
 import 'dart:io';
 
 import 'chat_emoji_panel.dart';
@@ -113,8 +116,10 @@ class DirectChatPage extends StatefulWidget {
     this.peerName = '卡座搭子',
     this.initialMuted = false,
     this.onMutedChanged,
+    this.voiceCapture,
   });
 
+  final VoiceCapture? voiceCapture;
   final String peerName;
   final bool initialMuted;
   final ValueChanged<bool>? onMutedChanged;
@@ -123,7 +128,10 @@ class DirectChatPage extends StatefulWidget {
   State<DirectChatPage> createState() => _DirectChatPageState();
 }
 
-class _DirectChatPageState extends State<DirectChatPage> {
+class _DirectChatPageState extends State<DirectChatPage>
+    with WidgetsBindingObserver {
+  VoiceCapture? _capture;
+  bool _leaving = false;
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _inputFocusNode = FocusNode();
@@ -135,6 +143,8 @@ class _DirectChatPageState extends State<DirectChatPage> {
   Offset? _voiceStart;
 
   void _beginVoiceHold(PointerDownEvent details) {
+    _capture ??= widget.voiceCapture ?? VoiceCapture.native();
+    if (!_capture!.begin(onLimit: _endVoiceHold)) return;
     _voiceStart = details.position;
     _voiceTarget.value = VoiceHoldTarget.send;
     _voiceOverlay?.remove();
@@ -155,14 +165,37 @@ class _DirectChatPageState extends State<DirectChatPage> {
 
   void _endVoiceHold({bool interrupted = false}) {
     if (_voiceOverlay == null) return;
+    final target = _voiceTarget.value;
     _voiceOverlay?.remove();
     _voiceOverlay = null;
     _voiceStart = null;
-    if (!interrupted && _voiceTarget.value != VoiceHoldTarget.cancel) {
-      KingNotice.of(context).show(
-        _voiceTarget.value == VoiceHoldTarget.text ? '语音转文字暂未接入' : '语音录制暂未接入',
+    _finishRecording(interrupted || target == VoiceHoldTarget.cancel, target);
+  }
+
+  Future<void> _finishRecording(bool cancel, VoiceHoldTarget target) async {
+    try {
+      final draft = await _capture?.finish(cancel: cancel);
+      if (!mounted || _leaving || draft == null) return;
+      if (target == VoiceHoldTarget.text) {
+        KingNotice.of(context).show('录音已保留，转文字服务尚未接通');
+      }
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: legacyMessagePanel,
+        showDragHandle: true,
+        builder: (_) => VoiceDraftPreview(draft: draft),
       );
+    } catch (error) {
+      if (mounted && !_leaving && !cancel) {
+        KingNotice.of(context)
+            .show(error is StateError ? error.message.toString() : '录音失败，请重试');
+      }
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) _endVoiceHold(interrupted: true);
   }
 
   int _attachmentPage = 0;
@@ -185,6 +218,7 @@ class _DirectChatPageState extends State<DirectChatPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _muted = widget.initialMuted;
     _inputFocusNode.addListener(_handleInputFocusChanged);
   }
@@ -198,7 +232,10 @@ class _DirectChatPageState extends State<DirectChatPage> {
 
   @override
   void dispose() {
+    _leaving = true;
+    WidgetsBinding.instance.removeObserver(this);
     _endVoiceHold(interrupted: true);
+    _capture?.dispose().catchError((Object _) {});
     _voiceTarget.dispose();
     _inputFocusNode
       ..removeListener(_handleInputFocusChanged)
@@ -714,6 +751,13 @@ class _DirectChatPageState extends State<DirectChatPage> {
         onTap: () => KingNotice.of(context).show('卡券分享暂未开放'),
       ),
     ];
+    actions.add(
+      _AttachmentAction(
+        icon: Icons.mic_none,
+        label: '语音草稿',
+        onTap: () => showVoiceDrafts(context),
+      ),
+    );
     final pageCount = (actions.length / 8).ceil();
     return Container(
       key: const ValueKey('direct-chat-attachment-panel'),
