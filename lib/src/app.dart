@@ -1,3 +1,9 @@
+import 'features/messaging/data/foreground_call_inbox.dart';
+import 'features/messaging/data/call_launch_coordinator.dart';
+import 'features/messaging/data/call_repository.dart';
+import 'features/messaging/data/messaging_repository.dart';
+import 'features/messaging/presentation/call_page.dart';
+
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:async';
@@ -26,16 +32,84 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   StreamSubscription<void>? _sessionChanges;
   StreamSubscription<Map<String, dynamic>>? _messages;
   bool _foreground = true;
+  ForegroundCallInbox? _callInbox;
+  int _callGeneration = 0;
+  Future<void>? _openingCallInbox;
+
+  Future<void> _ensureCallInbox() => _openingCallInbox ??= _openCallInbox()
+      .whenComplete(() => _openingCallInbox = null);
+
+  Future<void> _openCallInbox() async {
+    if (!mounted ||
+        !_foreground ||
+        kingclubApiBaseUrl.isEmpty ||
+        ref.read(authenticatedMemberProvider)?.canEnterApp != true) {
+      return;
+    }
+    if (_callInbox != null) {
+      _callInbox!.foreground(true);
+      return;
+    }
+    final generation = _callGeneration;
+    final repository = CallRepository(await MessagingRepository.open());
+    if (!mounted || !_foreground || generation != _callGeneration) return;
+    final inbox = ForegroundCallInbox(
+      launcher: CallLaunchCoordinator(repository),
+      present: (prepared) async {
+        if (!mounted ||
+            !_foreground ||
+            generation != _callGeneration ||
+            ref.read(authenticatedMemberProvider)?.canEnterApp != true) {
+          return false;
+        }
+        final profile = await repository.messaging.call('K260913000612', {
+          'peer': prepared.call.caller,
+        });
+        final current = await repository.read(callId: prepared.call.id);
+        if (!mounted ||
+            !_foreground ||
+            generation != _callGeneration ||
+            current?.phase != CallPhase.ringing) {
+          return false;
+        }
+        final navigator = ref
+            .read(appRouterProvider)
+            .routerDelegate
+            .navigatorKey
+            .currentState;
+        if (navigator == null) return false;
+        final page = CallPage.native(
+          repository: repository,
+          initial: current!,
+          peerName: profile['nickname'] as String? ?? prepared.call.caller,
+          relay: prepared.relay,
+        );
+        await navigator.push<void>(MaterialPageRoute(builder: (_) => page));
+        return true;
+      },
+    );
+    _callInbox = inbox;
+    inbox.foreground(true);
+  }
+
+  void _clearCallInbox() {
+    _callGeneration++;
+    _callInbox?.close();
+    _callInbox = null;
+  }
+
   Future<void> _syncRealtime() async {
     if (!_foreground || kingclubApiBaseUrl.isEmpty) return;
     final session = await SecureSessionStore().readSession();
     if (!mounted || !_foreground) return;
     if (session == null) {
+      _clearCallInbox();
       KingclubRealtime.shared.stop();
       _messenger.currentState?.clearSnackBars();
       if (mounted) setState(() => _notice = null);
     } else {
       await KingclubRealtime.shared.start();
+      await _ensureCallInbox();
     }
   }
 
@@ -49,6 +123,14 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
         ref.read(authenticatedMemberProvider.notifier).clear();
         ref.read(appRouterProvider).go('/auth/mobile');
       }
+      return;
+    }
+    if (event['eventType'] == 'chat.call.changed' ||
+        event['eventType'] == 'connection.ready') {
+      try {
+        await _ensureCallInbox();
+        _callInbox?.notify();
+      } catch (_) {}
       return;
     }
     if (event['eventType'] != 'storage.changed') return;
@@ -118,15 +200,17 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _sessionChanges = SecureSessionStore.changes.stream.listen(
-      (_) => _syncRealtime(),
-    );
+    _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
+      _clearCallInbox();
+      unawaited(_syncRealtime().catchError((Object _) {}));
+    });
     _messages = KingclubRealtime.shared.events.listen(_notification);
-    _syncRealtime();
+    unawaited(_syncRealtime().catchError((Object _) {}));
   }
 
   @override
   void dispose() {
+    _clearCallInbox();
     _noticeTimer?.cancel();
     _sessionChanges?.cancel();
     _messages?.cancel();
@@ -138,9 +222,10 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
+    _callInbox?.foreground(_foreground);
     if (_foreground) {
       _checkMobileWindow();
-      _syncRealtime();
+      unawaited(_syncRealtime().catchError((Object _) {}));
     } else {
       KingclubRealtime.shared.stop();
     }
