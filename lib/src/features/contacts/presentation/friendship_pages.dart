@@ -1,3 +1,5 @@
+import '../../../core/media/cached_media_image.dart';
+import '../../auth/data/auth_repository_provider.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 
 import 'dart:async';
@@ -81,7 +83,9 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
               ?.toLocal();
           requests.add(
             _FriendRequest(
-              peer,
+              (r['nickname'] as String?)?.trim().isNotEmpty == true
+                  ? (r['nickname'] as String).trim()
+                  : peer,
               r['note'] as String? ?? '',
               date == null ? '' : '${date.month}/${date.day}',
               switch (r['requestStatus']) {
@@ -91,6 +95,9 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
               },
               requestId: r['requestId'] as String,
               peer: peer,
+              avatar: r['avatar'] is Map
+                  ? Map<String, dynamic>.from(r['avatar'] as Map)
+                  : null,
             ),
           );
         }
@@ -174,6 +181,12 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
       _events = (widget.events ?? KingclubRealtime.shared.events).listen((
         event,
       ) {
+        if (event['eventType'] == 'chat.relationship.changed' &&
+            mounted &&
+            !_sessionInvalid) {
+          setState(() => _requests.clear());
+          unawaited(_loadReal());
+        }
         if (event['eventType'] == 'chat.friend-request.changed' ||
             event['eventType'] == 'connection.ready') {
           unawaited(_loadReal());
@@ -821,6 +834,37 @@ class _RequestTile extends StatelessWidget {
   final _FriendRequest request;
   final VoidCallback? onTap;
 
+  Widget _avatar() {
+    final fallback = Text(
+      request.name.characters.firstOrNull ?? '?',
+      style: const TextStyle(color: _legacyGold, fontWeight: FontWeight.w800),
+    );
+    final media = request.avatar;
+    final path = media?['path'];
+    if (media == null ||
+        path is! String ||
+        !path.startsWith('/kingclub/profile-media/') ||
+        kingclubApiBaseUrl.isEmpty) {
+      return fallback;
+    }
+    final rawHeaders = media['headers'];
+    return CachedMediaImage(
+      '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}$path',
+      private: true,
+      contentKey: 'profile:${request.peer}:${media['fileId']}',
+      headers: rawHeaders is Map
+          ? rawHeaders.map(
+              (key, value) => MapEntry(key.toString(), value.toString()),
+            )
+          : const {},
+      width: 42,
+      height: 42,
+      fit: BoxFit.cover,
+      placeholder: fallback,
+      errorBuilder: (_, _, _) => fallback,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pending = request.status == '待查看';
@@ -839,13 +883,8 @@ class _RequestTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
               ),
               alignment: Alignment.center,
-              child: Text(
-                request.name.characters.first,
-                style: const TextStyle(
-                  color: _legacyGold,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+              clipBehavior: Clip.antiAlias,
+              child: _avatar(),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -923,7 +962,9 @@ class _FriendRequest {
     this.status, {
     this.requestId,
     this.peer,
+    this.avatar,
   });
+  final Map<String, dynamic>? avatar;
   final String? requestId;
   final String? peer;
 

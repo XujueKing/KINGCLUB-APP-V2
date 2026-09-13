@@ -96,6 +96,7 @@ void main() {
               {
                 'requestId': 'request-1',
                 'requester': 'actual-peer',
+                'nickname': 'Actual Nickname',
                 'recipient': 'me',
                 'note': 'Hello',
                 'createdDate': '2026-09-13T01:00:00Z',
@@ -118,7 +119,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('林晓悦'), findsNothing);
-      await tester.tap(find.text('actual-peer'));
+      expect(find.text('Actual Nickname'), findsOneWidget);
+      expect(find.text('actual-peer'), findsNothing);
+      await tester.tap(find.text('Actual Nickname'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('friend-request-accept')));
       await tester.pumpAndSettle();
