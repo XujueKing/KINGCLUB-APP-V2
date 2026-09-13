@@ -474,10 +474,10 @@ class _DirectChatPageState extends State<DirectChatPage>
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [
-                                    Color(0xFFE5D6BD),
-                                    Color(0xFFD5C2A3),
-                                    Color(0xFFC3AA86),
-                                    Color(0xFFD9C3A2),
+                                    Color(0xFFF2D2A6),
+                                    Color(0xFFE4B780),
+                                    Color(0xFFD19A60),
+                                    Color(0xFFEAC18F),
                                   ],
                                   stops: [0, .32, .78, 1],
                                 ),
@@ -536,6 +536,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                                                 style: TextStyle(
                                                   color: Color(0xFF312C27),
                                                   fontSize: 15,
+                                                  fontWeight: FontWeight.w400,
                                                 ),
                                               ),
                                             ),
@@ -543,25 +544,35 @@ class _DirectChatPageState extends State<DirectChatPage>
                                         ),
                                         Align(
                                           alignment: Alignment.centerLeft,
-                                          child: IconButton(
-                                            key: const ValueKey(
-                                              'direct-chat-text-mode',
+                                          child: Padding(
+                                            padding: EdgeInsets.only(
+                                              left: 10 * r - .7,
                                             ),
-                                            tooltip: '切回文字',
-                                            padding: EdgeInsets.zero,
-                                            constraints:
-                                                BoxConstraints.tightFor(
-                                                  width: 60 * r,
-                                                  height: 60 * r,
-                                                ),
-                                            onPressed: () => setState(
-                                              () => _voiceMode = false,
-                                            ),
-                                            icon: Image.asset(
-                                              'assets/legacy/messaging/keynote.png',
-                                              width: 32 * r,
-                                              height: 32 * r,
-                                              color: const Color(0xFF312C27),
+                                            child: IconButton(
+                                              key: const ValueKey(
+                                                'direct-chat-text-mode',
+                                              ),
+                                              tooltip: '切回文字',
+                                              padding: EdgeInsets.zero,
+                                              style: IconButton.styleFrom(
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                              ),
+                                              constraints:
+                                                  BoxConstraints.tightFor(
+                                                    width: 60 * r,
+                                                    height: 60 * r,
+                                                  ),
+                                              onPressed: () => setState(
+                                                () => _voiceMode = false,
+                                              ),
+                                              icon: Image.asset(
+                                                'assets/legacy/messaging/keynote.png',
+                                                width: 32 * r,
+                                                height: 32 * r,
+                                                color: const Color(0xFF312C27),
+                                              ),
                                             ),
                                           ),
                                         ),
