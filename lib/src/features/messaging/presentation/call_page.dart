@@ -63,6 +63,7 @@ class _CallPageState extends State<CallPage> {
   Future<void>? _rendering;
   bool _rendererReady = false, _leaving = false, _allowPop = false;
   bool _accepting = false, _muted = false, _switchingCamera = false;
+  bool _routingAudio = false;
   String? _actionError;
 
   @override
@@ -143,6 +144,27 @@ class _CallPageState extends State<CallPage> {
       setState(() => _muted = !_muted);
     } catch (_) {
       setState(() => _actionError = '暂时无法切换麦克风');
+    }
+  }
+
+  Future<void> _toggleSpeakerphone() async {
+    final media = _controller.media?.media;
+    if (_routingAudio ||
+        media == null ||
+        _controller.isClosed ||
+        _controller.isEnding) {
+      return;
+    }
+    setState(() => _routingAudio = true);
+    try {
+      await media.setSpeakerphone(!media.speakerRequested);
+      if (mounted && !_controller.isClosed) setState(() => _actionError = null);
+    } catch (_) {
+      if (mounted && !_controller.isClosed && !_controller.isEnding) {
+        setState(() => _actionError = '暂时无法切换免提，请重试');
+      }
+    } finally {
+      if (mounted) setState(() => _routingAudio = false);
     }
   }
 
@@ -296,6 +318,24 @@ class _CallPageState extends State<CallPage> {
                         color: const Color(0xFFE34C54),
                         onPressed: _leaving ? null : _end,
                       ),
+                      if (!incoming && !ended)
+                        _button(
+                          icon: Icons.volume_up,
+                          label:
+                              _controller.media?.media.speakerRequested == true
+                              ? '关闭免提'
+                              : '免提',
+                          color:
+                              _controller.media?.media.speakerRequested == true
+                              ? Colors.white30
+                              : Colors.white12,
+                          onPressed:
+                              !_routingAudio &&
+                                  !_controller.isEnding &&
+                                  _controller.media?.media.localStream != null
+                              ? _toggleSpeakerphone
+                              : null,
+                        ),
                       if (video && !incoming && !ended)
                         _button(
                           icon: Icons.cameraswitch,

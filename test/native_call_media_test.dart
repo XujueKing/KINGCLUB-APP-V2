@@ -72,6 +72,59 @@ class Sender implements RTCRtpSender {
 }
 
 void main() {
+  test('speaker route failure preserves state and late completion cannot override hangup reset', () async {
+    final stream = StreamFixture();
+    var response = Completer<void>();
+    final routes = <bool>[];
+    final media = NativeCallMedia(
+      video: false,
+      iceServers: [],
+      capture: (_) async => stream,
+      peerFactory: (_) async => Peer(),
+      setSpeakerphone: (enabled) {
+        routes.add(enabled);
+        return enabled ? response.future : Future.value();
+      },
+    );
+    await media.open();
+    final failed = media.setSpeakerphone(true);
+    final failure = expectLater(failed, throwsException);
+    response.completeError(Exception('route unavailable'));
+    await failure;
+    expect(media.speakerRequested, false);
+    response = Completer<void>();
+    final switching = media.setSpeakerphone(true);
+    final late = expectLater(switching, throwsStateError);
+    await expectLater(media.setSpeakerphone(false), throwsStateError);
+    final closing = media.close();
+    await Future<void>.delayed(Duration.zero);
+    expect(stream.track.stops, 1);
+    expect(stream.disposed, 1);
+    response.complete();
+    await late;
+    await closing;
+    expect(routes, [true, true, false]);
+    expect(media.speakerRequested, false);
+  });
+  test('speaker state changes only after acknowledged routing', () async {
+    final response = Completer<void>();
+    final media = NativeCallMedia(
+      video: false,
+      iceServers: [],
+      capture: (_) async => StreamFixture(),
+      peerFactory: (_) async => Peer(),
+      setSpeakerphone: (enabled) => enabled ? response.future : Future.value(),
+    );
+    await media.open();
+    final switching = media.setSpeakerphone(true);
+    expect(media.speakerRequested, false);
+    response.complete();
+    await switching;
+    expect(media.speakerRequested, true);
+    await media.close();
+    expect(media.speakerRequested, false);
+  });
+
   test('camera switch coalesces, handles rear result, retries errors and rejects late completion after hangup', () async {
     final stream = StreamFixture();
     var response = Completer<bool>();

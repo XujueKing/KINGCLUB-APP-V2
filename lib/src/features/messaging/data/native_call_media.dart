@@ -14,17 +14,23 @@ class NativeCallMedia {
     required this.iceServers,
     CallCapture? capture,
     CallPeerFactory? peerFactory,
+    Future<void> Function(bool)? setSpeakerphone,
     Future<bool> Function(MediaStreamTrack)? switchCamera,
     this.onCandidate,
     this.onConnection,
     this.onRemoteStream,
   }) : _capture = capture ?? navigator.mediaDevices.getUserMedia,
        _peerFactory = peerFactory ?? ((config) => createPeerConnection(config)),
-       _switchCamera = switchCamera ?? ((track) => Helper.switchCamera(track));
+       _switchCamera = switchCamera ?? ((track) => Helper.switchCamera(track)),
+       _setSpeakerphone = setSpeakerphone ?? Helper.setSpeakerphoneOn;
   final bool video;
   final List<Map<String, dynamic>> iceServers;
   final CallCapture _capture;
   final CallPeerFactory _peerFactory;
+  final Future<void> Function(bool) _setSpeakerphone;
+  Future<void>? _routingAudio;
+  bool _speakerRequested = false, _speakerControlUsed = false;
+  bool get speakerRequested => _speakerRequested;
   final Future<bool> Function(MediaStreamTrack) _switchCamera;
   Future<bool>? _switchingCamera;
   bool _frontFacing = true;
@@ -146,6 +152,23 @@ class NativeCallMedia {
     }
   }
 
+  Future<void> setSpeakerphone(bool enabled) {
+    _check();
+    if (_local == null) return Future.error(StateError('Call media not ready'));
+    if (_routingAudio != null) {
+      return Future.error(StateError('Audio route change in progress'));
+    }
+    _speakerControlUsed = true;
+    return _routingAudio = _routeAudio(enabled)
+        .whenComplete(() => _routingAudio = null);
+  }
+
+  Future<void> _routeAudio(bool enabled) async {
+    await _setSpeakerphone(enabled);
+    _check();
+    _speakerRequested = enabled;
+  }
+
   Future<bool> switchCamera() {
     _check();
     if (!video || _local == null || _local!.getVideoTracks().isEmpty) {
@@ -213,6 +236,22 @@ class NativeCallMedia {
       }
       try {
         await peer.dispose();
+      } catch (e) {
+        failure ??= e;
+      }
+    }
+    if (_speakerControlUsed) {
+      // Stop capture above before waiting for a pending platform route change.
+      // Reset after it settles, so a late enable cannot leave speaker override on.
+      try {
+        await _routingAudio;
+      } catch (_) {
+        /* Reset even after a failed change. */
+      }
+      try {
+        await _setSpeakerphone(false);
+        _speakerRequested = false;
+        _speakerControlUsed = false;
       } catch (e) {
         failure ??= e;
       }

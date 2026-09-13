@@ -117,3 +117,12 @@ CallStateController 不再将 native connected 永久锁存；每次原生连接
 保留聊天附件面板原视频通话入口，点击后沿用 LegacyActionMenuStyle 弹出“语音通话／视频通话／取消”。选择明确类型后才调用 643，取消不请求网络或申请媒体权限。两种类型复用同一账号绑定 coordinator、幂等重试和离页回收；CallPage.native 根据 mediaKind 选择 NativeCallMedia，audio 使用 video:false。群语音/视频仍明确未接通，不误用单聊接口。
 
 验证：入口/原生媒体/启动协调器共 11 项通过；进一步补充取消选择不发起拨号，两种入口用例 2 项复跑通过。两文件静态分析通过。没有更新原附件图标布局，未新增演示成功状态。未打包安装和真实双机语音/视频通话，听筒/扬声器/蓝牙路由、后台保活、ICE restart 等仍未完成。
+
+
+## 通话免提控制
+
+NativeCallMedia 增加 setSpeakerphone，调用安装版本 flutter_webrtc Helper.setSpeakerphoneOn；UI 在音视频通话已创建媒体后提供免提切换。原生调用成功才更新本次 speakerRequested，失败保留原状态，切换在途禁止另一次切换。它表示本次应用免提请求，不是耳机/蓝牙实际输出设备探测结果。
+
+挂断先停止轨道、释放流/peer，再等待已在途路由操作并清除免提 override，避免迟到 enable 覆盖关闭。关闭中回调不更新状态。没有改默认系统路由，也不声称“关闭免提”在所有平板/蓝牙/外接耳机下必定等于听筒；设备选择、插拔事件、接听默认策略仍待完整实现与真机验证。
+
+验证：native_call_media/call_state_controller/call_page 共 12 项通过，新增原生失败不改变状态、成功确认后更新、重复切换拒绝、挂断先停采集及迟到切换后重置测试。三文件静态分析通过。尚未打包、实际发声或双机通话，不计为音频路由兼容性验收完成。
