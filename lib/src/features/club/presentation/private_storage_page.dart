@@ -30,6 +30,8 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
           ? PreviewStorageRepository()
           : RealStorageRepository());
   final _pages = PageController();
+  final _verticalPages = [PageController(), PageController()];
+  final _verticalIndex = [0, 0];
   late final _flip = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 440),
@@ -87,6 +89,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   void dispose() {
     _realtime?.cancel();
     _pages.dispose();
+    for (final controller in _verticalPages) {
+      controller.dispose();
+    }
     _flip.dispose();
     super.dispose();
   }
@@ -103,14 +108,25 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
       final items = await _repository.list();
       if (!mounted) return;
       setState(() {
+        final category = _category == 'wine' ? 0 : 1;
         _items = items;
-        _page = math.min(_page, _groups.length - 1);
+        _verticalIndex[0] = math.min(_verticalIndex[0], _itemPage - 1);
+        _verticalIndex[1] = math.min(
+          _verticalIndex[1],
+          _groups.length - _itemPage - 1,
+        );
+        _page = (category == 0 ? 0 : _itemPage) + _verticalIndex[category];
         _selected = _groups[_page].firstOrNull?.ref;
         _loading = false;
         _back = false;
         _flip.value = 0;
       });
-      if (_pages.hasClients) _pages.jumpToPage(_page);
+      if (_pages.hasClients) _pages.jumpToPage(_category == 'wine' ? 0 : 1);
+      for (var i = 0; i < 2; i++) {
+        if (_verticalPages[i].hasClients) {
+          _verticalPages[i].jumpToPage(_verticalIndex[i]);
+        }
+      }
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -248,288 +264,335 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
         child: LayoutBuilder(
           builder: (context, c) {
             final u = c.maxWidth / 750;
-            final width = c.maxWidth * .84;
+            final width = math.min(
+              c.maxWidth * .84,
+              math.max(
+                0.0,
+                (c.maxHeight -
+                        58 -
+                        100 * u -
+                        MediaQuery.paddingOf(context).bottom -
+                        95 * u) *
+                    .64,
+              ),
+            );
             final bottom = 100 * u + MediaQuery.paddingOf(context).bottom;
             final heroHeight = math.max(
-              210.0,
-              c.maxHeight - bottom - width - 155 * u - (58 - 60 * u),
+              0.0,
+              c.maxHeight - bottom - width - 58 - 95 * u,
             );
-            return RefreshIndicator(
-              onRefresh: _load,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 58,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Positioned(
-                            left: 18,
-                            top: 10,
-                            right: 82,
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                const Flexible(
-                                  child: Text(
-                                    '储物袋',
-                                    style: kingSectionTitleStyle,
-                                    maxLines: 1,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Semantics(
-                                  button: true,
-                                  child: GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () => ScaffoldMessenger.of(context)
-                                        .showSnackBar(
-                                          const SnackBar(
-                                            content: Text('商店暂未开放'),
-                                          ),
-                                        ),
-                                    child: const Padding(
-                                      padding: EdgeInsets.only(bottom: 14),
-                                      child: Text(
-                                        '商店',
-                                        style: TextStyle(
-                                          color: Color(0x80C9B69E),
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Positioned(
-                            right: 18,
-                            top: 0,
-                            bottom: 0,
-                            child: TextButton(
-                              key: const ValueKey('storage-expired-items'),
-                              onPressed: _loading || _error != null
-                                  ? null
-                                  : _showExpiredStorage,
-                              style:
-                                  TextButton.styleFrom(
-                                    foregroundColor: const Color(0xB3C9B69E),
-                                    textStyle: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ).copyWith(
-                                    overlayColor: const WidgetStatePropertyAll(
-                                      Colors.transparent,
-                                    ),
-                                  ),
-                              child: const Text('过期储物'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      height: heroHeight,
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 48 * u),
-                        child: _hero(u),
-                      ),
-                    ),
-                    SizedBox(
-                      width: width,
-                      height: 48 * u,
-                      child: Row(
-                        children: [
-                          for (final entry in [
-                            ('wine', '酒', 0),
-                            ('item', '物', _itemPage),
-                          ])
-                            Semantics(
-                              key: ValueKey(
-                                'storage-tab-${entry.$2}-${_category == entry.$1 ? 'selected' : 'idle'}',
+            return Column(
+              children: [
+                SizedBox(
+                  height: 58,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Positioned(
+                        left: 18,
+                        top: 10,
+                        right: 82,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            const Flexible(
+                              child: Text(
+                                '储物袋',
+                                style: kingSectionTitleStyle,
+                                maxLines: 1,
                               ),
+                            ),
+                            const SizedBox(width: 16),
+                            Semantics(
                               button: true,
-                              selected: _category == entry.$1,
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
-                                onTap: () => _pages.animateToPage(
-                                  entry.$3,
-                                  duration: const Duration(milliseconds: 260),
-                                  curve: Curves.easeOut,
-                                ),
-                                child: Container(
-                                  margin: EdgeInsets.only(right: 20 * u),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 3 * u,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    border: _category == entry.$1
-                                        ? const Border(
-                                            bottom: BorderSide(color: _gold),
-                                          )
-                                        : null,
-                                  ),
+                                onTap: () => ScaffoldMessenger.of(context)
+                                    .showSnackBar(
+                                      const SnackBar(content: Text('商店暂未开放')),
+                                    ),
+                                child: const Padding(
+                                  padding: EdgeInsets.only(bottom: 14),
                                   child: Text(
-                                    entry.$2,
+                                    '商店',
                                     style: TextStyle(
-                                      fontSize: 30 * u,
-                                      color: _category == entry.$1
-                                          ? _gold
-                                          : const Color(0x665E5548),
+                                      color: Color(0x80C9B69E),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 12 * u),
-                    SizedBox(
-                      width: width,
-                      height: width,
-                      child: PageView.builder(
-                        controller: _pages,
-                        itemCount: _groups.length,
-                        onPageChanged: _changePage,
-                        itemBuilder: (context, p) => GridView.builder(
-                          key: ValueKey(
-                            'storage-grid-${p < _itemPage ? '酒' : '物'}-${p < _itemPage ? p + 1 : p - _itemPage + 1}',
-                          ),
-                          padding: EdgeInsets.zero,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: 9,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 8 * u,
-                                mainAxisSpacing: 8 * u,
+                      Positioned(
+                        right: 18,
+                        top: 0,
+                        bottom: 0,
+                        child: TextButton(
+                          key: const ValueKey('storage-expired-items'),
+                          onPressed: _loading || _error != null
+                              ? null
+                              : _showExpiredStorage,
+                          style:
+                              TextButton.styleFrom(
+                                foregroundColor: const Color(0xB3C9B69E),
+                                textStyle: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ).copyWith(
+                                overlayColor: const WidgetStatePropertyAll(
+                                  Colors.transparent,
+                                ),
                               ),
-                          itemBuilder: (context, index) {
-                            final item = index < _groups[p].length
-                                ? _groups[p][index]
-                                : null;
-                            final selected =
-                                item != null && item.ref == _selected;
-                            return GestureDetector(
-                              key: item == null
-                                  ? null
-                                  : ValueKey('storage-select-${item.ref}'),
-                              onTap: item == null ? null : () => _select(item),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: selected
-                                        ? const Color(0xFFE9D8C3)
-                                        : const Color(0x55C9B69E),
-                                    width: 1,
-                                  ),
-                                  gradient: RadialGradient(
-                                    center: selected
-                                        ? Alignment.center
-                                        : Alignment.bottomCenter,
-                                    radius: 1.1,
-                                    colors: selected
-                                        ? [
-                                            const Color(0xFF63533F),
-                                            const Color(0xFF271F15),
-                                          ]
-                                        : [
-                                            const Color(0xFF7A6750),
-                                            const Color(0xFF443626),
-                                          ],
+                          child: const Text('过期储物'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: heroHeight,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 48 * u),
+                    child: _hero(u),
+                  ),
+                ),
+                SizedBox(
+                  width: width,
+                  height: 48 * u,
+                  child: Row(
+                    children: [
+                      for (final entry in [('wine', '酒', 0), ('item', '物', 1)])
+                        Semantics(
+                          key: ValueKey(
+                            'storage-tab-${entry.$2}-${_category == entry.$1 ? 'selected' : 'idle'}',
+                          ),
+                          button: true,
+                          selected: _category == entry.$1,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _pages.animateToPage(
+                              entry.$3,
+                              duration: const Duration(milliseconds: 260),
+                              curve: Curves.easeOut,
+                            ),
+                            child: Container(
+                              margin: EdgeInsets.only(right: 20 * u),
+                              padding: EdgeInsets.symmetric(horizontal: 3 * u),
+                              decoration: BoxDecoration(
+                                border: _category == entry.$1
+                                    ? const Border(
+                                        bottom: BorderSide(color: _gold),
+                                      )
+                                    : null,
+                              ),
+                              child: Text(
+                                entry.$2,
+                                style: TextStyle(
+                                  fontSize: 30 * u,
+                                  color: _category == entry.$1
+                                      ? _gold
+                                      : const Color(0x665E5548),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 12 * u),
+                SizedBox(
+                  height: width,
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: SizedBox(
+                          width: width,
+                          child: PageView.builder(
+                            key: const ValueKey('storage-category-pages'),
+                            controller: _pages,
+                            itemCount: 2,
+                            onPageChanged: (category) => _changePage(
+                              (category == 0 ? 0 : _itemPage) +
+                                  _verticalIndex[category],
+                            ),
+                            itemBuilder: (context, category) =>
+                                PageView.builder(
+                                  key: PageStorageKey('storage-vertical-$category'),
+                                  controller: _verticalPages[category],
+                                  scrollDirection: Axis.vertical,
+                                  itemCount: category == 0
+                                      ? _itemPage
+                                      : _groups.length - _itemPage,
+                                  onPageChanged: (index) {
+                                    _verticalIndex[category] = index;
+                                    _changePage(
+                                      (category == 0 ? 0 : _itemPage) + index,
+                                    );
+                                  },
+                                  itemBuilder: (context, index) => _grid(
+                                    (category == 0 ? 0 : _itemPage) + index,
+                                    u,
                                   ),
                                 ),
-                                child: item == null
-                                    ? null
-                                    : Stack(
-                                        children: [
-                                          Center(
-                                            child: Image.asset(
-                                              item.thumbnail,
-                                              width: 160 * u,
-                                              height: 160 * u,
-                                              fit: BoxFit.contain,
-                                            ),
-                                          ),
-                                          if (item.category == 'wine')
-                                            Positioned(
-                                              right: 12 * u,
-                                              bottom: 10 * u,
-                                              child: IgnorePointer(
-                                                child: Text(
-                                                  '${item.remainingPercent.toStringAsFixed(0)}%',
-                                                  key: ValueKey(
-                                                    'storage-level-${item.ref}',
-                                                  ),
-                                                  style: TextStyle(
-                                                    color: const Color(
-                                                      0xA6E9D8C3,
-                                                    ),
-                                                    fontSize: 8,
-                                                    fontWeight: FontWeight.w400,
-                                                    height: 1,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          Positioned(
-                                            left: 24 * u,
-                                            top: 16 * u,
-                                            child: Text(
-                                              '${item.quantity}',
-                                              style: TextStyle(
-                                                color: _gold,
-                                                fontSize: 28 * u,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 20 * u),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _groups.length,
-                        (i) => Container(
-                          width: 15 * u,
-                          height: 15 * u,
-                          margin: EdgeInsets.symmetric(horizontal: 8 * u),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: i == _page ? _gold : const Color(0x30FFFFFF),
                           ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: bottom),
-                  ],
+                      if ((_category == 'wine'
+                              ? _itemPage
+                              : _groups.length - _itemPage) >
+                          1)
+                        Positioned(
+                          right: 8,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(
+                            child: Column(
+                              key: const ValueKey('storage-vertical-dots'),
+                              mainAxisSize: MainAxisSize.min,
+                              children: List.generate(
+                                _category == 'wine'
+                                    ? _itemPage
+                                    : _groups.length - _itemPage,
+                                (i) => Container(
+                                  width: 5,
+                                  height: 5,
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color:
+                                        i ==
+                                            _verticalIndex[_category == 'wine'
+                                                ? 0
+                                                : 1]
+                                        ? _gold
+                                        : const Color(0x30FFFFFF),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
+                SizedBox(height: 20 * u),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    2,
+                    (i) => Container(
+                      width: 15 * u,
+                      height: 15 * u,
+                      margin: EdgeInsets.symmetric(horizontal: 8 * u),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i == (_category == 'wine' ? 0 : 1)
+                            ? _gold
+                            : const Color(0x30FFFFFF),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: bottom),
+              ],
             );
           },
         ),
       ),
     ),
   );
+  Widget _grid(int p, double u) => GridView.builder(
+    key: ValueKey(
+      'storage-grid-${p < _itemPage ? '酒' : '物'}-${p < _itemPage ? p + 1 : p - _itemPage + 1}',
+    ),
+    padding: EdgeInsets.zero,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: 9,
+    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 3,
+      crossAxisSpacing: 8 * u,
+      mainAxisSpacing: 8 * u,
+    ),
+    itemBuilder: (context, index) {
+      final item = index < _groups[p].length ? _groups[p][index] : null;
+      final selected = item != null && item.ref == _selected;
+      return GestureDetector(
+        key: item == null ? null : ValueKey('storage-select-${item.ref}'),
+        onTap: item == null ? null : () => _select(item),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFFE9D8C3)
+                  : const Color(0x55C9B69E),
+              width: 1,
+            ),
+            gradient: RadialGradient(
+              center: selected ? Alignment.center : Alignment.bottomCenter,
+              radius: 1.1,
+              colors: selected
+                  ? [const Color(0xFF63533F), const Color(0xFF271F15)]
+                  : [const Color(0xFF7A6750), const Color(0xFF443626)],
+            ),
+          ),
+          child: item == null
+              ? null
+              : Stack(
+                  children: [
+                    Center(
+                      child: Image.asset(
+                        item.thumbnail,
+                        width: 160 * u,
+                        height: 160 * u,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    if (item.category == 'wine')
+                      Positioned(
+                        right: 12 * u,
+                        bottom: 10 * u,
+                        child: IgnorePointer(
+                          child: Text(
+                            '${item.remainingPercent.toStringAsFixed(0)}%',
+                            key: ValueKey('storage-level-${item.ref}'),
+                            style: TextStyle(
+                              color: const Color(0xA6E9D8C3),
+                              fontSize: 8,
+                              fontWeight: FontWeight.w400,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      left: 24 * u,
+                      top: 16 * u,
+                      child: Text(
+                        '${item.quantity}',
+                        style: TextStyle(color: _gold, fontSize: 28 * u),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      );
+    },
+  );
+
   Widget _hero(double u) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator(strokeWidth: 1));
