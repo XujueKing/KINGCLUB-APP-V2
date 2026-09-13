@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/src/features/messaging/presentation/legacy_messaging_components.dart';
+import 'package:kingclub/src/features/messaging/presentation/legacy_messaging_components.dart';
 
 void main() {
   testWidgets('plus menu dismisses and routes friend and scan separately', (
@@ -9,6 +9,7 @@ void main() {
   ) async {
     var friends = 0;
     var scans = 0;
+    var qr = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -19,6 +20,7 @@ void main() {
               onContacts: () {},
               onAdd: () => friends++,
               onScan: () => scans++,
+              onPersonalQr: () => qr++,
             ),
           ),
         ),
@@ -45,6 +47,11 @@ void main() {
     await tester.tap(find.text('扫一扫'));
     await tester.pumpAndSettle();
     expect(scans, 1);
+    await open();
+    await tester.tap(find.text('我的二维码'));
+    await tester.pumpAndSettle();
+    expect(qr, 1);
+    expect(find.text('我的二维码'), findsNothing);
     expect(find.text('扫一扫'), findsNothing);
   });
 }

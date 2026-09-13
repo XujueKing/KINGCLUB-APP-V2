@@ -32,6 +32,7 @@ class ConversationsPage extends StatefulWidget {
     required this.onOpenContacts,
     required this.onAddFriend,
     this.onScan,
+    this.onPersonalQr,
     required this.onOpenSystemNotifications,
     required this.onOpenDirectChat,
   });
@@ -47,6 +48,7 @@ class ConversationsPage extends StatefulWidget {
   final VoidCallback onOpenContacts;
   final VoidCallback onAddFriend;
   final VoidCallback? onScan;
+  final VoidCallback? onPersonalQr;
   final VoidCallback onOpenSystemNotifications;
   final VoidCallback onOpenDirectChat;
 
@@ -198,6 +200,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     onContacts: widget.onOpenContacts,
     onAdd: widget.onAddFriend,
     onScan: widget.onScan,
+    onPersonalQr: widget.onPersonalQr,
   );
 
   Widget _friendConversation() {

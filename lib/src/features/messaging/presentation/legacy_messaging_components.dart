@@ -112,9 +112,10 @@ class LegacyConversationTabs extends StatelessWidget {
     required this.onContacts,
     required this.onAdd,
     this.onScan,
+    this.onPersonalQr,
   });
   final bool chatSelected;
-  final VoidCallback? onChat, onContacts, onAdd, onScan;
+  final VoidCallback? onChat, onContacts, onAdd, onScan, onPersonalQr;
   @override
   Widget build(BuildContext context) {
     final r = MediaQuery.sizeOf(context).width / 750;
@@ -229,7 +230,7 @@ class LegacyConversationTabs extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (var i = 0; i < 3; i++) ...[
+                      for (var i = 0; i < 4; i++) ...[
                         if (i > 0)
                           const Padding(
                             padding: EdgeInsets.only(left: 56),
@@ -254,6 +255,7 @@ class LegacyConversationTabs extends StatelessWidget {
                                       Icons.chat_bubble_rounded,
                                       Icons.person_add_alt_1_rounded,
                                       Icons.qr_code_scanner_rounded,
+                                      Icons.qr_code_rounded,
                                     ][i],
                                     color: const Color(0xFFF2F2F2),
                                     size: 25,
@@ -261,7 +263,7 @@ class LegacyConversationTabs extends StatelessWidget {
                                   const SizedBox(width: 13),
                                   Flexible(
                                     child: Text(
-                                      ['发起群聊', '添加朋友', '扫一扫'][i],
+                                      ['发起群聊', '添加朋友', '扫一扫', '我的二维码'][i],
                                       style: const TextStyle(
                                         color: Color(0xFFF2F2F2),
                                         fontSize: 18,
@@ -289,9 +291,19 @@ class LegacyConversationTabs extends StatelessWidget {
       onAdd?.call();
     } else if (selected == 2 && onScan != null) {
       onScan!();
+    } else if (selected == 3 && onPersonalQr != null) {
+      onPersonalQr!();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(selected == 0 ? '群聊功能暂未开放' : '扫码暂不可用')),
+        SnackBar(
+          content: Text(
+            selected == 0
+                ? '群聊功能暂未开放'
+                : selected == 3
+                ? '二维码暂不可用'
+                : '扫码暂不可用',
+          ),
+        ),
       );
     }
   }
