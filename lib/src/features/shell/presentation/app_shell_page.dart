@@ -160,6 +160,7 @@ class _AppShellPageState extends State<AppShellPage> {
                     ContactsPage(
                       active: _selectedIndex == 1 && _messagesPageIndex == 0,
                       onOpenChat: () => setState(() => _messagesPageIndex = 1),
+                      onScan: _openScanner,
                       onIntent: _handleContactIntent,
                       onSessionResetRequested: widget.onSessionResetRequested,
                     ),
@@ -177,6 +178,7 @@ class _AppShellPageState extends State<AppShellPage> {
                       onOpenContacts: () =>
                           setState(() => _messagesPageIndex = 0),
                       onAddFriend: _openAddFriend,
+                      onScan: _openScanner,
                       onOpenSystemNotifications: _openSystemNotifications,
                       onOpenDirectChat: () => Navigator.of(context).push<void>(
                         MaterialPageRoute<void>(

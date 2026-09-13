@@ -589,6 +589,9 @@ void main() {
     expect(intent?.kind, ContactIntentKind.blacklist);
 
     await tester.tap(find.byTooltip('添加好友'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('添加朋友'));
+    await tester.pumpAndSettle();
     expect(intent?.kind, ContactIntentKind.addFriend);
 
     await tester.enterText(find.byType(TextField), '卡座搭子');

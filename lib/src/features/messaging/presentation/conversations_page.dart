@@ -31,6 +31,7 @@ class ConversationsPage extends StatefulWidget {
     required this.onFriendUnreadChanged,
     required this.onOpenContacts,
     required this.onAddFriend,
+    this.onScan,
     required this.onOpenSystemNotifications,
     required this.onOpenDirectChat,
   });
@@ -45,6 +46,7 @@ class ConversationsPage extends StatefulWidget {
   final ValueChanged<int> onFriendUnreadChanged;
   final VoidCallback onOpenContacts;
   final VoidCallback onAddFriend;
+  final VoidCallback? onScan;
   final VoidCallback onOpenSystemNotifications;
   final VoidCallback onOpenDirectChat;
 
@@ -195,6 +197,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     onChat: () {},
     onContacts: widget.onOpenContacts,
     onAdd: widget.onAddFriend,
+    onScan: widget.onScan,
   );
 
   Widget _friendConversation() {

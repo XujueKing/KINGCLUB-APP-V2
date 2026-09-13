@@ -111,9 +111,10 @@ class LegacyConversationTabs extends StatelessWidget {
     required this.onChat,
     required this.onContacts,
     required this.onAdd,
+    this.onScan,
   });
   final bool chatSelected;
-  final VoidCallback? onChat, onContacts, onAdd;
+  final VoidCallback? onChat, onContacts, onAdd, onScan;
   @override
   Widget build(BuildContext context) {
     final r = MediaQuery.sizeOf(context).width / 750;
@@ -164,15 +165,22 @@ class LegacyConversationTabs extends StatelessWidget {
           Positioned(
             right: 18 - (44 - 40 * r) / 2,
             top: 0,
-            child: IconButton(
-              tooltip: '添加好友',
-              constraints: const BoxConstraints.tightFor(width: 44, height: 48),
-              padding: EdgeInsets.zero,
-              onPressed: onAdd,
-              icon: Image.asset(
-                'assets/legacy/messaging/add.png',
-                width: 40 * r,
-                height: 40 * r,
+            child: Builder(
+              builder: (anchorContext) => IconButton(
+                tooltip: '添加好友',
+                constraints: const BoxConstraints.tightFor(
+                  width: 44,
+                  height: 48,
+                ),
+                padding: EdgeInsets.zero,
+                onPressed: onAdd == null
+                    ? null
+                    : () => _showActions(anchorContext),
+                icon: Image.asset(
+                  'assets/legacy/messaging/add.png',
+                  width: 40 * r,
+                  height: 40 * r,
+                ),
               ),
             ),
           ),
@@ -180,6 +188,130 @@ class LegacyConversationTabs extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _showActions(BuildContext context) async {
+    FocusScope.of(context).unfocus();
+    final box = context.findRenderObject()! as RenderBox;
+    final origin = box.localToGlobal(Offset.zero);
+    final selected = await showGeneralDialog<int>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '关闭菜单',
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 140),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) => Stack(
+        children: [
+          Positioned(
+            top: origin.dy + box.size.height - 2,
+            right: 12,
+            width: 176,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(
+                    right:
+                        (MediaQuery.sizeOf(context).width -
+                                origin.dx -
+                                box.size.width / 2 -
+                                20)
+                            .clamp(0, 150),
+                  ),
+                  child: CustomPaint(
+                    size: const Size(16, 8),
+                    painter: _MenuPointer(),
+                  ),
+                ),
+                Material(
+                  color: const Color(0xFF3D3D3D),
+                  borderRadius: BorderRadius.circular(5),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < 3; i++) ...[
+                        if (i > 0)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 56),
+                            child: Divider(
+                              height: .5,
+                              thickness: .5,
+                              color: Color(0x18FFFFFF),
+                            ),
+                          ),
+                        InkWell(
+                          onTap: () => Navigator.of(dialogContext).pop(i),
+                          child: SizedBox(
+                            height: 58,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    [
+                                      Icons.chat_bubble_rounded,
+                                      Icons.person_add_alt_1_rounded,
+                                      Icons.qr_code_scanner_rounded,
+                                    ][i],
+                                    color: const Color(0xFFF2F2F2),
+                                    size: 25,
+                                  ),
+                                  const SizedBox(width: 13),
+                                  Flexible(
+                                    child: Text(
+                                      ['发起群聊', '添加朋友', '扫一扫'][i],
+                                      style: const TextStyle(
+                                        color: Color(0xFFF2F2F2),
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted || selected == null) return;
+    if (selected == 1) {
+      onAdd?.call();
+    } else if (selected == 2 && onScan != null) {
+      onScan!();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(selected == 0 ? '群聊功能暂未开放' : '扫码暂不可用')),
+      );
+    }
+  }
+}
+
+class _MenuPointer extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, size.height)
+        ..lineTo(size.width / 2, 0)
+        ..lineTo(size.width, size.height)
+        ..close(),
+      Paint()..color = const Color(0xFF3D3D3D),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _MenuPointer oldDelegate) => false;
 }
 
 class LegacyConversationSearch extends StatefulWidget {

@@ -40,6 +40,7 @@ class ContactsPage extends StatefulWidget {
     required this.active,
     required this.onIntent,
     this.onOpenChat,
+    this.onScan,
     this.initialState = ContactsDemoState.initialLoading,
     this.onSessionResetRequested,
   });
@@ -47,6 +48,7 @@ class ContactsPage extends StatefulWidget {
   final bool active;
   final ValueChanged<ContactRouteIntent> onIntent;
   final VoidCallback? onOpenChat;
+  final VoidCallback? onScan;
   final ContactsDemoState initialState;
   final VoidCallback? onSessionResetRequested;
 
@@ -193,6 +195,7 @@ class _ContactsPageState extends State<ContactsPage> {
 
   Widget _header() => LegacyConversationTabs(
     chatSelected: false,
+    onScan: widget.onScan,
     onChat: _state == ContactsDemoState.sessionInvalid
         ? null
         : widget.onOpenChat,
