@@ -464,11 +464,34 @@ class _DirectChatPageState extends State<DirectChatPage>
                             child: AnimatedContainer(
                               key: const ValueKey('direct-chat-voice-surface'),
                               duration: const Duration(milliseconds: 650),
-                              curve: _voiceMode ? const ElasticOutCurve(0.65) : Curves.easeOutCubic,
+                              curve: _voiceMode
+                                  ? const ElasticOutCurve(0.65)
+                                  : Curves.easeOutCubic,
                               width: _voiceMode ? bounds.maxWidth : 60 * r,
                               height: _voiceMode ? bounds.maxHeight : 60 * r,
                               decoration: BoxDecoration(
-                                color: legacyMessageGold,
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color(0xFFE5D6BD),
+                                    Color(0xFFD5C2A3),
+                                    Color(0xFFC3AA86),
+                                    Color(0xFFD9C3A2),
+                                  ],
+                                  stops: [0, .32, .78, 1],
+                                ),
+                                border: Border.all(
+                                  color: const Color(0x66F7E9D1),
+                                  width: .7,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x30201008),
+                                    blurRadius: 5,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
                                 borderRadius: BorderRadius.circular(40 * r),
                               ),
                               clipBehavior: Clip.hardEdge,
@@ -476,6 +499,28 @@ class _DirectChatPageState extends State<DirectChatPage>
                                   ? Stack(
                                       alignment: Alignment.center,
                                       children: [
+                                        Positioned(
+                                          top: 2,
+                                          left: 12,
+                                          right: 12,
+                                          height: 12,
+                                          child: IgnorePointer(
+                                            child: DecoratedBox(
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(30),
+                                                gradient: const LinearGradient(
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
+                                                  colors: [
+                                                    Color(0x55FFFFFF),
+                                                    Color(0x00FFFFFF),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                         Positioned.fill(
                                           child: GestureDetector(
                                             key: const ValueKey(
