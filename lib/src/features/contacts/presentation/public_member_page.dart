@@ -1,3 +1,4 @@
+import 'profile_media_page.dart';
 import '../../../core/media/cached_media_image.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../../../core/networking/kingclub_realtime.dart';
@@ -39,6 +40,13 @@ class _PublicMemberPageState extends State<PublicMemberPage>
   bool _sessionInvalid = false;
   int _generation = 0;
   int _tab = 0;
+  final _scroll = ScrollController();
+  final _visibility = ValueNotifier<int>(0);
+  int _contentGeneration = 0;
+  List<Map<String, dynamic>> _items = [];
+  int? _nextOffset;
+  bool _contentLoading = false, _contentLoaded = false;
+  String? _contentError;
   bool _saving = false;
   String? _error;
 
@@ -46,6 +54,11 @@ class _PublicMemberPageState extends State<PublicMemberPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scroll.addListener(() {
+      if (_scroll.position.extentAfter < 240 && _nextOffset != null) {
+        unawaited(_loadContent());
+      }
+    });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
       if (_sessionInvalid || !mounted) return;
       final type = event['eventType'];
@@ -57,6 +70,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
     });
     _session = SecureSessionStore.changes.stream.listen((_) {
       _generation++;
+      _clearContent();
       _sessionInvalid = true;
       if (mounted) {
         setState(() {
@@ -71,7 +85,10 @@ class _PublicMemberPageState extends State<PublicMemberPage>
 
   void _invalidateAndReload() {
     if (!mounted || _sessionInvalid) return;
-    setState(() => _profile = null);
+    setState(() {
+      _profile = null;
+      _clearContent();
+    });
     unawaited(_load());
   }
 
@@ -83,6 +100,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
   Future<void> _load() async {
     if (_sessionInvalid) return;
     final generation = ++_generation;
+    setState(_clearContent);
     try {
       final repository =
           _repository ?? widget.repository ?? await MessagingRepository.open();
@@ -95,6 +113,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
         _profile = profile;
         _error = null;
       });
+      if (profile['contentVisible'] == true) await _loadContent(reset: true);
     } catch (e) {
       if (!mounted || generation != _generation) return;
       setState(() {
@@ -141,12 +160,240 @@ class _PublicMemberPageState extends State<PublicMemberPage>
     _generation++;
     _session?.cancel();
     _events?.cancel();
+    _scroll.dispose();
+    _visibility.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
+  void _clearContent() {
+    _contentGeneration++;
+    _visibility.value++;
+    _items = [];
+    _nextOffset = null;
+    _contentLoading = false;
+    _contentLoaded = false;
+    _contentError = null;
+  }
+
+  Future<void> _loadContent({bool reset = false}) async {
+    if (_sessionInvalid ||
+        _repository == null ||
+        _profile?['contentVisible'] != true ||
+        _contentLoading) {
+      return;
+    }
+    final offset = reset ? 0 : _nextOffset;
+    if (offset == null) return;
+    final generation = _contentGeneration;
+    final category = ['work', 'post', 'album'][_tab];
+    setState(() {
+      _contentLoading = true;
+      _contentError = null;
+    });
+    try {
+      final response = await _repository!.call('K260913000614', {
+        'peer': widget.account,
+        'category': category,
+        'offset': offset,
+      });
+      if (!mounted || generation != _contentGeneration) return;
+      final items = (response['items'] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      final next = response['nextOffset'] as int?;
+      if (next != null && (next <= offset || items.isEmpty)) {
+        throw const FormatException('内容分页无效');
+      }
+      setState(() {
+        final byRef = {for (final item in _items) item['ref']: item};
+        for (final item in items) {
+          byRef[item['ref']] = item;
+        }
+        _items = byRef.values.toList();
+        _nextOffset = next;
+        _contentLoaded = true;
+      });
+    } catch (error) {
+      if (!mounted || generation != _contentGeneration) return;
+      setState(() {
+        // Any failed authorization refresh removes prior content, not just the
+        // thumbnail. Existing permissions are never inferred from disk cache.
+        _items = [];
+        _nextOffset = null;
+        _visibility.value++;
+        _contentError = '内容加载失败，请重试';
+      });
+    } finally {
+      if (mounted && generation == _contentGeneration) {
+        setState(() => _contentLoading = false);
+      }
+    }
+  }
+
+  void _openMedia(Map<String, dynamic> item) {
+    final media = item['media'];
+    if (media is! Map || _repository == null) return;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ProfileMediaPage(
+          media: Map<String, dynamic>.from(media),
+          contentType: item['contentType'] as String? ?? '',
+          account: _repository!.account,
+          owner: widget.account,
+          visibility: _visibility,
+        ),
+      ),
+    );
+  }
+
+  Widget _thumbnail(Map<String, dynamic> item) {
+    final video = (item['contentType'] as String? ?? '').startsWith('video/');
+    final fallback = ColoredBox(
+      color: const Color(0xFFF0F0F0),
+      child: Center(
+        child: Icon(
+          video ? Icons.play_circle_outline : Icons.image_outlined,
+          color: const Color(0xFF999999),
+          size: 28,
+        ),
+      ),
+    );
+    return GestureDetector(
+      onTap: () => _openMedia(item),
+      child: video ? fallback : _mediaImage(item['media'], fallback),
+    );
+  }
+
+  List<Widget> _contentSlivers(double scale) {
+    if (_profile == null) return [const SliverToBoxAdapter(child: SizedBox())];
+    if (_profile!['contentVisible'] == false) {
+      return [
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(
+              child: Text('暂时无法查看', style: TextStyle(color: Color(0xFF999999))),
+            ),
+          ),
+        ),
+      ];
+    }
+    return [
+      if (_tab == 1)
+        SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final item = _items[index];
+            final date = DateTime.tryParse(item['createdAt']?.toString() ?? '')
+                ?.toLocal();
+            return Padding(
+              padding: EdgeInsets.fromLTRB(20 * scale, 20, 20 * scale, 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 70 * scale,
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: date == null ? '' : '${date.day}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          TextSpan(
+                            text: date == null ? '' : '${date.month}月',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                      style: const TextStyle(color: Color(0xFF444444)),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      color: const Color(0xFFF6F6F6),
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if ((item['caption']?.toString() ?? '')
+                              .isNotEmpty) ...[
+                            Text(
+                              item['caption'].toString(),
+                              style: const TextStyle(
+                                color: Color(0xFF333333),
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          if (item['media'] != null)
+                            SizedBox.square(
+                              dimension: 80 * scale,
+                              child: _thumbnail(item),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }, childCount: _items.length),
+        )
+      else
+        SliverPadding(
+          padding: const EdgeInsets.only(top: 2),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 2,
+              mainAxisSpacing: 2,
+              childAspectRatio: _tab == 0 ? 0.75 : 1,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _thumbnail(_items[index]),
+              childCount: _items.length,
+            ),
+          ),
+        ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: _contentError != null
+                ? TextButton(
+                    onPressed: () => _loadContent(reset: true),
+                    child: Text(_contentError!),
+                  )
+                : _nextOffset != null
+                ? TextButton(
+                    onPressed: _contentLoading ? null : () => _loadContent(),
+                    child: const Text('加载更多'),
+                  )
+                : Text(
+                    _contentLoaded && _items.isEmpty
+                        ? ['暂无作品', '暂无动态', '暂无相册内容'][_tab]
+                        : '',
+                    style: const TextStyle(
+                      color: Color(0xFF999999),
+                      fontSize: 14,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    ];
+  }
+
   Widget _memberImage(String slot, Widget fallback) {
-    final media = _profile?[slot];
+    return _mediaImage(_profile?[slot], fallback);
+  }
+
+  Widget _mediaImage(dynamic media, Widget fallback) {
     if (media is! Map || kingclubApiBaseUrl.isEmpty) return fallback;
     final path = media['path'];
     if (path is! String || !path.startsWith('/kingclub/profile-media/')) {
@@ -196,6 +443,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
           body: RefreshIndicator(
             onRefresh: _load,
             child: CustomScrollView(
+              controller: _scroll,
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
@@ -444,7 +692,14 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                             SizedBox(
                               width: 76 * scale,
                               child: TextButton(
-                                onPressed: () => setState(() => _tab = i),
+                                onPressed: () {
+                                  if (_tab == i) return;
+                                  setState(() {
+                                    _tab = i;
+                                    _clearContent();
+                                  });
+                                  unawaited(_loadContent(reset: true));
+                                },
                                 child: Text(
                                   ['作品', '动态', '相册'][i],
                                   style: TextStyle(
@@ -465,26 +720,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                     ],
                   ),
                 ),
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 42),
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: Text(
-                        profile == null
-                            ? ''
-                            : profile['contentVisible'] == false
-                            ? '暂时无法查看'
-                            : '内容暂不可用',
-                        style: const TextStyle(
-                          color: Color(0xFF999999),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                ..._contentSlivers(scale),
               ],
             ),
           ),

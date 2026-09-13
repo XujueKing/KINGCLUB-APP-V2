@@ -26,7 +26,8 @@ void main() {
       };
       final repository = MessagingRepository(
         account: 'me',
-        call: (_, _) async {
+        call: (id, _) async {
+          if (id == 'K260913000614') return {'items': [], 'nextOffset': null};
           calls++;
           return calls == 1 ? profile : response.future;
         },

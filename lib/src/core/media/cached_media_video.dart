@@ -13,9 +13,11 @@ class CachedMediaVideo extends StatefulWidget {
     required this.active,
     required this.contentKey,
     this.muted = true,
+    this.headers,
   });
   final String url, scope, contentKey;
   final bool active, muted;
+  final Map<String, String>? headers;
   @override
   State<CachedMediaVideo> createState() => _CachedMediaVideoState();
 }
@@ -68,6 +70,7 @@ class _CachedMediaVideoState extends State<CachedMediaVideo>
           scope: widget.scope,
           contentKey: widget.contentKey,
           kind: MediaKind.video,
+          headers: widget.headers,
         );
         if (!mounted || epoch != _epoch) return;
         controller = VideoPlayerController.file(file);
