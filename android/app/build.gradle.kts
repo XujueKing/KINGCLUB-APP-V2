@@ -36,6 +36,11 @@ android {
             applicationIdSuffix = ".v2preview"
             versionNameSuffix = "-preview"
         }
+        create("calltest") {
+            dimension = "distribution"
+            applicationIdSuffix = ".calltest"
+            versionNameSuffix = "-calltest"
+        }
     }
 
     buildTypes {
