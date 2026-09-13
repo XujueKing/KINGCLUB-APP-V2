@@ -92,9 +92,10 @@ class LegacyMessagingHeader extends StatelessWidget {
           ),
           if (trailing != null)
             Positioned(
-              right: alignToConversationTitle ? 6 : 18,
+              // Match the back button center, not the wider icon edge.
+              right: alignToConversationTitle ? -2 : 18,
               top: 4,
-              bottom: 4,
+              height: 48,
               child: trailing!,
             ),
         ],
