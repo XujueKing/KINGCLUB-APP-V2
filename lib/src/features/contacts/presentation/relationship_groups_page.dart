@@ -1,3 +1,5 @@
+import '../../../core/networking/kingclub_realtime.dart';
+
 import 'dart:async';
 
 import 'package:uuid/uuid.dart';
@@ -28,8 +30,10 @@ class RelationshipGroupsPage extends StatefulWidget {
     required this.groups,
     required this.onChanged,
     this.repository,
+    this.events,
   });
   final ContactGroupsRepository? repository;
+  final Stream<Map<String, dynamic>>? events;
   final Map<String, String> contacts;
   final List<ContactGroup> groups;
   final ValueChanged<List<ContactGroup>> onChanged;
@@ -45,6 +49,9 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
   String? _loadError;
   int _generation = 0;
   StreamSubscription<void>? _session;
+  StreamSubscription<Map<String, dynamic>>? _events;
+  bool _editing = false;
+  bool _refreshPending = false;
   @override
   void initState() {
     super.initState();
@@ -59,6 +66,21 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
             _ready = false;
             _loadError = '登录状态已变化';
           });
+        }
+      });
+      _events = (widget.events ?? KingclubRealtime.shared.events).listen((
+        event,
+      ) {
+        if (_sessionInvalid || !mounted) return;
+        if (event['eventType'] != 'chat.groups.changed' &&
+            event['eventType'] != 'connection.ready') {
+          return;
+        }
+        if (_editing || _cleaning) {
+          _refreshPending = true;
+          setState(() => _loadError = '分组已更新，编辑内容已保留，请刷新后保存');
+        } else {
+          unawaited(_load());
         }
       });
       unawaited(_load());
@@ -87,6 +109,7 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
   void dispose() {
     _generation++;
     _session?.cancel();
+    _events?.cancel();
     super.dispose();
   }
 
@@ -185,7 +208,13 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
         setState(() => _loadError = '清理失败，请刷新分组后重试');
       }
     } finally {
-      if (mounted) setState(() => _cleaning = false);
+      if (mounted) {
+        setState(() => _cleaning = false);
+        if (_refreshPending && !_sessionInvalid) {
+          _refreshPending = false;
+          await _load();
+        }
+      }
     }
   }
 
@@ -208,6 +237,8 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
   }
 
   Future<void> _edit(ContactGroup? group) async {
+    if (_editing) return;
+    _editing = true;
     final result = await Navigator.of(context).push<ContactGroup>(
       MaterialPageRoute(
         builder: (_) => _GroupEditor(
@@ -219,7 +250,16 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
         ),
       ),
     );
-    if (!mounted || result == null || widget.repository != null) return;
+    _editing = false;
+    if (!mounted || _sessionInvalid) return;
+    if (widget.repository != null) {
+      if (_refreshPending) {
+        _refreshPending = false;
+        await _load();
+      }
+      return;
+    }
+    if (result == null) return;
     _update([
       ..._groups
           .where((g) => g.id != result.id)

@@ -106,6 +106,10 @@ class _ContactsPageState extends State<ContactsPage> {
         });
       });
       _events = KingclubRealtime.shared.events.listen((event) {
+        if (event['eventType'] == 'chat.groups.changed' ||
+            event['eventType'] == 'connection.ready') {
+          unawaited(_loadGroups());
+        }
         if (event['eventType'] == 'chat.relationship.changed' ||
             event['eventType'] == 'chat.friend-request.changed' ||
             event['eventType'] == 'chat.settings.changed' ||
@@ -505,7 +509,9 @@ class _ContactsPageState extends State<ContactsPage> {
               c.ref: c.remark ?? c.nickname,
           },
           groups: _groups,
-          repository: widget.realData ? _groupRepository : null,
+          repository: widget.realData
+              ? ContactGroupsRepository(_groupRepository!.messaging)
+              : null,
           onChanged: (groups) {
             if (mounted) setState(() => _groups = groups);
           },

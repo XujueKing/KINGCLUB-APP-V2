@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/contacts/data/contact_groups_repository.dart';
@@ -5,6 +7,53 @@ import 'package:kingclub/src/features/contacts/presentation/relationship_groups_
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 
 void main() {
+  testWidgets('group events refresh idle lists and preserve an open draft', (
+    tester,
+  ) async {
+    final events = StreamController<Map<String, dynamic>>.broadcast();
+    var reads = 0;
+    final repository = ContactGroupsRepository(
+      MessagingRepository(
+        account: 'me',
+        call: (id, params) async {
+          expect(id, 'K260913000615');
+          reads++;
+          return {'version': reads, 'groups': <Object>[]};
+        },
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RelationshipGroupsPage(
+          contacts: const {},
+          groups: const [],
+          repository: repository,
+          events: events.stream,
+          onChanged: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(reads, 1);
+    events.add({'eventType': 'connection.ready'});
+    await tester.pumpAndSettle();
+    expect(reads, 2);
+    await tester.tap(find.byTooltip('新建分组'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '保留草稿');
+    events.add({'eventType': 'chat.groups.changed'});
+    await tester.pumpAndSettle();
+    expect(reads, 2);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '保留草稿',
+    );
+    Navigator.of(tester.element(find.byType(TextField))).pop();
+    await tester.pumpAndSettle();
+    expect(reads, 3);
+    await tester.pumpWidget(const SizedBox());
+    await events.close();
+  });
   testWidgets(
     'cleanup checks real contacts and only removes unavailable group members',
     (tester) async {
