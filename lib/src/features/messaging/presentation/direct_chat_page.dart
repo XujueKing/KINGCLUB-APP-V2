@@ -1,3 +1,5 @@
+import '../data/chat_location.dart';
+import 'chat_location_picker_page.dart';
 import '../data/chat_voice_playback.dart';
 import '../data/voice_draft_sender.dart';
 import '../../../core/design_system/king_components.dart';
@@ -989,6 +991,24 @@ class _DirectChatPageState extends State<DirectChatPage>
     };
   }
 
+  Future<void> _selectChatLocation() async {
+    final chat = _chat;
+    if (chat == null || _readOnly) return;
+    _voicePlayback?.stop();
+    _inputFocusNode.unfocus();
+    await Navigator.of(context).push<ChatLocation>(
+      MaterialPageRoute(
+        builder: (_) => ChatLocationPickerPage(
+          onConfirm: (location) async {
+            var queued = false;
+            await chat.sendLocation(location, onQueued: () => queued = true);
+            if (!queued) throw StateError('会话已关闭');
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _attachmentPanel() {
     final actions = <Widget>[
       _AttachmentAction(
@@ -1015,7 +1035,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         assetPath: 'assets/legacy/messaging/action_location.svg',
         glyphSize: 32,
         label: '位置',
-        onTap: () => KingNotice.of(context).show('位置分享暂未开放'),
+        onTap: _selectChatLocation,
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/more_3.png',
@@ -1520,7 +1540,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     }
     _selectingImage = true;
     try {
-      _dismissComposer();
+      _inputFocusNode.unfocus();
       final file = await ImagePicker().pickImage(source: source);
       if (file == null || !mounted || !identical(chat, _chat)) return;
       final length = await file.length();
