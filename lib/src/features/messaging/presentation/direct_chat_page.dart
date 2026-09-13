@@ -166,7 +166,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     with WidgetsBindingObserver {
   ChatSessionController? _chat;
   CallLaunchCoordinator? _callLauncher;
-  bool _openingCall = false;
+  bool _openingCall = false, _choosingCall = false;
   String? get _realTarget => widget.groupId ?? widget.peerAccount;
   StreamSubscription<Map<String, dynamic>>? _chatEvents;
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
@@ -432,12 +432,47 @@ class _DirectChatPageState extends State<DirectChatPage>
     }
   }
 
-  Future<void> _openVideoCall() async {
+  Future<void> _chooseCallType() async {
+    if (_openingCall || _choosingCall || _leaving) return;
+    _choosingCall = true;
+    try {
+      final media = await showModalBottomSheet<CallMedia>(
+        context: context,
+        backgroundColor: legacyActionMenuBackground,
+        builder: (sheetContext) => LegacyActionMenuStyle(
+          child: SafeArea(
+            child: Wrap(
+              children: [
+                for (final type in CallMedia.values)
+                  ListTile(
+                    key: ValueKey('call-type-${type.name}'),
+                    leading: Icon(
+                      type == CallMedia.audio ? Icons.call : Icons.videocam,
+                    ),
+                    title: Text(type == CallMedia.audio ? '语音通话' : '视频通话'),
+                    onTap: () => Navigator.pop(sheetContext, type),
+                  ),
+                ListTile(
+                  title: const Text('取消'),
+                  onTap: () => Navigator.pop(sheetContext),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (mounted && !_leaving && media != null) await _openCall(media);
+    } finally {
+      _choosingCall = false;
+    }
+  }
+
+  Future<void> _openCall(CallMedia media) async {
     if (_openingCall || _leaving) return;
     final chat = _chat;
     final peer = widget.peerAccount;
     if (widget.groupId != null) {
-      KingNotice.of(context).show('群视频通话尚未接通');
+      KingNotice.of(context).show('群语音与视频通话尚未接通');
       return;
     }
     if (chat == null || peer == null) {
@@ -450,10 +485,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       CallRepository(chat.messaging),
     );
     try {
-      final prepared = await launcher.outgoing(
-        peer: peer,
-        media: CallMedia.video,
-      );
+      final prepared = await launcher.outgoing(peer: peer, media: media);
       if (!mounted || _leaving || !identical(_callLauncher, launcher)) return;
       final page = CallPage.native(
         repository: launcher.repository,
@@ -1143,7 +1175,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         assetPath: 'assets/legacy/messaging/action_video_call.svg',
         glyphSize: 32,
         label: '视频通话',
-        onTap: _openVideoCall,
+        onTap: _chooseCallType,
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_location.svg',

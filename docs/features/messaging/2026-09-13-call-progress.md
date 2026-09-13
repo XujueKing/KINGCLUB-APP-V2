@@ -110,3 +110,10 @@ CallStateController 不再将 native connected 永久锁存；每次原生连接
 补充 CHAT_CALL_ACCESS_DENIED/CHAT_CALL_SIGNAL_DENIED 为终止本地媒体的权限错误，防止被拒绝设备继续采集。断线前已经在途的信令读取仍可能续期一次，最终以服务端期限为准；没有用客户端系统时钟伪造服务端结束。
 
 验证：call_state_controller、call_media_session、call_page 共 9 项测试通过；新用例覆盖初始协商、active 断线不续、状态轮询继续、恢复后续期、服务端结束释放媒体。静态分析通过。需要与服务端 072 同批部署后真机弱网验证；尚未实施 ICE restart、新中继凭据续期、后台通话保活及双机实际通话，因此不算完整音视频交付。
+
+
+## 语音/视频拨号选择
+
+保留聊天附件面板原视频通话入口，点击后沿用 LegacyActionMenuStyle 弹出“语音通话／视频通话／取消”。选择明确类型后才调用 643，取消不请求网络或申请媒体权限。两种类型复用同一账号绑定 coordinator、幂等重试和离页回收；CallPage.native 根据 mediaKind 选择 NativeCallMedia，audio 使用 video:false。群语音/视频仍明确未接通，不误用单聊接口。
+
+验证：入口/原生媒体/启动协调器共 11 项通过；进一步补充取消选择不发起拨号，两种入口用例 2 项复跑通过。两文件静态分析通过。没有更新原附件图标布局，未新增演示成功状态。未打包安装和真实双机语音/视频通话，听筒/扬声器/蓝牙路由、后台保活、ICE restart 等仍未完成。
