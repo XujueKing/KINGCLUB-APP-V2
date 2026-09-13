@@ -80,14 +80,8 @@ void main() {
       isNull,
     );
     expect(
-      tester.getBottomLeft(find.text('KING CLUB')).dy,
-      lessThan(
-        tester
-            .getTopLeft(
-              find.byKey(const ValueKey('conversation-pinned-toggle')),
-            )
-            .dy,
-      ),
+      find.byKey(const ValueKey('conversation-pinned-toggle')),
+      findsNothing,
     );
     await tester.enterText(find.byType(TextField), '  king  ');
     await tester.pumpAndSettle();

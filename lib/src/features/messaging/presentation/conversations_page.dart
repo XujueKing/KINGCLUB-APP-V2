@@ -127,34 +127,42 @@ class _ConversationsPageState extends State<ConversationsPage> {
                         text:
                             '已登录 ${widget.otherDeviceCount} 台其他设备${widget.mobileNotificationsDisabled ? '，手机通知已关闭' : ''}',
                       ),
-                    ColoredBox(
-                      color: const Color(0x0DC9B69E),
-                      child: Column(
-                        children: [
-                          if ((_pinnedExpanded || _query.isNotEmpty) &&
-                              _matches('KING CLUB'))
-                            _KingClubConversation(
-                              unreadCount: widget.systemUnreadCount,
-                              onTap: widget.onOpenSystemNotifications,
+                    if (_friendPinned && _friendVisible && _matches('卡座搭子'))
+                      Container(
+                        decoration: const BoxDecoration(
+                          color: Color(0x0DC9B69E),
+                          border: Border(
+                            top: BorderSide(
+                              color: Color(0x1CC9B69E),
+                              width: .5,
                             ),
-                          if ((_pinnedExpanded || _query.isNotEmpty) &&
-                              _friendPinned &&
-                              _friendVisible &&
-                              _matches('卡座搭子'))
-                            _friendConversation(),
-                          if (_query.isEmpty)
-                            _PinnedToggle(
-                              count:
-                                  1 + (_friendPinned && _friendVisible ? 1 : 0),
-                              expanded: _pinnedExpanded,
-                              onTap: () => setState(() {
-                                _friendSlide = 0;
-                                _pinnedExpanded = !_pinnedExpanded;
-                              }),
+                            bottom: BorderSide(
+                              color: Color(0x1CC9B69E),
+                              width: .5,
                             ),
-                        ],
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            if (_pinnedExpanded || _query.isNotEmpty)
+                              _friendConversation(),
+                            if (_query.isEmpty)
+                              _PinnedToggle(
+                                count: 1,
+                                expanded: _pinnedExpanded,
+                                onTap: () => setState(() {
+                                  _friendSlide = 0;
+                                  _pinnedExpanded = !_pinnedExpanded;
+                                }),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
+                    if (_matches('KING CLUB'))
+                      _KingClubConversation(
+                        unreadCount: widget.systemUnreadCount,
+                        onTap: widget.onOpenSystemNotifications,
+                      ),
                     if (!_friendPinned && _friendVisible && _matches('卡座搭子'))
                       _friendConversation(),
                     if (_query.isNotEmpty &&
@@ -540,13 +548,7 @@ class _PinnedToggle extends StatelessWidget {
         onTap: onTap,
         child: Ink(
           height: 84 * MediaQuery.sizeOf(context).width / 750,
-          decoration: const BoxDecoration(
-            color: Colors.transparent,
-            border: Border(
-              top: BorderSide(color: Color(0x1CC9B69E), width: .5),
-              bottom: BorderSide(color: Color(0x1CC9B69E), width: .5),
-            ),
-          ),
+          decoration: const BoxDecoration(color: Colors.transparent),
           child: Row(
             children: [
               SizedBox(width: 70 * MediaQuery.sizeOf(context).width / 750),

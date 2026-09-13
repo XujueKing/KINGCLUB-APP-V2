@@ -833,7 +833,7 @@ void main() {
     await tester.tap(find.text('聊天'));
     await tester.pumpAndSettle();
 
-    expect(find.text('折叠置顶聊天'), findsOneWidget);
+    expect(find.text('折叠置顶聊天'), findsNothing);
     expect(find.text('KING CLUB'), findsOneWidget);
     expect(find.text('收到50枚金币'), findsOneWidget);
     expect(find.text('08月23日'), findsOneWidget);
@@ -891,7 +891,8 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('conversation-pinned-toggle')));
     await tester.pumpAndSettle();
-    expect(find.text('2 个置顶聊天'), findsOneWidget);
+    expect(find.text('1 个置顶聊天'), findsOneWidget);
+    expect(find.text('KING CLUB'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('conversation-seatmate-row')),
       findsNothing,
