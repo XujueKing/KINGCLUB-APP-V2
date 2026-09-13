@@ -126,3 +126,12 @@ NativeCallMedia 增加 setSpeakerphone，调用安装版本 flutter_webrtc Helpe
 挂断先停止轨道、释放流/peer，再等待已在途路由操作并清除免提 override，避免迟到 enable 覆盖关闭。关闭中回调不更新状态。没有改默认系统路由，也不声称“关闭免提”在所有平板/蓝牙/外接耳机下必定等于听筒；设备选择、插拔事件、接听默认策略仍待完整实现与真机验证。
 
 验证：native_call_media/call_state_controller/call_page 共 12 项通过，新增原生失败不改变状态、成功确认后更新、重复切换拒绝、挂断先停采集及迟到切换后重置测试。三文件静态分析通过。尚未打包、实际发声或双机通话，不计为音频路由兼容性验收完成。
+
+
+## 通话控制整包构建与手机覆盖安装
+
+基于 App fbbff56 工作树执行 preview profile arm64 构建，67.6 秒成功，APK 160.6 MB：build/app/outputs/flutter-apk/app-preview-profile.apk。SHA256 `0ff4cf9f9282fa529336e620a996d476e19cd7deef6af698cdfef94285febbe7`。构建包含工作区原有 onboarding 三文件改动，本批未修改或提交。flutter_image_compress_common/flutter_webrtc 的未来 Built-in Kotlin 迁移警告仍在，但 Gradle exit 0、Built APK 成功；PowerShell 的 stderr NativeCommandError 不能当作构建失败。
+
+已对已连接测试手机 adb install -r，返回 Success，保留应用数据。显式启动 MainActivity 后 pidof 返回存活进程；安装更新时间已核对。最初截图全黑，dumpsys power 证实 Asleep，唤醒后窗口焦点仍为系统 NotificationShade/锁屏层，App 是 focused activity；未绕过锁屏、未确认 App 页面实际视觉，未向真实联系人发送消息或发起通话。
+
+本机公网 TURN UDP/TCP/TLS 再探测仍超时。共享测试 API 仍未部署 066–072，故本安装不代表通话已上线；仍需云网络放行、鉴权媒体回传、更新服务部署和双机实测。
