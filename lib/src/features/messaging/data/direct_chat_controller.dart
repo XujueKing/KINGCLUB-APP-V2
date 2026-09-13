@@ -215,6 +215,39 @@ class DirectChatController extends ChatSessionController {
   }
 
   @override
+  Future<void> sendVoice(
+    String assetId,
+    int durationMs, {
+    VoidCallback? onQueued,
+  }) async {
+    if (_disposed) return;
+    if (!RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(assetId)) {
+      throw ArgumentError('语音上传结果无效');
+    }
+    if (durationMs < 1000 || durationMs > 60500) throw ArgumentError('录音时长无效');
+    final id = const Uuid().v4();
+    final message = <String, dynamic>{
+      'clientMessageId': id,
+      'recipient': peer,
+      'sender': repository.account,
+      'messageType': 'voice',
+      'voiceAssetId': assetId,
+      'voiceDurationMs': durationMs,
+      'text': '[语音]',
+      'createdDate': DateTime.now().toUtc().toIso8601String(),
+      'status': 'queued',
+    };
+    await outbox.put(message);
+    if (_disposed) return;
+    _pending[id] = message;
+    _changed();
+    onQueued?.call();
+    await retry(id);
+  }
+
+  @override
   Future<void> retryQueued() async {
     for (final message in _pending.values.toList()) {
       if (_disposed) return;
@@ -232,7 +265,10 @@ class DirectChatController extends ChatSessionController {
     _changed();
     try {
       final kind = pending['messageType'];
-      if (kind != null && kind != 'text' && kind != 'image') {
+      if (kind != null &&
+          kind != 'text' &&
+          kind != 'image' &&
+          kind != 'voice') {
         throw const FormatException('不支持的待发送消息类型');
       }
       final result = kind == 'image'
@@ -241,6 +277,12 @@ class DirectChatController extends ChatSessionController {
               clientMessageId: id,
               assetId: pending['imageAssetId'] as String,
             )
+          : kind == 'voice'
+          ? await repository.sendVoice(
+              peer: peer,
+              clientMessageId: id,
+              assetId: pending['voiceAssetId'] as String,
+            )
           : await repository.sendText(
               peer: peer,
               clientMessageId: id,
@@ -248,6 +290,12 @@ class DirectChatController extends ChatSessionController {
             );
       if (_disposed) return;
       final received = Map<String, dynamic>.from(result['message'] as Map);
+      if (kind == 'voice' &&
+          (received['messageType'] != 'voice' ||
+              received['voiceAssetId'] != pending['voiceAssetId'] ||
+              received['voiceDurationMs'] != pending['voiceDurationMs'])) {
+        throw const FormatException('语音回执与发送内容不符');
+      }
       if (received['clientMessageId'] != id ||
           received['sender'] != repository.account ||
           received['recipient'] != peer ||

@@ -61,11 +61,25 @@ class MessagingRepository {
     'clientMessageId': clientMessageId,
     'assetId': assetId,
   });
+  Future<Map<String, dynamic>> sendVoice({
+    required String peer,
+    required String clientMessageId,
+    required String assetId,
+  }) => call('K260913000637', {
+    'recipient': peer,
+    'clientMessageId': clientMessageId,
+    'assetId': assetId,
+  });
   Future<Map<String, dynamic>> imageMedia(
     String messageId, {
     bool group = false,
   }) =>
       call(group ? 'K260913000635' : 'K260913000633', {'messageId': messageId});
+  Future<Map<String, dynamic>> voiceMedia(
+    String messageId, {
+    bool group = false,
+  }) =>
+      call(group ? 'K260913000640' : 'K260913000638', {'messageId': messageId});
 
   Future<Map<String, dynamic>> setRelationship(String peer, String action) =>
       call('K260913000602', {'peer': peer, 'action': action});
