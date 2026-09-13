@@ -1,3 +1,5 @@
+import '../data/group_chat_repository.dart';
+
 import 'dart:async';
 
 import '../data/messaging_repository.dart';
@@ -178,6 +180,27 @@ class _ConversationsPageState extends State<ConversationsPage> {
   Future<void> _realAction(Map<String, dynamic> item, String action) async {
     final repository = _repository;
     if (repository == null) return;
+    final groupId = item['groupId'] as String?;
+    if (item['kind'] == 'group' && groupId != null) {
+      final groups = GroupChatRepository(repository);
+      try {
+        switch (action) {
+          case 'read':
+            await groups.markRead(
+              groupId,
+              (item['lastSequence'] as num).toInt(),
+            );
+          case 'pin':
+            await groups.settings(groupId, pinned: item['pinned'] != true);
+          case 'hide':
+            await groups.settings(groupId, hide: true);
+        }
+        await _refreshReal();
+      } catch (error) {
+        if (mounted) KingNotice.of(context).show(error.toString());
+      }
+      return;
+    }
     final peer = item['peer'] as String;
     try {
       switch (action) {
@@ -220,10 +243,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
                 title: const Text('不显示'),
                 onTap: () => Navigator.pop(sheet, 'hide'),
               ),
-              ListTile(
-                title: const Text('拉黑'),
-                onTap: () => Navigator.pop(sheet, 'block'),
-              ),
+              if (item['kind'] != 'group')
+                ListTile(
+                  title: const Text('拉黑'),
+                  onTap: () => Navigator.pop(sheet, 'block'),
+                ),
             ],
           ),
         ),
@@ -233,10 +257,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
   }
 
   Widget _realRow(Map<String, dynamic> item) {
-    final peer = item['peer'] as String;
+    final group = item['kind'] == 'group';
+    final target = (group ? item['groupId'] : item['peer']) as String;
+    final slideKey = '${group ? 'group' : 'direct'}:$target';
     final name = (item['remark'] as String?)?.isNotEmpty == true
         ? item['remark'] as String
-        : item['nickname'] as String? ?? peer;
+        : item['nickname'] as String? ?? target;
     final time = DateTime.tryParse(item['messageDate'] as String? ?? '')
         ?.toLocal();
     final date = time == null
@@ -245,7 +271,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     return _FriendConversation(
       name: name,
       date: date,
-      slide: _slides[peer] ?? 0,
+      slide: _slides[slideKey] ?? 0,
       muted: item['muted'] == true,
       unreadCount: (item['unreadCount'] as num).toInt(),
       pinned: item['pinned'] == true,
@@ -257,7 +283,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
           MaterialPageRoute<void>(
             allowSnapshotting: false,
             builder: (_) => DirectChatPage(
-              peerAccount: peer,
+              peerAccount: group ? null : target,
+              groupId: group ? target : null,
               peerName: name,
               repository: _repository,
               initialMuted: item['muted'] == true,
@@ -267,9 +294,10 @@ class _ConversationsPageState extends State<ConversationsPage> {
         await _refreshReal();
       },
       onLongPress: () => _realMenu(item),
-      onSlideChanged: (value) => setState(() => _slides[peer] = value),
-      onSlideEnd: () =>
-          setState(() => _slides[peer] = (_slides[peer] ?? 0) < -72 ? -216 : 0),
+      onSlideChanged: (value) => setState(() => _slides[slideKey] = value),
+      onSlideEnd: () => setState(
+        () => _slides[slideKey] = (_slides[slideKey] ?? 0) < -72 ? -216 : 0,
+      ),
       onToggleRead: () => _realAction(item, 'read'),
       onTogglePin: () => _realAction(item, 'pin'),
       onDelete: () => _realAction(item, 'hide'),

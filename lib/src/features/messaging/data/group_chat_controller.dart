@@ -19,8 +19,12 @@ class GroupChatController extends ChatSessionController {
   MessagingRepository get messaging => repository.messaging;
   @override
   String get conversationId => groupId;
+  final _settings = <String, dynamic>{};
   @override
-  Map<String, dynamic> get settings => {'readSequence': readSequence};
+  Map<String, dynamic> get settings => {
+    ..._settings,
+    'readSequence': readSequence,
+  };
   @override
   void resetVisibleHistory() => clearVisibleHistory();
   final String groupId;
@@ -178,6 +182,15 @@ class GroupChatController extends ChatSessionController {
 
   Future<void> _merge(Map<String, dynamic> result, int generation) async {
     readSequence = (result['readSequence'] as num).toInt();
+    _settings
+      ..clear()
+      ..addAll(
+        Map<String, dynamic>.from(result['settings'] as Map? ?? const {}),
+      );
+    final hidden = (_settings['hiddenThrough'] as num?)?.toInt() ?? 0;
+    _confirmed.removeWhere(
+      (_, message) => (message['sequence'] as num).toInt() <= hidden,
+    );
     for (final raw in result['messages'] as List) {
       if (_disposed || generation != _historyGeneration) return;
       await _acknowledge(Map<String, dynamic>.from(raw as Map));
@@ -189,7 +202,10 @@ class GroupChatController extends ChatSessionController {
       throw const FormatException('Wrong group message');
     }
     final id = message['messageId'] as String;
-    _confirmed[id] = {...message, 'status': 'sent'};
+    if ((message['sequence'] as num).toInt() >
+        ((_settings['hiddenThrough'] as num?)?.toInt() ?? 0)) {
+      _confirmed[id] = {...message, 'status': 'sent'};
+    }
     if (message['sender'] == repository.account) {
       final clientId = message['clientMessageId'] as String;
       if (_pending.containsKey(clientId)) {

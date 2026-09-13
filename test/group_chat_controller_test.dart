@@ -38,6 +38,32 @@ Map<String, dynamic> message(String id) => {
   'createdDate': '2026-09-13T01:00:00Z',
 };
 void main() {
+  test('server hide cursor removes already loaded history', () async {
+    var hidden = false;
+    final chat = GroupChatController(
+      groupId: 'group',
+      outbox: Queue(),
+      repository: GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (_, _) async {
+            return {
+              ...history(hidden ? [] : [message('old')]),
+              'settings': {'hiddenThrough': hidden ? 1 : 0, 'muted': true},
+            };
+          },
+        ),
+      ),
+    );
+    await chat.initialize();
+    expect(chat.messages.length, 1);
+    hidden = true;
+    await chat.synchronize();
+    expect(chat.messages, isEmpty);
+    expect(chat.settings['muted'], true);
+    chat.dispose();
+  });
+
   test(
     'group creation retries with same identity and canonical member order',
     () async {

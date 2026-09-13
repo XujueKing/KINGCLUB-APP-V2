@@ -80,6 +80,17 @@ class GroupChatRepository {
     });
   }
 
+  Future<Map<String, dynamic>> settings(
+    String groupId, {
+    bool? muted,
+    bool? pinned,
+    bool? hide,
+  }) => messaging.call('K260913000623', {
+    'groupId': groupId,
+    'muted': ?muted,
+    'pinned': ?pinned,
+    'hide': ?hide,
+  });
   Future<Map<String, dynamic>> markRead(String groupId, int sequence) =>
       messaging.call('K260913000622', {
         'groupId': groupId,
