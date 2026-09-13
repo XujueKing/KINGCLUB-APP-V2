@@ -162,6 +162,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   bool _selectingImage = false;
   VoiceCapture? _capture;
   bool _leaving = false;
+  int _voiceSession = 0;
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _inputFocusNode = FocusNode();
@@ -173,6 +174,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   Offset? _voiceStart;
 
   void _beginVoiceHold(PointerDownEvent details) {
+    if (_readOnly) return;
     _capture ??= widget.voiceCapture ?? VoiceCapture.native();
     if (!_capture!.begin(onLimit: _endVoiceHold)) return;
     _voiceStart = details.position;
@@ -203,9 +205,12 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Future<void> _finishRecording(bool cancel, VoiceHoldTarget target) async {
+    final session = _voiceSession;
     try {
       final draft = await _capture?.finish(cancel: cancel);
-      if (!mounted || _leaving || draft == null) return;
+      if (!mounted || _leaving || draft == null || session != _voiceSession) {
+        return;
+      }
       if (target == VoiceHoldTarget.text) {
         KingNotice.of(context).show('录音已保留，转文字服务尚未接通');
       }
@@ -303,6 +308,8 @@ class _DirectChatPageState extends State<DirectChatPage>
         }
       });
       _sessionEvents = SecureSessionStore.changes.stream.listen((_) {
+        _voiceSession++;
+        _endVoiceHold(interrupted: true);
         _chatEvents?.cancel();
         _chat?.removeListener(_realChatChanged);
         _chat?.dispose();

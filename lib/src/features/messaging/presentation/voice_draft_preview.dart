@@ -1,4 +1,9 @@
-import 'package:path_provider/path_provider.dart';
+import '../../../core/session/member_qr_memory.dart';
+
+import 'dart:async';
+
+import '../data/voice_draft_store.dart';
+import '../../../core/session/secure_session_store.dart';
 
 import 'dart:io';
 
@@ -18,9 +23,20 @@ class VoiceDraftPreview extends StatefulWidget {
 class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
   late final _player = AudioPlayer();
   bool _playing = false;
+  bool _valid = true;
+  StreamSubscription<void>? _session;
   @override
   void initState() {
     super.initState();
+    _session = SecureSessionStore.changes.stream.listen((_) {
+      _player.stop().catchError((Object _) {});
+      if (mounted) {
+        setState(() {
+          _valid = false;
+          _playing = false;
+        });
+      }
+    });
     _player.onPlayerComplete.listen((_) {
       if (mounted) setState(() => _playing = false);
     });
@@ -28,10 +44,18 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
 
   Future<void> _toggle() async {
     try {
+      final store = await VoiceDraftStore.current();
+      if (!_valid || !store.owns(widget.draft.path)) {
+        throw StateError('录音不属于当前账号');
+      }
       if (_playing) {
         await _player.stop();
       } else {
         await _player.play(DeviceFileSource(widget.draft.path));
+      }
+      if (!_valid) {
+        await _player.stop();
+        return;
       }
       if (mounted) setState(() => _playing = !_playing);
     } catch (_) {
@@ -41,6 +65,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
 
   @override
   void dispose() {
+    _session?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -58,7 +83,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
             Text('${widget.draft.duration.inSeconds} 秒'),
           IconButton(
             tooltip: _playing ? '停止播放' : '播放录音',
-            onPressed: _toggle,
+            onPressed: _valid ? _toggle : null,
             icon: Icon(
               _playing ? Icons.stop_circle_outlined : Icons.play_circle_outline,
               size: 40,
@@ -72,12 +97,22 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               TextButton(
-                onPressed: () async {
-                  await _player.stop();
-                  final file = File(widget.draft.path);
-                  if (await file.exists()) await file.delete();
-                  if (context.mounted) Navigator.pop(context);
-                },
+                onPressed: !_valid
+                    ? null
+                    : () async {
+                        try {
+                          await _player.stop();
+                          final store = await VoiceDraftStore.current();
+                          if (!_valid || !store.owns(widget.draft.path)) return;
+                          final file = File(widget.draft.path);
+                          if (await file.exists()) await file.delete();
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (_) {
+                          if (context.mounted) {
+                            KingNotice.of(context).show('无法删除录音，请重试');
+                          }
+                        }
+                      },
                 child: const Text('删除录音'),
               ),
               TextButton(
@@ -93,17 +128,15 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
 }
 
 Future<void> showVoiceDrafts(BuildContext context) async {
-  final root = await getApplicationSupportDirectory();
-  final directory = Directory('${root.path}/voice_drafts');
-  final files = await directory.exists()
-      ? await directory
-            .list()
-            .where((f) => f is File && f.path.endsWith('.m4a'))
-            .cast<File>()
-            .toList()
-      : <File>[];
-  files.sort((a, b) => b.path.compareTo(a.path));
-  if (!context.mounted) return;
+  final generation = MemberQrMemory.generation;
+  List<File> files;
+  try {
+    files = await (await VoiceDraftStore.current()).list();
+  } catch (_) {
+    if (context.mounted) KingNotice.of(context).show('请重新登录后查看录音');
+    return;
+  }
+  if (!context.mounted || generation != MemberQrMemory.generation) return;
   await showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,

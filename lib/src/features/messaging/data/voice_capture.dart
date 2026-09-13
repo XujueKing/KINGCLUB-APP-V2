@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
+import 'voice_draft_store.dart';
+
 import 'package:record/record.dart';
 
 class VoiceDraft {
@@ -60,13 +60,7 @@ class VoiceCapture {
 
   static VoiceCapture native() => VoiceCapture(
     device: NativeVoiceCaptureDevice(),
-    allocatePath: () async {
-      final dir = Directory(
-        '${(await getApplicationSupportDirectory()).path}/voice_drafts',
-      );
-      await dir.create(recursive: true);
-      return '${dir.path}/${DateTime.now().microsecondsSinceEpoch}.m4a';
-    },
+    allocatePath: () async => (await VoiceDraftStore.current()).allocate(),
   );
 
   bool begin({required void Function() onLimit}) {
