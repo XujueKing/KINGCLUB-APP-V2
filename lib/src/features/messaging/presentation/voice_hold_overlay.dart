@@ -48,55 +48,6 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
               builder: (context, target, _) => LayoutBuilder(
                 builder: (context, bounds) {
                   final cancel = target == VoiceHoldTarget.cancel;
-                  Widget action(
-                    VoiceHoldTarget kind,
-                    IconData icon,
-                    String label,
-                  ) {
-                    final left = kind == VoiceHoldTarget.cancel;
-                    final color = target == kind
-                        ? (left ? '#B76450' : '#64CB99')
-                        : '#292929';
-                    return SizedBox(
-                      width: bounds.maxWidth * (267 / 579),
-                      height: bounds.maxWidth * (143 / 579),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Positioned.fill(
-                            child: Transform.flip(
-                              flipX: !left,
-                              child: SvgPicture.string(
-                                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 267 143"><path fill="$color" d="M0 41 C75 20 151 4 210 0 C242 -2 267 20 267 50 C267 78 249 96 220 100 C143 105 66 123 0 143 Z"/></svg>',
-                                fit: BoxFit.fill,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.only(
-                              left: left ? 8 : 0,
-                              right: left ? 0 : 8,
-                              top: 12,
-                            ),
-                            child: Transform.rotate(
-                              angle: left ? -.16 : .16,
-                              child: Text(
-                                left ? '取消' : '滑到这里 转文字',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w400,
-                                  color: target == kind
-                                      ? const Color(0xFF15271F)
-                                      : const Color(0xFFCCCCCC),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
                   return Stack(
                     children: [
                       Positioned(
@@ -173,94 +124,37 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                           ],
                         ),
                       ),
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 115,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            action(VoiceHoldTarget.cancel, Icons.close, '取消'),
-                            action(
-                              VoiceHoldTarget.text,
-                              Icons.text_fields,
-                              '转文字',
-                            ),
-                          ],
-                        ),
-                      ),
                       Positioned.fill(
                         child: TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0, end: 1),
                           duration: const Duration(milliseconds: 650),
                           curve: const ElasticOutCurve(.7),
-                          builder: (context, t, _) {
-                            final r = bounds.maxWidth / 750;
-                            final width =
-                                (bounds.maxWidth - 60 * r) +
-                                (bounds.maxWidth * .4 + 60 * r) * t;
-                            final height = 80 * r + (180 - 80 * r) * t;
-                            final bottom = 22 * r + (-65 - 22 * r) * t;
-                            return Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Positioned(
+                          builder: (context, t, _) => Stack(
+                            children: [
+                              Positioned.fill(
+                                child: CustomPaint(
                                   key: const ValueKey('voice-hold-jelly-morph'),
-                                  left: (bounds.maxWidth - width) / 2,
-                                  bottom: bottom,
-                                  width: width,
-                                  height: height,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.vertical(
-                                        top: Radius.elliptical(
-                                          width / 2,
-                                          24 + 90 * t,
-                                        ),
-                                        bottom: const Radius.circular(28),
-                                      ),
-                                      gradient: const LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Color(0xFFF2D2A6),
-                                          Color(0xFFE4B780),
-                                          Color(0xFFD19A60),
-                                        ],
-                                      ),
-                                      border: Border.all(
-                                        color: const Color(0x88FFE6C6),
-                                        width: 1.2,
-                                      ),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x44C99254),
-                                          blurRadius: 12,
-                                        ),
-                                      ],
-                                    ),
-                                    child: Align(
-                                      alignment: Alignment.topCenter,
-                                      child: Padding(
-                                        padding: EdgeInsets.only(
-                                          top: 8 + 24 * t,
-                                        ),
-                                        child: SvgPicture.asset(
-                                          'assets/legacy/messaging/microphone.svg',
-                                          width: 30,
-                                          height: 30,
-                                          colorFilter: const ColorFilter.mode(
-                                            Color(0xFF624326),
-                                            BlendMode.srcIn,
-                                          ),
-                                        ),
-                                      ),
+                                  painter: _VoiceRingPainter(target, t),
+                                ),
+                              ),
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 53,
+                                child: Center(
+                                  child: SvgPicture.asset(
+                                    'assets/legacy/messaging/microphone.svg',
+                                    width: 30,
+                                    height: 30,
+                                    colorFilter: const ColorFilter.mode(
+                                      Color(0xFF624326),
+                                      BlendMode.srcIn,
                                     ),
                                   ),
                                 ),
-                              ],
-                            );
-                          },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -299,4 +193,88 @@ class _VoiceBubbleClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(_VoiceBubbleClipper oldClipper) => false;
+}
+
+// Geometry follows the reference: concentric circles and round stroke caps.
+class _VoiceRingPainter extends CustomPainter {
+  _VoiceRingPainter(this.target, this.progress);
+  final VoiceHoldTarget target;
+  final double progress;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final radius = size.width * 1.15;
+    final center = Offset(size.width / 2, size.height - 115 + radius);
+    final thickness = size.width * (78 / 504);
+    final ringRadius = radius + size.width * (58 / 504);
+    final halfGap = size.width * (22 / 504) / 2;
+    final split = math.asin((halfGap + thickness / 2) / ringRadius);
+    final rect = Rect.fromCircle(center: center, radius: ringRadius);
+    for (final left in [true, false]) {
+      final kind = left ? VoiceHoldTarget.cancel : VoiceHoldTarget.text;
+      final paint = Paint()
+        ..color = target == kind
+            ? (left ? const Color(0xFFB76450) : const Color(0xFF64CB99))
+            : const Color(0xFF292929)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = thickness
+        ..strokeCap = StrokeCap.round;
+      final start = left ? -math.pi : -math.pi / 2 + split;
+      final sweep = math.pi / 2 - split;
+      canvas.drawArc(rect, start, sweep, false, paint);
+      final textAngle = (left ? -1 : 1) * .215;
+      final anchor =
+          center +
+          Offset(
+            math.sin(textAngle) * ringRadius,
+            -math.cos(textAngle) * ringRadius,
+          );
+      final text = TextPainter(
+        text: TextSpan(
+          text: left ? '取消' : '滑到这里 转文字',
+          style: TextStyle(
+            color: target == kind
+                ? const Color(0xFF15271F)
+                : const Color(0xFFCCCCCC),
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      canvas.save();
+      canvas.translate(anchor.dx, anchor.dy);
+      canvas.rotate(textAngle);
+      text.paint(canvas, Offset(-text.width / 2, -text.height / 2));
+      canvas.restore();
+    }
+    final t = progress;
+    final startWidth = size.width * .92;
+    final width = startWidth + (radius * 2 - startWidth) * t;
+    final height = 40 + (radius * 2 - 40) * t;
+    final top =
+        (size.height - 62) + ((center.dy - radius) - (size.height - 62)) * t;
+    final body = Rect.fromLTWH((size.width - width) / 2, top, width, height);
+    final shape = RRect.fromRectAndRadius(
+      body,
+      Radius.circular(20 + (radius - 20) * t),
+    );
+    final paint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFF2D2A6), Color(0xFFE4B780), Color(0xFFD19A60)],
+      ).createShader(Rect.fromLTWH(0, top, size.width, 180));
+    canvas.drawRRect(shape, paint);
+    canvas.drawRRect(
+      shape,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = const Color(0x88FFE6C6),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_VoiceRingPainter old) =>
+      old.target != target || old.progress != progress;
 }
