@@ -1,6 +1,6 @@
 # 单聊与关注关系数据库审查
 
-状态：Model In Review，2026-09-13。用户授权持续开发及隔离联调；本文件未将尚未核完的旧接口分类、Routine 依赖标为完成。未执行聊天数据库迁移。
+状态：隔离合成数据联调中，2026-09-13。用户授权持续开发及隔离联调；036 migration 仅计划执行于 kingclub_chat_test_ 独立库，未切换真实会员聊天。完整旧资料内容链、群聊和资产消息仍单独审查。
 
 ## 用户动作及最新边界
 
@@ -15,7 +15,7 @@
 | 头像 | pages/chat/chat.js:833 → pages/userInfo/userInfo → S231202506270743 | 背景、头像、账号、签名、关注/粉丝、标签、作品/动态；不将实名证件、手机号等私有列投影给任意访客 |
 | 关注 | pages/userInfo/userInfo.js followTap → S231202506290744 | 新版互关即好友覆盖旧版独立朋友私聊申请；旧 Routine 和表依赖仍待完整提取 |
 
-待补证据：四个接口的 s_interface.interfaceType → s_interface_type 父链；推送线程落表；关注 Routine、触发器/事件递归依赖。未完成前不宣称 Inventory Complete。
+已补分类证据：四个接口均为 S232202502210099(App) → S232202502210097(酒吧)。K_setFollow 同一事务写 k_user_follow.followList、k_user_setup.userRelation/备注，并调用 getGenerateId；已有异常回滚。推送线程 RunnablePushThreadList 使用服务端重算收件人，写 KPushLog，读取注册推送标识并调用外部推送。新版本切片不读写旧数据，不复用旧关注 Routine/触发器或外部推送；旧内容完整导入未获本切片声明。
 
 ## 已核对旧数据结构及目标去向
 
@@ -31,6 +31,10 @@
 | k_conversations_group_temp、k_goldcoin_detail、k_config | 历史 Routine 混合返回群申请、金币及配置 | 从单聊纯历史返回拆出；不在本切片授予资产/群操作 |
 
 K_SendMessage 递归调用 getGenerateId、get_display_chat_time、k_setCount_Exp。用户明确批准取消普通聊天的经验扣减，后者不迁移到发送事务；公共身份、资产函数不因被引用自动迁移。旧消息类型 0 文本、1 图片、2 文件、3 音频、4 视频、5 金币、6 红包、7 AA、8 礼物、9 群房间，不用其数值表达已送达状态。
+
+K_getNewUserInfo 的额外只读依赖已提取：k_division（旧证件属地）、k_getZodiac、k_user_examine_images、k_level_config、k_user_follow、k_user_works/k_user_works_files、k_user_like_praise_collect、k_user_relation。新版城市沿用用户明确要求的授权定位/手选城市，不用证件属地；私有姓名证件密文不返回访客；作品可见性及媒体授权在公开资料切片继续完成。
+
+用户后续规则：扫码好友申请仍需接收方通过；通过原子建立双方关注。仅聊天为本人对该好友的定向内容权限，好友身份与聊天保留；作品、日常及媒体直链均不得绕过，不能把双向关注简单当作内容访问许可。
 
 ## 新版事务契约（实施中）
 
