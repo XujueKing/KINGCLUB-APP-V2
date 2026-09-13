@@ -10,6 +10,66 @@ import 'package:kingclub/src/features/messaging/presentation/group_details_page.
 
 void main() {
   testWidgets(
+    'owner rename preserves failed draft then refreshes acknowledged name',
+    (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      var name = '原群名';
+      var fail = true;
+      Map<String, dynamic>? request;
+      final repo = GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (id, params) async {
+            if (id == 'K260913000619')
+              return {
+                'groupName': name,
+                'ownerAccount': 'me',
+                'metadataVersion': 2,
+                'members': [],
+              };
+            if (id == 'K260913000621')
+              return {
+                'settings': {'muted': false, 'pinned': false},
+              };
+            if (id == 'K260913000624') {
+              request = params;
+              if (fail) throw StateError('保存失败');
+              name = params['name'] as String;
+              return {'groupName': name, 'metadataVersion': 3, 'changed': true};
+            }
+            throw StateError(id);
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GroupDetailsPage(groupId: 'group-real', repository: repo),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('group-name-row')));
+      await tester.pumpAndSettle();
+      final input = find.byKey(const ValueKey('group-name-input'));
+      await tester.enterText(input, '新群名');
+      await tester.tap(find.byKey(const ValueKey('group-name-save')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(input).controller!.text, '新群名');
+      expect(find.text('原群名'), findsOneWidget);
+      fail = false;
+      await tester.tap(find.byKey(const ValueKey('group-name-save')));
+      await tester.pumpAndSettle();
+      expect(request, {
+        'groupId': 'group-real',
+        'name': '新群名',
+        'expectedVersion': 2,
+      });
+      expect(input, findsNothing);
+      expect(find.text('新群名'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
     'group switches acknowledge owner settings, retain values on failure and reject late session results',
     (tester) async {
       FlutterSecureStorage.setMockInitialValues({});
@@ -70,7 +130,7 @@ void main() {
       await tester.pump();
       expect(tester.widget<Switch>(pin).onChanged, isNull);
       SecureSessionStore.changes.add(null);
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.text('真实群'), findsNothing);
       pending.complete({'saved': true});
       await tester.pumpAndSettle();

@@ -417,7 +417,7 @@ class _DirectChatPageState extends State<DirectChatPage>
           children: [
             LegacyMessagingHeader(
               alignToConversationTitle: true,
-              title: widget.peerName,
+              title: _chat?.settings['groupName'] as String? ?? widget.peerName,
               onBack: () => Navigator.pop(context),
               trailing: IconButton(
                 key: const ValueKey('direct-chat-details'),
@@ -1584,7 +1584,11 @@ class _DirectChatPageState extends State<DirectChatPage>
           ),
         ),
       );
-      if (mounted) await _chat?.synchronize();
+      if (mounted) {
+        final chat = _chat;
+        if (chat is GroupChatController) chat.invalidateMemberNames();
+        await chat?.synchronize();
+      }
       return;
     }
     final cleared = await Navigator.push<bool>(

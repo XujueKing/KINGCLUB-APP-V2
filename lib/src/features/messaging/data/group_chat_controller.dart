@@ -23,10 +23,12 @@ class GroupChatController extends ChatSessionController {
   final _memberNames = <String, String>{};
   bool _membersLoaded = false;
   int _memberGeneration = 0;
+  String? _groupName;
   @override
   Map<String, dynamic> get settings => {
     ..._settings,
     'readSequence': readSequence,
+    'groupName': _groupName,
   };
   @override
   void resetVisibleHistory() => clearVisibleHistory();
@@ -170,6 +172,7 @@ class GroupChatController extends ChatSessionController {
           !hasAccess) {
         return;
       }
+      _groupName = result['groupName'] as String?;
       _memberNames.clear();
       for (final raw in result['members'] as List) {
         final member = raw as Map;

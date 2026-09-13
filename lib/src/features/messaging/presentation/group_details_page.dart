@@ -26,6 +26,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   String? _error;
   bool _invalid = false;
   bool _saving = false;
+  final _name = TextEditingController();
+  int? _editingVersion;
   Map<String, dynamic> _settings = {};
   int _generation = 0;
   StreamSubscription<void>? _session;
@@ -35,6 +37,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     super.initState();
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
+      _name.clear();
+      _editingVersion = null;
       _generation++;
       if (mounted) {
         setState(() {
@@ -113,6 +117,34 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     if (mounted && !_invalid) await _load();
   }
 
+  Future<void> _rename() async {
+    if (_invalid ||
+        _saving ||
+        _editingVersion == null ||
+        _details?['ownerAccount'] != widget.repository.account) {
+      return;
+    }
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = '请填写群名称');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.repository.rename(widget.groupId, name, _editingVersion!);
+      if (!mounted || _invalid) return;
+      setState(() => _editingVersion = null);
+      await _load();
+    } catch (error) {
+      if (mounted && !_invalid) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Widget _settingRow(String label, String field) => ListTile(
     title: Text(
       label,
@@ -131,6 +163,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   @override
   void dispose() {
+    _name.dispose();
     _generation++;
     _session?.cancel();
     _events?.cancel();
@@ -160,11 +193,63 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   ),
                 if (_details != null) ...[
                   ListTile(
+                    key: const ValueKey('group-name-row'),
+                    onTap:
+                        !_saving &&
+                            _details!['ownerAccount'] ==
+                                widget.repository.account
+                        ? () => setState(() {
+                            _name.text = _details!['groupName'] as String;
+                            _editingVersion =
+                                (_details!['metadataVersion'] as num).toInt();
+                          })
+                        : null,
+                    trailing:
+                        _details!['ownerAccount'] == widget.repository.account
+                        ? const Icon(
+                            Icons.chevron_right,
+                            color: Color(0xFFC9B69E),
+                          )
+                        : null,
                     title: Text(
                       _details!['groupName'] as String,
                       style: const TextStyle(color: Colors.white, fontSize: 18),
                     ),
                   ),
+                  if (_editingVersion != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        children: [
+                          TextField(
+                            key: const ValueKey('group-name-input'),
+                            controller: _name,
+                            enabled: !_saving,
+                            maxLength: 64,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(labelText: '群名称'),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                onPressed: _saving
+                                    ? null
+                                    : () => setState(
+                                        () => _editingVersion = null,
+                                      ),
+                                child: const Text('取消'),
+                              ),
+                              TextButton(
+                                key: const ValueKey('group-name-save'),
+                                onPressed: _saving ? null : _rename,
+                                child: const Text('保存'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   _settingRow('消息免打扰', 'muted'),
                   const Divider(
                     indent: 24,

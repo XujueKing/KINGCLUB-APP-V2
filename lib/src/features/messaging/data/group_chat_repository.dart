@@ -91,6 +91,16 @@ class GroupChatRepository {
     'pinned': ?pinned,
     'hide': ?hide,
   });
+  Future<Map<String, dynamic>> rename(
+    String groupId,
+    String name,
+    int expectedVersion,
+  ) => messaging.call('K260913000624', {
+    'groupId': groupId,
+    'name': name.trim(),
+    'expectedVersion': expectedVersion,
+  });
+
   Future<Map<String, dynamic>> markRead(String groupId, int sequence) =>
       messaging.call('K260913000622', {
         'groupId': groupId,
