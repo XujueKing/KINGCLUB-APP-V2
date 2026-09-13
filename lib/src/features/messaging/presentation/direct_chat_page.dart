@@ -1,3 +1,5 @@
+import 'voice_hold_overlay.dart';
+
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
@@ -128,6 +130,43 @@ class _DirectChatPageState extends State<DirectChatPage>
   bool _scrollScheduled = false;
   _ComposerPanel _composerPanel = _ComposerPanel.none;
   bool _voiceMode = false;
+  OverlayEntry? _voiceOverlay;
+  final _voiceTarget = ValueNotifier(VoiceHoldTarget.send);
+  Offset? _voiceStart;
+
+  void _beginVoiceHold(LongPressStartDetails details) {
+    _voiceStart = details.globalPosition;
+    _voiceTarget.value = VoiceHoldTarget.send;
+    _voiceOverlay?.remove();
+    _voiceOverlay = OverlayEntry(
+      builder: (_) => VoiceHoldOverlay(target: _voiceTarget),
+    );
+    Overlay.of(context, rootOverlay: true).insert(_voiceOverlay!);
+  }
+
+  void _moveVoiceHold(LongPressMoveUpdateDetails details) {
+    final dy =
+        details.globalPosition.dy -
+        (_voiceStart?.dy ?? details.globalPosition.dy);
+    _voiceTarget.value = dy < -60
+        ? (details.globalPosition.dx < MediaQuery.sizeOf(context).width / 2
+              ? VoiceHoldTarget.cancel
+              : VoiceHoldTarget.text)
+        : VoiceHoldTarget.send;
+  }
+
+  void _endVoiceHold({bool interrupted = false}) {
+    if (_voiceOverlay == null) return;
+    _voiceOverlay?.remove();
+    _voiceOverlay = null;
+    _voiceStart = null;
+    if (!interrupted && _voiceTarget.value != VoiceHoldTarget.cancel) {
+      KingNotice.of(context).show(
+        _voiceTarget.value == VoiceHoldTarget.text ? '语音转文字暂未接入' : '语音录制暂未接入',
+      );
+    }
+  }
+
   int _attachmentPage = 0;
   int _giftCategory = 0;
   int? _selectedGift;
@@ -165,6 +204,8 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   @override
   void dispose() {
+    _endVoiceHold(interrupted: true);
+    _voiceTarget.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _keyboardScrollDebounce?.cancel();
     _inputFocusNode
@@ -527,9 +568,15 @@ class _DirectChatPageState extends State<DirectChatPage>
                                               'direct-chat-hold-to-talk',
                                             ),
                                             behavior: HitTestBehavior.opaque,
-                                            onLongPress: () =>
-                                                KingNotice.of(context)
-                                                    .show('语音录制暂未接入'),
+                                            onLongPressStart: _beginVoiceHold,
+                                            onLongPressMoveUpdate:
+                                                _moveVoiceHold,
+                                            onLongPressEnd: (_) =>
+                                                _endVoiceHold(),
+                                            onLongPressCancel: () =>
+                                                _endVoiceHold(
+                                                  interrupted: true,
+                                                ),
                                             child: const Center(
                                               child: Text(
                                                 '按住 说话',

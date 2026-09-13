@@ -3,6 +3,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
 void main() {
+ testWidgets('hold overlay highlights cancel and dismisses on release', (tester) async {
+  tester.view.devicePixelRatio = 1; tester.view.physicalSize = const Size(360, 640);
+  addTearDown(tester.view.resetDevicePixelRatio); addTearDown(tester.view.resetPhysicalSize);
+  await tester.pumpWidget(MaterialApp(theme: KingTheme.dark, home: const DirectChatPage()));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('direct-chat-microphone'))); await tester.pumpAndSettle();
+  final gesture = await tester.startGesture(tester.getCenter(find.byKey(const ValueKey('direct-chat-hold-to-talk'))));
+  await tester.pump(const Duration(milliseconds: 600));
+  expect(find.text('松手发送'), findsOneWidget);
+  await gesture.moveBy(const Offset(-100, -100)); await tester.pump(const Duration(milliseconds: 180));
+  expect(find.text('松开取消'), findsOneWidget);
+  await gesture.up(); await tester.pumpAndSettle();
+  expect(find.text('松开取消'), findsNothing);
+  expect(tester.takeException(), isNull);
+ });
  testWidgets('microphone expands and returns to text without losing draft', (tester) async {
   tester.view.devicePixelRatio = 1; tester.view.physicalSize = const Size(360, 640);
   addTearDown(tester.view.resetDevicePixelRatio); addTearDown(tester.view.resetPhysicalSize);
