@@ -25,6 +25,8 @@ class StreamFixture implements MediaStream {
   @override
   List<MediaStreamTrack> getAudioTracks() => [track];
   @override
+  List<MediaStreamTrack> getVideoTracks() => [track];
+  @override
   Future<void> dispose() async {
     disposed++;
   }
@@ -70,6 +72,62 @@ class Sender implements RTCRtpSender {
 }
 
 void main() {
+  test('camera switch coalesces, handles rear result, retries errors and rejects late completion after hangup', () async {
+    final stream = StreamFixture();
+    var response = Completer<bool>();
+    var switches = 0;
+    final media = NativeCallMedia(
+      video: true,
+      iceServers: [],
+      capture: (_) async => stream,
+      peerFactory: (_) async => Peer(),
+      switchCamera: (track) {
+        expect(track, stream.track);
+        switches++;
+        return response.future;
+      },
+    );
+    await media.open();
+    final first = media.switchCamera();
+    expect(identical(first, media.switchCamera()), true);
+    response.complete(false);
+    expect(await first, false);
+    expect(media.frontFacing, false);
+    expect(switches, 1);
+    response = Completer<bool>();
+    final failed = media.switchCamera();
+    final assertion = expectLater(failed, throwsException);
+    response.completeError(Exception('camera unavailable'));
+    await assertion;
+    expect(media.frontFacing, false);
+    response = Completer<bool>();
+    final late = media.switchCamera();
+    final lateAssertion = expectLater(late, throwsStateError);
+    await media.close();
+    expect(stream.track.stops, 1);
+    response.complete(true);
+    await lateAssertion;
+    expect(media.frontFacing, false);
+    expect(() => media.switchCamera(), throwsStateError);
+  });
+  test('audio call never requests camera switching', () async {
+    var switches = 0;
+    final media = NativeCallMedia(
+      video: false,
+      iceServers: [],
+      capture: (_) async => StreamFixture(),
+      peerFactory: (_) async => Peer(),
+      switchCamera: (_) async {
+        switches++;
+        return true;
+      },
+    );
+    await media.open();
+    await expectLater(media.switchCamera(), throwsStateError);
+    expect(switches, 0);
+    await media.close();
+  });
+
   test(
     'late capture after close is stopped without creating a connection',
     () async {

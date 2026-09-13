@@ -62,7 +62,7 @@ class _CallPageState extends State<CallPage> {
   RTCVideoRenderer? _local, _remote;
   Future<void>? _rendering;
   bool _rendererReady = false, _leaving = false, _allowPop = false;
-  bool _accepting = false, _muted = false;
+  bool _accepting = false, _muted = false, _switchingCamera = false;
   String? _actionError;
 
   @override
@@ -143,6 +143,27 @@ class _CallPageState extends State<CallPage> {
       setState(() => _muted = !_muted);
     } catch (_) {
       setState(() => _actionError = '暂时无法切换麦克风');
+    }
+  }
+
+  Future<void> _switchCamera() async {
+    final media = _controller.media?.media;
+    if (_switchingCamera ||
+        media == null ||
+        _controller.isEnding ||
+        _controller.isClosed) {
+      return;
+    }
+    setState(() => _switchingCamera = true);
+    try {
+      await media.switchCamera();
+      if (mounted && !_controller.isClosed) setState(() => _actionError = null);
+    } catch (_) {
+      if (mounted && !_controller.isClosed && !_controller.isEnding) {
+        setState(() => _actionError = '暂时无法切换摄像头，请重试');
+      }
+    } finally {
+      if (mounted) setState(() => _switchingCamera = false);
     }
   }
 
@@ -275,6 +296,18 @@ class _CallPageState extends State<CallPage> {
                         color: const Color(0xFFE34C54),
                         onPressed: _leaving ? null : _end,
                       ),
+                      if (video && !incoming && !ended)
+                        _button(
+                          icon: Icons.cameraswitch,
+                          label: '翻转摄像头',
+                          color: Colors.white12,
+                          onPressed:
+                              !_switchingCamera &&
+                                  !_controller.isEnding &&
+                                  _controller.media?.media.localStream != null
+                              ? _switchCamera
+                              : null,
+                        ),
                       if (incoming)
                         _button(
                           icon: video ? Icons.videocam : Icons.call,
@@ -300,7 +333,7 @@ class _CallPageState extends State<CallPage> {
                     borderRadius: BorderRadius.circular(10),
                     child: RTCVideoView(
                       _local!,
-                      mirror: true,
+                      mirror: _controller.media?.media.frontFacing ?? true,
                       objectFit:
                           RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                     ),

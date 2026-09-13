@@ -92,3 +92,12 @@ KingClubApp 登录且允许进入应用后创建账号会话范围 ForegroundCal
 仅针对该 launcher 已知的发起通话，不读取并终止任意当前通话。若 start 的确认完全丢失而没有 callId，或者网络/会话权限阻止取消，仍需服务端期限兜底；没有声称断网、进程杀死及 active 通话心跳回收已完成。无原生媒体采集发生在该回收方法中。
 
 验证：coordinator、拨号入口、前台来电 inbox 共 10 项通过，新增迟到 start 响应回收、同时接听冲突后挂断、重复回收合并、无 callId 不重拨不误终止的测试。三文件静态分析通过。未发起真实用户通话，未部署或安装。
+
+
+## 原生视频通话摄像头切换
+
+NativeCallMedia 接入已安装 flutter_webrtc Helper.switchCamera，复用当前视频轨道，不新增录音/摄像采集流。核对该版本 Android GetUserMediaImpl.onCameraSwitchDone，返回 bool 表示最终是否前置，false 为成功切至后置而非失败。本地预览 mirror 跟随结果；失败保留原显示并允许重试。
+
+CallPage 视频接听后可用的控制区增加“翻转摄像头”；无媒体/结束中/切换中禁用，语音通话不出现。native 层重复调用合并同一 Future，close 立即停轨道，不等待切换完成；迟到结果不改镜像状态或重开采集。
+
+验证：native_call_media/call_media_session/call_state_controller/call_page 共 12 项通过，包含重复切换、false 后置结果、异常重试、挂断立即停止及迟到回调拒绝、语音不切镜头。静态分析通过。未打包安装、未实拍，仍需真机确认设备支持、画面方向及切换与挂断竞态。

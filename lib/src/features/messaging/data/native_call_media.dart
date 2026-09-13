@@ -14,15 +14,21 @@ class NativeCallMedia {
     required this.iceServers,
     CallCapture? capture,
     CallPeerFactory? peerFactory,
+    Future<bool> Function(MediaStreamTrack)? switchCamera,
     this.onCandidate,
     this.onConnection,
     this.onRemoteStream,
   }) : _capture = capture ?? navigator.mediaDevices.getUserMedia,
-       _peerFactory = peerFactory ?? ((config) => createPeerConnection(config));
+       _peerFactory = peerFactory ?? ((config) => createPeerConnection(config)),
+       _switchCamera = switchCamera ?? ((track) => Helper.switchCamera(track));
   final bool video;
   final List<Map<String, dynamic>> iceServers;
   final CallCapture _capture;
   final CallPeerFactory _peerFactory;
+  final Future<bool> Function(MediaStreamTrack) _switchCamera;
+  Future<bool>? _switchingCamera;
+  bool _frontFacing = true;
+  bool get frontFacing => _frontFacing;
   final void Function(RTCIceCandidate)? onCandidate;
   final void Function(RTCPeerConnectionState)? onConnection;
   final void Function(MediaStream)? onRemoteStream;
@@ -138,6 +144,25 @@ class NativeCallMedia {
     for (final track in _local?.getAudioTracks() ?? <MediaStreamTrack>[]) {
       track.enabled = !muted;
     }
+  }
+
+  Future<bool> switchCamera() {
+    _check();
+    if (!video || _local == null || _local!.getVideoTracks().isEmpty) {
+      return Future.error(StateError('No active camera'));
+    }
+    return _switchingCamera ??= _changeCamera().whenComplete(
+      () => _switchingCamera = null,
+    );
+  }
+
+  Future<bool> _changeCamera() async {
+    // Native result is the resulting facing direction; false means rear,
+    // not failure. Do not start another capture stream or replace audio.
+    final facing = await _switchCamera(_local!.getVideoTracks().first);
+    _check();
+    _frontFacing = facing;
+    return facing;
   }
 
   Future<void> close() {
