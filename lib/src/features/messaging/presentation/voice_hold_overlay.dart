@@ -62,48 +62,50 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                               clipper: const _VoiceBubbleClipper(),
                               child: Container(
                                 width: math.min(220, bounds.maxWidth - 80),
-                                height: 48,
+                                height: 72,
                                 padding: const EdgeInsets.only(bottom: 5),
                                 color: cancel
                                     ? const Color(0xFFB76450)
-                                    : const Color(0xFF29B463),
+                                    : const Color(0xFFE4B780),
                                 child: AnimatedBuilder(
                                   animation: motion,
-                                  builder: (context, _) => Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                  builder: (context, _) => Stack(
+                                    alignment: Alignment.center,
                                     children: [
-                                      ...List.generate(
-                                        23,
-                                        (i) => Container(
-                                          width: 3,
-                                          height:
-                                              5 +
-                                              17 *
-                                                  (math
-                                                      .sin(
-                                                        i * .7 +
-                                                            motion.value *
-                                                                math.pi *
-                                                                2,
-                                                      )
-                                                      .abs()),
-                                          margin: const EdgeInsets.symmetric(
-                                            horizontal: 1.5,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF20553D),
-                                            borderRadius: BorderRadius.circular(
-                                              2,
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: List.generate(25, (i) {
+                                          final peak = math.exp(
+                                            -math.pow((i - 12) / 1.8, 2),
+                                          );
+                                          final pulse =
+                                              .8 +
+                                              .2 *
+                                                  math.sin(
+                                                    motion.value * math.pi * 2,
+                                                  );
+                                          return Container(
+                                            width: 2.5,
+                                            height: 6 + 7 * peak * pulse,
+                                            margin: const EdgeInsets.symmetric(
+                                              horizontal: 1,
                                             ),
-                                          ),
-                                        ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF624326),
+                                              borderRadius:
+                                                  BorderRadius.circular(1.25),
+                                            ),
+                                          );
+                                        }),
                                       ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        '${DateTime.now().difference(started).inSeconds}″',
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          color: Color(0xFF20553D),
+                                      Positioned(
+                                        right: 12,
+                                        child: Text(
+                                          '${DateTime.now().difference(started).inSeconds}?',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFF624326),
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -128,7 +130,7 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                       Positioned.fill(
                         child: TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0, end: 1),
-                          duration: const Duration(milliseconds: 420),
+                          duration: const Duration(milliseconds: 580),
                           curve: Curves.linear,
                           builder: (context, t, _) => Stack(
                             children: [
@@ -177,18 +179,18 @@ class _VoiceBubbleClipper extends CustomClipper<Path> {
   Path getClip(Size size) {
     final w = size.width, h = size.height - 5, c = size.width / 2;
     return Path()
-      ..moveTo(7, 0)
-      ..lineTo(w - 7, 0)
-      ..quadraticBezierTo(w, 0, w, 7)
-      ..lineTo(w, h - 7)
-      ..quadraticBezierTo(w, h, w - 7, h)
+      ..moveTo(12, 0)
+      ..lineTo(w - 12, 0)
+      ..quadraticBezierTo(w, 0, w, 12)
+      ..lineTo(w, h - 12)
+      ..quadraticBezierTo(w, h, w - 12, h)
       ..lineTo(c + 5, h)
       ..lineTo(c, h + 5)
       ..lineTo(c - 5, h)
-      ..lineTo(7, h)
-      ..quadraticBezierTo(0, h, 0, h - 7)
-      ..lineTo(0, 7)
-      ..quadraticBezierTo(0, 0, 7, 0)
+      ..lineTo(12, h)
+      ..quadraticBezierTo(0, h, 0, h - 12)
+      ..lineTo(0, 12)
+      ..quadraticBezierTo(0, 0, 12, 0)
       ..close();
   }
 
