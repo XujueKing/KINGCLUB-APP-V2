@@ -20,6 +20,8 @@ class GroupChatController extends ChatSessionController {
   @override
   String get conversationId => groupId;
   final _settings = <String, dynamic>{};
+  final _memberNames = <String, String>{};
+  bool _membersLoaded = false;
   @override
   Map<String, dynamic> get settings => {
     ..._settings,
@@ -55,7 +57,9 @@ class GroupChatController extends ChatSessionController {
         .map((m) => m['clientMessageId'])
         .toSet();
     return [
-      ...confirmed,
+      ...confirmed.map(
+        (m) => {...m, 'senderName': _memberNames[m['sender']] ?? m['sender']},
+      ),
       ..._pending.values.where(
         (m) => !acknowledged.contains(m['clientMessageId']),
       ),
@@ -139,6 +143,7 @@ class GroupChatController extends ChatSessionController {
       hasAccess = true;
       error = null;
       _changed();
+      await _loadMemberNames(generation);
     } catch (e) {
       if (_disposed || generation != _historyGeneration) return;
       if (e is AuthFailure && e.code == 'CHAT_GROUP_ACCESS_DENIED') {
@@ -150,6 +155,25 @@ class GroupChatController extends ChatSessionController {
       }
       error = e.toString();
       _changed();
+    }
+  }
+
+  Future<void> _loadMemberNames(int generation) async {
+    if (_membersLoaded || _disposed) return;
+    try {
+      final result = await repository.details(groupId);
+      if (_disposed || generation != _historyGeneration || !hasAccess) return;
+      _memberNames.clear();
+      for (final raw in result['members'] as List) {
+        final member = raw as Map;
+        _memberNames[member['account'] as String] =
+            member['nickname'] as String;
+      }
+      _membersLoaded = true;
+      _changed();
+    } catch (_) {
+      // Sender accounts remain visible while a member lookup is unavailable.
+      // History authorization is checked independently on every synchronization.
     }
   }
 
@@ -295,6 +319,8 @@ class GroupChatController extends ChatSessionController {
 
   /// Clear visible data after membership or session revocation.
   void clearVisibleHistory() {
+    _memberNames.clear();
+    _membersLoaded = false;
     _historyGeneration++;
     _syncing = null;
     _syncAgain = false;

@@ -38,6 +38,52 @@ Map<String, dynamic> message(String id) => {
   'createdDate': '2026-09-13T01:00:00Z',
 };
 void main() {
+  test('member names map by sender and late member lookup cannot restore cleared data', () async {
+    var name = '真实昵称';
+    Completer<Map<String, dynamic>>? pending;
+    final chat = GroupChatController(
+      groupId: 'group',
+      outbox: Queue(),
+      repository: GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (id, _) async {
+            if (id == 'K260913000619') {
+              if (pending != null) return pending!.future;
+              return {
+                'members': [
+                  {'account': 'friend', 'nickname': name},
+                ],
+              };
+            }
+            return history([
+              {...message('one'), 'sender': 'friend'},
+            ]);
+          },
+        ),
+      ),
+    );
+    await chat.synchronize();
+    expect(chat.messages.single['senderName'], '真实昵称');
+    chat.clearVisibleHistory();
+    name = '新昵称';
+    await chat.synchronize();
+    expect(chat.messages.single['senderName'], '新昵称');
+    chat.clearVisibleHistory();
+    pending = Completer<Map<String, dynamic>>();
+    final sync = chat.synchronize();
+    await Future<void>.delayed(Duration.zero);
+    chat.clearVisibleHistory();
+    pending!.complete({
+      'members': [
+        {'account': 'friend', 'nickname': '迟到昵称'},
+      ],
+    });
+    await sync;
+    expect(chat.messages, isEmpty);
+    chat.dispose();
+  });
+
   test('server hide cursor removes already loaded history', () async {
     var hidden = false;
     final chat = GroupChatController(
@@ -171,7 +217,8 @@ void main() {
     final repo = GroupChatRepository(
       MessagingRepository(
         account: 'me',
-        call: (_, _) async {
+        call: (id, _) async {
+          if (id == 'K260913000619') return {'members': []};
           reads++;
           return reads == 1 ? old.future : history([message('new')]);
         },

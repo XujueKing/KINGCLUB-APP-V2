@@ -326,6 +326,9 @@ class _DirectChatPageState extends State<DirectChatPage>
               message['text'] as String,
               mine: message['sender'] == chat.messaging.account,
               senderAccount: message['sender'] as String?,
+              senderName: widget.groupId == null
+                  ? null
+                  : message['senderName'] as String?,
               clientMessageId: message['clientMessageId'] as String,
               createdDate: message['createdDate'] as String?,
               status: switch (message['status']) {
@@ -1852,44 +1855,63 @@ class _MessageRow extends StatelessWidget {
                 const SizedBox(width: 10),
               ],
               Flexible(
-                child: GestureDetector(
-                  onLongPress: onLongPress,
-                  onTap: onTap,
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 280),
-                    padding: isVisualCard
-                        ? EdgeInsets.zero
-                        : const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!message.mine && message.senderName != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          message.senderName!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0x998A8178),
+                            fontSize: 12,
                           ),
-                    decoration: BoxDecoration(
-                      color: isVisualCard
-                          ? Colors.transparent
-                          : message.mine
-                          ? const Color(0xFF29B463)
-                          : const Color(0x33C9B69E),
-                      borderRadius: BorderRadius.circular(7),
+                        ),
+                      ),
+                    GestureDetector(
+                      onLongPress: onLongPress,
+                      onTap: onTap,
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        padding: isVisualCard
+                            ? EdgeInsets.zero
+                            : const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                        decoration: BoxDecoration(
+                          color: isVisualCard
+                              ? Colors.transparent
+                              : message.mine
+                              ? const Color(0xFF29B463)
+                              : const Color(0x33C9B69E),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (message.quoted != null) ...[
+                              Text(
+                                message.quoted!,
+                                style: TextStyle(
+                                  color: message.mine
+                                      ? const Color(0x99111111)
+                                      : const Color(0x99C9B69E),
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                            ],
+                            _MessageContent(message: message),
+                          ],
+                        ),
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (message.quoted != null) ...[
-                          Text(
-                            message.quoted!,
-                            style: TextStyle(
-                              color: message.mine
-                                  ? const Color(0x99111111)
-                                  : const Color(0x99C9B69E),
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                        ],
-                        _MessageContent(message: message),
-                      ],
-                    ),
-                  ),
+                  ],
                 ),
               ),
               if (message.mine) ...[
@@ -2222,6 +2244,7 @@ class _FakeMessage {
     this.quoted,
     this.clientMessageId,
     this.senderAccount,
+    this.senderName,
     this.createdDate,
     this.system = false,
     this.kind = _FakeMessageKind.text,
@@ -2231,6 +2254,7 @@ class _FakeMessage {
 
   final String? clientMessageId;
   final String? senderAccount;
+  final String? senderName;
   final String? createdDate;
   final String text;
   final bool mine;
@@ -2247,6 +2271,7 @@ class _FakeMessage {
     text,
     clientMessageId: clientMessageId,
     senderAccount: senderAccount,
+    senderName: senderName,
     createdDate: createdDate,
     mine: mine,
     quoted: quoted,
