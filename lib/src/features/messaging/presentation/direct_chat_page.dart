@@ -120,12 +120,10 @@ class DirectChatPage extends StatefulWidget {
   State<DirectChatPage> createState() => _DirectChatPageState();
 }
 
-class _DirectChatPageState extends State<DirectChatPage>
-    with WidgetsBindingObserver {
+class _DirectChatPageState extends State<DirectChatPage> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _inputFocusNode = FocusNode();
-  Timer? _keyboardScrollDebounce;
   bool _scrollScheduled = false;
   _ComposerPanel _composerPanel = _ComposerPanel.none;
   bool _voiceMode = false;
@@ -164,6 +162,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     }
   }
 
+  int _attachmentPage = 0;
   int _giftCategory = 0;
   int? _selectedGift;
   int _goldBalance = 501;
@@ -184,26 +183,20 @@ class _DirectChatPageState extends State<DirectChatPage>
   void initState() {
     super.initState();
     _muted = widget.initialMuted;
-    WidgetsBinding.instance.addObserver(this);
     _inputFocusNode.addListener(_handleInputFocusChanged);
   }
 
-  @override
-  void didChangeMetrics() {
-    _keyboardScrollDebounce?.cancel();
-    _keyboardScrollDebounce = Timer(const Duration(milliseconds: 90), () {
-      if (!mounted || !_inputFocusNode.hasFocus) return;
-      if (View.of(context).viewInsets.bottom <= 0) return;
-      _scrollToLatest();
-    });
+  void _dismissComposer() {
+    _inputFocusNode.unfocus();
+    if (_composerPanel != _ComposerPanel.none) {
+      setState(() => _composerPanel = _ComposerPanel.none);
+    }
   }
 
   @override
   void dispose() {
     _endVoiceHold(interrupted: true);
     _voiceTarget.dispose();
-    WidgetsBinding.instance.removeObserver(this);
-    _keyboardScrollDebounce?.cancel();
     _inputFocusNode
       ..removeListener(_handleInputFocusChanged)
       ..dispose();
@@ -252,43 +245,50 @@ class _DirectChatPageState extends State<DirectChatPage>
                 ),
               ),
             Expanded(
-              child: ListView.builder(
-                key: const ValueKey('direct-chat-message-list'),
-                controller: _scrollController,
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                scrollCacheExtent: const ScrollCacheExtent.pixels(640),
-                padding: const EdgeInsets.fromLTRB(14, 16, 14, 20),
-                itemCount: _messages.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return const Padding(
-                      padding: EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        '今天 21:08',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Color(0x998A8178),
-                          fontSize: 12,
+              child: GestureDetector(
+                key: const ValueKey('direct-chat-dismiss-area'),
+                behavior: HitTestBehavior.opaque,
+                onTap: _dismissComposer,
+                child: ListView.builder(
+                  key: const ValueKey('direct-chat-message-list'),
+                  controller: _scrollController,
+                  physics: const _ChatViewportPhysics(),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  scrollCacheExtent: const ScrollCacheExtent.pixels(640),
+                  padding: const EdgeInsets.fromLTRB(14, 16, 14, 20),
+                  itemCount: _messages.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          '今天 21:08',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0x998A8178),
+                            fontSize: 12,
+                          ),
                         ),
+                      );
+                    }
+                    final messageIndex = index - 1;
+                    final message = _messages[messageIndex];
+                    return RepaintBoundary(
+                      key: ObjectKey(message),
+                      child: _MessageRow(
+                        message: message,
+                        onRetry: () => setState(
+                          () =>
+                              _messages[messageIndex] = _messages[messageIndex]
+                                  .copyWith(status: _FakeMessageStatus.sent),
+                        ),
+                        onLongPress: () => _showMessageMenu(messageIndex),
+                        onTap: () => _openMediaPreview(message),
                       ),
                     );
-                  }
-                  final messageIndex = index - 1;
-                  final message = _messages[messageIndex];
-                  return RepaintBoundary(
-                    key: ObjectKey(message),
-                    child: _MessageRow(
-                      message: message,
-                      onRetry: () => setState(
-                        () => _messages[messageIndex] = _messages[messageIndex]
-                            .copyWith(status: _FakeMessageStatus.sent),
-                      ),
-                      onLongPress: () => _showMessageMenu(messageIndex),
-                      onTap: () => _openMediaPreview(message),
-                    ),
-                  );
-                },
+                  },
+                ),
               ),
             ),
             ClipRRect(
@@ -659,11 +659,13 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_video_call.svg',
+        glyphSize: 32,
         label: '视频通话',
         onTap: () => KingNotice.of(context).show('视频通话暂未开放'),
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_location.svg',
+        glyphSize: 32,
         label: '位置',
         onTap: () => KingNotice.of(context).show('位置分享暂未开放'),
       ),
@@ -674,16 +676,19 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_red_packet.svg',
+        glyphSize: 32,
         label: '红包',
         onTap: _openRedPacketComposer,
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/gift2.png',
+        glyphSize: 23,
         label: '礼物',
         onTap: _toggleGifts,
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_voice_input.svg',
+        glyphSize: 32,
         label: '语音输入',
         onTap: () {
           _inputFocusNode.unfocus();
@@ -695,32 +700,64 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_file.svg',
+        glyphSize: 32,
         label: '文件',
         onTap: () => KingNotice.of(context).show('文件发送暂未开放'),
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_coupon.svg',
+        glyphSize: 32,
         label: '卡券',
         onTap: () => KingNotice.of(context).show('卡券分享暂未开放'),
       ),
     ];
+    final pageCount = (actions.length / 8).ceil();
     return Container(
       key: const ValueKey('direct-chat-attachment-panel'),
+      height: 242,
       width: double.infinity,
       color: legacyMessagePanel,
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          for (var row = 0; row < (actions.length / 4).ceil(); row++)
+          Expanded(
+            child: PageView.builder(
+              key: const PageStorageKey('chat-attachment-pages'),
+              itemCount: pageCount,
+              onPageChanged: (page) => setState(() => _attachmentPage = page),
+              itemBuilder: (context, page) => Column(
+                children: [
+                  for (var row = 0; row < 2; row++)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var col = 0; col < 4; col++)
+                          Expanded(
+                            child: page * 8 + row * 4 + col < actions.length
+                                ? actions[page * 8 + row * 4 + col]
+                                : const SizedBox.shrink(),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (pageCount > 1)
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                for (var column = 0; column < 4; column++)
-                  Expanded(
-                    child: row * 4 + column < actions.length
-                        ? actions[row * 4 + column]
-                        : const SizedBox.shrink(),
+                for (var page = 0; page < pageCount; page++)
+                  Container(
+                    width: 5,
+                    height: 5,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: page == _attachmentPage
+                          ? legacyMessageGold
+                          : const Color(0x554A4037),
+                    ),
                   ),
               ],
             ),
@@ -928,7 +965,6 @@ class _DirectChatPageState extends State<DirectChatPage>
           : _ComposerPanel.none;
       if (opening) _selectedGift = null;
     });
-    if (opening) _scrollToLatest();
   }
 
   void _toggleGifts() {
@@ -938,7 +974,6 @@ class _DirectChatPageState extends State<DirectChatPage>
       _composerPanel = opening ? _ComposerPanel.gifts : _ComposerPanel.none;
       _selectedGift = null;
     });
-    if (opening) _scrollToLatest();
   }
 
   void _insertEmoji() {
@@ -1905,12 +1940,14 @@ class _AttachmentAction extends StatelessWidget {
   const _AttachmentAction({
     this.icon,
     this.assetPath,
+    this.glyphSize = 26,
     required this.label,
     required this.onTap,
   }) : assert(icon != null || assetPath != null);
 
   final IconData? icon;
   final String? assetPath;
+  final double glyphSize;
   final String label;
   final VoidCallback onTap;
 
@@ -1933,7 +1970,7 @@ class _AttachmentAction extends StatelessWidget {
               ),
               child: assetPath != null
                   ? Padding(
-                      padding: const EdgeInsets.all(19),
+                      padding: EdgeInsets.all((64 - glyphSize) / 2),
                       child: assetPath!.endsWith('.svg')
                           ? SvgPicture.asset(
                               assetPath!,
@@ -1991,4 +2028,31 @@ class _FakeMessage {
     assetPath: assetPath,
     status: status ?? this.status,
   );
+}
+
+// Keep the latest message anchored during each viewport layout, without a
+// second scroll animation after the keyboard or panel has finished opening.
+class _ChatViewportPhysics extends ClampingScrollPhysics {
+  const _ChatViewportPhysics({super.parent});
+  @override
+  _ChatViewportPhysics applyTo(ScrollPhysics? ancestor) =>
+      _ChatViewportPhysics(parent: buildParent(ancestor));
+  @override
+  double adjustPositionForNewDimensions({
+    required ScrollMetrics oldPosition,
+    required ScrollMetrics newPosition,
+    required bool isScrolling,
+    required double velocity,
+  }) {
+    if (oldPosition.viewportDimension != newPosition.viewportDimension &&
+        oldPosition.extentAfter < 24) {
+      return newPosition.maxScrollExtent;
+    }
+    return super.adjustPositionForNewDimensions(
+      oldPosition: oldPosition,
+      newPosition: newPosition,
+      isScrolling: isScrolling,
+      velocity: velocity,
+    );
+  }
 }
