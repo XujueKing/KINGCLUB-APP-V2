@@ -31,7 +31,9 @@ class CallStateController extends ChangeNotifier {
                 initial.caller == repository.messaging.account)) ||
         (initial.caller != repository.messaging.account &&
             initial.callee != repository.messaging.account)) {
-      throw StateError('A new incoming call or owned outgoing attempt is required');
+      throw StateError(
+        'A new incoming call or owned outgoing attempt is required',
+      );
     }
     _captureAuthorized = initial.caller == repository.messaging.account;
     _sessionChanges = sessionChanges.listen((_) {
@@ -87,6 +89,8 @@ class CallStateController extends ChangeNotifier {
               'SESSION_EXPIRED',
               'ACCESS_DENIED',
               'CHAT_CALL_SIGNAL_STATE',
+              'CHAT_CALL_ACCESS_DENIED',
+              'CHAT_CALL_SIGNAL_DENIED',
             }.contains(error.code)) {
           await close();
         }
@@ -155,6 +159,10 @@ class CallStateController extends ChangeNotifier {
   });
 
   Future<void> _syncMedia() async {
+    // Active signal reads renew only this device's server lease. Keep reading
+    // call state via 645, but do not renew a media path that has disconnected.
+    // Initial negotiation still needs SDP/ICE before native Connected exists.
+    if (_call.phase == CallPhase.active && !_connected) return;
     try {
       await _media?.sync();
     } catch (_) {
@@ -186,9 +194,10 @@ class CallStateController extends ChangeNotifier {
   void _onConnection(RTCPeerConnectionState state) {
     if (_closed || _ending) return;
     _connectionState = state;
+    _connected =
+        state == RTCPeerConnectionState.RTCPeerConnectionStateConnected;
     _notify();
     if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-      _connected = true;
       unawaited(refresh().catchError((Object _) {}));
     } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
         state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {

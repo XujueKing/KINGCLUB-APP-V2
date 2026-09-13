@@ -1,3 +1,5 @@
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -49,6 +51,59 @@ class Session extends CallMediaSession {
 }
 
 void main() {
+  test('active disconnect pauses lease renewal while state polling and recovery remain live', () async {
+    final changes = StreamController<void>.broadcast();
+    var server = state('ringing', 0), reads = 0;
+    final repository = CallRepository(
+      MessagingRepository(
+        account: 'a',
+        call: (method, params) async {
+          if (method == 'K260913000645') {
+            reads++;
+            return {'call': server};
+          }
+          expect(params['action'], 'connected');
+          return server = state('active', 3);
+        },
+      ),
+    );
+    late void Function(RTCPeerConnectionState) connection;
+    late Session session;
+    final controller = CallStateController(
+      repository: repository,
+      initial: CallSnapshot.parse(server, 'a'),
+      sessionChanges: changes.stream,
+      sessionFactory: (call, callback) {
+        connection = callback;
+        return session = Session(repository, call);
+      },
+    );
+    server = state('connecting', 1);
+    await controller.refresh();
+    expect(session.syncs, 1); // Negotiation must work before connected.
+    connection(RTCPeerConnectionState.RTCPeerConnectionStateConnected);
+    await controller.refresh();
+    final beforeDisconnect = session.syncs;
+    expect(controller.call.phase, CallPhase.active);
+    connection(RTCPeerConnectionState.RTCPeerConnectionStateDisconnected);
+    final beforeReads = reads;
+    await controller.refresh();
+    await controller.refresh();
+    expect(reads, beforeReads + 2);
+    expect(session.syncs, beforeDisconnect);
+    expect(controller.isClosed, false);
+    connection(RTCPeerConnectionState.RTCPeerConnectionStateConnected);
+    await controller.refresh();
+    expect(session.syncs, beforeDisconnect + 1);
+    connection(RTCPeerConnectionState.RTCPeerConnectionStateDisconnected);
+    server = state('ended', 4);
+    await controller.refresh();
+    expect(controller.isClosed, true);
+    expect(session.closes, 1);
+    controller.dispose();
+    await changes.close();
+  });
+
   test(
     'expired relay factory failure ends the attempt without retrying capture',
     () async {

@@ -101,3 +101,12 @@ NativeCallMedia 接入已安装 flutter_webrtc Helper.switchCamera，复用当�
 CallPage 视频接听后可用的控制区增加“翻转摄像头”；无媒体/结束中/切换中禁用，语音通话不出现。native 层重复调用合并同一 Future，close 立即停轨道，不等待切换完成；迟到结果不改镜像状态或重开采集。
 
 验证：native_call_media/call_media_session/call_state_controller/call_page 共 12 项通过，包含重复切换、false 后置结果、异常重试、挂断立即停止及迟到回调拒绝、语音不切镜头。静态分析通过。未打包安装、未实拍，仍需真机确认设备支持、画面方向及切换与挂断竞态。
+
+
+## 媒体断线与 072 控制租期配合
+
+CallStateController 不再将 native connected 永久锁存；每次原生连接状态更新都反映当前是否 connected。active 阶段媒体未连接时跳过信令同步（647 会续绑定设备租期），仍通过 645 获取服务端结束状态；恢复 connected 后重新同步。connecting 阶段仍照常协商 SDP/ICE，避免尚未连通就禁止协商。failed/closed 沿用立即本地停止并结束服务端流程。
+
+补充 CHAT_CALL_ACCESS_DENIED/CHAT_CALL_SIGNAL_DENIED 为终止本地媒体的权限错误，防止被拒绝设备继续采集。断线前已经在途的信令读取仍可能续期一次，最终以服务端期限为准；没有用客户端系统时钟伪造服务端结束。
+
+验证：call_state_controller、call_media_session、call_page 共 9 项测试通过；新用例覆盖初始协商、active 断线不续、状态轮询继续、恢复后续期、服务端结束释放媒体。静态分析通过。需要与服务端 072 同批部署后真机弱网验证；尚未实施 ICE restart、新中继凭据续期、后台通话保活及双机实际通话，因此不算完整音视频交付。
