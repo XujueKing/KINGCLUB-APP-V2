@@ -133,11 +133,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
                           color: Color(0x0DC9B69E),
                           border: Border(
                             top: BorderSide(
-                              color: Color(0x1CC9B69E),
+                              color: Color(0x12C9B69E),
                               width: .5,
                             ),
                             bottom: BorderSide(
-                              color: Color(0x1CC9B69E),
+                              color: Color(0x12C9B69E),
                               width: .5,
                             ),
                           ),
@@ -602,10 +602,11 @@ class _ConversationContent extends StatelessWidget {
     this.system = false,
     this.inactive = false,
     this.muted = false,
+    this.pinned = false,
   });
   final String name, preview, date;
   final int unread;
-  final bool system, inactive, muted;
+  final bool system, inactive, muted, pinned;
   @override
   Widget build(BuildContext context) {
     final r = MediaQuery.sizeOf(context).width / 750;
@@ -748,7 +749,11 @@ class _ConversationContent extends StatelessWidget {
             child: SizedBox(
               width: MediaQuery.sizeOf(context).width * .9 - 4,
               height: .5,
-              child: const ColoredBox(color: Color(0x1CC9B69E)),
+              child: ColoredBox(
+                color: pinned
+                    ? const Color(0x12C9B69E)
+                    : const Color(0x1CC9B69E),
+              ),
             ),
           ),
         ),
@@ -847,6 +852,7 @@ class _FriendConversation extends StatelessWidget {
                       : Colors.black,
                   child: _ConversationContent(
                     name: '卡座搭子',
+                    pinned: pinned,
                     muted: muted,
                     preview: preview,
                     date: '21:08',

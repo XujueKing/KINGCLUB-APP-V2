@@ -238,7 +238,7 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
           cursorColor: legacyMessageGold,
           decoration: InputDecoration(
             hintText: _focus.hasFocus ? null : widget.hint,
-            hintStyle: const TextStyle(color: Color(0x80C9B69E), fontSize: 14),
+            hintStyle: const TextStyle(color: Color(0x59C9B69E), fontSize: 14),
             counterText: '',
             filled: true,
             fillColor: const Color(0xB3191715),
@@ -258,7 +258,7 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
                     width: 22,
                     height: 22,
                     colorFilter: const ColorFilter.mode(
-                      Color(0x80C9B69E),
+                      Color(0x59C9B69E),
                       BlendMode.srcIn,
                     ),
                   ),
@@ -277,7 +277,7 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
                     icon: const Icon(
                       Icons.close,
                       size: 17,
-                      color: Color(0x80C9B69E),
+                      color: Color(0x59C9B69E),
                     ),
                   ),
             border: OutlineInputBorder(
