@@ -58,8 +58,8 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                         ? (left ? '#B76450' : '#64CB99')
                         : '#292929';
                     return SizedBox(
-                      width: bounds.maxWidth * .48,
-                      height: 82,
+                      width: bounds.maxWidth * (267 / 579),
+                      height: bounds.maxWidth * (143 / 579),
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
@@ -67,7 +67,7 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                             child: Transform.flip(
                               flipX: !left,
                               child: SvgPicture.string(
-                                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><path fill="$color" d="M0 35 C48 22 95 13 146 10 C173 8 190 23 190 45 C190 66 177 78 153 80 C98 83 48 93 0 108 Z"/></svg>',
+                                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 267 143"><path fill="$color" d="M0 41 C75 20 151 4 210 0 C242 -2 267 20 267 50 C267 78 249 96 220 100 C143 105 66 123 0 143 Z"/></svg>',
                                 fit: BoxFit.fill,
                               ),
                             ),
@@ -108,25 +108,12 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                             ClipPath(
                               clipper: const _VoiceBubbleClipper(),
                               child: Container(
-                                width: math.min(240, bounds.maxWidth * .66),
-                                height: 72,
-                                padding: const EdgeInsets.only(bottom: 10),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: cancel
-                                        ? [
-                                            const Color(0xFFE4A28E),
-                                            const Color(0xFFB76450),
-                                          ]
-                                        : [
-                                            const Color(0xFFA0EDC3),
-                                            const Color(0xFF65D89C),
-                                            const Color(0xFF38B978),
-                                          ],
-                                  ),
-                                ),
+                                width: math.min(220, bounds.maxWidth - 80),
+                                height: 48,
+                                padding: const EdgeInsets.only(bottom: 5),
+                                color: cancel
+                                    ? const Color(0xFFB76450)
+                                    : const Color(0xFF29B463),
                                 child: AnimatedBuilder(
                                   animation: motion,
                                   builder: (context, _) => Row(
@@ -187,8 +174,8 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                         ),
                       ),
                       Positioned(
-                        left: -12,
-                        right: -12,
+                        left: 0,
+                        right: 0,
                         bottom: 115,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -293,20 +280,20 @@ class _VoiceBubbleClipper extends CustomClipper<Path> {
   const _VoiceBubbleClipper();
   @override
   Path getClip(Size size) {
-    final w = size.width, h = size.height - 10, c = size.width / 2;
+    final w = size.width, h = size.height - 5, c = size.width / 2;
     return Path()
-      ..moveTo(24, 0)
-      ..lineTo(w - 24, 0)
-      ..quadraticBezierTo(w, 0, w, 24)
-      ..lineTo(w, h - 24)
-      ..quadraticBezierTo(w, h, w - 24, h)
-      ..lineTo(c + 16, h)
-      ..cubicTo(c + 9, h, c + 5, h + 10, c, h + 10)
-      ..cubicTo(c - 5, h + 10, c - 9, h, c - 16, h)
-      ..lineTo(24, h)
-      ..quadraticBezierTo(0, h, 0, h - 24)
-      ..lineTo(0, 24)
-      ..quadraticBezierTo(0, 0, 24, 0)
+      ..moveTo(7, 0)
+      ..lineTo(w - 7, 0)
+      ..quadraticBezierTo(w, 0, w, 7)
+      ..lineTo(w, h - 7)
+      ..quadraticBezierTo(w, h, w - 7, h)
+      ..lineTo(c + 5, h)
+      ..lineTo(c, h + 5)
+      ..lineTo(c - 5, h)
+      ..lineTo(7, h)
+      ..quadraticBezierTo(0, h, 0, h - 7)
+      ..lineTo(0, 7)
+      ..quadraticBezierTo(0, 0, 7, 0)
       ..close();
   }
 
