@@ -23,6 +23,9 @@ class ConversationsPage extends StatefulWidget {
     super.key,
     required this.active,
     this.friendMuted = false,
+    this.networkUnavailable = false,
+    this.otherDeviceCount = 0,
+    this.mobileNotificationsDisabled = false,
     required this.systemUnreadCount,
     required this.initialFriendUnreadCount,
     required this.onFriendUnreadChanged,
@@ -34,6 +37,9 @@ class ConversationsPage extends StatefulWidget {
 
   final bool active;
   final bool friendMuted;
+  final bool networkUnavailable;
+  final int otherDeviceCount;
+  final bool mobileNotificationsDisabled;
   final int systemUnreadCount;
   final int initialFriendUnreadCount;
   final ValueChanged<int> onFriendUnreadChanged;
@@ -104,10 +110,21 @@ class _ConversationsPageState extends State<ConversationsPage> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 110),
                   children: [
-                    if (_showOfflineBanner)
-                      _ConversationOfflineBanner(
-                        refreshing: _refreshing,
-                        onRetry: () => _refreshConversations(retry: true),
+                    if (widget.networkUnavailable || _showOfflineBanner)
+                      _ConversationStatusRow(
+                        key: const ValueKey('conversation-offline-banner'),
+                        icon: Icons.wifi_off_outlined,
+                        text: _refreshing ? '正在重新连接…' : '网络不可用，已保留最近会话',
+                        onTap: _refreshing
+                            ? null
+                            : () => _refreshConversations(retry: true),
+                      )
+                    else if (widget.otherDeviceCount > 0)
+                      _ConversationStatusRow(
+                        key: const ValueKey('conversation-device-banner'),
+                        icon: Icons.devices_outlined,
+                        text:
+                            '已登录 ${widget.otherDeviceCount} 台其他设备${widget.mobileNotificationsDisabled ? '，手机通知已关闭' : ''}',
                       ),
                     if (_query.isEmpty)
                       _PinnedToggle(
@@ -450,63 +467,45 @@ class _ConversationsPageState extends State<ConversationsPage> {
   }
 }
 
-class _ConversationOfflineBanner extends StatelessWidget {
-  const _ConversationOfflineBanner({
-    required this.refreshing,
-    required this.onRetry,
+class _ConversationStatusRow extends StatelessWidget {
+  const _ConversationStatusRow({
+    super.key,
+    required this.icon,
+    required this.text,
+    this.onTap,
   });
-
-  final bool refreshing;
-  final VoidCallback onRetry;
-
+  final IconData icon;
+  final String text;
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('conversation-offline-banner'),
-      height: 58,
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.fromLTRB(14, 0, 6, 0),
-      decoration: BoxDecoration(
-        color: const Color(0xFF181511),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x33C9B69E)),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.cloud_off_outlined,
-            color: Color(0x99C9B69E),
-            size: 18,
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '网络不可用，已保留最近会话',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Color(0x99FFFFFF), fontSize: 12),
+    final r = MediaQuery.sizeOf(context).width / 750;
+    return Material(
+      color: const Color(0xFF202020),
+      child: InkWell(
+        key: onTap == null
+            ? null
+            : const ValueKey('conversation-refresh-retry'),
+        onTap: onTap,
+        child: Container(
+          constraints: BoxConstraints(minHeight: 84 * r),
+          padding: EdgeInsets.symmetric(horizontal: 50 * r, vertical: 18 * r),
+          child: Row(
+            children: [
+              Icon(icon, color: const Color(0x66FFFFFF), size: 32 * r),
+              SizedBox(width: 30 * r),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    color: const Color(0x66FFFFFF),
+                    fontSize: 26 * r,
+                  ),
                 ),
-                SizedBox(height: 2),
-                Text(
-                  '缓存更新于 今天 21:08',
-                  style: TextStyle(color: Color(0x66FFFFFF), fontSize: 10),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          TextButton(
-            key: const ValueKey('conversation-refresh-retry'),
-            onPressed: refreshing ? null : onRetry,
-            child: Text(
-              refreshing ? '重试中' : '重试',
-              style: const TextStyle(color: _gold, fontSize: 12),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -535,8 +534,8 @@ class _PinnedToggle extends StatelessWidget {
           decoration: const BoxDecoration(
             color: Color(0x0DC9B69E),
             border: Border(
-              top: BorderSide(color: Color(0x1CFFFFFF), width: .5),
-              bottom: BorderSide(color: Color(0x1CFFFFFF), width: .5),
+              top: BorderSide(color: Color(0x1CC9B69E), width: .5),
+              bottom: BorderSide(color: Color(0x1CC9B69E), width: .5),
             ),
           ),
           child: Row(

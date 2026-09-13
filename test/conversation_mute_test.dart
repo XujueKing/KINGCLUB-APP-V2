@@ -11,12 +11,19 @@ void main() {
     tester.view.physicalSize = const Size(393, 852);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
-    Widget page(bool muted, int unread) => MaterialApp(
+    Widget page(
+      bool muted,
+      int unread, {
+      bool offline = false,
+      int devices = 0,
+    }) => MaterialApp(
       home: Scaffold(
         body: ConversationsPage(
           key: ValueKey('$muted-$unread'),
           active: true,
           friendMuted: muted,
+          networkUnavailable: offline,
+          otherDeviceCount: devices,
           systemUnreadCount: 0,
           initialFriendUnreadCount: unread,
           onFriendUnreadChanged: (_) {},
@@ -32,6 +39,17 @@ void main() {
     expect(find.text('99'), findsOneWidget);
     expect(find.text('99+'), findsNothing);
     expect(find.byKey(const ValueKey('conversation-muted-icon')), findsNothing);
+    final status = find.byKey(const ValueKey('conversation-device-banner'));
+    final offline = find.byKey(const ValueKey('conversation-offline-banner'));
+    expect(status, findsNothing);
+    expect(offline, findsNothing);
+    await tester.pumpWidget(page(false, 120, devices: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('已登录 2 台其他设备'), findsOneWidget);
+    await tester.pumpWidget(page(false, 120, offline: true, devices: 2));
+    await tester.pumpAndSettle();
+    expect(offline, findsOneWidget);
+    expect(status, findsNothing);
     await tester.pumpWidget(page(true, 120));
     await tester.pumpAndSettle();
     final dot = find.byKey(const ValueKey('conversation-unread-badge'));
