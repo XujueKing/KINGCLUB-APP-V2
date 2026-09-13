@@ -888,6 +888,14 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('conversation-menu-pin')));
     await tester.pumpAndSettle();
     expect(find.text('已置顶'), findsOneWidget);
+    // Closed pinned rows must paint over the swipe action tray.
+    final surface = find.byKey(const ValueKey('conversation-row-surface'));
+    expect(tester.widget<ColoredBox>(surface).color.a, 1);
+    final row = find.byKey(const ValueKey('conversation-seatmate-row'));
+    expect(
+      tester.getTopLeft(surface).dx,
+      closeTo(tester.getTopLeft(row).dx, .01),
+    );
 
     await tester.tap(find.byKey(const ValueKey('conversation-pinned-toggle')));
     await tester.pumpAndSettle();

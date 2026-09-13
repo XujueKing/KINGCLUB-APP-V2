@@ -839,7 +839,12 @@ class _FriendConversation extends StatelessWidget {
                 },
                 onHorizontalDragEnd: (_) => onSlideEnd(),
                 child: ColoredBox(
-                  color: pinned ? Colors.transparent : Colors.black,
+                  // The sliding foreground must obscure the action tray. Composite
+                  // the 5% pinned tint against black instead of making it transparent.
+                  key: const ValueKey('conversation-row-surface'),
+                  color: pinned
+                      ? Color.alphaBlend(const Color(0x0DC9B69E), Colors.black)
+                      : Colors.black,
                   child: _ConversationContent(
                     name: '卡座搭子',
                     muted: muted,
