@@ -658,12 +658,12 @@ class _DirectChatPageState extends State<DirectChatPage>
         onTap: _takeFakePhoto,
       ),
       _AttachmentAction(
-        icon: Icons.videocam_outlined,
+        assetPath: 'assets/legacy/messaging/action_video_call.svg',
         label: '视频通话',
         onTap: () => KingNotice.of(context).show('视频通话暂未开放'),
       ),
       _AttachmentAction(
-        icon: Icons.location_on_outlined,
+        assetPath: 'assets/legacy/messaging/action_location.svg',
         label: '位置',
         onTap: () => KingNotice.of(context).show('位置分享暂未开放'),
       ),
@@ -673,7 +673,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         onTap: _openGoldCoinComposer,
       ),
       _AttachmentAction(
-        assetPath: 'assets/legacy/messaging/more_4.png',
+        assetPath: 'assets/legacy/messaging/action_red_packet.svg',
         label: '红包',
         onTap: _openRedPacketComposer,
       ),
@@ -683,7 +683,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         onTap: _toggleGifts,
       ),
       _AttachmentAction(
-        icon: Icons.mic_none,
+        assetPath: 'assets/legacy/messaging/action_voice_input.svg',
         label: '语音输入',
         onTap: () {
           _inputFocusNode.unfocus();
@@ -692,6 +692,16 @@ class _DirectChatPageState extends State<DirectChatPage>
             _composerPanel = _ComposerPanel.none;
           });
         },
+      ),
+      _AttachmentAction(
+        assetPath: 'assets/legacy/messaging/action_file.svg',
+        label: '文件',
+        onTap: () => KingNotice.of(context).show('文件发送暂未开放'),
+      ),
+      _AttachmentAction(
+        assetPath: 'assets/legacy/messaging/action_coupon.svg',
+        label: '卡券',
+        onTap: () => KingNotice.of(context).show('卡券分享暂未开放'),
       ),
     ];
     return Container(
@@ -702,12 +712,16 @@ class _DirectChatPageState extends State<DirectChatPage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (var row = 0; row < 2; row++)
+          for (var row = 0; row < (actions.length / 4).ceil(); row++)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (var column = 0; column < 4; column++)
-                  Expanded(child: actions[row * 4 + column]),
+                  Expanded(
+                    child: row * 4 + column < actions.length
+                        ? actions[row * 4 + column]
+                        : const SizedBox.shrink(),
+                  ),
               ],
             ),
         ],
@@ -1920,12 +1934,20 @@ class _AttachmentAction extends StatelessWidget {
               child: assetPath != null
                   ? Padding(
                       padding: const EdgeInsets.all(19),
-                      child: Image.asset(
-                        assetPath!,
-                        color: const Color(0x99C9B69E),
-                        colorBlendMode: BlendMode.srcIn,
-                        fit: BoxFit.contain,
-                      ),
+                      child: assetPath!.endsWith('.svg')
+                          ? SvgPicture.asset(
+                              assetPath!,
+                              colorFilter: const ColorFilter.mode(
+                                Color(0x99C9B69E),
+                                BlendMode.srcIn,
+                              ),
+                            )
+                          : Image.asset(
+                              assetPath!,
+                              color: const Color(0x99C9B69E),
+                              colorBlendMode: BlendMode.srcIn,
+                              fit: BoxFit.contain,
+                            ),
                     )
                   : Icon(icon, color: legacyMessageGold),
             ),
