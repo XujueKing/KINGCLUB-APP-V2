@@ -448,6 +448,65 @@ class _PublicMemberPageState extends State<PublicMemberPage>
     );
   }
 
+  Widget _relationshipActions(Map<String, dynamic> profile) {
+    if (_repository?.account == widget.account) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: profile['following'] == true
+                    ? const Color(0xFF333333)
+                    : Colors.white,
+                backgroundColor: profile['following'] == true
+                    ? const Color(0xFFF0F0F0)
+                    : const Color(0xFFFF2E55),
+                side: BorderSide.none,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                textStyle: const TextStyle(fontSize: 15),
+              ),
+              onPressed: _saving ? null : _follow,
+              child: Text(
+                profile['friends'] == true
+                    ? '互相关注'
+                    : profile['following'] == true
+                    ? '已关注'
+                    : '关注',
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                foregroundColor: const Color(0xFF333333),
+                backgroundColor: const Color(0xFFF0F0F0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                textStyle: const TextStyle(fontSize: 15),
+              ),
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => DirectChatPage(
+                    peerName: profile['nickname'] as String,
+                    peerAccount: widget.account,
+                    repository: _repository,
+                  ),
+                ),
+              ),
+              child: const Text('私信'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -469,45 +528,6 @@ class _PublicMemberPageState extends State<PublicMemberPage>
         ];
         return Scaffold(
           backgroundColor: Colors.white,
-          bottomNavigationBar: profile == null
-              ? null
-              : SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _saving ? null : _follow,
-                            child: Text(
-                              profile['friends'] == true
-                                  ? '互相关注'
-                                  : profile['following'] == true
-                                  ? '已关注'
-                                  : '关注',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () => Navigator.of(context).push<void>(
-                              MaterialPageRoute(
-                                builder: (_) => DirectChatPage(
-                                  peerName: profile['nickname'] as String,
-                                  peerAccount: widget.account,
-                                  repository: _repository,
-                                ),
-                              ),
-                            ),
-                            child: const Text('私信'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
           body: RefreshIndicator(
             onRefresh: _load,
             child: CustomScrollView(
@@ -517,7 +537,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                 SliverToBoxAdapter(
                   child: SizedBox(
                     // The old profile leaves room above the overlapping 92dp avatar.
-                    height: top + 152 * scale,
+                    height: top + 132 * scale,
                     child: Stack(
                       children: [
                         Positioned.fill(
@@ -731,6 +751,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                                 ),
                             ],
                           ),
+                          _relationshipActions(profile),
                         ],
                       ],
                     ),
@@ -741,9 +762,10 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                     children: [
                       Row(
                         children: [
+                          SizedBox(width: 16 * scale),
                           for (var i = 0; i < 3; i++)
                             SizedBox(
-                              width: 76 * scale,
+                              width: 56 * scale,
                               child: TextButton(
                                 onPressed: () {
                                   if (_tab == i) return;
