@@ -263,17 +263,16 @@ class _ContactsPageState extends State<ContactsPage> {
               ),
 
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                padding: EdgeInsets.zero,
                 sliver: SliverList.list(
                   children: [
                     _quickActions(context),
-                    const SizedBox(height: 8),
                     _LegacyBlacklistEntry(
                       onTap: () => widget.onIntent(
                         const ContactRouteIntent(ContactIntentKind.blacklist),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 4),
                     if (_state == ContactsDemoState.offlineCached)
                       const _StatusBanner(
                         icon: Icons.cloud_off_outlined,
@@ -299,7 +298,7 @@ class _ContactsPageState extends State<ContactsPage> {
                 ),
               ),
               ..._contactsSlivers(context),
-              const SliverToBoxAdapter(child: SizedBox(height: 28)),
+              const SliverToBoxAdapter(child: SizedBox(height: 110)),
             ],
           ),
         ),
@@ -310,20 +309,22 @@ class _ContactsPageState extends State<ContactsPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
               decoration: BoxDecoration(
-                color: KingColors.surface.withValues(alpha: 0.82),
+                color: Colors.transparent,
                 borderRadius: BorderRadius.circular(99),
-                border: Border.all(color: KingColors.border),
               ),
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('A'),
-                  Text('C'),
-                  Text('L'),
-                  Text('S'),
-                  Text('Z'),
-                  Text('#'),
-                ],
+              child: const DefaultTextStyle(
+                style: TextStyle(fontSize: 11, color: Color(0x80C9B69E)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('A'),
+                    Text('C'),
+                    Text('L'),
+                    Text('S'),
+                    Text('Z'),
+                    Text('#'),
+                  ],
+                ),
               ),
             ),
           ),
@@ -332,28 +333,23 @@ class _ContactsPageState extends State<ContactsPage> {
   }
 
   Widget _quickActions(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.person_add_alt_1_outlined,
-            title: '新的朋友',
-            subtitle: '2 个新申请',
-            badge: 2,
-            onTap: () => widget.onIntent(
-              const ContactRouteIntent(ContactIntentKind.friendRequests),
-            ),
+        _QuickActionCard(
+          icon: Icons.person_add_alt_1_outlined,
+          title: '新的朋友',
+          subtitle: '2 个新申请',
+          badge: 2,
+          onTap: () => widget.onIntent(
+            const ContactRouteIntent(ContactIntentKind.friendRequests),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.add_circle_outline,
-            title: '添加好友',
-            subtitle: '昵称或好友码',
-            onTap: () => widget.onIntent(
-              const ContactRouteIntent(ContactIntentKind.addFriend),
-            ),
+        _QuickActionCard(
+          icon: Icons.add_circle_outline,
+          title: '添加好友',
+          subtitle: '昵称或好友码',
+          onTap: () => widget.onIntent(
+            const ContactRouteIntent(ContactIntentKind.addFriend),
           ),
         ),
       ],
@@ -399,19 +395,22 @@ class _ContactsPageState extends State<ContactsPage> {
       sections.putIfAbsent(contact.section, () => []).add(contact);
     }
 
-    final hideIndex = MediaQuery.textScalerOf(context).scale(1) > 1.5;
     final result = <Widget>[];
     for (final entry in sections.entries) {
       result.add(
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, hideIndex ? 20 : 42, 6),
+            padding: EdgeInsets.fromLTRB(
+              40 * MediaQuery.sizeOf(context).width / 750,
+              12,
+              20,
+              4,
+            ),
             child: Semantics(
               header: true,
               child: Text(
                 entry.key,
-                style: Theme.of(context).textTheme.labelLarge
-                    ?.copyWith(color: KingColors.brandStrong),
+                style: const TextStyle(fontSize: 12, color: Color(0x66FFFFFF)),
               ),
             ),
           ),
@@ -419,7 +418,7 @@ class _ContactsPageState extends State<ContactsPage> {
       );
       result.add(
         SliverPadding(
-          padding: EdgeInsets.fromLTRB(12, 0, hideIndex ? 12 : 34, 0),
+          padding: EdgeInsets.zero,
           sliver: SliverList.builder(
             itemCount: entry.value.length,
             itemBuilder: (context, index) {
@@ -444,6 +443,138 @@ class _ContactsPageState extends State<ContactsPage> {
   }
 }
 
+class _ContactRow extends StatelessWidget {
+  const _ContactRow({
+    required this.leading,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+    this.badge,
+    this.verified = false,
+    this.rowKey,
+  });
+  final Widget leading;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+  final int? badge;
+  final bool verified;
+  final Key? rowKey;
+  @override
+  Widget build(BuildContext context) {
+    final r = MediaQuery.sizeOf(context).width / 750;
+    return Material(
+      color: Colors.black,
+      child: InkWell(
+        key: rowKey,
+        onTap: onTap,
+        child: Stack(
+          children: [
+            Container(
+              constraints: BoxConstraints(minHeight: 140 * r),
+              padding: EdgeInsets.fromLTRB(40 * r, 12 * r, 50 * r, 12 * r),
+              child: Row(
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      SizedBox(
+                        width: 96 * r,
+                        height: 96 * r,
+                        child: ClipOval(child: leading),
+                      ),
+                      if (badge != null && badge! > 0)
+                        Positioned(
+                          left: 70 * r,
+                          top: -3 * r,
+                          child: Container(
+                            constraints: BoxConstraints(
+                              minWidth: 34 * r,
+                              minHeight: 34 * r,
+                            ),
+                            padding: EdgeInsets.symmetric(horizontal: 5 * r),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFB5352),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${badge! > 99 ? 99 : badge}',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 22 * r,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(width: 25 * r),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  color: const Color(0xBBFFFFFF),
+                                  fontSize: 30 * r,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                            if (verified) ...[
+                              const SizedBox(width: 5),
+                              const Tooltip(
+                                message: '已认证',
+                                child: Icon(
+                                  Icons.verified_outlined,
+                                  size: 14,
+                                  color: Color(0x80C9B69E),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (subtitle != null) ...[
+                          SizedBox(height: 5 * r),
+                          Text(
+                            subtitle!,
+                            style: TextStyle(
+                              color: const Color(0x66FFFFFF),
+                              fontSize: 26 * r,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: SizedBox(
+                  width: MediaQuery.sizeOf(context).width * .9 - 4,
+                  height: .5,
+                  child: const ColoredBox(color: Color(0x1CC9B69E)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _QuickActionCard extends StatelessWidget {
   const _QuickActionCard({
     required this.icon,
@@ -452,139 +583,36 @@ class _QuickActionCard extends StatelessWidget {
     required this.onTap,
     this.badge,
   });
-
   final IconData icon;
-  final String title;
-  final String subtitle;
+  final String title, subtitle;
   final VoidCallback onTap;
   final int? badge;
-
   @override
-  Widget build(BuildContext context) {
-    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.5;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        constraints: BoxConstraints(minHeight: largeText ? 116 : 92),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: KingColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: KingColors.border),
-        ),
-        child: Row(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: KingColors.elevated,
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(icon, color: KingColors.brandStrong),
-                ),
-                if (badge != null)
-                  Positioned(
-                    right: -6,
-                    top: -6,
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 20),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: KingColors.danger,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$badge',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => _ContactRow(
+    title: title,
+    subtitle: subtitle,
+    badge: badge,
+    onTap: onTap,
+    leading: ColoredBox(
+      color: legacyMessagePanel,
+      child: Icon(icon, color: const Color(0xFFB7ADA0), size: 25),
+    ),
+  );
 }
 
 class _LegacyBlacklistEntry extends StatelessWidget {
   const _LegacyBlacklistEntry({required this.onTap});
-
   final VoidCallback onTap;
-
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0x0EC9B69E),
-      child: InkWell(
-        key: const ValueKey('contacts-blacklist'),
-        onTap: onTap,
-        child: SizedBox(
-          height: 58,
-          child: Row(
-            children: [
-              const SizedBox(width: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: Image.asset(
-                  'assets/legacy/friendship/blacklist.png',
-                  width: 42,
-                  height: 42,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Text(
-                  '黑名单',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(0x99C9B69E)),
-              const SizedBox(width: 10),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => _ContactRow(
+    rowKey: const ValueKey('contacts-blacklist'),
+    title: '黑名单',
+    onTap: onTap,
+    leading: Image.asset(
+      'assets/legacy/friendship/blacklist.png',
+      fit: BoxFit.cover,
+    ),
+  );
 }
 
 class _ContactTile extends StatelessWidget {
@@ -593,68 +621,31 @@ class _ContactTile extends StatelessWidget {
     required this.avatarFailed,
     required this.onTap,
   });
-
   final _FakeContact contact;
   final bool avatarFailed;
   final VoidCallback onTap;
-
   @override
-  Widget build(BuildContext context) {
-    final displayName = contact.remark ?? contact.nickname;
-    return Semantics(
-      button: true,
-      label:
-          '$displayName${contact.remark == null ? '' : '，公开昵称 ${contact.nickname}'}${contact.verified ? '，已认证' : ''}',
-      child: ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        leading: CircleAvatar(
-          radius: 23,
-          backgroundColor: avatarFailed
-              ? KingColors.border
-              : KingColors.elevated,
-          foregroundColor: avatarFailed
-              ? KingColors.textSecondary
-              : KingColors.brandStrong,
-          child: avatarFailed
-              ? const Icon(Icons.person_outline, size: 24)
-              : Text(
-                  contact.initial,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-        ),
-        title: Row(
-          children: [
-            Flexible(
-              child: Text(
-                displayName,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+  Widget build(BuildContext context) => _ContactRow(
+    title: contact.remark ?? contact.nickname,
+    subtitle: contact.remark == null ? null : '昵称：${contact.nickname}',
+    verified: contact.verified,
+    onTap: onTap,
+    leading: ColoredBox(
+      color: legacyMessagePanel,
+      child: Center(
+        child: avatarFailed
+            ? const Icon(
+                Icons.person_outline,
+                size: 24,
+                color: Color(0xFFB7ADA0),
+              )
+            : Text(
+                contact.initial,
+                style: const TextStyle(fontSize: 20, color: Color(0xFFB7ADA0)),
               ),
-            ),
-            if (contact.verified) ...[
-              const SizedBox(width: 5),
-              const Tooltip(
-                message: '已认证',
-                child: Icon(
-                  Icons.verified_outlined,
-                  size: 17,
-                  color: KingColors.info,
-                ),
-              ),
-            ],
-          ],
-        ),
-        subtitle: contact.remark == null
-            ? null
-            : Text('昵称：${contact.nickname}'),
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: KingColors.textSecondary,
-        ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _StatusBanner extends StatelessWidget {

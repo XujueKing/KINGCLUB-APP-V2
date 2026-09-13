@@ -31,6 +31,10 @@ Widget _app(
 
 void main() {
   testWidgets('ready contacts expose every approved exit', (tester) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final intents = <ContactRouteIntent>[];
     var chatOpened = false;
     await tester.pumpWidget(
@@ -61,6 +65,10 @@ void main() {
   testWidgets('empty and fatal states recover without exposing contacts', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     ContactRouteIntent? intent;
     await tester.pumpWidget(
       _app(ContactsDemoState.empty, onIntent: (value) => intent = value),
@@ -79,6 +87,10 @@ void main() {
   testWidgets('cached and partial states retain usable friend rows', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_app(ContactsDemoState.offlineCached));
     expect(find.text('离线缓存'), findsOneWidget);
     expect(find.text('艾琳'), findsOneWidget);
@@ -91,6 +103,10 @@ void main() {
   testWidgets('relationship and avatar changes do not leak stale identity', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_app(ContactsDemoState.relationshipChanged));
     expect(find.text('好友关系已更新'), findsOneWidget);
     expect(find.text('卡座搭子'), findsNothing);
@@ -104,6 +120,10 @@ void main() {
   testWidgets('search is limited to nickname and private remark', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_app(ContactsDemoState.ready));
     final search = find.byType(TextField);
     await tester.enterText(search, '13800000000');
@@ -119,6 +139,10 @@ void main() {
   testWidgets('large text stays scrollable and removes side index', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_app(ContactsDemoState.ready, textScale: 2));
     expect(tester.takeException(), isNull);
     expect(find.byType(CustomScrollView), findsOneWidget);
@@ -128,6 +152,10 @@ void main() {
   testWidgets('invalid session clears data, disables actions and resets', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     var reset = false;
     var intents = 0;
     await tester.pumpWidget(
