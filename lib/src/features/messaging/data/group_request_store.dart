@@ -6,9 +6,12 @@ import 'package:uuid/uuid.dart';
 /// User-confirmed group operations keep their identity until acknowledged.
 /// This journal never executes an operation by itself.
 class GroupRequestStore {
-  GroupRequestStore(String account, {FlutterSecureStorage? storage})
-    : _key = 'kingclub.chat.group-requests.$account',
-      _storage = storage ?? const FlutterSecureStorage();
+  GroupRequestStore(
+    String account, {
+    FlutterSecureStorage? storage,
+    String namespace = 'group-requests',
+  }) : _key = 'kingclub.chat.$namespace.$account',
+       _storage = storage ?? const FlutterSecureStorage();
   final String _key;
   final FlutterSecureStorage _storage;
   static final _locks = <String, Future<void>>{};
@@ -38,7 +41,7 @@ class GroupRequestStore {
     final entries = await _read();
     final existing = entries[fingerprint];
     if (existing is String) return existing;
-    if (entries.length >= 200) throw StateError('待确认的群操作较多，请先处理已有操作');
+    if (entries.length >= 200) throw StateError('待确认操作较多，请先处理已有操作');
     final id = const Uuid().v4();
     entries[fingerprint] = id;
     await _storage.write(key: _key, value: jsonEncode(entries));
