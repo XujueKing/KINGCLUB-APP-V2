@@ -46,3 +46,9 @@
 缩略图和独立放大预览使用 635 与 group-chat-image 路径；群成员变更／群会话设置变更清除显示并重新授权，单聊仍使用 633 与原单聊路径。原本 pending 图片占位、发送失败重试仍有效。
 
 验证 group-image-client-test.log：23 项通过，含重建控制器后的图片重试、错误回执保留、撤销群权限、群媒体授权路由及通知失效，以及原群文字和单聊图片测试。group-image-client-analyze.log 静态检查通过。057–058 仍仅隔离数据库执行，共享测试服务和新 APK 尚待更新，未完成真机群发图验收。
+
+## 群图片测试包更新
+
+ARM64 preview profile 构建成功（group-image-release-build.log，67.2 秒），APK SHA-256 `abf2004cd7f1947576fbc8902076eb54aebcaa88f5d38d88a5abd7f38ac4bf0a`。包含 ad2dab4 群图片接入及工作区原有 onboarding 修改；这些既有修改不归入聊天提交。后端 group-image-058 运行，057–058 共享测试库迁移和健康检查通过，追加群图片撤销登录下载拒绝的隔离测试通过。
+
+ADB 462606d8 仍 offline，未覆盖安装，照片／拍摄与双机群图片真机验收仍未完成。
