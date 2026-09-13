@@ -148,7 +148,10 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
   );
 }
 
-Future<void> showVoiceDrafts(BuildContext context) async {
+Future<void> showVoiceDrafts(
+  BuildContext context, {
+  Future<void> Function(VoiceDraft)? onSend,
+}) async {
   final generation = MemberQrMemory.generation;
   List<File> files;
   try {
@@ -173,14 +176,20 @@ Future<void> showVoiceDrafts(BuildContext context) async {
                   leading: const Icon(Icons.mic_none),
                   title: Text('语音草稿 ${files.length - index}'),
                   trailing: const Icon(Icons.play_circle_outline),
-                  onTap: () => showModalBottomSheet<void>(
-                    context: context,
-                    showDragHandle: true,
-                    backgroundColor: const Color(0xFF191715),
-                    builder: (_) => VoiceDraftPreview(
-                      draft: VoiceDraft(files[index].path, Duration.zero),
-                    ),
-                  ),
+                  onTap: () async {
+                    if (generation != MemberQrMemory.generation) return;
+                    final draft = VoiceDraft(files[index].path, Duration.zero);
+                    await showModalBottomSheet<void>(
+                      context: context,
+                      showDragHandle: true,
+                      backgroundColor: const Color(0xFF191715),
+                      builder: (_) => VoiceDraftPreview(
+                        draft: draft,
+                        onSend: onSend == null ? null : () => onSend(draft),
+                      ),
+                    );
+                    if (context.mounted) Navigator.of(context).pop();
+                  },
                 ),
               ),
       ),

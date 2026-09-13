@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -17,11 +18,14 @@ class Upload extends ChatVoiceUploader {
   Upload(MessagingRepository repo)
     : super(repository: repo, checkSession: () async {}, dio: Dio());
   bool fail = false, acknowledged = false;
+  Completer<void>? paused, started;
   @override
   Future<UploadedChatVoice> upload(
     Uint8List input, {
     void Function(int, int)? onProgress,
   }) async {
+    started?.complete();
+    if (paused != null) await paused!.future;
     if (fail) throw StateError('upload failed');
     return const UploadedChatVoice(
       '12345678-1234-1234-1234-123456789012',
@@ -85,6 +89,43 @@ void main() {
       },
     );
   }
+  test('closing conversation while upload completes preserves draft and prevents queueing', () async {
+    final root = await Directory.systemTemp.createTemp('voice-sender-close-');
+    addTearDown(() => root.delete(recursive: true));
+    final store = VoiceDraftStore(root: root, account: 'me');
+    final path = await store.allocate();
+    await File(path).writeAsBytes([1, 2, 3]);
+    final repo = MessagingRepository(
+      account: 'me',
+      call: (_, _) async => throw StateError('must not send'),
+    );
+    final upload = Upload(repo)
+      ..paused = Completer<void>()
+      ..started = Completer<void>();
+    final queue = MemoryOutbox();
+    final chat = DirectChatController(
+      repository: repo,
+      peer: 'peer',
+      outbox: queue,
+    );
+    final sender = VoiceDraftSender(
+      currentStore: () async => store,
+      openUploader: (_) async => upload,
+    );
+    addTearDown(chat.dispose);
+    final sending = sender.send(
+      chat,
+      VoiceDraft(path, const Duration(seconds: 2)),
+    );
+    final rejected = expectLater(sending, throwsStateError);
+    await upload.started!.future;
+    sender.dispose();
+    upload.paused!.complete();
+    await rejected;
+    expect(queue.items, isEmpty);
+    expect(upload.acknowledged, false);
+    expect(await File(path).exists(), true);
+  });
   test('foreign draft is rejected before opening upload', () async {
     final root = await Directory.systemTemp.createTemp('voice-sender-scope-');
     addTearDown(() => root.delete(recursive: true));

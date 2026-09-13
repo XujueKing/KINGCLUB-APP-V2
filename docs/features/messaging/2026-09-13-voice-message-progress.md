@@ -45,3 +45,8 @@
 后端voice-064已启动并通过health/ready/runtime检查，059至064已迁移，真实音频处理与发布镜像隔离完整回归通过。App de4acdb语音版本profile/preview/arm64编译成功（build/voice-release-build.log，61.3秒，118.6MB），APK为build/app/outputs/flutter-apk/app-preview-profile.apk，SHA256=600fcab0ec2d5d05ab66f24dec3248f7731595cf8536d029bb0fcfc96d968ad0。构建包含本机已有未提交注册偏好文件修改，本任务未修改或提交这些文件。
 
 ADB462606d8持续offline，本包未覆盖安装；真机发声、双手机真实语音收发与原生录音降噪效果仍未验收，不能按已交付列入完整聊天清单。
+
+
+## 保留草稿恢复发送与离线状态
+
+会话中的语音草稿入口向预览传入当前会话发送操作，重新进入后也可发送账号隔离的已保留录音。预览结束关闭旧列表，再次进入重读磁盘，避免已发送/删除文件留下旧入口。选择前检查会话代次，真正发送仍校验归属与登录。queued状态显示等待网络恢复，区别于明确失败，不改变持久队列重试机制。新增上传未返回时关闭会话的竞态测试，确认不入队且保留文件；build/voice-draft-resume-test.log相关14项测试通过，页面与测试静态分析无问题。尚未重打包。

@@ -37,7 +37,7 @@ import 'contact_selector_page.dart';
 import 'direct_chat_details_page.dart';
 import 'legacy_messaging_components.dart';
 
-enum _FakeMessageStatus { sending, sent, failed }
+enum _FakeMessageStatus { queued, sending, sent, failed }
 
 enum _FakeMessageKind {
   text,
@@ -435,6 +435,7 @@ class _DirectChatPageState extends State<DirectChatPage>
               clientMessageId: message['clientMessageId'] as String,
               createdDate: message['createdDate'] as String?,
               status: switch (message['status']) {
+                'queued' => _FakeMessageStatus.queued,
                 'sent' => _FakeMessageStatus.sent,
                 'sending' => _FakeMessageStatus.sending,
                 _ => _FakeMessageStatus.failed,
@@ -1062,7 +1063,16 @@ class _DirectChatPageState extends State<DirectChatPage>
       _AttachmentAction(
         icon: Icons.mic_none,
         label: '语音草稿',
-        onTap: () => showVoiceDrafts(context),
+        onTap: () {
+          final chat = _chat;
+          _voicePlayback?.stop();
+          showVoiceDrafts(
+            context,
+            onSend: chat == null
+                ? null
+                : (draft) => _voiceSender.send(chat, draft),
+          );
+        },
       ),
     );
     final pageCount = (actions.length / 8).ceil();
@@ -2132,12 +2142,15 @@ class _MessageRow extends StatelessWidget {
               icon: const Icon(Icons.error_outline, size: 15),
               label: const Text('发送失败，重试'),
             )
-          else if (message.status == _FakeMessageStatus.sending)
-            const Padding(
-              padding: EdgeInsets.only(top: 4, right: 52),
+          else if (message.status == _FakeMessageStatus.sending ||
+              message.status == _FakeMessageStatus.queued)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, right: 52),
               child: Text(
-                '发送中…',
-                style: TextStyle(color: Color(0x66777777), fontSize: 11),
+                message.status == _FakeMessageStatus.queued
+                    ? '等待网络恢复…'
+                    : '发送中…',
+                style: const TextStyle(color: Color(0x66777777), fontSize: 11),
               ),
             ),
         ],
