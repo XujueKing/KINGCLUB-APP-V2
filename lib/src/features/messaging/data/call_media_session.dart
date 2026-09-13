@@ -38,6 +38,7 @@ class CallMediaSession {
   int _cursor = 0;
   Object? _candidateFailure;
   bool get _caller => call.caller == repository.messaging.account;
+  bool get isClosed => _closed;
   int get pendingSignals => _outgoing.length;
 
   void _check() {
@@ -143,7 +144,10 @@ class CallMediaSession {
       _check();
       // Resume/ICE restart needs a fresh native session and explicit ownership;
       // never apply a different generation to the original peer silently.
-      if (page.generation != 0) throw StateError('Call renegotiation required');
+      if (page.generation != 0) {
+        await close();
+        throw StateError('Call renegotiation required');
+      }
       for (final item in page.items) {
         final data = item.signal.data, kind = data['kind'];
         try {
