@@ -127,6 +127,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   Timer? _keyboardScrollDebounce;
   bool _scrollScheduled = false;
   _ComposerPanel _composerPanel = _ComposerPanel.none;
+  bool _voiceMode = false;
   int _attachmentPage = 0;
   int _giftCategory = 0;
   int? _selectedGift;
@@ -267,7 +268,14 @@ class _DirectChatPageState extends State<DirectChatPage>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _composer(),
-                    if (!_readOnly) _activeComposerPanel(),
+                    if (!_readOnly)
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 260),
+                        reverseDuration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutCubic,
+                        alignment: Alignment.bottomCenter,
+                        child: _activeComposerPanel(),
+                      ),
                   ],
                 ),
               ),
@@ -326,93 +334,196 @@ class _DirectChatPageState extends State<DirectChatPage>
               color: const Color(0xFF312C27),
               borderRadius: BorderRadius.circular(40 * r),
             ),
-            child: Row(
+            child: Stack(
+              alignment: Alignment.centerLeft,
               children: [
-                _composerIcon(
-                  'direct-chat-microphone',
-                  '语音',
-                  'microphone.svg',
-                  _readOnly
-                      ? null
-                      : () => KingNotice.of(context).show('语音消息暂未开放'),
-                ),
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('direct-chat-input'),
-                    controller: _controller,
-                    focusNode: _inputFocusNode,
-                    enabled: !_readOnly,
-                    minLines: 1,
-                    maxLines: 4,
-                    style: TextStyle(
-                      fontSize: 32 * r,
-                      height: 1,
-                      color: const Color(0xFFBBBBBB),
-                    ),
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _send(),
-                    decoration: InputDecoration(
-                      hintText: _readOnly ? '当前不可发送消息' : '',
-                      isDense: true,
-                      filled: false,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12 * r,
-                        vertical: 19 * r,
+                IgnorePointer(
+                  ignoring: _voiceMode,
+                  child: ExcludeSemantics(
+                    excluding: _voiceMode,
+                    child: AnimatedOpacity(
+                      opacity: _voiceMode ? 0 : 1,
+                      duration: const Duration(milliseconds: 120),
+                      child: Row(
+                        children: [
+                          _composerIcon(
+                            'direct-chat-microphone',
+                            '语音',
+                            'microphone.svg',
+                            _readOnly
+                                ? null
+                                : () {
+                                    _inputFocusNode.unfocus();
+                                    setState(() {
+                                      _voiceMode = true;
+                                      _composerPanel = _ComposerPanel.none;
+                                    });
+                                  },
+                          ),
+                          Expanded(
+                            child: TextField(
+                              key: const ValueKey('direct-chat-input'),
+                              controller: _controller,
+                              focusNode: _inputFocusNode,
+                              enabled: !_readOnly,
+                              minLines: 1,
+                              maxLines: 4,
+                              style: TextStyle(
+                                fontSize: 32 * r,
+                                height: 1,
+                                color: const Color(0xFFBBBBBB),
+                              ),
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) => _send(),
+                              decoration: InputDecoration(
+                                hintText: _readOnly ? '当前不可发送消息' : '',
+                                isDense: true,
+                                filled: false,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12 * r,
+                                  vertical: 19 * r,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: _controller,
+                            builder: (context, value, _) {
+                              if (!_readOnly && value.text.trim().isNotEmpty) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 3),
+                                  child: TextButton(
+                                    key: const ValueKey('direct-chat-send'),
+                                    onPressed: _send,
+                                    style: TextButton.styleFrom(
+                                      minimumSize: const Size(66, 32),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                      ),
+                                      backgroundColor: const Color(0xFF29B463),
+                                      foregroundColor: Colors.black,
+                                      shape: const StadiumBorder(),
+                                      textStyle: const TextStyle(fontSize: 14),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('发送'),
+                                        SizedBox(width: 4),
+                                        Icon(Icons.send, size: 12),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _composerIcon(
+                                    'direct-chat-emoji',
+                                    '表情',
+                                    _composerPanel == _ComposerPanel.emoji
+                                        ? 'keynote.png'
+                                        : 'smail.png',
+                                    _readOnly ? null : _insertEmoji,
+                                  ),
+                                  _composerIcon(
+                                    'direct-chat-attachments',
+                                    '更多',
+                                    'add.png',
+                                    _readOnly ? null : _toggleAttachments,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
                       ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
                     ),
                   ),
                 ),
-                ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: _controller,
-                  builder: (context, value, _) {
-                    if (!_readOnly && value.text.trim().isNotEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 3),
-                        child: TextButton(
-                          key: const ValueKey('direct-chat-send'),
-                          onPressed: _send,
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(66, 32),
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            backgroundColor: const Color(0xFF29B463),
-                            foregroundColor: Colors.black,
-                            shape: const StadiumBorder(),
-                            textStyle: const TextStyle(fontSize: 14),
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10 * r),
+                    child: LayoutBuilder(
+                      builder: (context, bounds) => Align(
+                        alignment: Alignment.centerLeft,
+                        child: IgnorePointer(
+                          ignoring: !_voiceMode,
+                          child: AnimatedOpacity(
+                            opacity: _voiceMode ? 1 : 0,
+                            duration: const Duration(milliseconds: 100),
+                            child: AnimatedContainer(
+                              key: const ValueKey('direct-chat-voice-surface'),
+                              duration: const Duration(milliseconds: 420),
+                              curve: Curves.easeOutBack,
+                              width: _voiceMode ? bounds.maxWidth : 60 * r,
+                              height: 60 * r,
+                              decoration: BoxDecoration(
+                                color: legacyMessageGold,
+                                borderRadius: BorderRadius.circular(30 * r),
+                              ),
+                              clipBehavior: Clip.hardEdge,
+                              child: _voiceMode
+                                  ? Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        Positioned.fill(
+                                          child: GestureDetector(
+                                            key: const ValueKey(
+                                              'direct-chat-hold-to-talk',
+                                            ),
+                                            behavior: HitTestBehavior.opaque,
+                                            onLongPress: () =>
+                                                KingNotice.of(context)
+                                                    .show('语音录制暂未接入'),
+                                            child: const Center(
+                                              child: Text(
+                                                '按住 说话',
+                                                style: TextStyle(
+                                                  color: Color(0xFF312C27),
+                                                  fontSize: 15,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: IconButton(
+                                            key: const ValueKey(
+                                              'direct-chat-text-mode',
+                                            ),
+                                            tooltip: '切回文字',
+                                            padding: EdgeInsets.zero,
+                                            constraints:
+                                                BoxConstraints.tightFor(
+                                                  width: 60 * r,
+                                                  height: 60 * r,
+                                                ),
+                                            onPressed: () => setState(
+                                              () => _voiceMode = false,
+                                            ),
+                                            icon: Image.asset(
+                                              'assets/legacy/messaging/keynote.png',
+                                              width: 32 * r,
+                                              height: 32 * r,
+                                              color: const Color(0xFF312C27),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('发送'),
-                              SizedBox(width: 4),
-                              Icon(Icons.send, size: 12),
-                            ],
-                          ),
                         ),
-                      );
-                    }
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _composerIcon(
-                          'direct-chat-emoji',
-                          '表情',
-                          _composerPanel == _ComposerPanel.emoji
-                              ? 'keynote.png'
-                              : 'smail.png',
-                          _readOnly ? null : _insertEmoji,
-                        ),
-                        _composerIcon(
-                          'direct-chat-attachments',
-                          '更多',
-                          'add.png',
-                          _readOnly ? null : _toggleAttachments,
-                        ),
-                      ],
-                    );
-                  },
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
