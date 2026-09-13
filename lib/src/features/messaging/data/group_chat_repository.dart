@@ -151,6 +151,20 @@ class GroupChatRepository {
     }
   }
 
+  Future<Map<String, dynamic>> manageMember(
+    String groupId,
+    String target, {
+    required String action,
+    required int expectedVersion,
+    required int membershipVersion,
+  }) => messaging.call('K260913000627', {
+    'groupId': groupId,
+    'target': target,
+    'action': action,
+    'expectedVersion': expectedVersion,
+    'membershipVersion': membershipVersion,
+  });
+
   Future<Map<String, dynamic>> markRead(String groupId, int sequence) =>
       messaging.call('K260913000622', {
         'groupId': groupId,

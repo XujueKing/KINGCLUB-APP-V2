@@ -117,6 +117,115 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     if (mounted && !_invalid) await _load();
   }
 
+  List<String> _memberActions(Map member) {
+    if (_details == null ||
+        _invalid ||
+        member['membershipVersion'] is! num ||
+        member['account'] == widget.repository.account ||
+        member['role'] == 'owner') {
+      return [];
+    }
+    if (_details!['ownerAccount'] == widget.repository.account) {
+      return [member['role'] == 'admin' ? 'member' : 'admin', 'remove'];
+    }
+    final admin = (_details!['members'] as List).cast<Map>().any(
+      (m) => m['account'] == widget.repository.account && m['role'] == 'admin',
+    );
+    return admin && member['role'] == 'member' ? ['remove'] : [];
+  }
+
+  String _actionLabel(String action) => switch (action) {
+    'admin' => '设为管理员',
+    'member' => '取消管理员',
+    _ => '移出群聊',
+  };
+
+  Widget _memberTrailing(Map member) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (member['role'] != 'member')
+        Text(
+          member['role'] == 'owner' ? '群主' : '管理员',
+          style: const TextStyle(color: Colors.grey),
+        ),
+      if (_memberActions(member).isNotEmpty)
+        PopupMenuButton<String>(
+          key: ValueKey('group-member-actions-${member['account']}'),
+          enabled: !_saving,
+          color: const Color(0xFF202020),
+          icon: const Icon(
+            Icons.more_horiz,
+            color: Color(0xFFC9B69E),
+            size: 22,
+          ),
+          onSelected: (action) => _manageMember(member, action),
+          itemBuilder: (_) => [
+            for (final action in _memberActions(member))
+              PopupMenuItem(
+                value: action,
+                child: Text(
+                  _actionLabel(action),
+                  style: const TextStyle(
+                    color: Color(0xFFC9B69E),
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+          ],
+        ),
+    ],
+  );
+
+  Future<void> _manageMember(Map member, String action) async {
+    if (_saving || !_memberActions(member).contains(action)) return;
+    final version = (_details!['metadataVersion'] as num).toInt();
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xFF202020),
+          title: Text(
+            '${_actionLabel(action)}？',
+            style: const TextStyle(color: Color(0xFFC9B69E)),
+          ),
+          content: Text(
+            member['nickname'] as String,
+            style: const TextStyle(color: Colors.grey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              key: const ValueKey('group-member-confirm'),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('确认'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted || _invalid) return;
+      final result = await widget.repository.manageMember(
+        widget.groupId,
+        member['account'] as String,
+        action: action,
+        expectedVersion: version,
+        membershipVersion: (member['membershipVersion'] as num).toInt(),
+      );
+      if (result['changed'] is! bool) throw const FormatException('成员管理结果无效');
+      if (mounted && !_invalid) await _load();
+    } catch (error) {
+      if (mounted && !_invalid) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _transfer() async {
     if (_invalid ||
         _saving ||
@@ -438,12 +547,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                         (raw as Map)['nickname'] as String,
                         style: const TextStyle(color: Colors.white),
                       ),
-                      trailing: raw['role'] == 'owner'
-                          ? const Text(
-                              '群主',
-                              style: TextStyle(color: Colors.grey),
-                            )
-                          : null,
+                      trailing: _memberTrailing(raw),
                       onTap: _saving
                           ? null
                           : () => Navigator.of(context).push<void>(
