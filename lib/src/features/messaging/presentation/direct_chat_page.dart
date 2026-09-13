@@ -1,3 +1,4 @@
+import 'chat_member_avatar.dart';
 import '../data/chat_history_store.dart';
 import 'chat_location_message.dart';
 import '../data/chat_location.dart';
@@ -163,6 +164,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   ChatSessionController? _chat;
   String? get _realTarget => widget.groupId ?? widget.peerAccount;
   StreamSubscription<Map<String, dynamic>>? _chatEvents;
+  final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   StreamSubscription<void>? _sessionEvents;
   bool _loadingOlder = false;
   bool _selectingImage = false;
@@ -377,6 +379,11 @@ class _DirectChatPageState extends State<DirectChatPage>
       _chatEvents = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
         final data = event['data'];
+        if (type == 'connection.ready' ||
+            type == 'chat.group.changed' ||
+            type == 'chat.relationship.changed') {
+          if (mounted) setState(_avatarProfiles.clear);
+        }
         if (type == 'connection.ready' && chat is GroupChatController) {
           chat.invalidateMemberNames();
         }
@@ -403,6 +410,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         _chat?.removeListener(_realChatChanged);
         _chat?.dispose();
         _chat = null;
+        _avatarProfiles.clear();
         if (mounted) {
           setState(_messages.clear);
           KingNotice.of(context).show('登录状态已变化，请重新进入会话');
@@ -600,6 +608,23 @@ class _DirectChatPageState extends State<DirectChatPage>
                           ? ObjectKey(message)
                           : ValueKey(message.clientMessageId),
                       child: _MessageRow(
+                        avatar: _chat == null || message.senderAccount == null
+                            ? null
+                            : ChatMemberAvatar(
+                                account: message.senderAccount!,
+                                own: message.mine,
+                                profile: _avatarProfiles.putIfAbsent(
+                                  message.senderAccount!,
+                                  () => _chat!.messaging.call(
+                                    message.mine
+                                        ? 'K260912000501'
+                                        : 'K260913000612',
+                                    message.mine
+                                        ? {}
+                                        : {'peer': message.senderAccount!},
+                                  ),
+                                ),
+                              ),
                         message: message,
                         imageContent: message.location != null
                             ? ChatLocationMessage(
@@ -2066,6 +2091,7 @@ class _MessageRow extends StatelessWidget {
     required this.onLongPress,
     required this.onTap,
     this.onAvatarTap,
+    this.avatar,
     this.imageContent,
   });
 
@@ -2075,6 +2101,7 @@ class _MessageRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onAvatarTap;
   final Widget? imageContent;
+  final Widget? avatar;
 
   @override
   Widget build(BuildContext context) {
@@ -2112,7 +2139,7 @@ class _MessageRow extends StatelessWidget {
               if (!message.mine) ...[
                 GestureDetector(
                   onTap: onAvatarTap,
-                  child: const LegacyFakeAvatar(size: 42),
+                  child: avatar ?? const LegacyFakeAvatar(size: 42),
                 ),
                 const SizedBox(width: 10),
               ],
@@ -2178,7 +2205,7 @@ class _MessageRow extends StatelessWidget {
               ),
               if (message.mine) ...[
                 const SizedBox(width: 10),
-                const LegacyFakeAvatar(size: 42),
+                avatar ?? const LegacyFakeAvatar(size: 42),
               ],
             ],
           ),
