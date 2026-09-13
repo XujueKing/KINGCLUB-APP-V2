@@ -1,3 +1,5 @@
+import 'package:kingclub/src/features/messaging/data/call_relay_configuration.dart';
+
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -71,7 +73,106 @@ class Sender implements RTCRtpSender {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+const restartCallId = '00000000-0000-4000-8000-000000000001';
+CallRelayConfiguration freshRelay() {
+  final expiry = (DateTime.now().millisecondsSinceEpoch ~/ 1000 + 600) * 1000;
+  return CallRelayConfiguration.parse(restartCallId, {
+    'expiresAtMs': expiry,
+    'iceServers': [
+      {
+        'urls': ['turn:relay.example'],
+        'username': '${expiry ~/ 1000}:0123456789abcdef0123456789abcdef',
+        'credential': 'AAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+      },
+    ],
+  });
+}
+
+class RestartPeer extends Peer {
+  final operations = <String>[];
+  Map<String, dynamic>? updated;
+  bool fail = false;
+  @override
+  Map<String, dynamic> get getConfiguration => {'sdpSemantics': 'unified-plan'};
+  @override
+  Future<void> setConfiguration(Map<String, dynamic> value) async {
+    operations.add('configuration');
+    updated = value;
+    if (fail) throw StateError('partial native failure');
+  }
+
+  @override
+  Future<RTCSessionDescription> createOffer([
+    Map<String, dynamic>? constraints,
+  ]) async {
+    expect(constraints?['iceRestart'], true);
+    operations.add('offer');
+    return RTCSessionDescription('v=0\r\n', 'offer');
+  }
+
+  @override
+  Future<void> setLocalDescription(RTCSessionDescription value) async {
+    operations.add('local');
+  }
+}
+
 void main() {
+  test(
+    'ICE restart replaces credentials before SDP without recapturing tracks',
+    () async {
+      final stream = StreamFixture(), peer = RestartPeer();
+      var captures = 0;
+      final media = NativeCallMedia(
+        video: true,
+        iceServers: [],
+        capture: (_) async {
+          captures++;
+          return stream;
+        },
+        peerFactory: (_) async => peer,
+      );
+      await media.open();
+      final relay = freshRelay();
+      final offer = await media.restartOffer(
+        callId: restartCallId,
+        relay: relay,
+      );
+      expect(offer.type, 'offer');
+      expect(peer.operations, ['configuration', 'offer', 'local']);
+      expect(peer.updated?['iceServers'], relay.iceServers);
+      expect(peer.updated?['sdpSemantics'], 'unified-plan');
+      expect(captures, 1);
+      expect(stream.track.stops, 0);
+      await media.close();
+    },
+  );
+  test('ICE restart rejects mismatched credentials and stops on partial native failure', () async {
+    final stream = StreamFixture(), peer = RestartPeer();
+    final media = NativeCallMedia(
+      video: true,
+      iceServers: [],
+      capture: (_) async => stream,
+      peerFactory: (_) async => peer,
+    );
+    await media.open();
+    expect(
+      () => media.restartOffer(
+        callId: '00000000-0000-4000-8000-000000000002',
+        relay: freshRelay(),
+      ),
+      throwsStateError,
+    );
+    expect(peer.operations, isEmpty);
+    peer.fail = true;
+    await expectLater(
+      media.restartOffer(callId: restartCallId, relay: freshRelay()),
+      throwsStateError,
+    );
+    expect(peer.operations, ['configuration']);
+    expect(stream.track.stops, 1);
+    expect(peer.closes, 1);
+  });
+
   test('speaker route failure preserves state and late completion cannot override hangup reset', () async {
     final stream = StreamFixture();
     var response = Completer<void>();

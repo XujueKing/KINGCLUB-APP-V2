@@ -135,3 +135,12 @@ NativeCallMedia 增加 setSpeakerphone，调用安装版本 flutter_webrtc Helpe
 已对已连接测试手机 adb install -r，返回 Success，保留应用数据。显式启动 MainActivity 后 pidof 返回存活进程；安装更新时间已核对。最初截图全黑，dumpsys power 证实 Asleep，唤醒后窗口焦点仍为系统 NotificationShade/锁屏层，App 是 focused activity；未绕过锁屏、未确认 App 页面实际视觉，未向真实联系人发送消息或发起通话。
 
 本机公网 TURN UDP/TCP/TLS 再探测仍超时。共享测试 API 仍未部署 066–072，故本安装不代表通话已上线；仍需云网络放行、鉴权媒体回传、更新服务部署和双机实测。
+
+
+## 原生 ICE 重协商入口（尚未自动触发）
+
+NativeCallMedia.restartOffer 接收同一 callId 的有效 CallRelayConfiguration，保留现有 peer 配置与音视频轨道，先 setConfiguration 替换 ICE servers，再 createOffer(iceRestart:true)、setLocalDescription。更新前验证凭据关联与有效期，重复进行中的重启拒绝；原生部分应用失败关闭媒体。重新等待对应远端 SDP 后才应用新代次排队 ICE。
+
+依据已安装 flutter_webrtc 的 RTCPeerConnection.setConfiguration/createOffer 接口实现。当前 CallMediaSession 仍拒绝非零代次，需下一步接入发起端新代次、接收端同代次响应及过期凭据刷新触发；本入口未接自动轮询，因此不宣称网络切换或十分钟以上通话已恢复正常。
+
+验证：原生媒体/媒体会话 11 项通过，新增配置先于 SDP、保留非 ICE 配置、不重新采集、凭据 callId 不匹配时不改原生状态、部分失败停轨道和 peer 测试；两文件静态分析通过。未重新构建安装，未真实 ICE restart 或长通话测试。

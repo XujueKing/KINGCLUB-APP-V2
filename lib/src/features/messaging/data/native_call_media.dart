@@ -1,3 +1,5 @@
+import 'call_relay_configuration.dart';
+
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 typedef CallCapture = Future<MediaStream> Function(
@@ -41,6 +43,7 @@ class NativeCallMedia {
   MediaStream? _local, _remote;
   RTCPeerConnection? _peer;
   Future<void>? _opening, _closing;
+  Future<RTCSessionDescription>? _restarting;
   bool _closed = false, _remoteReady = false;
   final _candidates = <RTCIceCandidate>[];
   MediaStream? get localStream => _local;
@@ -112,6 +115,46 @@ class NativeCallMedia {
     await peer.setLocalDescription(description);
     _check();
     return description;
+  }
+
+  /// Replace expiring ICE credentials and negotiate on the existing tracks.
+  /// The session owner must publish this offer under a fresh signal generation.
+  Future<RTCSessionDescription> restartOffer({
+    required String callId,
+    required CallRelayConfiguration relay,
+  }) {
+    _check();
+    relay.requireUsable(callId);
+    if (_restarting != null) {
+      return Future.error(StateError('ICE restart already in progress'));
+    }
+    return _restarting = _restartOffer(relay)
+        .whenComplete(() => _restarting = null);
+  }
+
+  Future<RTCSessionDescription> _restartOffer(
+    CallRelayConfiguration relay,
+  ) async {
+    final peer = _ready;
+    try {
+      await peer.setConfiguration({
+        ...peer.getConfiguration,
+        'iceServers': relay.iceServers,
+      });
+      _check();
+      _remoteReady = false;
+      _candidates.clear();
+      final offer = await peer.createOffer({'iceRestart': true});
+      _check();
+      await peer.setLocalDescription(offer);
+      _check();
+      return offer;
+    } catch (_) {
+      // Configuration/SDP may be partially applied in native code. Do not
+      // continue sending media with an unknown negotiation state.
+      await close();
+      rethrow;
+    }
   }
 
   Future<RTCSessionDescription> answer() async {
