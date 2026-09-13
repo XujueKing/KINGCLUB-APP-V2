@@ -52,6 +52,18 @@ class MessagingRepository {
     'clientMessageId': clientMessageId,
     'text': text,
   });
+  Future<Map<String, dynamic>> sendImage({
+    required String peer,
+    required String clientMessageId,
+    required String assetId,
+  }) => call('K260913000632', {
+    'recipient': peer,
+    'clientMessageId': clientMessageId,
+    'assetId': assetId,
+  });
+  Future<Map<String, dynamic>> imageMedia(String messageId) =>
+      call('K260913000633', {'messageId': messageId});
+
   Future<Map<String, dynamic>> setRelationship(String peer, String action) =>
       call('K260913000602', {'peer': peer, 'action': action});
   Future<Map<String, dynamic>> permission(String peer) =>

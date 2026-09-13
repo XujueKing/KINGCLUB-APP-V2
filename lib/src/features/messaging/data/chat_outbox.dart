@@ -8,7 +8,7 @@ abstract interface class ChatOutbox {
   Future<void> remove(String clientMessageId);
 }
 
-/// Small pending text queue, encrypted by the platform secure storage.
+/// Small pending message/reference queue, encrypted by the platform secure storage.
 /// Per-account serialization prevents two open conversations overwriting it.
 class SecureChatOutbox implements ChatOutbox {
   SecureChatOutbox(String account, {FlutterSecureStorage? storage})

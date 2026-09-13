@@ -185,6 +185,34 @@ class DirectChatController extends ChatSessionController {
     await retry(id);
   }
 
+  /// Queue the owned, completed upload reference; credentials/bytes never enter
+  /// the secure message queue. Network retries reuse this message identifier.
+  Future<void> sendImage(String assetId, {VoidCallback? onQueued}) async {
+    if (_disposed) return;
+    if (!RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(assetId)) {
+      throw ArgumentError('图片上传结果无效');
+    }
+    final id = const Uuid().v4();
+    final message = <String, dynamic>{
+      'clientMessageId': id,
+      'recipient': peer,
+      'sender': repository.account,
+      'messageType': 'image',
+      'imageAssetId': assetId,
+      'text': '[图片]',
+      'createdDate': DateTime.now().toUtc().toIso8601String(),
+      'status': 'queued',
+    };
+    await outbox.put(message);
+    if (_disposed) return;
+    _pending[id] = message;
+    _changed();
+    onQueued?.call();
+    await retry(id);
+  }
+
   @override
   Future<void> retryQueued() async {
     for (final message in _pending.values.toList()) {
@@ -202,13 +230,32 @@ class DirectChatController extends ChatSessionController {
     _pending[id] = {...pending, 'status': 'sending'};
     _changed();
     try {
-      final result = await repository.sendText(
-        peer: peer,
-        clientMessageId: id,
-        text: pending['text'] as String,
-      );
+      final kind = pending['messageType'];
+      if (kind != null && kind != 'text' && kind != 'image') {
+        throw const FormatException('不支持的待发送消息类型');
+      }
+      final result = kind == 'image'
+          ? await repository.sendImage(
+              peer: peer,
+              clientMessageId: id,
+              assetId: pending['imageAssetId'] as String,
+            )
+          : await repository.sendText(
+              peer: peer,
+              clientMessageId: id,
+              text: pending['text'] as String,
+            );
       if (_disposed) return;
-      await _acknowledge(Map<String, dynamic>.from(result['message'] as Map));
+      final received = Map<String, dynamic>.from(result['message'] as Map);
+      if (received['clientMessageId'] != id ||
+          received['sender'] != repository.account ||
+          received['recipient'] != peer ||
+          (kind == 'image' &&
+              (received['messageType'] != 'image' ||
+                  received['imageAssetId'] != pending['imageAssetId']))) {
+        throw const FormatException('消息回执与发送内容不符');
+      }
+      await _acknowledge(received);
       error = null;
     } catch (e) {
       if (_disposed || !_pending.containsKey(id)) return;

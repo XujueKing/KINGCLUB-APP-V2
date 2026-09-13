@@ -93,3 +93,10 @@ GroupChatController从共享账号安全Outbox读取groupId匹配的消息，不
 ## 群邀请测试发布与构建结果
 
 测试后端已发布group-invite-052，050/051/052应用完成，运行检查通过。`build/group-invite-release-build.log`确认profile/preview arm64 APK构建成功（59.5秒，118.6MB），包含14af57e邀请UI及本轮好友资料版式修正。设备462606d8仍offline，未覆盖安装，未进行真实双机邀请/接受/消息收发。构建成功不等于真机验收通过。
+
+
+## 单聊图片消息队列接入（进行中）
+
+MessagingRepository新增632图片发送与633媒体授权读取；DirectChatController.sendImage将完成上传的assetId与稳定clientMessageId先写入账号隔离队列，再发送。恢复队列按image类型走632，未知类型拒绝，不误走文字接口；回执核验发送者、接收者、clientMessageId及图片资产，不符不得移除队列。队列不放图片字节和上传key。
+
+`build/direct-image-queue-test.log`12项通过，新增图片网络失败/重建控制器相同请求重试、错误图片回执保留队列、队列写失败不发请求，包含既有单聊回归。`build/direct-image-queue-analyze.log`三文件无问题。选图/加密上传/图片气泡和预览还未接入UI，未打包发布；群图片也尚未接通。
