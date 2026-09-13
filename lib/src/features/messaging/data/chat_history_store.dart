@@ -73,10 +73,17 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 2,
+        onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 2) {
+            await db.execute(
+              'ALTER TABLE conversation ADD COLUMN hiddenThrough INTEGER NOT NULL DEFAULT 0',
+            );
+          }
+        },
         onCreate: (db, _) async {
           await db.execute(
-            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0)',
+            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0)',
           );
           await db.execute(
             'CREATE TABLE message (conversation TEXT NOT NULL, sequence INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(conversation, sequence))',
@@ -195,8 +202,11 @@ class ChatHistoryStore {
     List<Map<String, dynamic>> messages, {
     required int expectedEpoch,
     int? cursor,
+    int hiddenThrough = 0,
   }) async {
-    if (expectedEpoch < 0 || (cursor != null && cursor < 0)) {
+    if (expectedEpoch < 0 ||
+        hiddenThrough < 0 ||
+        (cursor != null && cursor < 0)) {
       throw ArgumentError('Invalid history cursor');
     }
     final id = await _conversation(conversation);
@@ -225,8 +235,22 @@ class ChatHistoryStore {
         whereArgs: [id],
       )).single;
       if (state['epoch'] != expectedEpoch) return false;
+      final savedHidden = state['hiddenThrough'] as int;
+      final floor = hiddenThrough > savedHidden ? hiddenThrough : savedHidden;
       final batch = tx.batch();
+      batch.delete(
+        'message',
+        where: 'conversation=? AND sequence<=?',
+        whereArgs: [id, floor],
+      );
+      batch.update(
+        'conversation',
+        {'hiddenThrough': floor},
+        where: 'id=?',
+        whereArgs: [id],
+      );
       for (final row in rows) {
+        if ((row['sequence'] as int) <= floor) continue;
         batch.insert(
           'message',
           row,

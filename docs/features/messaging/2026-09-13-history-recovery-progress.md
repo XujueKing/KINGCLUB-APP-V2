@@ -20,3 +20,10 @@ DirectChatController 原先在历史请求进行中直接返回该 Future；如�
 分页消息与补收 cursor 同事务写入；持久 epoch 随清空递增，旧 epoch 提交直接拒绝。磁盘测试使用实际 SQLite FFI 和真实密码实现，覆盖重开、分页、账号／会话隔离、凭据排除、错误密钥、序号篡改、无效批次不推进 cursor、清空后旧写入拒绝。6 项通过，尚未接入 DirectChatController / GroupChatController，不能当作离线历史已交付；后续还需准入失效、多端清空同步、容量策略与真机验证。
 
 SQLite 事务与 FFI 使用依据：https://pub.dev/documentation/sqflite/latest/ 、https://pub.dev/packages/sqflite_common_ffi 。本轮未部署后端或构建 APK。
+
+
+## 多端清空的持久界限
+
+接控制器前发现 604 缺少当前查看者 hiddenThrough 投影，已在后台补齐（未部署）。SQLite 升为 v2，增加 conversation.hiddenThrough；commit 在同一事务中删除 <= hiddenThrough 的行，之后收到较旧页面也按已存界限过滤。不会因迟到结果降低该值。
+
+8 项真实 SQLite 测试通过，包含 v1 无损迁移、远端清空后迟到记录和重开后旧记录不复活；后台 241 项检查及隔离全链路通过。控制器和页面接入仍待完成，不能宣称离线展示已经可用。

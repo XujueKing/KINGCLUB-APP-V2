@@ -141,6 +141,77 @@ void main() {
       throwsA(isA<SecretBoxAuthenticationError>()),
     );
   });
+  test(
+    'remote clear floor prunes old rows and rejects late page resurrection',
+    () async {
+      await store.commit(
+        'direct:peer',
+        [message(1), message(2), message(3)],
+        expectedEpoch: 0,
+        cursor: 3,
+      );
+      await store.commit('direct:peer', [], expectedEpoch: 0, hiddenThrough: 2);
+      expect(
+        (await store.read('direct:peer')).messages.map((m) => m['sequence']),
+        [3],
+      );
+      await store.commit(
+        'direct:peer',
+        [message(1), message(2)],
+        expectedEpoch: 0,
+        hiddenThrough: 0,
+      );
+      expect(
+        (await store.read('direct:peer')).messages.map((m) => m['sequence']),
+        [3],
+      );
+      await store.close();
+      store = await open();
+      await store.commit('direct:peer', [message(2)], expectedEpoch: 0);
+      expect(
+        (await store.read('direct:peer')).messages.map((m) => m['sequence']),
+        [3],
+      );
+    },
+  );
+  test(
+    'version one database upgrades without discarding conversation state',
+    () async {
+      final file = '${dir.path}/upgrade.db';
+      final legacy = await databaseFactoryFfi.openDatabase(
+        file,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: (db, _) async {
+            await db.execute(
+              'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0)',
+            );
+            await db.execute(
+              'CREATE TABLE message (conversation TEXT NOT NULL, sequence INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(conversation, sequence))',
+            );
+            await db.insert('conversation', {
+              'id': 'retained',
+              'cursor': 12,
+              'epoch': 3,
+            });
+          },
+        ),
+      );
+      await legacy.close();
+      final upgraded = await ChatHistoryStore.openDatabaseWithKey(
+        factory: databaseFactoryFfi,
+        file: file,
+        key: key,
+        account: 'me',
+      );
+      final db = await databaseFactoryFfi.openDatabase(file);
+      final row = (await db.query('conversation')).single;
+      expect(row['cursor'], 12);
+      expect(row['epoch'], 3);
+      expect(row['hiddenThrough'], 0);
+      await upgraded.close();
+    },
+  );
   test('wrong encryption key rejects ciphertext', () async {
     await store.commit(
       'direct:peer',
