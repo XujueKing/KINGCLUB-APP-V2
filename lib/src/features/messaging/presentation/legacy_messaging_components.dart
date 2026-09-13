@@ -476,3 +476,9 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
     ),
   );
 }
+
+const legacyChatBodyTextStyle = TextStyle(
+  fontSize: 15,
+  fontWeight: FontWeight.w400,
+  fontFamilyFallback: ['PingFang SC', 'Microsoft YaHei'],
+);

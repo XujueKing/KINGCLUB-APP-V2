@@ -573,14 +573,15 @@ class _DirectChatPageState extends State<DirectChatPage>
                                                 _endVoiceHold(
                                                   interrupted: true,
                                                 ),
-                                            child: const Center(
+                                            child: Center(
                                               child: Text(
                                                 '按住 说话',
-                                                style: TextStyle(
-                                                  color: Color(0xFF312C27),
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w400,
-                                                ),
+                                                style: legacyChatBodyTextStyle
+                                                    .copyWith(
+                                                      color: const Color(
+                                                        0xFF312C27,
+                                                      ),
+                                                    ),
                                               ),
                                             ),
                                           ),
@@ -1684,9 +1685,8 @@ class _MessageContent extends StatelessWidget {
       case _FakeMessageKind.text:
         return Text(
           message.text,
-          style: TextStyle(
+          style: legacyChatBodyTextStyle.copyWith(
             color: message.mine ? const Color(0xFF222222) : legacyMessageGold,
-            fontSize: 15,
           ),
         );
       case _FakeMessageKind.image:

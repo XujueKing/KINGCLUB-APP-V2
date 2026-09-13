@@ -1,3 +1,5 @@
+import 'legacy_messaging_components.dart' show legacyChatBodyTextStyle;
+
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'dart:math' as math;
@@ -116,9 +118,8 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                                   : target == VoiceHoldTarget.text
                                   ? '松开转文字'
                                   : '松手发送',
-                              style: const TextStyle(
-                                color: Color(0xFFC9B69E),
-                                fontSize: 16,
+                              style: legacyChatBodyTextStyle.copyWith(
+                                color: const Color(0xFFC9B69E),
                               ),
                             ),
                           ],
@@ -128,7 +129,7 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                         child: TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0, end: 1),
                           duration: const Duration(milliseconds: 650),
-                          curve: const ElasticOutCurve(.7),
+                          curve: Curves.linear,
                           builder: (context, t, _) => Stack(
                             children: [
                               Positioned.fill(
@@ -207,31 +208,35 @@ class _VoiceRingPainter extends CustomPainter {
     final thickness = size.width * (78 / 504);
     final ringRadius = radius + size.width * (58 / 504);
     final rect = Rect.fromCircle(center: center, radius: ringRadius);
+    final arrival = Curves.easeOutCubic.transform(
+      (progress / .75).clamp(0.0, 1.0),
+    );
+    final orbitalOffset = (1 - arrival) * .65;
     for (final left in [true, false]) {
       final kind = left ? VoiceHoldTarget.cancel : VoiceHoldTarget.text;
       final paint = Paint()
         ..color = target == kind
             ? (left ? const Color(0xFFB76450) : const Color(0xFF64CB99))
-            : const Color(0xFFD3D3D3)
+            : const Color(0xFF202020)
         ..style = PaintingStyle.stroke
         ..strokeWidth = thickness
         ..strokeCap = StrokeCap.butt;
-      final start = left ? -math.pi : -math.pi / 2;
+      final start = left
+          ? -math.pi - orbitalOffset
+          : -math.pi / 2 + orbitalOffset;
       final sweep = math.pi / 2;
       canvas.drawArc(rect, start, sweep, false, paint);
-      final textAngle = (left ? -1 : 1) * .215;
+      final textAngle = (left ? -1 : 1) * (.215 + orbitalOffset);
       final label = left ? '取消' : '滑到这里 转文字';
       final glyphs = label.characters
           .map(
             (character) => TextPainter(
               text: TextSpan(
                 text: character,
-                style: TextStyle(
+                style: legacyChatBodyTextStyle.copyWith(
                   color: target == kind
                       ? const Color(0xFF15271F)
-                      : const Color(0xFF242424),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
+                      : const Color(0xFFCCCCCC),
                 ),
               ),
               textDirection: TextDirection.ltr,
@@ -257,14 +262,16 @@ class _VoiceRingPainter extends CustomPainter {
         glyph.dispose();
       }
     }
-    canvas.drawLine(
-      Offset(center.dx, center.dy - ringRadius - thickness / 2),
-      Offset(center.dx, center.dy - ringRadius + thickness / 2),
-      Paint()
-        ..color = const Color(0x66808080)
-        ..strokeWidth = .7,
-    );
-    final t = progress;
+    if (arrival >= .999) {
+      canvas.drawLine(
+        Offset(center.dx, center.dy - ringRadius - thickness / 2),
+        Offset(center.dx, center.dy - ringRadius + thickness / 2),
+        Paint()
+          ..color = const Color(0x66808080)
+          ..strokeWidth = .7,
+      );
+    }
+    final t = const ElasticOutCurve(.7).transform(progress);
     final startWidth = size.width * .92;
     final width = startWidth + (radius * 2 - startWidth) * t;
     final height = 40 + (radius * 2 - 40) * t;
