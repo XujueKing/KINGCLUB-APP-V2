@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/voice_capture.dart';
 
 class Device implements VoiceCaptureDevice {
-  bool failCancel = false;
+  bool failCancel = false, failStop = false, missingPath = false;
   final permission = Completer<bool>();
   final started = Completer<void>();
   int starts = 0, cancels = 0, stops = 0, disposals = 0;
@@ -25,7 +25,8 @@ class Device implements VoiceCaptureDevice {
   @override
   Future<String?> stop() async {
     stops++;
-    return 'voice.m4a';
+    if (failStop) throw StateError('native stop failed');
+    return missingPath ? null : 'voice.m4a';
   }
 
   @override
@@ -35,6 +36,71 @@ class Device implements VoiceCaptureDevice {
 }
 
 void main() {
+  test('cancel failure immediately releases recorder without waiting for page disposal', () async {
+    final device = Device()
+      ..permission.complete(true)
+      ..started.complete()
+      ..failCancel = true;
+    final capture = VoiceCapture(
+      device: device,
+      allocatePath: () async => 'voice.m4a',
+    );
+    capture.begin(onLimit: () {});
+    await Future<void>.delayed(Duration.zero);
+    await expectLater(capture.finish(cancel: true), throwsStateError);
+    expect(device.disposals, 1);
+    expect(capture.begin(onLimit: () {}), isFalse);
+    await capture.dispose();
+    expect(device.disposals, 1);
+  });
+  for (final failCancel in [false, true]) {
+    test(
+      'partial start failure cancels, retires recorder if cancel fails: $failCancel',
+      () async {
+        final device = Device()
+          ..permission.complete(true)
+          ..failCancel = failCancel;
+        final capture = VoiceCapture(
+          device: device,
+          allocatePath: () async => 'voice.m4a',
+        );
+        capture.begin(onLimit: () {});
+        await Future<void>.delayed(Duration.zero);
+        device.started.completeError(
+          StateError('partial native start failure'),
+        );
+        await expectLater(capture.finish(cancel: false), throwsStateError);
+        expect(device.cancels, 1);
+        expect(device.stops, 0);
+        if (failCancel) expect(capture.begin(onLimit: () {}), isFalse);
+        await capture.dispose();
+        expect(device.disposals, 1);
+      },
+    );
+  }
+  for (final missingPath in [false, true]) {
+    test(
+      'failed stop or missing output cancels and returns no draft: $missingPath',
+      () async {
+        final device = Device()
+          ..permission.complete(true)
+          ..started.complete()
+          ..failStop = !missingPath
+          ..missingPath = missingPath;
+        final capture = VoiceCapture(
+          device: device,
+          allocatePath: () async => 'voice.m4a',
+        );
+        capture.begin(onLimit: () {});
+        await Future<void>.delayed(const Duration(milliseconds: 1100));
+        await expectLater(capture.finish(cancel: false), throwsStateError);
+        expect(device.stops, 1);
+        expect(device.cancels, 1);
+        await capture.dispose();
+        expect(device.disposals, 1);
+      },
+    );
+  }
   test(
     'dispose releases device even when cancellation fails and forbids reuse',
     () async {

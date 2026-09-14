@@ -70,6 +70,7 @@ class VoiceCapture {
   bool _held = false, _recording = false, _busy = false;
   bool _disposed = false;
   Future<void>? _disposing;
+  Future<void>? _releasing;
   Object? _error;
   Timer? _limit;
 
@@ -84,6 +85,7 @@ class VoiceCapture {
     _held = true;
     _error = null;
     _starting = () async {
+      var startAttempted = false;
       try {
         if (!await device.hasPermission()) {
           throw StateError('请允许麦克风权限后再试');
@@ -91,6 +93,7 @@ class VoiceCapture {
         if (!_held) return;
         final path = await allocatePath();
         if (!_held) return;
+        startAttempted = true;
         await device.start(path);
         _recording = true;
         _elapsed
@@ -99,6 +102,7 @@ class VoiceCapture {
         if (_held) _limit = Timer(const Duration(seconds: 60), onLimit);
       } catch (error) {
         _error = error;
+        if (startAttempted) await _discardAfterFailure();
       }
     }();
     return true;
@@ -118,7 +122,7 @@ class VoiceCapture {
     _elapsed.stop();
     try {
       if (cancel) {
-        if (_recording) await device.cancel();
+        if (_recording) await _cancelRecording();
         return null;
       }
       if (_error != null) {
@@ -126,17 +130,49 @@ class VoiceCapture {
       }
       if (!_recording) return null;
       if (_elapsed.elapsed < const Duration(seconds: 1)) {
-        await device.cancel();
+        await _cancelRecording();
         throw StateError('说话时间太短');
       }
-      final path = await device.stop();
-      if (path == null) throw StateError('录音未保存，请重试');
+      String? path;
+      try {
+        path = await device.stop();
+        if (path == null) throw StateError('录音未保存，请重试');
+      } catch (_) {
+        await _discardAfterFailure();
+        rethrow;
+      }
       return VoiceDraft(path, _elapsed.elapsed);
     } finally {
       _recording = false;
       _busy = false;
     }
   }
+
+  // A failed start/stop can still leave a platform recorder allocated.
+  // If cancel also fails, retire this capture rather than reuse that recorder.
+  Future<void> _discardAfterFailure() async {
+    try {
+      await _cancelRecording();
+    } catch (_) {
+      // Keep the original recording failure visible to the caller.
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    try {
+      await device.cancel();
+    } catch (_) {
+      _disposed = true;
+      try {
+        await _releaseDevice();
+      } catch (_) {
+        // Never reuse a device whose native cleanup failed.
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _releaseDevice() => _releasing ??= device.dispose();
 
   Future<void> dispose() {
     _disposed = true;
@@ -147,7 +183,7 @@ class VoiceCapture {
     try {
       await finish(cancel: true);
     } finally {
-      await device.dispose();
+      await _releaseDevice();
     }
   }
 }
