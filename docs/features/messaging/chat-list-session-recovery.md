@@ -12,3 +12,7 @@
 - 当前 Profile 包构建中；双机扫码申请、接受后自动出现、前后台收信与未读消除待安装实测。
 
 不将正在开发的撤回当作本次交付：只有服务端返回历史版本时才展示真实撤回入口；共享服务仍为 088。
+
+## 安装结果
+
+Profile ARM64 构建成功（217.8 秒，build/chat-list-fix-profile-build.log），ADB 对当前连接设备返回 Success，应用已重新启动。静态检查无问题（build/chat-list-final-analyze.log）。真实双方手机的收信/未读验收仍待用户操作；未进行代用户发消息。
