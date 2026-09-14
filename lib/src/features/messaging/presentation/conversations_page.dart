@@ -126,6 +126,11 @@ class _ConversationsPageState extends State<ConversationsPage>
       _repository = repository;
       _events = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
+        if (type == 'connection.ready' ||
+            type == 'chat.friend-request.changed' ||
+            type == 'chat.relationship.changed') {
+          _avatarProfiles.clear();
+        }
         if (type.startsWith('chat.') || type == 'connection.ready') {
           _refreshReal();
         }
@@ -317,7 +322,7 @@ class _ConversationsPageState extends State<ConversationsPage>
               account: target,
               profile: _avatarProfiles.putIfAbsent(
                 target,
-                () => _repository!.call('K260913000612', {'peer': target}),
+                () => _loadAvatarProfile(target),
               ),
             ),
       name: name,
@@ -353,6 +358,22 @@ class _ConversationsPageState extends State<ConversationsPage>
       onTogglePin: () => _realAction(item, 'pin'),
       onDelete: () => _realAction(item, 'hide'),
     );
+  }
+
+  Future<Map<String, dynamic>> _loadAvatarProfile(String target) {
+    final future = _repository!.call('K260913000612', {'peer': target});
+    // Retry a failed fetch on the next list refresh, without a rebuild retry loop.
+    unawaited(
+      future.then<void>(
+        (_) {},
+        onError: (Object _, StackTrace __) {
+          if (identical(_avatarProfiles[target], future)) {
+            _avatarProfiles.remove(target);
+          }
+        },
+      ),
+    );
+    return future;
   }
 
   List<Widget> _realRows() {

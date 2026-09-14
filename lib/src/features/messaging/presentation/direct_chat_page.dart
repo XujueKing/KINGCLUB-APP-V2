@@ -453,6 +453,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         final type = event['eventType'] as String? ?? '';
         final data = event['data'];
         if (type == 'connection.ready' ||
+            type == 'chat.friend-request.changed' ||
             type == 'chat.group.changed' ||
             type == 'chat.relationship.changed') {
           if (mounted) setState(_avatarProfiles.clear);
