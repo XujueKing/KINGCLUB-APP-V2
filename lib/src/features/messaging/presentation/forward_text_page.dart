@@ -8,6 +8,9 @@ import '../../contacts/data/contacts_controller.dart';
 import '../data/chat_outbox.dart';
 import '../data/chat_location.dart';
 import '../data/chat_image_forwarder.dart';
+import '../data/chat_file_forwarder.dart';
+import '../data/chat_file_downloader.dart';
+import '../data/chat_file_uploader.dart';
 import '../data/messaging_repository.dart';
 import 'chat_member_avatar.dart';
 import 'direct_chat_page.dart';
@@ -29,12 +32,16 @@ class ForwardTextPage extends StatefulWidget {
     this.imageMessageId,
     this.sourceGroup = false,
     this.createImageForwarder,
+    this.file,
+    this.createFileForwarder,
   });
   final MessagingRepository repository;
   final String text;
   final ChatLocation? location;
   final String? imageMessageId;
   final bool sourceGroup;
+  final ChatFileReference? file;
+  final ChatFileForwarder Function()? createFileForwarder;
   final ChatImageForwarder Function()? createImageForwarder;
   final ChatOutbox? outbox;
   @override
@@ -54,6 +61,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
   String? _groupCursor, _groupError;
   BuildContext? _confirmationContext;
   ChatImageForwarder? _imageForwarder;
+  ChatFileForwarder? _fileForwarder;
   Map<String, dynamic>? _attempt;
   bool _saving = false, _invalid = false;
   String? _error;
@@ -87,6 +95,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
     _contacts.dispose();
     _search.dispose();
     _imageForwarder?.dispose();
+    _fileForwarder?.dispose();
     super.dispose();
   }
 
@@ -140,7 +149,9 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
             title: Text('发送给 ${target.displayName}'),
             content: SingleChildScrollView(
               child: Text(
-                widget.imageMessageId != null
+                widget.file != null
+                    ? widget.file!.fileName
+                    : widget.imageMessageId != null
                     ? '[图片]'
                     : widget.location == null
                     ? widget.text
@@ -163,7 +174,8 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
       );
       _confirmationContext = null;
       if (confirmed != true || !mounted || _invalid) return;
-      if (widget.imageMessageId == null &&
+      if (widget.file == null &&
+          widget.imageMessageId == null &&
           widget.location == null &&
           (widget.text.trim().isEmpty || widget.text.length > 4000)) {
         throw StateError('文字长度无效');
@@ -192,6 +204,17 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         imageAssetId = (await forwarder.prepare()).assetId;
         if (!mounted || _invalid) return;
       }
+      UploadedChatFile? uploadedFile;
+      if (widget.file != null && _attempt == null) {
+        final forwarder = _fileForwarder ??=
+            widget.createFileForwarder?.call() ??
+            ChatFileForwarder(
+              repository: widget.repository,
+              reference: widget.file!,
+            );
+        uploadedFile = await forwarder.prepare();
+        if (!mounted || _invalid) return;
+      }
       _attempt ??= {
         'clientMessageId': const Uuid().v4(),
         if (target.group) ...{
@@ -200,7 +223,9 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         } else
           'recipient': target.account,
         'sender': widget.repository.account,
-        'text': widget.imageMessageId != null
+        'text': widget.file != null
+            ? '[文件]'
+            : widget.imageMessageId != null
             ? '[图片]'
             : widget.location == null
             ? widget.text.trim()
@@ -213,12 +238,20 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
           'messageType': 'location',
           'location': widget.location!.toJson(),
         },
+        if (uploadedFile != null) ...{
+          'messageType': 'file',
+          'fileAssetId': uploadedFile.assetId,
+          'fileName': uploadedFile.fileName,
+          'fileSize': uploadedFile.size,
+          'fileSha256': uploadedFile.sha256,
+        },
         'createdDate': DateTime.now().toUtc().toIso8601String(),
         'status': 'queued',
       };
       await _outbox.put(_attempt!);
       try {
         await _imageForwarder?.acknowledgeQueued();
+        await _fileForwarder?.acknowledgeQueued();
       } catch (_) {}
       if (!mounted || _invalid) return;
       // The target conversation restores this exact queued ID and owns retries.

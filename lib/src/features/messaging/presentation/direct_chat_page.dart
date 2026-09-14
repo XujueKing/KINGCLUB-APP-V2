@@ -2220,8 +2220,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         message.messageId != null &&
         (message.kind == _FakeMessageKind.text ||
             message.kind == _FakeMessageKind.image) &&
-        message.voiceDurationMs == null &&
-        message.fileAssetId == null) {
+        message.voiceDurationMs == null) {
       _voicePlayback?.stop();
       await Navigator.of(context).push<void>(
         MaterialPageRoute(
@@ -2233,6 +2232,16 @@ class _DirectChatPageState extends State<DirectChatPage>
                 ? message.messageId
                 : null,
             sourceGroup: widget.groupId != null,
+            file: message.fileAssetId == null
+                ? null
+                : ChatFileReference(
+                    messageId: message.messageId!,
+                    assetId: message.fileAssetId!,
+                    fileName: message.fileName!,
+                    size: message.fileSize!,
+                    sha256: message.fileSha256!,
+                    group: widget.groupId != null,
+                  ),
             outbox: widget.chatOutbox,
           ),
         ),

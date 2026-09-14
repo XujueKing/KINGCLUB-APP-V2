@@ -1,3 +1,6 @@
+import 'package:kingclub/src/features/messaging/data/chat_file_forwarder.dart';
+import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
+import 'package:kingclub/src/features/messaging/data/chat_file_uploader.dart';
 import 'package:kingclub/src/features/messaging/data/chat_image_forwarder.dart';
 import 'package:kingclub/src/features/messaging/data/chat_image_uploader.dart';
 import 'package:kingclub/src/features/messaging/data/chat_location.dart';
@@ -31,6 +34,31 @@ class PreparedImage extends ChatImageForwarder {
       '11111111-1111-4111-8111-111111111111',
       2,
       2,
+      'f',
+      'r',
+    );
+  }
+}
+
+class PreparedFile extends ChatFileForwarder {
+  PreparedFile(MessagingRepository repository)
+    : super(repository: repository, reference: fileReference);
+  static final fileReference = ChatFileReference(
+    messageId: 'source',
+    assetId: 'original',
+    fileName: 'test.bin',
+    size: 3,
+    sha256: 'a' * 64,
+  );
+  int prepared = 0;
+  @override
+  Future<UploadedChatFile> prepare() async {
+    prepared++;
+    return UploadedChatFile(
+      '11111111-1111-4111-8111-111111111111',
+      'test.bin',
+      3,
+      'a' * 64,
       'f',
       'r',
     );
@@ -113,6 +141,66 @@ void main() {
       expect(queued['imageAssetId'], '11111111-1111-4111-8111-111111111111');
       expect(queued.containsKey('assetId'), false);
       expect(sent.single['assetId'], queued['imageAssetId']);
+      expect(sent.single['clientMessageId'], queued['clientMessageId']);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
+  testWidgets(
+    'file confirmation queues the asset key consumed by the real sender',
+    (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final outbox = RecordingOutbox()..failWrite = true;
+      final sent = <Map<String, dynamic>>[];
+      final repository = MessagingRepository(
+        account: 'me',
+        call: (id, p) async {
+          if (id == 'K260913000608') {
+            return {
+              'items': [
+                {'peer': 'peer', 'nickname': 'Friend'},
+              ],
+              'hasMore': false,
+            };
+          }
+          if (id == 'K260913000604') return history([]);
+          if (id == 'K260914000651') {
+            sent.add({...p});
+            throw StateError('offline');
+          }
+          return {};
+        },
+      );
+      final image = PreparedFile(repository);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ForwardTextPage(
+            repository: repository,
+            text: '[文件]',
+            file: PreparedFile.fileReference,
+            outbox: outbox,
+            createFileForwarder: () => image,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('forward-text-peer')));
+      await tester.pump();
+      expect(image.prepared, 0);
+      await confirm(tester);
+      expect(sent, isEmpty);
+      expect(image.prepared, 1);
+      outbox.failWrite = false;
+      await confirm(tester);
+      expect(image.prepared, 1);
+      expect(outbox.attempts.toSet().length, 1);
+      final queued = outbox.items.values.single;
+      expect(queued['fileAssetId'], '11111111-1111-4111-8111-111111111111');
+      expect(queued.containsKey('assetId'), false);
+      expect(queued['fileName'], 'test.bin');
+      expect(queued['fileSize'], 3);
+      expect(queued['fileSha256'], 'a' * 64);
+      expect(sent.single['assetId'], queued['fileAssetId']);
       expect(sent.single['clientMessageId'], queued['clientMessageId']);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
