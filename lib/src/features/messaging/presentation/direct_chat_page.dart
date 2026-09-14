@@ -1,3 +1,4 @@
+import 'chat_video_view.dart';
 import 'chat_video_send_page.dart';
 import '../data/chat_reply.dart';
 import 'chat_history_context_page.dart';
@@ -608,6 +609,11 @@ class _DirectChatPageState extends State<DirectChatPage>
               fileSize: message['messageType'] == 'file'
                   ? message['fileSize'] as int?
                   : null,
+              videoDurationMs: message['messageType'] == 'video'
+                  ? message['videoDurationMs'] as int?
+                  : null,
+              videoWidth: message['videoWidth'] as int?,
+              videoHeight: message['videoHeight'] as int?,
               voiceDurationMs: message['messageType'] == 'voice'
                   ? message['voiceDurationMs'] as int?
                   : null,
@@ -798,7 +804,47 @@ class _DirectChatPageState extends State<DirectChatPage>
                               ),
                         message: message,
                         imageContent:
-                            message.fileName != null && message.fileSize != null
+                            message.videoDurationMs != null &&
+                                message.messageId != null &&
+                                _chat != null
+                            ? ChatVideoView(
+                                repository: _chat!.messaging,
+                                messageId: message.messageId!,
+                                group: widget.groupId != null,
+                                width: message.videoWidth ?? 320,
+                                height: message.videoHeight ?? 240,
+                                durationMs: message.videoDurationMs!,
+                                onTap: () {
+                                  final repository = _chat!.messaging;
+                                  _voicePlayback?.stop();
+                                  _inputFocusNode.unfocus();
+                                  Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) => Scaffold(
+                                        backgroundColor: Colors.black,
+                                        appBar: AppBar(
+                                          backgroundColor: Colors.black,
+                                          leading: KingBackButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(),
+                                          ),
+                                          title: const Text('视频'),
+                                        ),
+                                        body: SafeArea(
+                                          child: ChatVideoView(
+                                            repository: repository,
+                                            messageId: message.messageId!,
+                                            group: widget.groupId != null,
+                                            full: true,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : message.fileName != null &&
+                                  message.fileSize != null
                             ? ChatFileCard(
                                 fileName: message.fileName!,
                                 size: message.fileSize!,
@@ -3051,6 +3097,9 @@ class _FakeMessage {
     this.fileAssetId,
     this.fileSha256,
     this.fileSize,
+    this.videoDurationMs,
+    this.videoWidth,
+    this.videoHeight,
     this.voiceDurationMs,
     this.location,
     this.senderAccount,
@@ -3067,6 +3116,7 @@ class _FakeMessage {
   final String? fileName;
   final String? fileAssetId, fileSha256;
   final int? fileSize;
+  final int? videoDurationMs, videoWidth, videoHeight;
   final int? voiceDurationMs;
   final ChatLocation? location;
   final String? senderAccount;
@@ -3092,6 +3142,9 @@ class _FakeMessage {
     fileAssetId: fileAssetId,
     fileSha256: fileSha256,
     fileSize: fileSize,
+    videoDurationMs: videoDurationMs,
+    videoWidth: videoWidth,
+    videoHeight: videoHeight,
     voiceDurationMs: voiceDurationMs,
     location: location,
     senderAccount: senderAccount,
