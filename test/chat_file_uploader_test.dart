@@ -35,6 +35,34 @@ const asset = '12345678-1234-1234-1234-123456789012';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  test('revoked session after file scan prevents upload intent', () async {
+    final dir = await Directory.systemTemp.createTemp('kingclub-hash-auth-');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = await File('${dir.path}/fixture.bin')
+        .writeAsBytes(Uint8List(2 * 1024 * 1024));
+    var checks = 0, calls = 0;
+    final uploader = ChatFileUploader(
+      repository: MessagingRepository(
+        account: 'me',
+        call: (_, _) async {
+          calls++;
+          throw StateError('must not create upload');
+        },
+      ),
+      checkSession: () async {
+        if (++checks > 1) {
+          throw const AuthFailure('SESSION_CHANGED', 'revoked');
+        }
+      },
+    );
+    addTearDown(uploader.dispose);
+    await expectLater(
+      uploader.upload(file, fileName: 'fixture.bin'),
+      throwsA(isA<AuthFailure>()),
+    );
+    expect(calls, 0);
+    expect(checks, 2);
+  });
   for (final scenario in [
     'lost',
     'transient',

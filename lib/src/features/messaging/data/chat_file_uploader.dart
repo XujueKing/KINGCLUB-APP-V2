@@ -1,6 +1,7 @@
 import 'package:unorm_dart/unorm_dart.dart' as unorm;
 
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:cryptography/dart.dart';
 
@@ -118,18 +119,10 @@ class ChatFileUploader {
           ).hasMatch(fileName)) {
         throw ArgumentError('文件名无效');
       }
-      // DartSha256 has an incremental sink; no whole-file memory buffer.
-      final hash = const DartSha256().newHashSink();
-      var counted = 0;
-      await for (final chunk in input.openRead()) {
-        await _check();
-        counted += chunk.length;
-        if (counted > size) throw StateError('文件已变化');
-        hash.add(chunk);
-      }
-      hash.close();
-      if (counted != size) throw StateError('文件已变化');
-      final digest = _hex((await hash.hash()).bytes);
+      // Scan away from the UI isolate; validate credentials again before
+      // creating any upload intent or making a network request.
+      final digest = await _fileDigest(input.path, size);
+      await _check();
       final fingerprint = jsonEncode(['chat-file-v1', fileName, size, digest]);
       final requestId = await _requests.identity(fingerprint);
       await _check();
@@ -352,3 +345,22 @@ class ChatFileUploader {
     _dio.close(force: true);
   }
 }
+
+Future<String> _fileDigest(String path, int expectedSize) =>
+    Isolate.run(() async {
+      final hash = const DartSha256().newHashSink();
+      var counted = 0;
+      try {
+        await for (final chunk in File(path).openRead()) {
+          counted += chunk.length;
+          if (counted > expectedSize) throw StateError('文件已变化');
+          hash.add(chunk);
+        }
+      } finally {
+        hash.close();
+      }
+      if (counted != expectedSize) throw StateError('文件已变化');
+      return (await hash.hash()).bytes
+          .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+          .join();
+    });
