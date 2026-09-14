@@ -62,3 +62,5 @@ Android 导出实现已加入 MainActivity/ChatFileExport 与 ChatFileExporter�
 新增 filetest 独立包名/文件测试标签与 tool/file_export_main.dart，生成 8MiB+17 字节合成文件，复用生产 ChatFileExporter/ChatFileExport/ChatFileCopy，用户通过系统选择位置后保存；输出固定成功标记与合成数据摘要以便 adb 比较。无真实会员/聊天请求，无麦克风/摄像头/定位权限；不覆盖 preview。此探针验证系统文档提供器与实际写入，不证明真实聊天服务器链路。安装、系统保存与目标摘要核对完成前不计实测。测试文件和独立包验证后清理。
 
 文件探针 analyze 已通过。独立 Python 算法得到合成文件预期长度 8388625、SHA256 485a584410e070b9d289cb2a75ee695b20860585e15736e6871364f3680e6526，必须与手机系统导出后的实际文件匹配，不能只读 Dart 成功标记。filetest/profile APK 正在构建，测试手机当前在线，尚未安装/导出。
+
+filetest/profile 构建已生成 129.3MB APK（61.8 秒）。独立包安装进程仍等待：设备在线但 keyguard showing=true，系统安装引导处于暂停；已请用户解锁确认。尚未拿到安装 Success 或保存结果。同步只读核实共享服务仍为 group-history-065；TURN 公网 UDP/TCP/TLS 可达性探测均超时，因此不把共享环境文件接口或通话中继标为上线。
