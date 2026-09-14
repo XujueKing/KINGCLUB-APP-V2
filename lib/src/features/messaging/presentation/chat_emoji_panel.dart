@@ -1,5 +1,6 @@
 import 'package:cryptography/dart.dart';
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/design_system/king_notice.dart';
+import '../../../core/session/secure_session_store.dart';
 import 'legacy_emoji_data.dart';
 import 'legacy_messaging_components.dart';
 
@@ -38,7 +40,9 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
   final List<String> _names = ['添加的单个表情'];
   Future<void>? _load;
   int _epoch = 0;
-  bool _current(int epoch) => mounted && epoch == _epoch;
+  bool _invalid = false;
+  StreamSubscription<void>? _session;
+  bool _current(int epoch) => mounted && !_invalid && epoch == _epoch;
   int _category = 0;
   int _page = 0;
   bool _importing = false;
@@ -94,6 +98,21 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
   @override
   void initState() {
     super.initState();
+    _session = SecureSessionStore.changes.stream.listen((_) {
+      if (!mounted || widget.account == null) return;
+      setState(() {
+        _invalid = true;
+        _epoch++;
+        _images
+          ..clear()
+          ..add([]);
+        _names
+          ..clear()
+          ..add('添加的单个表情');
+        _category = 0;
+        _page = 0;
+      });
+    });
     (_load ??= _restore()).then((_) {
       if (mounted) setState(() {});
     });
@@ -104,6 +123,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.account != widget.account) {
       _epoch++;
+      _invalid = false;
       _names
         ..clear()
         ..add('添加的单个表情');
@@ -120,8 +140,14 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
     }
   }
 
+  @override
+  void dispose() {
+    _session?.cancel();
+    super.dispose();
+  }
+
   Future<void> _add({required bool pack}) async {
-    if (_importing) return;
+    if (_importing || _invalid) return;
     final epoch = _epoch;
     setState(() => _importing = true);
     try {
@@ -211,7 +237,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
   }
 
   Future<void> _remove(int library, {String? path}) async {
-    if (_importing) return;
+    if (_importing || _invalid) return;
     final epoch = _epoch;
     setState(() => _importing = true);
     try {
@@ -295,7 +321,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
   Widget _tab(int category, String label, Widget child) => Tooltip(
     message: label,
     child: InkWell(
-      onLongPress: category > 3 && !_importing
+      onLongPress: category > 3 && !_importing && !_invalid
           ? () => _remove(category - 3)
           : null,
       onTap: () => setState(() {
@@ -376,7 +402,9 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
                 ),
                 IconButton(
                   tooltip: '添加表情包',
-                  onPressed: _importing ? null : () => _add(pack: true),
+                  onPressed: (_importing || _invalid)
+                      ? null
+                      : () => _add(pack: true),
                   icon: const Icon(
                     Icons.add_circle_outline,
                     size: 24,
@@ -524,7 +552,9 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
               if (index == 0 && item == 0) {
                 return InkWell(
                   key: const ValueKey('add-single-sticker'),
-                  onTap: _importing ? null : () => _add(pack: false),
+                  onTap: (_importing || _invalid)
+                      ? null
+                      : () => _add(pack: false),
                   child: CustomPaint(
                     painter: _DashedAddBorder(),
                     child: const Center(
@@ -543,7 +573,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
                 onLongPress: _importing
                     ? null
                     : () => _remove(index, path: path),
-                onTap: () => widget.onSticker(path),
+                onTap: _invalid ? null : () => widget.onSticker(path),
                 child: _image(path),
               );
             },

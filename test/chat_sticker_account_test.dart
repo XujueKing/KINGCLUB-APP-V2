@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_emoji_panel.dart';
+import 'package:kingclub/src/core/session/secure_session_store.dart';
 
 void main() {
   testWidgets('late previous account library cannot replace current account', (
@@ -66,6 +67,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byTooltip('A'), findsOneWidget);
       expect(find.byTooltip('B'), findsNothing);
+      SecureSessionStore.changes.add(null);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('A'), findsNothing);
+      final addPack = tester.widget<IconButton>(
+        find.byWidgetPredicate(
+          (widget) => widget is IconButton && widget.tooltip == '添加表情包',
+        ),
+      );
+      expect(addPack.onPressed, isNull);
+
       await tester.pumpWidget(const SizedBox());
       await Future<void>.delayed(const Duration(milliseconds: 100));
     });
