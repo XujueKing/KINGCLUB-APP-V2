@@ -1651,6 +1651,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   Widget _emojiPanel() => ChatEmojiPanel(
     key: const ValueKey('direct-chat-emoji-panel'),
+    account: _chat?.messaging.account,
     onEmoji: (emoji) {
       final selection = _controller.selection;
       final start = selection.isValid

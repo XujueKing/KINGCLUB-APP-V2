@@ -1,3 +1,5 @@
+import 'package:cryptography/dart.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -17,7 +19,11 @@ class ChatEmojiPanel extends StatefulWidget {
     required this.onSticker,
     required this.onDelete,
     required this.onSend,
+    this.account,
+    this.libraryDirectory,
   });
+  final String? account;
+  final Future<Directory> Function(String? account)? libraryDirectory;
   final ValueChanged<String> onEmoji;
   final ValueChanged<String> onSticker;
   final VoidCallback onDelete;
@@ -28,30 +34,50 @@ class ChatEmojiPanel extends StatefulWidget {
 }
 
 class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
-  static final List<List<String>> _images = [[]];
-  static final List<String> _names = ['添加的单个表情'];
-  static Future<void>? _load;
+  final List<List<String>> _images = [[]];
+  final List<String> _names = ['添加的单个表情'];
+  Future<void>? _load;
+  int _epoch = 0;
+  bool _current(int epoch) => mounted && epoch == _epoch;
   int _category = 0;
   int _page = 0;
   bool _importing = false;
 
-  static Future<Directory> _directory() async {
+  Future<Directory> _directory() async {
+    final account = widget.account;
+    if (widget.libraryDirectory != null) {
+      return widget.libraryDirectory!(account);
+    }
     final root = await getApplicationDocumentsDirectory();
-    return Directory('${root.path}/chat_stickers').create(recursive: true);
+    final hash = (await const DartSha256().hash(
+      utf8.encode(jsonEncode(['sticker-library-v1', account])),
+    )).bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return Directory('${root.path}/chat_stickers/$hash')
+        .create(recursive: true);
   }
 
-  static Future<void> _restore() async {
+  Future<void> _restore() async {
+    final epoch = _epoch;
     try {
-      final file = File('${(await _directory()).path}/library.json');
+      final directory = await _directory();
+      final file = File('${directory.path}/library.json');
       if (!await file.exists()) return;
       final records = jsonDecode(await file.readAsString()) as List;
       final names = <String>[];
       final images = <List<String>>[];
       for (final record in records) {
+        final paths = (record['images'] as List)
+            .cast<String>()
+            .where(
+              (path) =>
+                  File(path).parent.absolute.path == directory.absolute.path,
+            )
+            .toList();
+        if (names.isNotEmpty && paths.isEmpty) continue;
         names.add(record['name'] as String);
-        images.add((record['images'] as List).cast<String>());
+        images.add(paths);
       }
-      if (names.isNotEmpty) {
+      if (_current(epoch) && names.isNotEmpty) {
         _names
           ..clear()
           ..addAll(names);
@@ -73,12 +99,34 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
     });
   }
 
+  @override
+  void didUpdateWidget(covariant ChatEmojiPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.account != widget.account) {
+      _epoch++;
+      _names
+        ..clear()
+        ..add('添加的单个表情');
+      _images
+        ..clear()
+        ..add([]);
+      _category = 0;
+      _page = 0;
+      _importing = false;
+      final epoch = _epoch;
+      _load = _restore().then((_) {
+        if (_current(epoch)) setState(() {});
+      });
+    }
+  }
+
   Future<void> _add({required bool pack}) async {
     if (_importing) return;
+    final epoch = _epoch;
     setState(() => _importing = true);
     try {
       final selected = await ImagePicker().pickMultiImage();
-      if (selected.isEmpty || !mounted) return;
+      if (selected.isEmpty || !mounted || !_current(epoch)) return;
       String? name;
       if (pack) {
         name = await showDialog<String>(
@@ -109,17 +157,21 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
             );
           },
         );
-        if (name == null || !mounted) return;
+        if (name == null || !_current(epoch)) return;
       }
       await (_load ??= _restore());
+      if (!_current(epoch)) return;
       final directory = await _directory();
+      if (!_current(epoch)) return;
       final paths = <String>[];
       final batch = DateTime.now().microsecondsSinceEpoch;
       for (var i = 0; i < selected.length; i++) {
+        if (!_current(epoch)) return;
         final path = '${directory.path}/$batch-$i.image';
         await selected[i].saveTo(path);
         paths.add(path);
       }
+      if (!_current(epoch)) return;
       final nextNames = [..._names];
       final nextImages = _images.map((images) => [...images]).toList();
       if (pack) {
@@ -137,18 +189,24 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
         ]),
         flush: true,
       );
+      if (!_current(epoch)) return;
       await temp.rename(file.path);
+      if (!_current(epoch)) return;
       _names
         ..clear()
         ..addAll(nextNames);
       _images
         ..clear()
         ..addAll(nextImages);
-      if (mounted) setState(() => _category = pack ? _names.length + 2 : 3);
+      if (_current(epoch)) {
+        setState(() => _category = pack ? _names.length + 2 : 3);
+      }
     } catch (_) {
-      if (mounted) KingNotice.of(context).show('添加失败，请检查相册权限后重试');
+      if (mounted && _current(epoch)) {
+        KingNotice.of(context).show('添加失败，请检查相册权限后重试');
+      }
     } finally {
-      if (mounted) setState(() => _importing = false);
+      if (_current(epoch)) setState(() => _importing = false);
     }
   }
 
