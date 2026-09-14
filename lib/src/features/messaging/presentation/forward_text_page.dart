@@ -7,6 +7,7 @@ import '../../../core/session/secure_session_store.dart';
 import '../../contacts/data/contacts_controller.dart';
 import '../data/chat_outbox.dart';
 import '../data/chat_location.dart';
+import '../data/chat_image_forwarder.dart';
 import '../data/messaging_repository.dart';
 import 'chat_member_avatar.dart';
 import 'direct_chat_page.dart';
@@ -25,10 +26,14 @@ class ForwardTextPage extends StatefulWidget {
     required this.text,
     this.outbox,
     this.location,
+    this.imageMessageId,
+    this.sourceGroup = false,
   });
   final MessagingRepository repository;
   final String text;
   final ChatLocation? location;
+  final String? imageMessageId;
+  final bool sourceGroup;
   final ChatOutbox? outbox;
   @override
   State<ForwardTextPage> createState() => _ForwardTextPageState();
@@ -46,6 +51,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
   bool _showGroups = false, _loadingGroups = false, _groupsLoaded = false;
   String? _groupCursor, _groupError;
   BuildContext? _confirmationContext;
+  ChatImageForwarder? _imageForwarder;
   Map<String, dynamic>? _attempt;
   bool _saving = false, _invalid = false;
   String? _error;
@@ -78,6 +84,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
     _contacts.removeListener(_changed);
     _contacts.dispose();
     _search.dispose();
+    _imageForwarder?.dispose();
     super.dispose();
   }
 
@@ -131,7 +138,9 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
             title: Text('发送给 ${target.displayName}'),
             content: SingleChildScrollView(
               child: Text(
-                widget.location == null
+                widget.imageMessageId != null
+                    ? '[图片]'
+                    : widget.location == null
                     ? widget.text
                     : '${widget.location!.name}\n${widget.location!.address}',
               ),
@@ -152,7 +161,8 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
       );
       _confirmationContext = null;
       if (confirmed != true || !mounted || _invalid) return;
-      if (widget.location == null &&
+      if (widget.imageMessageId == null &&
+          widget.location == null &&
           (widget.text.trim().isEmpty || widget.text.length > 4000)) {
         throw StateError('文字长度无效');
       }
@@ -168,6 +178,16 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         }
         membershipVersion = details['membershipVersion'] as int;
       }
+      String? imageAssetId;
+      if (widget.imageMessageId != null && _attempt == null) {
+        final forwarder = _imageForwarder ??= ChatImageForwarder(
+          repository: widget.repository,
+          messageId: widget.imageMessageId!,
+          group: widget.sourceGroup,
+        );
+        imageAssetId = (await forwarder.prepare()).assetId;
+        if (!mounted || _invalid) return;
+      }
       _attempt ??= {
         'clientMessageId': const Uuid().v4(),
         if (target.group) ...{
@@ -176,7 +196,15 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         } else
           'recipient': target.account,
         'sender': widget.repository.account,
-        'text': widget.location == null ? widget.text.trim() : '[??]',
+        'text': widget.imageMessageId != null
+            ? '[图片]'
+            : widget.location == null
+            ? widget.text.trim()
+            : '[位置]',
+        if (imageAssetId != null) ...{
+          'messageType': 'image',
+          'assetId': imageAssetId,
+        },
         if (widget.location != null) ...{
           'messageType': 'location',
           'location': widget.location!.toJson(),
@@ -185,6 +213,9 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         'status': 'queued',
       };
       await _outbox.put(_attempt!);
+      try {
+        await _imageForwarder?.acknowledgeQueued();
+      } catch (_) {}
       if (!mounted || _invalid) return;
       // The target conversation restores this exact queued ID and owns retries.
       unawaited(

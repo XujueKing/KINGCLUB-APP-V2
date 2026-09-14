@@ -57,7 +57,7 @@ void main() {
         MaterialApp(
           home: ForwardTextPage(
             repository: repo(),
-            text: '[??]',
+            text: '[位置]',
             location: point,
             outbox: outbox,
           ),
@@ -74,7 +74,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(outbox.items.values.single['messageType'], 'location');
       expect(outbox.items.values.single['location'], point.toJson());
-      expect(outbox.items.values.single['text'], '[??]');
+      expect(outbox.items.values.single['text'], '[位置]');
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
     },

@@ -2218,7 +2218,8 @@ class _DirectChatPageState extends State<DirectChatPage>
         action == _FakeMessageAction.forward &&
         _chat != null &&
         message.messageId != null &&
-        message.kind == _FakeMessageKind.text &&
+        (message.kind == _FakeMessageKind.text ||
+            message.kind == _FakeMessageKind.image) &&
         message.voiceDurationMs == null &&
         message.fileAssetId == null) {
       _voicePlayback?.stop();
@@ -2228,6 +2229,10 @@ class _DirectChatPageState extends State<DirectChatPage>
             repository: _chat!.messaging,
             text: message.text,
             location: message.location,
+            imageMessageId: message.kind == _FakeMessageKind.image
+                ? message.messageId
+                : null,
+            sourceGroup: widget.groupId != null,
             outbox: widget.chatOutbox,
           ),
         ),
