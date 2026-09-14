@@ -1,3 +1,4 @@
+import 'chat_history_search_page.dart';
 import '../data/messaging_repository.dart';
 import '../../../core/design_system/king_notice.dart';
 
@@ -110,7 +111,24 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
             _SettingsRow(
               key: const ValueKey('direct-chat-details-search'),
               label: '查找聊天内容',
-              onTap: () => setState(() => _searching = true),
+              onTap: () {
+                if (widget.peerAccount != null && widget.repository != null) {
+                  Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => ChatHistorySearchPage(
+                        search: (query, before) => widget.repository!.history(
+                          widget.peerAccount!,
+                          query: query,
+                          before: before,
+                          limit: 30,
+                        ),
+                      ),
+                    ),
+                  );
+                } else {
+                  setState(() => _searching = true);
+                }
+              },
             ),
           ],
         ),

@@ -1,3 +1,4 @@
+import 'chat_history_search_page.dart';
 import 'group_join_review_page.dart';
 import 'group_qr_page.dart';
 import 'group_announcement_page.dart';
@@ -572,6 +573,32 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                               builder: (_) => GroupAnnouncementPage(
                                 groupId: widget.groupId,
                                 repository: widget.repository,
+                              ),
+                            ),
+                          ),
+                  ),
+                  ListTile(
+                    key: const ValueKey('group-history-search'),
+                    title: const Text(
+                      '查找聊天内容',
+                      style: TextStyle(color: Color(0xFFC9B69E), fontSize: 16),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: Color(0xFFC9B69E),
+                    ),
+                    onTap: _saving || _invalid
+                        ? null
+                        : () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => ChatHistorySearchPage(
+                                search: (query, before) =>
+                                    widget.repository.history(
+                                      widget.groupId,
+                                      query: query,
+                                      before: before,
+                                      limit: 30,
+                                    ),
                               ),
                             ),
                           ),
