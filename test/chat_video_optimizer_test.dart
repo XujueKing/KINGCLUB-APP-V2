@@ -110,4 +110,60 @@ void main() {
     }
     expect(keys[0], isNot(keys[1]));
   });
+  test('progress uses real estimates, ignores invalid values and never moves backwards', () async {
+    final pending = Completer<String?>(), reached = Completer<void>();
+    final estimates = ['20', '10', 'invalid', '101', '80'];
+    final values = <double>[];
+    var polls = 0;
+    final optimizer = ChatVideoOptimizer(
+      account: 'fixture',
+      supported: true,
+      invoke: (method, _) async {
+        if (method == 'prepare') return pending.future;
+        if (method == 'progress') {
+          return estimates[(polls++).clamp(0, estimates.length - 1)];
+        }
+        return null;
+      },
+    );
+    final preparation = optimizer.prepare(
+      source,
+      onProgress: (value) {
+        values.add(value);
+        if (value == .8) reached.complete();
+      },
+    );
+    await reached.future.timeout(const Duration(seconds: 10));
+    pending.complete(null);
+    expect(await preparation, source);
+    expect(values, [.2, .8]);
+  });
+
+  test(
+    'late progress after export completion cannot update the upload stage',
+    () async {
+      final pending = Completer<String?>(), progress = Completer<String?>();
+      final polled = Completer<void>();
+      final values = <double>[];
+      final optimizer = ChatVideoOptimizer(
+        account: 'fixture',
+        supported: true,
+        invoke: (method, _) {
+          if (method == 'prepare') return pending.future;
+          if (method == 'progress') {
+            polled.complete();
+            return progress.future;
+          }
+          return Future.value(null);
+        },
+      );
+      final preparation = optimizer.prepare(source, onProgress: values.add);
+      await polled.future.timeout(const Duration(seconds: 10));
+      pending.complete(null);
+      await preparation;
+      progress.complete('90');
+      await Future<void>.delayed(Duration.zero);
+      expect(values, isEmpty);
+    },
+  );
 }

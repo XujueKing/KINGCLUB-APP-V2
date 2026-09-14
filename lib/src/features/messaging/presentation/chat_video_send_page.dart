@@ -86,9 +86,17 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
       if (_uploaded == null) {
         await _preview?.pause();
         setState(() => _optimizing = true);
-        uploadInput = await _optimizer.prepare(widget.file);
+        uploadInput = await _optimizer.prepare(
+          widget.file,
+          onProgress: (value) {
+            if (mounted && _optimizing) setState(() => _progress = value);
+          },
+        );
         if (!mounted) return;
-        setState(() => _optimizing = false);
+        setState(() {
+          _optimizing = false;
+          _progress = null;
+        });
       }
       final file =
           _uploaded ??
@@ -241,7 +249,9 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
                 child: Text(
                   _busy
                       ? (_optimizing
-                            ? '正在压缩视频…'
+                            ? (_progress == null
+                                  ? '正在压缩视频…'
+                                  : '正在压缩视频 ${(100 * _progress!).floor()}%')
                             : _processing
                             ? '正在处理视频…'
                             : '正在上传…')

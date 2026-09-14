@@ -6,6 +6,7 @@ import android.media.MediaExtractor
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.effect.FrameDropEffect
@@ -59,6 +60,14 @@ class ChatVideoUpload(private val context: Context) {
     }
 
     fun handle(call: MethodCall, result: MethodChannel.Result) {
+        if (call.method == "progress") {
+            val task = transformer
+            val holder = ProgressHolder()
+            val available = call.argument<String>("id") == activeId && task != null &&
+                task.getProgress(holder) == Transformer.PROGRESS_STATE_AVAILABLE
+            result.success(if (available) holder.progress.coerceIn(0, 100).toString() else null)
+            return
+        }
         if (call.method == "release") {
             val key = call.argument<String>("key") ?: ""
             if (Regex("^[a-f0-9]{64}$").matches(key)) File(context.cacheDir, "chat-video-upload/$key.mp4").delete()
@@ -79,6 +88,7 @@ class ChatVideoUpload(private val context: Context) {
         val source = File(path).canonicalFile
         val root = File(context.applicationInfo.dataDir).canonicalFile
         if (!source.path.startsWith(root.path + File.separator) || !source.isFile) {
+            Log.i("KingclubVideoUpload", "PRIVATE_INPUT_REQUIRED")
             result.error("VIDEO_INPUT", "Expected a private selected file", null); return
         }
         pending = result; activeId = id
@@ -96,11 +106,12 @@ class ChatVideoUpload(private val context: Context) {
                 val skip = !valid || before.hdr || source.length() < 4 * 1024 * 1024 ||
                     (bitrate <= 2_200_000 && max(before.width, before.height) <= 1280)
                 val cached = !skip && acceptable(output, source, before)
+                Log.i("KingclubVideoUpload", "PLAN skip=$skip cached=$cached hdr=${before.hdr} bytes=${source.length()} durationMs=${before.duration}")
                 main.post {
                     if (current != generation || disposed) return@post
                     if (skip) finish(null) else if (cached) finish(output) else start(source, output, part, before, current)
                 }
-            } catch (_: Exception) { main.post { if (current == generation) finish(null) } }
+            } catch (error: Exception) { Log.i("KingclubVideoUpload", "INSPECT_FAILED ${error.javaClass.simpleName}"); main.post { if (current == generation) finish(null) } }
         }
     }
 
@@ -132,6 +143,7 @@ class ChatVideoUpload(private val context: Context) {
                         if (current != generation) return
                         worker.execute {
                             val okay = acceptable(part, source, before)
+                            Log.i("KingclubVideoUpload", "OUTPUT accepted=$okay sourceBytes=${source.length()} outputBytes=${part.length()}")
                             main.post {
                                 if (current != generation) { part.delete(); return@post }
                                 if (okay && (!output.exists() || output.delete()) && part.renameTo(output)) finish(output)
@@ -140,12 +152,13 @@ class ChatVideoUpload(private val context: Context) {
                         }
                     }
                     override fun onError(composition: Composition, exportResult: ExportResult, exception: ExportException) {
+                        Log.i("KingclubVideoUpload", "ENCODER_FAILED code=${exception.errorCode} cause=${exception.cause?.javaClass?.simpleName}")
                         if (current == generation) finish(null)
                     }
                 }).build()
             transformer = task
             task.start(item, part.absolutePath)
-        } catch (_: Exception) { finish(null) }
+        } catch (error: Exception) { Log.i("KingclubVideoUpload", "START_FAILED ${error.javaClass.simpleName}"); finish(null) }
     }
 
     private fun finish(file: File?) {

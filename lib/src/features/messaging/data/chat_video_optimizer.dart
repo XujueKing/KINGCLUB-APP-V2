@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -23,8 +24,9 @@ class ChatVideoOptimizer {
   String? _key;
   File? _prepared;
   bool _disposed = false;
+  Timer? _progressTimer;
 
-  Future<File> prepare(File source) async {
+  Future<File> prepare(File source, {void Function(double)? onProgress}) async {
     _check();
     if (_prepared != null) return _prepared!;
     if (!_supported || await source.length() < 4 * 1024 * 1024) return source;
@@ -43,6 +45,34 @@ class ChatVideoOptimizer {
         .join();
     _check();
     String? path;
+    var observing = true, polling = false;
+    var lastProgress = -1;
+    if (onProgress != null) {
+      _progressTimer = Timer.periodic(const Duration(milliseconds: 300), (
+        _,
+      ) async {
+        if (!observing || _disposed || polling) return;
+        polling = true;
+        try {
+          final value = int.tryParse(
+            await _invoke('progress', {'id': _id}) ?? '',
+          );
+          if (observing &&
+              !_disposed &&
+              value != null &&
+              value >= 0 &&
+              value <= 100 &&
+              value > lastProgress) {
+            lastProgress = value;
+            onProgress(value / 100);
+          }
+        } catch (_) {
+          // A missing progress estimate must not interrupt the actual export.
+        } finally {
+          polling = false;
+        }
+      });
+    }
     try {
       path = await _invoke('prepare', {
         'id': _id,
@@ -53,6 +83,10 @@ class ChatVideoOptimizer {
       // Platforms without the bridge keep the existing server processing flow.
     } on PlatformException {
       // Unsupported device encoders must not prevent sending the original.
+    } finally {
+      observing = false;
+      _progressTimer?.cancel();
+      _progressTimer = null;
     }
     _check();
     final candidate = path == null ? source : File(path);
@@ -80,6 +114,8 @@ class ChatVideoOptimizer {
 
   void dispose() {
     _disposed = true;
+    _progressTimer?.cancel();
+    _progressTimer = null;
     if (_supported) _invoke('cancel', {'id': _id}).catchError((_) => null);
   }
 }
