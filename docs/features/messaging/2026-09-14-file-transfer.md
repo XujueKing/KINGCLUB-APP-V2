@@ -107,3 +107,6 @@ filetest/profile 构建已生成 129.3MB APK（61.8 秒）。独立包安装进�
 ## Unicode 文件名与上传重试一致性
 客户端上传入口先将文件名规范化为 NFC，再校验长度/禁用字符、生成上传重试指纹、请求准备接口及验证 AES 附加数据与完成回执。使用锁定版本 unorm_dart 0.3.2（文档：https://pub.dev/packages/unorm_dart），与服务端现有 NFC 规则一致；不使用会改变兼容字符含义的 NFKC，也不放宽服务端回执校验。
 6 项上传测试通过，包括原有丢回执/续签/拒绝/资产变化，以及组合重音文件名首次上传后用等价预组合文件名重开上传器，复用原请求编号并跳过已确认块；返回文件名为 NFC。两文件 analyze 无问题。日志：build/chat-file-unicode-tests.log、build/chat-file-unicode-analyze.log。此为本机协议测试，真实共享环境上传仍待部署与验收。
+
+## Android系统文件保存实测
+用户完成独立File Test安装及保存，ADB确认install Success。测试生成8 MiB+17字节文件，生产ChatFileExporter桥接系统文件选择器；用户选择Download后，日志出现KINGCLUB_FILE_PROBE_SAVED，授权顺序检查通过。对实际/sdcard/Download/kingclub-export-probe.bin执行stat和sha256sum：大小8388625；SHA256为485a584410e070b9d289cb2a75ee695b20860585e15736e6871364f3680e6526，与生成源一致。此前取消路径记录CANCELLED。本次证明这台Android的系统保存字节完整性，不代表聊天文件服务共享部署、双设备传输、所有文档提供器、256MiB实机或iOS通过。独立测试包与文件暂保留，主App未覆盖。
