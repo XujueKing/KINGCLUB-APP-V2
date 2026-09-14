@@ -18,7 +18,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('私人储物柜'), findsOneWidget);
+      expect(find.text('储物袋'), findsOneWidget);
       expect(find.byKey(const ValueKey('storage-grid-酒-1')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('storage-tab-物-idle')));
       await tester.pumpAndSettle();

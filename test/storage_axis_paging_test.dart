@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/club/data/storage_repository.dart';
@@ -91,5 +93,66 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+  }
+  testWidgets('coupon descriptions fit both faces at enlarged text scale', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const description = '[首次AA免单券]是会员在APP预定AA套餐时，抵用会员自己的消费，最大可抵用388元。';
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(1.3)),
+          child: child!,
+        ),
+        home: PrivateStoragePage(
+          repository: PreviewStorageRepository([
+            const StorageItem(
+              ref: 'coupon',
+              name: '首次AA免单券',
+              assetKey: 'aa-ticket',
+              category: 'item',
+              description: description,
+            ),
+          ]),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('券'));
+    await tester.pumpAndSettle();
+    expect(find.text(description), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const ValueKey('storage-flip')));
+    await tester.pumpAndSettle();
+    expect(find.text(description), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('inactive storage preloads without a loading spinner', (
+    tester,
+  ) async {
+    final repository = _PendingStorage();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PrivateStoragePage(active: false, repository: repository),
+      ),
+    );
+    expect(repository.requests, 1);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    repository.result.complete([]);
+    await tester.pumpAndSettle();
+  });
+}
+
+class _PendingStorage extends PreviewStorageRepository {
+  final result = Completer<List<StorageItem>>();
+  int requests = 0;
+  @override
+  Future<List<StorageItem>> list() {
+    requests++;
+    return result.future;
   }
 }

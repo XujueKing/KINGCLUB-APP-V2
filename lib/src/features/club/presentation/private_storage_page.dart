@@ -84,7 +84,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   @override
   void initState() {
     super.initState();
-    if (widget.active) _load();
+    _load();
     _realtime = KingclubRealtime.shared.events.listen((event) {
       if (event['eventType'] == 'connection.ready' ||
           event['eventType'] == 'storage.changed') {
@@ -600,8 +600,8 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   );
 
   Widget _hero(double u) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 1));
+    if (_loading && _item == null) {
+      return const SizedBox.shrink();
     }
     if (_error != null) {
       return Center(
@@ -661,7 +661,20 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                         ..rotateY(angle),
                       child: SizedBox(
                         height: 460 * u,
-                        child: back ? _backFace(item, u) : _frontFace(item, u),
+                        child: item.category == 'wine'
+                            ? (back ? _backFace(item, u) : _frontFace(item, u))
+                            : LayoutBuilder(
+                                builder: (context, constraints) => FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.center,
+                                  child: SizedBox(
+                                    width: constraints.maxWidth,
+                                    child: back
+                                        ? _backFace(item, u)
+                                        : _frontFace(item, u),
+                                  ),
+                                ),
+                              ),
                       ),
                     );
                   },
@@ -690,6 +703,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   Widget _frontFace(StorageItem item, double u) => item.category == 'wine'
       ? Image.asset(item.image, fit: BoxFit.contain)
       : Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
@@ -727,6 +741,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
           active: widget.active && _back,
         )
       : Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
