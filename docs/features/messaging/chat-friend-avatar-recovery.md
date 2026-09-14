@@ -13,3 +13,5 @@
 验证结果以本次定向 Flutter 测试及 analyze 日志为准；安装与用户端头像显示仍需真机验收。
 
 客户端定向测试：public_member_page_test、chat_list_session_rebind_test、group_conversation_list_test 共 6 项通过；两处页面 analyze 通过。尚未安装本批改动。
+
+安装更新：2026-09-14 21:51 覆盖安装 ARM64 Profile 成功并启动，包含 d2ae1ee 头像/关注确认、45d93d3 会话续期恢复、0a7c6d3 录音权限检测。未清除应用数据。设备权限已为 granted，AppOps 为 foreground/allow；新录音及头像显示等待用户验收，不用旧静音文件判定播放修复。
