@@ -100,6 +100,30 @@ class ChatFileDraftStore {
     );
   }
 
+  Future<void> _pruneOrphans(String? currentId) async {
+    final directory = await _root();
+    final cutoff = DateTime.now().subtract(const Duration(hours: 24));
+    try {
+      await for (final entity in directory.list(followLinks: false)) {
+        await checkSession();
+        if (entity is! File) continue;
+        final name = entity.uri.pathSegments.last;
+        if (!RegExp(r'^[0-9a-f-]{36}\.bin$').hasMatch(name) ||
+            name == '$currentId.bin') {
+          continue;
+        }
+        final stat = await entity.stat();
+        if (stat.type == FileSystemEntityType.file &&
+            stat.modified.isBefore(cutoff)) {
+          await checkSession();
+          await entity.delete();
+        }
+      }
+    } on FileSystemException {
+      // Retry on another visit; a held old file must not prevent draft recovery.
+    }
+  }
+
   Future<String> _digest(File source, int size) async {
     final hash = const DartSha256().newHashSink();
     var total = 0;
@@ -117,6 +141,7 @@ class ChatFileDraftStore {
   Future<ChatFileDraft?> read() => _exclusive(() async {
     await checkSession();
     final draft = await _read();
+    await _pruneOrphans(draft?.id);
     if (draft != null &&
         (draft.size < 0 ||
             draft.size > 268435456 ||

@@ -36,6 +36,38 @@ void main() {
     await store().remove(second.id);
     expect(await store().read(), isNull);
   });
+  test('recovery removes only old unreferenced files in this target', () async {
+    final root = await Directory.systemTemp.createTemp('draft-prune-test-');
+    addTearDown(() => root.delete(recursive: true));
+    final source = await File('${root.path}/source').writeAsBytes([1, 2]);
+    ChatFileDraftStore store(String target) => ChatFileDraftStore(
+      account: 'a',
+      target: target,
+      directory: () async => root,
+      checkSession: () async {},
+    );
+    final active = await store('one').save(source, 'active.bin');
+    final other = await store('two').save(source, 'other.bin');
+    final old = DateTime.now().subtract(const Duration(days: 2));
+    await active.file.setLastModified(old);
+    await other.file.setLastModified(old);
+    final orphan = await File(
+      '${active.file.parent.path}/11111111-1111-1111-1111-111111111111.bin',
+    ).writeAsBytes([3]);
+    await orphan.setLastModified(old);
+    final recent = await File(
+      '${active.file.parent.path}/22222222-2222-2222-2222-222222222222.bin',
+    ).writeAsBytes([4]);
+    final unrelated = await File('${active.file.parent.path}/other.txt')
+        .writeAsBytes([5]);
+    await unrelated.setLastModified(old);
+    expect((await store('one').read())!.id, active.id);
+    expect(await orphan.exists(), false);
+    expect(await active.file.exists(), true);
+    expect(await other.file.exists(), true);
+    expect(await recent.exists(), true);
+    expect(await unrelated.exists(), true);
+  });
   test('session loss during copy does not publish a draft', () async {
     final root = await Directory.systemTemp.createTemp('draft-session-test-');
     addTearDown(() => root.delete(recursive: true));
