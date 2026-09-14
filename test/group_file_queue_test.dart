@@ -53,7 +53,13 @@ void main() {
         outbox: queue,
       );
       await first.initialize();
-      await first.sendFile(asset, 'fixture.bin', 2000, 'a' * 64);
+      await first.sendFile(
+        asset,
+        'fixture.bin',
+        2000,
+        'a' * 64,
+        clientMessageId: '22345678-1234-1234-1234-123456789012',
+      );
       expect(queue.items.length, 1);
       expect(first.messages.single['status'], 'queued');
       first.dispose();
@@ -67,6 +73,15 @@ void main() {
       expect(requests[0], requests[1]);
       expect(queue.items, isEmpty);
       expect(restored.messages.single['fileAssetId'], asset);
+      await restored.sendFile(
+        asset,
+        'fixture.bin',
+        2000,
+        'a' * 64,
+        clientMessageId: '22345678-1234-1234-1234-123456789012',
+      );
+      expect(requests.length, 3);
+      expect(requests[2], requests[1]);
       restored.dispose();
     },
   );

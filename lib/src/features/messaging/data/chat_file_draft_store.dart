@@ -1,3 +1,7 @@
+import '../../../core/session/secure_session_store.dart';
+import '../../../core/session/member_qr_memory.dart';
+import '../../auth/domain/auth_repository.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -22,6 +26,29 @@ class ChatFileDraftStore {
     Future<Directory> Function()? directory,
   }) : _storage = storage ?? const FlutterSecureStorage(),
        _directory = directory ?? getApplicationSupportDirectory;
+  static Future<ChatFileDraftStore> open(String account, String target) async {
+    final sessions = SecureSessionStore(),
+        generation = MemberQrMemory.generation;
+    final initial = await sessions.readSession();
+    if (initial == null ||
+        (initial['account'] as Map?)?['userAccount'] != account) {
+      throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+    }
+    return ChatFileDraftStore(
+      account: account,
+      target: target,
+      checkSession: () async {
+        final current = await sessions.readSession();
+        if (generation != MemberQrMemory.generation ||
+            current == null ||
+            current['sessionId'] != initial['sessionId'] ||
+            (current['account'] as Map?)?['userAccount'] != account) {
+          throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+        }
+      },
+    );
+  }
+
   final String account, target;
   final Future<void> Function() checkSession;
   final FlutterSecureStorage _storage;

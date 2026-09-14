@@ -1,3 +1,5 @@
+import '../data/chat_file_draft_store.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,7 +15,11 @@ class ChatFileSendPage extends StatefulWidget {
     required this.file,
     required this.fileName,
     required this.chat,
+    this.draft,
+    this.drafts,
   });
+  final ChatFileDraft? draft;
+  final ChatFileDraftStore? drafts;
   final File file;
   final String fileName;
   final ChatSessionController chat;
@@ -63,16 +69,31 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
         file.size,
         file.sha256,
         onQueued: () => queued = true,
+        clientMessageId: widget.draft?.id,
       );
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
       // A journal cleanup error must not invite a second send of an already
       // durable message. The outbox now owns delivery and retry.
       try {
+        if (widget.draft != null) await widget.drafts?.remove(widget.draft!.id);
         await uploader.acknowledgeQueued(file);
       } catch (_) {}
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _discard() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.drafts!.remove(widget.draft!.id);
+      if (mounted) Navigator.of(context).pop(false);
+    } catch (_) {
+      if (mounted) setState(() => _error = '未能丢弃草稿，请重试');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -108,6 +129,11 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
               ),
             ),
           ),
+          if (widget.draft != null && widget.drafts != null)
+            TextButton(
+              onPressed: _busy ? null : _discard,
+              child: const Text('丢弃草稿'),
+            ),
           if (_busy) LinearProgressIndicator(value: _progress),
           if (_error != null)
             Padding(

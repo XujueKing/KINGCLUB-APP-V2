@@ -41,7 +41,13 @@ void main() {
       peer: 'peer',
       outbox: queue,
     );
-    await first.sendFile(asset, 'fixture.bin', 2000, 'a' * 64);
+    await first.sendFile(
+      asset,
+      'fixture.bin',
+      2000,
+      'a' * 64,
+      clientMessageId: '22345678-1234-1234-1234-123456789012',
+    );
     expect(queue.items.length, 1);
     expect(first.messages.single['status'], 'queued');
     first.dispose();
@@ -56,6 +62,15 @@ void main() {
     expect(requests[1]['assetId'], asset);
     expect(queue.items, isEmpty);
     expect(restored.messages.single['messageType'], 'file');
+    await restored.sendFile(
+      asset,
+      'fixture.bin',
+      2000,
+      'a' * 64,
+      clientMessageId: '22345678-1234-1234-1234-123456789012',
+    );
+    expect(requests.length, 3);
+    expect(requests[2], requests[1]);
     restored.dispose();
   });
   test('invalid acknowledgement cannot discard a queued file', () async {

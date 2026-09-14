@@ -493,6 +493,7 @@ class GroupChatController extends ChatSessionController {
     int fileSize,
     String fileSha256, {
     VoidCallback? onQueued,
+    String? clientMessageId,
   }) async {
     if (_disposed) return;
     if (!hasAccess) throw StateError('请先确认群聊访问权限');
@@ -508,7 +509,12 @@ class GroupChatController extends ChatSessionController {
         !RegExp(r'^[a-f0-9]{64}$').hasMatch(fileSha256)) {
       throw ArgumentError('文件元数据无效');
     }
-    final id = const Uuid().v4();
+    final id = clientMessageId ?? const Uuid().v4();
+    if (!RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(id)) {
+      throw ArgumentError('文件消息编号无效');
+    }
     final message = <String, dynamic>{
       'clientMessageId': id,
       'groupId': groupId,

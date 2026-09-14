@@ -24,6 +24,7 @@ abstract class ChatSessionController extends ChangeNotifier {
     int fileSize,
     String fileSha256, {
     VoidCallback? onQueued,
+    String? clientMessageId,
   });
   Future<void> sendVoice(
     String assetId,

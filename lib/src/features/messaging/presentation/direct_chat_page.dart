@@ -1,3 +1,4 @@
+import '../data/chat_file_draft_store.dart';
 import 'chat_file_details_page.dart';
 import '../data/chat_file_downloader.dart';
 import 'chat_file_card.dart';
@@ -1734,18 +1735,40 @@ class _DirectChatPageState extends State<DirectChatPage>
     _selectingFile = true;
     try {
       _inputFocusNode.unfocus();
-      final selected = await FilePicker.pickFile();
-      if (selected == null || !mounted || !identical(chat, _chat)) return;
-      final path = selected.path;
-      if (path == null) throw StateError('无法读取该文件，请先下载到手机');
-      final file = File(path), length = await File(path).length();
-      if (length > 256 * 1024 * 1024) throw StateError('请选择不超过256MB的文件');
+      final drafts = await ChatFileDraftStore.open(
+        chat.messaging.account,
+        widget.groupId != null
+            ? 'group:${widget.groupId}'
+            : 'peer:${widget.peerAccount}',
+      );
+      ChatFileDraft? draft;
+      try {
+        draft = await drafts.read();
+      } on FileSystemException {
+        /* Reselect a removed source. */
+      } on StateError {
+        /* Damaged content must be replaced explicitly through picker. */
+      }
       if (!mounted || !identical(chat, _chat)) return;
+      if (draft == null) {
+        final selected = await FilePicker.pickFile();
+        if (selected == null || !mounted || !identical(chat, _chat)) return;
+        final path = selected.path;
+        if (path == null) throw StateError('无法读取该文件，请先下载到手机');
+        draft = await drafts.save(File(path), selected.name);
+      }
+      if (!mounted || !identical(chat, _chat)) return;
+      final selectedDraft = draft;
       _voicePlayback?.stop();
       await Navigator.of(context).push<bool>(
         MaterialPageRoute(
-          builder: (_) =>
-              ChatFileSendPage(file: file, fileName: selected.name, chat: chat),
+          builder: (_) => ChatFileSendPage(
+            file: selectedDraft.file,
+            fileName: selectedDraft.name,
+            chat: chat,
+            draft: selectedDraft,
+            drafts: drafts,
+          ),
         ),
       );
     } catch (error) {
