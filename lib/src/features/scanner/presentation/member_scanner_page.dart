@@ -1,3 +1,7 @@
+import '../../messaging/data/group_chat_repository.dart';
+import '../../messaging/presentation/group_qr_preview_page.dart';
+import '../../../core/session/secure_session_store.dart';
+
 import 'package:uuid/uuid.dart';
 
 import '../../messaging/data/messaging_repository.dart';
@@ -26,17 +30,31 @@ class _MemberScannerPageState extends State<MemberScannerPage>
   final _repo = ProfileRepository();
   bool _busy = false, _active = true;
   String? _error;
+  int _generation = 0;
+  bool _invalid = false;
+  StreamSubscription<void>? _session;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _session = SecureSessionStore.changes.stream.listen((_) {
+      _invalid = true;
+      _generation++;
+      unawaited(_controller.stop());
+      if (mounted) {
+        setState(() => _error = '登录状态已变化，请重新进入');
+      }
+    });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
     _active = s == AppLifecycleState.resumed;
+    if (!_active) {
+      _generation++;
+    }
     if (!_controller.value.hasCameraPermission) return;
-    if (_active && !_busy) {
+    if (_active && !_busy && !_invalid) {
       unawaited(_controller.start());
     } else {
       unawaited(_controller.stop());
@@ -45,41 +63,70 @@ class _MemberScannerPageState extends State<MemberScannerPage>
 
   @override
   void dispose() {
+    _generation++;
+    _session?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_controller.dispose());
     super.dispose();
   }
 
   Future<void> _scan(BarcodeCapture capture) async {
-    if (_busy || !_active) return;
+    if (_busy || !_active || _invalid) return;
     final code = capture.barcodes.firstOrNull?.rawValue;
     if (code == null) return;
     setState(() {
       _busy = true;
       _error = null;
     });
-    await _controller.stop();
+    final generation = ++_generation;
     try {
+      await _controller.stop();
       final messaging = await MessagingRepository.open();
-      final result = await _repo.call('K260912000507', {'code': code});
-      if (!mounted || !_active) return;
-      await Navigator.push(
-        context,
-        MaterialPageRoute<void>(
-          allowSnapshotting: false,
-          builder: (_) => MemberCardPreview(
-            profile: result,
-            code: code,
-            repository: messaging,
+      if (!mounted || !_active || _invalid || generation != _generation) return;
+      if (code.startsWith('KC:G:')) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            allowSnapshotting: false,
+            builder: (_) => GroupQrPreviewPage(
+              code: code,
+              repository: GroupChatRepository(messaging),
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        final result = await _repo.call('K260912000507', {'code': code});
+        if (!mounted || !_active || _invalid || generation != _generation) {
+          return;
+        }
+        await Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            allowSnapshotting: false,
+            builder: (_) => MemberCardPreview(
+              profile: result,
+              code: code,
+              repository: messaging,
+            ),
+          ),
+        );
+      }
     } catch (_) {
-      if (mounted) setState(() => _error = '无法识别或二维码已失效，请对方刷新个人码');
+      if (mounted && !_invalid && generation == _generation) {
+        setState(() => _error = '无法识别或二维码已失效，请对方刷新二维码');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
+      if (mounted && _active && !_invalid && _error == null) {
+        try {
+          await _controller.start();
+        } catch (_) {
+          if (mounted && !_invalid) {
+            setState(() => _error = '相机恢复失败，请重试');
+          }
+        }
+      }
     }
-    if (mounted && _active && _error == null) await _controller.start();
   }
 
   @override
@@ -112,8 +159,8 @@ class _MemberScannerPageState extends State<MemberScannerPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(_error ?? (_busy ? '正在读取会员资料…' : '请扫描 KINGCLUB 个人二维码')),
-                  if (_error != null)
+                  Text(_error ?? (_busy ? '正在读取二维码…' : '请扫描 KINGCLUB 个人或群二维码')),
+                  if (_error != null && !_invalid)
                     TextButton(
                       onPressed: () {
                         setState(() => _error = null);

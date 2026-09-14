@@ -59,6 +59,9 @@ class GroupChatRepository {
 
   Future<Map<String, dynamic>> list({String? before, int limit = 50}) =>
       messaging.call('K260913000618', {'before': ?before, 'limit': limit});
+  Future<Map<String, dynamic>> previewQr(String code) =>
+      messaging.call('K260914000657', {'code': code});
+
   Future<Map<String, dynamic>> issueQr(String groupId) =>
       messaging.call('K260914000656', {'groupId': groupId});
 
