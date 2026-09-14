@@ -101,6 +101,12 @@ class MessagingRepository {
     bool group = false,
   }) =>
       call(group ? 'K260913000635' : 'K260913000633', {'messageId': messageId});
+  Future<Map<String, dynamic>> fileMedia(
+    String messageId, {
+    bool group = false,
+  }) =>
+      call(group ? 'K260914000654' : 'K260914000652', {'messageId': messageId});
+
   Future<Map<String, dynamic>> voiceMedia(
     String messageId, {
     bool group = false,

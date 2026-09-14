@@ -1,0 +1,247 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:cryptography/dart.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../../../core/session/member_qr_memory.dart';
+import '../../../core/session/secure_session_store.dart';
+import '../../auth/data/auth_repository_provider.dart';
+import '../../auth/domain/auth_repository.dart';
+import 'messaging_repository.dart';
+
+/// Metadata comes from the acknowledged message, never from a download URL.
+class ChatFileReference {
+  const ChatFileReference({
+    required this.messageId,
+    required this.assetId,
+    required this.fileName,
+    required this.size,
+    required this.sha256,
+    this.group = false,
+  });
+  final String messageId, assetId, fileName, sha256;
+  final int size;
+  final bool group;
+}
+
+/// Owns private temporary files until dispose. Export is an explicit UI action.
+class ChatFileDownloader {
+  ChatFileDownloader({
+    required this.repository,
+    required this.checkSession,
+    Dio? dio,
+    Future<Directory> Function()? temporaryDirectory,
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               baseUrl: kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), ''),
+               connectTimeout: const Duration(seconds: 8),
+               receiveTimeout: const Duration(seconds: 30),
+             ),
+           ),
+       _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory {
+    _session = SecureSessionStore.changes.stream.listen((_) {
+      _invalid = true;
+      cancel();
+      _deleteCompleted();
+    });
+  }
+  static const chunkBytes = 1024 * 1024, maxBytes = 256 * 1024 * 1024;
+  final MessagingRepository repository;
+  final Future<void> Function() checkSession;
+  final Dio _dio;
+  final Future<Directory> Function() _temporaryDirectory;
+  late final StreamSubscription<void> _session;
+  final List<Directory> _completed = [];
+  CancelToken? _cancel;
+  bool _invalid = false, _busy = false;
+
+  static Future<ChatFileDownloader> open(MessagingRepository repository) async {
+    final store = SecureSessionStore(), generation = MemberQrMemory.generation;
+    final initial = await store.readSession();
+    if (initial == null ||
+        (initial['account'] as Map?)?['userAccount'] != repository.account) {
+      throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+    }
+    return ChatFileDownloader(
+      repository: repository,
+      checkSession: () async {
+        final current = await store.readSession();
+        if (generation != MemberQrMemory.generation ||
+            current == null ||
+            current['sessionId'] != initial['sessionId'] ||
+            (current['account'] as Map?)?['userAccount'] !=
+                repository.account) {
+          throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+        }
+      },
+    );
+  }
+
+  void cancel() => _cancel?.cancel('download cancelled');
+
+  Future<void> _check() async {
+    if (_invalid) throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+    if (_cancel?.isCancelled == true) throw _cancel!.cancelError!;
+    await checkSession();
+    if (_invalid) throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+    if (_cancel?.isCancelled == true) throw _cancel!.cancelError!;
+  }
+
+  Future<Map<String, dynamic>> _grant(ChatFileReference ref) async {
+    await _check();
+    final result = await repository.fileMedia(ref.messageId, group: ref.group);
+    await _check();
+    final raw = result['file'];
+    if (raw is! Map) throw const FormatException('文件授权无效');
+    final media = Map<String, dynamic>.from(raw);
+    final token = (media['headers'] as Map?)?['authorization'];
+    final count = ref.size == 0 ? 1 : (ref.size + chunkBytes - 1) ~/ chunkBytes;
+    if (result['messageId'] != ref.messageId ||
+        media['assetId'] != ref.assetId ||
+        media['fileName'] != ref.fileName ||
+        media['size'] != ref.size ||
+        media['sha256'] != ref.sha256 ||
+        media['chunkBytes'] != chunkBytes ||
+        media['chunkCount'] != count ||
+        media['contentType'] != 'application/octet-stream' ||
+        media['path'] !=
+            '/kingclub/${ref.group ? 'group-chat-file' : 'chat-file'}/${ref.messageId}' ||
+        token is! String ||
+        !token.startsWith('Bearer ') ||
+        token.length <= 7 ||
+        token.contains('\r') ||
+        token.contains('\n')) {
+      throw const FormatException('文件授权与消息不匹配');
+    }
+    return media;
+  }
+
+  Future<File> download(
+    ChatFileReference ref, {
+    void Function(int received, int total)? onProgress,
+  }) async {
+    if (_busy) throw StateError('正在下载文件');
+    _busy = true;
+    _cancel = CancelToken();
+    Directory? working;
+    RandomAccessFile? output;
+    var completed = false;
+    try {
+      final uuid = RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+      );
+      if (!uuid.hasMatch(ref.messageId) ||
+          !uuid.hasMatch(ref.assetId) ||
+          ref.size < 0 ||
+          ref.size > maxBytes ||
+          ref.fileName.isEmpty ||
+          !RegExp(r'^[0-9a-f]{64}$').hasMatch(ref.sha256)) {
+        throw const FormatException('文件消息无效');
+      }
+      final media = await _grant(ref);
+      final parent = await _temporaryDirectory();
+      await _check();
+      working = await parent.createTemp('kingclub-chat-download-');
+      final file = File('${working.path}/content.bin');
+      output = await file.open(mode: FileMode.write);
+      final digest = const DartSha256().newHashSink();
+      var received = 0;
+      for (var index = 0; index < (media['chunkCount'] as int); index++) {
+        await _check();
+        final expected = (ref.size - index * chunkBytes).clamp(0, chunkBytes);
+        final response = await _dio.get<ResponseBody>(
+          '${media['path']}/$index',
+          cancelToken: _cancel,
+          options: Options(
+            responseType: ResponseType.stream,
+            followRedirects: false,
+            validateStatus: (code) => code == 200,
+            headers: {
+              'authorization': (media['headers'] as Map)['authorization'],
+              'accept-encoding': 'identity',
+            },
+          ),
+        );
+        await _check();
+        final body = response.data;
+        if (body == null) throw const FormatException('文件响应为空');
+        final length = response.headers.value('content-length');
+        final encoding = response.headers.value('content-encoding');
+        if ((length != null && int.tryParse(length) != expected) ||
+            (encoding != null && encoding != 'identity') ||
+            response.headers.value('content-type')?.split(';').first.trim() !=
+                'application/octet-stream') {
+          await body.stream.listen((_) {}).cancel();
+          throw const FormatException('文件分块响应无效');
+        }
+        var blockReceived = 0;
+        await for (final bytes in body.stream.timeout(
+          const Duration(seconds: 30),
+        )) {
+          await _check();
+          blockReceived += bytes.length;
+          if (blockReceived > expected) throw const FormatException('文件分块超长');
+          digest.add(bytes);
+          await output.writeFrom(bytes);
+          received += bytes.length;
+          await _check();
+          onProgress?.call(received, ref.size);
+        }
+        if (blockReceived != expected) throw const FormatException('文件分块不完整');
+      }
+      digest.close();
+      final hash = (await digest.hash()).bytes
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join();
+      if (received != ref.size || hash != ref.sha256) {
+        throw const FormatException('文件完整性校验失败');
+      }
+      await output.flush();
+      await output.close();
+      output = null;
+      // Recheck permissions after network and disk I/O, including empty files.
+      await _grant(ref);
+      await _check();
+      _completed.add(working);
+      completed = true;
+      return file;
+    } finally {
+      try {
+        await output?.close();
+      } finally {
+        try {
+          if (!completed && working != null && await working.exists()) {
+            await working.delete(recursive: true);
+          }
+        } finally {
+          _busy = false;
+          _cancel = null;
+        }
+      }
+    }
+  }
+
+  Future<void> _deleteCompleted() async {
+    final directories = List<Directory>.of(_completed);
+    _completed.clear();
+    for (final directory in directories) {
+      try {
+        if (await directory.exists()) await directory.delete(recursive: true);
+      } on FileSystemException {
+        // The OS may hold an exported file briefly; only this owned directory is used.
+      }
+    }
+  }
+
+  Future<void> dispose() async {
+    _invalid = true;
+    cancel();
+    await _session.cancel();
+    await _deleteCompleted();
+    _dio.close(force: true);
+  }
+}
