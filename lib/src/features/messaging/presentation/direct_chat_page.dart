@@ -1,3 +1,4 @@
+import 'message_voice_transcription_page.dart';
 import 'voice_transcription_page.dart';
 import 'chat_video_view.dart';
 import 'chat_video_send_page.dart';
@@ -73,7 +74,7 @@ enum _FakeMessageKind {
 
 enum _ComposerPanel { none, attachments, gifts, emoji }
 
-enum _FakeMessageAction { copy, quote, forward, delete, recall }
+enum _FakeMessageAction { copy, quote, forward, delete, recall, transcribe }
 
 const _giftItems = <_GiftItem>[
   _GiftItem(
@@ -2379,6 +2380,17 @@ class _DirectChatPageState extends State<DirectChatPage>
         child: SafeArea(
           child: Wrap(
             children: [
+              if (message.voiceDurationMs != null &&
+                  message.messageId != null &&
+                  menuChat != null)
+                ListTile(
+                  leading: const Icon(Icons.text_fields),
+                  title: const Text('转文字'),
+                  onTap: () => Navigator.pop(
+                    sheetContext,
+                    _FakeMessageAction.transcribe,
+                  ),
+                ),
               if (message.kind == _FakeMessageKind.text)
                 ListTile(
                   key: const ValueKey('direct-chat-copy'),
@@ -2432,6 +2444,22 @@ class _DirectChatPageState extends State<DirectChatPage>
     );
     if (!mounted || action == null) return;
     if (_realTarget != null && !identical(menuChat, _chat)) return;
+    if (action == _FakeMessageAction.transcribe &&
+        menuChat != null &&
+        message.messageId != null) {
+      _voicePlayback?.stop();
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => MessageVoiceTranscriptionPage(
+            repository: menuChat.messaging,
+            messageId: message.messageId!,
+            group: widget.groupId != null,
+          ),
+        ),
+      );
+      return;
+    }
+
     if (_realTarget != null &&
         action == _FakeMessageAction.forward &&
         _chat != null &&
@@ -2480,6 +2508,8 @@ class _DirectChatPageState extends State<DirectChatPage>
       return;
     }
     switch (action) {
+      case _FakeMessageAction.transcribe:
+        return;
       case _FakeMessageAction.copy:
         Clipboard.setData(ClipboardData(text: message.text));
         KingNotice.of(context)
