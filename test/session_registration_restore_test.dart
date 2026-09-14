@@ -56,6 +56,29 @@ class _Store extends SecureSessionStore {
   }
 
   @override
+  Future<bool> saveSessionIfCurrent(
+    Map<String, dynamic> expected,
+    Map<String, dynamic> value,
+  ) async {
+    if (saved?['sessionId'] != expected['sessionId'] ||
+        saved?['apiKey'] != expected['apiKey']) {
+      return false;
+    }
+    await saveSession(value);
+    return true;
+  }
+
+  @override
+  Future<bool> clearSessionIfCurrent(Map<String, dynamic> expected) async {
+    if (saved?['sessionId'] != expected['sessionId'] ||
+        saved?['apiKey'] != expected['apiKey']) {
+      return false;
+    }
+    await clearSession();
+    return true;
+  }
+
+  @override
   Future<void> clearSession() async {
     saved = null;
   }

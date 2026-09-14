@@ -60,6 +60,8 @@ class RealAuthRepository implements AuthRepository {
         if (error.code == 'MOBILE_REVERIFICATION_REQUIRED') return false;
         // A temporary outage must not erase an established member's login.
         if (error.code == 'NETWORK_ERROR') return true;
+        // The newer login/logout flow owns navigation; ignore this stale check.
+        if (error.code == 'SESSION_CHANGED') return true;
         rethrow;
       }
     }
@@ -87,6 +89,7 @@ class RealAuthRepository implements AuthRepository {
   Future<AuthLoginResult?> _restoreSession() async {
     final saved = await _sessionStore.readSession();
     if (saved == null) return null;
+    var expected = saved;
     _mobileVerifiedAt = DateTime.tryParse('${saved['mobileVerifiedAt']}');
     if (!_savedMemberApproved(saved) &&
         !_withinMobileWindow(_mobileVerifiedAt)) {
@@ -101,7 +104,9 @@ class RealAuthRepository implements AuthRepository {
       }
       final deadline = DateTime.tryParse('${saved['refreshExpiresAt']}');
       if (deadline == null || !deadline.isAfter(_now())) {
-        await _sessionStore.clearSession();
+        if (!await _sessionStore.clearSessionIfCurrent(expected)) {
+          throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+        }
         return null;
       }
       final rotated = await _client.call('K260824000103', {
@@ -112,7 +117,13 @@ class RealAuthRepository implements AuthRepository {
         'clientType': 'android',
         'deviceId': await _sessionStore.deviceId(),
       });
-      await _sessionStore.saveSession({...saved, ...rotated});
+      if (!await _sessionStore.saveSessionIfCurrent(saved, {
+        ...saved,
+        ...rotated,
+      })) {
+        throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+      }
+      expected = {...saved, ...rotated};
       return await _refreshRestoredMembership();
     } on AuthFailure catch (error) {
       if ({
@@ -121,7 +132,9 @@ class RealAuthRepository implements AuthRepository {
         'AUTH_REFRESH_TOKEN_INVALID',
         'AUTH_REFRESH_REUSE_DETECTED',
       }.contains(error.code)) {
-        await _sessionStore.clearSession();
+        if (!await _sessionStore.clearSessionIfCurrent(expected)) {
+          throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+        }
         return null;
       }
       rethrow;
@@ -212,11 +225,13 @@ class RealAuthRepository implements AuthRepository {
     }
     final result = await _client.call('K260824000104', {}, session: session);
     final snapshot = parseMembership(result);
-    await _sessionStore.saveSession({
+    if (!await _sessionStore.saveSessionIfCurrent(session, {
       ...session,
       'account': result['account'],
       'membership': result['membership'],
-    });
+    })) {
+      throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+    }
     onAuthenticated?.call(snapshot);
     return snapshot;
   }

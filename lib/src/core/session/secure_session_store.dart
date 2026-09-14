@@ -25,7 +25,47 @@ class SecureSessionStore {
     return created;
   }
 
-  Future<void> saveSession(Map<String, dynamic> value) async {
+  static Future<void>? _mutation;
+  Future<T> _exclusive<T>(Future<T> Function() work) async {
+    final result = (_mutation ?? Future<void>.value()).then((_) => work());
+    final tail = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    _mutation = tail;
+    try {
+      return await result;
+    } finally {
+      if (identical(_mutation, tail)) _mutation = null;
+    }
+  }
+
+  Future<void> saveSession(Map<String, dynamic> value) =>
+      _exclusive(() => _save(value));
+
+  Future<bool> saveSessionIfCurrent(
+    Map<String, dynamic> expected,
+    Map<String, dynamic> value,
+  ) => _exclusive(() async {
+    if (!_sameCredentials(await readSession(), expected)) return false;
+    await _save(value);
+    return true;
+  });
+
+  static bool _sameCredentials(
+    Map<String, dynamic>? a,
+    Map<String, dynamic> b,
+  ) {
+    if (a == null) return false;
+    for (final key in ['sessionId', 'apiKeyId', 'apiKey']) {
+      final value = a[key];
+      if (value is! String || value.isEmpty || value != b[key]) return false;
+    }
+    return (a['account'] as Map?)?['userAccount'] ==
+        (b['account'] as Map?)?['userAccount'];
+  }
+
+  Future<void> _save(Map<String, dynamic> value) async {
     final previous = await readSession();
     final changed = !_sameBinding(previous, value);
     if (changed) {
@@ -61,7 +101,16 @@ class SecureSessionStore {
             newMembership['registrationStatus'];
   }
 
-  Future<void> clearSession() async {
+  Future<bool> clearSessionIfCurrent(Map<String, dynamic> expected) =>
+      _exclusive(() async {
+        if (!_sameCredentials(await readSession(), expected)) return false;
+        await _clear();
+        return true;
+      });
+
+  Future<void> clearSession() => _exclusive(_clear);
+
+  Future<void> _clear() async {
     MemberQrMemory.clear();
     await _storage.delete(key: _sessionKey);
     changes.add(null);
