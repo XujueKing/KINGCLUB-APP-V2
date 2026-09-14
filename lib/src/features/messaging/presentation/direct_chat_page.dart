@@ -2396,8 +2396,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         _chat != null &&
         message.messageId != null &&
         (message.kind == _FakeMessageKind.text ||
-            message.kind == _FakeMessageKind.image) &&
-        message.voiceDurationMs == null) {
+            message.kind == _FakeMessageKind.image)) {
       _voicePlayback?.stop();
       await Navigator.of(context).push<void>(
         MaterialPageRoute(
@@ -2405,6 +2404,9 @@ class _DirectChatPageState extends State<DirectChatPage>
             repository: _chat!.messaging,
             text: message.text,
             location: message.location,
+            voiceMessageId: message.voiceDurationMs != null
+                ? message.messageId
+                : null,
             videoMessageId: message.videoDurationMs != null
                 ? message.messageId
                 : null,

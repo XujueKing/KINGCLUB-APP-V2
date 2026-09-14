@@ -1,3 +1,5 @@
+import 'package:kingclub/src/features/messaging/data/chat_voice_forwarder.dart';
+import 'package:kingclub/src/features/messaging/data/chat_voice_uploader.dart';
 import 'package:kingclub/src/features/messaging/data/chat_video_forwarder.dart';
 import 'package:kingclub/src/features/messaging/data/chat_video.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_forwarder.dart';
@@ -80,6 +82,22 @@ class PreparedVideo extends ChatVideoForwarder {
       width: 320,
       height: 240,
       hasAudio: true,
+    );
+  }
+}
+
+class PreparedVoice extends ChatVoiceForwarder {
+  PreparedVoice(MessagingRepository repository)
+    : super(repository: repository, messageId: 'source');
+  int prepared = 0;
+  @override
+  Future<UploadedChatVoice> prepare() async {
+    prepared++;
+    return const UploadedChatVoice(
+      '11111111-1111-4111-8111-111111111111',
+      2000,
+      'f',
+      'r',
     );
   }
 }
@@ -281,6 +299,66 @@ void main() {
       expect(queued['videoHasAudio'], true);
       expect(queued.containsKey('videoMessageId'), false);
       expect(sent.single['assetId'], queued['videoAssetId']);
+      expect(sent.single['clientMessageId'], queued['clientMessageId']);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
+  testWidgets(
+    'voice confirmation queues the asset key consumed by the real sender',
+    (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final outbox = RecordingOutbox()..failWrite = true;
+      final sent = <Map<String, dynamic>>[];
+      final repository = MessagingRepository(
+        account: 'me',
+        call: (id, p) async {
+          if (id == 'K260913000608') {
+            return {
+              'items': [
+                {'peer': 'peer', 'nickname': 'Friend'},
+              ],
+              'hasMore': false,
+            };
+          }
+          if (id == 'K260913000604') return history([]);
+          if (id == 'K260913000637') {
+            sent.add({...p});
+            throw StateError('offline');
+          }
+          return {};
+        },
+      );
+      final image = PreparedVoice(repository);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ForwardTextPage(
+            repository: repository,
+            text: '[语音]',
+            voiceMessageId: 'source',
+            outbox: outbox,
+            createVoiceForwarder: () => image,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('forward-text-peer')));
+      await tester.pump();
+      expect(image.prepared, 0);
+      await confirm(tester);
+      expect(sent, isEmpty);
+      expect(image.prepared, 1);
+      outbox.failWrite = false;
+      await confirm(tester);
+      expect(image.prepared, 1);
+      expect(outbox.attempts.toSet().length, 1);
+      final queued = outbox.items.values.single;
+      expect(queued['voiceAssetId'], '11111111-1111-4111-8111-111111111111');
+      expect(queued.containsKey('assetId'), false);
+      expect(queued['messageType'], 'voice');
+      expect(queued['voiceDurationMs'], 2000);
+      expect(queued.containsKey('voiceMessageId'), false);
+      expect(sent.single['assetId'], queued['voiceAssetId']);
       expect(sent.single['clientMessageId'], queued['clientMessageId']);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();

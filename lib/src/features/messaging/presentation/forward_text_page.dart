@@ -1,3 +1,5 @@
+import '../data/chat_voice_forwarder.dart';
+import '../data/chat_voice_uploader.dart';
 import '../data/chat_video_forwarder.dart';
 import '../data/chat_video.dart';
 
@@ -37,6 +39,8 @@ class ForwardTextPage extends StatefulWidget {
     this.createImageForwarder,
     this.file,
     this.createFileForwarder,
+    this.voiceMessageId,
+    this.createVoiceForwarder,
     this.videoMessageId,
     this.createVideoForwarder,
   });
@@ -44,6 +48,8 @@ class ForwardTextPage extends StatefulWidget {
   final String text;
   final ChatLocation? location;
   final String? imageMessageId;
+  final String? voiceMessageId;
+  final ChatVoiceForwarder Function()? createVoiceForwarder;
   final String? videoMessageId;
   final ChatVideoForwarder Function()? createVideoForwarder;
   final bool sourceGroup;
@@ -70,6 +76,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
   ChatImageForwarder? _imageForwarder;
   ChatFileForwarder? _fileForwarder;
   ChatVideoForwarder? _videoForwarder;
+  ChatVoiceForwarder? _voiceForwarder;
   Map<String, dynamic>? _attempt;
   bool _saving = false, _invalid = false;
   String? _error;
@@ -105,6 +112,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
     _imageForwarder?.dispose();
     _fileForwarder?.dispose();
     _videoForwarder?.dispose();
+    _voiceForwarder?.dispose();
     super.dispose();
   }
 
@@ -158,7 +166,9 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
             title: Text('发送给 ${target.displayName}'),
             content: SingleChildScrollView(
               child: Text(
-                widget.videoMessageId != null
+                widget.voiceMessageId != null
+                    ? '[语音]'
+                    : widget.videoMessageId != null
                     ? '[视频]'
                     : widget.file != null
                     ? widget.file!.fileName
@@ -185,7 +195,8 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
       );
       _confirmationContext = null;
       if (confirmed != true || !mounted || _invalid) return;
-      if (widget.videoMessageId == null &&
+      if (widget.voiceMessageId == null &&
+          widget.videoMessageId == null &&
           widget.file == null &&
           widget.imageMessageId == null &&
           widget.location == null &&
@@ -239,6 +250,18 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         video = await forwarder.prepare();
         if (!mounted || _invalid) return;
       }
+      UploadedChatVoice? voice;
+      if (widget.voiceMessageId != null && _attempt == null) {
+        final forwarder = _voiceForwarder ??=
+            widget.createVoiceForwarder?.call() ??
+            ChatVoiceForwarder(
+              repository: widget.repository,
+              messageId: widget.voiceMessageId!,
+              group: widget.sourceGroup,
+            );
+        voice = await forwarder.prepare();
+        if (!mounted || _invalid) return;
+      }
       _attempt ??= {
         'clientMessageId': const Uuid().v4(),
         if (target.group) ...{
@@ -247,7 +270,9 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         } else
           'recipient': target.account,
         'sender': widget.repository.account,
-        'text': widget.videoMessageId != null
+        'text': widget.voiceMessageId != null
+            ? '[语音]'
+            : widget.videoMessageId != null
             ? '[视频]'
             : widget.file != null
             ? '[文件]'
@@ -256,6 +281,11 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
             : widget.location == null
             ? widget.text.trim()
             : '[位置]',
+        if (voice != null) ...{
+          'messageType': 'voice',
+          'voiceAssetId': voice.assetId,
+          'voiceDurationMs': voice.durationMs,
+        },
         if (video != null) ...{
           'messageType': 'video',
           ...video.toMessageFields(),
@@ -283,6 +313,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         await _imageForwarder?.acknowledgeQueued();
         await _fileForwarder?.acknowledgeQueued();
         await _videoForwarder?.acknowledgeQueued();
+        await _voiceForwarder?.acknowledgeQueued();
       } catch (_) {}
       if (!mounted || _invalid) return;
       // The target conversation restores this exact queued ID and owns retries.
