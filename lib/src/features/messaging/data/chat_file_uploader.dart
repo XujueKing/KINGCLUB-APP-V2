@@ -161,30 +161,42 @@ class ChatFileUploader {
       }
       Map<String, dynamic> completed = begin;
       if (begin['status'] == 'pending') {
-        final grant = Map<String, dynamic>.from(begin['upload'] as Map);
+        var grant = Map<String, dynamic>.from(begin['upload'] as Map);
         final path = '/kingclub/chat-file-upload/$asset';
-        if (grant['path'] != path ||
-            grant['algorithm'] != 'AES-256-GCM' ||
-            grant['wireFormat'] != 'iv12-tag16-ciphertext' ||
-            grant['chunkBytes'] != chunkBytes ||
-            grant['chunkCount'] != count) {
-          throw const FormatException('文件上传协议无效');
+        (String, List<int>) decodeGrant(Map<String, dynamic> grant) {
+          if (grant['path'] != path ||
+              grant['algorithm'] != 'AES-256-GCM' ||
+              grant['wireFormat'] != 'iv12-tag16-ciphertext' ||
+              grant['chunkBytes'] != chunkBytes ||
+              grant['chunkCount'] != count) {
+            throw const FormatException('文件上传协议无效');
+          }
+          final aad = grant['aad'] as String;
+          final fields = jsonDecode(aad) as List;
+          if (fields.length != 7 ||
+              fields[0] != 'kingclub:chat-file-upload:v1' ||
+              fields[2] != asset ||
+              fields[3] != repository.account ||
+              fields[4] != fileName ||
+              fields[5] != digest ||
+              fields[6] != size) {
+            throw const FormatException('上传凭证不符');
+          }
+          final key = base64Url.decode(
+            base64Url.normalize(grant['key'] as String),
+          );
+          if (key.length != 32) throw const FormatException('上传密钥无效');
+          final token = grant['token'];
+          if (token is! String ||
+              token.isEmpty ||
+              token.contains('\r') ||
+              token.contains('\n')) {
+            throw const FormatException('上传凭证无效');
+          }
+          return (aad, key);
         }
-        final aad = grant['aad'] as String,
-            fields = jsonDecode(grant['aad'] as String) as List;
-        if (fields.length != 7 ||
-            fields[0] != 'kingclub:chat-file-upload:v1' ||
-            fields[2] != asset ||
-            fields[3] != repository.account ||
-            fields[4] != fileName ||
-            fields[5] != digest ||
-            fields[6] != size) {
-          throw const FormatException('上传凭证不符');
-        }
-        final key = base64Url.decode(
-          base64Url.normalize(grant['key'] as String),
-        );
-        if (key.length != 32) throw const FormatException('上传密钥无效');
+
+        var (aad, key) = decodeGrant(grant);
         final uploaded = <int, Map>{};
         for (final raw in begin['uploaded'] as List) {
           final row = raw as Map, index = row['index'];
@@ -210,41 +222,65 @@ class ChatFileUploader {
               throw StateError('文件已变化，请重新选择');
             }
           } else {
-            final derived = await Hmac.sha256().calculateMac(
-              utf8.encode('chat-file-chunk-key:v1:$index'),
-              secretKey: SecretKey(key),
-            );
-            final box = await AesGcm.with256bits().encrypt(
-              bytes,
-              secretKey: SecretKey(derived.bytes),
-              aad: utf8.encode(jsonEncode([aad, index, length])),
-            );
-            final wire = Uint8List(length + 28)
-              ..setRange(0, 12, box.nonce)
-              ..setRange(12, 28, box.mac.bytes)
-              ..setRange(28, length + 28, box.cipherText);
-            await _check();
-            final response = await _dio.post<Map<String, dynamic>>(
-              '$path/$index',
-              data: Stream.value(wire),
-              cancelToken: _cancel,
-              options: Options(
-                contentType: 'application/octet-stream',
-                followRedirects: false,
-                headers: {
-                  'authorization': 'Bearer ${grant['token']}',
-                  'content-length': wire.length,
-                },
-              ),
-            );
-            await _check();
-            final receipt = response.data?['data'];
-            if (response.data?['status'] != 1 ||
-                receipt is! Map ||
-                receipt['assetId'] != asset ||
-                receipt['index'] != index ||
-                receipt['sha256'] != chunkHash) {
-              throw const FormatException('分块上传回执无效');
+            for (var attempt = 0; attempt < 2; attempt++) {
+              try {
+                final derived = await Hmac.sha256().calculateMac(
+                  utf8.encode('chat-file-chunk-key:v1:$index'),
+                  secretKey: SecretKey(key),
+                );
+                final box = await AesGcm.with256bits().encrypt(
+                  bytes,
+                  secretKey: SecretKey(derived.bytes),
+                  aad: utf8.encode(jsonEncode([aad, index, length])),
+                );
+                final wire = Uint8List(length + 28)
+                  ..setRange(0, 12, box.nonce)
+                  ..setRange(12, 28, box.mac.bytes)
+                  ..setRange(28, length + 28, box.cipherText);
+                await _check();
+                final response = await _dio.post<Map<String, dynamic>>(
+                  '$path/$index',
+                  data: Stream.value(wire),
+                  cancelToken: _cancel,
+                  options: Options(
+                    contentType: 'application/octet-stream',
+                    followRedirects: false,
+                    headers: {
+                      'authorization': 'Bearer ${grant['token']}',
+                      'content-length': wire.length,
+                    },
+                  ),
+                );
+                await _check();
+                final receipt = response.data?['data'];
+                if (response.data?['status'] != 1 ||
+                    receipt is! Map ||
+                    receipt['assetId'] != asset ||
+                    receipt['index'] != index ||
+                    receipt['sha256'] != chunkHash) {
+                  throw const FormatException('分块上传回执无效');
+                }
+                break;
+              } on DioException catch (error) {
+                if (attempt != 0 ||
+                    ![401, 403].contains(error.response?.statusCode)) {
+                  rethrow;
+                }
+                await _check();
+                final renewed = await repository.call('K260914000649', {
+                  'clientUploadId': requestId,
+                  'fileName': fileName,
+                  'size': size,
+                  'sha256': digest,
+                });
+                await _check();
+                validate(renewed);
+                if (renewed['status'] != 'pending') {
+                  throw const FormatException('上传状态已变化，请重试');
+                }
+                grant = Map<String, dynamic>.from(renewed['upload'] as Map);
+                (aad, key) = decodeGrant(grant);
+              }
             }
           }
           done += length;
@@ -278,9 +314,12 @@ class ChatFileUploader {
         '文件上传中断，请重试续传',
       );
     } finally {
-      await reader?.close();
-      _busy = false;
-      _cancel = null;
+      try {
+        await reader?.close();
+      } finally {
+        _busy = false;
+        _cancel = null;
+      }
     }
   }
 
