@@ -50,6 +50,8 @@ class MessagingRepository {
           session: current,
           receiveTimeout: id == 'K260915000669'
               ? const Duration(seconds: 125)
+              : id == 'K260915000674'
+              ? const Duration(seconds: 65)
               : null,
         );
         if (generation != MemberQrMemory.generation) {

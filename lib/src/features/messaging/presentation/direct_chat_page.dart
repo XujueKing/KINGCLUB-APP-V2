@@ -1,3 +1,4 @@
+import 'voice_transcription_page.dart';
 import 'chat_video_view.dart';
 import 'chat_video_send_page.dart';
 import '../data/chat_reply.dart';
@@ -322,8 +323,34 @@ class _DirectChatPageState extends State<DirectChatPage>
         }
       }
       if (!mounted || _leaving || session != _voiceSession) return;
-      if (target == VoiceHoldTarget.text) {
-        KingNotice.of(context).show('录音已保留，转文字服务尚未接通');
+      if (target == VoiceHoldTarget.text && chat != null) {
+        final text = await Navigator.of(context).push<String>(
+          MaterialPageRoute(
+            builder: (_) => VoiceTranscriptionPage(
+              draft: draft,
+              repository: chat.messaging,
+            ),
+          ),
+        );
+        if (!mounted ||
+            _leaving ||
+            session != _voiceSession ||
+            !identical(chat, _chat)) {
+          return;
+        }
+        if (text != null && text.isNotEmpty) {
+          setState(() {
+            _controller.text = _controller.text.isEmpty
+                ? text
+                : '${_controller.text}\n$text';
+            _controller.selection = TextSelection.collapsed(
+              offset: _controller.text.length,
+            );
+            _voiceMode = false;
+          });
+          _inputFocusNode.requestFocus();
+        }
+        return;
       }
       await showModalBottomSheet<void>(
         context: context,
