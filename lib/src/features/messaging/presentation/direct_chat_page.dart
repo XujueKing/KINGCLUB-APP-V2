@@ -346,6 +346,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   int? _selectedGift;
   int _goldBalance = 501;
   String? _quotedDraft;
+  String? _quotedMessageId;
   bool get _readOnly => _realTarget != null && _chat == null;
   late final List<_FakeMessage> _messages = _realTarget != null
       ? []
@@ -461,6 +462,8 @@ class _DirectChatPageState extends State<DirectChatPage>
     if (!mounted) return;
     setState(() {
       _messages.clear();
+      _quotedDraft = null;
+      _quotedMessageId = null;
       _connectionNotice = '正在恢复会话…';
     });
     try {
@@ -592,6 +595,11 @@ class _DirectChatPageState extends State<DirectChatPage>
               message['text'] as String,
               messageId: message['messageId'] as String?,
               system: message['messageType'] == 'recalled',
+              quoted: message['reply'] is Map
+                  ? ((message['reply'] as Map)['available'] == true
+                        ? (message['reply'] as Map)['text'] as String?
+                        : '原消息不可用')
+                  : null,
               fileName: message['messageType'] == 'file'
                   ? message['fileName'] as String?
                   : null,
@@ -948,7 +956,10 @@ class _DirectChatPageState extends State<DirectChatPage>
                     key: const ValueKey('direct-chat-close-quote'),
                     tooltip: '取消引用',
                     visualDensity: VisualDensity.compact,
-                    onPressed: () => setState(() => _quotedDraft = null),
+                    onPressed: () => setState(() {
+                      _quotedDraft = null;
+                      _quotedMessageId = null;
+                    }),
                     icon: const Icon(Icons.close, size: 18),
                   ),
                 ],
@@ -1579,6 +1590,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       _messages.add(message);
       _controller.clear();
       _quotedDraft = null;
+      _quotedMessageId = null;
       _composerPanel = _ComposerPanel.none;
     });
     _scrollToLatest();
@@ -1589,11 +1601,13 @@ class _DirectChatPageState extends State<DirectChatPage>
     try {
       await chat.send(
         text,
+        replyToMessageId: _quotedMessageId,
         onQueued: () {
           if (mounted && _controller.text.trim() == text) {
             setState(() {
               _controller.clear();
               _quotedDraft = null;
+              _quotedMessageId = null;
               _composerPanel = _ComposerPanel.none;
             });
           }
@@ -2174,6 +2188,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                       Navigator.pop(sheetContext, _FakeMessageAction.copy),
                 ),
               ListTile(
+                enabled:
+                    _realTarget == null ||
+                    (_chat?.canReply == true && message.messageId != null),
                 leading: const Icon(Icons.format_quote),
                 title: const Text('引用'),
                 onTap: () =>
@@ -2250,6 +2267,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     }
     if (_realTarget != null &&
         action != _FakeMessageAction.copy &&
+        action != _FakeMessageAction.quote &&
         action != _FakeMessageAction.delete &&
         action != _FakeMessageAction.recall) {
       KingNotice.of(context).show('该消息操作正在接入');
@@ -2261,7 +2279,14 @@ class _DirectChatPageState extends State<DirectChatPage>
         KingNotice.of(context)
             .showSnackBar(const SnackBar(content: Text('已复制')));
       case _FakeMessageAction.quote:
-        setState(() => _quotedDraft = _messagePreview(message));
+        if (_realTarget != null &&
+            (_chat?.canReply != true || message.messageId == null)) {
+          return;
+        }
+        setState(() {
+          _quotedDraft = _messagePreview(message);
+          _quotedMessageId = message.messageId;
+        });
       case _FakeMessageAction.forward:
         _voicePlayback?.stop();
         await Navigator.push<bool>(

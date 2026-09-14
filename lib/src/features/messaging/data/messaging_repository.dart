@@ -55,10 +55,12 @@ class MessagingRepository {
     required String peer,
     required String clientMessageId,
     required String text,
+    String? replyToMessageId,
   }) => call('K260913000601', {
     'recipient': peer,
     'clientMessageId': clientMessageId,
     'text': text,
+    'replyToMessageId': ?replyToMessageId,
   });
   Future<Map<String, dynamic>> sendImage({
     required String peer,

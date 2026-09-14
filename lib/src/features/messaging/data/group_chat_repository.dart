@@ -193,10 +193,12 @@ class GroupChatRepository {
     required String groupId,
     required String clientMessageId,
     required String text,
+    String? replyToMessageId,
   }) => messaging.call('K260913000620', {
     'groupId': groupId,
     'clientMessageId': clientMessageId,
     'text': text,
+    'replyToMessageId': ?replyToMessageId,
   });
   Future<Map<String, dynamic>> history(
     String groupId, {

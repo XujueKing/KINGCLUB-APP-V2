@@ -27,6 +27,9 @@ class DirectChatController extends ChatSessionController {
   int _diskEpoch = 0;
   int? _historyVersion;
   bool _canHideMessage = false;
+  bool _canReply = false;
+  @override
+  bool get canReply => !_disposed && _canReply;
   final _hiddenMessages = <String, Map<String, dynamic>>{};
   int _hiddenThrough = 0;
   String get _historyKey => 'direct:$peer';
@@ -287,6 +290,7 @@ class DirectChatController extends ChatSessionController {
     conversationId = result['conversationId'] as String;
     permission = Map<String, dynamic>.from(result['sendPermission'] as Map);
     _canHideMessage = result['canHideMessage'] == true;
+    _canReply = result['canReply'] == true;
     settings = Map<String, dynamic>.from(result['settings'] as Map);
     peerReadSequence = (result['peerReadSequence'] as num).toInt();
     for (final message in rows) {
@@ -342,7 +346,18 @@ class DirectChatController extends ChatSessionController {
   }
 
   @override
-  Future<void> send(String text, {VoidCallback? onQueued}) async {
+  Future<void> send(
+    String text, {
+    VoidCallback? onQueued,
+    String? replyToMessageId,
+  }) async {
+    if (replyToMessageId != null &&
+        (!canReply ||
+            !RegExp(
+              r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+            ).hasMatch(replyToMessageId))) {
+      throw StateError('当前无法引用该消息');
+    }
     text = text.trim();
     if (text.isEmpty || _disposed) return;
     if (text.length > 4000) throw StateError('文字最多4000字');
@@ -352,6 +367,7 @@ class DirectChatController extends ChatSessionController {
       'recipient': peer,
       'sender': repository.account,
       'text': text,
+      'replyToMessageId': ?replyToMessageId,
       'createdDate': DateTime.now().toUtc().toIso8601String(),
       'status': 'queued',
     };
@@ -556,10 +572,12 @@ class DirectChatController extends ChatSessionController {
               peer: peer,
               clientMessageId: id,
               text: pending['text'] as String,
+              replyToMessageId: pending['replyToMessageId'] as String?,
             );
       if (_disposed) return;
       final received = Map<String, dynamic>.from(result['message'] as Map);
       final recalled = ['recalled', 'hidden'].contains(received['messageType']);
+      if (!recalled && pending['replyToMessageId'] != null && (received['reply'] is! Map || (received['reply'] as Map)['messageId'] != pending['replyToMessageId'])) { throw StateError('引用回复回执不一致'); }
       if (!recalled &&
           kind == 'location' &&
           (received['messageType'] != 'location' ||
