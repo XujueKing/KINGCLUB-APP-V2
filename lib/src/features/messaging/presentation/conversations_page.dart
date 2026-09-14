@@ -366,7 +366,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     unawaited(
       future.then<void>(
         (_) {},
-        onError: (Object _, StackTrace __) {
+        onError: (Object _, StackTrace _) {
           if (identical(_avatarProfiles[target], future)) {
             _avatarProfiles.remove(target);
           }
