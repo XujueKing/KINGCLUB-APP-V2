@@ -1,3 +1,4 @@
+import 'forward_text_page.dart';
 import '../data/chat_file_draft_store.dart';
 import 'chat_file_details_page.dart';
 import '../data/chat_file_downloader.dart';
@@ -2209,6 +2210,26 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
     );
     if (!mounted || action == null) return;
+    if (_realTarget != null &&
+        action == _FakeMessageAction.forward &&
+        _chat != null &&
+        message.messageId != null &&
+        message.kind == _FakeMessageKind.text &&
+        message.voiceDurationMs == null &&
+        message.location == null &&
+        message.fileAssetId == null) {
+      _voicePlayback?.stop();
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => ForwardTextPage(
+            repository: _chat!.messaging,
+            text: message.text,
+            outbox: widget.chatOutbox,
+          ),
+        ),
+      );
+      return;
+    }
     if (_realTarget != null &&
         action != _FakeMessageAction.copy &&
         action != _FakeMessageAction.recall) {

@@ -1,0 +1,231 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../../core/session/secure_session_store.dart';
+import '../../contacts/data/contacts_controller.dart';
+import '../data/chat_outbox.dart';
+import '../data/messaging_repository.dart';
+import 'chat_member_avatar.dart';
+import 'direct_chat_page.dart';
+import 'legacy_messaging_components.dart';
+
+class ForwardTextPage extends StatefulWidget {
+  const ForwardTextPage({
+    super.key,
+    required this.repository,
+    required this.text,
+    this.outbox,
+  });
+  final MessagingRepository repository;
+  final String text;
+  final ChatOutbox? outbox;
+  @override
+  State<ForwardTextPage> createState() => _ForwardTextPageState();
+}
+
+class _ForwardTextPageState extends State<ForwardTextPage> {
+  late final _contacts = ContactsController(widget.repository);
+  late final _outbox =
+      widget.outbox ?? SecureChatOutbox(widget.repository.account);
+  final _search = TextEditingController();
+  final _profiles = <String, Future<Map<String, dynamic>>>{};
+  StreamSubscription<void>? _session;
+  MemberContact? _selected;
+  BuildContext? _confirmationContext;
+  Map<String, dynamic>? _attempt;
+  bool _saving = false, _invalid = false;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    _contacts.addListener(_changed);
+    _session = SecureSessionStore.changes.stream.listen((_) {
+      _invalid = true;
+      final dialog = _confirmationContext;
+      if (dialog != null && dialog.mounted) Navigator.of(dialog).pop(false);
+      _contacts.invalidate();
+      _profiles.clear();
+      _selected = null;
+      _search.clear();
+      _error = '登录状态已变化，请重新进入';
+      _changed();
+    });
+    unawaited(_contacts.refresh());
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _session?.cancel();
+    _contacts.removeListener(_changed);
+    _contacts.dispose();
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _forward() async {
+    final target = _selected;
+    if (_saving || _invalid || target == null) return;
+    setState(() => _saving = true);
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          _confirmationContext = context;
+          return AlertDialog(
+            title: Text('发送给 ${target.displayName}'),
+            content: SingleChildScrollView(child: Text(widget.text)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                key: const ValueKey('forward-text-confirm'),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('发送'),
+              ),
+            ],
+          );
+        },
+      );
+      _confirmationContext = null;
+      if (confirmed != true || !mounted || _invalid) return;
+      if (widget.text.trim().isEmpty || widget.text.length > 4000) {
+        throw StateError('文字长度无效');
+      }
+      _attempt ??= {
+        'clientMessageId': const Uuid().v4(),
+        'recipient': target.account,
+        'sender': widget.repository.account,
+        'text': widget.text.trim(),
+        'createdDate': DateTime.now().toUtc().toIso8601String(),
+        'status': 'queued',
+      };
+      await _outbox.put(_attempt!);
+      if (!mounted || _invalid) return;
+      // The target conversation restores this exact queued ID and owns retries.
+      unawaited(
+        Navigator.of(context).pushReplacement<void, void>(
+          MaterialPageRoute(
+            builder: (_) => DirectChatPage(
+              peerName: target.displayName,
+              peerAccount: target.account,
+              repository: widget.repository,
+              chatOutbox: _outbox,
+            ),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted && !_invalid) setState(() => _error = '转发未完成，请重试');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final contacts = _invalid
+        ? <MemberContact>[]
+        : _contacts.search(_search.text);
+    return PopScope(
+      canPop: !_saving,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Column(
+            children: [
+              LegacyMessagingHeader(
+                title: '选择联系人',
+                onBack: _saving ? () {} : () => Navigator.pop(context),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: TextField(
+                  controller: _search,
+                  enabled: !_invalid && !_saving,
+                  onChanged: (_) => _changed(),
+                  decoration: const InputDecoration(
+                    hintText: '搜索',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                ),
+              ),
+              if (_error != null || _contacts.error != null)
+                TextButton(
+                  onPressed: _invalid || _saving
+                      ? null
+                      : () => _contacts.refresh(),
+                  child: Text(_error ?? '通讯录读取失败，点击重试'),
+                ),
+              Expanded(
+                child: contacts.isEmpty
+                    ? Center(
+                        child: Text(
+                          _contacts.hasSnapshot ? '没有找到可转发的好友' : '',
+                          style: const TextStyle(color: Colors.white54),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: contacts.length,
+                        itemBuilder: (context, index) {
+                          final contact = contacts[index];
+                          return ListTile(
+                            key: ValueKey('forward-text-${contact.account}'),
+                            leading: ChatMemberAvatar(
+                              account: contact.account,
+                              profile: _profiles.putIfAbsent(
+                                contact.account,
+                                () => widget.repository.call('K260913000612', {
+                                  'peer': contact.account,
+                                }),
+                              ),
+                            ),
+                            title: Text(
+                              contact.displayName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                              ),
+                            ),
+                            trailing: Icon(
+                              _selected?.account == contact.account
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                              color: legacyMessageGold,
+                            ),
+                            onTap: _saving
+                                ? null
+                                : () => setState(() {
+                                    if (_selected?.account != contact.account) {
+                                      _attempt = null;
+                                    }
+                                    _selected = contact;
+                                  }),
+                          );
+                        },
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: FilledButton(
+                  key: const ValueKey('forward-text-submit'),
+                  onPressed: _saving || _invalid || _selected == null
+                      ? null
+                      : _forward,
+                  child: const Text('转发'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
