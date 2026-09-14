@@ -2220,7 +2220,6 @@ class _DirectChatPageState extends State<DirectChatPage>
         message.messageId != null &&
         message.kind == _FakeMessageKind.text &&
         message.voiceDurationMs == null &&
-        message.location == null &&
         message.fileAssetId == null) {
       _voicePlayback?.stop();
       await Navigator.of(context).push<void>(
@@ -2228,6 +2227,7 @@ class _DirectChatPageState extends State<DirectChatPage>
           builder: (_) => ForwardTextPage(
             repository: _chat!.messaging,
             text: message.text,
+            location: message.location,
             outbox: widget.chatOutbox,
           ),
         ),

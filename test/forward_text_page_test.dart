@@ -1,3 +1,4 @@
+import 'package:kingclub/src/features/messaging/data/chat_location.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -40,6 +41,44 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets(
+    'location forwarding preserves coordinate system and original point',
+    (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final outbox = RecordingOutbox();
+      final point = ChatLocation.fromJson({
+        'latitudeE6': 30000000,
+        'longitudeE6': 110000000,
+        'coordinateSystem': 'gcj02',
+        'name': 'Test venue',
+        'address': 'Test address',
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ForwardTextPage(
+            repository: repo(),
+            text: '[??]',
+            location: point,
+            outbox: outbox,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('forward-text-peer')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('forward-text-submit')));
+      await tester.pumpAndSettle();
+      expect(find.text('Test venue\nTest address'), findsOneWidget);
+      expect(outbox.items, isEmpty);
+      await tester.tap(find.byKey(const ValueKey('forward-text-confirm')));
+      await tester.pumpAndSettle();
+      expect(outbox.items.values.single['messageType'], 'location');
+      expect(outbox.items.values.single['location'], point.toJson());
+      expect(outbox.items.values.single['text'], '[??]');
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
   testWidgets(
     'group forwarding verifies membership and keeps one queued identity on storage retry',
     (tester) async {

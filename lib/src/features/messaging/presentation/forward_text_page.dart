@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../contacts/data/contacts_controller.dart';
 import '../data/chat_outbox.dart';
+import '../data/chat_location.dart';
 import '../data/messaging_repository.dart';
 import 'chat_member_avatar.dart';
 import 'direct_chat_page.dart';
@@ -23,9 +24,11 @@ class ForwardTextPage extends StatefulWidget {
     required this.repository,
     required this.text,
     this.outbox,
+    this.location,
   });
   final MessagingRepository repository;
   final String text;
+  final ChatLocation? location;
   final ChatOutbox? outbox;
   @override
   State<ForwardTextPage> createState() => _ForwardTextPageState();
@@ -126,7 +129,13 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
           _confirmationContext = context;
           return AlertDialog(
             title: Text('发送给 ${target.displayName}'),
-            content: SingleChildScrollView(child: Text(widget.text)),
+            content: SingleChildScrollView(
+              child: Text(
+                widget.location == null
+                    ? widget.text
+                    : '${widget.location!.name}\n${widget.location!.address}',
+              ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -143,7 +152,8 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
       );
       _confirmationContext = null;
       if (confirmed != true || !mounted || _invalid) return;
-      if (widget.text.trim().isEmpty || widget.text.length > 4000) {
+      if (widget.location == null &&
+          (widget.text.trim().isEmpty || widget.text.length > 4000)) {
         throw StateError('文字长度无效');
       }
       int? membershipVersion;
@@ -166,7 +176,11 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         } else
           'recipient': target.account,
         'sender': widget.repository.account,
-        'text': widget.text.trim(),
+        'text': widget.location == null ? widget.text.trim() : '[??]',
+        if (widget.location != null) ...{
+          'messageType': 'location',
+          'location': widget.location!.toJson(),
+        },
         'createdDate': DateTime.now().toUtc().toIso8601String(),
         'status': 'queued',
       };
