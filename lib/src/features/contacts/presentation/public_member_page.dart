@@ -142,11 +142,33 @@ class _PublicMemberPageState extends State<PublicMemberPage>
 
   Future<void> _follow() async {
     if (_saving || _repository == null || _profile == null) return;
+    final unfollow = _profile!['following'] == true;
+    final repository = _repository!;
     setState(() => _saving = true);
     try {
-      await _repository!.setRelationship(
+      if (unfollow) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('取消关注？'),
+            content: const Text('取消后将不再是互相关注的好友。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('保留关注'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('取消关注'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true || !mounted || _repository != repository) return;
+      }
+      await repository.setRelationship(
         widget.account,
-        _profile!['following'] == true ? 'unfollow' : 'follow',
+        unfollow ? 'unfollow' : 'follow',
       );
       await _load();
     } catch (e) {

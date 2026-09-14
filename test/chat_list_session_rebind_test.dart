@@ -1,3 +1,4 @@
+import 'package:kingclub/src/features/messaging/presentation/chat_member_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -73,6 +74,14 @@ void main() {
         await tester.pumpWidget(page(true));
         await tester.pumpAndSettle();
         expect(find.text('Friend 0'), findsOneWidget);
+        if (!contacts) {
+          expect(
+            tester
+                .widget<ChatMemberAvatar>(find.byType(ChatMemberAvatar))
+                .account,
+            'peer',
+          );
+        }
         revision = 1;
         await SecureSessionStore().saveSession({
           'sessionId': 'renewed',

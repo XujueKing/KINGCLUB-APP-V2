@@ -1,3 +1,4 @@
+import 'chat_member_avatar.dart';
 import '../data/group_chat_repository.dart';
 
 import 'dart:async';
@@ -73,6 +74,7 @@ class ConversationsPage extends StatefulWidget {
 class _ConversationsPageState extends State<ConversationsPage>
     with WidgetsBindingObserver {
   MessagingRepository? _repository;
+  final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   final _realItems = <Map<String, dynamic>>[];
   final _slides = <String, double>{};
   StreamSubscription<Map<String, dynamic>>? _events;
@@ -120,6 +122,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     try {
       final repository = widget.repository ?? await MessagingRepository.open();
       if (!mounted || generation != _realGeneration) return;
+      _avatarProfiles.clear();
       _repository = repository;
       _events = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
@@ -130,6 +133,7 @@ class _ConversationsPageState extends State<ConversationsPage>
       _sessions = SecureSessionStore.changes.stream.listen((_) {
         _realGeneration++;
         _repository = null;
+        _avatarProfiles.clear();
         _events?.cancel();
         if (mounted) {
           setState(() {
@@ -307,6 +311,15 @@ class _ConversationsPageState extends State<ConversationsPage>
         ? ''
         : '${time.month}/${time.day} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
     return _FriendConversation(
+      avatar: group
+          ? const Icon(Icons.groups, color: Color(0xFFC9B69E), size: 32)
+          : ChatMemberAvatar(
+              account: target,
+              profile: _avatarProfiles.putIfAbsent(
+                target,
+                () => _repository!.call('K260913000612', {'peer': target}),
+              ),
+            ),
       name: name,
       date: date,
       slide: _slides[slideKey] ?? 0,
@@ -937,11 +950,13 @@ class _ConversationContent extends StatelessWidget {
     required this.preview,
     required this.date,
     required this.unread,
+    this.avatar,
     this.system = false,
     this.inactive = false,
     this.muted = false,
     this.pinned = false,
   });
+  final Widget? avatar;
   final String name, preview, date;
   final int unread;
   final bool system, inactive, muted, pinned;
@@ -961,7 +976,9 @@ class _ConversationContent extends StatelessWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    if (system)
+                    if (avatar != null)
+                      Positioned.fill(child: avatar!)
+                    else if (system)
                       _KingAvatar(size: 96 * r)
                     else
                       ClipOval(
@@ -1102,6 +1119,7 @@ class _ConversationContent extends StatelessWidget {
 
 class _FriendConversation extends StatelessWidget {
   const _FriendConversation({
+    this.avatar,
     this.name = '卡座搭子',
     this.date = '21:08',
     required this.slide,
@@ -1119,6 +1137,7 @@ class _FriendConversation extends StatelessWidget {
     required this.onDelete,
   });
 
+  final Widget? avatar;
   final String name, date;
   final double slide;
   final bool muted;
@@ -1192,6 +1211,7 @@ class _FriendConversation extends StatelessWidget {
                       ? Color.alphaBlend(const Color(0x0DC9B69E), Colors.black)
                       : Colors.black,
                   child: _ConversationContent(
+                    avatar: avatar,
                     name: name,
                     pinned: pinned,
                     muted: muted,

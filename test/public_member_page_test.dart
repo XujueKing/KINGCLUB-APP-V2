@@ -61,6 +61,51 @@ void main() {
     },
   );
 
+  testWidgets('following button requires explicit unfollow confirmation', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final mutations = <Map<String, dynamic>>[];
+    final repository = MessagingRepository(
+      account: 'me',
+      call: (id, params) async {
+        if (params.containsKey('action')) {
+          mutations.add(params);
+          return {};
+        }
+        if (id == 'K260913000614') return {'items': [], 'nextOffset': null};
+        return {
+          'peer': 'peer',
+          'memberId': 'TEST001',
+          'nickname': 'Friend',
+          'bio': '',
+          'details': {},
+          'following': true,
+          'friends': true,
+          'contentVisible': false,
+        };
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PublicMemberPage(account: 'peer', repository: repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('互相关注'));
+    await tester.pumpAndSettle();
+    expect(mutations, isEmpty);
+    await tester.tap(find.text('保留关注'));
+    await tester.pumpAndSettle();
+    expect(mutations, isEmpty);
+    await tester.tap(find.text('互相关注'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('取消关注'));
+    await tester.pumpAndSettle();
+    expect(mutations.single['action'], 'unfollow');
+  });
+
   testWidgets('real profile retains chat when contents are restricted', (
     tester,
   ) async {
