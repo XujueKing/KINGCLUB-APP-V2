@@ -118,3 +118,14 @@ App业务路由、可信manifest/会员设备目录、worker、NAT/中继及自�
 本批实际profile/preview ARM64构建37.8秒，APK162.2MB。包内lib/arm64-v8a/libkingclub_novorudp.so为803712字节；库LOAD段均0x4000对齐（16KB），最低NDK API24与App一致。APK SHA256为04f6fec1b3464fab91408140beb73d30294337f8d8a8ddae60c2eb3169eca9dd。已通过adb install -r保留数据覆盖安装并成功启动，设备报告lastUpdateTime 2026-09-15 05:59:38。包含工作区原有onboarding三文件改动，本节点没有编辑/提交它们。
 
 这是打包与安装验证，不是手机Dart FFI完整绑定验收；直连运行入口仍未启用，未替用户登记网络身份或发送聊天。iOS、其他Android ABI打包尚未完成。
+
+
+## Android后台设备绑定入口
+
+真实MessagingRepository.open成功后启动NovoRudpBindingRuntime，不等待登记完成再展示聊天。仅Android ARM64且KINGCLUB_NOVORUDP_DEVICE_BINDING开启时加载本机库；build-chat-preview默认启用，SkipNovoRudp明确关闭。使用已有安全存储身份与670..673接口完成本人公钥登记，不创建UDP socket、不切换聊天传输、不发送聊天消息。
+
+进程内合并初始化；登录代次变化释放原生身份，迟到结果不进入新会话。失败仅输出无账号/密钥的错误分类，五分钟内后续open不重复发起；五分钟后再次open才重试，当前不含独立定时重试。成功记录NOVORUDP_DEVICE_BINDING_READY。
+
+定向analyze通过；登录/会话更新两项回归通过；真实Rust身份的四项绑定协调测试通过（这些测试HTTP为受控响应）。本批profile/preview构建64.6秒、149.0MB，APK SHA256 f21ad8738b30f9aed690fc2ecf30f58d19d25ce1b82076ee3116910a3dd74f06；原生ARM64 ELF包内校验通过，adb install -r Success并启动Status ok。包含工作区原有onboarding改动，本节点未编辑或提交它们。
+
+安装后暂未观察到手机绑定完成标记，待用户解锁进入聊天触发；不能把构建/受控测试记作手机端到端登记已通过。自动直连/中继、原生worker及公网验收仍未完成。

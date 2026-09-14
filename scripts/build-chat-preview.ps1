@@ -18,7 +18,8 @@ try {
   # Windows PowerShell treats native stderr warnings as errors when redirected.
   # Flutter's exit code, not a plugin warning, determines build success.
   $ErrorActionPreference = 'Continue'
-  & $FlutterCommand build apk --profile --flavor preview --target-platform android-arm64 "--dart-define=KINGCLUB_API_BASE_URL=$($ApiBaseUrl.AbsoluteUri.TrimEnd('/'))"
+  $bindingEnabled = if ($SkipNovoRudp) { 'false' } else { 'true' }
+  & $FlutterCommand build apk --profile --flavor preview --target-platform android-arm64 "--dart-define=KINGCLUB_API_BASE_URL=$($ApiBaseUrl.AbsoluteUri.TrimEnd('/'))" "--dart-define=KINGCLUB_NOVORUDP_DEVICE_BINDING=$bindingEnabled"
   $buildExitCode = $LASTEXITCODE
   $ErrorActionPreference = 'Stop'
   if ($buildExitCode -ne 0) { throw 'Chat preview APK build failed.' }

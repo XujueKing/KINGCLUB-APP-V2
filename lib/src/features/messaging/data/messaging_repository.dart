@@ -1,4 +1,5 @@
 import 'chat_video.dart';
+import 'novorudp_binding_runtime.dart';
 import 'chat_location.dart';
 import '../../../core/networking/kingclub_secure_client.dart';
 import '../../../core/session/member_qr_memory.dart';
@@ -32,7 +33,7 @@ class MessagingRepository {
       throw const AuthFailure('SESSION_EXPIRED', '请重新登录');
     }
     final client = KingclubSecureClient(kingclubApiBaseUrl);
-    return MessagingRepository(
+    final repository = MessagingRepository(
       account: account,
       persistHistory: true,
       call: (id, params) async {
@@ -57,6 +58,8 @@ class MessagingRepository {
         return Map<String, dynamic>.from(data['result'] as Map);
       },
     );
+    NovoRudpBindingRuntime.start(repository);
+    return repository;
   }
 
   Future<Map<String, dynamic>> sendText({
