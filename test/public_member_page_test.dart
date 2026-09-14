@@ -8,6 +8,49 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
 
 void main() {
+  testWidgets('accepted QR friend request refreshes open profile relation', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final events = StreamController<Map<String, dynamic>>.broadcast();
+    var friends = false, reads = 0;
+    final repo = MessagingRepository(
+      account: 'me',
+      call: (id, _) async {
+        if (id == 'K260913000614') return {'items': [], 'nextOffset': null};
+        reads++;
+        return {
+          'peer': 'peer',
+          'memberId': 'TEST001',
+          'nickname': 'Friend',
+          'bio': '',
+          'details': {},
+          'following': friends,
+          'friends': friends,
+          'contentVisible': false,
+        };
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PublicMemberPage(
+          account: 'peer',
+          repository: repo,
+          events: events.stream,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('互相关注'), findsNothing);
+    friends = true;
+    events.add({'eventType': 'chat.friend-request.changed'});
+    await tester.pumpAndSettle();
+    expect(reads, 2);
+    expect(find.text('互相关注'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await events.close();
+  });
   testWidgets(
     'permission changes hide stale profile immediately and logout rejects refresh',
     (tester) async {

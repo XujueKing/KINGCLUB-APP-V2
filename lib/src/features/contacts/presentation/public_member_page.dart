@@ -65,6 +65,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
       final type = event['eventType'];
       if (type == 'chat.settings.changed' ||
           type == 'chat.relationship.changed' ||
+          type == 'chat.friend-request.changed' ||
           type == 'connection.ready') {
         _invalidateAndReload();
       }

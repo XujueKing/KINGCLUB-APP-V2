@@ -1,0 +1,7 @@
+# 扫码好友通过后的资料刷新
+
+当前服务端messaging-service.resolve在接受申请事务中将lowFollows/highFollows同时设为true，并发出chat.friend-request.changed。通讯录和会话列表已有该类刷新路径，PublicMemberPage却只监听settings/relationship/connection.ready，导致打开着的资料页在对端接受扫码申请后继续显示旧关系。
+
+本批补上friend-request.changed监听，复用既有失效后重新授权读取逻辑，刷新互关按钮及内容权限。没有修改任何真实会员关系，不将本发现当作历史数据自动取消的根因。
+
+新增受控HTTP页面测试模拟对端接受后的事件，确认不关闭页面就由非互关变为互相关注；全部4项资料页测试和analyze通过。非双机实测，尚未打包安装。
