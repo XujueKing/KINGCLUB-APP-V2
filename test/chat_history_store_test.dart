@@ -37,6 +37,39 @@ void main() {
     await dir.delete(recursive: true);
   });
   test(
+    'file metadata survives encrypted history reopen without download grants',
+    () async {
+      await store.commit(
+        'direct:peer',
+        [
+          {
+            ...message(1),
+            'messageType': 'file',
+            'fileAssetId': '12345678-1234-1234-1234-123456789012',
+            'fileName': 'private-fixture.txt',
+            'fileSize': 123,
+            'fileSha256': 'a' * 64,
+            'fileDownloadToken': 'NEVER_STORE_TOKEN',
+          },
+        ],
+        expectedEpoch: 0,
+        cursor: 1,
+      );
+      await store.close();
+      store = await open();
+      final saved = (await store.read('direct:peer')).messages.single;
+      expect(saved['fileName'], 'private-fixture.txt');
+      expect(saved['fileSize'], 123);
+      expect(saved['fileSha256'], 'a' * 64);
+      expect(saved.containsKey('fileDownloadToken'), false);
+      final raw = String.fromCharCodes(
+        await File('${dir.path}/history.db').readAsBytes(),
+      );
+      expect(raw.contains('private-fixture.txt'), false);
+      expect(raw.contains('NEVER_STORE_TOKEN'), false);
+    },
+  );
+  test(
     'encrypted disk pages survive reopen and strip transport credentials',
     () async {
       await store.commit(

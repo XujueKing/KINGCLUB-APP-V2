@@ -18,6 +18,13 @@ abstract class ChatSessionController extends ChangeNotifier {
   Future<void> retry(String id);
   Future<void> send(String text, {VoidCallback? onQueued});
   Future<void> sendImage(String assetId, {VoidCallback? onQueued});
+  Future<void> sendFile(
+    String assetId,
+    String fileName,
+    int fileSize,
+    String fileSha256, {
+    VoidCallback? onQueued,
+  });
   Future<void> sendVoice(
     String assetId,
     int durationMs, {

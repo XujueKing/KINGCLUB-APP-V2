@@ -79,6 +79,15 @@ class GroupChatRepository {
     'clientMessageId': clientMessageId,
     'location': location.toJson(),
   });
+  Future<Map<String, dynamic>> sendFile({
+    required String groupId,
+    required String clientMessageId,
+    required String assetId,
+  }) => messaging.call('K260914000653', {
+    'groupId': groupId,
+    'clientMessageId': clientMessageId,
+    'assetId': assetId,
+  });
   Future<Map<String, dynamic>> sendVoice({
     required String groupId,
     required String clientMessageId,

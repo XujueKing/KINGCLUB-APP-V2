@@ -361,6 +361,49 @@ class DirectChatController extends ChatSessionController {
   }
 
   @override
+  Future<void> sendFile(
+    String assetId,
+    String fileName,
+    int fileSize,
+    String fileSha256, {
+    VoidCallback? onQueued,
+  }) async {
+    if (_disposed) return;
+    if (!RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(assetId)) {
+      throw ArgumentError('文件上传结果无效');
+    }
+    if (fileName.trim().isEmpty ||
+        fileName.length > 180 ||
+        fileSize < 0 ||
+        fileSize > 268435456 ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(fileSha256)) {
+      throw ArgumentError('文件元数据无效');
+    }
+    final id = const Uuid().v4();
+    final message = <String, dynamic>{
+      'clientMessageId': id,
+      'recipient': peer,
+      'sender': repository.account,
+      'messageType': 'file',
+      'fileAssetId': assetId,
+      'fileName': fileName,
+      'fileSize': fileSize,
+      'fileSha256': fileSha256,
+      'text': '[文件]',
+      'createdDate': DateTime.now().toUtc().toIso8601String(),
+      'status': 'queued',
+    };
+    await outbox.put(message);
+    if (_disposed) return;
+    _pending[id] = message;
+    _changed();
+    onQueued?.call();
+    await retry(id);
+  }
+
+  @override
   Future<void> sendVoice(
     String assetId,
     int durationMs, {
@@ -416,6 +459,7 @@ class DirectChatController extends ChatSessionController {
           kind != 'text' &&
           kind != 'image' &&
           kind != 'voice' &&
+          kind != 'file' &&
           kind != 'location') {
         throw const FormatException('不支持的待发送消息类型');
       }
@@ -424,6 +468,12 @@ class DirectChatController extends ChatSessionController {
               peer: peer,
               clientMessageId: id,
               assetId: pending['imageAssetId'] as String,
+            )
+          : kind == 'file'
+          ? await repository.sendFile(
+              peer: peer,
+              clientMessageId: id,
+              assetId: pending['fileAssetId'] as String,
             )
           : kind == 'voice'
           ? await repository.sendVoice(
@@ -456,6 +506,16 @@ class DirectChatController extends ChatSessionController {
                 ),
               ))) {
         throw const FormatException('位置回执与发送内容不符');
+      }
+      if (kind == 'file' &&
+          (received['messageType'] != 'file' ||
+              [
+                'fileAssetId',
+                'fileName',
+                'fileSize',
+                'fileSha256',
+              ].any((key) => received[key] != pending[key]))) {
+        throw const FormatException('文件回执与发送内容不符');
       }
       if (kind == 'voice' &&
           (received['messageType'] != 'voice' ||

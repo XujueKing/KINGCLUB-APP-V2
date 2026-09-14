@@ -78,6 +78,15 @@ class MessagingRepository {
     'clientMessageId': clientMessageId,
     'location': location.toJson(),
   });
+  Future<Map<String, dynamic>> sendFile({
+    required String peer,
+    required String clientMessageId,
+    required String assetId,
+  }) => call('K260914000651', {
+    'recipient': peer,
+    'clientMessageId': clientMessageId,
+    'assetId': assetId,
+  });
   Future<Map<String, dynamic>> sendVoice({
     required String peer,
     required String clientMessageId,
