@@ -95,3 +95,8 @@ https://developer.android.com/media/media3/transformer/customization
 
 参考：https://developer.android.com/reference/android/media/MediaCodec
 源码：https://github.com/androidx/media/blob/1.9.2/libraries/transformer/src/main/java/androidx/media3/transformer/DefaultEncoderFactory.java
+
+
+### 合并修正版安装包
+
+包含 c0bb68e 消息重试修正及发送结束会话检查的真实API profile ARM64包构建成功，109.5秒，162.2MB；SHA256 48b2b2303ae27de2df1662ed6956586920090183676daae9cf6f58d667f2bce7。原生探针安装命令仍等待手机确认，未重复安装主包；此合并包尚未安装。
