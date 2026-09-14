@@ -29,8 +29,9 @@ void main() {
             }
             if (id == 'K260914000655') {
               published = p;
-              if (denied)
+              if (denied) {
                 throw const AuthFailure('CHAT_GROUP_ACCESS_DENIED', '无群权限');
+              }
               if (fail) throw StateError('保存失败');
               text = p['text'] as String;
               version++;
