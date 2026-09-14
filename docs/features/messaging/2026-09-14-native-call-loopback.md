@@ -11,3 +11,9 @@
 状态：profile arm64 构建成功，35.0 秒，133.4 MB；工具文件 analyze 无问题。APK SHA256 `78eb574dded90dfd95f05481abd62909583e964f63693a188db153615bec4a96`。aapt 核对包名正确，最终 APK 不含 RECORD_AUDIO/CAMERA/定位权限。
 
 安装命令正在等待测试手机的系统安装确认，设备锁屏且前台为系统安装引导层；已请用户解锁确认。此时尚无安装 Success，也未获得回环 PASS 日志。不得把构建成功计为 SDK 实测。
+
+
+## 2026-09-14 Android 实机回环结果
+用户确认安装并打开独立 com.lingmei.kingclub.calltest。ADB 从该包当前进程读取固定测试标记：INITIAL_BIDIRECTIONAL_PASSED、RESTART_BIDIRECTIONAL_PASSED、CLEANUP_FINISHED 全部出现（设备日志 12:26:24），无本次失败标记。用户屏幕显示 CLEANUP_FINISHED，与释放连接后的最终状态一致。
+
+证据范围：同一台 Android 的两个原生 WebRTC peer、DataChannel 双向字节传输及 ICE restart 后继续传输；测试使用合成信令与空媒体流，没有采集麦克风或摄像头。不是两台手机语音视频通话、真实公网 NAT/TURN、后台保活或主网 NovoRUDP 验收。测试资源关闭后清理独立测试包，正式 APP 保留。
