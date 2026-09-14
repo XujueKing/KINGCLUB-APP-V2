@@ -1821,7 +1821,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       final file = File(path);
       final length = await file.length();
       if (length <= 0 || length > 20 * 1024 * 1024) {
-        throw StateError('请选择不超过20MB的静态表情');
+        throw StateError('请选择不超过20MB的表情');
       }
       final bytes = await file.readAsBytes();
       if (!mounted || !identical(chat, _chat)) return;

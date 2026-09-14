@@ -23,8 +23,10 @@ class ChatEmojiPanel extends StatefulWidget {
     required this.onSend,
     this.account,
     this.libraryDirectory,
+    this.pickImages,
   });
   final String? account;
+  final Future<List<XFile>> Function()? pickImages;
   final Future<Directory> Function(String? account)? libraryDirectory;
   final ValueChanged<String> onEmoji;
   final ValueChanged<String> onSticker;
@@ -149,9 +151,13 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
   Future<void> _add({required bool pack}) async {
     if (_importing || _invalid) return;
     final epoch = _epoch;
+    final copied = <File>[];
+    File? journal;
+    var committed = false;
     setState(() => _importing = true);
     try {
-      final selected = await ImagePicker().pickMultiImage();
+      final selected =
+          await (widget.pickImages?.call() ?? ImagePicker().pickMultiImage());
       if (selected.isEmpty || !mounted || !_current(epoch)) return;
       String? name;
       if (pack) {
@@ -193,7 +199,13 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
       final batch = DateTime.now().microsecondsSinceEpoch;
       for (var i = 0; i < selected.length; i++) {
         if (!_current(epoch)) return;
+        final size = await selected[i].length();
+        if (size <= 0 || size > 20 * 1024 * 1024) {
+          throw StateError('表情文件须不超过20MB');
+        }
+        if (!_current(epoch)) return;
         final path = '${directory.path}/$batch-$i.image';
+        copied.add(File(path));
         await selected[i].saveTo(path);
         paths.add(path);
       }
@@ -207,7 +219,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
         nextImages[0].addAll(paths);
       }
       final file = File('${directory.path}/library.json');
-      final temp = File('${file.path}.tmp');
+      final temp = journal = File('${file.path}.$batch.tmp');
       await temp.writeAsString(
         jsonEncode([
           for (var i = 0; i < nextNames.length; i++)
@@ -217,6 +229,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
       );
       if (!_current(epoch)) return;
       await temp.rename(file.path);
+      committed = true;
       if (!_current(epoch)) return;
       _names
         ..clear()
@@ -232,6 +245,13 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
         KingNotice.of(context).show('添加失败，请检查相册权限后重试');
       }
     } finally {
+      if (!committed) {
+        for (final file in [...copied, ?journal]) {
+          try {
+            if (await file.exists()) await file.delete();
+          } catch (_) {}
+        }
+      }
       if (_current(epoch)) setState(() => _importing = false);
     }
   }
