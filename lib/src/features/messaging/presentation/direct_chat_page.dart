@@ -831,7 +831,8 @@ class _DirectChatPageState extends State<DirectChatPage>
                             : ChatMemberAvatar(
                                 account: message.senderAccount!,
                                 own: message.mine,
-                                profile: _avatarProfiles.putIfAbsent(
+                                profile: cachedChatAvatarProfile(
+                                  _avatarProfiles,
                                   message.senderAccount!,
                                   () => _chat!.messaging.call(
                                     message.mine

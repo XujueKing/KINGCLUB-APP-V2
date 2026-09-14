@@ -690,7 +690,8 @@ class _ContactsPageState extends State<ContactsPage>
                 avatar: widget.realData && _real != null
                     ? ChatMemberAvatar(
                         account: contact.ref,
-                        profile: _avatarProfiles.putIfAbsent(
+                        profile: cachedChatAvatarProfile(
+                          _avatarProfiles,
                           contact.ref,
                           () => _real!.repository.call('K260913000612', {
                             'peer': contact.ref,

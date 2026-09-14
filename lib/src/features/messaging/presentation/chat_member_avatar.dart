@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/media/cached_media_image.dart';
@@ -73,3 +75,21 @@ class ChatMemberAvatar extends StatelessWidget {
     );
   }
 }
+
+/// Reuse successful/in-flight profiles, but let a later rebuild retry a failure.
+Future<Map<String, dynamic>> cachedChatAvatarProfile(
+  Map<String, Future<Map<String, dynamic>>> cache,
+  String account,
+  Future<Map<String, dynamic>> Function() load,
+) => cache.putIfAbsent(account, () {
+  final future = Future<Map<String, dynamic>>.sync(load);
+  unawaited(
+    future.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {
+        if (identical(cache[account], future)) cache.remove(account);
+      },
+    ),
+  );
+  return future;
+});

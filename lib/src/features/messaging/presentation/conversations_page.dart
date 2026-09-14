@@ -320,9 +320,10 @@ class _ConversationsPageState extends State<ConversationsPage>
           ? const Icon(Icons.groups, color: Color(0xFFC9B69E), size: 32)
           : ChatMemberAvatar(
               account: target,
-              profile: _avatarProfiles.putIfAbsent(
+              profile: cachedChatAvatarProfile(
+                _avatarProfiles,
                 target,
-                () => _loadAvatarProfile(target),
+                () => _repository!.call('K260913000612', {'peer': target}),
               ),
             ),
       name: name,
@@ -358,22 +359,6 @@ class _ConversationsPageState extends State<ConversationsPage>
       onTogglePin: () => _realAction(item, 'pin'),
       onDelete: () => _realAction(item, 'hide'),
     );
-  }
-
-  Future<Map<String, dynamic>> _loadAvatarProfile(String target) {
-    final future = _repository!.call('K260913000612', {'peer': target});
-    // Retry a failed fetch on the next list refresh, without a rebuild retry loop.
-    unawaited(
-      future.then<void>(
-        (_) {},
-        onError: (Object _, StackTrace _) {
-          if (identical(_avatarProfiles[target], future)) {
-            _avatarProfiles.remove(target);
-          }
-        },
-      ),
-    );
-    return future;
   }
 
   List<Widget> _realRows() {
