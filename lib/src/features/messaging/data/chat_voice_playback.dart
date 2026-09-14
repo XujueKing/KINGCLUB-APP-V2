@@ -122,8 +122,9 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
         _invalid ||
         repository == null ||
         message == null ||
-        _checkingGeneration == generation)
+        _checkingGeneration == generation) {
       return;
+    }
     _checkingGeneration = generation;
     try {
       final result = await repository.voiceMedia(message, group: _playingGroup);
