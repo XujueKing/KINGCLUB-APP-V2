@@ -15,4 +15,7 @@ C ABI：identity接受可读32字节种子及长度，返回非零身份handle�
 
 主机真实C ABI验证：设置NOVORUDP_NATIVE_LIBRARY指向生成动态库，执行python native/novorudp/test_bridge.py。Android probe_loader.c通过NDK编译，运行时参数为共享库路径，验证动态加载、身份导入、公开peer读取、关闭后拒绝与结果释放。仅使用合成种子，不读会员资料或发网络数据；运行后删除设备临时文件。
 
-未接会员公钥目录、撤销/恢复、安全存储、Dart生命周期、UDP安全信封和自动切换。不能把原生接口完成当作KINGCLUB聊天已端到端加密。
+Dart生命周期、设备身份安全存储代码及KINGCLUB安全UDP载体已接在App源码，仍未启用真实聊天。会员公钥目录、撤销/恢复和自动切换未完成。不能把原生接口完成当作KINGCLUB聊天已端到端加密。
+
+
+sender以channel handle创建传输规划器（stream/object为u64十进制字符串，expected为1..1000000分片数），repairAck以sender handle接收已认证ACK裸帧并调用上游缺片规划。ACK作用域和范围先校验再变更状态。sender通过close释放；Dart负责随channel/session关闭子对象。返回规划不代表实际重传或持久投递，完整可靠传输调度仍待接入。

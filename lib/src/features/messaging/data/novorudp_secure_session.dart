@@ -88,6 +88,26 @@ class NovoRudpSecureChannel {
   final NovoRudpSecureSession _owner;
   final int _handle;
   final Uint8List sessionId;
+  final _senders = <NovoRudpRepairSender>{};
+
+  NovoRudpRepairSender createRepairSender({
+    required BigInt streamId,
+    required BigInt objectId,
+    required int fragments,
+  }) {
+    _owner._checkHandle(_owner, _handle);
+    final result = _owner._bridge.call('sender', _handle, {
+      'stream': streamId.toString(),
+      'object': objectId.toString(),
+      'expected': fragments,
+    });
+    final handle = result['handle'] as int;
+    _owner._handles.add(handle);
+    final sender = NovoRudpRepairSender._(this, handle);
+    _senders.add(sender);
+    return sender;
+  }
+
   Future<Map<String, dynamic>> seal(NovoRudpFrame frame) async {
     _owner._checkHandle(_owner, _handle);
     final bytes = await frame.encode();
@@ -106,7 +126,37 @@ class NovoRudpSecureChannel {
     return frame;
   }
 
-  void close() => _owner._close(_handle);
+  void close() {
+    for (final sender in _senders.toList()) {
+      sender.close();
+    }
+    _owner._close(_handle);
+  }
+}
+
+/// Upstream ACK-driven repair planning for one transfer. Only pass frames from
+/// an authenticated secure lane; frame checksums are not authentication.
+/// Returned plans are not delivery receipts or an implemented retry scheduler.
+class NovoRudpRepairSender {
+  NovoRudpRepairSender._(this._channel, this._handle);
+  final NovoRudpSecureChannel _channel;
+  final int _handle;
+  Future<dynamic> acceptAuthenticatedAck(NovoRudpFrame frame) async {
+    final owner = _channel._owner;
+    owner._checkHandle(owner, _channel._handle);
+    owner._checkHandle(owner, _handle);
+    final bytes = await frame.encode();
+    owner._checkHandle(owner, _channel._handle);
+    owner._checkHandle(owner, _handle);
+    return owner._bridge.call('repairAck', _handle, {
+      'frame': bytes,
+    })['decision'];
+  }
+
+  void close() {
+    _channel._senders.remove(this);
+    _channel._owner._close(_handle);
+  }
 }
 
 /// Owns all native identities and channels for one login generation.

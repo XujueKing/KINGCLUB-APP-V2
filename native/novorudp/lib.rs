@@ -27,6 +27,14 @@ enum Object {
     Identity(SigningKey),
     Initiator(NodeHandshakeInitiatorV1),
     Channel(E2eSecureChannelV1),
+    Sender(RepairSender),
+}
+struct RepairSender {
+    session: [u8; 16],
+    stream: u64,
+    object: u64,
+    expected: u64,
+    state: novorudp::NovoRudpSenderState,
 }
 struct State {
     next: u64,
@@ -156,6 +164,95 @@ fn command(v: Value) -> Result<Value, String> {
                 .seal_novorudp_frame(&frame)
                 .map_err(|e| e.to_string())?;
             Ok(json!({"envelope":envelope}))
+        }
+        "sender" => {
+            let Some(Object::Channel(channel)) = s.objects.get(&id) else {
+                return Err("channel unavailable".into());
+            };
+            let expected = number(&v, "expected")?;
+            if expected == 0 || expected > 1_000_000 {
+                return Err("invalid fragment count".into());
+            }
+            let sender = RepairSender {
+                session: channel.session_id(),
+                stream: text(&v, "stream")?.parse().map_err(|_| "invalid stream")?,
+                object: text(&v, "object")?.parse().map_err(|_| "invalid object")?,
+                expected,
+                state: novorudp::NovoRudpSenderState::new(),
+            };
+            Ok(json!({"handle":s.insert(Object::Sender(sender))?}))
+        }
+        "repairAck" => {
+            let bytes: Vec<u8> =
+                serde_json::from_value(v["frame"].clone()).map_err(|_| "invalid ack frame")?;
+            if bytes.len() > 1200 {
+                return Err("ack frame too large".into());
+            }
+            let frame = NovoRudpTransportFrameV0::decode(&bytes).map_err(|e| e.to_string())?;
+            let Some(Object::Sender(sender)) = s.objects.get_mut(&id) else {
+                return Err("sender unavailable".into());
+            };
+            if frame.kind != novorudp::NovoRudpTransportFrameKindV0::Ack
+                || frame.session_id != sender.session
+                || frame.stream_id != sender.stream
+                || frame.object_id != sender.object
+            {
+                return Err("ack transfer mismatch".into());
+            }
+            let ack: novorudp::NovoRudpAckFrame =
+                serde_json::from_slice(&frame.payload).map_err(|_| "invalid ack payload")?;
+            // Validate before mutating the upstream sender state. Its normalizer
+            // is a planning helper, not validation of an authenticated peer's ACK.
+            if ack.header.version != 1
+                || ack.header.kind != novorudp::NovoRudpFrameKind::Ack
+                || ack.header.session_id != sender.session
+                || ack.header.epoch != frame.ack_epoch
+                || ack.header.epoch == 0
+                || ack.expected_total != sender.expected
+                || ack.missing_count > sender.expected
+                || ack.receiver_done != (ack.missing_count == 0)
+                || ack.current_window_missing_ranges.len() > 64
+            {
+                return Err("invalid ack scope".into());
+            }
+            match ack.current_window {
+                None if !ack.receiver_done || !ack.current_window_missing_ranges.is_empty() => {
+                    return Err("missing ack window".into())
+                }
+                Some(window) => {
+                    if ack.receiver_done
+                        || window.start > window.end_inclusive
+                        || window.end_inclusive >= sender.expected
+                        || window.count() > 64
+                    {
+                        return Err("invalid ack window".into());
+                    }
+                    let mut end = None;
+                    for range in &ack.current_window_missing_ranges {
+                        if range.start > range.end_inclusive
+                            || range.start < window.start
+                            || range.end_inclusive > window.end_inclusive
+                            || end.is_some_and(|last| range.start <= last)
+                        {
+                            return Err("invalid missing ranges".into());
+                        }
+                        end = Some(range.end_inclusive);
+                    }
+                    if novorudp::missing_count(&ack.current_window_missing_ranges)
+                        > ack.missing_count
+                    {
+                        return Err("invalid missing count".into());
+                    }
+                }
+                None => {}
+            }
+            let decision = novorudp::sender_repair_decision_from_ack(
+                &mut sender.state,
+                &ack,
+                &novorudp::NovoRudpWindowConfig::default(),
+                &novorudp::NovoRudpPacingProfile::default(),
+            );
+            Ok(json!({"decision":decision}))
         }
         "open" => {
             let envelope: SecureNovoRudpEnvelopeV1 =

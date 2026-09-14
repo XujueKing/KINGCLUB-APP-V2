@@ -62,3 +62,14 @@ KINGCLUB 专用载体 KCNSEC01（不是主网现有 NOVRUDP0 裸帧格式）：8
 实际开发机 UDP + Rust 动态库四项测试通过：最大1200字节双向收发及原帧完整比对、错误来源/畸形/超长/篡改/重放均不投递且随后正常包仍到达、加密中退出清理、版本/长度/序号越界拒绝。测试发现Windows突发send可返回零，测试发送器仅重试未被socket接受的包；没有把未发出当作安全拒收。不是Mock加密，也不是公网/手机NAT验收。
 
 仍未启用真实聊天：会员设备可信绑定、握手信令、分片/可靠确认/拥塞处理、worker、NAT/中继和自动切换尚未接齐。未新增App安装或更改现有聊天UI。
+
+
+## 主网补传计划桥接
+
+原生库增加 sender / repairAck，直接调用 SUPERVM sender_repair_decision_from_ack，不复制规划算法。sender固定协商session、u64 stream/object和1..1000000分片数，归属Dart安全会话，关闭channel同时释放sender。repairAck只接收已由安全通道认证的ACK帧；裸帧SHA256不能证明身份，调用方不能从原始UDP绕过安全链路直接送入。
+
+调用上游前验证帧kind/session/stream/object、ACK内外epoch一致、expected_total与本地一致、完成标记与缺片数一致、最多64片窗口及64个有序不重叠缺片区间、区间包含关系与缺片计数。无效高epoch不能提前推进上游状态；合法旧epoch返回StaleAck。上游输出Repair/WindowComplete/ReceiverDone，只表示对方报告的规划状态，不是消息持久化回执，不替代完整文件摘要与接收方落盘确认。
+
+开发机重新编译真实Rust DLL并运行10项Flutter测试（本批新增3项，包含加密ACK后调用真实规划器、错误转移/高epoch不污染、释放与容量）全部通过；原生C ABI既有2项测试通过；定向analyze无问题。Android ARM64 release库交叉编译通过（2.92秒），本批未在手机执行新增ACK规划或覆盖安装App。
+
+超时/发送队列/拥塞调度、落盘重组和完成确认仍未接通；不能把补传计划桥接算成丢包恢复已实测。主网源文件只读未修改，真实聊天传输未切换。
