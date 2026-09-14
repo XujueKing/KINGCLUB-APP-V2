@@ -2405,6 +2405,9 @@ class _DirectChatPageState extends State<DirectChatPage>
             repository: _chat!.messaging,
             text: message.text,
             location: message.location,
+            videoMessageId: message.videoDurationMs != null
+                ? message.messageId
+                : null,
             imageMessageId: message.kind == _FakeMessageKind.image
                 ? message.messageId
                 : null,

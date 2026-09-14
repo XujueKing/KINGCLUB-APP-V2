@@ -1,3 +1,6 @@
+import '../data/chat_video_forwarder.dart';
+import '../data/chat_video.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -34,11 +37,15 @@ class ForwardTextPage extends StatefulWidget {
     this.createImageForwarder,
     this.file,
     this.createFileForwarder,
+    this.videoMessageId,
+    this.createVideoForwarder,
   });
   final MessagingRepository repository;
   final String text;
   final ChatLocation? location;
   final String? imageMessageId;
+  final String? videoMessageId;
+  final ChatVideoForwarder Function()? createVideoForwarder;
   final bool sourceGroup;
   final ChatFileReference? file;
   final ChatFileForwarder Function()? createFileForwarder;
@@ -62,6 +69,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
   BuildContext? _confirmationContext;
   ChatImageForwarder? _imageForwarder;
   ChatFileForwarder? _fileForwarder;
+  ChatVideoForwarder? _videoForwarder;
   Map<String, dynamic>? _attempt;
   bool _saving = false, _invalid = false;
   String? _error;
@@ -96,6 +104,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
     _search.dispose();
     _imageForwarder?.dispose();
     _fileForwarder?.dispose();
+    _videoForwarder?.dispose();
     super.dispose();
   }
 
@@ -149,7 +158,9 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
             title: Text('发送给 ${target.displayName}'),
             content: SingleChildScrollView(
               child: Text(
-                widget.file != null
+                widget.videoMessageId != null
+                    ? '[视频]'
+                    : widget.file != null
                     ? widget.file!.fileName
                     : widget.imageMessageId != null
                     ? '[图片]'
@@ -174,7 +185,8 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
       );
       _confirmationContext = null;
       if (confirmed != true || !mounted || _invalid) return;
-      if (widget.file == null &&
+      if (widget.videoMessageId == null &&
+          widget.file == null &&
           widget.imageMessageId == null &&
           widget.location == null &&
           (widget.text.trim().isEmpty || widget.text.length > 4000)) {
@@ -215,6 +227,18 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         uploadedFile = await forwarder.prepare();
         if (!mounted || _invalid) return;
       }
+      ChatVideo? video;
+      if (widget.videoMessageId != null && _attempt == null) {
+        final forwarder = _videoForwarder ??=
+            widget.createVideoForwarder?.call() ??
+            ChatVideoForwarder(
+              repository: widget.repository,
+              messageId: widget.videoMessageId!,
+              group: widget.sourceGroup,
+            );
+        video = await forwarder.prepare();
+        if (!mounted || _invalid) return;
+      }
       _attempt ??= {
         'clientMessageId': const Uuid().v4(),
         if (target.group) ...{
@@ -223,13 +247,19 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         } else
           'recipient': target.account,
         'sender': widget.repository.account,
-        'text': widget.file != null
+        'text': widget.videoMessageId != null
+            ? '[视频]'
+            : widget.file != null
             ? '[文件]'
             : widget.imageMessageId != null
             ? '[图片]'
             : widget.location == null
             ? widget.text.trim()
             : '[位置]',
+        if (video != null) ...{
+          'messageType': 'video',
+          ...video.toMessageFields(),
+        },
         if (imageAssetId != null) ...{
           'messageType': 'image',
           'imageAssetId': imageAssetId,
@@ -252,6 +282,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
       try {
         await _imageForwarder?.acknowledgeQueued();
         await _fileForwarder?.acknowledgeQueued();
+        await _videoForwarder?.acknowledgeQueued();
       } catch (_) {}
       if (!mounted || _invalid) return;
       // The target conversation restores this exact queued ID and owns retries.
