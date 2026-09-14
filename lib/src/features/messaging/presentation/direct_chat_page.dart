@@ -2171,6 +2171,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   Future<void> _showMessageMenu(int index) async {
     final message = _messages[index];
+    final menuChat = _chat;
     if (message.system) return;
     final action = await showModalBottomSheet<_FakeMessageAction>(
       context: context,
@@ -2231,6 +2232,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
     );
     if (!mounted || action == null) return;
+    if (_realTarget != null && !identical(menuChat, _chat)) return;
     if (_realTarget != null &&
         action == _FakeMessageAction.forward &&
         _chat != null &&

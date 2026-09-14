@@ -5,3 +5,7 @@
 客户端只在历史明确 canReply=true 后允许新建引用；共享后端尚未部署此能力，当前手机仍不启用。尚需服务端能力字段、共享部署、页面交互测试、引用点击定位、摘要缓存失效与双机验收。
 
 28项控制器/转发相关测试通过，覆盖单聊和群聊能力未开放拒绝、落盘及重建后同编号引用发送。7个相关文件静态检查通过。日志 build/chat-reply-client-tests.log、build/chat-reply-client-analyze.log。未构建安装此增量。
+
+## 页面验证
+
+chat_reply_page_test 验证真实页面长按引用、取消、带引用发送、下一条普通消息不夹带旧引用。菜单捕获所属控制器，会话改变后旧操作不执行。页面/队列/续期4项通过，页面和测试静态分析无问题（build/chat-reply-page-tests.log、build/chat-reply-page-analyze.log）。仍未安装，引用定位与正式服务启用待完成。
