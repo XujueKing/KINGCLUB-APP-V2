@@ -1,3 +1,4 @@
+import 'group_qr_page.dart';
 import 'group_announcement_page.dart';
 import 'chat_member_avatar.dart';
 import 'create_group_page.dart';
@@ -568,6 +569,27 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                         : () => Navigator.of(context).push<void>(
                             MaterialPageRoute(
                               builder: (_) => GroupAnnouncementPage(
+                                groupId: widget.groupId,
+                                repository: widget.repository,
+                              ),
+                            ),
+                          ),
+                  ),
+                  ListTile(
+                    key: const ValueKey('group-qr-row'),
+                    title: const Text(
+                      '群二维码',
+                      style: TextStyle(color: Color(0xFFC9B69E), fontSize: 16),
+                    ),
+                    trailing: const Icon(
+                      Icons.qr_code,
+                      color: Color(0xFFC9B69E),
+                    ),
+                    onTap: _saving || _invalid
+                        ? null
+                        : () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => GroupQrPage(
                                 groupId: widget.groupId,
                                 repository: widget.repository,
                               ),
