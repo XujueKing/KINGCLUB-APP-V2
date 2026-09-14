@@ -163,6 +163,27 @@ class NovoRudpFileReceiver {
     return _file;
   });
 
+  /// The sender uses an empty DONE frame as a request for current ACK state,
+  /// including after a lost final ACK. It is not permission to finalize a file.
+  Future<NovoRudpFrame?> receiveAuthenticated(NovoRudpFrame frame) async {
+    if (frame.kind != NovoRudpFrameKind.done) {
+      await acceptAuthenticated(frame);
+      return null;
+    }
+    _check();
+    if (frame.streamId != _scope.streamId ||
+        frame.objectId != _scope.objectId ||
+        frame.payload.isNotEmpty ||
+        frame.sequence != BigInt.zero ||
+        !List.generate(
+          16,
+          (i) => frame.sessionId[i] == _scope.sessionId[i],
+        ).every((v) => v)) {
+      throw const FormatException('Invalid transfer ACK request');
+    }
+    return acknowledgement();
+  }
+
   Future<NovoRudpFrame> acknowledgement() => _serial(() async {
     _check();
     final first = _received.indexOf(0);
