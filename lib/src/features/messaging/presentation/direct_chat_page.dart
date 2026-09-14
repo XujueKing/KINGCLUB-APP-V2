@@ -1,3 +1,5 @@
+import 'chat_file_details_page.dart';
+import '../data/chat_file_downloader.dart';
 import 'chat_file_card.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -540,6 +542,8 @@ class _DirectChatPageState extends State<DirectChatPage>
               fileName: message['messageType'] == 'file'
                   ? message['fileName'] as String?
                   : null,
+              fileAssetId: message['fileAssetId'] as String?,
+              fileSha256: message['fileSha256'] as String?,
               fileSize: message['messageType'] == 'file'
                   ? message['fileSize'] as int?
                   : null,
@@ -736,6 +740,31 @@ class _DirectChatPageState extends State<DirectChatPage>
                             ? ChatFileCard(
                                 fileName: message.fileName!,
                                 size: message.fileSize!,
+                                onTap:
+                                    message.messageId == null ||
+                                        message.fileAssetId == null ||
+                                        message.fileSha256 == null ||
+                                        _chat == null
+                                    ? null
+                                    : () {
+                                        _voicePlayback?.stop();
+                                        _inputFocusNode.unfocus();
+                                        Navigator.of(context).push<void>(
+                                          MaterialPageRoute(
+                                            builder: (_) => ChatFileDetailsPage(
+                                              repository: _chat!.messaging,
+                                              reference: ChatFileReference(
+                                                messageId: message.messageId!,
+                                                assetId: message.fileAssetId!,
+                                                fileName: message.fileName!,
+                                                size: message.fileSize!,
+                                                sha256: message.fileSha256!,
+                                                group: widget.groupId != null,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
                               )
                             : message.location != null
                             ? ChatLocationMessage(
@@ -2680,6 +2709,8 @@ class _FakeMessage {
     this.clientMessageId,
     this.messageId,
     this.fileName,
+    this.fileAssetId,
+    this.fileSha256,
     this.fileSize,
     this.voiceDurationMs,
     this.location,
@@ -2695,6 +2726,7 @@ class _FakeMessage {
   final String? clientMessageId;
   final String? messageId;
   final String? fileName;
+  final String? fileAssetId, fileSha256;
   final int? fileSize;
   final int? voiceDurationMs;
   final ChatLocation? location;
@@ -2717,6 +2749,8 @@ class _FakeMessage {
     clientMessageId: clientMessageId,
     messageId: messageId,
     fileName: fileName,
+    fileAssetId: fileAssetId,
+    fileSha256: fileSha256,
     fileSize: fileSize,
     voiceDurationMs: voiceDurationMs,
     location: location,
