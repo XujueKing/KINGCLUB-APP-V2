@@ -28,12 +28,14 @@ class ForwardTextPage extends StatefulWidget {
     this.location,
     this.imageMessageId,
     this.sourceGroup = false,
+    this.createImageForwarder,
   });
   final MessagingRepository repository;
   final String text;
   final ChatLocation? location;
   final String? imageMessageId;
   final bool sourceGroup;
+  final ChatImageForwarder Function()? createImageForwarder;
   final ChatOutbox? outbox;
   @override
   State<ForwardTextPage> createState() => _ForwardTextPageState();
@@ -180,11 +182,13 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
       }
       String? imageAssetId;
       if (widget.imageMessageId != null && _attempt == null) {
-        final forwarder = _imageForwarder ??= ChatImageForwarder(
-          repository: widget.repository,
-          messageId: widget.imageMessageId!,
-          group: widget.sourceGroup,
-        );
+        final forwarder = _imageForwarder ??=
+            widget.createImageForwarder?.call() ??
+            ChatImageForwarder(
+              repository: widget.repository,
+              messageId: widget.imageMessageId!,
+              group: widget.sourceGroup,
+            );
         imageAssetId = (await forwarder.prepare()).assetId;
         if (!mounted || _invalid) return;
       }
@@ -203,7 +207,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
             : '[位置]',
         if (imageAssetId != null) ...{
           'messageType': 'image',
-          'assetId': imageAssetId,
+          'imageAssetId': imageAssetId,
         },
         if (widget.location != null) ...{
           'messageType': 'location',
