@@ -8,7 +8,13 @@ import '../data/chat_session_controller.dart';
 
 /// Selected local image stays on screen until it is durably queued.
 class ChatImageSendPage extends StatefulWidget {
-  const ChatImageSendPage({super.key, required this.bytes, required this.chat});
+  const ChatImageSendPage({
+    super.key,
+    required this.bytes,
+    required this.chat,
+    this.title = '发送照片',
+  });
+  final String title;
   final Uint8List bytes;
   final ChatSessionController chat;
   @override
@@ -71,7 +77,7 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
     appBar: AppBar(
       backgroundColor: Colors.black,
       leading: KingBackButton(onPressed: () => Navigator.of(context).pop()),
-      title: const Text('发送照片'),
+      title: Text(widget.title),
     ),
     body: SafeArea(
       child: Column(

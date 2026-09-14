@@ -1663,6 +1663,10 @@ class _DirectChatPageState extends State<DirectChatPage>
       );
     },
     onSticker: (path) {
+      if (_realTarget != null) {
+        unawaited(_sendSavedSticker(path));
+        return;
+      }
       if (_requiresRealMedia()) return;
       setState(
         () => _messages.add(
@@ -1687,6 +1691,37 @@ class _DirectChatPageState extends State<DirectChatPage>
     },
     onSend: _send,
   );
+
+  Future<void> _sendSavedSticker(String path) async {
+    if (_selectingImage) return;
+    final chat = _chat;
+    if (chat == null) {
+      KingNotice.of(context).show('会话尚未就绪');
+      return;
+    }
+    _selectingImage = true;
+    try {
+      final file = File(path);
+      final length = await file.length();
+      if (length <= 0 || length > 20 * 1024 * 1024) {
+        throw StateError('请选择不超过20MB的静态表情');
+      }
+      final bytes = await file.readAsBytes();
+      if (!mounted || !identical(chat, _chat)) return;
+      _voicePlayback?.stop();
+      _inputFocusNode.unfocus();
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) =>
+              ChatImageSendPage(bytes: bytes, chat: chat, title: '发送表情'),
+        ),
+      );
+    } catch (_) {
+      if (mounted) KingNotice.of(context).show('无法读取表情，请重新添加后再试');
+    } finally {
+      _selectingImage = false;
+    }
+  }
 
   void _addAttachment(_FakeMessageKind kind) {
     if (_requiresRealMedia()) return;
