@@ -15,3 +15,12 @@ SHA-256只是完整性校验，不是身份认证或加密。此适配不包含�
 NovoRudpDatagramLink使用Dart RawDatagramSocket固定对端IP/端口及sessionId，支持发送与帧事件流，丢弃非对端、错误会话、损坏/超预算帧；单个datagram预算1200字节，较大对象需上层拆帧，关闭后不再投递或发送。它不是可靠会话，不提供身份认证、防伪造或重放防护，不能把来源IP过滤当作加密安全。尚未连接正式聊天路由。
 
 Rust样本工具增加仅绑定127.0.0.1的udp模式：随机端口接收合成Data，通过主网Frame::decode解析，再使用Frame::new生成Ack回传。Flutter真实socket测试检查内容、u64和序号一致；其余测试覆盖错误来源/会话/损坏帧、发送大小限制和关闭后拒绝。已运行Rust工具并执行全部6项测试（未跳过Rust互通），定向analyze通过。此为开发机loopback实际UDP，不是手机公网、NAT、弱网重传或主网节点入网验收。
+
+
+## 主网安全层在Android原生验证
+
+进一步读取主网发现product_overlay.rs已有Ed25519签名握手、secp256k1临时ECDH、HKDF、ChaCha20-Poly1305及128位滑动重放窗口；product_identity.rs有设备授权，product_nat.rs有签名探测/打洞，product_relay.rs有中继。此前裸帧SHA校验不是全部主网安全能力。优先复用这些Rust模块，不在Dart重写密码协议。当前产品安全层采用ChaCha20-Poly1305，不是AES；现有聊天服务链路的AES-GCM与此分开。
+
+直接include原始主网两个源文件的secure_probe.rs已使用NDK28.2/API26交叉构建Android ARM64成功（21.06秒）。在连接的Android12手机实际运行，返回NOVORUDP_NATIVE_HANDSHAKE_ENCRYPT_DECRYPT_TAMPER_REPLAY_PASSED，临时797400字节程序已删除。合成密钥与合成载荷，不涉及真实身份；验证双向解密、握手重放、密文篡改和重放拒绝，且篡改失败不消耗正常包序号。
+
+这证明现有Rust安全层可编译并在该Android执行，不代表App已经E2EE。仍缺FFI/JNI生命周期、设备私钥安全存储、会员到可信peer公钥绑定/撤销/恢复、密钥更新、丢包重传与公网路径验证。尚未安装任何新App包或切换真实聊天传输；SUPERVM工作树保持不变。
