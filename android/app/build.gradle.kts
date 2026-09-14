@@ -36,6 +36,11 @@ android {
             applicationIdSuffix = ".v2preview"
             versionNameSuffix = "-preview"
         }
+        create("filetest") {
+            dimension = "distribution"
+            applicationIdSuffix = ".filetest"
+            versionNameSuffix = "-filetest"
+        }
         create("calltest") {
             dimension = "distribution"
             applicationIdSuffix = ".calltest"

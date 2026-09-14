@@ -57,3 +57,8 @@ Android 导出实现已加入 MainActivity/ChatFileExport 与 ChatFileExporter�
 新增下载中退出、授权回包前退出、下载完成后退出三项用例。最后一项先复现失败：session 触发异步删除后，dispose 提前返回，文件仍存在。现清理使用串行 Future 链，dispose 等待已经启动的删除；临时删除失败保留目录所有权供后续尝试。退出后的 authorizeExport 拒绝，迟到授权不发起下载，下载中退出中止并清理。下载/页面/导出合计 16 项测试通过，修改文件 analyze 通过。
 
 原生复制抽取后的 :app:compilePreviewProfileJavaWithJavac 已 BUILD SUCCESSFUL（1m28s），证明 Java/Kotlin 集成编译通过。该结果不是最终 APK 或系统文件提供器实机验收。
+
+## 独立原生保存探针
+新增 filetest 独立包名/文件测试标签与 tool/file_export_main.dart，生成 8MiB+17 字节合成文件，复用生产 ChatFileExporter/ChatFileExport/ChatFileCopy，用户通过系统选择位置后保存；输出固定成功标记与合成数据摘要以便 adb 比较。无真实会员/聊天请求，无麦克风/摄像头/定位权限；不覆盖 preview。此探针验证系统文档提供器与实际写入，不证明真实聊天服务器链路。安装、系统保存与目标摘要核对完成前不计实测。测试文件和独立包验证后清理。
+
+文件探针 analyze 已通过。独立 Python 算法得到合成文件预期长度 8388625、SHA256 485a584410e070b9d289cb2a75ee695b20860585e15736e6871364f3680e6526，必须与手机系统导出后的实际文件匹配，不能只读 Dart 成功标记。filetest/profile APK 正在构建，测试手机当前在线，尚未安装/导出。
