@@ -7,14 +7,23 @@ import '../../../core/session/secure_session_store.dart';
 
 import 'dart:io';
 
-import 'package:audioplayers/audioplayers.dart';
+import '../data/chat_voice_playback.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/king_notice.dart';
 import '../data/voice_capture.dart';
 
 class VoiceDraftPreview extends StatefulWidget {
-  const VoiceDraftPreview({super.key, required this.draft, this.onSend});
+  const VoiceDraftPreview({
+    super.key,
+    required this.draft,
+    this.onSend,
+    this.output,
+    this.loadStore,
+  });
+  final ChatVoiceOutput? output;
+  final Future<VoiceDraftStore> Function()? loadStore;
   final VoiceDraft draft;
   final Future<void> Function()? onSend;
   @override
@@ -23,7 +32,7 @@ class VoiceDraftPreview extends StatefulWidget {
 
 class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
     with WidgetsBindingObserver {
-  late final _player = AudioPlayer();
+  late final _player = widget.output ?? NativeChatVoiceOutput();
   bool _playing = false;
   bool _toggling = false;
   bool _foreground = true;
@@ -46,7 +55,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
         });
       }
     });
-    _completion = _player.onPlayerComplete.listen((_) {
+    _completion = _player.completed.listen((_) {
       if (mounted) setState(() => _playing = false);
     });
   }
@@ -58,7 +67,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
     bool current() =>
         mounted && _valid && _foreground && generation == _playGeneration;
     try {
-      final store = await VoiceDraftStore.current();
+      final store = await (widget.loadStore ?? VoiceDraftStore.current)();
       if (!current()) return;
       if (!store.owns(widget.draft.path)) {
         throw StateError('录音不属于当前账号');
@@ -66,7 +75,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
       if (_playing) {
         await _player.stop();
       } else {
-        await _player.play(DeviceFileSource(widget.draft.path));
+        await _player.play(widget.draft.path);
       }
       if (!current()) {
         await _player.stop();
@@ -151,7 +160,9 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
                     : () async {
                         try {
                           await _player.stop();
-                          final store = await VoiceDraftStore.current();
+                          final store =
+                              await (widget.loadStore ??
+                                  VoiceDraftStore.current)();
                           if (!_valid || !store.owns(widget.draft.path)) return;
                           final file = File(widget.draft.path);
                           if (await file.exists()) await file.delete();
