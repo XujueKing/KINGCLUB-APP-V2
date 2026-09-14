@@ -8,6 +8,11 @@ if ($ApiBaseUrl.Scheme -ne 'https' -or $ApiBaseUrl.UserInfo -or $ApiBaseUrl.Quer
 }
 Push-Location (Split-Path -Parent $PSScriptRoot)
 try {
+  # Windows PowerShell treats native stderr warnings as errors when redirected.
+  # Flutter's exit code, not a plugin warning, determines build success.
+  $ErrorActionPreference = 'Continue'
   & $FlutterCommand build apk --profile --flavor preview --target-platform android-arm64 "--dart-define=KINGCLUB_API_BASE_URL=$($ApiBaseUrl.AbsoluteUri.TrimEnd('/'))"
-  if ($LASTEXITCODE -ne 0) { throw 'Chat preview APK build failed.' }
+  $buildExitCode = $LASTEXITCODE
+  $ErrorActionPreference = 'Stop'
+  if ($buildExitCode -ne 0) { throw 'Chat preview APK build failed.' }
 } finally { Pop-Location }

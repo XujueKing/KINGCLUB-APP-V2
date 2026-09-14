@@ -26,9 +26,39 @@ class SecureSessionStore {
   }
 
   Future<void> saveSession(Map<String, dynamic> value) async {
-    MemberQrMemory.clear();
+    final previous = await readSession();
+    final changed = !_sameBinding(previous, value);
+    if (changed) {
+      MemberQrMemory.clear();
+    } else {
+      MemberQrMemory.clearPresentation();
+    }
     await _storage.write(key: _sessionKey, value: jsonEncode(value));
-    changes.add(null);
+    if (changed) changes.add(null);
+  }
+
+  // Refreshing profile data on app resume is not a new login. Keep active
+  // media drafts and uploads bound until credentials or access actually change.
+  static bool _sameBinding(Map<String, dynamic>? a, Map<String, dynamic> b) {
+    if (a == null) return false;
+    for (final key in ['sessionId', 'apiKeyId', 'apiKey']) {
+      final value = a[key];
+      if (value is! String || value.isEmpty || value != b[key]) return false;
+    }
+    final oldAccount = a['account'], newAccount = b['account'];
+    if (oldAccount is! Map || newAccount is! Map) return false;
+    final account = oldAccount['userAccount'];
+    if (account is! String ||
+        account.isEmpty ||
+        account != newAccount['userAccount'] ||
+        oldAccount['accountStatus'] != newAccount['accountStatus']) {
+      return false;
+    }
+    final oldMembership = a['membership'], newMembership = b['membership'];
+    if (oldMembership is! Map || newMembership is! Map) return false;
+    return oldMembership['status'] == newMembership['status'] &&
+        oldMembership['registrationStatus'] ==
+            newMembership['registrationStatus'];
   }
 
   Future<void> clearSession() async {

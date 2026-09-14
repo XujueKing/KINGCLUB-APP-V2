@@ -23,12 +23,16 @@ class ChatVideoView extends StatefulWidget {
     this.height = 240,
     this.durationMs = 0,
     this.onTap,
+    this.loadFile,
+    this.events,
   });
   final MessagingRepository repository;
   final String messageId;
   final bool group, full;
   final int width, height, durationMs;
   final VoidCallback? onTap;
+  final Future<File> Function(ChatVideoGrant grant)? loadFile;
+  final Stream<Map<String, dynamic>>? events;
   @override
   State<ChatVideoView> createState() => _ChatVideoViewState();
 }
@@ -49,7 +53,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
       _invalid = true;
       _clear();
     });
-    _events = KingclubRealtime.shared.events.listen((e) {
+    _events = (widget.events ?? KingclubRealtime.shared.events).listen((e) {
       if ([
         'chat.settings.changed',
         'chat.group.changed',
@@ -108,14 +112,16 @@ class _ChatVideoViewState extends State<ChatVideoView>
     try {
       final grant = await _grant();
       if (!mounted || _invalid || generation != _generation) return;
-      final file = await MediaCache.shared.get(
-        '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}${grant.path}',
-        scope: 'member:${widget.repository.account}',
-        contentKey:
-            'chat-video:${widget.repository.account}:${grant.fileId}:${grant.sha256}',
-        kind: widget.full ? MediaKind.video : MediaKind.image,
-        headers: {'authorization': grant.authorization},
-      );
+      final file =
+          await (widget.loadFile?.call(grant) ??
+              MediaCache.shared.get(
+                '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}${grant.path}',
+                scope: 'member:${widget.repository.account}',
+                contentKey:
+                    'chat-video:${widget.repository.account}:${grant.fileId}:${grant.sha256}',
+                kind: widget.full ? MediaKind.video : MediaKind.image,
+                headers: {'authorization': grant.authorization},
+              ));
       if (!mounted || _invalid || generation != _generation) return;
       if (await file.length() != grant.size) {
         throw const FormatException('视频文件不完整');

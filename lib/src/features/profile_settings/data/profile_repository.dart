@@ -28,9 +28,9 @@ class ProfileRepository {
   }
 
   Future<Map<String, dynamic>> load() async {
-    final generation = MemberQrMemory.generation;
+    final generation = MemberQrMemory.presentationGeneration;
     final result = await call('K260912000501', {});
-    if (generation == MemberQrMemory.generation) {
+    if (generation == MemberQrMemory.presentationGeneration) {
       MemberQrMemory.profile = result;
     }
     return result;
@@ -45,11 +45,13 @@ class ProfileRepository {
   }
 
   Future<Map<String, dynamic>> _fetchQr() async {
-    final generation = MemberQrMemory.generation;
+    final generation = MemberQrMemory.presentationGeneration;
     final elapsed = Stopwatch()..start();
     try {
       final result = await call('K260912000506', {});
-      if (generation != MemberQrMemory.generation) throw StateError('会话已变化');
+      if (generation != MemberQrMemory.presentationGeneration) {
+        throw StateError('会话已变化');
+      }
       final adjusted = {
         ...result,
         'ttlSeconds':
@@ -59,7 +61,7 @@ class ProfileRepository {
       MemberQrMemory.put(adjusted);
       return adjusted;
     } finally {
-      if (generation == MemberQrMemory.generation) {
+      if (generation == MemberQrMemory.presentationGeneration) {
         MemberQrMemory.pending = null;
       }
     }

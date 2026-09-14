@@ -3,6 +3,7 @@ import 'dart:io';
 /// Session-local presentation cache. Never persisted or shared across logins.
 abstract final class MemberQrMemory {
   static int generation = 0;
+  static int presentationGeneration = 0;
   static Map<String, dynamic>? profile;
   static File? avatar;
   static Map<String, dynamic>? _qr;
@@ -24,6 +25,11 @@ abstract final class MemberQrMemory {
 
   static void clear() {
     generation++;
+    clearPresentation();
+  }
+
+  static void clearPresentation() {
+    presentationGeneration++;
     profile = null;
     avatar = null;
     _qr = null;
