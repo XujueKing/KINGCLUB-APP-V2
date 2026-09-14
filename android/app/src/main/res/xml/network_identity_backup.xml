@@ -1,0 +1,5 @@
+<full-backup-content>
+        <exclude domain="sharedpref" path="kingclub_novorudp_identity.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage:kingclub_novorudp_identity.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:kingclub_novorudp_identity.xml" />
+</full-backup-content>

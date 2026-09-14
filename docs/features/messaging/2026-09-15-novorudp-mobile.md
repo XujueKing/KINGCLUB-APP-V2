@@ -43,3 +43,11 @@ NovoRudpSecureSession使用真实C ABI导入身份、握手及加解密，拥有
 监听SecureSessionStore.changes并绑定MemberQrMemory.generation；会话改变统一关闭身份/握手/通道，异步帧编码或解码后再次检查代次，阻止迟到结果跨账号。对象不能跨封装实例使用；完成握手后清理一次性handle，提供显式握手取消和通道close；dispose幂等。expectedPeer必须由可信会员设备目录提供，封装不把网络输入自动当作可信公钥。
 
 开发机Flutter直接加载Rust DLL三项测试通过（未使用Mock/未skip）：双向阶段中的实际握手及单向加解密、篡改/重放拒绝、错属实例拒绝、关闭后失效、加密期间代次变化拒绝、会话事件清理及反复创建/释放；定向analyze无问题。Android之前仅验证原生库C ABI，本批Dart封装尚未在Android运行或打包，未接正式聊天路由。FFI调用当前同步，正式高频收发前应放入专用worker并测试帧预算。
+
+
+## 设备身份保存（实施中）
+
+使用flutter_secure_storage独立kingclub_novorudp_identity namespace，Android resetOnError=false；iOS unlocked_this_device且不iCloud同步。以账号与安装设备ID的域分离SHA-256生成存储键，不直接保存原始账号到键名。32字节Random.secure种子只保存在安全存储，经原生导入后清零临时Uint8List。账号校验与会话代次在所有异步边界复核；跨实例串行创建防止同账号并发生成两个身份。损坏记录/平台读写错误不覆盖，不自动更换。Android备份规则仅排除该namespace数据、包装密钥及配置；其余数据策略不改。正式会员公钥注册、撤销/恢复流程仍待接入，密钥丢失须显式重新绑定。
+
+
+设备身份保存本批已实现NovoRudpDeviceIdentityStore。开发机5项测试通过，真实Rust身份派生+受控存储覆盖并发只写一次/重开peer不变、账号/设备隔离、损坏记录不覆盖、退出时不继续创建、写失败不返回未落盘身份且后续可重试。平台安全存储在这些用例中是替身，因此不宣称Android KeyStore/iOS Keychain真机读写已验收。定向analyze无问题；app:processPreviewProfileResources通过，Android manifest已关联传统备份和Android12 extraction排除规则。未安装新App包，设备目录绑定及正式入口未启用。

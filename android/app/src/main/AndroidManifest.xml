@@ -9,7 +9,9 @@
     <application
         android:label="KingClub"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:fullBackupContent="@xml/network_identity_backup"
+        android:dataExtractionRules="@xml/network_identity_extraction">
         <activity android:name="com.yalantis.ucrop.UCropActivity" android:screenOrientation="portrait" android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
         <activity
             android:name=".MainActivity"

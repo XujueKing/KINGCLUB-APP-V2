@@ -1,0 +1,12 @@
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="kingclub_novorudp_identity.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage:kingclub_novorudp_identity.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:kingclub_novorudp_identity.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="kingclub_novorudp_identity.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage:kingclub_novorudp_identity.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:kingclub_novorudp_identity.xml" />
+    </device-transfer>
+</data-extraction-rules>
