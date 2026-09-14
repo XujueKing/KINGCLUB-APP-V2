@@ -34,3 +34,12 @@ respond必须传入已可信绑定的expectedPeer，验证offer身份后才接�
 
 
 原生库接口本批已实现：native/novorudp/lib.rs。开发机真实动态库C ABI两项测试通过，包括完整握手/加解密、错误对端、两类重放与密文篡改拒绝、关闭失效、空种子和超限请求拒绝。Android ARM64共享库构建17.07秒；连接手机实际dlopen、三个C符号调用、身份关闭及输出缓冲释放通过，标记NOVORUDP_ANDROID_SHARED_ABI_LOAD_RELEASE_PASSED，测试程序与库已从/data/local/tmp删除。此批未打包App，下一步仍需Dart封装和账号生命周期。
+
+
+## Dart安全会话封装
+
+NovoRudpSecureSession使用真实C ABI导入身份、握手及加解密，拥有本会话创建的所有native handles；原生输入/输出缓冲finally释放，种子的原生临时副本清零。调用方原始seed仍归调用方，应在安全存储加载/导入完成后清零，不承诺Dart堆内任意副本都可清除。ffi 2.2.0由现有传递依赖升为直接依赖，无版本升级。
+
+监听SecureSessionStore.changes并绑定MemberQrMemory.generation；会话改变统一关闭身份/握手/通道，异步帧编码或解码后再次检查代次，阻止迟到结果跨账号。对象不能跨封装实例使用；完成握手后清理一次性handle，提供显式握手取消和通道close；dispose幂等。expectedPeer必须由可信会员设备目录提供，封装不把网络输入自动当作可信公钥。
+
+开发机Flutter直接加载Rust DLL三项测试通过（未使用Mock/未skip）：双向阶段中的实际握手及单向加解密、篡改/重放拒绝、错属实例拒绝、关闭后失效、加密期间代次变化拒绝、会话事件清理及反复创建/释放；定向analyze无问题。Android之前仅验证原生库C ABI，本批Dart封装尚未在Android运行或打包，未接正式聊天路由。FFI调用当前同步，正式高频收发前应放入专用worker并测试帧预算。
