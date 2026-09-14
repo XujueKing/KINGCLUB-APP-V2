@@ -210,9 +210,94 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
     }
   }
 
+  Future<void> _remove(int library, {String? path}) async {
+    if (_importing) return;
+    final epoch = _epoch;
+    setState(() => _importing = true);
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF202020),
+          title: Text(path == null ? '删除表情包' : '删除表情'),
+          content: const Text('从本机收藏中删除，已发送的消息不受影响。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('删除'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !_current(epoch)) return;
+      final directory = await _directory();
+      if (!_current(epoch)) return;
+      final names = [..._names];
+      final images = _images.map((items) => [...items]).toList();
+      final removed = path == null ? [...images[library]] : [path];
+      if (path == null) {
+        if (library == 0) return;
+        names.removeAt(library);
+        images.removeAt(library);
+      } else {
+        images[library].remove(path);
+        if (library > 0 && images[library].isEmpty) {
+          names.removeAt(library);
+          images.removeAt(library);
+        }
+      }
+      final file = File('${directory.path}/library.json');
+      final temp = File('${file.path}.tmp');
+      await temp.writeAsString(
+        jsonEncode([
+          for (var i = 0; i < names.length; i++)
+            {'name': names[i], 'images': images[i]},
+        ]),
+        flush: true,
+      );
+      if (!_current(epoch)) return;
+      await temp.rename(file.path);
+      if (!_current(epoch)) return;
+      setState(() {
+        _names
+          ..clear()
+          ..addAll(names);
+        _images
+          ..clear()
+          ..addAll(images);
+        _category = 3;
+        _page = 0;
+      });
+      final retained = images.expand((items) => items).toSet();
+      for (final oldPath in removed) {
+        final oldFile = File(oldPath);
+        if (retained.contains(oldPath) ||
+            oldFile.parent.absolute.path != directory.absolute.path) {
+          continue;
+        }
+        try {
+          await oldFile.delete();
+        } on FileSystemException {
+          // The index is committed; an unavailable file must not undo removal.
+        }
+      }
+    } catch (_) {
+      if (mounted && _current(epoch)) KingNotice.of(context).show('删除失败，请重试');
+    } finally {
+      if (_current(epoch)) setState(() => _importing = false);
+    }
+  }
+
   Widget _tab(int category, String label, Widget child) => Tooltip(
     message: label,
     child: InkWell(
+      onLongPress: category > 3 && !_importing
+          ? () => _remove(category - 3)
+          : null,
       onTap: () => setState(() {
         _category = category;
         _page = 0;
@@ -454,6 +539,10 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
               }
               final path = images[item - (index == 0 ? 1 : 0)];
               return InkWell(
+                key: ValueKey('saved-sticker-$path'),
+                onLongPress: _importing
+                    ? null
+                    : () => _remove(index, path: path),
                 onTap: () => widget.onSticker(path),
                 child: _image(path),
               );
