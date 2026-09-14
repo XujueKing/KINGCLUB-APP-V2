@@ -103,6 +103,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
   int? _playingGeneration;
   MessagingRepository? _repository;
   int? _checkingGeneration;
+  int _permissionRevision = 0;
   bool _playingGroup = false;
   String? _groupId;
   String? activeId, error;
@@ -118,18 +119,26 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _recheckPermission() async {
     final repository = _repository, message = activeId;
     final generation = _generation;
-    if (_disposed ||
-        _invalid ||
-        repository == null ||
-        message == null ||
-        _checkingGeneration == generation) {
+    if (_disposed || _invalid || repository == null || message == null) {
       return;
     }
+    _permissionRevision++;
+    if (_checkingGeneration == generation) return;
     _checkingGeneration = generation;
+    final group = _playingGroup;
     try {
-      final result = await repository.voiceMedia(message, group: _playingGroup);
-      if (result['messageId'] != message || result['voice'] is! Map) {
-        throw const FormatException('Invalid voice permission');
+      while (!_disposed &&
+          !_invalid &&
+          generation == _generation &&
+          activeId == message) {
+        final revision = _permissionRevision;
+        final result = await repository.voiceMedia(message, group: group);
+        if (result['messageId'] != message || result['voice'] is! Map) {
+          throw const FormatException('Invalid voice permission');
+        }
+        // A hide/settings event may have arrived after this request took its
+        // server snapshot. Check again instead of trusting that stale grant.
+        if (revision == _permissionRevision) break;
       }
     } catch (_) {
       if (!_disposed && generation == _generation) await stop();

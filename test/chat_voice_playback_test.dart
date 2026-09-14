@@ -237,6 +237,47 @@ void main() {
       expect(output.stops, stops + 1);
     },
   );
+  test(
+    'hidden event during authorization is rechecked after the stale grant',
+    () async {
+      final output = Output();
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      final pending = Completer<Map<String, dynamic>>();
+      var requests = 0;
+      final repo = MessagingRepository(
+        account: 'me',
+        call: (_, p) async {
+          requests++;
+          if (requests == 2) return pending.future;
+          if (requests > 2) throw StateError('hidden');
+          return grant(p['messageId'] as String, group: true);
+        },
+      );
+      final player = ChatVoicePlayback(
+        output: output,
+        events: events.stream,
+        loadFile: (_, _, _, _) async => File('/fixture.m4a'),
+      );
+      addTearDown(player.dispose);
+      addTearDown(events.close);
+      await player.toggle(repo, 'one', group: true, groupId: 'current');
+      void event() => events.add({
+        'eventType': 'chat.group.read',
+        'data': {'groupId': 'current'},
+      });
+      event();
+      await Future<void>.delayed(Duration.zero);
+      expect(requests, 2);
+      event();
+      event();
+      await Future<void>.delayed(Duration.zero);
+      expect(requests, 2);
+      pending.complete(grant('one', group: true));
+      await Future<void>.delayed(Duration.zero);
+      expect(requests, 3);
+      expect(player.activeId, isNull);
+    },
+  );
   for (final group in [false, true]) {
     test(
       'unrelated group events do not interrupt ${group ? "group" : "direct"} audio',
