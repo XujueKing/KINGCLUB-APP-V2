@@ -1,3 +1,5 @@
+import '../data/chat_reply.dart';
+import 'chat_history_context_page.dart';
 import 'forward_text_page.dart';
 import '../data/chat_file_draft_store.dart';
 import 'chat_file_details_page.dart';
@@ -595,11 +597,8 @@ class _DirectChatPageState extends State<DirectChatPage>
               message['text'] as String,
               messageId: message['messageId'] as String?,
               system: message['messageType'] == 'recalled',
-              quoted: message['reply'] is Map
-                  ? ((message['reply'] as Map)['available'] == true
-                        ? (message['reply'] as Map)['text'] as String?
-                        : '原消息不可用')
-                  : null,
+              quoted: ChatReply.tryParse(message['reply'])?.text,
+              reply: ChatReply.tryParse(message['reply']),
               fileName: message['messageType'] == 'file'
                   ? message['fileName'] as String?
                   : null,
@@ -884,6 +883,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                                     ),
                               ),
                         onLongPress: () => _showMessageMenu(messageIndex),
+                        onQuoteTap: message.reply?.available == true
+                            ? () => _openReply(message.reply!)
+                            : null,
                         onTap: () => _openMediaPreview(message),
                       ),
                     );
@@ -2169,6 +2171,34 @@ class _DirectChatPageState extends State<DirectChatPage>
     await _chat?.synchronize();
   }
 
+  void _openReply(ChatReply reply) {
+    final chat = _chat;
+    if (chat == null || !reply.available) return;
+    final repository = chat.messaging;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ChatHistoryContextPage(
+          account: repository.account,
+          messageId: reply.messageId,
+          sequence: reply.sequence!,
+          read: ({before, after, required limit}) => widget.groupId == null
+              ? repository.history(
+                  widget.peerAccount!,
+                  before: before,
+                  after: after,
+                  limit: limit,
+                )
+              : GroupChatRepository(repository).history(
+                  widget.groupId!,
+                  before: before,
+                  after: after,
+                  limit: limit,
+                ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _showMessageMenu(int index) async {
     final message = _messages[index];
     final menuChat = _chat;
@@ -2481,6 +2511,7 @@ class _MessageRow extends StatelessWidget {
     required this.onLongPress,
     required this.onTap,
     this.onAvatarTap,
+    this.onQuoteTap,
     this.avatar,
     this.imageContent,
   });
@@ -2489,7 +2520,7 @@ class _MessageRow extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onLongPress;
   final VoidCallback onTap;
-  final VoidCallback? onAvatarTap;
+  final VoidCallback? onAvatarTap, onQuoteTap;
   final Widget? imageContent;
   final Widget? avatar;
 
@@ -2574,13 +2605,20 @@ class _MessageRow extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (message.quoted != null) ...[
-                              Text(
-                                message.quoted!,
-                                style: TextStyle(
-                                  color: message.mine
-                                      ? const Color(0x99111111)
-                                      : const Color(0x99C9B69E),
-                                  fontSize: 11,
+                              GestureDetector(
+                                key: ValueKey(
+                                  'chat-reply-${message.messageId}',
+                                ),
+                                behavior: HitTestBehavior.opaque,
+                                onTap: onQuoteTap,
+                                child: Text(
+                                  message.quoted!,
+                                  style: TextStyle(
+                                    color: message.mine
+                                        ? const Color(0x99111111)
+                                        : const Color(0x99C9B69E),
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 5),
@@ -2924,6 +2962,7 @@ class _FakeMessage {
     this.text, {
     required this.mine,
     this.quoted,
+    this.reply,
     this.clientMessageId,
     this.messageId,
     this.fileName,
@@ -2954,6 +2993,7 @@ class _FakeMessage {
   final String text;
   final bool mine;
   final String? quoted;
+  final ChatReply? reply;
   final bool system;
   final _FakeMessageKind kind;
   final String? assetPath;
@@ -2977,6 +3017,7 @@ class _FakeMessage {
     createdDate: createdDate,
     mine: mine,
     quoted: quoted,
+    reply: reply,
     system: system,
     kind: kind,
     assetPath: assetPath,
