@@ -64,7 +64,7 @@ class _CallPageState extends State<CallPage> {
   Future<void>? _rendering;
   bool _rendererReady = false, _leaving = false, _allowPop = false;
   bool _accepting = false, _muted = false, _switchingCamera = false;
-  bool _changingMute = false;
+  bool _changingMute = false, _changingVideo = false;
   bool _routingAudio = false;
   String? _actionError;
 
@@ -164,6 +164,29 @@ class _CallPageState extends State<CallPage> {
       }
     } finally {
       if (mounted) setState(() => _changingMute = false);
+    }
+  }
+
+  Future<void> _toggleVideo() async {
+    final media = _controller.media?.media;
+    if (_changingVideo ||
+        media == null ||
+        _controller.isClosed ||
+        _controller.isEnding) {
+      return;
+    }
+    setState(() => _changingVideo = true);
+    try {
+      await media.setVideoEnabled(!media.videoEnabled);
+      if (mounted && !_controller.isClosed && !_controller.isEnding) {
+        setState(() => _actionError = null);
+      }
+    } catch (_) {
+      if (mounted && !_controller.isClosed && !_controller.isEnding) {
+        setState(() => _actionError = '暂时无法切换视频画面，请重试');
+      }
+    } finally {
+      if (mounted) setState(() => _changingVideo = false);
     }
   }
 
@@ -393,11 +416,55 @@ class _CallPageState extends State<CallPage> {
                   height: 145,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: RTCVideoView(
-                      _local!,
-                      mirror: _controller.media?.media.frontFacing ?? true,
-                      objectFit:
-                          RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (_controller.media?.media.videoEnabled != false)
+                          RTCVideoView(
+                            _local!,
+                            mirror:
+                                _controller.media?.media.frontFacing ?? true,
+                            objectFit: RTCVideoViewObjectFit
+                                .RTCVideoViewObjectFitCover,
+                          )
+                        else
+                          const ColoredBox(
+                            color: Color(0xFF202020),
+                            child: Center(
+                              child: Text(
+                                '画面已暂停',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: IconButton(
+                            key: const ValueKey('call-toggle-video'),
+                            tooltip:
+                                _controller.media?.media.videoEnabled == false
+                                ? '恢复画面'
+                                : '暂停画面',
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.black54,
+                            ),
+                            onPressed: _changingVideo || _controller.isEnding
+                                ? null
+                                : _toggleVideo,
+                            icon: Icon(
+                              _controller.media?.media.videoEnabled == false
+                                  ? Icons.videocam
+                                  : Icons.videocam_off,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

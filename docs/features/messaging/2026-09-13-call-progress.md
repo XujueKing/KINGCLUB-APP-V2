@@ -175,3 +175,9 @@ active 原生 disconnected/failed/connecting 时启动独立 45 秒恢复计时�
 静音改为等待已安装 flutter_webrtc 的 mediaStreamTrackSetEnable 原生命令 Future 后更新界面，仅作用于当前本地音轨，不调用会改变 Android 系统全局麦克风的 Helper.setMicrophoneMute；操作中禁用重复点击，原生失败保留原界面状态并提示。依据已安装1.6.2+hotfix.1源码，旧track.enabled setter不等待原生调用。关闭后的迟到回执不得更新页面。
 
 验证：call-mute-ack-tests.log 12项通过，覆盖原生命令仅指向本地音轨、静音失败/重试/重复请求/挂断迟到回执；call-mute-ack-analyze.log 两文件无问题。未打包安装，不代替双机静音或音视频RTP验收。
+
+## 2026-09-14 暂停视频画面
+
+视频本地预览增加暂停/恢复画面按钮，只切换当前视频轨道enabled；不停止音轨、不新建连接或重新采集。暂停显示深色占位和明确文案，按钮待原生确认后更新，失败保留状态。此操作是暂停传送画面，不承诺释放摄像头硬件；挂断仍停止全部轨道并释放资源。
+
+验证：call-video-pause-tests.log 14项通过，覆盖暂停/恢复、失败保留状态、重复操作拒绝、只操作视频轨道、挂断释放音视频及迟到回执；两文件 analyze 无问题。当前ADB无设备，尚未安装及双机查看远端画面验收。

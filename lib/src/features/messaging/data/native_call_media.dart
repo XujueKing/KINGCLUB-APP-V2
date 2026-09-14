@@ -20,6 +20,7 @@ class NativeCallMedia {
     CallPeerFactory? peerFactory,
     Future<void> Function(bool)? setSpeakerphone,
     Future<void> Function(bool, MediaStreamTrack)? setMicrophoneMute,
+    Future<void> Function(bool, MediaStreamTrack)? setVideoEnabled,
     Future<bool> Function(MediaStreamTrack)? switchCamera,
     this.onCandidate,
     this.onConnection,
@@ -28,7 +29,10 @@ class NativeCallMedia {
        _peerFactory = peerFactory ?? ((config) => createPeerConnection(config)),
        _switchCamera = switchCamera ?? ((track) => Helper.switchCamera(track)),
        _setSpeakerphone = setSpeakerphone ?? Helper.setSpeakerphoneOn,
-       _setMicrophoneMute = setMicrophoneMute ?? _setLocalTrackMuted;
+       _setMicrophoneMute = setMicrophoneMute ?? _setLocalTrackMuted,
+       _setVideoEnabled =
+           setVideoEnabled ??
+           ((enabled, track) => _setLocalTrackMuted(!enabled, track));
   // The plugin's enabled setter does not await its platform call. Use the
   // same local-track command with acknowledgement, not the system-wide mute API.
   static Future<void> _setLocalTrackMuted(
@@ -48,6 +52,10 @@ class NativeCallMedia {
 
   final Future<void> Function(bool, MediaStreamTrack) _setMicrophoneMute;
   Future<void>? _muting;
+  final Future<void> Function(bool, MediaStreamTrack) _setVideoEnabled;
+  Future<void>? _changingVideo;
+  bool _videoEnabled = true;
+  bool get videoEnabled => video && _videoEnabled;
   final bool video;
   final List<Map<String, dynamic>> iceServers;
   final CallCapture _capture;
@@ -268,6 +276,30 @@ class NativeCallMedia {
     await _setSpeakerphone(enabled);
     _check();
     _speakerRequested = enabled;
+  }
+
+  Future<void> setVideoEnabled(bool enabled) {
+    _check();
+    final tracks = _local?.getVideoTracks() ?? <MediaStreamTrack>[];
+    if (!video || tracks.isEmpty) {
+      return Future.error(StateError('No active camera'));
+    }
+    if (_changingVideo != null) {
+      return Future.error(StateError('Video change in progress'));
+    }
+    return _changingVideo = _changeVideo(
+      tracks,
+      enabled,
+    ).whenComplete(() => _changingVideo = null);
+  }
+
+  Future<void> _changeVideo(List<MediaStreamTrack> tracks, bool enabled) async {
+    for (final track in tracks) {
+      _check();
+      await _setVideoEnabled(enabled, track);
+      _check();
+    }
+    _videoEnabled = enabled;
   }
 
   Future<bool> switchCamera() {

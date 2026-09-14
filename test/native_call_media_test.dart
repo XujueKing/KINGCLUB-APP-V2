@@ -40,6 +40,14 @@ class StreamFixture implements MediaStream {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class VideoStreamFixture extends StreamFixture {
+  final camera = Track();
+  @override
+  List<MediaStreamTrack> getTracks() => [track, camera];
+  @override
+  List<MediaStreamTrack> getVideoTracks() => [camera];
+}
+
 class Peer implements RTCPeerConnection {
   int closes = 0, disposes = 0, candidates = 0;
   @override
@@ -120,6 +128,64 @@ class RestartPeer extends Peer {
 }
 
 void main() {
+  test('pause video preserves microphone and capture, handles failure and late completion', () async {
+    final stream = VideoStreamFixture();
+    var captures = 0;
+    var response = Completer<void>();
+    final media = NativeCallMedia(
+      video: true,
+      iceServers: [],
+      capture: (_) async {
+        captures++;
+        return stream;
+      },
+      peerFactory: (_) async => Peer(),
+      setVideoEnabled: (enabled, track) async {
+        expect(identical(track, stream.camera), true);
+        await response.future;
+        track.enabled = enabled;
+      },
+    );
+    await media.open();
+    final pausing = media.setVideoEnabled(false);
+    expect(media.videoEnabled, true);
+    await expectLater(media.setVideoEnabled(true), throwsStateError);
+    response.complete();
+    await pausing;
+    expect(media.videoEnabled, false);
+    expect(stream.track.enabled, true);
+    expect(stream.track.stops, 0);
+    expect(captures, 1);
+    response = Completer<void>();
+    final failed = expectLater(media.setVideoEnabled(true), throwsStateError);
+    response.completeError(StateError('native failure'));
+    await failed;
+    expect(media.videoEnabled, false);
+    response = Completer<void>();
+    final restored = media.setVideoEnabled(true);
+    response.complete();
+    await restored;
+    expect(media.videoEnabled, true);
+    response = Completer<void>();
+    final late = expectLater(media.setVideoEnabled(false), throwsStateError);
+    await media.close();
+    expect(stream.track.stops, 1);
+    expect(stream.camera.stops, 1);
+    response.complete();
+    await late;
+  });
+  test('audio call cannot toggle video', () async {
+    final media = NativeCallMedia(
+      video: false,
+      iceServers: [],
+      capture: (_) async => StreamFixture(),
+      peerFactory: (_) async => Peer(),
+    );
+    await media.open();
+    await expectLater(media.setVideoEnabled(false), throwsStateError);
+    await media.close();
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
     'native mute targets local track without system microphone override',
