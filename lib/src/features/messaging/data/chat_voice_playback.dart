@@ -50,6 +50,15 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
       stop();
     });
     _events = (events ?? KingclubRealtime.shared.events).listen((event) {
+      final data = event['data'];
+      final eventGroup = data is Map ? data['groupId'] : null;
+      if ((event['eventType'] == 'chat.group.changed' ||
+              event['eventType'] == 'chat.group.read') &&
+          eventGroup is String &&
+          eventGroup.isNotEmpty &&
+          (!_playingGroup || (_groupId != null && eventGroup != _groupId))) {
+        return;
+      }
       if ([
         'chat.settings.changed',
         'chat.group.changed',
@@ -87,6 +96,8 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _operations = Future.value();
   bool _invalid = false, _disposed = false;
   int _generation = 0;
+  bool _playingGroup = false;
+  String? _groupId;
   String? activeId, error;
   bool loading = false;
   Future<void> _serialize(Future<void> Function() operation) {
@@ -107,6 +118,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
     MessagingRepository repository,
     String messageId, {
     bool group = false,
+    String? groupId,
   }) async {
     if (_disposed || _invalid) return;
     if (activeId == messageId) {
@@ -116,6 +128,8 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
     await stop();
     if (_disposed || _invalid) return;
     final generation = ++_generation;
+    _playingGroup = group;
+    _groupId = groupId;
     activeId = messageId;
     loading = true;
     error = null;

@@ -61,3 +61,9 @@ ADB462606d8持续offline，本包未覆盖安装；真机发声、双手机真�
 - 本项仍需 APK 构建、安装及实际录制验证；不得记为语音问题已解决。
 
 验证更新：voice_capture_test 共 5 项通过。chat-session-avatar-microphone-profile.log 已输出 Built（ARM64 Profile，162 MB），生成 APK 的 dex 中确认包含 kingclub/microphone 通道。当前 ADB 无设备，尚未安装；未声称录音采集/播放真机通过。
+
+## 2026-09-14 播放事件范围
+
+群已读事件同时用于群设置/清空，因此仍须停止本群播放。携带明确groupId的其他群事件不再打断当前语音（包括单聊）；无范围的权限事件继续保守停止。登录、关系、重连和退后台保护保持。
+
+验证：voice-event-scope-test.log 5项通过，覆盖其他群事件不打断单聊/本群播放、当前范围变化仍停止、权限变化拒绝迟到授权及会话失效。2个源文件 analyze 无问题。本增量尚未打包安装，不视为真机静音问题已解决。

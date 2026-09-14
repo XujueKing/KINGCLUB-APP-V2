@@ -247,6 +247,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                     _chat!.messaging,
                     message.messageId!,
                     group: widget.groupId != null,
+                    groupId: widget.groupId,
                   );
                   if (context.mounted && playback.error != null) {
                     KingNotice.of(context).show(playback.error!);

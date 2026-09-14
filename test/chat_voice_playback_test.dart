@@ -144,4 +144,44 @@ void main() {
       expect(player.activeId, null);
     },
   );
+  for (final group in [false, true]) {
+    test(
+      'unrelated group events do not interrupt ${group ? "group" : "direct"} audio',
+      () async {
+        final output = Output();
+        final events = StreamController<Map<String, dynamic>>.broadcast();
+        final repo = MessagingRepository(
+          account: 'me',
+          call: (_, p) async => grant(p['messageId'] as String, group: group),
+        );
+        final player = ChatVoicePlayback(
+          output: output,
+          events: events.stream,
+          loadFile: (_, _, _, _) async => File('/fixture.m4a'),
+        );
+        addTearDown(player.dispose);
+        addTearDown(events.close);
+        await player.toggle(
+          repo,
+          'one',
+          group: group,
+          groupId: group ? 'current' : null,
+        );
+        for (final type in ['chat.group.read', 'chat.group.changed']) {
+          events.add({
+            'eventType': type,
+            'data': {'groupId': 'other'},
+          });
+        }
+        await Future<void>.delayed(Duration.zero);
+        expect(player.activeId, 'one');
+        events.add({
+          'eventType': group ? 'chat.group.read' : 'chat.settings.changed',
+          'data': group ? {'groupId': 'current'} : {},
+        });
+        await Future<void>.delayed(Duration.zero);
+        expect(player.activeId, isNull);
+      },
+    );
+  }
 }
