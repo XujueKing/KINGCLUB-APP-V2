@@ -1,13 +1,20 @@
 param(
   [Parameter(Mandatory=$true)][uri]$ApiBaseUrl,
-  [string]$FlutterCommand = 'D:/SDK/flutter/bin/flutter.bat'
+  [string]$FlutterCommand = 'D:/SDK/flutter/bin/flutter.bat',
+  [switch]$SkipNovoRudp
 )
 $ErrorActionPreference = 'Stop'
 if ($ApiBaseUrl.Scheme -ne 'https' -or $ApiBaseUrl.UserInfo -or $ApiBaseUrl.Query -or $ApiBaseUrl.Fragment) {
   throw 'A real HTTPS API base URL without credentials or query is required.'
 }
 Push-Location (Split-Path -Parent $PSScriptRoot)
+$previousJni = $env:KINGCLUB_NOVORUDP_JNI_DIR
 try {
+  $env:KINGCLUB_NOVORUDP_JNI_DIR = $null
+  if (!$SkipNovoRudp) {
+    & (Join-Path $PSScriptRoot 'build-novorudp-android.ps1') | Out-Host
+    $env:KINGCLUB_NOVORUDP_JNI_DIR = Join-Path (Get-Location).Path 'build/novorudp-jni'
+  }
   # Windows PowerShell treats native stderr warnings as errors when redirected.
   # Flutter's exit code, not a plugin warning, determines build success.
   $ErrorActionPreference = 'Continue'
@@ -15,4 +22,24 @@ try {
   $buildExitCode = $LASTEXITCODE
   $ErrorActionPreference = 'Stop'
   if ($buildExitCode -ne 0) { throw 'Chat preview APK build failed.' }
-} finally { Pop-Location }
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $apk = [IO.Compression.ZipFile]::OpenRead((Join-Path (Get-Location).Path 'build/app/outputs/flutter-apk/app-preview-profile.apk'))
+  try {
+    $entry = $apk.GetEntry('lib/arm64-v8a/libkingclub_novorudp.so')
+    if ($SkipNovoRudp) {
+      if ($entry) { throw 'APK unexpectedly includes a stale NovoRUDP library.' }
+    } else {
+      if (!$entry -or $entry.Length -lt 4096) { throw 'APK is missing the NovoRUDP library.' }
+      $stream = $entry.Open()
+      try {
+        $header = New-Object byte[] 20
+        if ($stream.Read($header,0,20) -ne 20 -or $header[0] -ne 127 -or $header[1] -ne 69 -or $header[2] -ne 76 -or $header[3] -ne 70 -or $header[18] -ne 183 -or $header[19] -ne 0) {
+          throw 'Packaged NovoRUDP library is not an ARM64 ELF.'
+        }
+      } finally { $stream.Dispose() }
+    }
+  } finally { $apk.Dispose() }
+} finally {
+  $env:KINGCLUB_NOVORUDP_JNI_DIR = $previousJni
+  Pop-Location
+}

@@ -109,3 +109,12 @@ App业务路由、可信manifest/会员设备目录、worker、NAT/中继及自�
 并发ensure合并；每次新操作重新读取本人目录，不把之前缓存当作当前授权。注册失败保留同一挑战/签名，注册成功但响应丢失可通过下一次本人目录恢复。目录条目校验UUID、公钥及peerId一致性/重复/最多8项，不缓存好友公钥；服务端仍是好友关系与撤销权威。撤销先关闭本机原生身份及全部通道，再请求673；网络失败允许重试，不自动轮换或抹掉本机持久密钥。
 
 4项协调测试通过：实际Rust身份和签名由独立Dart Ed25519核验、并发合并/重读目录、相同挑战重试、错误返回与账号切换拒绝、撤销关闭及请求重试。HTTP在本批协调测试中为受控响应，不能称手机端到端绑定已验收；后端真实HTTP结果见其独立记录。静态检查通过。原生库打包、worker、入口及手机绑定联调仍待接，未覆盖安装或启用真实P2P。
+
+
+## Android原生库打包
+
+新增scripts/build-novorudp-android.ps1，固定审查过的SUPERVM提交12c1f3b40b544fda6f776ae437c325fa917341ee并拒绝两份协议源未提交修改；cargo --offline --locked构建ARM64/API24库，输出至被忽略的build/novorudp-jni。build-chat-preview默认先构建库，临时设置KINGCLUB_NOVORUDP_JNI_DIR供Gradle收集，结束恢复环境；显式SkipNovoRudp才跳过。其他构建未指定该环境变量时不悄悄拾取旧库。构建后检查APK内对应ARM64 ELF；跳过时反而拒绝遗留库。
+
+本批实际profile/preview ARM64构建37.8秒，APK162.2MB。包内lib/arm64-v8a/libkingclub_novorudp.so为803712字节；库LOAD段均0x4000对齐（16KB），最低NDK API24与App一致。APK SHA256为04f6fec1b3464fab91408140beb73d30294337f8d8a8ddae60c2eb3169eca9dd。已通过adb install -r保留数据覆盖安装并成功启动，设备报告lastUpdateTime 2026-09-15 05:59:38。包含工作区原有onboarding三文件改动，本节点没有编辑/提交它们。
+
+这是打包与安装验证，不是手机Dart FFI完整绑定验收；直连运行入口仍未启用，未替用户登记网络身份或发送聊天。iOS、其他Android ABI打包尚未完成。

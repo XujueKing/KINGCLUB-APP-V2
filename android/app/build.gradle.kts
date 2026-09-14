@@ -9,6 +9,16 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    // The ARM64 preview builder supplies a freshly compiled, reviewed native
+    // library. Ordinary builds do not silently pick up stale local binaries.
+    val novoRudpJni = System.getenv("KINGCLUB_NOVORUDP_JNI_DIR")
+    if (!novoRudpJni.isNullOrBlank()) {
+        require(file("$novoRudpJni/arm64-v8a/libkingclub_novorudp.so").isFile) {
+            "NovoRUDP native library is missing; run scripts/build-novorudp-android.ps1"
+        }
+        sourceSets.getByName("main").jniLibs.srcDir(novoRudpJni)
+    }
+
     flavorDimensions += "distribution"
 
     compileOptions {
