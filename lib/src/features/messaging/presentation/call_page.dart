@@ -64,6 +64,7 @@ class _CallPageState extends State<CallPage> {
   Future<void>? _rendering;
   bool _rendererReady = false, _leaving = false, _allowPop = false;
   bool _accepting = false, _muted = false, _switchingCamera = false;
+  bool _changingMute = false;
   bool _routingAudio = false;
   String? _actionError;
 
@@ -139,12 +140,30 @@ class _CallPageState extends State<CallPage> {
     }
   }
 
-  void _mute() {
+  Future<void> _mute() async {
+    final media = _controller.media?.media;
+    if (_changingMute ||
+        media == null ||
+        _controller.isClosed ||
+        _controller.isEnding) {
+      return;
+    }
+    final muted = !_muted;
+    setState(() => _changingMute = true);
     try {
-      _controller.media!.media.mute(!_muted);
-      setState(() => _muted = !_muted);
+      await media.mute(muted);
+      if (mounted && !_controller.isClosed && !_controller.isEnding) {
+        setState(() {
+          _muted = muted;
+          _actionError = null;
+        });
+      }
     } catch (_) {
-      setState(() => _actionError = '暂时无法切换麦克风');
+      if (mounted && !_controller.isClosed && !_controller.isEnding) {
+        setState(() => _actionError = '暂时无法切换麦克风，请重试');
+      }
+    } finally {
+      if (mounted) setState(() => _changingMute = false);
     }
   }
 
@@ -305,7 +324,9 @@ class _CallPageState extends State<CallPage> {
                           label: _muted ? '取消静音' : '静音',
                           color: Colors.white12,
                           onPressed:
-                              _controller.media != null && !_controller.isEnding
+                              _controller.media != null &&
+                                  !_controller.isEnding &&
+                                  !_changingMute
                               ? _mute
                               : null,
                         ),

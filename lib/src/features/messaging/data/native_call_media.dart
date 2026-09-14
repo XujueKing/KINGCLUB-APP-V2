@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'call_relay_configuration.dart';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -17,6 +19,7 @@ class NativeCallMedia {
     CallCapture? capture,
     CallPeerFactory? peerFactory,
     Future<void> Function(bool)? setSpeakerphone,
+    Future<void> Function(bool, MediaStreamTrack)? setMicrophoneMute,
     Future<bool> Function(MediaStreamTrack)? switchCamera,
     this.onCandidate,
     this.onConnection,
@@ -24,7 +27,27 @@ class NativeCallMedia {
   }) : _capture = capture ?? navigator.mediaDevices.getUserMedia,
        _peerFactory = peerFactory ?? ((config) => createPeerConnection(config)),
        _switchCamera = switchCamera ?? ((track) => Helper.switchCamera(track)),
-       _setSpeakerphone = setSpeakerphone ?? Helper.setSpeakerphoneOn;
+       _setSpeakerphone = setSpeakerphone ?? Helper.setSpeakerphoneOn,
+       _setMicrophoneMute = setMicrophoneMute ?? _setLocalTrackMuted;
+  // The plugin's enabled setter does not await its platform call. Use the
+  // same local-track command with acknowledgement, not the system-wide mute API.
+  static Future<void> _setLocalTrackMuted(
+    bool muted,
+    MediaStreamTrack track,
+  ) async {
+    if (kIsWeb) {
+      track.enabled = !muted;
+      return;
+    }
+    await WebRTC.invokeMethod('mediaStreamTrackSetEnable', {
+      'trackId': track.id,
+      'enabled': !muted,
+      'peerConnectionId': '',
+    });
+  }
+
+  final Future<void> Function(bool, MediaStreamTrack) _setMicrophoneMute;
+  Future<void>? _muting;
   final bool video;
   final List<Map<String, dynamic>> iceServers;
   final CallCapture _capture;
@@ -209,10 +232,24 @@ class NativeCallMedia {
     _check();
   }
 
-  void mute(bool muted) {
+  Future<void> mute(bool muted) {
     _check();
-    for (final track in _local?.getAudioTracks() ?? <MediaStreamTrack>[]) {
-      track.enabled = !muted;
+    final tracks = _local?.getAudioTracks() ?? <MediaStreamTrack>[];
+    if (tracks.isEmpty) return Future.error(StateError('No active microphone'));
+    if (_muting != null) {
+      return Future.error(StateError('Microphone change in progress'));
+    }
+    return _muting = _muteTracks(
+      tracks,
+      muted,
+    ).whenComplete(() => _muting = null);
+  }
+
+  Future<void> _muteTracks(List<MediaStreamTrack> tracks, bool muted) async {
+    for (final track in tracks) {
+      _check();
+      await _setMicrophoneMute(muted, track);
+      _check();
     }
   }
 

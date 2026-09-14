@@ -169,3 +169,9 @@ active 未 connected 继续 sync(renewLease:false)，接收新 offer/answer/ICE�
 active 原生 disconnected/failed/connecting 时启动独立 45 秒恢复计时器；恢复 connected、开始结束或关闭时取消。计时器到期调用现有 end，先关闭本地媒体，再等待串行网络队列，避免 645 请求阻塞导致摄像头/麦克风持续占用。服务端期限仍是最终忙线回收依据；后台系统挂起定时器、进程杀死及 OS 通话保活仍待实现。
 
 控制器 8 项测试与两文件静态分析通过，新增恢复后撤销旧计时器、到期时状态 HTTP 未返回也先停止采集、迟到已结束状态收尾。初次 widget 假时钟测试在取消订阅的异步收尾阶段挂起；改为普通异步测试，仅用 Zone 可控 Timer 驱动真实控制器，保持网络 Future 和订阅收尾走正常异步队列。没有修改产品等待时间来迎合测试，也未用挂起用例当作通过。
+
+## 2026-09-14 通话静音确认
+
+静音改为等待已安装 flutter_webrtc 的 mediaStreamTrackSetEnable 原生命令 Future 后更新界面，仅作用于当前本地音轨，不调用会改变 Android 系统全局麦克风的 Helper.setMicrophoneMute；操作中禁用重复点击，原生失败保留原界面状态并提示。依据已安装1.6.2+hotfix.1源码，旧track.enabled setter不等待原生调用。关闭后的迟到回执不得更新页面。
+
+验证：call-mute-ack-tests.log 12项通过，覆盖原生命令仅指向本地音轨、静音失败/重试/重复请求/挂断迟到回执；call-mute-ack-analyze.log 两文件无问题。未打包安装，不代替双机静音或音视频RTP验收。

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:kingclub/src/features/messaging/data/call_relay_configuration.dart';
 
 import 'dart:async';
@@ -8,6 +9,8 @@ import 'package:kingclub/src/features/messaging/data/native_call_media.dart';
 
 class Track implements MediaStreamTrack {
   int stops = 0;
+  @override
+  String get id => 'local-audio';
   @override
   bool enabled = true;
   @override
@@ -117,6 +120,81 @@ class RestartPeer extends Peer {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'native mute targets local track without system microphone override',
+    () async {
+      const channel = MethodChannel('FlutterWebRTC.Method');
+      final previous = WebRTC.initialized;
+      WebRTC.initialized = true;
+      final commands = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            commands.add(call);
+            return null;
+          });
+      addTearDown(() {
+        WebRTC.initialized = previous;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+      });
+      final media = NativeCallMedia(
+        video: false,
+        iceServers: [],
+        capture: (_) async => StreamFixture(),
+        peerFactory: (_) async => Peer(),
+      );
+      await media.open();
+      await media.mute(true);
+      await media.mute(false);
+      expect(commands.map((c) => c.method), [
+        'mediaStreamTrackSetEnable',
+        'mediaStreamTrackSetEnable',
+      ]);
+      expect(commands.map((c) => c.arguments['enabled']), [false, true]);
+      expect(
+        commands.every(
+          (c) =>
+              c.arguments['trackId'] == 'local-audio' &&
+              c.arguments['peerConnectionId'] == '',
+        ),
+        true,
+      );
+      await media.close();
+    },
+  );
+
+  test('mute waits for native acknowledgement, rejects overlap, and propagates failure', () async {
+    final stream = StreamFixture();
+    var pending = Completer<void>();
+    final media = NativeCallMedia(
+      video: false,
+      iceServers: [],
+      capture: (_) async => stream,
+      peerFactory: (_) async => Peer(),
+      setMicrophoneMute: (_, _) => pending.future,
+    );
+    await media.open();
+    var confirmed = false;
+    final muting = media.mute(true).then((_) => confirmed = true);
+    expect(confirmed, false);
+    await expectLater(media.mute(false), throwsStateError);
+    final failed = expectLater(muting, throwsStateError);
+    pending.completeError(StateError('native denied'));
+    await failed;
+    expect(confirmed, false);
+    pending = Completer<void>();
+    final retry = media.mute(true);
+    pending.complete();
+    await retry;
+    pending = Completer<void>();
+    final late = expectLater(media.mute(false), throwsStateError);
+    await media.close();
+    expect(stream.track.stops, 1);
+    pending.complete();
+    await late;
+  });
+
   test(
     'remote restart keeps capture and queues ICE until the new remote SDP',
     () async {
@@ -349,6 +427,9 @@ void main() {
     () async {
       final stream = StreamFixture(), peer = Peer();
       final media = NativeCallMedia(
+        setMicrophoneMute: (muted, track) async {
+          track.enabled = !muted;
+        },
         video: false,
         iceServers: [],
         capture: (constraints) async {
@@ -359,7 +440,7 @@ void main() {
         peerFactory: (_) async => peer,
       );
       await media.open();
-      media.mute(true);
+      await media.mute(true);
       expect(stream.track.enabled, false);
       await media.remoteCandidate(RTCIceCandidate('candidate:fixture', '0', 0));
       expect(peer.candidates, 0);
