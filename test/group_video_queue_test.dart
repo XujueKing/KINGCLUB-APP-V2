@@ -63,6 +63,7 @@ void main() {
           height: 240,
           hasAudio: true,
         ),
+        clientMessageId: 'aaaaaaaa-1234-1234-1234-123456789012',
       );
       expect(queue.items.length, 1);
       expect(first.messages.single['status'], 'queued');
@@ -75,6 +76,10 @@ void main() {
       await restored.initialize();
       expect(requests.length, 2);
       expect(requests[0], requests[1]);
+      expect(
+        requests[0]['clientMessageId'],
+        'aaaaaaaa-1234-1234-1234-123456789012',
+      );
       expect(queue.items, isEmpty);
       expect(restored.messages.single['videoAssetId'], asset);
       restored.dispose();

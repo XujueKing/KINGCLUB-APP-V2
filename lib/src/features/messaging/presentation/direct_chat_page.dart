@@ -1,3 +1,4 @@
+import 'chat_video_send_page.dart';
 import '../data/chat_reply.dart';
 import 'chat_history_context_page.dart';
 import 'forward_text_page.dart';
@@ -1275,14 +1276,14 @@ class _DirectChatPageState extends State<DirectChatPage>
         label: '照片',
         onTap: () => _realTarget == null
             ? _addAttachment(_FakeMessageKind.image)
-            : _selectChatImage(ImageSource.gallery),
+            : _chooseChatMedia(ImageSource.gallery),
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/more_2.png',
         label: '拍摄',
         onTap: () => _realTarget == null
             ? _takeFakePhoto()
-            : _selectChatImage(ImageSource.camera),
+            : _chooseChatMedia(ImageSource.camera),
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_video_call.svg',
@@ -1872,6 +1873,87 @@ class _DirectChatPageState extends State<DirectChatPage>
             fileName: selectedDraft.name,
             chat: chat,
             draft: selectedDraft,
+            drafts: drafts,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) KingNotice.of(context).show(error.toString());
+    } finally {
+      _selectingFile = false;
+    }
+  }
+
+  Future<void> _chooseChatMedia(ImageSource source) async {
+    final chat = _chat;
+    if (chat == null || _readOnly) return;
+    final video = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF202020),
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_outlined),
+              title: Text(source == ImageSource.camera ? '拍照' : '选择照片'),
+              onTap: () => Navigator.pop(sheet, false),
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined),
+              title: Text(source == ImageSource.camera ? '录制视频' : '选择视频'),
+              onTap: () => Navigator.pop(sheet, true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || !identical(chat, _chat) || video == null) return;
+    if (!video) {
+      await _selectChatImage(source);
+      return;
+    }
+    if (_selectingFile) return;
+    _selectingFile = true;
+    try {
+      _inputFocusNode.unfocus();
+      final drafts = await ChatFileDraftStore.open(
+        chat.messaging.account,
+        widget.groupId != null
+            ? 'video-group:${widget.groupId}'
+            : 'video-peer:${widget.peerAccount}',
+      );
+      ChatFileDraft? draft;
+      try {
+        draft = await drafts.read();
+      } on FileSystemException {
+        /* Reselect missing draft. */
+      } on StateError {
+        /* Reselect damaged draft. */
+      }
+      if (!mounted || !identical(chat, _chat)) return;
+      if (draft == null) {
+        final selected = await ImagePicker().pickVideo(
+          source: source,
+          maxDuration: const Duration(minutes: 2),
+        );
+        if (selected == null || !mounted || !identical(chat, _chat)) return;
+        final length = await selected.length();
+        if (length < 1 || length > 64 * 1024 * 1024) {
+          throw StateError('请选择两分钟以内、不超过64MB的视频');
+        }
+        draft = await drafts.save(File(selected.path), selected.name);
+      }
+      if (!mounted || !identical(chat, _chat)) return;
+      _voicePlayback?.stop();
+      final chosen = draft;
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => ChatVideoSendPage(
+            file: chosen.file,
+            fileName: chosen.name,
+            chat: chat,
+            draft: chosen,
             drafts: drafts,
           ),
         ),

@@ -32,8 +32,11 @@ abstract class ChatSessionController extends ChangeNotifier {
     VoidCallback? onQueued,
     String? clientMessageId,
   });
-  Future<void> sendVideo(ChatVideo video, {VoidCallback? onQueued}) =>
-      Future.error(UnsupportedError('视频发送尚未接通'));
+  Future<void> sendVideo(
+    ChatVideo video, {
+    VoidCallback? onQueued,
+    String? clientMessageId,
+  }) => Future.error(UnsupportedError('视频发送尚未接通'));
   Future<void> sendVoice(
     String assetId,
     int durationMs, {

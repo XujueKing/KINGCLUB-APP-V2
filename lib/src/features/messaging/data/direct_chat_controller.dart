@@ -517,9 +517,18 @@ class DirectChatController extends ChatSessionController {
   }
 
   @override
-  Future<void> sendVideo(ChatVideo video, {VoidCallback? onQueued}) async {
+  Future<void> sendVideo(
+    ChatVideo video, {
+    VoidCallback? onQueued,
+    String? clientMessageId,
+  }) async {
     if (_disposed) return;
-    final id = const Uuid().v4();
+    final id = clientMessageId ?? const Uuid().v4();
+    if (!RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(id)) {
+      throw const FormatException('视频消息编号无效');
+    }
     final message = <String, dynamic>{
       'clientMessageId': id,
       'recipient': peer,
