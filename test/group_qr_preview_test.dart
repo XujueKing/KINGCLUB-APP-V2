@@ -92,4 +92,96 @@ void main() {
     expect(find.text('进入群聊'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets(
+    'expiry hides entry and background reauthorizes before showing data',
+    (tester) async {
+      var calls = 0;
+      Completer<Map<String, dynamic>>? pending;
+      final repo = GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (id, p) async {
+            calls++;
+            if (pending != null) {
+              return pending.future;
+            }
+            return {
+              ...response(true),
+              'expiresAt': DateTime.now()
+                  .add(const Duration(seconds: 2))
+                  .toIso8601String(),
+            };
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GroupQrPreviewPage(code: code, repository: repo),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('进入群聊'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.text('进入群聊'), findsNothing);
+      expect(find.text('Synthetic group'), findsNothing);
+      expect(find.text('二维码已过期，请重新扫描'), findsOneWidget);
+      pending = Completer();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(calls, 2);
+      expect(find.text('进入群聊'), findsNothing);
+      pending.complete(response(false));
+      await tester.pumpAndSettle();
+      expect(find.text('Synthetic group'), findsOneWidget);
+      expect(find.text('进入群聊'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'group change removes old preview and ignores superseded response',
+    (tester) async {
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      final pending = <Completer<Map<String, dynamic>>>[];
+      final repo = GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (id, p) {
+            final call = Completer<Map<String, dynamic>>();
+            pending.add(call);
+            return call.future;
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GroupQrPreviewPage(
+            code: code,
+            repository: repo,
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.pump();
+      pending[0].complete(response(true));
+      await tester.pumpAndSettle();
+      expect(find.text('进入群聊'), findsOneWidget);
+      events.add({'eventType': 'chat.group.changed'});
+      await tester.pumpAndSettle();
+      expect(find.text('Synthetic group'), findsNothing);
+      events.add({'eventType': 'connection.ready'});
+      await tester.pumpAndSettle();
+      expect(pending.length, 3);
+      pending[1].complete(response(true));
+      await tester.pumpAndSettle();
+      expect(find.text('Synthetic group'), findsNothing);
+      pending[2].completeError(StateError('revoked'));
+      await tester.pumpAndSettle();
+      expect(find.text('进入群聊'), findsNothing);
+      expect(find.text('二维码已失效或无法读取，请重新扫描'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await events.close();
+    },
+  );
 }

@@ -9,3 +9,6 @@ Flutter页面测试覆盖响应校验与重试、后台隐藏/恢复、会话失
 扫一扫按KC:G:前缀路由到群预览，严格格式检查后调用657；个人码仍507。预览仅显示群名、人数和本人是否已加入，不显示成员列表或历史。已加入者可进入已有群会话；未加入者提示联系群成员邀请（现有邀请流程），不伪造已加入。会话变化、离开前台和群事件清除预览，迟到响应丢弃。
 
 群扫码预览实现：新增GroupQrPreviewPage及657调用，扫一扫KC:G:分支已连接。前后台/登录/群事件清除结果；到期清除；严格检查群UUID/人数/布尔成员标记及期限。群内成员进入既有DirectChatPage，非成员无自动加入写操作。扫一扫补充会话与迟到响应保护、finally中恢复相机。群预览4项、群二维码2项、原好友扫码2项合计8测试通过；4文件analyze无问题（build/group-qr-preview-tests.log、build/group-qr-preview-analyze.log）。相机硬件扫描、路由全链及共享接口联调仍未实机验收；现有测试不能证明扫码入群可用，申请/审批接口仍待实现。
+
+## 预览生命周期补验
+新增可注入事件流（默认仍使用真实KingclubRealtime），用于模拟真实群变更/重连顺序。新增到期清除、后台恢复重新授权、群变更立即隐藏、两次请求乱序及最终权限拒绝测试。group_qr_preview_test共6项通过，2文件analyze无问题；日志build/group-qr-preview-lifecycle-tests.log和build/group-qr-preview-lifecycle-analyze.log。此为客户端状态机测试，未替代手机相机与服务端联调。

@@ -13,9 +13,11 @@ class GroupQrPreviewPage extends StatefulWidget {
     super.key,
     required this.code,
     required this.repository,
+    this.events,
   });
   final String code;
   final GroupChatRepository repository;
+  final Stream<Map<String, dynamic>>? events;
   @override
   State<GroupQrPreviewPage> createState() => _GroupQrPreviewPageState();
 }
@@ -41,7 +43,7 @@ class _GroupQrPreviewPageState extends State<GroupQrPreviewPage>
         setState(() => _error = '登录状态已变化');
       }
     });
-    _events = KingclubRealtime.shared.events.listen((event) {
+    _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
       if (event['eventType'] == 'chat.group.changed' ||
           event['eventType'] == 'connection.ready') {
         _clear();
