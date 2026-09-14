@@ -11,3 +11,5 @@
 原生会话长按位置消息同样进入好友/群聊选择器，确认显示原地点名称、地址；队列保存原 latitudeE6/longitudeE6、coordinateSystem、name/address，使用现有位置消息发送接口，不调用重新定位。沿用群成员代次、账号变化及同编号重试保护。
 
 4 项转发 widget 测试通过，包括坐标及坐标系原样入队；direct/group location queue 和位置模型测试通过，2 页面 analyze 无问题。日志 build/chat-forward-location-tests.log 与 build/chat-forward-location-queue-tests.log。此节点仍待安装和真实接收方验收。
+
+安装补记：2d77c8f preview/profile arm64 构建成功，63.1 秒，162.1 MB；23:48:51 adb install -r Success，MainActivity 启动成功，保留用户数据。SHA256 C72F4718282F7E423530AB8614CF20B20145D5AA67C8FC287F5109DF69FB3395。群聊文字转发/位置转发现已安装，尚待用户真实接收方验收。服务仍 chat-092，无新的数据库迁移。
