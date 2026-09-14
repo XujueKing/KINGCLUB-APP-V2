@@ -77,6 +77,16 @@ public final class VideoUploadProbe extends Instrumentation {
       if (output[0] instanceof String) {
         File copy = new File((String) output[0]);
         report.putLong("outputBytes", copy.length());
+        android.media.MediaMetadataRetriever metadata = new android.media.MediaMetadataRetriever();
+        try {
+          metadata.setDataSource(copy.getAbsolutePath());
+          int rotation = Integer.parseInt(metadata.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION));
+          int width = Integer.parseInt(metadata.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+          int height = Integer.parseInt(metadata.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+          report.putInt("rotation", rotation);
+          report.putInt("displayWidth", rotation == 90 || rotation == 270 ? height : width);
+          report.putInt("displayHeight", rotation == 90 || rotation == 270 ? width : height);
+        } finally { metadata.release(); }
         android.media.MediaExtractor extractor = new android.media.MediaExtractor();
         try {
           extractor.setDataSource(copy.getAbsolutePath());

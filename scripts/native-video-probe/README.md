@@ -48,3 +48,5 @@ Native requested display size was 720x1280. Result remains BITRATE_OVERSHOOT:
 it saves about 76% against this synthetic input but exceeds the unchanged
 2,000,000-byte budget. Do not claim the target bitrate, visual orientation,
 quality or member-video send path has passed from this result alone.
+
+Rotation follow-up on the same installed build: rotation=90, displayWidth=720, displayHeight=1280, videoMime=video/hevc, hasAudio=true, outputBytes=2059623, elapsedMs=3306. This resolves the encoded-width/height ambiguity; it does not replace visual playback or A/V sync checks. The strict size budget still fails. Probe uninstalled and preview reopened after verification.
