@@ -1,0 +1,141 @@
+package com.lingmei.kingclub
+
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.provider.DocumentsContract
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.security.MessageDigest
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+
+/** Only documents freshly returned by this activity's system picker are writable. */
+class ChatFileExport(private val activity: Activity) {
+    companion object { const val REQUEST = 28419 }
+    private val executor = Executors.newSingleThreadExecutor()
+    private var picker: MethodChannel.Result? = null
+    private var document: Uri? = null
+    private var copying = false
+    private var cancelled = AtomicBoolean(false)
+
+    fun handle(call: MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "choose" -> {
+                if (picker != null || document != null || copying) {
+                    result.error("BUSY", "Another export is active", null); return
+                }
+                val name = call.argument<String>("name")
+                if (name.isNullOrBlank() || name.length > 180 || name.any { it == '/' || it == '\\' || it.code < 32 }) {
+                    result.error("INVALID", "Invalid file name", null); return
+                }
+                cancelled = AtomicBoolean(false)
+                picker = result
+                try {
+                    activity.startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "application/octet-stream"
+                        putExtra(Intent.EXTRA_TITLE, name)
+                    }, REQUEST)
+                } catch (_: Exception) {
+                    picker = null
+                    result.error("UNAVAILABLE", "System file picker unavailable", null)
+                }
+            }
+            "copy" -> copy(call, result)
+            "cancel" -> {
+                cancelled.set(true)
+                if (!copying) { document?.let { remove(it) }; document = null }
+                result.success(null)
+            }
+            else -> result.notImplemented()
+        }
+    }
+
+    fun onActivityResult(request: Int, code: Int, data: Intent?): Boolean {
+        if (request != REQUEST) return false
+        val result = picker
+        picker = null
+        val uri = if (code == Activity.RESULT_OK) data?.data else null
+        if (cancelled.get() || result == null) {
+            uri?.let { remove(it) }; result?.success(false); return true
+        }
+        if (uri == null || uri.scheme != "content") { result.success(false); return true }
+        document = uri
+        result.success(true)
+        return true
+    }
+
+    private fun copy(call: MethodCall, result: MethodChannel.Result) {
+        val uri = document
+        if (uri == null || copying || cancelled.get()) {
+            result.error("INVALID", "No active document", null); return
+        }
+        val source: File
+        val size = call.argument<Number>("size")?.toLong() ?: -1
+        val expected = call.argument<String>("sha256") ?: ""
+        try {
+            source = File(call.argument<String>("path") ?: "").canonicalFile
+            val parent = source.parentFile ?: throw IllegalArgumentException()
+            require(parent.parentFile == activity.cacheDir.canonicalFile)
+            require(parent.name.startsWith("kingclub-chat-download-"))
+            require(source.name == "content.bin" && source.isFile)
+            require(size in 0..268435456 && source.length() == size)
+            require(Regex("[0-9a-f]{64}").matches(expected))
+        } catch (_: Exception) {
+            result.error("INVALID", "Invalid private source file", null); return
+        }
+        copying = true
+        val cancellation = cancelled
+        executor.execute {
+            var success = false
+            try {
+                val digest = MessageDigest.getInstance("SHA-256")
+                source.inputStream().use { input ->
+                    val output = activity.contentResolver.openOutputStream(uri, "wt")
+                        ?: throw IllegalStateException("No destination")
+                    output.use {
+                        val buffer = ByteArray(65536)
+                        var total = 0L
+                        while (true) {
+                            check(!cancellation.get())
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            total += count
+                            check(total <= size)
+                            digest.update(buffer, 0, count)
+                            it.write(buffer, 0, count)
+                        }
+                        check(total == size)
+                        check(digest.digest().joinToString("") { b -> "%02x".format(b.toInt() and 255) } == expected)
+                        check(!cancellation.get())
+                        it.flush()
+                    }
+                }
+                success = true
+            } catch (_: Exception) { /* Never log private paths or document URIs. */ }
+            val copied = success
+            activity.runOnUiThread {
+                copying = false
+                document = null
+                if (!copied || cancellation.get()) {
+                    remove(uri)
+                    result.error("EXPORT_FAILED", "File export cancelled or failed", null)
+                } else result.success(true)
+            }
+        }
+    }
+
+    private fun remove(uri: Uri) {
+        try { DocumentsContract.deleteDocument(activity.contentResolver, uri) } catch (_: Exception) {}
+    }
+
+    fun dispose() {
+        cancelled.set(true)
+        picker?.success(false)
+        picker = null
+        if (!copying) { document?.let { remove(it) }; document = null }
+        executor.shutdown()
+    }
+}

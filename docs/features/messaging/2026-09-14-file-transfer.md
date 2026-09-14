@@ -39,3 +39,8 @@ ChatFileDownloader 已实现上述下载约束，652/654 已接 repository。8 �
 已确认消息卡片打开详情页，显示文件名、大小、下载进度与取消/重试；离页释放临时文件。系统保存需原生流式导出，file_picker 12.3 的 saveFile 必须整份 Uint8List，不能用于本功能的 256MiB 文件。保存入口在原生导出接通后提供，不伪造保存成功。
 
 文件详情页面测试通过：点击才下载、显示进度、取消后可再次下载、失败提供重试、离页释放下载器；三个相关文件 analyze 通过。preview 构建生成 app-preview-profile.apk（160.6MB，135.5 秒），该构建开始于详情页修改之前，只证明当时下载核心与选择器可打包，最终页面仍需下一轮构建和实机验收。
+
+## Android 系统导出
+采用 ACTION_CREATE_DOCUMENT 获取用户选定的新文件 URI，选定后再次复查会话和服务端权限，再由后台线程以 64KiB 缓冲复制私有下载文件；校验长度和 SHA256。来源限应用 cacheDir 下本下载器的临时目录，不接受任意路径。只向本次系统选择返回的 URI 写入。错误/取消尽力删除本次新建文档，页面离开和会话变化取消导出。参考 https://developer.android.com/training/data-storage/shared/documents-files 。iOS 导出待实现，不宣称跨平台导出已完成。
+
+Android 导出实现已加入 MainActivity/ChatFileExport 与 ChatFileExporter，详情页下载完成后显示“保存到文件”，只有系统复制成功才显示已保存。导出相关测试覆盖选择取消、选择后权限撤销、页面释放和成功路径，连同下载及详情页共 13 项通过；四个 Dart 文件 analyze 无问题。测试中的系统通道为合成回执，原生 Kotlin 编译/profile APK 构建仍在进行，未称原生保存或手机大文件已验收。后续需验证实际 document provider、低空间失败、保存后哈希及取消残留；iOS 仍待接入。

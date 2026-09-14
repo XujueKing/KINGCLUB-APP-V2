@@ -1,3 +1,5 @@
+import '../data/chat_file_exporter.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -28,6 +30,29 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
   double? _progress;
   String? _error;
   File? _file;
+  ChatFileExporter? _exporter;
+  bool _saving = false, _saved = false;
+
+  Future<void> _save() async {
+    final file = _file, downloader = _downloader;
+    if (file == null || downloader == null || _saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final saved = await (_exporter ??= ChatFileExporter()).save(
+        file,
+        widget.reference,
+        () => downloader.authorizeExport(widget.reference),
+      );
+      if (mounted) setState(() => _saved = saved);
+    } catch (_) {
+      if (mounted) setState(() => _error = '保存未完成，请重试');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   Future<void> _download() async {
     if (_busy) return;
@@ -72,6 +97,7 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
 
   @override
   void dispose() {
+    _exporter?.dispose();
     _downloader?.dispose();
     super.dispose();
   }
@@ -104,6 +130,11 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
                         '下载完成，文件校验通过',
                         style: TextStyle(color: Colors.white70),
                       ),
+                    if (_saved)
+                      const Text(
+                        '已保存到所选位置',
+                        style: TextStyle(color: Colors.white70),
+                      ),
                     if (_error != null)
                       Text(
                         _error!,
@@ -120,6 +151,11 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
               FilledButton(
                 onPressed: _download,
                 child: Text(_error == null ? '下载文件' : '重新下载'),
+              )
+            else if (Platform.isAndroid)
+              FilledButton(
+                onPressed: _saving ? null : _save,
+                child: Text(_saving ? '正在保存…' : '保存到文件'),
               ),
           ],
         ),

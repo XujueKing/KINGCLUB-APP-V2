@@ -81,6 +81,10 @@ class ChatFileDownloader {
     );
   }
 
+  Future<void> authorizeExport(ChatFileReference reference) async {
+    await _grant(reference);
+  }
+
   void cancel() => _cancel?.cancel('download cancelled');
 
   Future<void> _check() async {
