@@ -10,9 +10,32 @@ import java.util.concurrent.*;
 
 /** Runs the installed native bridge against a synthetic asset. No network/send. */
 public final class VideoUploadProbe extends Instrumentation {
-  @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
+  private boolean capabilitiesOnly;
+  @Override public void onCreate(Bundle args) {
+    super.onCreate(args);
+    capabilitiesOnly = args != null && "true".equals(args.getString("capabilitiesOnly"));
+    start();
+  }
   @Override public void onStart() {
     Bundle report = new Bundle();
+    if (capabilitiesOnly) {
+      StringBuilder entries = new StringBuilder();
+      for (android.media.MediaCodecInfo codec : new android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS).getCodecInfos()) {
+        if (!codec.isEncoder()) continue;
+        for (String mime : codec.getSupportedTypes()) {
+          if (!mime.equals("video/avc") && !mime.equals("video/hevc")) continue;
+          try {
+            android.media.MediaCodecInfo.EncoderCapabilities caps = codec.getCapabilitiesForType(mime).getEncoderCapabilities();
+            entries.append(codec.getName()).append(' ').append(mime)
+                .append(" CBR=").append(caps.isBitrateModeSupported(2))
+                .append(" VBR=").append(caps.isBitrateModeSupported(1)).append(';');
+          } catch (Exception ignored) { entries.append("CAPABILITY_QUERY_FAILED;"); }
+        }
+      }
+      report.putString("codecs", entries.toString());
+      finish(-1, report);
+      return;
+    }
     File input = new File(getTargetContext().getCacheDir(), "synthetic-video-probe.mp4");
     Object[] bridge = new Object[1];
     Class<?>[] bridgeClass = new Class<?>[1];
@@ -54,6 +77,22 @@ public final class VideoUploadProbe extends Instrumentation {
       if (output[0] instanceof String) {
         File copy = new File((String) output[0]);
         report.putLong("outputBytes", copy.length());
+        android.media.MediaExtractor extractor = new android.media.MediaExtractor();
+        try {
+          extractor.setDataSource(copy.getAbsolutePath());
+          boolean audio = false;
+          for (int i = 0; i < extractor.getTrackCount(); i++) {
+            android.media.MediaFormat format = extractor.getTrackFormat(i);
+            String mime = format.getString(android.media.MediaFormat.KEY_MIME);
+            if (mime != null && mime.startsWith("video/")) {
+              report.putString("videoMime", mime);
+              report.putInt("width", format.getInteger(android.media.MediaFormat.KEY_WIDTH));
+              report.putInt("height", format.getInteger(android.media.MediaFormat.KEY_HEIGHT));
+            }
+            if (mime != null && mime.startsWith("audio/")) audio = true;
+          }
+          report.putBoolean("hasAudio", audio);
+        } finally { extractor.release(); }
         report.putString("result", copy.length() > 0 && copy.length() < input.length() ? (copy.length() <= 2_000_000 ? "COMPRESSED" : "BITRATE_OVERSHOOT") : "INVALID_OUTPUT");
         copy.delete();
       } else report.putString("result", "FELL_BACK_TO_SOURCE");

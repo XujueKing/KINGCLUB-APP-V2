@@ -128,19 +128,26 @@ class ChatVideoUpload(private val context: Context) {
 
     private fun start(source: File, output: File, part: File, before: Info, current: Int) {
         try {
-            val scale = minOf(1.0, 1280.0 / max(before.width, before.height))
-            val width = max(2, (before.width * scale / 2).roundToInt() * 2)
-            val height = max(2, (before.height * scale / 2).roundToInt() * 2)
             // Android 12+ may raise VBR above the requested rate to enforce its
             // quality floor. Prefer supported CBR for a bounded upload budget.
-            val cbr = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { codec ->
-                codec.isEncoder && codec.supportedTypes.any { it.equals(MimeTypes.VIDEO_H264, true) } &&
-                    try { codec.getCapabilitiesForType(MimeTypes.VIDEO_H264).encoderCapabilities
+            val codecs = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
+            fun supportsCbr(codec: MediaCodecInfo, mime: String): Boolean =
+                codec.isEncoder && codec.supportedTypes.any { it.equals(mime, true) } &&
+                    try { codec.getCapabilitiesForType(mime).encoderCapabilities
                         .isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR) }
                     catch (_: Exception) { false }
+            val avcCbr = codecs.any { supportsCbr(it, MimeTypes.VIDEO_H264) }
+            val hardwareHevc = android.os.Build.VERSION.SDK_INT >= 29 && codecs.any {
+                it.isHardwareAccelerated && supportsCbr(it, MimeTypes.VIDEO_H265)
             }
+            val mime = if (!avcCbr && hardwareHevc) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264
+            val cbr = avcCbr || hardwareHevc
             val mode = if (cbr) MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR else MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR
-            Log.i("KingclubVideoUpload", "ENCODE bitrate=1500000 mode=$mode")
+            val maxEdge = 1280.0
+            val scale = minOf(1.0, maxEdge / max(before.width, before.height))
+            val width = max(2, (before.width * scale / 2).roundToInt() * 2)
+            val height = max(2, (before.height * scale / 2).roundToInt() * 2)
+            Log.i("KingclubVideoUpload", "ENCODE bitrate=1500000 mode=$mode mime=$mime width=$width height=$height")
             val encoder = DefaultEncoderFactory.Builder(context)
                 .setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(1_500_000).setBitrateMode(mode).build())
                 .setRequestedAudioEncoderSettings(AudioEncoderSettings.Builder().setBitrate(64_000).build()).build()
@@ -148,7 +155,7 @@ class ChatVideoUpload(private val context: Context) {
                 .setEffects(Effects(emptyList(), listOf(
                     Presentation.createForWidthAndHeight(width, height, Presentation.LAYOUT_SCALE_TO_FIT),
                     FrameDropEffect.createDefaultFrameDropEffect(30f)))).build()
-            val task = Transformer.Builder(context).setVideoMimeType(MimeTypes.VIDEO_H264)
+            val task = Transformer.Builder(context).setVideoMimeType(mime)
                 .setAudioMimeType(MimeTypes.AUDIO_AAC).setEncoderFactory(encoder)
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) {

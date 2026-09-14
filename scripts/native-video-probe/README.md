@@ -33,7 +33,18 @@ The runner removes its source copy and successful output. The private native
 bridge also checks output duration and audio presence. This proves real device
 encoding, not visual quality, audible playback, A/V sync or end-to-end delivery.
 
-2026-09-15: connected PCLM50 returned COMPRESSED, sourceBytes=8468630,
+Earlier 2026-09-15 run (before adding the size-budget check): PCLM50 returned COMPRESSED, sourceBytes=8468630,
 outputBytes=2938329, elapsedMs=3651. Probe uninstalled, preview relaunched.
 The member's separately sent ~18 MiB clip still requires diagnosis in the normal
 Flutter send flow; this synthetic result does not resolve that report.
+
+For encoder capability inspection only, add `-e capabilitiesOnly true` before the
+instrumentation component. This prints codec names and CBR/VBR support, without
+encoding or accessing member media.
+
+Latest hardware HEVC run: sourceBytes=8468630, outputBytes=2059623,
+elapsedMs=3517, videoMime=video/hevc, hasAudio=true, encoded dimensions=1280x720.
+Native requested display size was 720x1280. Result remains BITRATE_OVERSHOOT:
+it saves about 76% against this synthetic input but exceeds the unchanged
+2,000,000-byte budget. Do not claim the target bitrate, visual orientation,
+quality or member-video send path has passed from this result alone.
