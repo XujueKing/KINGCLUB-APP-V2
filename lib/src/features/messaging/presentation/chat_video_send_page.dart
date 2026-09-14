@@ -4,7 +4,10 @@ import '../data/chat_video.dart';
 import '../data/chat_video_optimizer.dart';
 import '../data/chat_file_draft_store.dart';
 
+import 'dart:async';
 import 'dart:io';
+
+import '../../../core/session/secure_session_store.dart';
 
 import 'package:flutter/material.dart';
 
@@ -21,7 +24,11 @@ class ChatVideoSendPage extends StatefulWidget {
     required this.chat,
     this.draft,
     this.drafts,
+    this.createUploader,
+    this.createPreview,
   });
+  final Future<ChatFileUploader> Function()? createUploader;
+  final VideoPlayerController Function(File)? createPreview;
   final ChatFileDraft? draft;
   final ChatFileDraftStore? drafts;
   final File file;
@@ -34,7 +41,9 @@ class ChatVideoSendPage extends StatefulWidget {
 class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
   ChatFileUploader? _uploader;
   late final ChatVideoOptimizer _optimizer;
-  bool _optimizing = false;
+  bool _optimizing = false, _invalid = false;
+  StreamSubscription<void>? _session;
+  bool get _usable => mounted && !_invalid;
   VideoPlayerController? _preview;
   UploadedChatFile? _uploaded;
   ChatVideo? _prepared;
@@ -43,7 +52,16 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
   void initState() {
     super.initState();
     _optimizer = ChatVideoOptimizer(account: widget.chat.messaging.account);
-    final player = VideoPlayerController.file(widget.file);
+    _session = SecureSessionStore.changes.stream.listen((_) {
+      _invalid = true;
+      _optimizer.dispose();
+      _uploader?.dispose();
+      _preview?.pause();
+      if (mounted) setState(() => _error = '登录状态已变化，请重新进入会话');
+    });
+    final player =
+        widget.createPreview?.call(widget.file) ??
+        VideoPlayerController.file(widget.file);
     _preview = player;
     player
         .initialize()
@@ -61,6 +79,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
 
   @override
   void dispose() {
+    _session?.cancel();
     _optimizer.dispose();
     _preview?.dispose();
     _uploader?.dispose();
@@ -68,7 +87,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
   }
 
   Future<void> _send() async {
-    if (_busy) return;
+    if (_busy || _invalid) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -76,8 +95,10 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
     });
     try {
       final uploader =
-          _uploader ?? await ChatFileUploader.open(widget.chat.messaging);
-      if (!mounted) {
+          _uploader ??
+          await (widget.createUploader?.call() ??
+              ChatFileUploader.open(widget.chat.messaging));
+      if (!_usable) {
         uploader.dispose();
         return;
       }
@@ -85,14 +106,15 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
       File uploadInput = widget.file;
       if (_uploaded == null) {
         await _preview?.pause();
+        if (!_usable) return;
         setState(() => _optimizing = true);
         uploadInput = await _optimizer.prepare(
           widget.file,
           onProgress: (value) {
-            if (mounted && _optimizing) setState(() => _progress = value);
+            if (_usable && _optimizing) setState(() => _progress = value);
           },
         );
-        if (!mounted) return;
+        if (!_usable) return;
         setState(() {
           _optimizing = false;
           _progress = null;
@@ -106,12 +128,12 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
                 ? widget.fileName
                 : 'video.mp4',
             onProgress: (sent, total) {
-              if (mounted && total > 0) {
+              if (_usable && total > 0) {
                 setState(() => _progress = sent / total);
               }
             },
           );
-      if (!mounted) return;
+      if (!_usable) return;
       _uploaded = file;
       setState(() {
         _processing = true;
@@ -119,7 +141,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
       });
       final video =
           _prepared ?? await widget.chat.messaging.prepareVideo(file.assetId);
-      if (!mounted) return;
+      if (!_usable) return;
       _prepared = video;
       var queued = false;
       await widget.chat.sendVideo(
@@ -135,9 +157,9 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
         await uploader.acknowledgeQueued(file);
         await _optimizer.acknowledgeQueued();
       } catch (_) {}
-      if (mounted) Navigator.of(context).pop(true);
+      if (_usable) Navigator.of(context).pop(true);
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (_usable) setState(() => _error = error.toString());
     } finally {
       if (mounted) {
         setState(() {
@@ -245,7 +267,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _busy ? null : _send,
+                onPressed: _busy || _invalid ? null : _send,
                 child: Text(
                   _busy
                       ? (_optimizing

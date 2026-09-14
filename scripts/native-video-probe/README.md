@@ -23,7 +23,9 @@ media here; never bundle member videos or credentials into the probe.
    ```
 
    Require `result=COMPRESSED`, positive `outputBytes < sourceBytes` and a finite
-   elapsed time. The instrumentation exit code alone is not a passing result.
+   elapsed time. For this fixed 8-second fixture, output must also be at most
+   2,000,000 bytes; BITRATE_OVERSHOOT fails the requested upload budget.
+   The instrumentation exit code alone is not a passing result.
    `FELL_BACK_TO_SOURCE` is useful evidence of a native problem, not a pass.
 5. Uninstall only `com.lingmei.kingclub.videoprobe`, then reopen the preview app.
 

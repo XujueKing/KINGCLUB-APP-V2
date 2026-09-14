@@ -54,7 +54,7 @@ public final class VideoUploadProbe extends Instrumentation {
       if (output[0] instanceof String) {
         File copy = new File((String) output[0]);
         report.putLong("outputBytes", copy.length());
-        report.putString("result", copy.length() > 0 && copy.length() < input.length() ? "COMPRESSED" : "INVALID_OUTPUT");
+        report.putString("result", copy.length() > 0 && copy.length() < input.length() ? (copy.length() <= 2_000_000 ? "COMPRESSED" : "BITRATE_OVERSHOOT") : "INVALID_OUTPUT");
         copy.delete();
       } else report.putString("result", "FELL_BACK_TO_SOURCE");
     } catch (Throwable error) {

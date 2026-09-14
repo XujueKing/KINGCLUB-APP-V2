@@ -3,6 +3,8 @@ package com.lingmei.kingclub
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.media.MediaExtractor
+import android.media.MediaCodecInfo
+import android.media.MediaCodecList
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -129,8 +131,18 @@ class ChatVideoUpload(private val context: Context) {
             val scale = minOf(1.0, 1280.0 / max(before.width, before.height))
             val width = max(2, (before.width * scale / 2).roundToInt() * 2)
             val height = max(2, (before.height * scale / 2).roundToInt() * 2)
+            // Android 12+ may raise VBR above the requested rate to enforce its
+            // quality floor. Prefer supported CBR for a bounded upload budget.
+            val cbr = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { codec ->
+                codec.isEncoder && codec.supportedTypes.any { it.equals(MimeTypes.VIDEO_H264, true) } &&
+                    try { codec.getCapabilitiesForType(MimeTypes.VIDEO_H264).encoderCapabilities
+                        .isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR) }
+                    catch (_: Exception) { false }
+            }
+            val mode = if (cbr) MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR else MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR
+            Log.i("KingclubVideoUpload", "ENCODE bitrate=1500000 mode=$mode")
             val encoder = DefaultEncoderFactory.Builder(context)
-                .setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(1_500_000).build())
+                .setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(1_500_000).setBitrateMode(mode).build())
                 .setRequestedAudioEncoderSettings(AudioEncoderSettings.Builder().setBitrate(64_000).build()).build()
             val item = EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(source)))
                 .setEffects(Effects(emptyList(), listOf(

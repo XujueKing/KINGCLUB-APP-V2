@@ -31,7 +31,7 @@ class ChatVideoOptimizer {
     if (_prepared != null) return _prepared!;
     if (!_supported || await source.length() < 4 * 1024 * 1024) return source;
     final sink = const DartSha256().newHashSink();
-    sink.add(utf8.encode('$account\u0000'));
+    sink.add(utf8.encode('video-upload-cbr-v2:$account\u0000'));
     try {
       await for (final bytes in source.openRead()) {
         _check();
@@ -113,6 +113,7 @@ class ChatVideoOptimizer {
   }
 
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
     _progressTimer?.cancel();
     _progressTimer = null;

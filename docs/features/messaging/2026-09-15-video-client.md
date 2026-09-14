@@ -85,3 +85,13 @@ https://developer.android.com/media/media3/transformer/customization
 ### 当前手机原生编码实测
 
 重连后安装进度/诊断APK成功，安装时间核对先前手机确为上传前优化版本。新增 scripts/native-video-probe 独立无启动图标的instrumentation验证程序，直接反射调用已安装App的ChatVideoUpload；只使用合成视频，不调用网络或发送聊天消息。PCLM50实测合成29fps、720×1280、8秒有声视频8468630→2938329字节，耗时3651ms，返回COMPRESSED。原生输出检查包含时长及音轨存在；测试程序已卸载，App重新打开。此证据证明手机可以执行原生压缩，不证明普通发送页面已经成功压缩用户18MB样本；其故障仍待真实诊断日志。不得将有音轨等同于实际听到声音或音画同步验收。
+
+
+### Android 12 码率修正与发送任务取消
+
+第二次真实发送日志确认 PLAN skip=false、OUTPUT accepted=false：源19159706字节，原生结果19589133字节，保护规则回退原文件。该手机API31。Android MediaCodec官方文档说明Android12起VBR模式可因最低画质策略提高实际码率，CBR不受该规则影响；Media3 1.9.2源码确认默认VBR且显式设置会要求重编码。因此改为设备支持时优先CBR 1.5Mbps，不支持时保留VBR及实际大小检查。缓存标识加版本避免复用旧策略的派生文件。以合成8秒视频不超过2000000字节为设备预算验证条件，不能只看比8MB源文件小就算目标码率通过。
+
+发送页增加会话事件取消：立即停止优化器和上传器；等待预览暂停、上传回执或处理回执后检查页面和登录是否仍有效；禁止迟到结果继续处理/入队。两项Widget真实异步边界测试及八项优化器测试通过，相关analyze通过。CBR版本真实API profile ARM64构建成功（69.6秒）并已覆盖安装，保留数据。独立原生验证程序安装仍等待手机确认，尚未得到CBR实测结果；不得标记上传流量优化已通过真机验收。随后补充发送结束时的会话有效性检查，避免迟到完成关闭已失效页面，该小改动尚未重新安装。
+
+参考：https://developer.android.com/reference/android/media/MediaCodec
+源码：https://github.com/androidx/media/blob/1.9.2/libraries/transformer/src/main/java/androidx/media3/transformer/DefaultEncoderFactory.java
