@@ -13,3 +13,7 @@ chat_reply_page_test 验证真实页面长按引用、取消、带引用发送�
 ## 引用定位
 
 摘要点击复用 ChatHistoryContextPage，在当前单聊/群聊内重新读取目标序号及上下文，不移动主会话补收游标。原消息刚被个人隐藏时，即使旧摘要尚在页面也拒绝展示；已撤回时上下文只呈现撤回状态。新增 ChatReply 严格校验 UUID、序号与200字符上限，不可用引用丢弃旧摘要且不提供点击。8项页面/解析/上下文测试通过，4文件静态分析通过（build/chat-reply-locate-tests.log、build/chat-reply-locate-analyze.log）。共享服务现已发布 chat-093；此客户端增量尚未安装。双机与缓存同步验收仍待完成。
+
+## 已安装
+
+2026-09-15 00:32:09，dc4d2d7 preview/profile android-arm64 覆盖安装成功，MainActivity 启动成功，保留数据。构建61.8秒、162.0MB，APK SHA256 11899348B551337C812B229BB8FD422B05086182AAB6D0F9F1FFD3DE894523A8。共享chat-093就绪正常。安装不代表双机验收通过。
