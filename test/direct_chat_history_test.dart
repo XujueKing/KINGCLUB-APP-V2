@@ -44,6 +44,44 @@ void main() {
   );
 
   test(
+    'recall after offline cursor refresh removes old memory and disk payload',
+    () async {
+      var revision = 0;
+      final requests = <Map<String, dynamic>>[];
+      final chat = controller((id, params) async {
+        requests.add(Map<String, dynamic>.from(params));
+        final rows = params.containsKey('after')
+            ? <Map<String, dynamic>>[]
+            : [
+                {
+                  ...message(1),
+                  if (revision > 0) 'messageType': 'recalled',
+                  if (revision > 0) 'text': '消息已撤回',
+                },
+              ];
+        return {...response(rows), 'historyVersion': revision};
+      });
+      await chat.initialize();
+      expect(chat.error, isNull);
+      expect(chat.messages.single['messageType'], isNot('recalled'));
+      revision = 1;
+      requests.clear();
+      await chat.synchronize();
+      expect(chat.error, isNull);
+      expect(requests.first['after'], 1);
+      expect(requests.last.containsKey('after'), false);
+      expect(chat.messages.single['messageType'], 'recalled');
+      final saved = await store.read('direct:peer');
+      expect(saved.historyVersion, 1);
+      expect(saved.messages.single['text'], '消息已撤回');
+      chat.dispose();
+      final offline = controller((_, _) async => throw StateError('offline'));
+      await offline.initialize();
+      expect(offline.messages.single['messageType'], 'recalled');
+      offline.dispose();
+    },
+  );
+  test(
     'reopening offline restores messages and loads older pages from disk',
     () async {
       await store.commit(

@@ -21,6 +21,27 @@ void main() {
     'membershipVersion': version,
     'joinedSequence': joined,
   };
+  test('recall between context pages cannot expose the old message', () async {
+    for (final group in [false, true]) {
+      for (final revision in [2, null, -1, '1']) {
+        await expectLater(
+          readChatHistoryContext(
+            messageId: 'm50',
+            sequence: 50,
+            read: ({before, after, required limit}) async => {
+              'messages': before != null ? [message(50)] : [message(51)],
+              'settings': {'hiddenThrough': 0},
+              if (group) 'membershipVersion': 0,
+              if (group) 'joinedSequence': 0,
+              'historyVersion': before != null ? 1 : revision,
+            },
+          ),
+          throwsA(anyOf(isA<StateError>(), isA<FormatException>())),
+        );
+      }
+    }
+  });
+
   testWidgets('context opens at the selected message and clears on logout', (
     tester,
   ) async {

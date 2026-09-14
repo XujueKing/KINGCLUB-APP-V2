@@ -34,5 +34,31 @@ abstract class ChatSessionController extends ChangeNotifier {
   Future<void> sendLocation(ChatLocation location, {VoidCallback? onQueued});
   Future<void> loadOlder();
   Future<void> markVisibleRead(int sequence);
+  Future<void> recall(String messageId) =>
+      Future.error(UnsupportedError('撤回尚未接通'));
+  bool canRecall(String messageId) {
+    final now = DateTime.now().toUtc();
+    return messages.any((message) {
+      final created = DateTime.tryParse(
+        message['createdDate'] as String? ?? '',
+      );
+      final age = created == null ? null : now.difference(created.toUtc());
+      return message['messageId'] == messageId &&
+          message['sender'] == messaging.account &&
+          message['status'] == 'sent' &&
+          [
+            null,
+            'text',
+            'image',
+            'voice',
+            'file',
+            'location',
+          ].contains(message['messageType']) &&
+          age != null &&
+          !age.isNegative &&
+          age <= const Duration(minutes: 2);
+    });
+  }
+
   void resetVisibleHistory();
 }

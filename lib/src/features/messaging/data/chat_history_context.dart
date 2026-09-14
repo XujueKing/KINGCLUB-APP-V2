@@ -23,6 +23,16 @@ Future<List<Map<String, dynamic>>> readChatHistoryContext({
   if (older['membershipVersion'] != newer['membershipVersion']) {
     throw StateError('Group membership changed while locating the message');
   }
+  for (final page in [older, newer]) {
+    final revision = page['historyVersion'];
+    if (revision != null &&
+        (revision is! int || revision < 0 || revision > 4294967295)) {
+      throw const FormatException('Invalid history revision');
+    }
+  }
+  if (older['historyVersion'] != newer['historyVersion']) {
+    throw StateError('History changed while locating the message');
+  }
   final settings = newer['settings'];
   if (settings is! Map || settings['hiddenThrough'] is! int) {
     throw const FormatException('Missing history visibility boundary');

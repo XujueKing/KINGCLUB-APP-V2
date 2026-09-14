@@ -245,6 +245,7 @@ void main() {
           if (id == 'K260913000605') {
             return {'readSequence': params['sequence']};
           }
+          if (id != 'K260913000601') return <String, dynamic>{};
           request = params;
           return response.future;
         },

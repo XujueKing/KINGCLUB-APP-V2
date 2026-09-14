@@ -25,6 +25,7 @@ class DirectChatController extends ChatSessionController {
   ChatHistoryStore? _history;
   Future<void>? _historyReady, _historyBarrier;
   int _diskEpoch = 0;
+  int? _historyVersion;
   int _hiddenThrough = 0;
   String get _historyKey => 'direct:$peer';
 
@@ -38,6 +39,7 @@ class DirectChatController extends ChatSessionController {
     _history = store;
     final page = await store.read(_historyKey);
     _diskEpoch = page.epoch;
+    _historyVersion = page.historyVersion;
     _hiddenThrough = page.hiddenThrough;
     if (_disposed || generation != _historyGeneration) return;
     for (final message in page.messages) {
@@ -140,6 +142,39 @@ class DirectChatController extends ChatSessionController {
     } while (!_disposed && generation == _historyGeneration && _syncAgain);
   }
 
+  Future<bool> _acceptHistoryRevision(Map<String, dynamic> result) async {
+    final version = result['historyVersion'];
+    // Older deployed servers have no revision yet. Once observed, it is required.
+    if (version == null && _historyVersion == null) return true;
+    if (version is! int || version < 0 || version > 4294967295) {
+      throw const FormatException('Invalid history revision');
+    }
+    if (_historyVersion != null && version < _historyVersion!) {
+      throw StateError('聊天记录已变化，请重新同步');
+    }
+    if (version == _historyVersion) return true;
+    // Advance generation synchronously: previous history and send responses may
+    // not restore pre-recall content while the disk invalidation is pending.
+    resetVisibleHistory();
+    _historyVersion = version;
+    final generation = _historyGeneration;
+    _historyBarrier = (_historyBarrier ?? Future<void>.value()).then((_) async {
+      if (_disposed || generation != _historyGeneration) return;
+      if (_history != null) {
+        final epoch = await _history!.adoptHistoryVersion(
+          _historyKey,
+          expectedEpoch: _diskEpoch,
+          historyVersion: version,
+        );
+        if (_disposed || generation != _historyGeneration) return;
+        if (epoch == null) throw StateError('聊天记录版本已变化');
+        _diskEpoch = epoch;
+      }
+    });
+    await synchronize();
+    return false;
+  }
+
   Future<void> _synchronize(int generation) async {
     try {
       if (openHistory != null) {
@@ -155,6 +190,7 @@ class DirectChatController extends ChatSessionController {
           after: initial ? null : _lastSynced,
         );
         if (_disposed || generation != _historyGeneration) return;
+        if (!await _acceptHistoryRevision(result)) return;
         await _merge(result, generation, advanceCursor: true);
         if (_disposed || generation != _historyGeneration) return;
         final rows = result['messages'] as List;
@@ -199,6 +235,7 @@ class DirectChatController extends ChatSessionController {
       }
       final result = await repository.history(peer, before: _oldest);
       if (_disposed || generation != _historyGeneration) return;
+      if (!await _acceptHistoryRevision(result)) return;
       await _merge(result, generation);
       if (_disposed || generation != _historyGeneration) return;
       final rows = result['messages'] as List;
@@ -227,6 +264,7 @@ class DirectChatController extends ChatSessionController {
         _historyKey,
         rows,
         expectedEpoch: _diskEpoch,
+        historyVersion: _historyVersion,
         hiddenThrough: hidden,
         cursor: advanceCursor && rows.isNotEmpty
             ? rows.last['sequence'] as int
@@ -264,9 +302,12 @@ class DirectChatController extends ChatSessionController {
       await _ensureHistory();
       await _historyBarrier;
       if (_disposed || generation != _historyGeneration) return;
-      if (!await _history!.commit(_historyKey, [
-        message,
-      ], expectedEpoch: _diskEpoch)) {
+      if (!await _history!.commit(
+        _historyKey,
+        [message],
+        expectedEpoch: _diskEpoch,
+        historyVersion: _historyVersion,
+      )) {
         throw StateError('聊天记录已变化，请重新同步');
       }
       if (_disposed || generation != _historyGeneration) return;
@@ -502,7 +543,9 @@ class DirectChatController extends ChatSessionController {
             );
       if (_disposed) return;
       final received = Map<String, dynamic>.from(result['message'] as Map);
-      if (kind == 'location' &&
+      final recalled = received['messageType'] == 'recalled';
+      if (!recalled &&
+          kind == 'location' &&
           (received['messageType'] != 'location' ||
               !ChatLocation.fromJson(
                 Map<String, dynamic>.from(received['location'] as Map),
@@ -513,7 +556,8 @@ class DirectChatController extends ChatSessionController {
               ))) {
         throw const FormatException('位置回执与发送内容不符');
       }
-      if (kind == 'file' &&
+      if (!recalled &&
+          kind == 'file' &&
           (received['messageType'] != 'file' ||
               [
                 'fileAssetId',
@@ -523,7 +567,8 @@ class DirectChatController extends ChatSessionController {
               ].any((key) => received[key] != pending[key]))) {
         throw const FormatException('文件回执与发送内容不符');
       }
-      if (kind == 'voice' &&
+      if (!recalled &&
+          kind == 'voice' &&
           (received['messageType'] != 'voice' ||
               received['voiceAssetId'] != pending['voiceAssetId'] ||
               received['voiceDurationMs'] != pending['voiceDurationMs'])) {
@@ -532,7 +577,8 @@ class DirectChatController extends ChatSessionController {
       if (received['clientMessageId'] != id ||
           received['sender'] != repository.account ||
           received['recipient'] != peer ||
-          (kind == 'image' &&
+          (!recalled &&
+              kind == 'image' &&
               (received['messageType'] != 'image' ||
                   received['imageAssetId'] != pending['imageAssetId']))) {
         throw const FormatException('消息回执与发送内容不符');
@@ -555,6 +601,24 @@ class DirectChatController extends ChatSessionController {
       _sending.remove(id);
       _changed();
     }
+  }
+
+  @override
+  bool canRecall(String messageId) =>
+      _historyVersion != null && super.canRecall(messageId);
+
+  @override
+  Future<void> recall(String messageId) async {
+    if (_disposed) return;
+    await repository.call('K260914000661', {
+      'peer': peer,
+      'messageId': messageId,
+    });
+    if (_disposed) return;
+    // Remove stale content immediately after acknowledgement, even if refresh
+    // fails. Reconnect will reload the authoritative tombstone.
+    resetVisibleHistory();
+    await synchronize();
   }
 
   @override

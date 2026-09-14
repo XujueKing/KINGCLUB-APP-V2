@@ -37,6 +37,52 @@ void main() {
       MessagingRepository(account: 'me', call: call),
     ),
   );
+  test(
+    'recall after offline cursor refresh removes old memory and disk payload',
+    () async {
+      var revision = 0;
+      final requests = <Map<String, dynamic>>[];
+      final chat = controller((id, params) async {
+        if (id == 'K260913000619')
+          return {'groupName': 'Test', 'members': <Map<String, dynamic>>[]};
+        requests.add(Map<String, dynamic>.from(params));
+        final rows = params.containsKey('after')
+            ? <Map<String, dynamic>>[]
+            : [
+                {
+                  ...row(1),
+                  if (revision > 0) 'messageType': 'recalled',
+                  if (revision > 0) 'text': '消息已撤回',
+                },
+              ];
+        return {
+          ...history(rows),
+          'historyVersion': revision,
+          'membershipVersion': 0,
+          'joinedSequence': 0,
+          'settings': {'hiddenThrough': 0},
+        };
+      });
+      await chat.initialize();
+      expect(chat.error, isNull);
+      expect(chat.messages.single['messageType'], isNot('recalled'));
+      revision = 1;
+      requests.clear();
+      await chat.synchronize();
+      expect(chat.error, isNull);
+      expect(requests.first['after'], 1);
+      expect(requests.last.containsKey('after'), false);
+      expect(chat.messages.single['messageType'], 'recalled');
+      final saved = await store.read('group:group');
+      expect(saved.historyVersion, 1);
+      expect(saved.messages.single['text'], '消息已撤回');
+      chat.dispose();
+      final offline = controller((_, _) async => throw StateError('offline'));
+      await offline.initialize();
+      expect(offline.messages.single['messageType'], 'recalled');
+      offline.dispose();
+    },
+  );
   test('confirmed group and member names survive offline reopen and clear with access', () async {
     final chat = controller((id, _) async {
       if (id == 'K260913000619') {

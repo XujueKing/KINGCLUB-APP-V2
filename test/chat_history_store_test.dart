@@ -37,6 +37,85 @@ void main() {
     await dir.delete(recursive: true);
   });
   test(
+    'recall revision invalidates old disk pages and rejects delayed writes',
+    () async {
+      await store.commit(
+        'direct:peer',
+        [message(1)],
+        expectedEpoch: 0,
+        cursor: 1,
+      );
+      final epoch = await store.adoptHistoryVersion(
+        'direct:peer',
+        expectedEpoch: 0,
+        historyVersion: 1,
+      );
+      expect(epoch, 1);
+      expect((await store.read('direct:peer')).messages, isEmpty);
+      expect(
+        await store.commit(
+          'direct:peer',
+          [message(1)],
+          expectedEpoch: 0,
+          cursor: 1,
+        ),
+        false,
+      );
+      expect(
+        await store.commit(
+          'direct:peer',
+          [message(1)],
+          expectedEpoch: 1,
+          cursor: 1,
+        ),
+        false,
+      );
+      expect(
+        await store.commit(
+          'direct:peer',
+          [
+            {...message(1), 'messageType': 'recalled', 'text': '消息已撤回'},
+          ],
+          expectedEpoch: 1,
+          historyVersion: 1,
+          cursor: 1,
+        ),
+        true,
+      );
+      await store.close();
+      store = await open();
+      final page = await store.read('direct:peer');
+      expect(page.historyVersion, 1);
+      expect(page.messages.single['messageType'], 'recalled');
+      expect(
+        await store.adoptHistoryVersion(
+          'direct:peer',
+          expectedEpoch: 1,
+          historyVersion: 0,
+        ),
+        isNull,
+      );
+      expect(
+        await store.adoptHistoryVersion(
+          'direct:peer',
+          expectedEpoch: 1,
+          historyVersion: 1,
+        ),
+        1,
+      );
+      expect(
+        await store.adoptHistoryVersion(
+          'direct:peer',
+          expectedEpoch: 1,
+          historyVersion: 2,
+        ),
+        2,
+      );
+      expect((await store.read('direct:peer')).cursor, 0);
+      expect((await store.read('direct:peer')).messages, isEmpty);
+    },
+  );
+  test(
     'file metadata survives encrypted history reopen without download grants',
     () async {
       await store.commit(

@@ -574,6 +574,13 @@ class _DirectChatPageState extends State<DirectChatPage>
     final nearBottom =
         !_scrollController.hasClients ||
         _scrollController.position.extentAfter < 48;
+    final activeVoice = _voicePlayback?.activeId;
+    if (activeVoice != null &&
+        !chat.messages.any(
+          (m) => m['messageId'] == activeVoice && m['messageType'] == 'voice',
+        )) {
+      _voicePlayback?.stop();
+    }
     setState(() {
       _messages
         ..clear()
@@ -582,6 +589,7 @@ class _DirectChatPageState extends State<DirectChatPage>
             (message) => _FakeMessage(
               message['text'] as String,
               messageId: message['messageId'] as String?,
+              system: message['messageType'] == 'recalled',
               fileName: message['messageType'] == 'file'
                   ? message['fileName'] as String?
                   : null,
@@ -2146,6 +2154,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   Future<void> _showMessageMenu(int index) async {
     final message = _messages[index];
+    if (message.system) return;
     final action = await showModalBottomSheet<_FakeMessageAction>(
       context: context,
       backgroundColor: legacyActionMenuBackground,
@@ -2181,7 +2190,10 @@ class _DirectChatPageState extends State<DirectChatPage>
                 onTap: () =>
                     Navigator.pop(sheetContext, _FakeMessageAction.delete),
               ),
-              if (message.mine)
+              if (message.mine &&
+                  (_chat == null ||
+                      (message.messageId != null &&
+                          _chat!.canRecall(message.messageId!))))
                 ListTile(
                   key: const ValueKey('direct-chat-recall'),
                   leading: const Icon(Icons.undo),
@@ -2195,7 +2207,9 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
     );
     if (!mounted || action == null) return;
-    if (_realTarget != null && action != _FakeMessageAction.copy) {
+    if (_realTarget != null &&
+        action != _FakeMessageAction.copy &&
+        action != _FakeMessageAction.recall) {
       KingNotice.of(context).show('该消息操作正在接入');
       return;
     }
@@ -2225,6 +2239,17 @@ class _DirectChatPageState extends State<DirectChatPage>
           setState(() => _messages.removeAt(index));
         }
       case _FakeMessageAction.recall:
+        if (_chat != null) {
+          final id = message.messageId;
+          if (id == null) return;
+          try {
+            _voicePlayback?.stop();
+            await _chat!.recall(id);
+          } catch (error) {
+            if (mounted) KingNotice.of(context).show('撤回失败：$error');
+          }
+          return;
+        }
         final confirmed = await _confirmMessageAction(
           title: '撤回这条消息？',
           action: '撤回',

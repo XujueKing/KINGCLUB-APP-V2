@@ -16,10 +16,12 @@ class ChatHistoryPage {
     this.hiddenThrough = 0,
     this.membershipVersion,
     this.presentation,
+    this.historyVersion,
   ]);
   final List<Map<String, dynamic>> messages;
   final int cursor, epoch, hiddenThrough;
   final int? membershipVersion;
+  final int? historyVersion;
   final Map<String, dynamic>? presentation;
 }
 
@@ -82,7 +84,7 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 4,
+        version: 5,
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 2) {
             await db.execute(
@@ -99,10 +101,15 @@ class ChatHistoryStore {
               'ALTER TABLE conversation ADD COLUMN presentation BLOB',
             );
           }
+          if (oldVersion < 5) {
+            await db.execute(
+              'ALTER TABLE conversation ADD COLUMN historyVersion INTEGER',
+            );
+          }
         },
         onCreate: (db, _) async {
           await db.execute(
-            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER, presentation BLOB)',
+            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER, presentation BLOB, historyVersion INTEGER)',
           );
           await db.execute(
             'CREATE TABLE message (conversation TEXT NOT NULL, sequence INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(conversation, sequence))',
@@ -234,6 +241,7 @@ class ChatHistoryStore {
         state.isEmpty ? 0 : state.single['hiddenThrough'] as int,
         state.isEmpty ? null : state.single['membershipVersion'] as int?,
         presentation,
+        state.isEmpty ? null : state.single['historyVersion'] as int?,
       );
     });
   }
@@ -246,8 +254,11 @@ class ChatHistoryStore {
     int? cursor,
     int hiddenThrough = 0,
     int? membershipVersion,
+    int? historyVersion,
   }) async {
-    if ((membershipVersion != null && membershipVersion < 0) ||
+    if ((historyVersion != null &&
+            (historyVersion < 0 || historyVersion > 4294967295)) ||
+        (membershipVersion != null && membershipVersion < 0) ||
         expectedEpoch < 0 ||
         hiddenThrough < 0 ||
         (cursor != null && cursor < 0)) {
@@ -279,6 +290,7 @@ class ChatHistoryStore {
         whereArgs: [id],
       )).single;
       if (state['epoch'] != expectedEpoch) return false;
+      if (state['historyVersion'] != historyVersion) return false;
       final savedVersion = state['membershipVersion'] as int?;
       if (savedVersion != null &&
           (membershipVersion == null || membershipVersion < savedVersion)) {
@@ -358,6 +370,45 @@ class ChatHistoryStore {
           whereArgs: [id, expectedEpoch, membershipVersion],
         ) ==
         1;
+  }
+
+  /// Accept a server revision before merging a page. A changed revision removes
+  /// all cached pages and advances the epoch, rejecting older in-flight writes.
+  /// The outgoing queue is separate and is never removed here.
+  Future<int?> adoptHistoryVersion(
+    String conversation, {
+    required int expectedEpoch,
+    required int historyVersion,
+  }) async {
+    if (expectedEpoch < 0 ||
+        historyVersion < 0 ||
+        historyVersion > 4294967295) {
+      throw ArgumentError('Invalid history revision');
+    }
+    final id = await _conversation(conversation);
+    return _db.transaction((tx) async {
+      await tx.insert('conversation', {
+        'id': id,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
+      final state = (await tx.query(
+        'conversation',
+        where: 'id=?',
+        whereArgs: [id],
+      )).single;
+      if (state['epoch'] != expectedEpoch) return null;
+      final saved = state['historyVersion'] as int?;
+      if (saved != null && historyVersion < saved) return null;
+      if (saved == historyVersion) return expectedEpoch;
+      await tx.delete('message', where: 'conversation=?', whereArgs: [id]);
+      final epoch = expectedEpoch + 1;
+      await tx.update(
+        'conversation',
+        {'cursor': 0, 'epoch': epoch, 'historyVersion': historyVersion},
+        where: 'id=?',
+        whereArgs: [id],
+      );
+      return epoch;
+    });
   }
 
   Future<int> clear(String conversation) async {
