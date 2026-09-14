@@ -17,3 +17,11 @@
 用户确认安装并打开独立 com.lingmei.kingclub.calltest。ADB 从该包当前进程读取固定测试标记：INITIAL_BIDIRECTIONAL_PASSED、RESTART_BIDIRECTIONAL_PASSED、CLEANUP_FINISHED 全部出现（设备日志 12:26:24），无本次失败标记。用户屏幕显示 CLEANUP_FINISHED，与释放连接后的最终状态一致。
 
 证据范围：同一台 Android 的两个原生 WebRTC peer、DataChannel 双向字节传输及 ICE restart 后继续传输；测试使用合成信令与空媒体流，没有采集麦克风或摄像头。不是两台手机语音视频通话、真实公网 NAT/TURN、后台保活或主网 NovoRUDP 验收。测试资源关闭后清理独立测试包，正式 APP 保留。
+
+## 2026-09-14 公网中继复核（晚间）
+
+- 当前 kingclub-turn-test 进程存活，3478 UDP/TCP、5349 TCP 已监听；主机 UFW 已放行这些端口及 49160–49200 UDP。
+- 服务器内部 TLS 检查保留主机名与证书链校验，Verification OK / Verify return code 0。
+- Windows DNS 将 test.wuyexin.cn 解析到 198.18.0.33（代理地址），服务器解析与配置 external-ip 均为 47.103.59.206。代理路径仅 TCP connect 成功，但既有 probe-turn-public.py 收到 TCP EOF、TLS SSL EOF，UDP 超时；不能据 TCP connect 判定 TURN 可用。
+- 将 TCP/TLS 的连接地址定向到配置公网 IP，同时仍使用 test.wuyexin.cn 校验 TLS 主机名：TCP 超时、TLS 连接重置；公网 IP UDP 超时。电脑代理仍可能影响路由，此结果不足以归因云安全组。
+- 没有调整电脑代理、DNS、云安全组或服务器防火墙；没有生成/输出中继密钥，也没有发起真人通话。已询问测试手机是否启用 VPN/代理，双手机公网音视频仍未验收。
