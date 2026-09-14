@@ -1,0 +1,147 @@
+import 'package:kingclub/src/features/messaging/data/chat_video.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/messaging/data/group_chat_controller.dart';
+import 'package:kingclub/src/features/messaging/data/group_chat_repository.dart';
+import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
+
+import 'direct_chat_controller_test.dart' show MemoryOutbox;
+import 'group_chat_controller_test.dart' show history;
+
+const asset = '12345678-1234-1234-1234-123456789012';
+GroupChatRepository repository(
+  Future<Map<String, dynamic>> Function(Map<String, dynamic>) send,
+) => GroupChatRepository(
+  MessagingRepository(
+    account: 'me',
+    call: (id, params) async {
+      if (id == 'K260913000621') return history([]);
+      if (id == 'K260913000619') return {'members': <dynamic>[]};
+      expect(id, 'K260915000666');
+      return send(params);
+    },
+  ),
+);
+void main() {
+  test(
+    'group video retry retains identity across controller recreation',
+    () async {
+      final queue = MemoryOutbox(), requests = <Map<String, dynamic>>[];
+      final repo = repository((params) async {
+        requests.add(params);
+        if (requests.length == 1) {
+          throw const AuthFailure('NETWORK_ERROR', 'offline');
+        }
+        return {
+          'message': {
+            'messageId': 'm',
+            'groupId': 'g',
+            'sequence': 1,
+            'sender': 'me',
+            'clientMessageId': params['clientMessageId'],
+            'messageType': 'video',
+            'videoAssetId': params['assetId'],
+            'videoDurationMs': 2000,
+            'videoWidth': 320,
+            'videoHeight': 240,
+            'videoHasAudio': true,
+            'text': '[视频]',
+          },
+        };
+      });
+      final first = GroupChatController(
+        repository: repo,
+        groupId: 'g',
+        outbox: queue,
+      );
+      await first.initialize();
+      await first.sendVideo(
+        ChatVideo(
+          assetId: asset,
+          durationMs: 2000,
+          width: 320,
+          height: 240,
+          hasAudio: true,
+        ),
+      );
+      expect(queue.items.length, 1);
+      expect(first.messages.single['status'], 'queued');
+      first.dispose();
+      final restored = GroupChatController(
+        repository: repo,
+        groupId: 'g',
+        outbox: queue,
+      );
+      await restored.initialize();
+      expect(requests.length, 2);
+      expect(requests[0], requests[1]);
+      expect(queue.items, isEmpty);
+      expect(restored.messages.single['videoAssetId'], asset);
+      restored.dispose();
+    },
+  );
+  test(
+    'wrong group video acknowledgement cannot remove durable queue item',
+    () async {
+      final queue = MemoryOutbox();
+      final controller = GroupChatController(
+        groupId: 'g',
+        outbox: queue,
+        repository: repository(
+          (params) async => {
+            'message': {
+              'messageId': 'wrong',
+              'groupId': 'g',
+              'sender': 'me',
+              'clientMessageId': params['clientMessageId'],
+              'messageType': 'video',
+              'videoAssetId': 'different',
+            },
+          },
+        ),
+      );
+      await controller.initialize();
+      await controller.sendVideo(
+        ChatVideo(
+          assetId: asset,
+          durationMs: 2000,
+          width: 320,
+          height: 240,
+          hasAudio: true,
+        ),
+      );
+      expect(queue.items.length, 1);
+      expect(controller.messages.single['status'], 'failed');
+      controller.dispose();
+    },
+  );
+  test('revoked group access prevents new video from entering queue', () async {
+    final queue = MemoryOutbox();
+    var sent = 0;
+    final controller = GroupChatController(
+      groupId: 'g',
+      outbox: queue,
+      repository: repository((_) async {
+        sent++;
+        return {};
+      }),
+    );
+    await controller.initialize();
+    controller.clearVisibleHistory();
+    await expectLater(
+      controller.sendVideo(
+        ChatVideo(
+          assetId: asset,
+          durationMs: 2000,
+          width: 320,
+          height: 240,
+          hasAudio: true,
+        ),
+      ),
+      throwsStateError,
+    );
+    expect(sent, 0);
+    expect(queue.items, isEmpty);
+    controller.dispose();
+  });
+}

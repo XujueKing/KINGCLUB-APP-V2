@@ -1,3 +1,4 @@
+import 'chat_video.dart';
 import 'chat_location.dart';
 import '../../../core/networking/kingclub_secure_client.dart';
 import '../../../core/session/member_qr_memory.dart';
@@ -42,7 +43,14 @@ class MessagingRepository {
             current['sessionId'] != session['sessionId']) {
           throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
         }
-        final data = await client.call(id, params, session: current);
+        final data = await client.call(
+          id,
+          params,
+          session: current,
+          receiveTimeout: id == 'K260915000669'
+              ? const Duration(seconds: 125)
+              : null,
+        );
         if (generation != MemberQrMemory.generation) {
           throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
         }
@@ -89,6 +97,15 @@ class MessagingRepository {
     'clientMessageId': clientMessageId,
     'assetId': assetId,
   });
+  Future<Map<String, dynamic>> sendVideo({
+    required String peer,
+    required String clientMessageId,
+    required String assetId,
+  }) => call('K260915000665', {
+    'recipient': peer,
+    'clientMessageId': clientMessageId,
+    'assetId': assetId,
+  });
   Future<Map<String, dynamic>> sendVoice({
     required String peer,
     required String clientMessageId,
@@ -98,6 +115,15 @@ class MessagingRepository {
     'clientMessageId': clientMessageId,
     'assetId': assetId,
   });
+  Future<ChatVideo> prepareVideo(String sourceAssetId) async =>
+      ChatVideo.fromPrepared(
+        await call('K260915000669', {'sourceAssetId': sourceAssetId}),
+      );
+  Future<Map<String, dynamic>> videoMedia(
+    String messageId, {
+    bool group = false,
+  }) =>
+      call(group ? 'K260915000668' : 'K260915000667', {'messageId': messageId});
   Future<Map<String, dynamic>> imageMedia(
     String messageId, {
     bool group = false,

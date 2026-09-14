@@ -1,3 +1,4 @@
+import 'chat_video.dart';
 import 'chat_location.dart';
 
 import 'package:flutter/foundation.dart';
@@ -31,6 +32,8 @@ abstract class ChatSessionController extends ChangeNotifier {
     VoidCallback? onQueued,
     String? clientMessageId,
   });
+  Future<void> sendVideo(ChatVideo video, {VoidCallback? onQueued}) =>
+      Future.error(UnsupportedError('视频发送尚未接通'));
   Future<void> sendVoice(
     String assetId,
     int durationMs, {
@@ -59,6 +62,7 @@ abstract class ChatSessionController extends ChangeNotifier {
             'text',
             'image',
             'voice',
+            'video',
             'file',
             'location',
           ].contains(message['messageType']) &&

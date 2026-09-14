@@ -1,3 +1,4 @@
+import 'chat_video.dart';
 import 'chat_history_store.dart';
 import 'chat_location.dart';
 import 'chat_session_controller.dart';
@@ -516,6 +517,28 @@ class DirectChatController extends ChatSessionController {
   }
 
   @override
+  Future<void> sendVideo(ChatVideo video, {VoidCallback? onQueued}) async {
+    if (_disposed) return;
+    final id = const Uuid().v4();
+    final message = <String, dynamic>{
+      'clientMessageId': id,
+      'recipient': peer,
+      'sender': repository.account,
+      'messageType': 'video',
+      ...video.toMessageFields(),
+      'text': '[视频]',
+      'createdDate': DateTime.now().toUtc().toIso8601String(),
+      'status': 'queued',
+    };
+    await outbox.put(message);
+    if (_disposed) return;
+    _pending[id] = message;
+    _changed();
+    onQueued?.call();
+    await retry(id);
+  }
+
+  @override
   Future<void> retryQueued() async {
     for (final message in _pending.values.toList()) {
       if (_disposed) return;
@@ -538,6 +561,7 @@ class DirectChatController extends ChatSessionController {
           kind != 'text' &&
           kind != 'image' &&
           kind != 'voice' &&
+          kind != 'video' &&
           kind != 'file' &&
           kind != 'location') {
         throw const FormatException('不支持的待发送消息类型');
@@ -553,6 +577,12 @@ class DirectChatController extends ChatSessionController {
               peer: peer,
               clientMessageId: id,
               assetId: pending['fileAssetId'] as String,
+            )
+          : kind == 'video'
+          ? await repository.sendVideo(
+              peer: peer,
+              clientMessageId: id,
+              assetId: pending['videoAssetId'] as String,
             )
           : kind == 'voice'
           ? await repository.sendVoice(
@@ -577,7 +607,13 @@ class DirectChatController extends ChatSessionController {
       if (_disposed) return;
       final received = Map<String, dynamic>.from(result['message'] as Map);
       final recalled = ['recalled', 'hidden'].contains(received['messageType']);
-      if (!recalled && pending['replyToMessageId'] != null && (received['reply'] is! Map || (received['reply'] as Map)['messageId'] != pending['replyToMessageId'])) { throw StateError('引用回复回执不一致'); }
+      if (!recalled &&
+          pending['replyToMessageId'] != null &&
+          (received['reply'] is! Map ||
+              (received['reply'] as Map)['messageId'] !=
+                  pending['replyToMessageId'])) {
+        throw StateError('引用回复回执不一致');
+      }
       if (!recalled &&
           kind == 'location' &&
           (received['messageType'] != 'location' ||
@@ -600,6 +636,18 @@ class DirectChatController extends ChatSessionController {
                 'fileSha256',
               ].any((key) => received[key] != pending[key]))) {
         throw const FormatException('文件回执与发送内容不符');
+      }
+      if (!recalled &&
+          kind == 'video' &&
+          (received['messageType'] != 'video' ||
+              [
+                'videoAssetId',
+                'videoDurationMs',
+                'videoWidth',
+                'videoHeight',
+                'videoHasAudio',
+              ].any((key) => received[key] != pending[key]))) {
+        throw const FormatException('视频回执与发送内容不符');
       }
       if (!recalled &&
           kind == 'voice' &&

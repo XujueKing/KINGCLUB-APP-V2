@@ -180,6 +180,15 @@ class GroupChatRepository {
     'clientMessageId': clientMessageId,
     'assetId': assetId,
   });
+  Future<Map<String, dynamic>> sendVideo({
+    required String groupId,
+    required String clientMessageId,
+    required String assetId,
+  }) => messaging.call('K260915000666', {
+    'groupId': groupId,
+    'clientMessageId': clientMessageId,
+    'assetId': assetId,
+  });
   Future<Map<String, dynamic>> sendVoice({
     required String groupId,
     required String clientMessageId,
