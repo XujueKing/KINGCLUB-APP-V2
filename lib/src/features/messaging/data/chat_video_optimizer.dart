@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:cryptography/dart.dart';
 import 'package:flutter/services.dart';
@@ -30,19 +31,8 @@ class ChatVideoOptimizer {
     _check();
     if (_prepared != null) return _prepared!;
     if (!_supported || await source.length() < 4 * 1024 * 1024) return source;
-    final sink = const DartSha256().newHashSink();
-    sink.add(utf8.encode('video-upload-hardware-v4:$account\u0000'));
-    try {
-      await for (final bytes in source.openRead()) {
-        _check();
-        sink.add(bytes);
-      }
-    } finally {
-      sink.close();
-    }
-    _key = (await sink.hash()).bytes
-        .map((b) => b.toRadixString(16).padLeft(2, '0'))
-        .join();
+    // Pass only strings: capturing this would transfer native callbacks/state.
+    _key = await _hashInBackground(source.path, account);
     _check();
     String? path;
     var observing = true, polling = false;
@@ -120,3 +110,19 @@ class ChatVideoOptimizer {
     if (_supported) _invoke('cancel', {'id': _id}).catchError((_) => null);
   }
 }
+
+Future<String> _hashInBackground(String path, String account) =>
+    Isolate.run(() async {
+      final sink = const DartSha256().newHashSink();
+      sink.add(utf8.encode('video-upload-hardware-v4:$account\u0000'));
+      try {
+        await for (final bytes in File(path).openRead()) {
+          sink.add(bytes);
+        }
+      } finally {
+        sink.close();
+      }
+      return (await sink.hash()).bytes
+          .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+          .join();
+    });

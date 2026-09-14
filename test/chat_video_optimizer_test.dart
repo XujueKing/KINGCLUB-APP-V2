@@ -108,6 +108,7 @@ void main() {
       );
       await optimizer.prepare(source);
     }
+    expect(keys[0], 'd81194beb1eaa1bcfb0be56dced5afe0132b50d5edfcfc9aabcd5f845e406fa8');
     expect(keys[0], isNot(keys[1]));
   });
   test('progress uses real estimates, ignores invalid values and never moves backwards', () async {
