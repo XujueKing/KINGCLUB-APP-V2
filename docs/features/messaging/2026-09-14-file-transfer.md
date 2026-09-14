@@ -47,3 +47,8 @@ Android 导出实现已加入 MainActivity/ChatFileExport 与 ChatFileExporter�
 
 ## 导出任务隔离与构建
 上一版原生导出已完成 preview/profile 构建，160.7MB/130.5 秒，证明 Kotlin 与平台通道可以编译，不是 document provider 实机验收。随后审查发现旧页面延迟取消可能影响新页面导出：现 choose/copy/cancel 全部携带每次保存独立 UUID，原生只处理当前任务的 copy/cancel，闲置 exporter 释放不发送无归属取消。4 项通道测试逐调用核对同一编号，analyze 通过；修订后的 APK 正在重新构建。
+
+## 原生复制核心 JVM 验证
+将 Android 实际使用的复制循环提取为 ChatFileCopy.java，仍为 64KiB 缓冲和逐字节 SHA256，Native Kotlin 直接调用该实现。test/native/ChatFileCopyTest.java 使用生成输入流和不缓冲输出，JVM -Xmx32m 下验证 256MiB、65537 字节、空文件；另外拒绝截断、超长、摘要错误、中途取消和输出 IOException。标记 CHAT_FILE_NATIVE_COPY_EMPTY_LARGE_DIGEST_BOUNDS_CANCEL_IO_PASSED 已取得。该证据证明实际复制核心有界内存，不代表 Android 文档提供器、低存储设备或云盘保存已实测。
+
+复现：javac -d build/native-file-copy-test android/app/src/main/java/com/lingmei/kingclub/ChatFileCopy.java test/native/ChatFileCopyTest.java；java -Xmx32m -cp build/native-file-copy-test ChatFileCopyTest。导出编号版本 APK 已生成（160.7MB/98.3秒）；抽取复制核心后 Android 编译正在运行。

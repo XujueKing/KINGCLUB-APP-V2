@@ -7,7 +7,6 @@ import android.provider.DocumentsContract
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
-import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -105,26 +104,11 @@ class ChatFileExport(private val activity: Activity) {
         executor.execute {
             var success = false
             try {
-                val digest = MessageDigest.getInstance("SHA-256")
                 source.inputStream().use { input ->
                     val output = activity.contentResolver.openOutputStream(uri, "wt")
                         ?: throw IllegalStateException("No destination")
                     output.use {
-                        val buffer = ByteArray(65536)
-                        var total = 0L
-                        while (true) {
-                            check(!cancellation.get())
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            total += count
-                            check(total <= size)
-                            digest.update(buffer, 0, count)
-                            it.write(buffer, 0, count)
-                        }
-                        check(total == size)
-                        check(digest.digest().joinToString("") { b -> "%02x".format(b.toInt() and 255) } == expected)
-                        check(!cancellation.get())
-                        it.flush()
+                        ChatFileCopy.copy(input, it, size, expected) { cancellation.get() }
                     }
                 }
                 success = true
