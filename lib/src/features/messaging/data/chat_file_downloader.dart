@@ -147,7 +147,7 @@ class ChatFileDownloader {
           !RegExp(r'^[0-9a-f]{64}$').hasMatch(ref.sha256)) {
         throw const FormatException('文件消息无效');
       }
-      final media = await _grant(ref);
+      var media = await _grant(ref);
       final parent = await _temporaryDirectory();
       await _check();
       working = await parent.createTemp('kingclub-chat-download-');
@@ -158,19 +158,32 @@ class ChatFileDownloader {
       for (var index = 0; index < (media['chunkCount'] as int); index++) {
         await _check();
         final expected = (ref.size - index * chunkBytes).clamp(0, chunkBytes);
-        final response = await _dio.get<ResponseBody>(
-          '${media['path']}/$index',
-          cancelToken: _cancel,
-          options: Options(
-            responseType: ResponseType.stream,
-            followRedirects: false,
-            validateStatus: (code) => code == 200,
-            headers: {
-              'authorization': (media['headers'] as Map)['authorization'],
-              'accept-encoding': 'identity',
-            },
-          ),
-        );
+        late Response<ResponseBody> response;
+        for (var attempt = 0; attempt < 2; attempt++) {
+          await _check();
+          response = await _dio.get<ResponseBody>(
+            '${media['path']}/$index',
+            cancelToken: _cancel,
+            options: Options(
+              responseType: ResponseType.stream,
+              followRedirects: false,
+              validateStatus: (code) =>
+                  code == 200 || code == 401 || code == 403,
+              headers: {
+                'authorization': (media['headers'] as Map)['authorization'],
+                'accept-encoding': 'identity',
+              },
+            ),
+          );
+          if (response.statusCode == 200) break;
+          await response.data?.stream.listen((_) {}).cancel();
+          if (attempt == 1) {
+            throw const AuthFailure('FILE_ACCESS_DENIED', '文件下载授权已失效');
+          }
+          // No bytes from this rejected block were written. Keep prior blocks,
+          // but require the server to re-authorize exactly the same message.
+          media = await _grant(ref);
+        }
         await _check();
         final body = response.data;
         if (body == null) throw const FormatException('文件响应为空');

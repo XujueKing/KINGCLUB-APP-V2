@@ -38,6 +38,10 @@ void main() {
     'session-during-download',
     'session-before-grant-return',
     'session-after-download',
+    'expired-grant',
+    'renewal-denied',
+    'renewal-mismatch',
+    'renewal-rejected',
   ]) {
     test('private chunk file download: $scenario', () async {
       final dir = await Directory.systemTemp.createTemp('chat-download-test-');
@@ -61,6 +65,7 @@ void main() {
         group: group,
       );
       var grants = 0, requests = 0;
+      final requestedBlocks = <int>[];
       final repo = MessagingRepository(
         account: 'test-account',
         call: (id, params) async {
@@ -71,13 +76,16 @@ void main() {
             SecureSessionStore.changes.add(null);
             await Future<void>.delayed(Duration.zero);
           }
-          if (scenario == 'revoked' && grants == 2) {
+          if ((scenario == 'revoked' || scenario == 'renewal-denied') &&
+              grants == 2) {
             throw StateError('permission revoked');
           }
           return {
             'messageId': messageId,
             'file': {
-              'assetId': assetId,
+              'assetId': scenario == 'renewal-mismatch' && grants == 2
+                  ? messageId
+                  : assetId,
               'fileName': ref.fileName,
               'size': bytes.length,
               'sha256': hash,
@@ -87,7 +95,7 @@ void main() {
               'path': scenario == 'wrong-path'
                   ? 'https://foreign.invalid/file'
                   : '/kingclub/${group ? 'group-chat-file' : 'chat-file'}/$messageId',
-              'headers': {'authorization': 'Bearer synthetic-test'},
+              'headers': {'authorization': 'Bearer synthetic-test-$grants'},
             },
           };
         },
@@ -96,8 +104,22 @@ void main() {
         ..httpClientAdapter = DownloadTransport((options) async {
           requests++;
           expect(options.followRedirects, false);
-          expect(options.headers['authorization'], 'Bearer synthetic-test');
+          expect(
+            options.headers['authorization'],
+            'Bearer synthetic-test-$grants',
+          );
           final index = int.parse(options.path.split('/').last);
+          requestedBlocks.add(index);
+          if (index == 1 &&
+              [
+                'expired-grant',
+                'renewal-denied',
+                'renewal-mismatch',
+                'renewal-rejected',
+              ].contains(scenario) &&
+              (requests == 2 || scenario == 'renewal-rejected')) {
+            return ResponseBody.fromString('denied', 403);
+          }
           final begin = index * 1024 * 1024;
           final end = (begin + 1024 * 1024).clamp(0, bytes.length);
           final chunk = Uint8List.fromList(bytes.sublist(begin, end));
@@ -144,11 +166,20 @@ void main() {
         'group',
         'empty',
         'session-after-download',
+        'expired-grant',
       ].contains(scenario)) {
         final result = await operation;
         expect(await result.readAsBytes(), bytes);
-        expect(grants, 2);
-        expect(requests, bytes.isEmpty ? 1 : 2);
+        expect(grants, scenario == 'expired-grant' ? 3 : 2);
+        expect(
+          requests,
+          scenario == 'expired-grant'
+              ? 3
+              : bytes.isEmpty
+              ? 1
+              : 2,
+        );
+        if (scenario == 'expired-grant') expect(requestedBlocks, [0, 1, 1]);
         if (scenario == 'session-after-download') {
           SecureSessionStore.changes.add(null);
           await Future<void>.delayed(Duration.zero);
@@ -161,6 +192,10 @@ void main() {
         await expectLater(operation, throwsA(anything));
         expect(await dir.list().toList(), isEmpty);
         if (scenario == 'wrong-path') expect(requests, 0);
+        if (scenario == 'renewal-rejected') expect(requestedBlocks, [0, 1, 1]);
+        if (scenario == 'renewal-denied' || scenario == 'renewal-mismatch') {
+          expect(requestedBlocks, [0, 1]);
+        }
       }
     });
   }
