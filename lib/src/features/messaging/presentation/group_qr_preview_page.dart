@@ -1,3 +1,5 @@
+import 'group_join_request_page.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -197,10 +199,28 @@ class _GroupQrPreviewPageState extends State<GroupQrPreviewPage>
                           child: const Text('进入群聊'),
                         )
                       else
-                        const Text(
-                          '你尚未加入此群，可联系群成员邀请加入',
-                          style: TextStyle(color: Colors.grey),
-                          textAlign: TextAlign.center,
+                        TextButton(
+                          onPressed: () async {
+                            final preview = _preview;
+                            if (_invalid || preview == null) {
+                              return;
+                            }
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => GroupJoinRequestPage(
+                                  groupId: preview['groupId'] as String,
+                                  groupName: preview['groupName'] as String,
+                                  code: widget.code,
+                                  repository: widget.repository,
+                                ),
+                              ),
+                            );
+                            if (mounted && !_invalid) {
+                              await _load();
+                            }
+                          },
+                          child: const Text('申请入群'),
                         ),
                     ],
                     if (_error != null)

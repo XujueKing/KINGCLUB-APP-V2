@@ -1,3 +1,5 @@
+import 'package:cryptography/cryptography.dart';
+
 import 'chat_location.dart';
 
 import 'dart:convert';
@@ -15,6 +17,7 @@ class GroupChatRepository {
   String get account => messaging.account;
   String? _createRequestId;
   bool _creating = false;
+  bool _joining = false;
   bool _transferring = false;
   String? _transferRequestId;
 
@@ -59,6 +62,55 @@ class GroupChatRepository {
 
   Future<Map<String, dynamic>> list({String? before, int limit = 50}) =>
       messaging.call('K260913000618', {'before': ?before, 'limit': limit});
+  Future<Map<String, dynamic>> applyToGroup({
+    required String groupId,
+    required String code,
+    required String note,
+  }) async {
+    if (_joining) {
+      throw StateError('正在提交入群申请');
+    }
+    note = note.trim();
+    if (!RegExp(r'^KC:G:[0-9A-F]{32}$').hasMatch(code) || note.length > 200) {
+      throw ArgumentError('入群申请无效');
+    }
+    _joining = true;
+    try {
+      final digest = await Sha256().hash(
+        utf8.encode(jsonEncode([groupId, code, note])),
+      );
+      final fingerprint = 'group-join-v1:${base64UrlEncode(digest.bytes)}';
+      final id = await _requestStore.identity(fingerprint);
+      final result = await messaging.call('K260914000658', {
+        'requestId': id,
+        'code': code,
+        'note': note,
+      });
+      final status = result['status'];
+      if (result['groupId'] != groupId ||
+          result['changed'] is! bool ||
+          !const [
+            'pending',
+            'accepted',
+            'rejected',
+            'canceled',
+            'expired',
+            'already_member',
+          ].contains(status) ||
+          (status != 'already_member' &&
+              (result['applicationId'] is! String ||
+                  !RegExp(
+                    r'^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$',
+                  ).hasMatch(result['applicationId'] as String)))) {
+        throw const FormatException('入群申请回执无效');
+      }
+      await _requestStore.acknowledge(fingerprint, id);
+      return result;
+    } finally {
+      _joining = false;
+    }
+  }
+
   Future<Map<String, dynamic>> previewQr(String code) =>
       messaging.call('K260914000657', {'code': code});
 
