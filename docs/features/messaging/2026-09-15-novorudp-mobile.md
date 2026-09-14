@@ -24,3 +24,13 @@ Rust样本工具增加仅绑定127.0.0.1的udp模式：随机端口接收合成D
 直接include原始主网两个源文件的secure_probe.rs已使用NDK28.2/API26交叉构建Android ARM64成功（21.06秒）。在连接的Android12手机实际运行，返回NOVORUDP_NATIVE_HANDSHAKE_ENCRYPT_DECRYPT_TAMPER_REPLAY_PASSED，临时797400字节程序已删除。合成密钥与合成载荷，不涉及真实身份；验证双向解密、握手重放、密文篡改和重放拒绝，且篡改失败不消耗正常包序号。
 
 这证明现有Rust安全层可编译并在该Android执行，不代表App已经E2EE。仍缺FFI/JNI生命周期、设备私钥安全存储、会员到可信peer公钥绑定/撤销/恢复、密钥更新、丢包重传与公网路径验证。尚未安装任何新App包或切换真实聊天传输；SUPERVM工作树保持不变。
+
+
+## 原生库接口（实施中）
+
+原生库直接编译主网novorudp/product_overlay模块，以不透明整数handle管理身份、待完成握手及已建立通道；不跨FFI传Rust对象指针。种子使用独立32字节入口，不进入JSON命令或错误信息；调用方负责安全存储及输入缓冲清零。命令返回的原生JSON缓冲由配套free释放。单进程最多128个对象，输入长度和帧大小有上限，释放幂等。
+
+respond必须传入已可信绑定的expectedPeer，验证offer身份后才接受握手；start同样显式固定对端。这不能代替会员到设备公钥绑定，正式聊天仍不启用。握手完成消耗一次性handle，seal/open复用主网序号、认证及重放窗口，close释放通道密钥。
+
+
+原生库接口本批已实现：native/novorudp/lib.rs。开发机真实动态库C ABI两项测试通过，包括完整握手/加解密、错误对端、两类重放与密文篡改拒绝、关闭失效、空种子和超限请求拒绝。Android ARM64共享库构建17.07秒；连接手机实际dlopen、三个C符号调用、身份关闭及输出缓冲释放通过，标记NOVORUDP_ANDROID_SHARED_ABI_LOAD_RELEASE_PASSED，测试程序与库已从/data/local/tmp删除。此批未打包App，下一步仍需Dart封装和账号生命周期。
