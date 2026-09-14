@@ -9,3 +9,7 @@
 同时修正位置转发的本地 [位置] 预览字样此前编码为问号的问题，坐标和坐标系不受影响；对应测试恢复真实中文断言。日志 build/chat-image-forward-tests.log。
 
 页面到发送控制器回归：修正队列字段应为 imageAssetId（接口入参仍为 assetId），新增 widget 测试实际进入 DirectChatController 并截获图片发送接口参数；确认前不准备图片，存储失败重试同编号且不再次准备，源 ID 不作为发送资产。与图片准备 helper 共 11 项通过，日志 build/chat-image-forward-page-tests.log。测试仍使用受控接口响应，真实双机验收待完成。
+
+安装及服务验证：8bda492 profile/preview arm64 构建成功（62.5 秒），23:59:28 adb install -r Success，MainActivity 启动成功，数据保留。SHA256 D474133DA09BBC9316157FD5BEE893C7264912A8F1CAC7B41A32580671104AEE。
+
+隔离 MySQL + 真实加密 HTTP 覆盖单/群来源到单/群目标四组合：收到他人资产不能直接冒用发送，原图下载后通过631加密上传获得本人独立资产，目标发送重试同消息ID，源消息撤回后旧原图授权403、转发副本仍200且尺寸一致。日志 build-chat-image-forward-http.log，退出0，CHAT_IMAGE_FORWARD_HTTP_COPY_OWNERSHIP_REPLAY_SOURCE_RECALL_INDEPENDENCE_PASSED。该验证没有发送给真实用户，手机端操作和接收方显示仍待验收。
