@@ -1,3 +1,4 @@
+import 'group_announcement_page.dart';
 import 'chat_member_avatar.dart';
 import 'create_group_page.dart';
 import '../../../core/networking/kingclub_realtime.dart';
@@ -552,6 +553,27 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                       ),
                       onTap: _saving ? null : _transfer,
                     ),
+                  ListTile(
+                    key: const ValueKey('group-announcement-row'),
+                    title: const Text(
+                      '群公告',
+                      style: TextStyle(color: Color(0xFFC9B69E), fontSize: 16),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: Color(0xFFC9B69E),
+                    ),
+                    onTap: _saving || _invalid
+                        ? null
+                        : () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => GroupAnnouncementPage(
+                                groupId: widget.groupId,
+                                repository: widget.repository,
+                              ),
+                            ),
+                          ),
+                  ),
                   _settingRow('消息免打扰', 'muted'),
                   const Divider(
                     indent: 24,

@@ -134,6 +134,18 @@ class GroupChatRepository {
     'pinned': ?pinned,
     'hide': ?hide,
   });
+  Future<Map<String, dynamic>> announcement(
+    String groupId, {
+    required String text,
+    required int expectedVersion,
+    required int membershipVersion,
+  }) => messaging.call('K260914000655', {
+    'groupId': groupId,
+    'text': text.trim(),
+    'expectedVersion': expectedVersion,
+    'membershipVersion': membershipVersion,
+  });
+
   Future<Map<String, dynamic>> rename(
     String groupId,
     String name,

@@ -115,3 +115,8 @@ MessagingRepository新增632图片发送与633媒体授权读取；DirectChatCon
 真实通讯录行同样复用 ChatMemberAvatar，替换先前姓名首字占位；保持原行布局尺寸。只为可见 Sliver 行请求 612，单次页面快照复用同成员资料；手动刷新、重新进入通讯录、关系/设置事件及会话变化清除旧资料引用。演示列表仍保留演示占位，不用于证明真实头像验收。
 
 验证：通讯录流程与头像组件共 15 项测试通过，新增真实数据分支的 612 成员参数/请求复用、点击资料目标、会话失效清空头像断言；两文件 analyze 无问题。测试为合成资料响应，日志 build/contacts-real-avatar-tests.log、build/contacts-real-avatar-analyze.log。手机新测试包安装仍未完成，公网 TURN UDP/TCP/TLS 探测仍超时，不能计为双机验收。
+
+## 群公告页面
+群设置进入独立原生页面，619读取当前公告及成员角色，655发布/清空。普通成员只读，群主和管理员可编辑；保存带编辑开始时公告版本及成员代次，失败保留草稿。实时变化重新核查权限但不覆盖有效编辑草稿；成员代次/权限变化中止旧编辑，会话变化清空内容。旧服务未包含公告字段时明确提示服务尚未更新，不显示假公告。
+
+验证：群公告页面与群设置/成员管理合并 6 项测试通过；后续补充权限拒绝清空草稿，公告页 2 项重跑通过。页面与 repository analyze 无问题。覆盖普通成员只读、管理员失败保留/成功发布/清空、公告版本和成员代次入参、权限撤销与会话清空。日志 build/group-announcement-page-tests.log、build/group-announcement-page-final-tests.log、build/group-announcement-page-final-analyze.log。081仍未真实迁移，共享服务未部署，客户端未安装验收。
