@@ -34,6 +34,9 @@ abstract class ChatSessionController extends ChangeNotifier {
   Future<void> sendLocation(ChatLocation location, {VoidCallback? onQueued});
   Future<void> loadOlder();
   Future<void> markVisibleRead(int sequence);
+  bool canHideMessage(String messageId) => false;
+  Future<void> hideMessage(String messageId) =>
+      Future.error(UnsupportedError('删除尚未接通'));
   Future<void> recall(String messageId) =>
       Future.error(UnsupportedError('撤回尚未接通'));
   bool canRecall(String messageId) {

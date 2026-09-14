@@ -42,6 +42,8 @@ class GroupChatController extends ChatSessionController {
   Future<void>? _historyReady, _historyBarrier;
   int _diskEpoch = 0;
   int? _historyVersion;
+  bool _canHideMessage = false;
+  final _hiddenMessages = <String, Map<String, dynamic>>{};
   String get _historyKey => 'group:$groupId';
   Future<void> _ensureHistory() => _historyReady ??= _restoreHistory();
   Future<void> _restoreHistory() async {
@@ -107,9 +109,14 @@ class GroupChatController extends ChatSessionController {
         .map((m) => m['clientMessageId'])
         .toSet();
     return [
-      ...confirmed.map(
-        (m) => {...m, 'senderName': _memberNames[m['sender']] ?? m['sender']},
-      ),
+      ...confirmed
+          .where((m) => m['messageType'] != 'hidden')
+          .map(
+            (m) => {
+              ...m,
+              'senderName': _memberNames[m['sender']] ?? m['sender'],
+            },
+          ),
       ..._pending.values.where(
         (m) => !acknowledged.contains(m['clientMessageId']),
       ),
@@ -367,6 +374,7 @@ class GroupChatController extends ChatSessionController {
       if (joined > _visibleAfter) _visibleAfter = joined;
     }
     readSequence = (result['readSequence'] as num).toInt();
+    _canHideMessage = result['canHideMessage'] == true;
     _settings
       ..clear()
       ..addAll(
@@ -375,7 +383,7 @@ class GroupChatController extends ChatSessionController {
     final hidden = (_settings['hiddenThrough'] as num?)?.toInt() ?? 0;
     if (hidden > _visibleAfter) _visibleAfter = hidden;
     final rows = (result['messages'] as List)
-        .map((raw) => Map<String, dynamic>.from(raw as Map))
+        .map((raw) => _preserveHidden(Map<String, dynamic>.from(raw as Map)))
         .toList();
     if (_history != null) {
       if (rows.any((row) => row['groupId'] != groupId)) {
@@ -404,10 +412,23 @@ class GroupChatController extends ChatSessionController {
     }
   }
 
+  Map<String, dynamic> _preserveHidden(Map<String, dynamic> message) {
+    final messageId = message['messageId'] as String;
+    final previous = _hiddenMessages[messageId] ?? _confirmed[messageId];
+    if (message['messageType'] == 'hidden') {
+      _hiddenMessages[messageId] = Map<String, dynamic>.from(message);
+    } else if (previous?['messageType'] == 'hidden') {
+      message = Map<String, dynamic>.from(previous!);
+      _hiddenMessages[messageId] = message;
+    }
+    return message;
+  }
+
   Future<void> _acknowledge(
     Map<String, dynamic> message, {
     bool persist = true,
   }) async {
+    message = _preserveHidden(message);
     final generation = _historyGeneration;
     if (persist && openHistory != null) {
       await _ensureHistory();
@@ -681,7 +702,7 @@ class GroupChatController extends ChatSessionController {
             );
       if (_disposed) return;
       final received = Map<String, dynamic>.from(result['message'] as Map);
-      final recalled = received['messageType'] == 'recalled';
+      final recalled = ['recalled', 'hidden'].contains(received['messageType']);
       if (!recalled &&
           kind == 'location' &&
           (received['messageType'] != 'location' ||
@@ -739,6 +760,44 @@ class GroupChatController extends ChatSessionController {
       _sending.remove(id);
       _changed();
     }
+  }
+
+  @override
+  bool canHideMessage(String messageId) =>
+      !_disposed &&
+      _canHideMessage &&
+      _membershipVersion != null &&
+      messages.any((m) => m['messageId'] == messageId && m['status'] == 'sent');
+  @override
+  Future<void> hideMessage(String messageId) async {
+    if (!canHideMessage(messageId)) throw StateError('该消息当前不可删除');
+    await repository.messaging.call('K260914000664', {
+      'groupId': groupId,
+      'messageId': messageId,
+      'membershipVersion': _membershipVersion,
+    });
+    if (_disposed) return;
+    final original = _confirmed[messageId];
+    if (original != null) {
+      _hiddenMessages[messageId] = {
+        for (final key in [
+          'messageId',
+          'conversationId',
+          'groupId',
+          'sequence',
+          'sender',
+          'recipient',
+          'clientMessageId',
+          'createdDate',
+        ])
+          if (original.containsKey(key)) key: original[key],
+        'messageType': 'hidden',
+        'text': '',
+        'status': 'sent',
+      };
+    }
+    resetVisibleHistory();
+    await synchronize();
   }
 
   @override

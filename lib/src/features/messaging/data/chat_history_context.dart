@@ -56,10 +56,14 @@ Future<List<Map<String, dynamic>>> readChatHistoryContext({
       if (number > lower) messages[number] = row;
     }
   }
-  if (messages[sequence]?['messageId'] != messageId) {
+  if (messages[sequence]?['messageId'] != messageId ||
+      messages[sequence]?['messageType'] == 'hidden') {
     throw StateError('The message is no longer available');
   }
   final sorted = messages.entries.toList()
     ..sort((a, b) => a.key.compareTo(b.key));
-  return sorted.map((entry) => entry.value).toList();
+  return sorted
+      .map((entry) => entry.value)
+      .where((m) => m['messageType'] != 'hidden')
+      .toList();
 }

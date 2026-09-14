@@ -2187,6 +2187,10 @@ class _DirectChatPageState extends State<DirectChatPage>
                     Navigator.pop(sheetContext, _FakeMessageAction.forward),
               ),
               ListTile(
+                enabled:
+                    _realTarget == null ||
+                    (message.messageId != null &&
+                        (_chat?.canHideMessage(message.messageId!) ?? false)),
                 key: const ValueKey('direct-chat-delete'),
                 leading: const Icon(Icons.delete_outline),
                 title: const Text('为我删除'),
@@ -2232,6 +2236,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     }
     if (_realTarget != null &&
         action != _FakeMessageAction.copy &&
+        action != _FakeMessageAction.delete &&
         action != _FakeMessageAction.recall) {
       KingNotice.of(context).show('该消息操作正在接入');
       return;
@@ -2253,6 +2258,28 @@ class _DirectChatPageState extends State<DirectChatPage>
           ),
         );
       case _FakeMessageAction.delete:
+        if (_realTarget != null) {
+          final controller = _chat;
+          final id = message.messageId;
+          if (controller == null ||
+              id == null ||
+              !controller.canHideMessage(id)) {
+            return;
+          }
+          final confirmed = await _confirmMessageAction(
+            title: '删除这条消息？',
+            action: '删除',
+            body: '只从你的聊天记录中删除，对方记录不受影响。',
+          );
+          if (!confirmed || !mounted || _chat != controller) return;
+          try {
+            await _voicePlayback?.stop();
+            await controller.hideMessage(id);
+          } catch (error) {
+            if (mounted) KingNotice.of(context).show('删除失败：$error');
+          }
+          return;
+        }
         final confirmed = await _confirmMessageAction(
           title: '删除这条消息？',
           action: '删除',
