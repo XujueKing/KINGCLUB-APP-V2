@@ -59,3 +59,9 @@
 
 App 3d7e09b 工作树 Profile/preview ARM64 构建成功，assemblePreviewProfile 244.8秒，162.1MB。APK路径 build/app/outputs/flutter-apk/app-preview-profile.apk；生成时间 2026-09-14 22:39:09，SHA256 41E82B3D59177A486CB6AB78E3EA420AE3C3F9F89579EC9E393E2492BED32E4C。包含工作区原有onboarding三文件改动，本任务未修改或提交它们。当前ADB无设备，尚未覆盖安装，不算手机验收。
 
+
+## 设备安装补记
+
+2026-09-14 23:31:43 已向连接的 Android 设备覆盖安装既有 profile APK（代码基线 3d7e09b，构建时间 22:39），`adb install -r` 返回 Success，显式启动 MainActivity 成功，dumpsys 确认 lastUpdateTime。保留应用数据。包含头像详情、语音事件范围、文字转发、通话静音/视频暂停修复，不包含新的个人消息删除客户端。安装成功不代表双机语音/视频或用户播放验收通过，仍待实际验证。
+
+个人消息删除服务端截至 78d356e 已完成 663/664、隐藏读取与附件授权，隔离真实 HTTP 验证通过；共享服务仍 chat-090，客户端未接，因此矩阵中该完整功能仍为进行中。
