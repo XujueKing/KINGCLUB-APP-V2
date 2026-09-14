@@ -51,3 +51,14 @@ NovoRudpSecureSession使用真实C ABI导入身份、握手及加解密，拥有
 
 
 设备身份保存本批已实现NovoRudpDeviceIdentityStore。开发机5项测试通过，真实Rust身份派生+受控存储覆盖并发只写一次/重开peer不变、账号/设备隔离、损坏记录不覆盖、退出时不继续创建、写失败不返回未落盘身份且后续可重试。平台安全存储在这些用例中是替身，因此不宣称Android KeyStore/iOS Keychain真机读写已验收。定向analyze无问题；app:processPreviewProfileResources通过，Android manifest已关联传统备份和Android12 extraction排除规则。未安装新App包，设备目录绑定及正式入口未启用。
+
+
+## 安全 UDP 数据通道
+
+新增 NovoRudpSecureDatagramLink，将已固定可信对端的原生加密通道连接到已绑定 UDP socket。接管 socket 和 channel 生命周期，固定来源地址/端口；退出登录或代次变化后关闭，异步加密结束再次校验，未验证密文不进入 frames。畸形、篡改、错误来源及重放包被丢弃，不关闭正常链路。UDP send 返回零明确报错，不当作已发送；可靠层仍须负责重试与确认。
+
+KINGCLUB 专用载体 KCNSEC01（不是主网现有 NOVRUDP0 裸帧格式）：8字节 magic、LE u16版本1、16字节session、32字节发送公钥、32字节接收公钥、LE u64序号、12字节nonce、LE u16密文长度、密文。总头112字节；完整包上限1200，扣除主网帧头96及AEAD标签16，单帧应用载荷最大976字节。公钥还原为主网 novovm-ed25519 标识，所有认证字段原样交回主网验证；该载体须双方明确支持，不能直接发给未支持它的主网节点。当前Dart JSON桥仅接受非负有符号64位序号，超出拒绝而不截断，自动换密钥仍待完成。
+
+实际开发机 UDP + Rust 动态库四项测试通过：最大1200字节双向收发及原帧完整比对、错误来源/畸形/超长/篡改/重放均不投递且随后正常包仍到达、加密中退出清理、版本/长度/序号越界拒绝。测试发现Windows突发send可返回零，测试发送器仅重试未被socket接受的包；没有把未发出当作安全拒收。不是Mock加密，也不是公网/手机NAT验收。
+
+仍未启用真实聊天：会员设备可信绑定、握手信令、分片/可靠确认/拥塞处理、worker、NAT/中继和自动切换尚未接齐。未新增App安装或更改现有聊天UI。
