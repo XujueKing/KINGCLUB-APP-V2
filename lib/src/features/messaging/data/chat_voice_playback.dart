@@ -59,10 +59,13 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
           (!_playingGroup || (_groupId != null && eventGroup != _groupId))) {
         return;
       }
+      if (event['eventType'] == 'chat.group.read') {
+        unawaited(_recheckPermission());
+        return;
+      }
       if ([
         'chat.settings.changed',
         'chat.group.changed',
-        'chat.group.read',
         'chat.relationship.changed',
         'connection.ready',
       ].contains(event['eventType'])) {
@@ -98,6 +101,8 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
   bool _invalid = false, _disposed = false;
   int _generation = 0;
   int? _playingGeneration;
+  MessagingRepository? _repository;
+  int? _checkingGeneration;
   bool _playingGroup = false;
   String? _groupId;
   String? activeId, error;
@@ -106,6 +111,30 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
     final next = _operations.then((_) => operation());
     _operations = next.catchError((Object _) {});
     return next;
+  }
+
+  // The legacy group.read event also represents hide/settings changes.
+  // Re-authorize without cutting off audio for an ordinary read receipt.
+  Future<void> _recheckPermission() async {
+    final repository = _repository, message = activeId;
+    final generation = _generation;
+    if (_disposed ||
+        _invalid ||
+        repository == null ||
+        message == null ||
+        _checkingGeneration == generation)
+      return;
+    _checkingGeneration = generation;
+    try {
+      final result = await repository.voiceMedia(message, group: _playingGroup);
+      if (result['messageId'] != message || result['voice'] is! Map) {
+        throw const FormatException('Invalid voice permission');
+      }
+    } catch (_) {
+      if (!_disposed && generation == _generation) await stop();
+    } finally {
+      if (_checkingGeneration == generation) _checkingGeneration = null;
+    }
   }
 
   Future<void> stop() async {
@@ -131,6 +160,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
     await stop();
     if (_disposed || _invalid) return;
     final generation = ++_generation;
+    _repository = repository;
     _playingGroup = group;
     _groupId = groupId;
     activeId = messageId;

@@ -198,6 +198,45 @@ void main() {
       expect(player.activeId, null);
     },
   );
+  test(
+    'group read preserves authorized audio but hidden media stops it',
+    () async {
+      final output = Output();
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      var allowed = true, requests = 0;
+      final repo = MessagingRepository(
+        account: 'me',
+        call: (_, p) async {
+          requests++;
+          if (!allowed) throw StateError('hidden');
+          return grant(p['messageId'] as String, group: true);
+        },
+      );
+      final player = ChatVoicePlayback(
+        output: output,
+        events: events.stream,
+        loadFile: (_, _, _, _) async => File('/fixture.m4a'),
+      );
+      addTearDown(player.dispose);
+      addTearDown(events.close);
+      await player.toggle(repo, 'one', group: true, groupId: 'current');
+      final stops = output.stops;
+      void read() => events.add({
+        'eventType': 'chat.group.read',
+        'data': {'groupId': 'current'},
+      });
+      read();
+      await Future<void>.delayed(Duration.zero);
+      expect(requests, 2);
+      expect(player.activeId, 'one');
+      expect(output.stops, stops);
+      allowed = false;
+      read();
+      await Future<void>.delayed(Duration.zero);
+      expect(player.activeId, isNull);
+      expect(output.stops, stops + 1);
+    },
+  );
   for (final group in [false, true]) {
     test(
       'unrelated group events do not interrupt ${group ? "group" : "direct"} audio',
@@ -230,7 +269,7 @@ void main() {
         await Future<void>.delayed(Duration.zero);
         expect(player.activeId, 'one');
         events.add({
-          'eventType': group ? 'chat.group.read' : 'chat.settings.changed',
+          'eventType': group ? 'chat.group.changed' : 'chat.settings.changed',
           'data': group ? {'groupId': 'current'} : {},
         });
         await Future<void>.delayed(Duration.zero);
