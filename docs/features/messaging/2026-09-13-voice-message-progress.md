@@ -50,3 +50,14 @@ ADB462606d8持续offline，本包未覆盖安装；真机发声、双手机真�
 ## 保留草稿恢复发送与离线状态
 
 会话中的语音草稿入口向预览传入当前会话发送操作，重新进入后也可发送账号隔离的已保留录音。预览结束关闭旧列表，再次进入重读磁盘，避免已发送/删除文件留下旧入口。选择前检查会话代次，真正发送仍校验归属与登录。queued状态显示等待网络恢复，区别于明确失败，不改变持久队列重试机制。新增上传未返回时关闭会话的竞态测试，确认不入队且保留文件；build/voice-draft-resume-test.log相关14项测试通过，页面与测试静态分析无问题。尚未重打包。
+
+
+## 2026-09-14 静音录音排查与系统权限拦截
+
+- 已观察到可解码、音量为 -91 dB 的真实静音语音；当前连接的 Android 对本应用 RECORD_AUDIO 的 AppOps 模式为 ignore。发送手机身份仍待用户确认，不能据此认定所有静音均由当前手机产生。
+- 录音插件的普通权限检查后，增加 AndroidX PermissionChecker 的运行权限 + AppOps 检查；拒绝时不开始录制、不产生可发送草稿，提示在系统设置允许麦克风。没有通过 ADB 修改用户隐私权限。
+- 原生通道 kingclub/microphone 仅只读返回当前是否允许录音，不读取任何录音内容。权限仍通过系统与原录音插件请求流程获得。
+- 官方依据：https://developer.android.com/reference/androidx/core/content/PermissionChecker
+- 本项仍需 APK 构建、安装及实际录制验证；不得记为语音问题已解决。
+
+验证更新：voice_capture_test 共 5 项通过。chat-session-avatar-microphone-profile.log 已输出 Built（ARM64 Profile，162 MB），生成 APK 的 dex 中确认包含 kingclub/microphone 通道。当前 ADB 无设备，尚未安装；未声称录音采集/播放真机通过。

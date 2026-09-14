@@ -34,6 +34,27 @@ class Device implements VoiceCaptureDevice {
 
 void main() {
   test(
+    'system denied recording never allocates or returns a sendable draft',
+    () async {
+      final device = Device()..permission.complete(false);
+      var allocations = 0;
+      final capture = VoiceCapture(
+        device: device,
+        allocatePath: () async {
+          allocations++;
+          return 'voice.m4a';
+        },
+      );
+      capture.begin(onLimit: () {});
+      await expectLater(capture.finish(cancel: false), throwsStateError);
+      expect(allocations, 0);
+      expect(device.starts, 0);
+      expect(device.stops, 0);
+      await capture.dispose();
+    },
+  );
+
+  test(
     'release during permission never starts recording after permission returns',
     () async {
       final device = Device();

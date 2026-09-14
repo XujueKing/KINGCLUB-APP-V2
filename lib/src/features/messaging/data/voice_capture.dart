@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 
 import 'voice_draft_store.dart';
 
@@ -21,7 +24,17 @@ abstract interface class VoiceCaptureDevice {
 class NativeVoiceCaptureDevice implements VoiceCaptureDevice {
   final _recorder = AudioRecorder();
   @override
-  Future<bool> hasPermission() => _recorder.hasPermission();
+  Future<bool> hasPermission() async {
+    if (!await _recorder.hasPermission()) return false;
+    // OEM privacy controls can deny AppOps while runtime permission is granted.
+    if (Platform.isAndroid) {
+      return await const MethodChannel('kingclub/microphone')
+              .invokeMethod<bool>('isRecordingAllowed') ==
+          true;
+    }
+    return true;
+  }
+
   @override
   Future<void> start(String path) => _recorder.start(
     const RecordConfig(
@@ -106,7 +119,8 @@ class VoiceCapture {
         if (_recording) await device.cancel();
         return null;
       }
-      if (_error != null) throw StateError('无法录音，请检查麦克风权限或占用情况');
+      if (_error != null)
+        throw StateError('无法录音，请在系统设置中允许 KINGCLUB 使用麦克风，并检查是否被其他应用占用');
       if (!_recording) return null;
       if (_elapsed.elapsed < const Duration(seconds: 1)) {
         await device.cancel();
