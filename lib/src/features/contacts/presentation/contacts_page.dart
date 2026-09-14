@@ -72,7 +72,8 @@ class ContactsPage extends StatefulWidget {
   State<ContactsPage> createState() => _ContactsPageState();
 }
 
-class _ContactsPageState extends State<ContactsPage> {
+class _ContactsPageState extends State<ContactsPage>
+    with WidgetsBindingObserver {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   final _sectionKeys = <String, GlobalKey>{};
@@ -91,7 +92,27 @@ class _ContactsPageState extends State<ContactsPage> {
   int _connectionGeneration = 0;
 
   Future<void> _connectReal() async {
+    _sessions ??= SecureSessionStore.changes.stream.listen((_) {
+      _connectionGeneration++;
+      _events?.cancel();
+      _real?.dispose();
+      _real = null;
+      _avatarProfiles.clear();
+      _groupRepository = null;
+      _groups = [];
+      if (mounted) {
+        setState(() {
+          _query = '';
+          _searchController.clear();
+          _state = ContactsDemoState.empty;
+        });
+        unawaited(_rebindIfSignedIn());
+      }
+    });
     final generation = ++_connectionGeneration;
+    _events?.cancel();
+    _real?.dispose();
+    _real = null;
     try {
       final repository = widget.repository ?? await MessagingRepository.open();
       if (!mounted || generation != _connectionGeneration) return;
@@ -135,6 +156,29 @@ class _ContactsPageState extends State<ContactsPage> {
     }
   }
 
+  Future<void> _rebindIfSignedIn() async {
+    final generation = _connectionGeneration;
+    final session = await SecureSessionStore().readSession();
+    if (!mounted ||
+        generation != _connectionGeneration ||
+        session == null ||
+        !widget.realData) {
+      return;
+    }
+    await _connectReal();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !widget.realData) return;
+    if (_real == null) {
+      unawaited(_rebindIfSignedIn());
+    } else {
+      unawaited(_real!.refresh(afterCurrent: true));
+      unawaited(_real!.refreshRequests());
+    }
+  }
+
   List<_FakeContact> get _realContacts {
     final rows = (_real?.contacts ?? const <MemberContact>[]).map((contact) {
       final initial = contact.displayName.characters.firstOrNull ?? '#';
@@ -175,24 +219,9 @@ class _ContactsPageState extends State<ContactsPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _state = widget.realData ? ContactsDemoState.ready : widget.initialState;
     if (widget.realData) {
-      _sessions = SecureSessionStore.changes.stream.listen((_) {
-        _connectionGeneration++;
-        _events?.cancel();
-        _real?.dispose();
-        _real = null;
-        _avatarProfiles.clear();
-        _groupRepository = null;
-        _groups = [];
-        if (mounted) {
-          setState(() {
-            _query = '';
-            _searchController.clear();
-            _state = ContactsDemoState.empty;
-          });
-        }
-      });
       unawaited(_connectReal());
     }
     _loadedOnce = _state != ContactsDemoState.initialLoading;
@@ -208,8 +237,16 @@ class _ContactsPageState extends State<ContactsPage> {
   @override
   void didUpdateWidget(covariant ContactsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.realData && !oldWidget.realData) {
+      unawaited(_connectReal());
+      return;
+    }
     if (widget.realData && widget.active && !oldWidget.active) {
       _avatarProfiles.clear();
+      if (_real == null) {
+        unawaited(_rebindIfSignedIn());
+        return;
+      }
       unawaited(_real?.refresh(afterCurrent: true));
       unawaited(_real?.refreshRequests());
     }
@@ -307,6 +344,7 @@ class _ContactsPageState extends State<ContactsPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connectionGeneration++;
     _sessions?.cancel();
     _events?.cancel();

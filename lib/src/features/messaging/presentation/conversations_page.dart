@@ -70,7 +70,8 @@ class ConversationsPage extends StatefulWidget {
   State<ConversationsPage> createState() => _ConversationsPageState();
 }
 
-class _ConversationsPageState extends State<ConversationsPage> {
+class _ConversationsPageState extends State<ConversationsPage>
+    with WidgetsBindingObserver {
   MessagingRepository? _repository;
   final _realItems = <Map<String, dynamic>>[];
   final _slides = <String, double>{};
@@ -84,6 +85,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   bool _matches(String name) => name.toLowerCase().contains(_query);
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _realGeneration++;
     _events?.cancel();
     _sessions?.cancel();
@@ -106,14 +108,18 @@ class _ConversationsPageState extends State<ConversationsPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _friendUnread = widget.initialFriendUnreadCount;
     if (widget.realData) _connectReal();
   }
 
   Future<void> _connectReal() async {
+    final generation = ++_realGeneration;
+    _events?.cancel();
+    _sessions?.cancel();
     try {
       final repository = widget.repository ?? await MessagingRepository.open();
-      if (!mounted) return;
+      if (!mounted || generation != _realGeneration) return;
       _repository = repository;
       _events = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
@@ -130,6 +136,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
             _realItems.clear();
             _realReady = false;
           });
+          widget.onFriendUnreadChanged(0);
+          _rebindIfSignedIn();
         }
       });
       await _refreshReal();
@@ -174,7 +182,37 @@ class _ConversationsPageState extends State<ConversationsPage> {
   @override
   void didUpdateWidget(covariant ConversationsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.realData && widget.active && !oldWidget.active) _refreshReal();
+    if (widget.realData && !oldWidget.realData) {
+      _connectReal();
+    } else if (widget.realData && widget.active && !oldWidget.active) {
+      if (_repository == null) {
+        _rebindIfSignedIn();
+      } else {
+        _refreshReal();
+      }
+    }
+  }
+
+  Future<void> _rebindIfSignedIn() async {
+    final generation = _realGeneration;
+    final session = await SecureSessionStore().readSession();
+    if (!mounted ||
+        generation != _realGeneration ||
+        session == null ||
+        !widget.realData) {
+      return;
+    }
+    await _connectReal();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !widget.realData) return;
+    if (_repository == null) {
+      _rebindIfSignedIn();
+    } else {
+      _refreshReal();
+    }
   }
 
   Future<void> _realAction(Map<String, dynamic> item, String action) async {

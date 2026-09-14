@@ -40,6 +40,10 @@ void main() {
   testWidgets('new friends shows a real incoming count even without contacts', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(393, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final repository = MessagingRepository(
       account: 'me',
       call: (id, _) async {

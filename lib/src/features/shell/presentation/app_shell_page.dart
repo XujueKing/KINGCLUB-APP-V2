@@ -120,9 +120,22 @@ class _AppShellPageState extends State<AppShellPage> {
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex.clamp(0, _destinations.length - 1);
-    _systemNotificationsUnread = widget.initialSystemUnreadCount.clamp(0, 9999);
-    _friendConversationUnread = widget.initialFriendUnreadCount.clamp(0, 9999);
+    _systemNotificationsUnread = widget.realChat
+        ? 0
+        : widget.initialSystemUnreadCount.clamp(0, 9999);
+    _friendConversationUnread = widget.realChat
+        ? 0
+        : widget.initialFriendUnreadCount.clamp(0, 9999);
     _shellState = widget.initialDemoState;
+  }
+
+  @override
+  void didUpdateWidget(covariant AppShellPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.realChat && !oldWidget.realChat) {
+      _systemNotificationsUnread = 0;
+      _friendConversationUnread = 0;
+    }
   }
 
   Future<void> _openScanner() async {
