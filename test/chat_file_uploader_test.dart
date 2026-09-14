@@ -35,9 +35,10 @@ const asset = '12345678-1234-1234-1234-123456789012';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
-  for (final renew in [false, true]) {
+  for (final scenario in ['lost', 'renew', 'denied', 'changed', 'rejected']) {
+    final renew = scenario != 'lost';
     test(
-      'file upload resumes acknowledged chunks; expired grant=$renew',
+      'file upload resumes acknowledged chunks; renewal scenario=$scenario',
       () async {
         final dir = await Directory.systemTemp.createTemp(
           'kingclub-file-test-',
@@ -61,11 +62,16 @@ void main() {
             }
             expect(id, 'K260914000649');
             ids.add(p['clientUploadId'] as String);
+            if (scenario == 'denied' && ids.length == 2) {
+              throw const AuthFailure('SESSION_REVOKED', 'revoked');
+            }
             for (var i = 0; i < key.length; i++) {
               key[i] = (i + ids.length) % 256;
             }
             meta = {
-              'assetId': asset,
+              'assetId': scenario == 'changed' && ids.length == 2
+                  ? '22345678-1234-1234-1234-123456789012'
+                  : asset,
               'fileName': p['fileName'],
               'size': bytes.length,
               'sha256': p['sha256'],
@@ -97,74 +103,90 @@ void main() {
             };
           },
         );
-        Dio transport() =>
-            Dio(BaseOptions(baseUrl: 'https://fixture.invalid'))
-              ..httpClientAdapter = Transport((options, wire) async {
-                posts++;
-                final index = int.parse(options.path.split('/').last);
-                expect(options.followRedirects, false);
-                if (renew && posts == 2) {
-                  return ResponseBody.fromString(
-                    '{}',
-                    403,
-                    headers: {
-                      'content-type': ['application/json'],
-                    },
-                  );
-                }
-                final derived = await Hmac.sha256().calculateMac(
-                  utf8.encode('chat-file-chunk-key:v1:$index'),
-                  secretKey: SecretKey(key),
-                );
-                final plain = await AesGcm.with256bits().decrypt(
-                  SecretBox(
-                    wire.sublist(28),
-                    nonce: wire.sublist(0, 12),
-                    mac: Mac(wire.sublist(12, 28)),
-                  ),
-                  secretKey: SecretKey(derived.bytes),
-                  aad: utf8.encode(
-                    jsonEncode([aad, index, index == 0 ? 1024 * 1024 : 3]),
-                  ),
-                );
-                expect(
-                  plain,
-                  bytes.sublist(
-                    index * 1024 * 1024,
-                    index == 0 ? 1024 * 1024 : bytes.length,
-                  ),
-                );
-                final hash = (await Sha256().hash(plain)).bytes
-                    .map((b) => b.toRadixString(16).padLeft(2, '0'))
-                    .join();
-                uploaded[index] = {
-                  'index': index,
-                  'size': plain.length,
-                  'sha256': hash,
-                };
-                if (!renew && !lost) {
-                  lost = true;
-                  throw DioException(
-                    requestOptions: options,
-                    type: DioExceptionType.connectionError,
-                  );
-                }
-                return ResponseBody.fromString(
-                  jsonEncode({
-                    'status': 1,
-                    'data': {'assetId': asset, 'index': index, 'sha256': hash},
-                  }),
-                  201,
-                  headers: {
-                    'content-type': ['application/json'],
-                  },
-                );
-              });
+        Dio transport() => Dio(BaseOptions(baseUrl: 'https://fixture.invalid'))
+          ..httpClientAdapter = Transport((options, wire) async {
+            posts++;
+            final index = int.parse(options.path.split('/').last);
+            expect(options.followRedirects, false);
+            if (renew &&
+                (posts == 2 || (scenario == 'rejected' && posts == 3))) {
+              return ResponseBody.fromString(
+                '{}',
+                403,
+                headers: {
+                  'content-type': ['application/json'],
+                },
+              );
+            }
+            final derived = await Hmac.sha256().calculateMac(
+              utf8.encode('chat-file-chunk-key:v1:$index'),
+              secretKey: SecretKey(key),
+            );
+            final plain = await AesGcm.with256bits().decrypt(
+              SecretBox(
+                wire.sublist(28),
+                nonce: wire.sublist(0, 12),
+                mac: Mac(wire.sublist(12, 28)),
+              ),
+              secretKey: SecretKey(derived.bytes),
+              aad: utf8.encode(
+                jsonEncode([aad, index, index == 0 ? 1024 * 1024 : 3]),
+              ),
+            );
+            expect(
+              plain,
+              bytes.sublist(
+                index * 1024 * 1024,
+                index == 0 ? 1024 * 1024 : bytes.length,
+              ),
+            );
+            final hash = (await Sha256().hash(plain)).bytes
+                .map((b) => b.toRadixString(16).padLeft(2, '0'))
+                .join();
+            uploaded[index] = {
+              'index': index,
+              'size': plain.length,
+              'sha256': hash,
+            };
+            if (!renew && !lost) {
+              lost = true;
+              throw DioException(
+                requestOptions: options,
+                type: DioExceptionType.connectionError,
+              );
+            }
+            return ResponseBody.fromString(
+              jsonEncode({
+                'status': 1,
+                'data': {'assetId': asset, 'index': index, 'sha256': hash},
+              }),
+              201,
+              headers: {
+                'content-type': ['application/json'],
+              },
+            );
+          });
         final first = ChatFileUploader(
           repository: repo,
           checkSession: () async {},
           dio: transport(),
         );
+        if (['denied', 'changed', 'rejected'].contains(scenario)) {
+          try {
+            await expectLater(
+              first.upload(file, fileName: 'fixture.bin'),
+              throwsA(anything),
+            );
+            expect(posts, scenario == 'rejected' ? 3 : 2);
+            expect(ids.length, 2);
+            expect(ids.toSet().length, 1);
+            expect(ready, false);
+            expect(uploaded.keys, [0]);
+          } finally {
+            first.dispose();
+          }
+          return;
+        }
         if (renew) {
           await first.upload(file, fileName: 'fixture.bin');
         } else {
