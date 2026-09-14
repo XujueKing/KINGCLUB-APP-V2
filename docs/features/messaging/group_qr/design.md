@@ -22,3 +22,8 @@ Flutter页面测试覆盖响应校验与重试、后台隐藏/恢复、会话失
 群设置仅当前owner/admin显示入群申请，独立原生页面使用659倒序分页读取；账号及申请备注、实际状态，空列表明确暂无申请。同意/拒绝经确认后调用660并携带读取时的管理员成员代次，严格回执验证，成功重新读权威结果。页面不推测入群成功；错误保留重试。登录变化、后台或实时权限事件清空列表并在恢复时重新鉴权；分页和迟到响应隔离。
 
 管理员页面659/660接入完成：原生确认同意或拒绝、失败后重新鉴权再允许重试、回执严格验证后重新读取列表、分页合并及成员代次变更重载；权限事件/后台/退出登录清空申请备注，迟到确认不会提交。审核3项和申请2项测试通过。旧成员管理测试因新增入口导致末尾行未构建，改为真实滚动到成员后断言（不扩大视口或删除断言），2项重新通过；日志build/group-join-review-client-tests.log、build/group-join-review-members-tests.log。4个实现/审核测试文件analyze无问题。当前申请人显示服务端账号，昵称/头像呈现仍待完善；未安装主App/共享服务联调。
+
+
+## 2026-09-14 integrated device build
+
+Built the configured preview debug APK and successfully updated the connected Android device in place (`adb install -r`: Success). The test API is now release chat-087 with migrations through 087 and runtime readiness checks passed. This delivers the QR, join application and admin review screens against their deployed endpoints; it does not claim completion of manual two-account group acceptance or real voice/video calls.
