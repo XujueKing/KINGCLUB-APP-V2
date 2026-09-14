@@ -2131,7 +2131,8 @@ class _DirectChatPageState extends State<DirectChatPage>
           loadedHistory:
               _chat?.messages
                   .where((m) => m['sequence'] is num)
-                  .map((m) => m['text'] as String)
+                  .map((m) => m['text'])
+                  .whereType<String>()
                   .toList() ??
               const [],
           initialMuted: _muted,

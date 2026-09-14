@@ -10,11 +10,13 @@ class ChatMemberAvatar extends StatelessWidget {
     required this.profile,
     required this.account,
     this.own = false,
+    this.size = 42,
     this.baseUrl = kingclubApiBaseUrl,
   });
   final Future<Map<String, dynamic>> profile;
   final String account;
   final bool own;
+  final double size;
   final String baseUrl;
 
   @override
@@ -26,7 +28,7 @@ class ChatMemberAvatar extends StatelessWidget {
       ),
     );
     return SizedBox.square(
-      dimension: 42,
+      dimension: size,
       child: ClipOval(
         child: FutureBuilder<Map<String, dynamic>>(
           future: profile,
@@ -60,8 +62,8 @@ class ChatMemberAvatar extends StatelessWidget {
               headers: (avatar['headers'] as Map? ?? {}).map(
                 (key, value) => MapEntry(key.toString(), value.toString()),
               ),
-              width: 42,
-              height: 42,
+              width: size,
+              height: size,
               placeholder: fallback,
               errorBuilder: (_, _, _) => fallback,
             );

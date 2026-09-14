@@ -1,3 +1,5 @@
+import '../../contacts/presentation/public_member_page.dart';
+import 'chat_member_avatar.dart';
 import 'chat_history_context_page.dart';
 import 'chat_history_search_page.dart';
 import '../data/messaging_repository.dart';
@@ -40,6 +42,10 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
   late bool _onlyChat = widget.initialOnlyChat;
   bool _saving = false;
   bool _searching = false;
+  late final Future<Map<String, dynamic>> _profile =
+      widget.peerAccount != null && widget.repository != null
+      ? widget.repository!.call('K260913000612', {'peer': widget.peerAccount!})
+      : Future.value({});
 
   static const _history = ['周末 KING CLUB 见', '好，晚上九点', 'A6 卡座见'];
 
@@ -89,7 +95,29 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
             children: [
               Column(
                 children: [
-                  const LegacyFakeAvatar(size: 52),
+                  if (widget.peerAccount == null)
+                    const LegacyFakeAvatar(size: 52)
+                  else
+                    GestureDetector(
+                      key: const ValueKey('direct-chat-details-avatar'),
+                      onTap: widget.repository == null
+                          ? null
+                          : () {
+                              Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  builder: (_) => PublicMemberPage(
+                                    account: widget.peerAccount!,
+                                    repository: widget.repository,
+                                  ),
+                                ),
+                              );
+                            },
+                      child: ChatMemberAvatar(
+                        profile: _profile,
+                        account: widget.peerAccount!,
+                        size: 52,
+                      ),
+                    ),
                   const SizedBox(height: 5),
                   SizedBox(
                     width: 72,
