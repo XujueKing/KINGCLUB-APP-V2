@@ -70,7 +70,8 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
       }
     });
     _complete = _output.completed.listen((_) {
-      if (!_disposed) {
+      if (!_disposed && _playingGeneration == _generation) {
+        _playingGeneration = null;
         activeId = null;
         loading = false;
         notifyListeners();
@@ -96,6 +97,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _operations = Future.value();
   bool _invalid = false, _disposed = false;
   int _generation = 0;
+  int? _playingGeneration;
   bool _playingGroup = false;
   String? _groupId;
   String? activeId, error;
@@ -108,6 +110,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> stop() async {
     _generation++;
+    _playingGeneration = null;
     activeId = null;
     loading = false;
     if (!_disposed) notifyListeners();
@@ -162,13 +165,17 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
       );
       if (!current()) return;
       await _serialize(() async {
-        if (current()) await _output.play(file.path);
+        if (current()) {
+          _playingGeneration = generation;
+          await _output.play(file.path);
+        }
       });
       if (!current()) return;
       loading = false;
       notifyListeners();
     } catch (_) {
       if (current()) {
+        _playingGeneration = null;
         activeId = null;
         loading = false;
         error = '语音暂不可播放，请重试';

@@ -44,6 +44,41 @@ Map<String, dynamic> grant(String message, {bool group = false}) => {
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('old completion during download cannot clear the new clip', () async {
+    final output = Output();
+    final pending = Completer<File>();
+    final downloading = Completer<void>();
+    var loads = 0;
+    final repo = MessagingRepository(
+      account: 'me',
+      call: (_, p) async => grant(p['messageId'] as String),
+    );
+    final player = ChatVoicePlayback(
+      output: output,
+      events: const Stream.empty(),
+      loadFile: (_, _, _, _) async {
+        if (++loads == 1) return File('/one.m4a');
+        downloading.complete();
+        return pending.future;
+      },
+    );
+    addTearDown(player.dispose);
+    await player.toggle(repo, 'one');
+    final next = player.toggle(repo, 'two');
+    await downloading.future;
+    output.done.add(null);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.activeId, 'two');
+    expect(player.loading, true);
+    pending.complete(File('/two.m4a'));
+    await next;
+    expect(output.plays, ['/one.m4a', '/two.m4a']);
+    expect(player.activeId, 'two');
+    expect(player.loading, false);
+    output.done.add(null);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.activeId, isNull);
+  });
   test('native stop failure still disposes output exactly once', () async {
     final output = Output()..failStop = true;
     final player = ChatVoicePlayback(
