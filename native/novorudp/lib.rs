@@ -12,7 +12,7 @@ mod product_overlay {
         "/crates/novovm-network/src/product_overlay.rs"
     ));
 }
-use ed25519_dalek::SigningKey;
+use ed25519_dalek::{Signer, SigningKey};
 use novorudp::NovoRudpTransportFrameV0;
 use product_overlay::*;
 use serde_json::{json, Value};
@@ -95,6 +95,21 @@ fn command(v: Value) -> Result<Value, String> {
             Ok(
                 json!({"peerId":peer_id_from_ed25519_public_key_v1(&key.verifying_key().to_bytes())}),
             )
+        }
+        "bindingProof" => {
+            let Some(Object::Identity(key)) = s.objects.get(&id) else {
+                return Err("identity unavailable".into());
+            };
+            let scope: [u8; 32] =
+                serde_json::from_value(v["scope"].clone()).map_err(|_| "invalid binding scope")?;
+            let nonce: [u8; 32] =
+                serde_json::from_value(v["nonce"].clone()).map_err(|_| "invalid binding nonce")?;
+            // Narrow domain-separated proof, never a general message-signing API.
+            let mut bytes = b"kingclub-device-binding-v1\0".to_vec();
+            bytes.extend_from_slice(&scope);
+            bytes.extend_from_slice(&nonce);
+            bytes.extend_from_slice(&key.verifying_key().to_bytes());
+            Ok(json!({"signature":key.sign(&bytes).to_bytes().to_vec()}))
         }
         "start" => {
             if s.objects.len() >= 128 {

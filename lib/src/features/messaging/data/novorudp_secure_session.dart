@@ -198,6 +198,21 @@ class NovoRudpSecureSession {
     return _bridge.call('public', _identity)['peerId'] as String;
   }
 
+  /// Only sign challenges received from our authenticated binding endpoint.
+  /// The native method signs a fixed domain and includes this identity's key.
+  Uint8List bindingProof({required Uint8List scope, required Uint8List nonce}) {
+    _check();
+    if (scope.length != 32 || nonce.length != 32) {
+      throw ArgumentError('Invalid device binding challenge');
+    }
+    final result = _bridge.call('bindingProof', _identity, {
+      'scope': scope,
+      'nonce': nonce,
+    });
+    return Uint8List.fromList((result['signature'] as List).cast<int>())
+        .asUnmodifiableView();
+  }
+
   NovoRudpHandshake start(String expectedPeer) {
     _check();
     final value = _bridge.call('start', _identity, {

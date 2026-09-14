@@ -19,3 +19,6 @@ Dart生命周期、设备身份安全存储代码及KINGCLUB安全UDP载体已�
 
 
 sender以channel handle创建传输规划器（stream/object为u64十进制字符串，expected为1..1000000分片数），repairAck以sender handle接收已认证ACK裸帧并调用上游缺片规划。ACK作用域和范围先校验再变更状态。sender通过close释放；Dart负责随channel/session关闭子对象。返回规划不代表实际重传或持久投递，完整可靠传输调度仍待接入。
+
+
+bindingProof以identity handle和32字节scope/nonce数组生成固定kingclub-device-binding-v1零结尾域签名，消息还包含本机公钥。仅供受信服务端设备登记挑战；不是通用签名接口。签名有效不等于挑战已一次性消费或会员公钥已登记。
