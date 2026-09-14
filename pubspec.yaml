@@ -59,6 +59,7 @@ dependencies:
   sqflite: ^2.4.4
   flutter_webrtc: 1.6.2+hotfix.1
   file_picker: ^12.3.0
+  unorm_dart: 0.3.2
 dev_dependencies:
   video_player_platform_interface: ^6.9.0
   flutter_test:

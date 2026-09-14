@@ -1,3 +1,5 @@
+import 'package:unorm_dart/unorm_dart.dart' as unorm;
+
 import 'dart:io';
 
 import 'package:cryptography/dart.dart';
@@ -104,6 +106,8 @@ class ChatFileUploader {
       await _check();
       final size = await input.length();
       if (size > maxBytes) throw ArgumentError('文件须不超过256MB');
+      // Match the server before deriving retry identity, metadata and AAD.
+      fileName = unorm.nfc(fileName);
       if (fileName.isEmpty ||
           fileName.trim().isEmpty ||
           fileName.length > 180 ||

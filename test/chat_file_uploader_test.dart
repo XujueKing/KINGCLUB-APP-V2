@@ -35,8 +35,19 @@ const asset = '12345678-1234-1234-1234-123456789012';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
-  for (final scenario in ['lost', 'renew', 'denied', 'changed', 'rejected']) {
-    final renew = scenario != 'lost';
+  for (final scenario in [
+    'lost',
+    'renew',
+    'denied',
+    'changed',
+    'rejected',
+    'unicode',
+  ]) {
+    final renew = !['lost', 'unicode'].contains(scenario);
+    final inputName = scenario == 'unicode' ? 'cafe\u0301.bin' : 'fixture.bin';
+    final canonicalName = scenario == 'unicode'
+        ? 'caf\u00e9.bin'
+        : 'fixture.bin';
     test(
       'file upload resumes acknowledged chunks; renewal scenario=$scenario',
       () async {
@@ -61,6 +72,7 @@ void main() {
               return {...meta, 'status': 'ready'};
             }
             expect(id, 'K260914000649');
+            expect(p['fileName'], canonicalName);
             ids.add(p['clientUploadId'] as String);
             if (scenario == 'denied' && ids.length == 2) {
               throw const AuthFailure('SESSION_REVOKED', 'revoked');
@@ -174,7 +186,7 @@ void main() {
         if (['denied', 'changed', 'rejected'].contains(scenario)) {
           try {
             await expectLater(
-              first.upload(file, fileName: 'fixture.bin'),
+              first.upload(file, fileName: inputName),
               throwsA(anything),
             );
             expect(posts, scenario == 'rejected' ? 3 : 2);
@@ -188,10 +200,10 @@ void main() {
           return;
         }
         if (renew) {
-          await first.upload(file, fileName: 'fixture.bin');
+          await first.upload(file, fileName: inputName);
         } else {
           await expectLater(
-            first.upload(file, fileName: 'fixture.bin'),
+            first.upload(file, fileName: inputName),
             throwsA(isA<AuthFailure>()),
           );
         }
@@ -202,17 +214,18 @@ void main() {
           dio: transport(),
         );
         addTearDown(second.dispose);
-        final result = await second.upload(file, fileName: 'fixture.bin');
+        final result = await second.upload(file, fileName: canonicalName);
+        expect(result.fileName, canonicalName);
         expect(result.assetId, asset);
         expect(result.size, bytes.length);
         expect(posts, renew ? 3 : 2);
         expect(ids[0], ids[1]);
-        await second.upload(file, fileName: 'fixture.bin');
+        await second.upload(file, fileName: inputName);
         expect(posts, renew ? 3 : 2);
         SecureSessionStore.changes.add(null);
         await Future<void>.delayed(Duration.zero);
         await expectLater(
-          second.upload(file, fileName: 'fixture.bin'),
+          second.upload(file, fileName: inputName),
           throwsA(isA<AuthFailure>()),
         );
       },
