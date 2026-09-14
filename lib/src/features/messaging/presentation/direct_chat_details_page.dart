@@ -1,3 +1,4 @@
+import 'chat_history_context_page.dart';
 import 'chat_history_search_page.dart';
 import '../data/messaging_repository.dart';
 import '../../../core/design_system/king_notice.dart';
@@ -116,6 +117,23 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                   Navigator.of(context).push<void>(
                     MaterialPageRoute(
                       builder: (_) => ChatHistorySearchPage(
+                        onSelected: (message) =>
+                            Navigator.of(context).push<void>(
+                              MaterialPageRoute(
+                                builder: (_) => ChatHistoryContextPage(
+                                  account: widget.repository!.account,
+                                  messageId: message['messageId'] as String,
+                                  sequence: message['sequence'] as int,
+                                  read: ({before, after, required limit}) =>
+                                      widget.repository!.history(
+                                        widget.peerAccount!,
+                                        before: before,
+                                        after: after,
+                                        limit: limit,
+                                      ),
+                                ),
+                              ),
+                            ),
                         search: (query, before) => widget.repository!.history(
                           widget.peerAccount!,
                           query: query,

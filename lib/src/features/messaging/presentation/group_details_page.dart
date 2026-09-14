@@ -1,3 +1,4 @@
+import 'chat_history_context_page.dart';
 import 'chat_history_search_page.dart';
 import 'group_join_review_page.dart';
 import 'group_qr_page.dart';
@@ -592,6 +593,31 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                         : () => Navigator.of(context).push<void>(
                             MaterialPageRoute(
                               builder: (_) => ChatHistorySearchPage(
+                                onSelected: (message) => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => ChatHistoryContextPage(
+                                          account: widget
+                                              .repository
+                                              .messaging
+                                              .account,
+                                          messageId:
+                                              message['messageId'] as String,
+                                          sequence: message['sequence'] as int,
+                                          read:
+                                              ({
+                                                before,
+                                                after,
+                                                required limit,
+                                              }) => widget.repository.history(
+                                                widget.groupId,
+                                                before: before,
+                                                after: after,
+                                                limit: limit,
+                                              ),
+                                        ),
+                                      ),
+                                    ),
                                 search: (query, before) =>
                                     widget.repository.history(
                                       widget.groupId,

@@ -12,8 +12,14 @@ typedef HistorySearch = Future<Map<String, dynamic>> Function(
 );
 
 class ChatHistorySearchPage extends StatefulWidget {
-  const ChatHistorySearchPage({super.key, required this.search, this.events});
+  const ChatHistorySearchPage({
+    super.key,
+    required this.search,
+    this.events,
+    this.onSelected,
+  });
   final HistorySearch search;
+  final ValueChanged<Map<String, dynamic>>? onSelected;
   final Stream<Map<String, dynamic>>? events;
   @override
   State<ChatHistorySearchPage> createState() => _ChatHistorySearchPageState();
@@ -226,6 +232,9 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
                         row['createdDate']?.toString() ?? '',
                       )?.toLocal();
                       return ListTile(
+                        onTap: widget.onSelected == null
+                            ? null
+                            : () => widget.onSelected!(row),
                         title: Text(
                           row['text'] as String,
                           style: const TextStyle(color: Colors.white),
