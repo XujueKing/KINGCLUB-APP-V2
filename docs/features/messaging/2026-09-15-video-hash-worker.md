@@ -13,3 +13,5 @@ The file uploader now also scans SHA-256 in an isolate with bounded streaming re
 Targeted analyze passed and 10 uploader tests passed, including loss/timeout/gateway resume, grant renewal/rejection, Unicode filenames, and revocation after scanning with zero API calls. These are controlled tests, not phone delivery evidence. This follow-up is not included in the 07:38 installed APK.
 
 Video send diagnostics now log only stage, elapsed milliseconds and exception type. Stages distinguish opening, optimizing, uploading, processing and queueing; queued means durable outbox acceptance, not server delivery. No paths, tokens, account IDs or message content are logged. Targeted analyze and both video lifecycle tests pass.
+
+Device update: 6abc98c workspace Profile/preview ARM64 APK built in 61.4s (149.0MB); SHA256 39fa217891db959222a715d20bfeeb6b6b9e5139711b4be7c14ab7dda9dce792. adb install -r returned Success and activity launch Status ok. Includes uploader background hashing and stage diagnostics. Existing uncommitted onboarding changes were preserved in this workspace build. Actual new send remains unverified.
