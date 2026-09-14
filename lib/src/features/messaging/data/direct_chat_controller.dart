@@ -686,6 +686,13 @@ class DirectChatController extends ChatSessionController {
         'error': e.toString(),
       };
       await outbox.put(failed);
+      // History may confirm delivery while the failed-state write is pending.
+      // Never resurrect an acknowledged message into the retry queue.
+      if (!_pending.containsKey(id)) {
+        await outbox.remove(id);
+        return;
+      }
+      if (_disposed) return;
       _pending[id] = failed;
       error = e.toString();
     } finally {
