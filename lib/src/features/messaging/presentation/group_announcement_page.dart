@@ -153,11 +153,12 @@ class _GroupAnnouncementPageState extends State<GroupAnnouncementPage> {
       });
       await _load();
     } catch (error) {
-      if (mounted && !_invalid)
+      if (mounted && !_invalid) {
         setState(() {
           _discardDeniedDraft(error);
           _error = error.toString();
         });
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
