@@ -1,3 +1,5 @@
+import 'chat_reply.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -173,6 +175,10 @@ class ChatHistoryStore {
       value['location'] = location.toJson();
     } else {
       value.remove('location');
+    }
+    if (!['hidden', 'recalled'].contains(value['messageType'])) {
+      final reply = ChatReply.tryParse(message['reply']);
+      if (reply != null) value['reply'] = reply.toJson();
     }
     if (utf8.encode(jsonEncode(value)).length > 32768) {
       throw const FormatException('History message exceeds limit');

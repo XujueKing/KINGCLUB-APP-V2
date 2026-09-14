@@ -4,6 +4,11 @@ class ChatReply {
   final int? sequence;
   final String text;
   bool get available => sequence != null;
+  Map<String, dynamic> toJson() => {
+    'messageId': messageId,
+    'available': available,
+    if (available) ...{'sequence': sequence, 'text': text},
+  };
   static ChatReply? tryParse(Object? value) {
     if (value is! Map) return null;
     final id = value['messageId'];

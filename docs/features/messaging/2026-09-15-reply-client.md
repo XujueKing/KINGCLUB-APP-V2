@@ -17,3 +17,7 @@ chat_reply_page_test 验证真实页面长按引用、取消、带引用发送�
 ## 已安装
 
 2026-09-15 00:32:09，dc4d2d7 preview/profile android-arm64 覆盖安装成功，MainActivity 启动成功，保留数据。构建61.8秒、162.0MB，APK SHA256 11899348B551337C812B229BB8FD422B05086182AAB6D0F9F1FFD3DE894523A8。共享chat-093就绪正常。安装不代表双机验收通过。
+
+## 缓存补齐
+
+发现原 SQLite 载荷白名单未包含 reply，离线重进会丢失引用摘要。已通过 ChatReply.toJson 保存受限投影，隐藏/撤回消息不保存引用，不可用引用只保留 messageId/available。真实 SQLite 单聊/群测试验证初始摘要持久化、过滤嵌套授权、新历史版本清除旧摘要；相关7项测试与3文件静态分析通过（build/chat-reply-cache-tests.log、build/chat-reply-cache-analyze.log）。此修复晚于00:32安装，尚未装机。
