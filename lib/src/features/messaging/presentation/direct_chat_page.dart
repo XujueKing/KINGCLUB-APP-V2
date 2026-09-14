@@ -1,3 +1,8 @@
+import 'chat_file_card.dart';
+
+import 'package:file_picker/file_picker.dart';
+
+import 'chat_file_send_page.dart';
 import '../data/call_launch_coordinator.dart';
 import '../data/call_repository.dart';
 import 'call_page.dart';
@@ -532,6 +537,12 @@ class _DirectChatPageState extends State<DirectChatPage>
             (message) => _FakeMessage(
               message['text'] as String,
               messageId: message['messageId'] as String?,
+              fileName: message['messageType'] == 'file'
+                  ? message['fileName'] as String?
+                  : null,
+              fileSize: message['messageType'] == 'file'
+                  ? message['fileSize'] as int?
+                  : null,
               voiceDurationMs: message['messageType'] == 'voice'
                   ? message['voiceDurationMs'] as int?
                   : null,
@@ -720,7 +731,13 @@ class _DirectChatPageState extends State<DirectChatPage>
                                 ),
                               ),
                         message: message,
-                        imageContent: message.location != null
+                        imageContent:
+                            message.fileName != null && message.fileSize != null
+                            ? ChatFileCard(
+                                fileName: message.fileName!,
+                                size: message.fileSize!,
+                              )
+                            : message.location != null
                             ? ChatLocationMessage(
                                 location: message.location!,
                                 mine: message.mine,
@@ -1216,7 +1233,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         assetPath: 'assets/legacy/messaging/action_file.svg',
         glyphSize: 32,
         label: '文件',
-        onTap: () => KingNotice.of(context).show('文件发送暂未开放'),
+        onTap: _selectChatFile,
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_coupon.svg',
@@ -1675,6 +1692,38 @@ class _DirectChatPageState extends State<DirectChatPage>
     });
     _scrollToLatest();
     _completeSend(message);
+  }
+
+  bool _selectingFile = false;
+  Future<void> _selectChatFile() async {
+    if (_selectingFile) return;
+    final chat = _chat;
+    if (chat == null) {
+      KingNotice.of(context).show('会话尚未就绪');
+      return;
+    }
+    _selectingFile = true;
+    try {
+      _inputFocusNode.unfocus();
+      final selected = await FilePicker.pickFile();
+      if (selected == null || !mounted || !identical(chat, _chat)) return;
+      final path = selected.path;
+      if (path == null) throw StateError('无法读取该文件，请先下载到手机');
+      final file = File(path), length = await File(path).length();
+      if (length > 256 * 1024 * 1024) throw StateError('请选择不超过256MB的文件');
+      if (!mounted || !identical(chat, _chat)) return;
+      _voicePlayback?.stop();
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) =>
+              ChatFileSendPage(file: file, fileName: selected.name, chat: chat),
+        ),
+      );
+    } catch (error) {
+      if (mounted) KingNotice.of(context).show(error.toString());
+    } finally {
+      _selectingFile = false;
+    }
   }
 
   Future<void> _selectChatImage(ImageSource source) async {
@@ -2630,6 +2679,8 @@ class _FakeMessage {
     this.quoted,
     this.clientMessageId,
     this.messageId,
+    this.fileName,
+    this.fileSize,
     this.voiceDurationMs,
     this.location,
     this.senderAccount,
@@ -2643,6 +2694,8 @@ class _FakeMessage {
 
   final String? clientMessageId;
   final String? messageId;
+  final String? fileName;
+  final int? fileSize;
   final int? voiceDurationMs;
   final ChatLocation? location;
   final String? senderAccount;
@@ -2663,6 +2716,8 @@ class _FakeMessage {
     text,
     clientMessageId: clientMessageId,
     messageId: messageId,
+    fileName: fileName,
+    fileSize: fileSize,
     voiceDurationMs: voiceDurationMs,
     location: location,
     senderAccount: senderAccount,
