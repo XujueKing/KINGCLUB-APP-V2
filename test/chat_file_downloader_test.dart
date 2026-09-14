@@ -5,6 +5,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
+import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 
 class DownloadTransport implements HttpClientAdapter {
@@ -34,6 +35,9 @@ void main() {
     'revoked',
     'cancel',
     'wrong-path',
+    'session-during-download',
+    'session-before-grant-return',
+    'session-after-download',
   ]) {
     test('private chunk file download: $scenario', () async {
       final dir = await Directory.systemTemp.createTemp('chat-download-test-');
@@ -63,6 +67,10 @@ void main() {
           expect(id, group ? 'K260914000654' : 'K260914000652');
           expect(params, {'messageId': messageId});
           grants++;
+          if (scenario == 'session-before-grant-return') {
+            SecureSessionStore.changes.add(null);
+            await Future<void>.delayed(Duration.zero);
+          }
           if (scenario == 'revoked' && grants == 2) {
             throw StateError('permission revoked');
           }
@@ -126,13 +134,27 @@ void main() {
         onProgress: (received, total) {
           expect(received, lessThanOrEqualTo(total));
           if (scenario == 'cancel') downloader.cancel();
+          if (scenario == 'session-during-download') {
+            SecureSessionStore.changes.add(null);
+          }
         },
       );
-      if (['direct', 'group', 'empty'].contains(scenario)) {
+      if ([
+        'direct',
+        'group',
+        'empty',
+        'session-after-download',
+      ].contains(scenario)) {
         final result = await operation;
         expect(await result.readAsBytes(), bytes);
         expect(grants, 2);
         expect(requests, bytes.isEmpty ? 1 : 2);
+        if (scenario == 'session-after-download') {
+          SecureSessionStore.changes.add(null);
+          await Future<void>.delayed(Duration.zero);
+          await expectLater(downloader.authorizeExport(ref), throwsA(anything));
+          // Dispose joins cleanup so the assertion does not race the filesystem.
+        }
         await downloader.dispose();
         expect(await result.exists(), false);
       } else {

@@ -56,6 +56,7 @@ class ChatFileDownloader {
   final Future<Directory> Function() _temporaryDirectory;
   late final StreamSubscription<void> _session;
   final List<Directory> _completed = [];
+  Future<void> _cleanup = Future<void>.value();
   CancelToken? _cancel;
   bool _invalid = false, _busy = false;
 
@@ -229,16 +230,20 @@ class ChatFileDownloader {
     }
   }
 
-  Future<void> _deleteCompleted() async {
+  Future<void> _deleteCompleted() {
     final directories = List<Directory>.of(_completed);
     _completed.clear();
-    for (final directory in directories) {
-      try {
-        if (await directory.exists()) await directory.delete(recursive: true);
-      } on FileSystemException {
-        // The OS may hold an exported file briefly; only this owned directory is used.
+    _cleanup = _cleanup.then((_) async {
+      for (final directory in directories) {
+        try {
+          if (await directory.exists()) await directory.delete(recursive: true);
+        } on FileSystemException {
+          // Keep ownership for another cleanup attempt when a provider holds it.
+          _completed.add(directory);
+        }
       }
-    }
+    });
+    return _cleanup;
   }
 
   Future<void> dispose() async {
