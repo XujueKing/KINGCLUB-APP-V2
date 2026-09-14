@@ -5,8 +5,9 @@ class ChatVideoGrant {
     this.authorization,
     this.sha256,
     this.size,
+    this.codec,
   );
-  final String fileId, path, authorization, sha256;
+  final String fileId, path, authorization, sha256, codec;
   final int size;
   factory ChatVideoGrant.parse(
     Map<String, dynamic> result,
@@ -14,8 +15,12 @@ class ChatVideoGrant {
     required bool group,
     required bool full,
   }) {
-    final slot = full ? 'video' : 'thumbnail',
-        value = result[full ? 'video' : 'thumbnail'];
+    final value = result[full ? 'video' : 'thumbnail'];
+    final codec = full && value is Map ? value['codec'] ?? 'h264' : 'jpeg';
+    if (full && !['h264', 'hevc'].contains(codec)) {
+      throw const FormatException('视频编码无效');
+    }
+    final slot = full ? (codec == 'hevc' ? 'hevc' : 'video') : 'thumbnail';
     final expected =
         '/kingclub/${group ? 'group-chat-video' : 'chat-video'}/$messageId/$slot';
     if (result['messageId'] != messageId ||
@@ -47,6 +52,7 @@ class ChatVideoGrant {
       auth,
       value['sha256'] as String,
       value['size'] as int,
+      codec as String,
     );
   }
 }

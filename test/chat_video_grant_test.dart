@@ -28,6 +28,9 @@ void main() {
         {'fileId': '-' * 36},
         {'size': 33554433},
         {'sha256': 'bad'},
+        {'codec': 'av1'},
+        {'codec': 'hevc'},
+        {'path': '/kingclub/chat-video/$id/hevc'},
         {
           'headers': {'authorization': 'Bearer bad\nheader'},
         },
@@ -56,4 +59,32 @@ void main() {
       );
     },
   );
+  test('HEVC grant binds codec to its private route in both scopes', () {
+    for (final group in [false, true]) {
+      final grant = ChatVideoGrant.parse(
+        {
+          'messageId': id,
+          'video': {
+            ...media(),
+            'codec': 'hevc',
+            'path':
+                '/kingclub/${group ? 'group-chat-video' : 'chat-video'}/$id/hevc',
+          },
+        },
+        id,
+        group: group,
+        full: true,
+      );
+      expect(grant.codec, 'hevc');
+    }
+    expect(
+      ChatVideoGrant.parse(
+        {'messageId': id, 'video': media()},
+        id,
+        group: false,
+        full: true,
+      ).codec,
+      'h264',
+    );
+  });
 }

@@ -25,6 +25,7 @@ class ChatVideoView extends StatefulWidget {
     this.onTap,
     this.loadFile,
     this.events,
+    this.createPlayer,
   });
   final MessagingRepository repository;
   final String messageId;
@@ -33,6 +34,7 @@ class ChatVideoView extends StatefulWidget {
   final VoidCallback? onTap;
   final Future<File> Function(ChatVideoGrant grant)? loadFile;
   final Stream<Map<String, dynamic>>? events;
+  final VideoPlayerController Function(File)? createPlayer;
   @override
   State<ChatVideoView> createState() => _ChatVideoViewState();
 }
@@ -45,6 +47,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
   File? _poster;
   bool _invalid = false, _failed = false, _foreground = true;
   int _generation = 0;
+  bool _preferHevc = true;
   @override
   void initState() {
     super.initState();
@@ -83,6 +86,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
         old.repository != widget.repository ||
         old.full != widget.full ||
         old.group != widget.group) {
+      _preferHevc = true;
       _load();
     }
   }
@@ -98,7 +102,11 @@ class _ChatVideoViewState extends State<ChatVideoView>
   }
 
   Future<ChatVideoGrant> _grant() async => ChatVideoGrant.parse(
-    await widget.repository.videoMedia(widget.messageId, group: widget.group),
+    await widget.repository.videoMedia(
+      widget.messageId,
+      group: widget.group,
+      preferHevc: widget.full && _preferHevc,
+    ),
     widget.messageId,
     group: widget.group,
     full: widget.full,
@@ -109,6 +117,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
     final generation = _generation;
     setState(() => _failed = false);
     VideoPlayerController? player;
+    var decodingHevc = false;
     try {
       final grant = await _grant();
       if (!mounted || _invalid || generation != _generation) return;
@@ -145,7 +154,9 @@ class _ChatVideoViewState extends State<ChatVideoView>
       }
       if (!mounted || _invalid || generation != _generation) return;
       if (widget.full) {
-        player = VideoPlayerController.file(file);
+        decodingHevc = grant.codec == 'hevc';
+        player =
+            widget.createPlayer?.call(file) ?? VideoPlayerController.file(file);
         await player.initialize();
         if (!mounted || _invalid || generation != _generation) {
           await player.dispose();
@@ -158,6 +169,15 @@ class _ChatVideoViewState extends State<ChatVideoView>
       }
     } catch (_) {
       await player?.dispose();
+      if (mounted &&
+          !_invalid &&
+          generation == _generation &&
+          decodingHevc &&
+          _preferHevc) {
+        _preferHevc = false;
+        await _load();
+        return;
+      }
       if (mounted && generation == _generation) {
         setState(() {
           _player = null;

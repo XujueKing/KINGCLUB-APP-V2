@@ -38,7 +38,7 @@ class ChatVideoForwarder {
 
   Future<ChatVideoGrant> _grant() async {
     final grant = ChatVideoGrant.parse(
-      await repository.videoMedia(messageId, group: group),
+      await repository.videoMedia(messageId, group: group, preferHevc: true),
       messageId,
       group: group,
       full: true,

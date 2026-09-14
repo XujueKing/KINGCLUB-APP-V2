@@ -122,8 +122,11 @@ class MessagingRepository {
   Future<Map<String, dynamic>> videoMedia(
     String messageId, {
     bool group = false,
-  }) =>
-      call(group ? 'K260915000668' : 'K260915000667', {'messageId': messageId});
+    bool preferHevc = false,
+  }) => call(group ? 'K260915000668' : 'K260915000667', {
+    'messageId': messageId,
+    if (preferHevc) 'preferHevc': true,
+  });
   Future<Map<String, dynamic>> imageMedia(
     String messageId, {
     bool group = false,
