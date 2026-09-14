@@ -44,3 +44,6 @@ ChatFileDownloader 已实现上述下载约束，652/654 已接 repository。8 �
 采用 ACTION_CREATE_DOCUMENT 获取用户选定的新文件 URI，选定后再次复查会话和服务端权限，再由后台线程以 64KiB 缓冲复制私有下载文件；校验长度和 SHA256。来源限应用 cacheDir 下本下载器的临时目录，不接受任意路径。只向本次系统选择返回的 URI 写入。错误/取消尽力删除本次新建文档，页面离开和会话变化取消导出。参考 https://developer.android.com/training/data-storage/shared/documents-files 。iOS 导出待实现，不宣称跨平台导出已完成。
 
 Android 导出实现已加入 MainActivity/ChatFileExport 与 ChatFileExporter，详情页下载完成后显示“保存到文件”，只有系统复制成功才显示已保存。导出相关测试覆盖选择取消、选择后权限撤销、页面释放和成功路径，连同下载及详情页共 13 项通过；四个 Dart 文件 analyze 无问题。测试中的系统通道为合成回执，原生 Kotlin 编译/profile APK 构建仍在进行，未称原生保存或手机大文件已验收。后续需验证实际 document provider、低空间失败、保存后哈希及取消残留；iOS 仍待接入。
+
+## 导出任务隔离与构建
+上一版原生导出已完成 preview/profile 构建，160.7MB/130.5 秒，证明 Kotlin 与平台通道可以编译，不是 document provider 实机验收。随后审查发现旧页面延迟取消可能影响新页面导出：现 choose/copy/cancel 全部携带每次保存独立 UUID，原生只处理当前任务的 copy/cancel，闲置 exporter 释放不发送无归属取消。4 项通道测试逐调用核对同一编号，analyze 通过；修订后的 APK 正在重新构建。

@@ -18,12 +18,17 @@ void main() {
     test('system export $scenario checks permission after picker', () async {
       final calls = <String>[];
       var checks = 0;
+      String? operationId;
       final exporter = ChatFileExporter();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(ChatFileExporter.channel, (
             MethodCall call,
           ) async {
             calls.add(call.method);
+            final id = (call.arguments as Map)['operationId'];
+            expect(id, matches(RegExp(r'^[0-9a-f-]{36}$')));
+            operationId ??= id as String;
+            expect(id, operationId);
             if (call.method == 'choose') {
               if (scenario == 'dispose') await exporter.dispose();
               return scenario != 'cancel';
@@ -31,6 +36,7 @@ void main() {
             if (call.method == 'copy') {
               expect(checks, 2);
               expect(call.arguments, {
+                'operationId': (call.arguments as Map)['operationId'],
                 'path': 'private.bin',
                 'size': 2,
                 'sha256': 'hash',

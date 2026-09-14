@@ -17,10 +17,15 @@ class ChatFileExport(private val activity: Activity) {
     private val executor = Executors.newSingleThreadExecutor()
     private var picker: MethodChannel.Result? = null
     private var document: Uri? = null
+    private var operationId: String? = null
     private var copying = false
     private var cancelled = AtomicBoolean(false)
 
     fun handle(call: MethodCall, result: MethodChannel.Result) {
+        val requestId = call.argument<String>("operationId")
+        if (requestId == null || !Regex("[0-9a-fA-F-]{36}").matches(requestId)) {
+            result.error("INVALID", "Invalid export operation", null); return
+        }
         when (call.method) {
             "choose" -> {
                 if (picker != null || document != null || copying) {
@@ -30,6 +35,7 @@ class ChatFileExport(private val activity: Activity) {
                 if (name.isNullOrBlank() || name.length > 180 || name.any { it == '/' || it == '\\' || it.code < 32 }) {
                     result.error("INVALID", "Invalid file name", null); return
                 }
+                operationId = requestId
                 cancelled = AtomicBoolean(false)
                 picker = result
                 try {
@@ -40,13 +46,20 @@ class ChatFileExport(private val activity: Activity) {
                     }, REQUEST)
                 } catch (_: Exception) {
                     picker = null
+                    operationId = null
                     result.error("UNAVAILABLE", "System file picker unavailable", null)
                 }
             }
-            "copy" -> copy(call, result)
+            "copy" -> {
+                if (operationId != requestId) {
+                    result.error("INVALID", "Export operation changed", null)
+                } else copy(call, result)
+            }
             "cancel" -> {
+                if (operationId != requestId) { result.success(null); return }
                 cancelled.set(true)
                 if (!copying) { document?.let { remove(it) }; document = null }
+                if (!copying && picker == null) operationId = null
                 result.success(null)
             }
             else -> result.notImplemented()
@@ -59,9 +72,10 @@ class ChatFileExport(private val activity: Activity) {
         picker = null
         val uri = if (code == Activity.RESULT_OK) data?.data else null
         if (cancelled.get() || result == null) {
+            operationId = null
             uri?.let { remove(it) }; result?.success(false); return true
         }
-        if (uri == null || uri.scheme != "content") { result.success(false); return true }
+        if (uri == null || uri.scheme != "content") { operationId = null; result.success(false); return true }
         document = uri
         result.success(true)
         return true
@@ -119,6 +133,7 @@ class ChatFileExport(private val activity: Activity) {
             activity.runOnUiThread {
                 copying = false
                 document = null
+                operationId = null
                 if (!copied || cancellation.get()) {
                     remove(uri)
                     result.error("EXPORT_FAILED", "File export cancelled or failed", null)
