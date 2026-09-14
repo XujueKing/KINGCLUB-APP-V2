@@ -1,3 +1,7 @@
+import '../data/messaging_repository.dart';
+import '../data/sticker_library_repository.dart';
+import '../data/sticker_library_sync.dart';
+
 import 'package:cryptography/dart.dart';
 
 import 'dart:async';
@@ -13,7 +17,7 @@ import '../../../core/session/secure_session_store.dart';
 import 'legacy_emoji_data.dart';
 import 'legacy_messaging_components.dart';
 
-/// Device-local sticker library. Chat transport remains owned by the caller.
+/// Local-first sticker library. Chat transport remains owned by the caller.
 class ChatEmojiPanel extends StatefulWidget {
   const ChatEmojiPanel({
     super.key,
@@ -22,10 +26,12 @@ class ChatEmojiPanel extends StatefulWidget {
     required this.onDelete,
     required this.onSend,
     this.account,
+    this.repository,
     this.libraryDirectory,
     this.pickImages,
   });
   final String? account;
+  final MessagingRepository? repository;
   final Future<List<XFile>> Function()? pickImages;
   final Future<Directory> Function(String? account)? libraryDirectory;
   final ValueChanged<String> onEmoji;
@@ -41,6 +47,9 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
   final List<List<String>> _images = [[]];
   final List<String> _names = ['添加的单个表情'];
   Future<void>? _load;
+  StickerLibrarySync? _cloud;
+  bool _syncing = false;
+  bool _syncAgain = false;
   int _epoch = 0;
   bool _invalid = false;
   StreamSubscription<void>? _session;
@@ -117,6 +126,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
     });
     (_load ??= _restore()).then((_) {
       if (mounted) setState(() {});
+      unawaited(_syncCloud());
     });
   }
 
@@ -125,6 +135,8 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.account != widget.account) {
       _epoch++;
+      _cloud?.dispose();
+      _cloud = null;
       _invalid = false;
       _names
         ..clear()
@@ -138,6 +150,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
       final epoch = _epoch;
       _load = _restore().then((_) {
         if (_current(epoch)) setState(() {});
+        unawaited(_syncCloud());
       });
     }
   }
@@ -145,7 +158,78 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
   @override
   void dispose() {
     _session?.cancel();
+    _cloud?.dispose();
     super.dispose();
+  }
+
+  List<Map<String, dynamic>> _localPacks() => [
+    for (var i = 0; i < _names.length; i++)
+      {'name': _names[i], 'images': List<String>.of(_images[i])},
+  ];
+  Future<void> _syncCloud({bool notify = false}) async {
+    final repository = widget.repository;
+    if (!mounted ||
+        _invalid ||
+        _importing ||
+        repository == null ||
+        repository.account != widget.account) {
+      return;
+    }
+    if (_syncing) {
+      _syncAgain = true;
+      return;
+    }
+    _syncing = true;
+    final epoch = _epoch;
+    final local = _localPacks(), signature = jsonEncode(_localPacks());
+    try {
+      final directory = await _directory();
+      if (!_current(epoch)) return;
+      final sync = _cloud ??= StickerLibrarySync(
+        StickerLibraryRepository(repository),
+        directory,
+      );
+      await sync.synchronize(local, (next) async {
+        if (!_current(epoch) ||
+            _importing ||
+            jsonEncode(_localPacks()) != signature) {
+          _syncAgain = true;
+          return false;
+        }
+        setState(() => _importing = true);
+        try {
+          final file = File('${directory.path}/library.json');
+          final temp = File('${file.path}.cloud.tmp');
+          await temp.writeAsString(jsonEncode(next), flush: true);
+          if (!_current(epoch)) return false;
+          await temp.rename(file.path);
+          if (!_current(epoch)) return false;
+          setState(() {
+            _names
+              ..clear()
+              ..addAll(next.map((p) => p['name'] as String));
+            _images
+              ..clear()
+              ..addAll(next.map((p) => (p['images'] as List).cast<String>()));
+            if (_category > _names.length + 2) _category = 3;
+            _page = 0;
+          });
+          return true;
+        } finally {
+          if (_current(epoch)) setState(() => _importing = false);
+        }
+      });
+    } catch (_) {
+      if (mounted && notify && _current(epoch)) {
+        KingNotice.of(context).show('表情已保留在本机，云同步暂未完成');
+      }
+    } finally {
+      _syncing = false;
+      if (_syncAgain) {
+        _syncAgain = false;
+        if (mounted && !_invalid) unawaited(_syncCloud());
+      }
+    }
   }
 
   Future<void> _add({required bool pack}) async {
@@ -252,7 +336,10 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
           } catch (_) {}
         }
       }
-      if (_current(epoch)) setState(() => _importing = false);
+      if (_current(epoch)) {
+        setState(() => _importing = false);
+        unawaited(_syncCloud(notify: true));
+      }
     }
   }
 
@@ -334,7 +421,10 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
     } catch (_) {
       if (mounted && _current(epoch)) KingNotice.of(context).show('删除失败，请重试');
     } finally {
-      if (_current(epoch)) setState(() => _importing = false);
+      if (_current(epoch)) {
+        setState(() => _importing = false);
+        unawaited(_syncCloud(notify: true));
+      }
     }
   }
 
