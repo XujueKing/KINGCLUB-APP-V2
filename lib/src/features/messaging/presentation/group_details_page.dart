@@ -1,3 +1,4 @@
+import 'chat_member_avatar.dart';
 import 'create_group_page.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 
@@ -31,6 +32,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   int? _editingVersion;
   Map<String, dynamic> _settings = {};
   int _generation = 0;
+  final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
   @override
@@ -38,6 +40,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     super.initState();
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
+      _avatarProfiles.clear();
       _name.clear();
       _editingVersion = null;
       _generation++;
@@ -81,6 +84,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       final settings = Map<String, dynamic>.from(results[1]['settings'] as Map);
       if (mounted && generation == _generation) {
         setState(() {
+          _avatarProfiles.clear();
           _details = result;
           _settings = settings;
           _error = null;
@@ -564,9 +568,22 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   ),
                   for (final raw in _details!['members'] as List) ...[
                     ListTile(
-                      leading: const Icon(
-                        Icons.person_outline,
-                        color: Color(0xFFC9B69E),
+                      leading: Builder(
+                        builder: (_) {
+                          final account = (raw as Map)['account'] as String;
+                          final own = account == widget.repository.account;
+                          return ChatMemberAvatar(
+                            account: account,
+                            own: own,
+                            profile: _avatarProfiles.putIfAbsent(
+                              account,
+                              () => widget.repository.messaging.call(
+                                own ? 'K260912000501' : 'K260913000612',
+                                own ? {} : {'peer': account},
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       title: Text(
                         (raw as Map)['nickname'] as String,

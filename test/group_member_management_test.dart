@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kingclub/src/features/messaging/data/group_chat_repository.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/group_details_page.dart';
+import 'package:kingclub/src/features/messaging/presentation/chat_member_avatar.dart';
 
 void main() {
   for (final owner in [true, false]) {
@@ -12,12 +13,13 @@ void main() {
       (tester) async {
         FlutterSecureStorage.setMockInitialValues({});
         var removed = false;
+        final profileAccounts = <String>[];
         Map<String, dynamic>? request;
         final repo = GroupChatRepository(
           MessagingRepository(
             account: 'me',
             call: (id, params) async {
-              if (id == 'K260913000619')
+              if (id == 'K260913000619') {
                 return {
                   'groupName': '管理测试',
                   'ownerAccount': owner ? 'me' : 'leader',
@@ -52,6 +54,13 @@ void main() {
                       },
                   ],
                 };
+              }
+              if (id == 'K260912000501' || id == 'K260913000612') {
+                profileAccounts.add(
+                  id == 'K260912000501' ? 'me' : params['peer'] as String,
+                );
+                return {'avatar': null};
+              }
               if (id == 'K260913000621') return {'settings': {}};
               if (id == 'K260913000627') {
                 request = params;
@@ -68,6 +77,9 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        expect(profileAccounts, containsAll(['me', 'admin', 'member']));
+        expect(profileAccounts.toSet().length, profileAccounts.length);
+        expect(find.byType(ChatMemberAvatar), findsNWidgets(owner ? 3 : 4));
         expect(
           find.byKey(const ValueKey('group-member-actions-me')),
           findsNothing,

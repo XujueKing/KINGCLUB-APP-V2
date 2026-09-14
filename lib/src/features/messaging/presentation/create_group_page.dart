@@ -1,3 +1,5 @@
+import 'chat_member_avatar.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -31,6 +33,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   final _existing = <String>{};
   ContactsController? _contacts;
   GroupChatRepository? _repository;
+  final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   StreamSubscription<void>? _session;
   bool _invalid = false, _saving = false;
   String? _error;
@@ -39,6 +42,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     super.initState();
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
+      _avatarProfiles.clear();
       _contacts?.invalidate();
       if (mounted) {
         setState(() {
@@ -276,9 +280,16 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                               }
                             });
                           },
-                    secondary: const Icon(
-                      Icons.person_outline,
-                      color: Color(0xFFC9B69E),
+                    secondary: Builder(
+                      builder: (_) => ChatMemberAvatar(
+                        account: contact.account,
+                        profile: _avatarProfiles.putIfAbsent(
+                          contact.account,
+                          () => _repository!.messaging.call('K260913000612', {
+                            'peer': contact.account,
+                          }),
+                        ),
+                      ),
                     ),
                     title: Text(
                       contact.displayName,
