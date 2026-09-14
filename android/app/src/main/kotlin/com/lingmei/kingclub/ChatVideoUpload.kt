@@ -1,0 +1,168 @@
+package com.lingmei.kingclub
+
+import android.content.Context
+import android.media.MediaMetadataRetriever
+import android.media.MediaExtractor
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.effect.FrameDropEffect
+import androidx.media3.effect.Presentation
+import androidx.media3.transformer.*
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.util.concurrent.Executors
+import kotlin.math.max
+import kotlin.math.roundToInt
+
+/** Private, cancellable upload copy; never overwrites the selected source. */
+class ChatVideoUpload(private val context: Context) {
+    private val main = Handler(Looper.getMainLooper())
+    private val worker = Executors.newSingleThreadExecutor()
+    private var transformer: Transformer? = null
+    private var pending: MethodChannel.Result? = null
+    private var activeId: String? = null
+    private var generation = 0
+    private var temporary: File? = null
+    private var disposed = false
+    private val timeout = Runnable { cancel() }
+    private data class Info(val width: Int, val height: Int, val duration: Long, val audio: Boolean, val hdr: Boolean)
+
+    private fun inspect(file: File): Info {
+        val reader = MediaMetadataRetriever()
+        try {
+            reader.setDataSource(file.absolutePath)
+            fun number(key: Int) = reader.extractMetadata(key)?.toLongOrNull() ?: 0
+            var w = number(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH).toInt()
+            var h = number(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT).toInt()
+            val rotation = number(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+            if (rotation == 90L || rotation == 270L) { val old = w; w = h; h = old }
+            val extractor = MediaExtractor()
+            var hdr = false
+            try {
+                extractor.setDataSource(file.absolutePath)
+                for (track in 0 until extractor.trackCount) {
+                    val format = extractor.getTrackFormat(track)
+                    if (format.getString("mime")?.startsWith("video/") == true) {
+                        val transfer = if (format.containsKey("color-transfer")) format.getInteger("color-transfer") else 0
+                        val standard = if (format.containsKey("color-standard")) format.getInteger("color-standard") else 0
+                        hdr = hdr || transfer == 6 || transfer == 7 || standard == 6
+                    }
+                }
+            } finally { extractor.release() }
+            return Info(w, h, number(MediaMetadataRetriever.METADATA_KEY_DURATION),
+                reader.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) == "yes", hdr)
+        } finally { reader.release() }
+    }
+
+    fun handle(call: MethodCall, result: MethodChannel.Result) {
+        if (call.method == "release") {
+            val key = call.argument<String>("key") ?: ""
+            if (Regex("^[a-f0-9]{64}$").matches(key)) File(context.cacheDir, "chat-video-upload/$key.mp4").delete()
+            result.success(null); return
+        }
+        if (call.method == "cancel") {
+            if (call.argument<String>("id") == activeId) cancel()
+            result.success(null); return
+        }
+        if (call.method != "prepare") { result.notImplemented(); return }
+        if (disposed || pending != null) { result.error("VIDEO_BUSY", "Video processing unavailable", null); return }
+        val id = call.argument<String>("id") ?: ""
+        val key = call.argument<String>("key") ?: ""
+        val path = call.argument<String>("path") ?: ""
+        if (!Regex("^[a-f0-9-]{36}$").matches(id) || !Regex("^[a-f0-9]{64}$").matches(key)) {
+            result.error("VIDEO_INPUT", "Invalid video input", null); return
+        }
+        val source = File(path).canonicalFile
+        val root = File(context.applicationInfo.dataDir).canonicalFile
+        if (!source.path.startsWith(root.path + File.separator) || !source.isFile) {
+            result.error("VIDEO_INPUT", "Expected a private selected file", null); return
+        }
+        pending = result; activeId = id
+        val current = ++generation
+        val directory = File(context.cacheDir, "chat-video-upload").apply { mkdirs() }
+        val output = File(directory, "$key.mp4")
+        val part = File(directory, "$id.part.mp4")
+        temporary = part
+        main.postDelayed(timeout, 120_000)
+        worker.execute {
+            try {
+                val before = inspect(source)
+                val bitrate = source.length() * 8000.0 / max(1, before.duration)
+                val valid = before.width > 0 && before.height > 0 && before.duration in 500..120000
+                val skip = !valid || before.hdr || source.length() < 4 * 1024 * 1024 ||
+                    (bitrate <= 2_200_000 && max(before.width, before.height) <= 1280)
+                val cached = !skip && acceptable(output, source, before)
+                main.post {
+                    if (current != generation || disposed) return@post
+                    if (skip) finish(null) else if (cached) finish(output) else start(source, output, part, before, current)
+                }
+            } catch (_: Exception) { main.post { if (current == generation) finish(null) } }
+        }
+    }
+
+    private fun acceptable(output: File, source: File, before: Info): Boolean {
+        if (!output.isFile || output.length() < 1 || output.length() >= source.length()) return false
+        return try {
+            val after = inspect(output)
+            after.width > 0 && after.height > 0 && max(after.width, after.height) <= 1280 &&
+                kotlin.math.abs(after.duration - before.duration) <= 300 && after.audio == before.audio
+        } catch (_: Exception) { false }
+    }
+
+    private fun start(source: File, output: File, part: File, before: Info, current: Int) {
+        try {
+            val scale = minOf(1.0, 1280.0 / max(before.width, before.height))
+            val width = max(2, (before.width * scale / 2).roundToInt() * 2)
+            val height = max(2, (before.height * scale / 2).roundToInt() * 2)
+            val encoder = DefaultEncoderFactory.Builder(context)
+                .setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(1_500_000).build())
+                .setRequestedAudioEncoderSettings(AudioEncoderSettings.Builder().setBitrate(64_000).build()).build()
+            val item = EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(source)))
+                .setEffects(Effects(emptyList(), listOf(
+                    Presentation.createForWidthAndHeight(width, height, Presentation.LAYOUT_SCALE_TO_FIT),
+                    FrameDropEffect.createDefaultFrameDropEffect(30f)))).build()
+            val task = Transformer.Builder(context).setVideoMimeType(MimeTypes.VIDEO_H264)
+                .setAudioMimeType(MimeTypes.AUDIO_AAC).setEncoderFactory(encoder)
+                .addListener(object : Transformer.Listener {
+                    override fun onCompleted(composition: Composition, exportResult: ExportResult) {
+                        if (current != generation) return
+                        worker.execute {
+                            val okay = acceptable(part, source, before)
+                            main.post {
+                                if (current != generation) { part.delete(); return@post }
+                                if (okay && (!output.exists() || output.delete()) && part.renameTo(output)) finish(output)
+                                else finish(null)
+                            }
+                        }
+                    }
+                    override fun onError(composition: Composition, exportResult: ExportResult, exception: ExportException) {
+                        if (current == generation) finish(null)
+                    }
+                }).build()
+            transformer = task
+            task.start(item, part.absolutePath)
+        } catch (_: Exception) { finish(null) }
+    }
+
+    private fun finish(file: File?) {
+        main.removeCallbacks(timeout)
+        val old = transformer; transformer = null
+        old?.cancel()
+        temporary?.delete(); temporary = null
+        val result = pending; pending = null; activeId = null
+        result?.success(file?.absolutePath)
+    }
+    private fun cancel() {
+        generation++
+        finish(null)
+    }
+    fun dispose() {
+        disposed = true
+        cancel()
+        worker.shutdown()
+    }
+}

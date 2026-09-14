@@ -54,3 +54,19 @@ SecureSessionStore 增加按当前凭据比较后保存/清除，跨实例的修
 10项授权、回退、转发及播放器测试通过，相关文件analyze通过。覆盖HEVC/H.264都解码失败时只尝试两次、不无限循环，以及撤权/会话变化阻止播放。后端video-v3及迁移098已部署，真实HTTP+FFmpeg验证通过。真机HEVC播放、音轨和异机兼容仍待验收；测试替身不算真机交付。当前手机ADB offline，尚未安装此次客户端更新。
 
 本次真实API profile preview ARM64包构建成功，Gradle耗时69.5秒；APK SHA256：`b9239caab6e93629fca5d07cff29caaf99f1be764a52aa86b0e364f05514c018`。定向ADB重连后设备仍未就绪，安装待连接恢复。
+
+
+## 上传前 Android 视频处理（实施中）
+
+复用播放器所用Media3 1.9.2，接Transformer和effect。发送前在应用私有目录处理；原文件用于预览和重试，不覆盖。低于4MiB或源平均码率不超过2.2Mbps且边长不超过1280直接上传；HDR和无法安全识别的媒体交给现有服务端处理。其他SDR视频尝试H.264/AAC、最长边1280和30fps，只有结果更小、时长/音轨检查通过才替换上传输入；失败回原文件。处理在Media3后台完成，关闭页面取消，账号变化禁止后续上传。缓存按原文件内容摘要复用，成功入队后清理，失败保留以复用现有分块重试。真机速度/画质/音画同步须另行验收。
+
+参考Android官方Transformer入门及自定义编码设置：
+https://developer.android.com/media/media3/transformer/getting-started
+https://developer.android.com/media/media3/transformer/customization
+
+
+### 上传前处理实现进展
+
+已接入ChatVideoSendPage及原生ChatVideoUpload：Media3异步处理、两分钟取消超时、SDR判断、4MiB/低码率跳过、1280边长和30fps、H.264 1.5Mbps/AAC 64kbps目标设置；实际码率可能由设备编码器调整。输出必须比原文件小、时长差不超过300ms、音轨存在状态一致。缓存账号+内容摘要隔离，原文件不覆盖，关闭页面取消，成功入队后清理派生缓存。源视频仍受既有64MiB与两分钟限制。未在手机上测得压缩比或耗时，不承诺画质无损。
+
+13项Dart视频模型/优化分支/单聊群聊队列检查及相关analyze通过；Android真实API profile preview ARM64编译成功（本次新增依赖构建169.6秒）。设备恢复后adb install -r成功，保留账号数据，启动成功。已请求用户发送大于4MiB短视频核对实际压缩、画质和音画同步，尚未收到验收结果。APK SHA256：`b33d091b3de45f12c85195c3fcf09c7642bbafb89b4acac5c28a5c2fe4eed658`。

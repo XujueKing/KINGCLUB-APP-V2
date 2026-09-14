@@ -1,6 +1,7 @@
 import 'package:video_player/video_player.dart';
 
 import '../data/chat_video.dart';
+import '../data/chat_video_optimizer.dart';
 import '../data/chat_file_draft_store.dart';
 
 import 'dart:io';
@@ -32,6 +33,8 @@ class ChatVideoSendPage extends StatefulWidget {
 
 class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
   ChatFileUploader? _uploader;
+  late final ChatVideoOptimizer _optimizer;
+  bool _optimizing = false;
   VideoPlayerController? _preview;
   UploadedChatFile? _uploaded;
   ChatVideo? _prepared;
@@ -39,6 +42,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
   @override
   void initState() {
     super.initState();
+    _optimizer = ChatVideoOptimizer(account: widget.chat.messaging.account);
     final player = VideoPlayerController.file(widget.file);
     _preview = player;
     player
@@ -57,6 +61,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
 
   @override
   void dispose() {
+    _optimizer.dispose();
     _preview?.dispose();
     _uploader?.dispose();
     super.dispose();
@@ -77,11 +82,21 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
         return;
       }
       _uploader = uploader;
+      File uploadInput = widget.file;
+      if (_uploaded == null) {
+        await _preview?.pause();
+        setState(() => _optimizing = true);
+        uploadInput = await _optimizer.prepare(widget.file);
+        if (!mounted) return;
+        setState(() => _optimizing = false);
+      }
       final file =
           _uploaded ??
           await uploader.upload(
-            widget.file,
-            fileName: widget.fileName,
+            uploadInput,
+            fileName: uploadInput.path == widget.file.path
+                ? widget.fileName
+                : 'video.mp4',
             onProgress: (sent, total) {
               if (mounted && total > 0) {
                 setState(() => _progress = sent / total);
@@ -110,6 +125,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
       try {
         if (widget.draft != null) await widget.drafts?.remove(widget.draft!.id);
         await uploader.acknowledgeQueued(file);
+        await _optimizer.acknowledgeQueued();
       } catch (_) {}
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
@@ -119,6 +135,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
         setState(() {
           _busy = false;
           _processing = false;
+          _optimizing = false;
         });
       }
     }
@@ -137,6 +154,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
         setState(() {
           _busy = false;
           _processing = false;
+          _optimizing = false;
         });
       }
     }
@@ -220,7 +238,15 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: _busy ? null : _send,
-                child: Text(_busy ? (_processing ? '正在处理视频…' : '正在上传…') : '发送'),
+                child: Text(
+                  _busy
+                      ? (_optimizing
+                            ? '正在压缩视频…'
+                            : _processing
+                            ? '正在处理视频…'
+                            : '正在上传…')
+                      : '发送',
+                ),
               ),
             ),
           ),

@@ -9,6 +9,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private var export: ChatFileExport? = null
+    private var videoUpload: ChatVideoUpload? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/microphone")
@@ -21,6 +22,10 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
+        val video = ChatVideoUpload(this)
+        videoUpload = video
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/chat-video-upload")
+            .setMethodCallHandler(video::handle)
         val handler = ChatFileExport(this)
         export = handler
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/chat-file-export")
@@ -31,6 +36,7 @@ class MainActivity : FlutterActivity() {
         super.onActivityResult(requestCode, resultCode, data)
     }
     override fun onDestroy() {
+        videoUpload?.dispose()
         export?.dispose()
         super.onDestroy()
     }
