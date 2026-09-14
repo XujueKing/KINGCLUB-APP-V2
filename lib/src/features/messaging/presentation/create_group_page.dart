@@ -26,6 +26,7 @@ class CreateGroupPage extends StatefulWidget {
 
 class _CreateGroupPageState extends State<CreateGroupPage> {
   final _name = TextEditingController();
+  final _search = TextEditingController();
   final _selected = <String>{};
   final _existing = <String>{};
   ContactsController? _contacts;
@@ -43,6 +44,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
         setState(() {
           _selected.clear();
           _name.clear();
+          _search.clear();
           _error = '登录状态已变化，请重新进入';
         });
       }
@@ -157,96 +159,146 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     _contacts?.removeListener(_changed);
     _contacts?.dispose();
     _name.dispose();
+    _search.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Colors.black,
-    body: SafeArea(
-      child: Column(
-        children: [
-          LegacyMessagingHeader(
-            title: widget.inviteGroupId == null ? '发起群聊' : '邀请好友',
-            onBack: () => Navigator.maybePop(context),
-            trailing: TextButton(
-              onPressed: _invalid || _saving || _selected.isEmpty
-                  ? null
-                  : _create,
-              child: Text(
-                '${widget.inviteGroupId == null ? '创建' : '邀请'}（${_selected.length}）',
-              ),
-            ),
-          ),
-          if (widget.inviteGroupId == null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: TextField(
-                controller: _name,
-                enabled: !_invalid && !_saving,
-                maxLength: 64,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: '群名称',
-                  counterText: '',
+  Widget build(BuildContext context) {
+    final contacts = _contacts?.search(_search.text) ?? const <MemberContact>[];
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Column(
+          children: [
+            LegacyMessagingHeader(
+              title: widget.inviteGroupId == null ? '发起群聊' : '邀请好友',
+              onBack: () => Navigator.maybePop(context),
+              trailing: TextButton(
+                onPressed: _invalid || _saving || _selected.isEmpty
+                    ? null
+                    : _create,
+                child: Text(
+                  '${widget.inviteGroupId == null ? '创建' : '邀请'}（${_selected.length}）',
                 ),
               ),
             ),
-          if (_error != null)
+            if (widget.inviteGroupId == null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                child: TextField(
+                  key: const ValueKey('create-group-name'),
+                  controller: _name,
+                  enabled: !_invalid && !_saving,
+                  maxLength: 64,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    hintText: '群名称',
+                    counterText: '',
+                  ),
+                ),
+              ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: TextButton(
-                onPressed: _invalid || _saving ? null : _load,
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+              child: TextField(
+                key: const ValueKey('group-contact-search'),
+                controller: _search,
+                enabled: !_invalid && !_saving,
+                onChanged: (_) => setState(() {}),
+                style: const TextStyle(color: Color(0xFFC9B69E), fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: '搜索备注、昵称或会员号',
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    size: 20,
+                    color: Colors.grey,
+                  ),
+                  suffixIcon: _search.text.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: '清除搜索',
+                          onPressed: _invalid || _saving
+                              ? null
+                              : () => setState(_search.clear),
+                          icon: const Icon(
+                            Icons.close,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
+                        ),
+                  filled: true,
+                  fillColor: const Color(0x0DFFFFFF),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(7),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: TextButton(
+                  onPressed: _invalid || _saving ? null : _load,
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ),
+            Expanded(
+              child: ListView.separated(
+                itemCount: contacts.length,
+                separatorBuilder: (_, _) => const Divider(
+                  indent: 72,
+                  endIndent: 24,
+                  height: 1,
+                  color: Color(0xFF1A1611),
+                ),
+                itemBuilder: (context, index) {
+                  final contact = contacts[index];
+                  return CheckboxListTile(
+                    value: _selected.contains(contact.account),
+                    onChanged:
+                        _invalid ||
+                            _saving ||
+                            _existing.contains(contact.account)
+                        ? null
+                        : (value) {
+                            setState(() {
+                              if (value == true) {
+                                _selected.add(contact.account);
+                              } else {
+                                _selected.remove(contact.account);
+                              }
+                            });
+                          },
+                    secondary: const Icon(
+                      Icons.person_outline,
+                      color: Color(0xFFC9B69E),
+                    ),
+                    title: Text(
+                      contact.displayName,
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (_contacts?.hasSnapshot == true && contacts.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
                 child: Text(
-                  _error!,
+                  _search.text.trim().isEmpty ? '暂无可选择的好友' : '未找到匹配的好友',
                   style: const TextStyle(color: Colors.grey),
                 ),
               ),
-            ),
-          Expanded(
-            child: ListView.separated(
-              itemCount: _contacts?.contacts.length ?? 0,
-              separatorBuilder: (_, _) => const Divider(
-                indent: 72,
-                endIndent: 24,
-                height: 1,
-                color: Color(0xFF1A1611),
-              ),
-              itemBuilder: (context, index) {
-                final contact = _contacts!.contacts[index];
-                return CheckboxListTile(
-                  value: _selected.contains(contact.account),
-                  onChanged:
-                      _invalid || _saving || _existing.contains(contact.account)
-                      ? null
-                      : (value) {
-                          setState(() {
-                            if (value == true) {
-                              _selected.add(contact.account);
-                            } else {
-                              _selected.remove(contact.account);
-                            }
-                          });
-                        },
-                  secondary: const Icon(
-                    Icons.person_outline,
-                    color: Color(0xFFC9B69E),
-                  ),
-                  title: Text(
-                    contact.displayName,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                );
-              },
-            ),
-          ),
-          if (_contacts?.hasSnapshot == true && _contacts!.contacts.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('暂无可选择的好友', style: TextStyle(color: Colors.grey)),
-            ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

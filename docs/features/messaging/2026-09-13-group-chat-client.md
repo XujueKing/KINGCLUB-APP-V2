@@ -100,3 +100,8 @@ GroupChatController从共享账号安全Outbox读取groupId匹配的消息，不
 MessagingRepository新增632图片发送与633媒体授权读取；DirectChatController.sendImage将完成上传的assetId与稳定clientMessageId先写入账号隔离队列，再发送。恢复队列按image类型走632，未知类型拒绝，不误走文字接口；回执核验发送者、接收者、clientMessageId及图片资产，不符不得移除队列。队列不放图片字节和上传key。
 
 `build/direct-image-queue-test.log`12项通过，新增图片网络失败/重建控制器相同请求重试、错误图片回执保留队列、队列写失败不发请求，包含既有单聊回归。`build/direct-image-queue-analyze.log`三文件无问题。选图/加密上传/图片气泡和预览还未接入UI，未打包发布；群图片也尚未接通。
+
+## 建群与邀请好友搜索
+选择器新增本地搜索，复用通讯录按备注、昵称、会员号匹配；搜索不请求额外服务、不修改已选集合，跨筛选选择后统一提交已有建群/邀请接口。清除按钮恢复完整列表，无匹配时显示明确空态；会话失效清空搜索文本。
+
+验证：create_group_flow_test 使用合成认证接口，覆盖跨搜索选择、无匹配空态、清除后选中保持、建群请求包含全部选择、等待服务端回执后进入群聊和发送文字。测试通过，两文件 analyze 无问题；日志 build/group-contact-search-tests.log、build/group-contact-search-analyze.log。仍需真机建群/邀请多设备验收。

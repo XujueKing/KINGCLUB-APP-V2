@@ -31,6 +31,12 @@ void main() {
                     'nickname': 'Actual friend',
                     'bio': '',
                   },
+                  {
+                    'peer': 'second-peer',
+                    'nickname': 'Other friend',
+                    'remark': 'College',
+                    'bio': '',
+                  },
                 ],
                 'hasMore': false,
               };
@@ -73,13 +79,40 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'Friends group');
+      await tester.enterText(
+        find.byKey(const ValueKey('create-group-name')),
+        'Friends group',
+      );
       await tester.tap(find.text('Actual friend'));
       await tester.pump();
-      await tester.tap(find.text('创建（1）'));
+      await tester.enterText(
+        find.byKey(const ValueKey('group-contact-search')),
+        'college',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Actual friend'), findsNothing);
+      await tester.tap(find.text('College'));
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const ValueKey('group-contact-search')),
+        'no-match',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('未找到匹配的好友'), findsOneWidget);
+      expect(find.text('创建（2）'), findsOneWidget);
+      await tester.tap(find.byTooltip('清除搜索'));
+      await tester.pumpAndSettle();
+      expect(find.text('Actual friend'), findsOneWidget);
+      expect(
+        tester
+            .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
+            .every((row) => row.value == true),
+        isTrue,
+      );
+      await tester.tap(find.text('创建（2）'));
       await tester.pump();
       await tester.pumpAndSettle();
-      expect(createRequest!['members'], ['actual-peer']);
+      expect(createRequest!['members'], ['actual-peer', 'second-peer']);
       expect(find.byType(DirectChatPage), findsNothing);
       created.complete({'groupId': 'actual-group'});
       await tester.pumpAndSettle();
