@@ -27,3 +27,11 @@
 发送保存表情通过File.readAsBytes进入ChatImageUploader，没有客户端静态重编码。服务端3b28569已部署动画WebP主图及320边长动画预览，单/群四组合HTTP保留帧数、间隔和循环；现有Image.file展示路径无需变更。真机动画及性能未验收。
 
 本次导入在复制前检查每项1～20MB，失败/会话失效清理本批已复制文件及临时清单，已有库保持不变；清单采用本批独立临时文件。新增选择器注入用于验证中断及超限清理；5项导入/账号隔离/删除测试通过，定向analyze通过。客户端本次清理修正尚未安装。
+
+
+### Flutter动画解码验证
+
+使用服务端prepareChatImage生成的2×1红/蓝两帧GIF→WebP预览，保存为test/fixtures/chat-animation-preview.webp（纯合成，无会员素材）。SHA256 fbc6e17b236bcb3dc54e7cc8d6ab2c76dce7d05b7e2cb3409a0335fdc8fd0b97。Flutter测试引擎instantiateImageCodec真实解码验证2帧、100/200ms时长、单帧尺寸及不同红/蓝像素，通过；analyze通过。此项不代表Android设备滚动性能或实际聊天显示验收。
+
+
+表情导入修正版a917363工作树Profile/preview ARM64真实接口包构建65.6秒、162.2MB，覆盖安装Success并启动主App。SHA256 962888c421a804df449a95927adbe8cc6d1ce21273dee8c0ba18b4963be24f01。保留用户数据及既有onboarding三文件，未修改/提交它们。
