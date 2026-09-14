@@ -25,7 +25,9 @@ class CallStateController extends ChangeNotifier {
     required Stream<void> sessionChanges,
     this.pollInterval = const Duration(seconds: 2),
     int Function()? nowMs,
-  }) : _call = initial,
+    Stopwatch? durationClock,
+  }) : _durationClock = durationClock ?? Stopwatch(),
+       _call = initial,
        _nowMs = nowMs ?? (() => DateTime.now().millisecondsSinceEpoch) {
     if ((initial.phase != CallPhase.ringing &&
             !(outgoingAttempt &&
@@ -51,6 +53,10 @@ class CallStateController extends ChangeNotifier {
   final CallSessionFactory sessionFactory;
   final Duration pollInterval;
   final int Function() _nowMs;
+  final Stopwatch _durationClock;
+  bool _hasConnected = false;
+  Duration? get connectedDuration =>
+      _hasConnected ? _durationClock.elapsed : null;
   int? _recoverySinceMs;
   int _nextRestartAtMs = 0;
   late final StreamSubscription<void> _sessionChanges;
@@ -214,6 +220,7 @@ class CallStateController extends ChangeNotifier {
       await _media!.start();
     } catch (_) {
       _ending = true;
+      _durationClock.stop();
       await _media?.close();
       rethrow;
     }
@@ -224,6 +231,10 @@ class CallStateController extends ChangeNotifier {
     _connectionState = state;
     _connected =
         state == RTCPeerConnectionState.RTCPeerConnectionStateConnected;
+    if (_connected && !_hasConnected) {
+      _hasConnected = true;
+      _durationClock.start();
+    }
     _trackRecovery();
     _notify();
     if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
@@ -289,6 +300,7 @@ class CallStateController extends ChangeNotifier {
   Future<void> end() {
     if (_closed) return Future.value();
     _ending = true;
+    _durationClock.stop();
     _trackRecovery();
     // Release local capture immediately, even while a network request is stuck.
     final stopping = _media?.close() ?? Future<void>.value();
@@ -322,6 +334,7 @@ class CallStateController extends ChangeNotifier {
   Future<void> close() {
     final wasClosed = _closed;
     _closed = true;
+    _durationClock.stop();
     _trackRecovery();
     _timer?.cancel();
     _timer = null;

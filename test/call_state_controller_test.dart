@@ -81,11 +81,30 @@ class RecoveryTimer implements Timer {
   }
 }
 
+class DurationClock extends Stopwatch {
+  int starts = 0;
+  bool running = false;
+  Duration value = Duration.zero;
+  @override
+  Duration get elapsed => value;
+  @override
+  void start() {
+    starts++;
+    running = true;
+  }
+
+  @override
+  void stop() {
+    running = false;
+  }
+}
+
 void main() {
   test(
     'recovery timeout stops local capture while state HTTP is stuck',
     () async {
       final timers = <RecoveryTimer>[];
+      final durationClock = DurationClock();
       final timerZone = ZoneSpecification(
         createTimer: (self, parent, zone, duration, callback) {
           expect(duration, const Duration(seconds: 45));
@@ -111,6 +130,7 @@ void main() {
       late Session session;
       late void Function(RTCPeerConnectionState) connection;
       final controller = CallStateController(
+        durationClock: durationClock,
         repository: repository,
         initial: CallSnapshot.parse(server, 'a'),
         sessionChanges: changes.stream,
@@ -119,6 +139,8 @@ void main() {
           return session = Session(repository, call);
         },
       );
+      expect(controller.connectedDuration, isNull);
+      expect(durationClock.starts, 0);
       server = state('connecting', 1);
       await controller.refresh();
       connection(RTCPeerConnectionState.RTCPeerConnectionStateConnected);
@@ -131,6 +153,10 @@ void main() {
       );
       connection(RTCPeerConnectionState.RTCPeerConnectionStateConnected);
       await controller.refresh();
+      expect(durationClock.starts, 1);
+      expect(durationClock.running, true);
+      durationClock.value = const Duration(seconds: 65);
+      expect(controller.connectedDuration, const Duration(seconds: 65));
       expect(timers.single.isActive, false);
       timers.single.fire();
       expect(controller.isEnding, false); // Recovery canceled the old timer.
@@ -145,6 +171,8 @@ void main() {
       expect(timers, hasLength(2));
       timers.last.fire();
       expect(controller.isEnding, true);
+      expect(durationClock.running, false);
+      expect(controller.connectedDuration, const Duration(seconds: 65));
       expect(session.closes, 1); // HTTP still has not returned.
       stalled.complete({'call': state('ended', 4)});
       await pending;

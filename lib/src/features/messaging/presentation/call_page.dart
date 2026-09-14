@@ -66,6 +66,7 @@ class _CallPageState extends State<CallPage> {
   bool _accepting = false, _muted = false, _switchingCamera = false;
   bool _changingMute = false, _changingVideo = false;
   bool _routingAudio = false;
+  Timer? _durationTicker;
   String? _actionError;
 
   @override
@@ -76,6 +77,14 @@ class _CallPageState extends State<CallPage> {
       _rendering = _initializeRenderers();
     }
     _controller.watch();
+    _durationTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted &&
+          !_controller.isClosed &&
+          !_controller.isEnding &&
+          _controller.connectedDuration != null) {
+        setState(() {});
+      }
+    });
   }
 
   Future<void> _initializeRenderers() async {
@@ -91,6 +100,11 @@ class _CallPageState extends State<CallPage> {
     } catch (_) {
       if (mounted) setState(() => _actionError = '视频画面初始化失败，请结束后重试');
     }
+  }
+
+  String _formatDuration(Duration value) {
+    final seconds = value.inSeconds;
+    return "${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}";
   }
 
   void _changed() {
@@ -325,7 +339,9 @@ class _CallPageState extends State<CallPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    _status,
+                    _controller.connectedDuration == null
+                        ? _status
+                        : "$_status · ${_formatDuration(_controller.connectedDuration!)}",
                     style: const TextStyle(color: Colors.white70, fontSize: 15),
                   ),
                   const Spacer(),
@@ -486,6 +502,7 @@ class _CallPageState extends State<CallPage> {
 
   @override
   void dispose() {
+    _durationTicker?.cancel();
     _controller.removeListener(_changed);
     _controller.dispose();
     unawaited(_disposeRenderers().catchError((Object _) {}));
