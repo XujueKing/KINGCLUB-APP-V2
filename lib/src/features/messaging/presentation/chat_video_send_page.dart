@@ -89,6 +89,16 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
 
   Future<void> _send() async {
     if (_busy || _invalid) return;
+    var stage = 'opening';
+    final elapsed = Stopwatch()..start();
+    void trace(String next) {
+      stage = next;
+      debugPrint(
+        'KINGCLUB_VIDEO_SEND stage=$stage elapsedMs=${elapsed.elapsedMilliseconds}',
+      );
+    }
+
+    trace('opening');
     setState(() {
       _busy = true;
       _error = null;
@@ -109,6 +119,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
         await _preview?.pause();
         if (!_usable) return;
         setState(() => _optimizing = true);
+        trace('optimizing');
         uploadInput = await _optimizer.prepare(
           widget.file,
           onProgress: (value) {
@@ -129,6 +140,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
           _progress = null;
         });
       }
+      trace('uploading');
       final file =
           _uploaded ??
           await uploader.upload(
@@ -148,17 +160,20 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
         _processing = true;
         _progress = null;
       });
+      trace('processing');
       final video =
           _prepared ?? await widget.chat.messaging.prepareVideo(file.assetId);
       if (!_usable) return;
       _prepared = video;
       var queued = false;
+      trace('queueing');
       await widget.chat.sendVideo(
         video,
         onQueued: () => queued = true,
         clientMessageId: widget.draft?.id,
       );
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
+      trace('queued');
       // A journal cleanup error must not invite a second send of an already
       // durable message. The outbox now owns delivery and retry.
       try {
@@ -168,6 +183,9 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
       } catch (_) {}
       if (mounted && _usable) Navigator.of(context).pop(true);
     } catch (error) {
+      debugPrint(
+        'KINGCLUB_VIDEO_SEND failedStage=$stage elapsedMs=${elapsed.elapsedMilliseconds} errorType=${error.runtimeType}',
+      );
       if (_usable) setState(() => _error = error.toString());
     } finally {
       if (mounted) {
