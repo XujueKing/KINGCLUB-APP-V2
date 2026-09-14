@@ -65,3 +65,9 @@ App 3d7e09b 工作树 Profile/preview ARM64 构建成功，assemblePreviewProfil
 2026-09-14 23:31:43 已向连接的 Android 设备覆盖安装既有 profile APK（代码基线 3d7e09b，构建时间 22:39），`adb install -r` 返回 Success，显式启动 MainActivity 成功，dumpsys 确认 lastUpdateTime。保留应用数据。包含头像详情、语音事件范围、文字转发、通话静音/视频暂停修复，不包含新的个人消息删除客户端。安装成功不代表双机语音/视频或用户播放验收通过，仍待实际验证。
 
 个人消息删除服务端截至 78d356e 已完成 663/664、隐藏读取与附件授权，隔离真实 HTTP 验证通过；共享服务仍 chat-090，客户端未接，因此矩阵中该完整功能仍为进行中。
+
+## 23:41 部署与安装
+
+配套测试服务已升级 chat-092（代码 78d356e），091/092 迁移和 runtime readiness 检查通过；回退容器保留为 kingclub-v2-api-before-chat-092。原生代码 e149e26 的 arm64 preview profile 包构建成功（76 秒），23:41:12 adb install -r Success，MainActivity 启动成功，现有账号数据保留。APK SHA256：6E35A93634D4F84000E50FC40B3B38AD4A858064832D95C43F9F923780D2CD94。
+
+单条删除现已部署可供操作验收。真实 HTTP/SQLite 自动验证已通过，用户删除后重进会话的真机反馈仍待确认；不要将安装成功替代功能实测。其余矩阵未完成项不变。
