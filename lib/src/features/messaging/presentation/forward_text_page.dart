@@ -11,6 +11,12 @@ import 'chat_member_avatar.dart';
 import 'direct_chat_page.dart';
 import 'legacy_messaging_components.dart';
 
+class _ForwardTarget {
+  const _ForwardTarget(this.account, this.displayName, {this.group = false});
+  final String account, displayName;
+  final bool group;
+}
+
 class ForwardTextPage extends StatefulWidget {
   const ForwardTextPage({
     super.key,
@@ -32,7 +38,10 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
   final _search = TextEditingController();
   final _profiles = <String, Future<Map<String, dynamic>>>{};
   StreamSubscription<void>? _session;
-  MemberContact? _selected;
+  _ForwardTarget? _selected;
+  final _groups = <_ForwardTarget>[];
+  bool _showGroups = false, _loadingGroups = false, _groupsLoaded = false;
+  String? _groupCursor, _groupError;
   BuildContext? _confirmationContext;
   Map<String, dynamic>? _attempt;
   bool _saving = false, _invalid = false;
@@ -47,6 +56,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
       if (dialog != null && dialog.mounted) Navigator.of(dialog).pop(false);
       _contacts.invalidate();
       _profiles.clear();
+      _groups.clear();
       _selected = null;
       _search.clear();
       _error = '登录状态已变化，请重新进入';
@@ -66,6 +76,43 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
     _contacts.dispose();
     _search.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadGroups() async {
+    if (_invalid || _loadingGroups) return;
+    setState(() {
+      _loadingGroups = true;
+      _groupError = null;
+    });
+    try {
+      final page = await widget.repository.call('K260913000618', {
+        'limit': 100,
+        if (_groupCursor != null) 'before': _groupCursor,
+      });
+      if (!mounted || _invalid) return;
+      final rows = page['items'];
+      if (rows is! List) throw const FormatException('Invalid group list');
+      final next = page['nextCursor'];
+      if (next != null && (next is! String || next == _groupCursor)) {
+        throw const FormatException('Invalid group cursor');
+      }
+      final incoming = rows.map((raw) {
+        final row = Map<String, dynamic>.from(raw as Map);
+        return _ForwardTarget(
+          row['groupId'] as String,
+          row['groupName'] as String,
+          group: true,
+        );
+      }).toList();
+      final known = _groups.map((g) => g.account).toSet();
+      _groups.addAll(incoming.where((g) => known.add(g.account)));
+      _groupCursor = next as String?;
+      _groupsLoaded = true;
+    } catch (_) {
+      if (mounted && !_invalid) _groupError = '群聊读取失败，点击重试';
+    } finally {
+      if (mounted) setState(() => _loadingGroups = false);
+    }
   }
 
   Future<void> _forward() async {
@@ -99,9 +146,25 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
       if (widget.text.trim().isEmpty || widget.text.length > 4000) {
         throw StateError('文字长度无效');
       }
+      int? membershipVersion;
+      if (target.group && _attempt == null) {
+        final details = await widget.repository.call('K260913000619', {
+          'groupId': target.account,
+        });
+        if (!mounted || _invalid) return;
+        if (details['groupId'] != target.account ||
+            details['membershipVersion'] is! int) {
+          throw StateError('群成员状态尚未确认');
+        }
+        membershipVersion = details['membershipVersion'] as int;
+      }
       _attempt ??= {
         'clientMessageId': const Uuid().v4(),
-        'recipient': target.account,
+        if (target.group) ...{
+          'groupId': target.account,
+          'membershipVersion': membershipVersion,
+        } else
+          'recipient': target.account,
         'sender': widget.repository.account,
         'text': widget.text.trim(),
         'createdDate': DateTime.now().toUtc().toIso8601String(),
@@ -115,7 +178,8 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
           MaterialPageRoute(
             builder: (_) => DirectChatPage(
               peerName: target.displayName,
-              peerAccount: target.account,
+              peerAccount: target.group ? null : target.account,
+              groupId: target.group ? target.account : null,
               repository: widget.repository,
               chatOutbox: _outbox,
             ),
@@ -132,8 +196,19 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
   @override
   Widget build(BuildContext context) {
     final contacts = _invalid
-        ? <MemberContact>[]
-        : _contacts.search(_search.text);
+        ? <_ForwardTarget>[]
+        : _showGroups
+        ? _groups
+              .where(
+                (g) => g.displayName.toLowerCase().contains(
+                  _search.text.trim().toLowerCase(),
+                ),
+              )
+              .toList()
+        : _contacts
+              .search(_search.text)
+              .map((c) => _ForwardTarget(c.account, c.displayName))
+              .toList();
     return PopScope(
       canPop: !_saving,
       child: Scaffold(
@@ -145,6 +220,39 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
                 title: '选择联系人',
                 onBack: _saving ? () {} : () => Navigator.pop(context),
               ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (final group in [false, true])
+                    TextButton(
+                      onPressed: _invalid || _saving
+                          ? null
+                          : () {
+                              setState(() {
+                                _showGroups = group;
+                                _selected = null;
+                                _attempt = null;
+                              });
+                              if (group && !_groupsLoaded) {
+                                unawaited(_loadGroups());
+                              }
+                            },
+                      child: Text(
+                        group ? '群聊' : '好友',
+                        style: TextStyle(
+                          color: _showGroups == group
+                              ? Colors.white
+                              : legacyMessageGold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              if (_showGroups && (_groupError != null || _groupCursor != null))
+                TextButton(
+                  onPressed: _loadingGroups ? null : _loadGroups,
+                  child: Text(_groupError ?? '加载更多群聊'),
+                ),
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: TextField(
@@ -168,7 +276,9 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
                 child: contacts.isEmpty
                     ? Center(
                         child: Text(
-                          _contacts.hasSnapshot ? '没有找到可转发的好友' : '',
+                          (_showGroups ? _groupsLoaded : _contacts.hasSnapshot)
+                              ? '没有找到可转发的对象'
+                              : '',
                           style: const TextStyle(color: Colors.white54),
                         ),
                       )
@@ -178,15 +288,22 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
                           final contact = contacts[index];
                           return ListTile(
                             key: ValueKey('forward-text-${contact.account}'),
-                            leading: ChatMemberAvatar(
-                              account: contact.account,
-                              profile: _profiles.putIfAbsent(
-                                contact.account,
-                                () => widget.repository.call('K260913000612', {
-                                  'peer': contact.account,
-                                }),
-                              ),
-                            ),
+                            leading: contact.group
+                                ? const Icon(
+                                    Icons.group,
+                                    color: legacyMessageGold,
+                                    size: 36,
+                                  )
+                                : ChatMemberAvatar(
+                                    account: contact.account,
+                                    profile: _profiles.putIfAbsent(
+                                      contact.account,
+                                      () => widget.repository.call(
+                                        'K260913000612',
+                                        {'peer': contact.account},
+                                      ),
+                                    ),
+                                  ),
                             title: Text(
                               contact.displayName,
                               style: const TextStyle(

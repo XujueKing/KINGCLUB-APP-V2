@@ -41,6 +41,75 @@ void main() {
   }
 
   testWidgets(
+    'group forwarding verifies membership and keeps one queued identity on storage retry',
+    (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final outbox = RecordingOutbox()..failWrite = true;
+      var detailCalls = 0;
+      final repository = MessagingRepository(
+        account: 'me',
+        call: (id, p) async {
+          if (id == 'K260913000608') return {'items': [], 'hasMore': false};
+          if (id == 'K260913000618')
+            return {
+              'items': [
+                {'groupId': 'group', 'groupName': 'Test group'},
+              ],
+              'nextCursor': null,
+            };
+          if (id == 'K260913000619') {
+            detailCalls++;
+            return {'groupId': 'group', 'membershipVersion': 3, 'members': []};
+          }
+          if (id == 'K260913000621')
+            return {
+              'messages': [],
+              'hasMore': false,
+              'lastSequence': 0,
+              'readSequence': 0,
+              'membershipVersion': 3,
+              'joinedSequence': 0,
+              'settings': {'hiddenThrough': 0},
+            };
+          if (id == 'K260913000620') throw StateError('offline');
+          return {};
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ForwardTextPage(
+            repository: repository,
+            text: 'Group forward',
+            outbox: outbox,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('群聊'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('forward-text-group')));
+      await tester.pump();
+      expect(detailCalls, 0);
+      expect(outbox.items, isEmpty);
+      await confirm(tester);
+      expect(detailCalls, 1);
+      expect(find.byType(DirectChatPage), findsNothing);
+      outbox.failWrite = false;
+      await confirm(tester);
+      expect(outbox.attempts.toSet().length, 1);
+      final queued = outbox.items.values.single;
+      expect(queued['groupId'], 'group');
+      expect(queued['membershipVersion'], 3);
+      expect(queued.containsKey('recipient'), false);
+      expect(
+        tester.widget<DirectChatPage>(find.byType(DirectChatPage)).groupId,
+        'group',
+      );
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
+  testWidgets(
     'confirmed text enters durable queue once across storage retry and opens real target',
     (tester) async {
       FlutterSecureStorage.setMockInitialValues({});
