@@ -21,8 +21,26 @@ abstract interface class VoiceCaptureDevice {
   Future<void> dispose();
 }
 
-class NativeVoiceCaptureDevice implements VoiceCaptureDevice {
+abstract interface class VoiceCaptureInterruptions {
+  Stream<void> get interruptions;
+}
+
+class NativeVoiceCaptureDevice
+    implements VoiceCaptureDevice, VoiceCaptureInterruptions {
   final _recorder = AudioRecorder();
+  @override
+  Stream<void> get interruptions async* {
+    var wasRecording = false;
+    await for (final state in _recorder.onStateChanged()) {
+      if (state == RecordState.record) {
+        wasRecording = true;
+      } else if (wasRecording) {
+        wasRecording = false;
+        yield null;
+      }
+    }
+  }
+
   @override
   Future<bool> hasPermission() async {
     if (!await _recorder.hasPermission()) return false;
@@ -62,7 +80,16 @@ class NativeVoiceCaptureDevice implements VoiceCaptureDevice {
 /// Serializes permission/start/stop so releasing during an OS permission dialog
 /// can never leave a recorder running in the background.
 class VoiceCapture {
-  VoiceCapture({required this.device, required this.allocatePath});
+  VoiceCapture({required this.device, required this.allocatePath}) {
+    final source = device;
+    if (source is VoiceCaptureInterruptions) {
+      _interruptions = (source as VoiceCaptureInterruptions).interruptions
+          .listen(
+            (_) => _interrupt(),
+            onError: (Object error, StackTrace stack) => _interrupt(),
+          );
+    }
+  }
   final VoiceCaptureDevice device;
   final Future<String> Function() allocatePath;
   final _elapsed = Stopwatch();
@@ -73,17 +100,35 @@ class VoiceCapture {
   Future<void>? _releasing;
   Object? _error;
   Timer? _limit;
+  StreamSubscription<void>? _interruptions;
+  void Function()? _onInterrupted;
+
+  void _interrupt() {
+    if (!_busy || !_held || _disposed) return;
+    _error = StateError('录音被中断，请重新按住说话');
+    _held = false;
+    _elapsed.stop();
+    _limit?.cancel();
+    _onInterrupted?.call();
+    // Cleanup also runs without a visible page callback; the UI can await the
+    // same finish Future and display the interruption through its normal notice.
+    unawaited(finish(cancel: false).then<void>((_) {}, onError: (Object _) {}));
+  }
 
   static VoiceCapture native() => VoiceCapture(
     device: NativeVoiceCaptureDevice(),
     allocatePath: () async => (await VoiceDraftStore.current()).allocate(),
   );
 
-  bool begin({required void Function() onLimit}) {
+  bool begin({
+    required void Function() onLimit,
+    void Function()? onInterrupted,
+  }) {
     if (_busy || _disposed) return false;
     _busy = true;
     _held = true;
     _error = null;
+    _onInterrupted = onInterrupted;
     _starting = () async {
       var startAttempted = false;
       try {
@@ -126,6 +171,8 @@ class VoiceCapture {
         return null;
       }
       if (_error != null) {
+        if (_recording) await _discardAfterFailure();
+        if (_error is StateError) throw _error!;
         throw StateError('无法录音，请在系统设置中允许 KINGCLUB 使用麦克风，并检查是否被其他应用占用');
       }
       if (!_recording) return null;
@@ -145,6 +192,7 @@ class VoiceCapture {
     } finally {
       _recording = false;
       _busy = false;
+      _onInterrupted = null;
     }
   }
 
@@ -180,6 +228,7 @@ class VoiceCapture {
   }
 
   Future<void> _dispose() async {
+    await _interruptions?.cancel();
     try {
       await finish(cancel: true);
     } finally {

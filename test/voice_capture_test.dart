@@ -35,7 +35,75 @@ class Device implements VoiceCaptureDevice {
   }
 }
 
+class InterruptibleDevice extends Device implements VoiceCaptureInterruptions {
+  final events = StreamController<void>.broadcast(sync: true);
+  @override
+  Stream<void> get interruptions => events.stream;
+}
+
 void main() {
+  for (final withCallback in [false, true]) {
+    test(
+      'audio interruption cancels recording and never yields draft: $withCallback',
+      () async {
+        final device = InterruptibleDevice()
+          ..permission.complete(true)
+          ..started.complete();
+        addTearDown(device.events.close);
+        final capture = VoiceCapture(
+          device: device,
+          allocatePath: () async => 'voice.m4a',
+        );
+        Future<void>? observed;
+        var notices = 0;
+        capture.begin(
+          onLimit: () {},
+          onInterrupted: withCallback
+              ? () {
+                  notices++;
+                  observed = expectLater(
+                    capture.finish(cancel: false),
+                    throwsStateError,
+                  );
+                }
+              : null,
+        );
+        await Future<void>.delayed(Duration.zero);
+        device.events.add(null);
+        await observed;
+        await Future<void>.delayed(Duration.zero);
+        expect(device.cancels, 1);
+        expect(device.stops, 0);
+        expect(notices, withCallback ? 1 : 0);
+        expect(await capture.finish(cancel: false), isNull);
+        await capture.dispose();
+        expect(device.events.hasListener, isFalse);
+      },
+    );
+  }
+  test(
+    'idle or post-release platform events cannot interrupt a later capture',
+    () async {
+      final device = InterruptibleDevice()
+        ..permission.complete(true)
+        ..started.complete();
+      addTearDown(device.events.close);
+      final capture = VoiceCapture(
+        device: device,
+        allocatePath: () async => 'voice.m4a',
+      );
+      var notices = 0;
+      device.events.add(null);
+      capture.begin(onLimit: () {}, onInterrupted: () => notices++);
+      await Future<void>.delayed(Duration.zero);
+      final ending = capture.finish(cancel: true);
+      device.events.add(null);
+      await ending;
+      expect(notices, 0);
+      expect(device.cancels, 1);
+      await capture.dispose();
+    },
+  );
   test('cancel failure immediately releases recorder without waiting for page disposal', () async {
     final device = Device()
       ..permission.complete(true)

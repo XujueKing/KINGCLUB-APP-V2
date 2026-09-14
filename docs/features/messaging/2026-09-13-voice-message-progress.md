@@ -110,3 +110,10 @@ e59dd6e代码基线Profile/preview ARM64真实接口包构建62.9秒、162.2MB�
 VoiceCapture在调用原生start后失败、stop失败或stop返回空路径时主动cancel，不返回可发送草稿。正常取消/短录音取消同样处理cancel异常：立即dispose且禁止复用，后续页面dispose复用同一释放Future，避免重复释放；保留原始失败给现有提示。权限拒绝、路径分配前取消不调用未启动录音器的cancel。未改变已确认UI和录音参数。
 
 voice_capture_test.dart共12项通过，新增部分启动失败、取消失败立即释放、保存失败和无输出文件场景；两文件analyze无问题。此为可证实的资源释放修复，尚未证明历史静音文件的根因，也未在真机故意制造原生录音故障。代码待下一批测试包安装。
+
+
+### 2026-09-15 音频焦点中断
+
+依据本机record 7.1.1及record_android 2.2.0源码，默认AudioInterruptionMode.pause会在环境中断后暂停，页面此前未订阅状态。NativeVoiceCaptureDevice现在订阅onStateChanged，观察record后的pause/stop通知VoiceCapture；状态流错误也结束当前录音。当前按住期间收到中断停止计时、撤销60秒定时器，关闭覆盖层并经统一finish主动cancel，提示重新录音，不发送残缺草稿。不在按住期间的正常停止/迟到状态忽略；dispose取消订阅。保留原录音配置和已确认布局。
+
+15项录音测试通过，覆盖有/无页面回调均清理、无可发送草稿、正常结束不误判及订阅释放；定向analyze三文件无问题。状态事件来自受控设备测试，真实来电/耳机断开/厂商抢占行为还需真机验收，不能视为静音问题全部修复。

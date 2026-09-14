@@ -208,7 +208,12 @@ class _DirectChatPageState extends State<DirectChatPage>
     _voicePlayback?.stop();
     if (_readOnly) return;
     _capture ??= widget.voiceCapture ?? VoiceCapture.native();
-    if (!_capture!.begin(onLimit: _endVoiceHold)) return;
+    if (!_capture!.begin(
+      onLimit: _endVoiceHold,
+      onInterrupted: _endVoiceHold,
+    )) {
+      return;
+    }
     _voiceStart = details.position;
     _voiceTarget.value = VoiceHoldTarget.send;
     _voiceOverlay?.remove();
