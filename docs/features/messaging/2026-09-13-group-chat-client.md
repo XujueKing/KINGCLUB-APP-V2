@@ -110,3 +110,8 @@ MessagingRepository新增632图片发送与633媒体授权读取；DirectChatCon
 复用聊天区已授权资料头像与私有媒体缓存组件。本人用 501，其他成员用 612；可见行挂载时才获取资料，同页同成员复用请求，失败保留通用头像；群设置读取成功后清理旧资料快照以重新授权。继续通过成员行打开 PublicMemberPage，不额外伪造头像 URL 或读取未授权附件。
 
 验证：成员权限管理、群设置、建群消息流程与头像组件共 9 项测试通过；新增断言确认本人与其他成员分别走对应资料接口、同次展示不重复请求。三文件 analyze 无问题，日志 build/group-member-avatar-tests.log、build/group-member-avatar-analyze.log。测试为合成接口，真人头像服务与多设备权限变化仍待真机联调。
+
+## 通讯录真实头像补齐
+真实通讯录行同样复用 ChatMemberAvatar，替换先前姓名首字占位；保持原行布局尺寸。只为可见 Sliver 行请求 612，单次页面快照复用同成员资料；手动刷新、重新进入通讯录、关系/设置事件及会话变化清除旧资料引用。演示列表仍保留演示占位，不用于证明真实头像验收。
+
+验证：通讯录流程与头像组件共 15 项测试通过，新增真实数据分支的 612 成员参数/请求复用、点击资料目标、会话失效清空头像断言；两文件 analyze 无问题。测试为合成资料响应，日志 build/contacts-real-avatar-tests.log、build/contacts-real-avatar-analyze.log。手机新测试包安装仍未完成，公网 TURN UDP/TCP/TLS 探测仍超时，不能计为双机验收。

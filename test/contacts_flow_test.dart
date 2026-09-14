@@ -1,3 +1,6 @@
+import 'package:kingclub/src/core/session/secure_session_store.dart';
+import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/messaging/presentation/chat_member_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/contacts/presentation/contacts_page.dart';
@@ -30,6 +33,67 @@ Widget _app(
 }
 
 void main() {
+  testWidgets(
+    'real contacts load authorized avatars and clear on session change',
+    (tester) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final peers = <String>[];
+      ContactRouteIntent? intent;
+      final repo = MessagingRepository(
+        account: 'me',
+        call: (id, params) async {
+          switch (id) {
+            case 'K260913000608':
+              return {
+                'items': [
+                  {'peer': 'friend-1', 'nickname': 'Alice', 'bio': ''},
+                ],
+                'hasMore': false,
+              };
+            case 'K260913000611':
+              return {'items': [], 'hasMore': false};
+            case 'K260913000615':
+              return {'groups': [], 'version': 0};
+            case 'K260913000612':
+              peers.add(params['peer'] as String);
+              return {'avatar': null};
+            default:
+              throw StateError(id);
+          }
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ContactsPage(
+              active: true,
+              realData: true,
+              repository: repo,
+              onIntent: (value) => intent = value,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(peers, ['friend-1']);
+      expect(find.byType(ChatMemberAvatar), findsOneWidget);
+      await tester.tap(find.text('Alice'));
+      await tester.pumpAndSettle();
+      expect(intent!.targetRef, 'friend-1');
+      expect(intent!.kind, ContactIntentKind.userProfile);
+      expect(peers, ['friend-1']);
+      SecureSessionStore.changes.add(null);
+      await tester.pumpAndSettle();
+      expect(find.byType(ChatMemberAvatar), findsNothing);
+      expect(find.text('Alice'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
+
   testWidgets('first entry displays contacts without artificial loading', (
     tester,
   ) async {

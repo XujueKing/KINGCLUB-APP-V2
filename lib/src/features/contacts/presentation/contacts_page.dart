@@ -1,3 +1,4 @@
+import '../../messaging/presentation/chat_member_avatar.dart';
 import '../../messaging/presentation/group_invitations_page.dart';
 import '../../messaging/data/group_chat_repository.dart';
 import '../data/contact_groups_repository.dart';
@@ -82,6 +83,7 @@ class _ContactsPageState extends State<ContactsPage> {
   String _query = '';
   bool _loadedOnce = false;
   bool _refreshing = false;
+  final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   ContactsController? _real;
   ContactGroupsRepository? _groupRepository;
   StreamSubscription<void>? _sessions;
@@ -93,6 +95,7 @@ class _ContactsPageState extends State<ContactsPage> {
     try {
       final repository = widget.repository ?? await MessagingRepository.open();
       if (!mounted || generation != _connectionGeneration) return;
+      _avatarProfiles.clear();
       final controller = ContactsController(repository);
       _real = controller;
       _groupRepository = ContactGroupsRepository(repository);
@@ -120,6 +123,7 @@ class _ContactsPageState extends State<ContactsPage> {
             event['eventType'] == 'chat.friend-request.changed' ||
             event['eventType'] == 'chat.settings.changed' ||
             event['eventType'] == 'connection.ready') {
+          _avatarProfiles.clear();
           unawaited(controller.refresh(afterCurrent: true));
         }
       });
@@ -178,6 +182,7 @@ class _ContactsPageState extends State<ContactsPage> {
         _events?.cancel();
         _real?.dispose();
         _real = null;
+        _avatarProfiles.clear();
         _groupRepository = null;
         _groups = [];
         if (mounted) {
@@ -204,6 +209,7 @@ class _ContactsPageState extends State<ContactsPage> {
   void didUpdateWidget(covariant ContactsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.realData && widget.active && !oldWidget.active) {
+      _avatarProfiles.clear();
       unawaited(_real?.refresh(afterCurrent: true));
       unawaited(_real?.refreshRequests());
     }
@@ -246,6 +252,7 @@ class _ContactsPageState extends State<ContactsPage> {
 
   Future<void> _refresh() async {
     if (widget.realData) {
+      _avatarProfiles.clear();
       if (_real == null) {
         await _connectReal();
       } else {
@@ -642,6 +649,17 @@ class _ContactsPageState extends State<ContactsPage> {
               final contact = entry.value[index];
               return _ContactTile(
                 contact: contact,
+                avatar: widget.realData && _real != null
+                    ? ChatMemberAvatar(
+                        account: contact.ref,
+                        profile: _avatarProfiles.putIfAbsent(
+                          contact.ref,
+                          () => _real!.repository.call('K260913000612', {
+                            'peer': contact.ref,
+                          }),
+                        ),
+                      )
+                    : null,
                 group: _groupFor(contact.ref),
                 avatarFailed:
                     _state == ContactsDemoState.avatarFailure && index == 0,
@@ -838,8 +856,10 @@ class _ContactTile extends StatelessWidget {
     required this.contact,
     required this.avatarFailed,
     this.group,
+    this.avatar,
     required this.onTap,
   });
+  final Widget? avatar;
   final _FakeContact contact;
   final bool avatarFailed;
   final ContactGroup? group;
@@ -852,21 +872,26 @@ class _ContactTile extends StatelessWidget {
     gender: contact.gender,
     group: group,
     onTap: onTap,
-    leading: ColoredBox(
-      color: legacyMessagePanel,
-      child: Center(
-        child: avatarFailed
-            ? const Icon(
-                Icons.person_outline,
-                size: 24,
-                color: Color(0xFFB7ADA0),
-              )
-            : Text(
-                contact.initial,
-                style: const TextStyle(fontSize: 18, color: Color(0xFFB7ADA0)),
-              ),
-      ),
-    ),
+    leading:
+        avatar ??
+        ColoredBox(
+          color: legacyMessagePanel,
+          child: Center(
+            child: avatarFailed
+                ? const Icon(
+                    Icons.person_outline,
+                    size: 24,
+                    color: Color(0xFFB7ADA0),
+                  )
+                : Text(
+                    contact.initial,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      color: Color(0xFFB7ADA0),
+                    ),
+                  ),
+          ),
+        ),
   );
 }
 
