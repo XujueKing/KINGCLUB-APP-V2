@@ -201,6 +201,8 @@ class _DirectChatPageState extends State<DirectChatPage>
   bool _scrollScheduled = false;
   _ComposerPanel _composerPanel = _ComposerPanel.none;
   bool _voiceMode = false;
+  bool _voiceInputToText = false;
+  bool _heldInputToText = false;
   OverlayEntry? _voiceOverlay;
   final _voiceTarget = ValueNotifier(VoiceHoldTarget.send);
   Offset? _voiceStart;
@@ -215,11 +217,13 @@ class _DirectChatPageState extends State<DirectChatPage>
     )) {
       return;
     }
+    _heldInputToText = _voiceInputToText;
     _voiceStart = details.position;
     _voiceTarget.value = VoiceHoldTarget.send;
     _voiceOverlay?.remove();
     _voiceOverlay = OverlayEntry(
-      builder: (_) => VoiceHoldOverlay(target: _voiceTarget),
+      builder: (_) =>
+          VoiceHoldOverlay(target: _voiceTarget, sendAsText: _heldInputToText),
     );
     Overlay.of(context, rootOverlay: true).insert(_voiceOverlay!);
   }
@@ -235,7 +239,10 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   void _endVoiceHold({bool interrupted = false}) {
     if (_voiceOverlay == null) return;
-    final target = _voiceTarget.value;
+    final target =
+        _heldInputToText && _voiceTarget.value == VoiceHoldTarget.send
+        ? VoiceHoldTarget.text
+        : _voiceTarget.value;
     _voiceOverlay?.remove();
     _voiceOverlay = null;
     _voiceStart = null;
@@ -1076,6 +1083,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                                 : () {
                                     _inputFocusNode.unfocus();
                                     setState(() {
+                                      _voiceInputToText = false;
                                       _voiceMode = true;
                                       _composerPanel = _ComposerPanel.none;
                                     });
@@ -1399,6 +1407,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         onTap: () {
           _inputFocusNode.unfocus();
           setState(() {
+            _voiceInputToText = true;
             _voiceMode = true;
             _composerPanel = _ComposerPanel.none;
           });

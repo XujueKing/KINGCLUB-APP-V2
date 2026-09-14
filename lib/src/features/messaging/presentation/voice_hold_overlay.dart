@@ -9,7 +9,12 @@ import 'package:flutter/material.dart';
 enum VoiceHoldTarget { send, cancel, text }
 
 class VoiceHoldOverlay extends StatefulWidget {
-  const VoiceHoldOverlay({super.key, required this.target});
+  const VoiceHoldOverlay({
+    super.key,
+    required this.target,
+    this.sendAsText = false,
+  });
+  final bool sendAsText;
   final ValueNotifier<VoiceHoldTarget> target;
   @override
   State<VoiceHoldOverlay> createState() => _VoiceHoldOverlayState();
@@ -119,7 +124,8 @@ class _VoiceHoldOverlayState extends State<VoiceHoldOverlay>
                             Text(
                               cancel
                                   ? '松开取消'
-                                  : target == VoiceHoldTarget.text
+                                  : target == VoiceHoldTarget.text ||
+                                        widget.sendAsText
                                   ? '松开转文字'
                                   : '松手发送',
                               style: legacyChatBodyTextStyle.copyWith(
