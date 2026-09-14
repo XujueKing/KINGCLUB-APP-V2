@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.lingmei.kingclub.videoprobe">
+  <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="36" />
+  <application android:label="KINGCLUB native video verification" android:hasCode="true" />
+  <instrumentation android:name="com.lingmei.kingclub.videoprobe.VideoUploadProbe" android:targetPackage="com.lingmei.kingclub.v2preview" />
+</manifest>
