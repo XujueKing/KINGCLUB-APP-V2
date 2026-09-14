@@ -21,16 +21,23 @@ class VoiceDraftPreview extends StatefulWidget {
   State<VoiceDraftPreview> createState() => _VoiceDraftPreviewState();
 }
 
-class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
+class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
+    with WidgetsBindingObserver {
   late final _player = AudioPlayer();
   bool _playing = false;
+  bool _toggling = false;
+  bool _foreground = true;
+  int _playGeneration = 0;
+  StreamSubscription<void>? _completion;
   bool _sending = false;
   bool _valid = true;
   StreamSubscription<void>? _session;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _session = SecureSessionStore.changes.stream.listen((_) {
+      _playGeneration++;
       _player.stop().catchError((Object _) {});
       if (mounted) {
         setState(() {
@@ -39,15 +46,21 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
         });
       }
     });
-    _player.onPlayerComplete.listen((_) {
+    _completion = _player.onPlayerComplete.listen((_) {
       if (mounted) setState(() => _playing = false);
     });
   }
 
   Future<void> _toggle() async {
+    if (_toggling || !_valid || !_foreground || _sending) return;
+    final generation = ++_playGeneration;
+    setState(() => _toggling = true);
+    bool current() =>
+        mounted && _valid && _foreground && generation == _playGeneration;
     try {
       final store = await VoiceDraftStore.current();
-      if (!_valid || !store.owns(widget.draft.path)) {
+      if (!current()) return;
+      if (!store.owns(widget.draft.path)) {
         throw StateError('录音不属于当前账号');
       }
       if (_playing) {
@@ -55,18 +68,30 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
       } else {
         await _player.play(DeviceFileSource(widget.draft.path));
       }
-      if (!_valid) {
+      if (!current()) {
         await _player.stop();
         return;
       }
       if (mounted) setState(() => _playing = !_playing);
     } catch (_) {
-      if (mounted) KingNotice.of(context).show('播放失败，请重新录音');
+      if (mounted && current()) KingNotice.of(context).show('播放失败，请重新录音');
+    } finally {
+      if (mounted) setState(() => _toggling = false);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground) {
+      _playGeneration++;
+      _player.stop().catchError((Object _) {});
+      if (mounted) setState(() => _playing = false);
     }
   }
 
   Future<void> _send() async {
-    if (!_valid || _sending || widget.onSend == null) return;
+    if (!_valid || _sending || _toggling || widget.onSend == null) return;
     setState(() => _sending = true);
     try {
       await _player.stop();
@@ -81,7 +106,10 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
 
   @override
   void dispose() {
+    _playGeneration++;
+    WidgetsBinding.instance.removeObserver(this);
     _session?.cancel();
+    _completion?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -99,7 +127,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
             Text('${widget.draft.duration.inSeconds} 秒'),
           IconButton(
             tooltip: _playing ? '停止播放' : '播放录音',
-            onPressed: _valid && !_sending ? _toggle : null,
+            onPressed: _valid && !_sending && !_toggling ? _toggle : null,
             icon: Icon(
               _playing ? Icons.stop_circle_outlined : Icons.play_circle_outline,
               size: 40,
@@ -111,14 +139,14 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview> {
           ),
           if (widget.onSend != null)
             FilledButton(
-              onPressed: _valid && !_sending ? _send : null,
+              onPressed: _valid && !_sending && !_toggling ? _send : null,
               child: Text(_sending ? '正在发送…' : '发送语音'),
             ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               TextButton(
-                onPressed: !_valid || _sending
+                onPressed: !_valid || _sending || _toggling
                     ? null
                     : () async {
                         try {
