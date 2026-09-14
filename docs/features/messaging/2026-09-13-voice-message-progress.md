@@ -117,3 +117,6 @@ voice_capture_test.dart共12项通过，新增部分启动失败、取消失败�
 依据本机record 7.1.1及record_android 2.2.0源码，默认AudioInterruptionMode.pause会在环境中断后暂停，页面此前未订阅状态。NativeVoiceCaptureDevice现在订阅onStateChanged，观察record后的pause/stop通知VoiceCapture；状态流错误也结束当前录音。当前按住期间收到中断停止计时、撤销60秒定时器，关闭覆盖层并经统一finish主动cancel，提示重新录音，不发送残缺草稿。不在按住期间的正常停止/迟到状态忽略；dispose取消订阅。保留原录音配置和已确认布局。
 
 15项录音测试通过，覆盖有/无页面回调均清理、无可发送草稿、正常结束不误判及订阅释放；定向analyze三文件无问题。状态事件来自受控设备测试，真实来电/耳机断开/厂商抢占行为还需真机验收，不能视为静音问题全部修复。
+
+
+01e2321已构建并覆盖安装preview profile ARM64真实接口包，62.0秒、162.2MB。SHA256 `08a3309aa1837dc7343b6ba6d70c80a01dde4c1bf282e188aab500508897b381`。adb install -r返回Success，显式启动成功；包含9b98d3b录音异常释放和01e2321音频焦点中断，原有onboarding工作区三文件随包但未修改/提交。额外会话重绑及草稿发送6项通过。未自动采集真实麦克风或发送联系人消息；真机实际中断/录音声音验收未完成。
