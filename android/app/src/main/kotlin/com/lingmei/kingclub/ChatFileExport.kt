@@ -12,7 +12,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** Only documents freshly returned by this activity's system picker are writable. */
 class ChatFileExport(private val activity: Activity) {
-    companion object { const val REQUEST = 28419 }
+    companion object {
+        const val REQUEST = 28419
+        // Document providers may perform remote I/O. Cleanup must neither block
+        // the UI nor queue behind a copy blocked inside a provider write.
+        private val cleanupExecutor = Executors.newSingleThreadExecutor()
+    }
     private val executor = Executors.newSingleThreadExecutor()
     private var picker: MethodChannel.Result? = null
     private var document: Uri? = null
@@ -127,7 +132,12 @@ class ChatFileExport(private val activity: Activity) {
     }
 
     private fun remove(uri: Uri) {
-        try { DocumentsContract.deleteDocument(activity.contentResolver, uri) } catch (_: Exception) {}
+        // Capture only the application resolver: a delayed provider must not
+        // retain this export controller or its destroyed Activity.
+        val resolver = activity.applicationContext.contentResolver
+        cleanupExecutor.execute {
+            try { DocumentsContract.deleteDocument(resolver, uri) } catch (_: Exception) {}
+        }
     }
 
     fun dispose() {
