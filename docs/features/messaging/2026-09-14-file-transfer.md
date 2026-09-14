@@ -6,7 +6,7 @@
 - 草稿元数据使用安全存储，文件副本在应用私有目录；恢复验证摘要，草稿 UUID 固定消息编号。当前会话旧孤立草稿文件按 24 小时回收。文件本体未新增静态加密，不将传输加密说成端到端加密。
 - Android 系统文件导出已实现，原生复制核心在 32MiB JVM 堆限制下处理 256MiB 测试通过，Java/Kotlin 集成编译通过；iOS 导出尚未实现。
 - 8 个文件相关测试文件合并运行共 35 项通过（build/chat-file-integrated-regression.log）。包括合成 HTTP/系统通道、真实本地文件与模拟安全存储；不等同手机真实服务联调。
-- 含最新草稿和续签代码的 preview/profile APK 正在重新构建，未安装替换用户当前 preview。
+- 含最新草稿和续签代码的 preview/profile APK 已构建生成（160.7MB，64.5 秒；build/chat-file-drafts-preview-build.log），未安装替换用户当前 preview。
 
 ## 真实验收缺口
 共享服务目前仍为 group-history-065，文件接口 649–654/迁移 074–080 仅在隔离环境验证，未部署共享环境。公网 TURN 探测仍超时，不能绕过现有通话部署前置检查宣称上线。
