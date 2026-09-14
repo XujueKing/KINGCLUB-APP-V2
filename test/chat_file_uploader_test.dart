@@ -37,13 +37,17 @@ void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   for (final scenario in [
     'lost',
+    'transient',
+    'timeout',
+    'gateway',
     'renew',
     'denied',
     'changed',
     'rejected',
     'unicode',
   ]) {
-    final renew = !['lost', 'unicode'].contains(scenario);
+    final automatic = ['transient', 'timeout', 'gateway'].contains(scenario);
+    final renew = !['lost', 'unicode'].contains(scenario) && !automatic;
     final inputName = scenario == 'unicode' ? 'cafe\u0301.bin' : 'fixture.bin';
     final canonicalName = scenario == 'unicode'
         ? 'caf\u00e9.bin'
@@ -160,11 +164,18 @@ void main() {
               'size': plain.length,
               'sha256': hash,
             };
-            if (!renew && !lost) {
+            if (!renew && (!lost || (!automatic && posts == 2))) {
               lost = true;
               throw DioException(
                 requestOptions: options,
-                type: DioExceptionType.connectionError,
+                type: scenario == 'timeout'
+                    ? DioExceptionType.receiveTimeout
+                    : scenario == 'gateway'
+                    ? DioExceptionType.badResponse
+                    : DioExceptionType.connectionError,
+                response: scenario == 'gateway'
+                    ? Response(requestOptions: options, statusCode: 503)
+                    : null,
               );
             }
             return ResponseBody.fromString(
@@ -199,7 +210,7 @@ void main() {
           }
           return;
         }
-        if (renew) {
+        if (renew || automatic) {
           await first.upload(file, fileName: inputName);
         } else {
           await expectLater(
@@ -218,10 +229,10 @@ void main() {
         expect(result.fileName, canonicalName);
         expect(result.assetId, asset);
         expect(result.size, bytes.length);
-        expect(posts, renew ? 3 : 2);
+        expect(posts, 3);
         expect(ids[0], ids[1]);
         await second.upload(file, fileName: inputName);
-        expect(posts, renew ? 3 : 2);
+        expect(posts, 3);
         SecureSessionStore.changes.add(null);
         await Future<void>.delayed(Duration.zero);
         await expectLater(

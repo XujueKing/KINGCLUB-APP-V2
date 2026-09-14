@@ -266,10 +266,26 @@ class ChatFileUploader {
                 }
                 break;
               } on DioException catch (error) {
-                if (attempt != 0 ||
-                    ![401, 403].contains(error.response?.statusCode)) {
-                  rethrow;
+                if (attempt != 0) rethrow;
+                final transient =
+                    [
+                      DioExceptionType.connectionError,
+                      DioExceptionType.connectionTimeout,
+                      DioExceptionType.sendTimeout,
+                      DioExceptionType.receiveTimeout,
+                    ].contains(error.type) ||
+                    [502, 503, 504].contains(error.response?.statusCode);
+                if (transient) {
+                  // The server deduplicates by asset/index/plaintext hash.
+                  // A lost receipt can safely retry with a fresh GCM nonce.
+                  await Future.any<void>([
+                    Future<void>.delayed(const Duration(milliseconds: 500)),
+                    _cancel!.whenCancel.then<void>((_) {}),
+                  ]);
+                  await _check();
+                  continue;
                 }
+                if (![401, 403].contains(error.response?.statusCode)) rethrow;
                 await _check();
                 final renewed = await repository.call('K260914000649', {
                   'clientUploadId': requestId,
