@@ -111,6 +111,40 @@ class GroupChatRepository {
     }
   }
 
+  Future<Map<String, dynamic>> joinApplications(
+    String groupId, {
+    String? before,
+    int limit = 50,
+  }) => messaging.call('K260914000659', {
+    'groupId': groupId,
+    'before': ?before,
+    'limit': limit,
+  });
+
+  Future<Map<String, dynamic>> reviewApplication({
+    required String groupId,
+    required String applicationId,
+    required bool accept,
+    required int membershipVersion,
+  }) async {
+    final result = await messaging.call('K260914000660', {
+      'groupId': groupId,
+      'applicationId': applicationId,
+      'action': accept ? 'accept' : 'reject',
+      'membershipVersion': membershipVersion,
+    });
+    if (result['groupId'] != groupId ||
+        result['applicationId'] != applicationId ||
+        result['changed'] is! bool ||
+        ![
+          accept ? 'accepted' : 'rejected',
+          'expired',
+        ].contains(result['status'])) {
+      throw const FormatException('入群审核回执无效');
+    }
+    return result;
+  }
+
   Future<Map<String, dynamic>> previewQr(String code) =>
       messaging.call('K260914000657', {'code': code});
 

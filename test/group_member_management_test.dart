@@ -77,6 +77,11 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.byKey(const ValueKey('group-member-actions-member')),
+          150,
+        );
+        await tester.pumpAndSettle();
         expect(profileAccounts, containsAll(['me', 'admin', 'member']));
         expect(profileAccounts.toSet().length, profileAccounts.length);
         expect(find.byType(ChatMemberAvatar), findsNWidgets(owner ? 3 : 4));

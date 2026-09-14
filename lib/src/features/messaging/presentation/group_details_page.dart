@@ -1,3 +1,4 @@
+import 'group_join_review_page.dart';
 import 'group_qr_page.dart';
 import 'group_announcement_page.dart';
 import 'chat_member_avatar.dart';
@@ -596,6 +597,36 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                             ),
                           ),
                   ),
+                  if ((_details!['members'] as List).cast<Map>().any(
+                    (m) =>
+                        m['account'] == widget.repository.account &&
+                        ['owner', 'admin'].contains(m['role']),
+                  ))
+                    ListTile(
+                      key: const ValueKey('group-join-review-row'),
+                      title: const Text(
+                        '入群申请',
+                        style: TextStyle(
+                          color: Color(0xFFC9B69E),
+                          fontSize: 16,
+                        ),
+                      ),
+                      trailing: const Icon(
+                        Icons.chevron_right,
+                        color: Color(0xFFC9B69E),
+                      ),
+                      onTap: _saving || _invalid
+                          ? null
+                          : () => Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => GroupJoinReviewPage(
+                                  groupId: widget.groupId,
+                                  repository: widget.repository,
+                                ),
+                              ),
+                            ),
+                    ),
                   _settingRow('消息免打扰', 'muted'),
                   const Divider(
                     indent: 24,
