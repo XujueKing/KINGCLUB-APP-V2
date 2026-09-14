@@ -154,12 +154,14 @@ class DirectChatPage extends StatefulWidget {
     this.peerAccount,
     this.groupId,
     this.repository,
+    this.openRepository,
     this.chatOutbox,
   }) : assert(peerAccount == null || groupId == null);
 
   final String? peerAccount;
   final String? groupId;
   final MessagingRepository? repository;
+  final Future<MessagingRepository> Function()? openRepository;
   final ChatOutbox? chatOutbox;
   final VoiceCapture? voiceCapture;
   final String peerName;
@@ -173,6 +175,9 @@ class DirectChatPage extends StatefulWidget {
 class _DirectChatPageState extends State<DirectChatPage>
     with WidgetsBindingObserver {
   ChatSessionController? _chat;
+  int _connectionGeneration = 0;
+  String? _conversationAccount;
+  String _connectionNotice = '正在连接会话…';
   CallLaunchCoordinator? _callLauncher;
   bool _openingCall = false, _choosingCall = false;
   String? get _realTarget => widget.groupId ?? widget.peerAccount;
@@ -360,15 +365,23 @@ class _DirectChatPageState extends State<DirectChatPage>
     _muted = widget.initialMuted;
     _inputFocusNode.addListener(_handleInputFocusChanged);
     if (_realTarget != null) {
+      _sessionEvents = SecureSessionStore.changes.stream.listen(
+        (_) => _rebindChatSession(),
+      );
       _scrollController.addListener(_onRealScroll);
       _connectRealChat();
     }
   }
 
-  Future<void> _connectRealChat() async {
+  Future<void> _connectRealChat({MessagingRepository? renewed}) async {
+    final generation = ++_connectionGeneration;
     try {
-      final repository = widget.repository ?? await MessagingRepository.open();
-      if (!mounted) return;
+      final repository =
+          renewed ??
+          widget.repository ??
+          await (widget.openRepository ?? MessagingRepository.open)();
+      if (!mounted || generation != _connectionGeneration) return;
+      _conversationAccount ??= repository.account;
       final outbox = widget.chatOutbox ?? SecureChatOutbox(repository.account);
       final ChatSessionController chat = widget.groupId != null
           ? GroupChatController(
@@ -416,27 +429,56 @@ class _DirectChatPageState extends State<DirectChatPage>
           chat.synchronize().then((_) => chat.retryQueued());
         }
       });
-      _sessionEvents = SecureSessionStore.changes.stream.listen((_) {
-        _callLauncher?.close();
-        _callLauncher = null;
-        _voiceSession++;
-        _endVoiceHold(interrupted: true);
-        _chatEvents?.cancel();
-        _chat?.removeListener(_realChatChanged);
-        _chat?.dispose();
-        _chat = null;
-        _avatarProfiles.clear();
-        if (mounted) {
-          setState(_messages.clear);
-          KingNotice.of(context).show('登录状态已变化，请重新进入会话');
-        }
-      });
       await chat.initialize();
-      if (mounted && chat.error != null) {
+      if (mounted &&
+          generation == _connectionGeneration &&
+          chat.error != null) {
         KingNotice.of(context).show(chat.error!);
       }
     } catch (error) {
-      if (mounted) KingNotice.of(context).show(error.toString());
+      if (mounted && generation == _connectionGeneration) {
+        setState(() => _connectionNotice = '会话连接失败，请返回重试');
+        KingNotice.of(context).show(error.toString());
+      }
+    }
+  }
+
+  Future<void> _rebindChatSession() async {
+    final generation = ++_connectionGeneration;
+    _callLauncher?.close();
+    _callLauncher = null;
+    _voiceSession++;
+    _endVoiceHold(interrupted: true);
+    _voicePlayback?.dispose();
+    _voicePlayback = null;
+    _chatEvents?.cancel();
+    _chat?.removeListener(_realChatChanged);
+    _chat?.dispose();
+    _chat = null;
+    _avatarProfiles.clear();
+    if (!mounted) return;
+    setState(() {
+      _messages.clear();
+      _connectionNotice = '正在恢复会话…';
+    });
+    try {
+      final session = await SecureSessionStore().readSession();
+      if (!mounted || generation != _connectionGeneration) return;
+      final account = (session?['account'] as Map?)?['userAccount'];
+      if (account == null || account != _conversationAccount) {
+        _controller.clear();
+        setState(() => _connectionNotice = '登录状态已变化，请重新进入会话');
+        return;
+      }
+      final repository =
+          await (widget.openRepository ?? MessagingRepository.open)();
+      if (!mounted || generation != _connectionGeneration) return;
+      if (repository.account != _conversationAccount) return;
+      await _connectRealChat(renewed: repository);
+    } catch (_) {
+      if (mounted && generation == _connectionGeneration) {
+        setState(() => _connectionNotice = '会话连接失败，请返回重试');
+      }
     }
   }
 
@@ -622,6 +664,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   @override
   void dispose() {
     _leaving = true;
+    _connectionGeneration++;
     unawaited(_callLauncher?.abandonOutgoing().catchError((Object _) {}));
     _chatEvents?.cancel();
     _sessionEvents?.cancel();
@@ -674,8 +717,8 @@ class _DirectChatPageState extends State<DirectChatPage>
                 width: double.infinity,
                 padding: const EdgeInsets.all(9),
                 color: const Color(0x221F1B17),
-                child: const Text(
-                  '好友关系已结束，历史记录仅可查看',
+                child: Text(
+                  _connectionNotice,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Color(0x99FFFFFF), fontSize: 12),
                 ),
