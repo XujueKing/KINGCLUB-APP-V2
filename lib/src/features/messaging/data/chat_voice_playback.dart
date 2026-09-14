@@ -184,6 +184,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
     _generation++;
     _session?.cancel();
@@ -191,8 +192,11 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
     _complete?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _serialize(() async {
-      await _output.stop();
-      await _output.dispose();
+      try {
+        await _output.stop();
+      } finally {
+        await _output.dispose();
+      }
     }).catchError((Object _) {});
     super.dispose();
   }

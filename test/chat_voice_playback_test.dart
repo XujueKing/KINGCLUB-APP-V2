@@ -9,6 +9,8 @@ import 'package:kingclub/src/core/session/secure_session_store.dart';
 class Output implements ChatVoiceOutput {
   final plays = <String>[];
   int stops = 0;
+  int disposals = 0;
+  bool failStop = false;
   final done = StreamController<void>.broadcast();
   @override
   Stream<void> get completed => done.stream;
@@ -20,10 +22,14 @@ class Output implements ChatVoiceOutput {
   @override
   Future<void> stop() async {
     stops++;
+    if (failStop) throw StateError('native stop failed');
   }
 
   @override
-  Future<void> dispose() => done.close();
+  Future<void> dispose() {
+    disposals++;
+    return done.close();
+  }
 }
 
 Map<String, dynamic> grant(String message, {bool group = false}) => {
@@ -38,6 +44,19 @@ Map<String, dynamic> grant(String message, {bool group = false}) => {
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('native stop failure still disposes output exactly once', () async {
+    final output = Output()..failStop = true;
+    final player = ChatVoicePlayback(
+      output: output,
+      events: const Stream.empty(),
+    );
+    player.dispose();
+    await Future<void>.delayed(Duration.zero);
+    expect(output.disposals, 1);
+    player.dispose();
+    await Future<void>.delayed(Duration.zero);
+    expect(output.disposals, 1);
+  });
   test('each playback checks permission before private cache, and only one clip is active', () async {
     final output = Output();
     var requests = 0, loads = 0;
