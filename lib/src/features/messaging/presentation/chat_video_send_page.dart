@@ -75,6 +75,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
 
   bool _busy = false;
   String? _error;
+  String? _uploadSize;
   double? _progress;
 
   @override
@@ -115,7 +116,15 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
           },
         );
         if (!_usable) return;
+        final sourceBytes = await widget.file.length();
+        final uploadBytes = await uploadInput.length();
+        if (!_usable) return;
+        String size(int bytes) =>
+            '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
         setState(() {
+          _uploadSize = uploadBytes < sourceBytes
+              ? '已压缩：${size(sourceBytes)} → ${size(uploadBytes)}'
+              : '上传原视频：${size(uploadBytes)}';
           _optimizing = false;
           _progress = null;
         });
@@ -157,7 +166,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
         await uploader.acknowledgeQueued(file);
         await _optimizer.acknowledgeQueued();
       } catch (_) {}
-      if (_usable) Navigator.of(context).pop(true);
+      if (mounted && _usable) Navigator.of(context).pop(true);
     } catch (error) {
       if (_usable) setState(() => _error = error.toString());
     } finally {
@@ -252,6 +261,14 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
             TextButton(
               onPressed: _busy ? null : _discard,
               child: const Text('丢弃草稿'),
+            ),
+          if (_uploadSize != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Text(
+                _uploadSize!,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
             ),
           if (_busy) LinearProgressIndicator(value: _progress),
           if (_error != null)
