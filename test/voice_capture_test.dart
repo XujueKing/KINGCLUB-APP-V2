@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/voice_capture.dart';
 
 class Device implements VoiceCaptureDevice {
+  bool failCancel = false;
   final permission = Completer<bool>();
   final started = Completer<void>();
   int starts = 0, cancels = 0, stops = 0, disposals = 0;
@@ -18,6 +19,7 @@ class Device implements VoiceCaptureDevice {
   @override
   Future<void> cancel() async {
     cancels++;
+    if (failCancel) throw StateError('native cancellation failed');
   }
 
   @override
@@ -33,6 +35,34 @@ class Device implements VoiceCaptureDevice {
 }
 
 void main() {
+  test(
+    'dispose releases device even when cancellation fails and forbids reuse',
+    () async {
+      final device = Device()
+        ..permission.complete(true)
+        ..started.complete()
+        ..failCancel = true;
+      final capture = VoiceCapture(
+        device: device,
+        allocatePath: () async => 'voice.m4a',
+      );
+      capture.begin(onLimit: () {});
+      await Future<void>.delayed(Duration.zero);
+      await expectLater(capture.dispose(), throwsStateError);
+      expect(device.disposals, 1);
+      expect(capture.begin(onLimit: () {}), isFalse);
+    },
+  );
+  test('concurrent disposal releases the native recorder only once', () async {
+    final device = Device();
+    final capture = VoiceCapture(
+      device: device,
+      allocatePath: () async => 'voice.m4a',
+    );
+    await Future.wait([capture.dispose(), capture.dispose()]);
+    expect(device.disposals, 1);
+    expect(capture.begin(onLimit: () {}), isFalse);
+  });
   test(
     'system denied recording never allocates or returns a sendable draft',
     () async {

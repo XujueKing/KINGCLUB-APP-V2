@@ -68,6 +68,8 @@ class VoiceCapture {
   final _elapsed = Stopwatch();
   Future<void> _starting = Future.value();
   bool _held = false, _recording = false, _busy = false;
+  bool _disposed = false;
+  Future<void>? _disposing;
   Object? _error;
   Timer? _limit;
 
@@ -77,7 +79,7 @@ class VoiceCapture {
   );
 
   bool begin({required void Function() onLimit}) {
-    if (_busy) return false;
+    if (_busy || _disposed) return false;
     _busy = true;
     _held = true;
     _error = null;
@@ -119,8 +121,9 @@ class VoiceCapture {
         if (_recording) await device.cancel();
         return null;
       }
-      if (_error != null)
+      if (_error != null) {
         throw StateError('无法录音，请在系统设置中允许 KINGCLUB 使用麦克风，并检查是否被其他应用占用');
+      }
       if (!_recording) return null;
       if (_elapsed.elapsed < const Duration(seconds: 1)) {
         await device.cancel();
@@ -135,8 +138,16 @@ class VoiceCapture {
     }
   }
 
-  Future<void> dispose() async {
-    await finish(cancel: true);
-    await device.dispose();
+  Future<void> dispose() {
+    _disposed = true;
+    return _disposing ??= _dispose();
+  }
+
+  Future<void> _dispose() async {
+    try {
+      await finish(cancel: true);
+    } finally {
+      await device.dispose();
+    }
   }
 }
