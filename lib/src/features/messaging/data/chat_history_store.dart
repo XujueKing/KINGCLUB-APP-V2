@@ -89,8 +89,9 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 11,
+        version: 12,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 12) await _createNearbyMembers(db);
           if (oldVersion < 11) await _createNearbyServerPresence(db);
           if (oldVersion < 6) await _createNearbyMessages(db);
           if (oldVersion >= 6 && oldVersion < 7) {
@@ -136,6 +137,7 @@ class ChatHistoryStore {
           }
         },
         onCreate: (db, _) async {
+          await _createNearbyMembers(db);
           await _createNearbyServerPresence(db);
           await _createNearbyMessages(db);
           await db.execute(

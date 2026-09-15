@@ -1,5 +1,9 @@
 part of 'chat_history_store.dart';
 
+Future<void> _createNearbyMembers(DatabaseExecutor db) => db.execute(
+  'CREATE TABLE nearby_member (member TEXT PRIMARY KEY, payload BLOB NOT NULL)',
+);
+
 Future<void> _createNearbyServerPresence(DatabaseExecutor db) => db.execute(
   'CREATE TABLE nearby_server_presence (member TEXT NOT NULL, id TEXT NOT NULL, PRIMARY KEY(member,id))',
 );
@@ -77,7 +81,20 @@ extension NearbyMessageHistory on ChatHistoryStore {
       secretKey: _key,
       aad: _nearbyAad(peer, id, outgoing),
     );
+    final memberBox = member == null
+        ? null
+        : await ChatHistoryStore._cipher.encrypt(
+            utf8.encode(peerAccount!),
+            secretKey: _key,
+            aad: utf8.encode(jsonEncode(['nearby-member-v1', account, member])),
+          );
     await _db.transaction((tx) async {
+      if (memberBox != null) {
+        await tx.insert('nearby_member', {
+          'member': member,
+          'payload': memberBox.concatenation(),
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
       final rows = await tx.query(
         'nearby_message',
         where: 'peer=? AND id=? AND outgoing=?',
@@ -109,6 +126,55 @@ extension NearbyMessageHistory on ChatHistoryStore {
         'member': member,
       });
     });
+  }
+
+  /// Enumerates authenticated member scopes with visible delivered local text.
+  /// Public member IDs are encrypted; unknown device-only journals stay excluded.
+  Future<List<String>> nearbyConversationMembers({
+    String? afterMember,
+    int limit = 100,
+  }) async {
+    if (limit < 1 ||
+        limit > 200 ||
+        (afterMember != null &&
+            !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(afterMember))) {
+      throw ArgumentError('Invalid nearby member page');
+    }
+    final cursor = afterMember == null
+        ? null
+        : await _conversation('direct:$afterMember');
+    final rows = await _db.rawQuery(
+      'SELECT m.member,m.payload FROM nearby_member m '
+      'WHERE ${cursor == null ? '' : 'm.member>? AND '}EXISTS ('
+      'SELECT 1 FROM nearby_message WHERE member=m.member '
+      'AND $_notServerPresent GROUP BY id,outgoing '
+      'HAVING MAX(hidden)=0 AND MAX(serverId IS NOT NULL)=0 '
+      'AND (outgoing=0 OR MAX(delivered)=1)) '
+      'ORDER BY m.member LIMIT ?',
+      [?cursor, limit],
+    );
+    final members = <String>[];
+    for (final row in rows) {
+      final member = row['member'] as String;
+      final decoded = utf8.decode(
+        await ChatHistoryStore._cipher.decrypt(
+          SecretBox.fromConcatenation(
+            (row['payload'] as List).cast<int>(),
+            nonceLength: 12,
+            macLength: 16,
+          ),
+          secretKey: _key,
+          aad: utf8.encode(jsonEncode(['nearby-member-v1', account, member])),
+        ),
+      );
+      if (decoded == account ||
+          !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(decoded) ||
+          await _conversation('direct:$decoded') != member) {
+        throw StateError('Nearby member identity conflict');
+      }
+      members.add(decoded);
+    }
+    return members;
   }
 
   Future<bool> confirmNearbyReceipt({
