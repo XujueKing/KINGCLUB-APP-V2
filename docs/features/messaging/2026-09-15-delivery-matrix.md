@@ -118,3 +118,9 @@ Validation: new controlled widget test holds pagination pending, repeats load-mo
 - adb install -r Success；lastUpdateTime 2026-09-15 09:14:14；am start Status ok，WaitTime 3026ms；近期 AndroidRuntime/flutter error 过滤无输出。
 - 包含顺序刷新/分页、底栏 99 上限、晚到 WebSocket 清理、缓存清除 generation 修复及 NovoRUDP 接收队列/同进程续传修复。仅设备身份绑定已接客户端，实际聊天尚未选择 UDP。
 - 手机检查时处于休眠；安装启动不等于用户视频成功发送、语音可听或双机验收。在线表情云/ASR发布限制仍未解除。
+
+## Interrupted offline catch-up regression
+
+Added a controller test starting with sequence 1, catching up through 51, failing the next page, then resuming at 51 and completing through 131. All 131 sequences appear exactly once; an intermediate network error retains the known send permission and clears after successful catch-up. Existing implementation passed without a production code change. Direct/group controller suites: 21 passed; targeted analyze passed.
+
+This is controlled repository-response evidence only. It does not prove actual mobile WebSocket delivery, offline server retention or the historical friend-removal report resolved.

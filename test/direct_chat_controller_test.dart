@@ -53,6 +53,56 @@ Map<String, dynamic> history(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    'offline catch-up resumes after a failed middle page without duplicates',
+    () async {
+      final cursors = <Object?>[];
+      var failMiddle = true;
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: MemoryOutbox(),
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, params) async {
+            final after = params['after'] as int?;
+            cursors.add(after);
+            if (after == null) {
+              return history([
+                ack({'clientMessageId': '1', 'text': 'initial'}),
+              ]);
+            }
+            if (after == 51 && failMiddle) {
+              failMiddle = false;
+              throw const AuthFailure('NETWORK_ERROR', 'offline');
+            }
+            final end = (after + 50).clamp(0, 131);
+            return history([
+              for (var i = after + 1; i <= end; i++)
+                ack({
+                  'clientMessageId': '$i',
+                  'text': 'message $i',
+                }, sequence: i),
+            ], more: end < 131);
+          },
+        ),
+      );
+      await controller.synchronize();
+      await controller.synchronize();
+      expect(cursors, [null, 1, 51]);
+      expect(controller.messages.length, 51);
+      expect(controller.permission['allowed'], isTrue);
+      expect(controller.error, isNotNull);
+      await controller.synchronize();
+      expect(cursors, [null, 1, 51, 51, 101]);
+      expect(
+        controller.messages.map((m) => m['sequence']),
+        List.generate(131, (i) => i + 1),
+      );
+      expect(controller.error, isNull);
+      expect(controller.permission['allowed'], isTrue);
+      controller.dispose();
+    },
+  );
+  test(
     'notification during in-flight history triggers one more catch-up',
     () async {
       final first = Completer<Map<String, dynamic>>();
