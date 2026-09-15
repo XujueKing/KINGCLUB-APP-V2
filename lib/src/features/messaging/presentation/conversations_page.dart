@@ -35,6 +35,7 @@ class ConversationsPage extends StatefulWidget {
     required this.active,
     this.realData = false,
     this.repository,
+    this.pendingRequests = 0,
     this.friendMuted = false,
     this.networkUnavailable = false,
     this.otherDeviceCount = 0,
@@ -51,6 +52,7 @@ class ConversationsPage extends StatefulWidget {
   });
 
   final bool realData;
+  final int pendingRequests;
   final MessagingRepository? repository;
   final bool active;
   final bool friendMuted;
@@ -558,6 +560,7 @@ class _ConversationsPageState extends State<ConversationsPage>
 
   Widget _header() => LegacyConversationTabs(
     chatSelected: true,
+    pendingRequests: widget.pendingRequests,
     onChat: () {},
     onContacts: widget.onOpenContacts,
     onAdd: widget.onAddFriend,

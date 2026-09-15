@@ -5,8 +5,59 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/features/scanner/presentation/safe_scanner_page.dart';
 import 'package:kingclub/src/features/shell/presentation/app_shell_page.dart';
+import 'package:kingclub/src/features/contacts/presentation/contacts_page.dart';
+import 'package:kingclub/src/features/messaging/presentation/conversations_page.dart';
 
 void main() {
+  testWidgets('incoming requests reach the shell and chat tab then clear', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KingTheme.dark,
+        home: AppShellPage(
+          initialSystemUnreadCount: 0,
+          initialFriendUnreadCount: 0,
+          onOpenScanner: (_, _) async => null,
+          onOpenTogether: () {},
+          onOpenParty: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final contacts = tester.widget<ContactsPage>(
+      find.byType(ContactsPage, skipOffstage: false),
+    );
+    contacts.onPendingRequestsChanged!(1);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('shell-message-unread-badge')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<ConversationsPage>(
+            find.byType(ConversationsPage, skipOffstage: false),
+          )
+          .pendingRequests,
+      1,
+    );
+    contacts.onPendingRequestsChanged!(0);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('shell-message-unread-badge')),
+      findsNothing,
+    );
+    expect(
+      tester
+          .widget<ConversationsPage>(
+            find.byType(ConversationsPage, skipOffstage: false),
+          )
+          .pendingRequests,
+      0,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
   Widget shell({
     int initialIndex = 0,
     AppShellDemoState state = AppShellDemoState.ready,

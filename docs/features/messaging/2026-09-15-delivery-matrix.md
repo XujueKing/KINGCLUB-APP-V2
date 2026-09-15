@@ -1,5 +1,13 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-15 14:47 双机扫码与首次消息
+
+- 用户明确授权仅 A、B 测试会员之间执行好友申请、测试消息和通话邀请。B 扫描 A 个人二维码并发出申请，A 的“新的朋友”显示 1；用户在 A 点击接受后显示“已添加”。
+- 双端截图确认 A 的“你好”到达 B，B 的表情回复到达 A，双方显示各自真实头像。仅证明这次在线双向消息，不等同于语音、视频、离线恢复或去中心化通道验收。
+- 用户发现申请仅在“新的朋友”显示角标。修正为 ContactsController 同一个待处理入站申请数量同时更新通讯录标签与底栏消息总角标，处理/会话切换后清零；网络暂时失败保留最后确认数量，已处理和本人发出的申请不计入。
+- 定向验证：联系人与 Shell 共 21 项测试通过，覆盖数量向上层传播及清零；本次修改尚待安装，不把自动化结果当成手机角标复验。
+- 当前双机安装为 14:37 的字体适配版本，详见 app_layout/2026-09-15-text-scale.md；下文 14:25/12:29 是历史安装记录。
+
 ## 2026-09-15 14:25 A/B installation update
 
 This entry supersedes earlier installation records. User designated the original PCLM50 as A and new PKL110 as B. Built the 55c57f4 worktree (including the three preserved, uncommitted onboarding edits) in profile/preview ARM64 mode with the real test API. Gradle took 69.1 seconds; APK size 157003848 bytes; SHA256 f4f5cdca82e75480ef365bcfd32e94633369e4954307afd8f20a171f0aea7d47. Native ARM64 packaging verification passed.

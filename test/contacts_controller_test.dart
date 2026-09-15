@@ -44,10 +44,11 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    final reportedCounts = <int>[];
     final repository = MessagingRepository(
       account: 'me',
       call: (id, _) async {
-        if (id == 'K260913000611')
+        if (id == 'K260913000611') {
           return page([
             {
               'requestId': 'actual-request',
@@ -55,6 +56,7 @@ void main() {
               'requestStatus': 'pending',
             },
           ]);
+        }
         if (id == 'K260913000615') return {'version': 0, 'groups': []};
         return page([]);
       },
@@ -66,6 +68,7 @@ void main() {
             active: true,
             realData: true,
             repository: repository,
+            onPendingRequestsChanged: reportedCounts.add,
             onIntent: (_) {},
           ),
         ),
@@ -73,7 +76,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('新的朋友'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('1'), findsNWidgets(2));
+    expect(reportedCounts.last, 1);
     expect(find.text('还没有好友'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });

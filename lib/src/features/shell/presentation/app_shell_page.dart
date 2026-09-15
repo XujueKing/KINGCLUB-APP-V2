@@ -104,6 +104,7 @@ class _AppShellPageState extends State<AppShellPage> {
   bool _friendMuted = false;
   late int _systemNotificationsUnread;
   late int _friendConversationUnread;
+  int _pendingFriendRequests = 0;
   late AppShellDemoState _shellState;
   int _homeReselectSignal = 0;
   int _profileReselectSignal = 0;
@@ -135,6 +136,7 @@ class _AppShellPageState extends State<AppShellPage> {
     if (widget.realChat && !oldWidget.realChat) {
       _systemNotificationsUnread = 0;
       _friendConversationUnread = 0;
+      _pendingFriendRequests = 0;
     }
   }
 
@@ -178,6 +180,10 @@ class _AppShellPageState extends State<AppShellPage> {
                   children: [
                     ContactsPage(
                       realData: widget.realChat,
+                      onPendingRequestsChanged: (count) {
+                        if (!mounted || count == _pendingFriendRequests) return;
+                        setState(() => _pendingFriendRequests = count);
+                      },
                       active: _selectedIndex == 1 && _messagesPageIndex == 0,
                       onOpenChat: () => setState(() => _messagesPageIndex = 1),
                       onScan: _openScanner,
@@ -187,6 +193,7 @@ class _AppShellPageState extends State<AppShellPage> {
                     ),
                     ConversationsPage(
                       realData: widget.realChat,
+                      pendingRequests: _pendingFriendRequests,
                       friendMuted: _friendMuted,
                       active: _selectedIndex == 1 && _messagesPageIndex == 1,
                       systemUnreadCount: _systemNotificationsUnread,
@@ -277,7 +284,9 @@ class _AppShellPageState extends State<AppShellPage> {
           child: _LegacyBottomBar(
             selectedIndex: _selectedIndex,
             messageUnreadCount:
-                _systemNotificationsUnread + _friendConversationUnread,
+                _systemNotificationsUnread +
+                _friendConversationUnread +
+                _pendingFriendRequests,
             destinations: _destinations,
             onSelected: _selectDestination,
           ),

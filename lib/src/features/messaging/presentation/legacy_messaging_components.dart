@@ -151,10 +151,12 @@ class LegacyConversationTabs extends StatelessWidget {
     required this.onChat,
     required this.onContacts,
     required this.onAdd,
+    this.pendingRequests = 0,
     this.onScan,
     this.onPersonalQr,
   });
   final bool chatSelected;
+  final int pendingRequests;
   final VoidCallback? onChat, onContacts, onAdd, onScan, onPersonalQr;
   @override
   Widget build(BuildContext context) {
@@ -172,15 +174,24 @@ class LegacyConversationTabs extends StatelessWidget {
               },
         child: Padding(
           padding: const EdgeInsets.only(bottom: 14),
-          child: Text(
-            title,
-            style: selected
-                ? kingSectionTitleStyle
-                : const TextStyle(
-                    color: Color(0x80C9B69E),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                  ),
+          child: Badge(
+            key: title == '通讯录'
+                ? const ValueKey('contacts-tab-request-badge')
+                : null,
+            isLabelVisible: title == '通讯录' && pendingRequests > 0,
+            backgroundColor: const Color(0xFFFF4D55),
+            textColor: Colors.white,
+            label: Text(pendingRequests > 99 ? '99' : '$pendingRequests'),
+            child: Text(
+              title,
+              style: selected
+                  ? kingSectionTitleStyle
+                  : const TextStyle(
+                      color: Color(0x80C9B69E),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                    ),
+            ),
           ),
         ),
       ),

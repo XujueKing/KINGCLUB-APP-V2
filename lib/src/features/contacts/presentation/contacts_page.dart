@@ -50,6 +50,7 @@ class ContactsPage extends StatefulWidget {
     required this.active,
     required this.onIntent,
     this.onOpenChat,
+    this.onPendingRequestsChanged,
     this.realData = false,
     this.repository,
     this.onScan,
@@ -63,6 +64,7 @@ class ContactsPage extends StatefulWidget {
   final MessagingRepository? repository;
   final ValueChanged<ContactRouteIntent> onIntent;
   final VoidCallback? onOpenChat;
+  final ValueChanged<int>? onPendingRequestsChanged;
   final VoidCallback? onScan;
   final VoidCallback? onPersonalQr;
   final ContactsDemoState initialState;
@@ -97,6 +99,7 @@ class _ContactsPageState extends State<ContactsPage>
       _events?.cancel();
       _real?.dispose();
       _real = null;
+      widget.onPendingRequestsChanged?.call(0);
       _avatarProfiles.clear();
       _groupRepository = null;
       _groups = [];
@@ -123,6 +126,7 @@ class _ContactsPageState extends State<ContactsPage>
       unawaited(_loadGroups());
       controller.addListener(() {
         if (!mounted) return;
+        widget.onPendingRequestsChanged?.call(controller.pendingRequests);
         setState(() {
           _state = controller.error != null
               ? ContactsDemoState.partialError
@@ -371,6 +375,7 @@ class _ContactsPageState extends State<ContactsPage>
 
   Widget _header() => LegacyConversationTabs(
     chatSelected: false,
+    pendingRequests: widget.realData ? (_real?.pendingRequests ?? 0) : 0,
     onScan: widget.onScan,
     onPersonalQr: widget.onPersonalQr,
     onChat: _state == ContactsDemoState.sessionInvalid
