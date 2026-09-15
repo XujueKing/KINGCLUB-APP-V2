@@ -34,6 +34,7 @@ class MemberRelayRuntime with WidgetsBindingObserver {
   /// this runtime also closes it when its foreground relay is disconnected.
   Stream<MemberRelayArrival> get incomingChannels => _arrivals.stream;
   final _pendingPeers = <String>{};
+  final _outgoing = <String, Future<NovoRudpRelayFrameLink>>{};
   final _handshakes = <String, MemberRelayHandshake>{};
   final _peerLinks = <String, NovoRudpRelayFrameLink>{};
   final _peerSubscriptions = <String, StreamSubscription>{};
@@ -143,6 +144,99 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     }
   }
 
+  /// Coalesces concurrent requests for one member/device; the caller retains
+  /// the normal service transport when this foreground route is unavailable.
+  Future<NovoRudpRelayFrameLink> connectPeer(String peer, String bindingId) {
+    if (!RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peer) ||
+        peer == binding.messaging.account ||
+        !RegExp(r'^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$')
+            .hasMatch(bindingId)) {
+      throw ArgumentError('Invalid relay member/device');
+    }
+    final socket = connection;
+    if (socket == null || !_current(_attempt)) {
+      throw StateError('Relay unavailable');
+    }
+    final id = '$peer/$bindingId';
+    final pending = _outgoing[id];
+    if (pending != null) return pending;
+    if (_outgoing.length >= 8) throw StateError('Too many relay lookups');
+    late final Future<NovoRudpRelayFrameLink> task;
+    task = _openPeer(socket, peer, bindingId, _attempt).whenComplete(() {
+      if (identical(_outgoing[id], task)) _outgoing.remove(id);
+    });
+    _outgoing[id] = task;
+    return task;
+  }
+
+  Future<NovoRudpRelayFrameLink> _openPeer(
+    NovoRudpRelayConnection socket,
+    String peer,
+    String bindingId,
+    int attempt,
+  ) async {
+    final keys = await binding
+        .directory(peer)
+        .timeout(const Duration(seconds: 5));
+    if (!_current(attempt)) throw StateError('Relay changed');
+    final key = keys.where((key) => key.bindingId == bindingId).single;
+    final existing = _peerLinks[key.peerId];
+    if (existing != null) {
+      await existing.revalidate();
+      if (!_current(attempt)) throw StateError('Relay changed');
+      return existing;
+    }
+    if (_pendingPeers.contains(key.peerId) ||
+        _pendingPeers.length + _peerLinks.length >= 8) {
+      throw StateError('Relay peer connection pending or full');
+    }
+    _pendingPeers.add(key.peerId);
+    final handshake = MemberRelayHandshake(
+      binding: binding,
+      relay: socket,
+      peer: peer,
+      peerBindingId: bindingId,
+      initiate: true,
+    );
+    _handshakes[key.peerId] = handshake;
+    NovoRudpRelayFrameLink? link;
+    try {
+      link = await handshake.connect();
+      if (!_current(attempt) || link.expectedPeer != key.peerId) {
+        throw StateError('Relay peer changed');
+      }
+      _holdLink(key.peerId, link);
+      return link;
+    } catch (_) {
+      if (link != null) unawaited(link.close());
+      rethrow;
+    } finally {
+      handshake.close();
+      if (_current(attempt)) {
+        _pendingPeers.remove(key.peerId);
+        if (identical(_handshakes[key.peerId], handshake)) {
+          _handshakes.remove(key.peerId);
+        }
+      }
+    }
+  }
+
+  void _holdLink(String source, NovoRudpRelayFrameLink accepted) {
+    final previous = _peerLinks[source];
+    if (previous != null) unawaited(previous.close());
+    unawaited(_peerSubscriptions.remove(source)?.cancel());
+    _peerLinks[source] = accepted;
+    _peerSubscriptions[source] = accepted.frames.listen(
+      (_) {},
+      onDone: () {
+        if (identical(_peerLinks[source], accepted)) {
+          _peerLinks.remove(source);
+          _peerSubscriptions.remove(source);
+        }
+      },
+    );
+  }
+
   Future<void> _acceptOffer(
     NovoRudpRelayConnection socket,
     Map<String, dynamic> event,
@@ -182,19 +276,7 @@ class MemberRelayRuntime with WidgetsBindingObserver {
         return;
       }
       final accepted = link;
-      final previous = _peerLinks[source];
-      if (previous != null) unawaited(previous.close());
-      unawaited(_peerSubscriptions.remove(source)?.cancel());
-      _peerLinks[source] = accepted;
-      _peerSubscriptions[source] = accepted.frames.listen(
-        (_) {},
-        onDone: () {
-          if (identical(_peerLinks[source], accepted)) {
-            _peerLinks.remove(source);
-            _peerSubscriptions.remove(source);
-          }
-        },
-      );
+      _holdLink(source, accepted);
       _arrivals.add((peer: resolved.peer, link: accepted));
       link = null;
     } catch (_) {
@@ -213,6 +295,7 @@ class MemberRelayRuntime with WidgetsBindingObserver {
 
   void _disconnect() {
     _attempt++;
+    _outgoing.clear();
     for (final handshake in _handshakes.values) {
       handshake.close();
     }

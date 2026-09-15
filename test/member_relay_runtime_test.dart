@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/member_relay_runtime.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_device_binding.dart';
-import 'package:kingclub/src/features/messaging/data/novorudp_relay_connection.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
 
@@ -90,40 +89,66 @@ void main() {
       );
       first.heartbeat();
       await ack.timeout(const Duration(seconds: 2));
-      final caller = NovoRudpRelayConnection(
-        identity: callerIdentity,
+      final caller = MemberRelayRuntime(
+        binding: NovoRudpDeviceBinding(
+          identity: callerIdentity,
+          messaging: MessagingRepository(
+            account: 'friend',
+            call: (api, params) async {
+              expect(api, 'K260915000672');
+              expect(params['peer'], anyOf('friend', 'runtime-member'));
+              final own = params['peer'] == 'friend';
+              final device = own ? callerIdentity : identity;
+              return {
+                'cacheSeconds': 0,
+                'keys': [
+                  {
+                    'bindingId': own
+                        ? 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+                        : 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                    'publicKey': device.peerId.split(':').last,
+                    'peerId': device.peerId,
+                  },
+                ],
+              };
+            },
+          ),
+        ),
         endpoint: runtime.endpoint,
         expectedRelay: runtime.expectedRelay,
         securityContext: runtime.securityContext,
       );
       addTearDown(caller.close);
-      final callerReceiver = caller.messages.listen((_) {});
-      addTearDown(callerReceiver.cancel);
-      await caller.connect();
+      final callerReady = caller.connections.firstWhere(
+        (value) => value != null,
+      );
+      caller.start();
+      caller.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await callerReady.timeout(const Duration(seconds: 5));
       final offered = runtime.incomingHandshakes.first;
       final arrival = runtime.incomingChannels.first;
-      final response = caller.messages.firstWhere(
-        (event) => event['kind'] == 'peer_handshake_delivery',
+      const targetBinding = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      final opening = caller.connectPeer('runtime-member', targetBinding);
+      expect(
+        identical(opening, caller.connectPeer('runtime-member', targetBinding)),
+        isTrue,
       );
-      final callerOffer = callerIdentity.start(identity.peerId);
-      caller.sendPeerHandshake(identity.peerId, {
-        'kind': 'offer',
-        'body': callerOffer.offer,
-      });
       final incoming = await offered.timeout(const Duration(seconds: 2));
       expect(incoming['body']['source_peer_id'], callerIdentity.peerId);
       expect(incoming['body']['target_peer_id'], identity.peerId);
       final accepted = await arrival.timeout(const Duration(seconds: 3));
       expect(accepted.peer, 'friend');
-      final answered = await response.timeout(const Duration(seconds: 3));
-      final secure = callerIdentity.complete(
-        callerOffer,
-        answered['body']['handshake']['body'] as Map<String, dynamic>,
+      final sender = await opening.timeout(const Duration(seconds: 3));
+      expect(
+        identical(
+          sender,
+          await caller.connectPeer('runtime-member', targetBinding),
+        ),
+        isTrue,
       );
-      addTearDown(secure.close);
       final frame = NovoRudpFrame(
         kind: NovoRudpFrameKind.data,
-        sessionId: secure.sessionId,
+        sessionId: sender.channel.sessionId,
         streamId: BigInt.one,
         objectId: BigInt.one,
         sequence: BigInt.one,
@@ -131,7 +156,7 @@ void main() {
         payload: [1, 2, 3],
       );
       final received = accepted.link.frames.first;
-      caller.sendEnvelope(await secure.seal(frame));
+      await sender.send(frame);
       expect((await received.timeout(const Duration(seconds: 2))).payload, [
         1,
         2,
@@ -140,6 +165,7 @@ void main() {
       final ended = accepted.link.frames.drain<void>();
       final readsBeforePause = reads;
       caller.close();
+      await expectLater(sender.send(frame), throwsStateError);
       final paused = runtime.connections.firstWhere((value) => value == null);
       runtime.didChangeAppLifecycleState(AppLifecycleState.paused);
       await paused;
