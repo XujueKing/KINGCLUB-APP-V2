@@ -7,3 +7,5 @@ A 真实地理编码搜索 Shanghai 返回 31.232457,121.469141（WGS84），明
 同设备实测：通过 ACTION_VIEW 打开保持相同经纬度/名称/坐标系、仅 callnative=0 的 URI，截图确认 Shanghai 标记及街道地图正常加载，不自动进入下载。网页仍有高德自身打开 App 的按钮，本次未点击。截图 build/location-web-fallback-A.png 仅本机留存。此时验证的是实际 URL，修复版应用按钮仍待构建安装复核。
 
 构建安装：Profile/preview ARM64 构建成功（Gradle 122.8 秒），原生 ELF 检查通过；APK SHA256 40691B358140E491EEEE863E2E4517FE49A0C2F61BCF2AE0B90BC189ABCDD385。A 覆盖安装 Success，lastUpdateTime 2026-09-16 07:11:04，包含 d92aa18 入群撤回前后台修复。首次启动前台仍是浏览器，未误点；再次启动后检查前台及首页。B 未操作。原生按钮从新包到网页完整链路仍需下一步验收；已验证同参数真实地图显示。
+
+07:13 新包完整入口验收通过：由首页进入消息，A/B 会话预览仍为 07:05 [位置]；进入会话点击 Shanghai 卡片，详情保持原坐标及 WGS84。通过应用内在高德地图查看按钮启动浏览器，截图确认新打开页面为 Shanghai 地图、街道及标记，无自动下载提示。证据 build/location-web-app-button-A.png（本机留存）。本次不是 adb 直接打开 URL，完成新原生按钮链路验证；B 接收端、当前位置定位及其他手机仍未验收。
