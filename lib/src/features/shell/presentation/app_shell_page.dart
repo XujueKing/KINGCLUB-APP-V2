@@ -779,7 +779,7 @@ class _LegacyNavItem extends StatelessWidget {
                         ),
                         alignment: Alignment.center,
                         child: Text(
-                          unreadCount > 99 ? '99+' : '$unreadCount',
+                          unreadCount > 99 ? '99' : '$unreadCount',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Colors.white,

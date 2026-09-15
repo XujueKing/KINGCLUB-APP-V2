@@ -100,3 +100,7 @@ Validation: 20 cache/playback tests passed; analyze passed. Added cases pause an
 Inspected the current ContactsPage/ContactsController/ContactGroupsRepository: first-entry UI does not use an artificial delay, relation groups and request counts load independently of the contact refresh, previous contact snapshots survive refresh failure, and group repository operation numbers reject stale responses after newer loads/saves. No additional loading or cache change was made without evidence of a defect.
 
 Ran contacts_controller_test.dart, contacts_flow_test.dart and contact_groups_repository_test.dart: all 23 passed. Coverage includes account reset, incoming request count, private avatar lookup, alphabet drag, retained rows during partial failure and stale group-version rejection. Widget/demo and injected-API tests are not phone or live-interface acceptance. The earlier live SQL eligibility evidence remains separate; the user's actual missing-contact case is still awaiting handset observation.
+
+## Unread badge display consistency
+
+Bottom navigation now caps its visible unread number at 99, matching the conversation rows and the user requirement. Real-chat initialization already uses zero instead of demo counts; this inspection does not prove the earlier fixed badge or missing-message report resolved. Existing shell and mute widget regressions: 12 passed. No handset acceptance; not yet installed.
