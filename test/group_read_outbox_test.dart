@@ -15,6 +15,61 @@ void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
   test(
+    'denied reads cool down without delaying healthy or newer reads',
+    () async {
+      var now = DateTime.utc(2026, 9, 16);
+      final group = ChatReadOutbox('me', group: true);
+      final direct = ChatReadOutbox('me');
+      await group.put('same', 5);
+      final calls = <String>[];
+      var denied = true;
+      final repo = MessagingRepository(
+        account: 'me',
+        readOutbox: direct,
+        groupReadOutbox: group,
+        readRetryClock: () => now,
+        call: (method, params) async {
+          calls.add('$method:${params['sequence']}');
+          if (method == 'K260913000622' && denied) {
+            throw const AuthFailure('CHAT_GROUP_ACCESS_DENIED', 'not a member');
+          }
+          return {};
+        },
+      );
+      await repo.retryPendingReads(isActive: () => true);
+      expect(calls, ['K260913000622:5']);
+      now = now.add(const Duration(seconds: 15));
+      await direct.put('same', 5);
+      await repo.retryPendingReads(isActive: () => true);
+      expect(calls, ['K260913000622:5', 'K260913000605:5']);
+      expect(await group.read(), {'same': 5});
+
+      // A newer read watermark bypasses the previous rejection's cooldown.
+      await group.put('same', 6);
+      await repo.retryPendingReads(isActive: () => true);
+      expect(calls.last, 'K260913000622:6');
+      expect(calls.length, 3);
+      now = now.add(const Duration(minutes: 4, seconds: 59));
+      await repo.retryPendingReads(isActive: () => true);
+      expect(calls.length, 3);
+      now = now.add(const Duration(seconds: 1));
+      denied = false;
+      await repo.retryPendingReads(isActive: () => true);
+      expect(calls.length, 4);
+      expect(await group.read(), isEmpty);
+
+      // Explicit reading can retry immediately after permissions are restored.
+      denied = true;
+      await group.put('same', 7);
+      await repo.retryPendingReads(isActive: () => true);
+      denied = false;
+      await repo.markGroupRead('same', 7);
+      expect(calls.length, 6);
+      expect(await group.read(), isEmpty);
+    },
+  );
+
+  test(
     'group offline read survives restart and cannot overwrite direct read',
     () async {
       final direct = ChatReadOutbox('me');

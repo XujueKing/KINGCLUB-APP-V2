@@ -33,7 +33,9 @@ class MessagingRepository {
     this.persistHistory = false,
     ChatReadOutbox? readOutbox,
     ChatReadOutbox? groupReadOutbox,
-  }) : readOutbox =
+    DateTime Function()? readRetryClock,
+  }) : _readRetryClock = readRetryClock ?? DateTime.now,
+       readOutbox =
            readOutbox ?? (persistHistory ? ChatReadOutbox(account) : null),
        groupReadOutbox =
            groupReadOutbox ??
@@ -49,6 +51,8 @@ class MessagingRepository {
 
   final ChatReadOutbox? readOutbox;
   final ChatReadOutbox? groupReadOutbox;
+  final DateTime Function() _readRetryClock;
+  final _readRetryAfter = <(bool, String), ({int sequence, DateTime after})>{};
 
   final bool persistHistory;
 
@@ -203,6 +207,7 @@ class MessagingRepository {
   }
 
   Future<Map<String, dynamic>> markRead(String peer, int sequence) async {
+    _readRetryAfter.remove((false, peer));
     final queue = readOutbox;
     if (queue != null) await queue.put(peer, sequence);
     final result = await call('K260913000605', {
@@ -221,23 +226,40 @@ class MessagingRepository {
       if (!isActive()) return;
       if (queue == null) continue;
       final values = await queue.read();
+      _readRetryAfter.removeWhere(
+        (key, _) => key.$1 == queue.group && !values.containsKey(key.$2),
+      );
       for (final entry in values.entries) {
         if (!isActive()) return;
+        final key = (queue.group, entry.key);
+        final deferred = _readRetryAfter[key];
+        if (deferred != null &&
+            deferred.sequence == entry.value &&
+            _readRetryClock().isBefore(deferred.after)) {
+          continue;
+        }
         try {
           await call(queue.group ? 'K260913000622' : 'K260913000605', {
             queue.group ? 'groupId' : 'peer': entry.key,
             'sequence': entry.value,
           });
           if (!isActive()) return;
+          _readRetryAfter.remove(key);
           _readChanges.add(account);
           await queue.acknowledge(entry.key, entry.value);
         } on AuthFailure catch (error) {
+          if (!isActive()) return;
           if (error.code == 'NETWORK_ERROR' ||
               error.code == 'SESSION_CHANGED' ||
               error.code == 'SESSION_EXPIRED') {
             return;
           }
-          // Permissions can change; keep the intent without blocking other peers.
+          // Keep rejected intents, but do not hit an unavailable conversation
+          // every foreground tick. New reading bypasses this short cooldown.
+          _readRetryAfter[key] = (
+            sequence: entry.value,
+            after: _readRetryClock().add(const Duration(minutes: 5)),
+          );
         } catch (_) {
           return;
         }
@@ -249,6 +271,7 @@ class MessagingRepository {
     String groupId,
     int sequence,
   ) async {
+    _readRetryAfter.remove((true, groupId));
     final queue = groupReadOutbox;
     if (queue != null && sequence > 0) await queue.put(groupId, sequence);
     final result = await call('K260913000622', {
