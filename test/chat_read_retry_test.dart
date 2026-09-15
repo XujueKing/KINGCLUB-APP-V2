@@ -48,12 +48,18 @@ void main() {
           await (reverse ? first : second);
           final retry = chat.markVisibleRead(5);
           expect(calls, [5, 10, 5]);
-          pending.last.complete({'readSequence': 5});
+          pending.last.complete({
+            'readSequence': 5,
+            if (group) 'groupId': 'group',
+          });
           await retry;
           await chat.markVisibleRead(5);
           expect(calls, [5, 10, 5]);
           final retryNewer = chat.markVisibleRead(10);
-          pending.last.complete({'readSequence': 10});
+          pending.last.complete({
+            'readSequence': 10,
+            if (group) 'groupId': 'group',
+          });
           await retryNewer;
           await chat.markVisibleRead(9);
           expect(calls, [5, 10, 5, 10]);

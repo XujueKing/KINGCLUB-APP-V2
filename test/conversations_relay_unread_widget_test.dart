@@ -57,7 +57,7 @@ void main() {
                   throw const AuthFailure('NETWORK_ERROR', 'offline');
                 }
                 serverUnread = 0;
-                return {};
+                return {'readSequence': params['sequence']};
               }
               if (method != 'K260913000607') return {};
               return {

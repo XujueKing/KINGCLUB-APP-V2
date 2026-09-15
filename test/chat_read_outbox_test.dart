@@ -37,7 +37,7 @@ void main() {
       readOutbox: queue,
       call: (_, _) async {
         if (offline) throw const AuthFailure('NETWORK_ERROR', 'offline');
-        return {};
+        return {'readSequence': 1};
       },
     );
     await repo.retryPendingReads(isActive: () => true);
@@ -71,7 +71,7 @@ void main() {
     await called.future;
     await messages.accessed.future.timeout(const Duration(seconds: 2));
     expect(response.isCompleted, false);
-    response.complete({});
+    response.complete({'readSequence': 1});
     await running;
     worker.close();
   });
@@ -96,7 +96,7 @@ void main() {
           call: (method, params) async {
             expect(method, 'K260913000605');
             calls.add(params);
-            return {};
+            return {'readSequence': params['sequence']};
           },
         ),
         MemoryOutbox(),
@@ -126,7 +126,7 @@ void main() {
     final sending = repo.markRead('peer', 5);
     await called.future;
     await ChatReadOutbox('me').put('peer', 10);
-    response.complete({});
+    response.complete({'readSequence': 5});
     await sending;
     expect(await queue.read(), {'peer': 10});
     await queue.put('peer', 3);
@@ -196,7 +196,7 @@ void main() {
       final running = worker.notify();
       await called.future;
       worker.close();
-      response.complete({});
+      response.complete({'readSequence': 1});
       await running;
       expect(calls, 1);
       expect(await queue.read(), {'peer': 1, 'other': 2});

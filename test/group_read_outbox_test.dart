@@ -33,7 +33,10 @@ void main() {
           if (method == 'K260913000622' && denied) {
             throw const AuthFailure('CHAT_GROUP_ACCESS_DENIED', 'not a member');
           }
-          return {};
+          return {
+            'groupId': params['groupId'],
+            'readSequence': params['sequence'],
+          };
         },
       );
       await repo.retryPendingReads(isActive: () => true);
@@ -102,7 +105,10 @@ void main() {
             } else {
               expect(params, {'groupId': 'same-id', 'sequence': 8});
             }
-            return {};
+            return {
+              'groupId': params['groupId'],
+              'readSequence': params['sequence'],
+            };
           },
         ),
         MemoryOutbox(),
@@ -132,7 +138,7 @@ void main() {
     final sending = group.markRead('group', 5);
     await called.future;
     await ChatReadOutbox('me', group: true).put('group', 10);
-    response.complete({});
+    response.complete({'groupId': 'group', 'readSequence': 5});
     await sending;
     expect(await queue.read(), {'group': 10});
   });
@@ -153,7 +159,7 @@ void main() {
           if (id == 'revoked') {
             throw const AuthFailure('CHAT_GROUP_ACCESS_DENIED', 'not a member');
           }
-          return {};
+          return {'groupId': id, 'readSequence': params['sequence']};
         },
       );
       await repo.retryPendingReads(isActive: () => true);
@@ -188,7 +194,7 @@ void main() {
           groupReadOutbox: queue,
           call: (_, params) async {
             expect(params['sequence'], 0);
-            return {};
+            return {'groupId': 'group', 'readSequence': 0};
           },
         ),
       );

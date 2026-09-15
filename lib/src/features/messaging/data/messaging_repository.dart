@@ -197,6 +197,7 @@ class MessagingRepository {
       'peer': peer,
       'sequence': sequence,
     });
+    _validateReadAcknowledgement(result, sequence);
     // A cleanup failure must not turn a confirmed read into an API failure.
     try {
       await readOutbox?.acknowledge(peer, sequence);
@@ -222,11 +223,19 @@ class MessagingRepository {
           continue;
         }
         try {
-          await call(queue.group ? 'K260913000622' : 'K260913000605', {
-            queue.group ? 'groupId' : 'peer': entry.key,
-            'sequence': entry.value,
-          });
+          final result = await call(
+            queue.group ? 'K260913000622' : 'K260913000605',
+            {
+              queue.group ? 'groupId' : 'peer': entry.key,
+              'sequence': entry.value,
+            },
+          );
           if (!isActive()) return;
+          _validateReadAcknowledgement(
+            result,
+            entry.value,
+            groupId: queue.group ? entry.key : null,
+          );
           _readRetryAfter.remove(key);
           _readChanges.add(account);
           await queue.acknowledge(entry.key, entry.value);
@@ -261,10 +270,26 @@ class MessagingRepository {
       'groupId': groupId,
       'sequence': sequence,
     });
+    _validateReadAcknowledgement(result, sequence, groupId: groupId);
     try {
       await queue?.acknowledge(groupId, sequence);
     } catch (_) {}
     return result;
+  }
+
+  void _validateReadAcknowledgement(
+    Map<String, dynamic> result,
+    int requested, {
+    String? groupId,
+  }) {
+    final confirmed = result['readSequence'];
+    if (confirmed is! int ||
+        confirmed < requested ||
+        confirmed < 0 ||
+        confirmed > 4294967295 ||
+        (groupId != null && result['groupId'] != groupId)) {
+      throw const FormatException('已读确认无效，请稍后重试');
+    }
   }
 
   Future<Map<String, dynamic>> settings(

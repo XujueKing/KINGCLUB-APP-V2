@@ -51,7 +51,10 @@ void main() {
                 'hasMore': false,
               };
             case 'K260913000622':
-              return {'readSequence': params['sequence']};
+              return {
+                'groupId': params['groupId'],
+                'readSequence': params['sequence'],
+              };
             case 'K260913000620':
               sendRequest = params;
               return {
