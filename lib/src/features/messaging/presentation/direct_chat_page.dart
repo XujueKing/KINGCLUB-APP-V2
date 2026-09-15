@@ -15,6 +15,7 @@ import 'package:file_picker/file_picker.dart';
 import 'chat_file_send_page.dart';
 import '../data/call_launch_coordinator.dart';
 import '../data/call_repository.dart';
+import 'group_call_page.dart';
 import 'call_page.dart';
 import 'chat_member_avatar.dart';
 import '../data/chat_history_store.dart';
@@ -573,7 +574,16 @@ class _DirectChatPageState extends State<DirectChatPage>
     final chat = _chat;
     final peer = widget.peerAccount;
     if (widget.groupId != null) {
-      KingNotice.of(context).show('群语音与视频通话尚未接通');
+      if (chat == null) return;
+      _openingCall = true;
+      _dismissComposer();
+      try {
+        await Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) =>
+          GroupCallPage(repository: GroupChatRepository(chat.messaging),
+            groupId: widget.groupId!, media: media)));
+      } finally {
+        _openingCall = false;
+      }
       return;
     }
     if (chat == null || peer == null) {
