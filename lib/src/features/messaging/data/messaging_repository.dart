@@ -1,4 +1,5 @@
 import 'chat_video.dart';
+import 'chat_read_outbox.dart';
 import 'novorudp_binding_runtime.dart';
 import 'chat_location.dart';
 import '../../../core/networking/kingclub_secure_client.dart';
@@ -18,7 +19,15 @@ class MessagingRepository {
     required this.account,
     required this.call,
     this.persistHistory = false,
-  });
+    ChatReadOutbox? readOutbox,
+  }) : readOutbox =
+           readOutbox ?? (persistHistory ? ChatReadOutbox(account) : null) {
+    if (this.readOutbox != null && this.readOutbox!.account != account) {
+      throw ArgumentError('Read outbox belongs to another account');
+    }
+  }
+
+  final ChatReadOutbox? readOutbox;
 
   final bool persistHistory;
 
@@ -172,8 +181,46 @@ class MessagingRepository {
     });
   }
 
-  Future<Map<String, dynamic>> markRead(String peer, int sequence) =>
-      call('K260913000605', {'peer': peer, 'sequence': sequence});
+  Future<Map<String, dynamic>> markRead(String peer, int sequence) async {
+    final queue = readOutbox;
+    if (queue != null) await queue.put(peer, sequence);
+    final result = await call('K260913000605', {
+      'peer': peer,
+      'sequence': sequence,
+    });
+    // A cleanup failure must not turn a confirmed read into an API failure.
+    try {
+      await readOutbox?.acknowledge(peer, sequence);
+    } catch (_) {}
+    return result;
+  }
+
+  Future<void> retryPendingReads({required bool Function() isActive}) async {
+    final queue = readOutbox;
+    if (queue == null || !isActive()) return;
+    final values = await queue.read();
+    for (final entry in values.entries) {
+      if (!isActive()) return;
+      try {
+        await call('K260913000605', {
+          'peer': entry.key,
+          'sequence': entry.value,
+        });
+        if (!isActive()) return;
+        await queue.acknowledge(entry.key, entry.value);
+      } on AuthFailure catch (error) {
+        if (error.code == 'NETWORK_ERROR' ||
+            error.code == 'SESSION_CHANGED' ||
+            error.code == 'SESSION_EXPIRED') {
+          return;
+        }
+        // Permissions can change; keep the intent without blocking other peers.
+      } catch (_) {
+        return;
+      }
+    }
+  }
+
   Future<Map<String, dynamic>> settings(
     String peer, {
     bool? muted,

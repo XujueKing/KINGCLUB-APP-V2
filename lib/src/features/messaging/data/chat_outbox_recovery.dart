@@ -61,6 +61,17 @@ class ChatOutboxRecovery {
   }
 
   Future<void> _drain() async {
+    await Future.wait([_retryReads(), _drainMessages()]);
+  }
+
+  Future<void> _retryReads() async {
+    // Read-intent storage/network failures must not delay pending messages.
+    try {
+      await repository.retryPendingReads(isActive: () => !_closed);
+    } catch (_) {}
+  }
+
+  Future<void> _drainMessages() async {
     try {
       final rows = await outbox.read();
       final visited = <String>{};
