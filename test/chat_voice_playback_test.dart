@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/chat_voice_playback.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
@@ -11,6 +12,7 @@ class Output implements ChatVoiceOutput {
   int stops = 0;
   int disposals = 0;
   bool failStop = false, failPlay = false;
+  Completer<void>? stopGate;
   final done = StreamController<void>.broadcast();
   @override
   Stream<void> get completed => done.stream;
@@ -23,6 +25,7 @@ class Output implements ChatVoiceOutput {
   @override
   Future<void> stop() async {
     stops++;
+    await stopGate?.future;
     if (failStop) throw StateError('native stop failed');
   }
 
@@ -45,6 +48,48 @@ Map<String, dynamic> grant(String message, {bool group = false}) => {
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  for (final action in ['stop', 'pause', 'replace']) {
+    test(
+      'waiting native stop cannot revive superseded audio: $action',
+      () async {
+        final output = Output()..stopGate = Completer<void>();
+        final requested = <String>[];
+        final repository = MessagingRepository(
+          account: 'me',
+          call: (_, params) async {
+            final message = params['messageId'] as String;
+            requested.add(message);
+            return grant(message);
+          },
+        );
+        final player = ChatVoicePlayback(
+          output: output,
+          events: const Stream.empty(),
+          loadFile: (url, _, _, _) async => File('/${url.split('/').last}.m4a'),
+        );
+        addTearDown(player.dispose);
+        final first = player.toggle(repository, 'one');
+        await Future<void>.delayed(Duration.zero);
+        expect(output.stops, 1);
+        Future<void>? next;
+        if (action == 'stop') {
+          next = player.stop();
+        } else if (action == 'pause') {
+          player.didChangeAppLifecycleState(AppLifecycleState.paused);
+        } else {
+          next = player.toggle(repository, 'two');
+        }
+        output.stopGate!.complete();
+        await first;
+        await next;
+        await Future<void>.delayed(Duration.zero);
+        expect(requested, action == 'replace' ? ['two'] : isEmpty);
+        expect(output.plays, action == 'replace' ? ['/two.m4a'] : isEmpty);
+        expect(player.activeId, action == 'replace' ? 'two' : isNull);
+        expect(player.loading, isFalse);
+      },
+    );
+  }
   test(
     'decoder failure evicts only its object and retry authorizes again',
     () async {

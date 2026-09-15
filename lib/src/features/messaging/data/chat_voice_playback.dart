@@ -187,8 +187,9 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
       await stop();
       return;
     }
+    final stoppingGeneration = _generation + 1;
     await stop();
-    if (_disposed || _invalid) return;
+    if (_disposed || _invalid || stoppingGeneration != _generation) return;
     final generation = ++_generation;
     _repository = repository;
     _playingGroup = group;

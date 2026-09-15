@@ -1,5 +1,11 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 原生播放器停止等待期间取消旧播放请求
+
+ChatVoicePlayback 在等待原生 stop 完成前记录操作代次。用户停止、切后台或点击另一条语音后，旧 toggle 的等待即使随后完成，也不能重新授权、下载并播放已经取消的语音。最新语音仍按原有串行播放器队列启动，界面样式不变。
+
+15 项语音播放测试及 2 文件静态检查通过。新增用延迟 stop 的输出适配器覆盖主动停止、切后台、连续点击另一条语音：前两种不再发授权请求或播放，后一种只请求并播放最新语音。属于时序故障注入测试，未验证手机播放器延迟；本修改晚于 21:15 APK，尚未打包安装。
+
 ## 21:18 原生 UDP / SUPERVM 中继回归
 
 在 `3dcacbe` 工作区执行 `nearby_text_channel_test.dart` 和 `member_relay_runtime_test.dart`，使用真实 Rust DLL、UDP 丢包代理、SQLite 和仍在运行的本机 SUPERVM WSS 中继（PID 4128，45172 端口），2 项全部通过、无跳过，约 9 秒。日志：`build/read-retry-native-regression.log`。
