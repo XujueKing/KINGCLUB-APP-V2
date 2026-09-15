@@ -5,13 +5,16 @@ import 'chat_location.dart';
 import 'dart:convert';
 
 import 'group_request_store.dart';
+import 'group_join_receipt_store.dart';
 
 import 'messaging_repository.dart';
 
 /// Uses the authenticated account-bound client, never a caller supplied owner.
 class GroupChatRepository {
   GroupChatRepository(this.messaging, {GroupRequestStore? requestStore})
-    : _requestStore = requestStore ?? GroupRequestStore(messaging.account);
+    : _requestStore = requestStore ?? GroupRequestStore(messaging.account),
+      _joinReceipts = GroupJoinReceiptStore(messaging.account);
+  final GroupJoinReceiptStore _joinReceipts;
   final GroupRequestStore _requestStore;
   final MessagingRepository messaging;
   String get account => messaging.account;
@@ -104,12 +107,21 @@ class GroupChatRepository {
                   ).hasMatch(result['applicationId'] as String)))) {
         throw const FormatException('入群申请回执无效');
       }
+      if (result['applicationId'] is String) {
+        await _joinReceipts.save(groupId, result['applicationId'] as String);
+      }
       await _requestStore.acknowledge(fingerprint, id);
       return result;
     } finally {
       _joining = false;
     }
   }
+
+  Future<String?> savedJoinApplication(String groupId) =>
+      _joinReceipts.application(groupId);
+
+  Future<void> forgetJoinApplication(String groupId, String applicationId) =>
+      _joinReceipts.forget(groupId, applicationId);
 
   Future<String> ownApplicationStatus({
     required String groupId,

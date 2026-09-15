@@ -29,7 +29,7 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
   final _note = TextEditingController();
   String? _submittedNote, _status, _error;
   String? _applicationId;
-  bool _busy = false, _invalid = false, _foreground = true;
+  bool _busy = false, _invalid = false, _foreground = true, _restoring = true;
   int _generation = 0;
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
@@ -60,6 +60,56 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
         unawaited(_checkMembership());
       }
     });
+    unawaited(_restoreApplication());
+  }
+
+  Future<void> _restoreApplication() async {
+    final generation = _generation;
+    if (mounted) setState(() => _restoring = true);
+    try {
+      final id = await widget.repository.savedJoinApplication(widget.groupId);
+      if (!mounted || _invalid || generation != _generation) return;
+      if (id != null) {
+        setState(() {
+          _applicationId = id;
+          _status = 'unconfirmed';
+        });
+        await _checkMembership();
+      }
+    } catch (_) {
+      // A local storage failure cannot imply approval or rejection.
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _restoring = false);
+      }
+    }
+  }
+
+  Future<void> _newApplication() async {
+    if (_invalid || !_foreground || _busy || _checking) return;
+    final id = _applicationId;
+    if (id == null || !['rejected', 'canceled', 'expired'].contains(_status)) {
+      return;
+    }
+    final generation = _generation;
+    setState(() => _busy = true);
+    try {
+      await widget.repository.forgetJoinApplication(widget.groupId, id);
+      if (!mounted || _invalid || generation != _generation) return;
+      setState(() {
+        _applicationId = null;
+        _status = null;
+        _submittedNote = null;
+        _note.clear();
+        _error = null;
+      });
+    } catch (_) {
+      if (mounted && !_invalid && generation == _generation) {
+        setState(() => _error = '暂时无法重新申请，请重试');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _checkMembership() async {
@@ -124,7 +174,7 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
   }
 
   Future<void> _submit() async {
-    if (_busy || _invalid || !_foreground || _status != null) {
+    if (_busy || _restoring || _invalid || !_foreground || _status != null) {
       return;
     }
     final generation = ++_generation;
@@ -169,7 +219,13 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
     if (mounted) {
       setState(() {});
     }
-    if (_foreground) unawaited(_checkMembership());
+    if (_foreground) {
+      if (_status == null) {
+        unawaited(_restoreApplication());
+      } else {
+        unawaited(_checkMembership());
+      }
+    }
   }
 
   @override
@@ -183,6 +239,7 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
   }
 
   String get _resultText => switch (_status) {
+    'unconfirmed' => '已提交过入群申请，请刷新查看当前状态',
     'pending' => '申请已提交，等待群主或管理员审核',
     'accepted' => '申请已通过',
     'already_member' => '你已在群聊中',
@@ -237,7 +294,7 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
                           style: const TextStyle(color: Colors.grey),
                         ),
                       TextButton(
-                        onPressed: _busy ? null : _submit,
+                        onPressed: _busy || _restoring ? null : _submit,
                         child: Text(_submittedNote == null ? '提交申请' : '重试申请'),
                       ),
                     ] else ...[
@@ -245,6 +302,13 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
                         _resultText,
                         style: const TextStyle(color: Color(0xFFC9B69E)),
                       ),
+                      if (['rejected', 'canceled', 'expired'].contains(_status))
+                        TextButton(
+                          onPressed: _busy || _checking
+                              ? null
+                              : _newApplication,
+                          child: const Text('重新申请'),
+                        ),
                       if (_error != null)
                         Text(
                           _error!,

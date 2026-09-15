@@ -86,6 +86,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('提交申请'));
     await tester.pumpAndSettle();
     for (final entry in {
@@ -160,6 +161,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('提交申请'));
       await tester.pumpAndSettle();
       expect(find.text('进入群聊'), findsNothing);
@@ -227,6 +229,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('提交申请'));
       await tester.pump();
       events.add({'eventType': 'chat.group.changed'});
@@ -282,6 +285,7 @@ void main() {
         ),
       );
       await tester.enterText(find.byType(TextField), ' Hello ');
+      await tester.pumpAndSettle();
       await tester.tap(find.text('提交申请'));
       await tester.pumpAndSettle();
       expect(find.text('申请已提交，等待群主或管理员审核'), findsNothing);
