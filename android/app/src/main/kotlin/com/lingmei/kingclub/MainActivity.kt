@@ -14,6 +14,8 @@ class MainActivity : FlutterActivity() {
     private var videoUpload: ChatVideoUpload? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/chat-map")
+            .setMethodCallHandler { call, result -> ChatMap.handle(this, call, result) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/microphone")
             .setMethodCallHandler { call, result ->
                 if (call.method == "isRecordingAllowed") {

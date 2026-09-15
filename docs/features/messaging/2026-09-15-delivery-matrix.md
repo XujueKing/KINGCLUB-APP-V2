@@ -1,5 +1,14 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## Android location map handoff (native acceptance pending)
+
+Location details now has an explicit View in Amap action. The Android bridge accepts validated microdegree coordinates, coordinate-system name and place name, builds only a fixed HTTPS Amap marker URI, and dispatches ACTION_VIEW. GCJ-02 uses coordinate=gaode; WGS84 uses coordinate=wgs84. Longitude precedes latitude and formatting is locale-independent. No chat text, account identifiers, authorization headers or address field are sent to the external map. Nothing opens until the user taps. The web URI may hand off to Amap when installed; otherwise the browser handles it. Map/browser launch failure retains the existing copy-location fallback.
+
+Five location model/widget tests passed, covering unchanged coordinates, single pending launch, session invalidation and late-response suppression. Changed Dart files pass analysis, Android profile/preview ARM64 build passed. APK SHA256 bbe9f4b90f55031107fb2b49c25a97513e4d52901dc938395e005f26c468d142, 157003848 bytes. No phone installation or map launch performed: actual app/browser handling, coordinate placement and route navigation remain unverified. iOS map integration is not implemented and is not claimed delivered. This adds an external map handoff, not an embedded map or live-location sharing.
+
+Official coordinate and URI reference: https://lbs.amap.com/api/uri-api/gettingstarted
+
+
 ## Open exported chat files (implemented, native acceptance pending)
 
 Android file details now offers an explicit Open saved file action after a successful verified export. The native controller retains only its most recently completed document URI, addressed by the same random export operation ID; callers cannot pass an arbitrary URI or path to open. ACTION_VIEW uses the system chooser and temporary read permission, never write permission. Export MIME type is selected from the filename extension with binary fallback. Cancellation/disposal clears the saved-document handle without deleting an already completed export. Repeated open taps are suppressed. No files open automatically after download or save.

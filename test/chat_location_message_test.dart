@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_location.dart';
@@ -12,6 +15,48 @@ void main() {
     'name': '测试地点',
     'address': '测试地址',
   });
+  testWidgets(
+    'map launch preserves coordinates and prevents duplicate launches',
+    (tester) async {
+      final pending = Completer<bool>();
+      var calls = 0;
+      const channel = MethodChannel('kingclub/chat-map');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        calls++;
+        expect(call.method, 'open');
+        expect(call.arguments, {
+          'latitudeE6': 28000001,
+          'longitudeE6': 113000001,
+          'coordinateSystem': 'gcj02',
+          'name': '测试地点',
+        });
+        return pending.future;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: ChatLocationDetailsPage(location: location)),
+      );
+      expect(calls, 0);
+      await tester.tap(find.text('在高德地图查看'));
+      await tester.pump();
+      await tester.tap(find.text('在高德地图查看'));
+      expect(calls, 1);
+      SecureSessionStore.changes.add(null);
+      await tester.pump();
+      pending.complete(false);
+      await tester.pumpAndSettle();
+      expect(find.text('在高德地图查看'), findsNothing);
+      expect(find.text('无法打开地图，可以复制地点信息'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
   test('malformed location history remains readable without crashing', () {
     for (final value in [
       null,

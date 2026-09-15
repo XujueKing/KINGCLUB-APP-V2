@@ -82,8 +82,27 @@ class ChatLocationDetailsPage extends StatefulWidget {
 }
 
 class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
+  static const _maps = MethodChannel('kingclub/chat-map');
   StreamSubscription<void>? _session;
   bool _valid = true;
+  bool _openingMap = false;
+
+  Future<void> _openMap() async {
+    if (!_valid || _openingMap) return;
+    setState(() => _openingMap = true);
+    try {
+      final data = widget.location.toJson()..remove('address');
+      final opened = await _maps.invokeMethod<bool>('open', data);
+      if (opened != true) throw StateError('Map unavailable');
+    } catch (_) {
+      if (mounted && _valid) {
+        KingNotice.of(context).show('无法打开地图，可以复制地点信息');
+      }
+    } finally {
+      if (mounted) setState(() => _openingMap = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -145,6 +164,11 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
                       style: const TextStyle(color: Colors.white54),
                     ),
                     const SizedBox(height: 16),
+                    TextButton.icon(
+                      icon: const Icon(Icons.map_outlined, size: 18),
+                      label: const Text('在高德地图查看'),
+                      onPressed: _openingMap ? null : _openMap,
+                    ),
                     TextButton.icon(
                       icon: const Icon(Icons.copy_outlined, size: 18),
                       label: const Text('复制地点信息'),
