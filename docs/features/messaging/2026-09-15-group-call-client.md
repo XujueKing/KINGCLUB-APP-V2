@@ -23,3 +23,7 @@ GroupCallSnapshot验证通话/群UUID、音视频类型、2–9位唯一参与�
 数据层已实现capabilities、createTransport、connect、produce、sources、consume、resumeConsumer、setProducerPaused和closeProducer。ICE/DTLS/RTP响应转换成锁定SDK的类型；来源列表仅允许既有通话其他成员，拒绝同成员同种媒体重复、重复编号、音频通话返回视频和错误回执；列表不可修改。关闭后不再发送请求，已发请求的迟到结果拒绝返回。
 
 验证：群媒体数据层、群通话数据层与控制器共17测试通过，新增文件和测试静态分析通过。使用注入ChatApiCall及合成参数验证SDK实际解析、成员约束、回执不一致和迟到结果；首次测试省略SDK要求的headerExtensions造成测试夹具失败，已修正并通过。没有调用设备采集/建立原生PeerConnection，没有Flutter到真实HTTP或真机通话证据。未打包安装，本节点不计作可用群通话。下一步接SDK Transport事件与原生媒体资源生命周期。
+
+原生媒体设计：NativeGroupCallMedia在显式open后读取能力、加载Device并建立发送/接收Transport，再申请带AEC/NS/AGC的音频及可选视频采集。SDK connect/produce事件走682；远端来源轮询后建立Consumer并恢复接收。发布/消费回调有期限，关闭后迟到的采集/Producer/Consumer必须单独清理；登录变化由外层通话所有者调用close。静音/关闭摄像头需同时控制本地track和服务端Producer，不把UI开关当作停止发送。此层不会自行接听或续租，页面和群通话状态控制器负责生命周期绑定。
+
+原生适配层已实现上述流程。4项受控资源测试覆盖显式开启及关闭、等待采集时挂断、发布失败且Transport清理异常、Producer回调与挂断竞争；连同数据层和控制器共21项测试通过，适配层及测试静态分析无问题。测试注入替代Device/Transport/采集对象，没有开启手机麦克风或验证DTLS/RTP。页面生命周期绑定、群通话TURN配置和真实多机音视频仍待接入验证，尚未打包安装。
