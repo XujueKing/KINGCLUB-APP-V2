@@ -7,6 +7,53 @@ import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 
 void main() {
   sqfliteFfiInit();
+  test(
+    'explicit clear hides replay and new device copies across reopen',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('member-clear-');
+      final file = '${dir.path}/history.db';
+      final key = await AesGcm.with256bits().newSecretKey();
+      Future<ChatHistoryStore> open() => ChatHistoryStore.openDatabaseWithKey(
+        factory: databaseFactoryFfi,
+        file: file,
+        key: key,
+        account: 'me',
+      );
+      var store = await open();
+      addTearDown(() async {
+        await store.close();
+        await dir.delete(recursive: true);
+      });
+      final a = 'novovm-ed25519:${'a' * 64}';
+      final b = 'novovm-ed25519:${'b' * 64}';
+      const id = '00000000-0000-4000-8000-000000000001';
+      Future<void> put(String device, String member, String messageId) =>
+          store.persistNearbyText(
+            peerId: device,
+            peerAccount: member,
+            id: messageId,
+            text: 'text',
+            outgoing: false,
+          );
+      await put(a, 'friend', id);
+      await put(b, 'other', id);
+      await store.clear('direct:friend');
+      expect(await store.nearbyMemberMessages('friend'), hasLength(1));
+      await store.clear('direct:friend', hideNearby: true);
+      await put(a, 'friend', id);
+      expect(await store.nearbyMemberMessages('friend'), isEmpty);
+      final c = 'novovm-ed25519:${'c' * 64}';
+      await put(c, 'friend', id);
+      expect(await store.nearbyMemberMessages('friend'), isEmpty);
+      expect(await store.nearbyMemberMessages('other'), hasLength(1));
+      const fresh = '00000000-0000-4000-8000-000000000002';
+      await put(a, 'friend', fresh);
+      await store.close();
+      store = await open();
+      expect((await store.nearbyMemberMessages('friend')).single['id'], fresh);
+      expect(await store.nearbyMessages(a), hasLength(2));
+    },
+  );
   test('member history deduplicates devices and suppresses confirmed copies', () async {
     final dir = await Directory.systemTemp.createTemp('member-history-');
     final store = await ChatHistoryStore.openDatabaseWithKey(

@@ -2,7 +2,7 @@ part of 'chat_history_store.dart';
 
 Future<void> _createNearbyMessages(DatabaseExecutor db) async {
   await db.execute(
-    'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, serverId TEXT, member TEXT, PRIMARY KEY(peer,id,outgoing))',
+    'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, serverId TEXT, member TEXT, hidden INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(peer,id,outgoing))',
   );
   await _createNearbyMemberIndex(db);
 }
@@ -167,7 +167,7 @@ extension NearbyMessageHistory on ChatHistoryStore {
       final groups = await tx.rawQuery(
         'SELECT id, outgoing, MIN(created) AS created, MAX(delivered) AS delivered '
         'FROM nearby_message WHERE member=? GROUP BY id, outgoing '
-        'HAVING MAX(serverId IS NOT NULL)=0 '
+        'HAVING MAX(serverId IS NOT NULL)=0 AND MAX(hidden)=0 '
         'ORDER BY created DESC, id DESC, outgoing DESC LIMIT ?',
         [member, limit],
       );

@@ -131,6 +131,7 @@ void main() {
         ),
       );
       changes.add('peer');
+      await Future<void>.delayed(Duration.zero);
       controller.resetVisibleHistory();
       pending.complete([
         {

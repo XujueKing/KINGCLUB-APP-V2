@@ -35,6 +35,10 @@ class DirectChatController extends ChatSessionController {
     final generation = _historyGeneration;
     final read = ++_relayRead;
     try {
+      await _historyBarrier;
+      if (_disposed || generation != _historyGeneration || read != _relayRead) {
+        return;
+      }
       final rows = await readRelayMessages!();
       if (_disposed || generation != _historyGeneration || read != _relayRead) {
         return;
@@ -878,13 +882,18 @@ class DirectChatController extends ChatSessionController {
 
   /// Called only after the server has committed the owner's hide cursor.
   @override
-  void resetVisibleHistory() {
+  void resetVisibleHistory({bool hideNearby = false}) {
     _historyGeneration++;
     _relayRead++;
     _relayMessages = [];
     if (openHistory != null) {
       _historyBarrier = (_historyBarrier ?? _ensureHistory()).then((_) async {
-        if (_history != null) _diskEpoch = await _history!.clear(_historyKey);
+        if (_history != null) {
+          _diskEpoch = await _history!.clear(
+            _historyKey,
+            hideNearby: hideNearby,
+          );
+        }
       });
       // Observe failures even if the caller leaves without another sync.
       _historyBarrier!.catchError((Object e) {

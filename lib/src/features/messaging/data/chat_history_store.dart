@@ -89,7 +89,7 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 8,
+        version: 9,
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 6) await _createNearbyMessages(db);
           if (oldVersion >= 6 && oldVersion < 7) {
@@ -102,6 +102,11 @@ class ChatHistoryStore {
               'ALTER TABLE nearby_message ADD COLUMN member TEXT',
             );
             await _createNearbyMemberIndex(db);
+          }
+          if (oldVersion >= 6 && oldVersion < 9) {
+            await db.execute(
+              'ALTER TABLE nearby_message ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0',
+            );
           }
           if (oldVersion < 2) {
             await db.execute(
@@ -452,7 +457,10 @@ class ChatHistoryStore {
     });
   }
 
-  Future<int> clear(String conversation) async {
+  Future<int> clear(String conversation, {bool hideNearby = false}) async {
+    if (hideNearby && !conversation.startsWith('direct:')) {
+      throw ArgumentError('Nearby history requires a direct conversation');
+    }
     final id = await _conversation(conversation);
     return _db.transaction((tx) async {
       await tx.insert('conversation', {
@@ -466,6 +474,14 @@ class ChatHistoryStore {
               )).single['epoch']
               as int;
       await tx.delete('message', where: 'conversation=?', whereArgs: [id]);
+      if (hideNearby) {
+        await tx.update(
+          'nearby_message',
+          {'hidden': 1},
+          where: 'member=?',
+          whereArgs: [id],
+        );
+      }
       await tx.update(
         'conversation',
         {'cursor': 0, 'epoch': epoch + 1, 'presentation': null},
