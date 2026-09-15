@@ -7,6 +7,7 @@ import 'package:mediasfu_mediasoup_client/mediasfu_mediasoup_client.dart'
         DtlsParameters;
 
 import 'call_repository.dart' show CallMedia;
+import 'call_relay_configuration.dart';
 import 'group_call_repository.dart';
 import 'messaging_repository.dart';
 
@@ -90,6 +91,9 @@ class GroupCallMediaRepository {
     _check();
     return value;
   }
+
+  Future<CallRelayConfiguration> readRelay() async =>
+      CallRelayConfiguration.parse(call.id, await _send({'type': 'relay'}));
 
   Future<RtpCapabilities> capabilities() async {
     final result = await _send({'type': 'capabilities'});

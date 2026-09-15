@@ -77,8 +77,10 @@ class NativeGroupCallMedia {
 
   Future<void> _open() async {
     try {
-      relay?.requireUsable(repository.call.id);
-      final iceServers = (relay?.iceServers ?? <Map<String, dynamic>>[])
+      final configuration = relay ?? await repository.readRelay();
+      _check();
+      configuration.requireUsable(repository.call.id);
+      final iceServers = configuration.iceServers
           .map(
             (server) => handler.RTCIceServer(
               credentialType: handler.RTCIceCredentialType.password,

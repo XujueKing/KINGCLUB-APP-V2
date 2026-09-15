@@ -65,3 +65,7 @@ SDK接线核对：读取已锁定mediasfu_mediasoup_client 0.1.4的Transport实�
 通话状态/时长：本地send及receive Transport均报告connected后才启动单调Stopwatch，邀请与初始连接等待不计时；后续连接中保留累计通话时长，挂断/关闭立即停止，迟到连接事件不恢复计时。页面每秒更新时长并显示连接中/已结束，销毁取消计时器。这衡量SDK连接状态，不证明对方音频已播放。
 
 会话及页面3项测试通过、3文件静态分析通过；扩展现有会话测试验证仅send连接不计时、双向连接开始、断线状态及关闭后计时不再改变。未更新APK或进行真机时长验收。
+
+客户端TURN接线：GroupCallMediaRepository通过682 relay读取短期配置，复用CallRelayConfiguration校验通话ID、用户名过期时间、URL和凭据格式；NativeGroupCallMedia在加载Device和申请采集前获取配置并交给send/receive两路Transport。无配置/失效明确失败，不再默默使用空ICE服务器列表。凭据仅在内存，不写日志或磁盘。服务端对应4cbce70尚未上线；长通话凭据续签与ICE重启仍待实现，不能将首次配置接入算作公网中继完成。
+
+验证：媒体仓库/原生适配/会话/已有relay校验22项通过、4文件静态分析通过；随后补充失效配置不采集及同配置传入两路Transport的断言，原生适配12项重跑通过。测试使用合成凭据和替代Device，没有公网TURN数据流或真机采集。未更新APK。

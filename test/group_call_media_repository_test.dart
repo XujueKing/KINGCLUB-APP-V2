@@ -31,6 +31,36 @@ Map<String, dynamic> source({
   String id = resourceId,
 }) => {'producerId': id, 'userAccount': account, 'kind': kind, 'paused': false};
 void main() {
+  test(
+    'relay credentials are call-bound and malformed or expired replies fail',
+    () async {
+      final expiry =
+          (DateTime.now().millisecondsSinceEpoch ~/ 1000 + 600) * 1000;
+      final response = <String, dynamic>{
+        'expiresAtMs': expiry,
+        'iceServers': [
+          {
+            'urls': ['turn:relay.example.test:3478?transport=udp'],
+            'username': '${expiry ~/ 1000}:${List.filled(32, 'a').join()}',
+            'credential': '${List.filled(27, 'A').join()}=',
+          },
+        ],
+      };
+      final repo = repository((id, params) async {
+        expect(id, 'K260915000682');
+        expect(params, {
+          'callId': callId,
+          'command': {'type': 'relay'},
+        });
+        return response;
+      });
+      final relay = await repo.readRelay();
+      expect(relay.callId, callId);
+      expect(() => relay.requireUsable(otherId), throwsStateError);
+      response['expiresAtMs'] = 1;
+      await expectLater(repo.readRelay(), throwsFormatException);
+    },
+  );
   test('parses signaling parameters through the pinned SDK types', () async {
     final codec = {
       'mimeType': 'audio/opus',

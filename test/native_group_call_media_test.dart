@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
+import 'package:kingclub/src/features/messaging/data/call_relay_configuration.dart';
 import 'package:mediasfu_mediasoup_client/mediasfu_mediasoup_client.dart'
     as rtc;
 import 'package:kingclub/src/features/messaging/data/group_call_media_repository.dart';
@@ -105,6 +106,7 @@ class TransportFixture implements rtc.Transport {
 }
 
 class DeviceFixture implements rtc.Device {
+  List<dynamic>? sendIce, receiveIce;
   final send = TransportFixture(), receive = TransportFixture();
   int loads = 0;
   @override
@@ -119,10 +121,12 @@ class DeviceFixture implements rtc.Device {
   @override
   dynamic noSuchMethod(Invocation i) {
     if (i.memberName == #createSendTransport) {
+      sendIce = List<dynamic>.from(i.namedArguments[#iceServers] as List);
       send.produced = i.namedArguments[#producerCallback] as Function;
       return send;
     }
     if (i.memberName == #createRecvTransport) {
+      receiveIce = List<dynamic>.from(i.namedArguments[#iceServers] as List);
       receive.consumed = i.namedArguments[#consumerCallback] as Function;
       return receive;
     }
@@ -192,6 +196,23 @@ class Repo extends GroupCallMediaRepository {
         }, 'me'),
       );
   int closes = 0;
+  Object? relayFailure;
+  @override
+  Future<CallRelayConfiguration> readRelay() async {
+    if (relayFailure != null) throw relayFailure!;
+    final expiry = (DateTime.now().millisecondsSinceEpoch ~/ 1000 + 600) * 1000;
+    return CallRelayConfiguration.parse(callId, {
+      'expiresAtMs': expiry,
+      'iceServers': [
+        {
+          'urls': ['turn:relay.example.test:3478?transport=udp'],
+          'username': '${expiry ~/ 1000}:${List.filled(32, 'a').join()}',
+          'credential': '${List.filled(27, 'A').join()}=',
+        },
+      ],
+    });
+  }
+
   Object? connectFailure;
   int connects = 0;
   @override
@@ -227,6 +248,23 @@ class Repo extends GroupCallMediaRepository {
 }
 
 void main() {
+  test('relay failure cannot start native capture', () async {
+    final repo = Repo()..relayFailure = const FormatException('Expired relay');
+    final device = DeviceFixture();
+    var captured = false;
+    final media = NativeGroupCallMedia(
+      repository: repo,
+      device: device,
+      capture: (_) async {
+        captured = true;
+        return StreamFixture();
+      },
+    );
+    await expectLater(media.open(), throwsFormatException);
+    expect(captured, false);
+    expect(device.loads, 0);
+    expect(media.isClosed, true);
+  });
   test('SDK connect callback acknowledges server success and releases capture on rejection', () async {
     final repo = Repo(), device = DeviceFixture(), stream = StreamFixture();
     final errors = <Object>[];
@@ -420,6 +458,13 @@ void main() {
         'autoGainControl': true,
       });
       expect(constraints!['video'], false);
+      expect(device.sendIce!.single.urls, [
+        'turn:relay.example.test:3478?transport=udp',
+      ]);
+      expect(
+        device.receiveIce!.single.username,
+        device.sendIce!.single.username,
+      );
       await media.close();
       await media.close();
       expect(stream.track.stops, 1);
