@@ -52,6 +52,63 @@ Map<String, dynamic> history(
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('only confirmed outgoing reads display a read receipt', (
+    tester,
+  ) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    for (final state in [(0, false), (0, true), (1, true)]) {
+      final readSequence = state.$1;
+      final repository = MessagingRepository(
+        account: 'me',
+        call: (id, params) async {
+          if (id != 'K260913000604') return {};
+          return {
+            ...history([
+              {
+                ...ack({
+                  'clientMessageId': 'receipt-out',
+                  'text': 'Outgoing receipt test',
+                }),
+                'peerDelivered': state.$2,
+              },
+              {
+                ...ack({
+                  'clientMessageId': 'receipt-in',
+                  'text': 'Incoming receipt test',
+                }, sequence: 2),
+                'sender': 'peer',
+                'recipient': 'me',
+                'peerRead': true,
+              },
+            ]),
+            'peerReadSequence': readSequence,
+          };
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DirectChatPage(
+            peerAccount: 'peer',
+            peerName: 'Friend',
+            repository: repository,
+            chatOutbox: MemoryOutbox(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Outgoing receipt test'), findsOneWidget);
+      expect(find.text('Incoming receipt test'), findsOneWidget);
+      expect(
+        find.text('已读'),
+        readSequence == 1 ? findsOneWidget : findsNothing,
+      );
+      expect(
+        find.text('已送达'),
+        readSequence == 0 && state.$2 ? findsOneWidget : findsNothing,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
   test(
     'network failure uses same relay ID and keeps server reconciliation queued',
     () async {

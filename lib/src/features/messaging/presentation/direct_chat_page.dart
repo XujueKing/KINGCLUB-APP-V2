@@ -828,6 +828,15 @@ class _DirectChatPageState extends State<DirectChatPage>
                   : message['senderName'] as String?,
               clientMessageId: message['clientMessageId'] as String,
               createdDate: message['createdDate'] as String?,
+              receiptLabel:
+                  widget.groupId == null &&
+                      message['sender'] == chat.messaging.account
+                  ? (message['peerRead'] == true
+                        ? '已读'
+                        : message['peerDelivered'] == true
+                        ? '已送达'
+                        : null)
+                  : null,
               status: switch (message['status']) {
                 'queued' => _FakeMessageStatus.queued,
                 'sent' => _FakeMessageStatus.sent,
@@ -3071,6 +3080,17 @@ class _MessageRow extends StatelessWidget {
                     : '发送中…',
                 style: const TextStyle(color: Color(0x66777777), fontSize: 11),
               ),
+            )
+          else if (message.mine &&
+              message.status == _FakeMessageStatus.sent &&
+              message.receiptLabel != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, right: 52),
+              child: Text(
+                message.receiptLabel!,
+                key: ValueKey('message-receipt-${message.clientMessageId}'),
+                style: const TextStyle(color: Color(0x66777777), fontSize: 11),
+              ),
             ),
         ],
       ),
@@ -3420,6 +3440,7 @@ class _FakeMessage {
     this.senderAccount,
     this.senderName,
     this.createdDate,
+    this.receiptLabel,
     this.system = false,
     this.kind = _FakeMessageKind.text,
     this.assetPath,
@@ -3437,6 +3458,7 @@ class _FakeMessage {
   final String? senderAccount;
   final String? senderName;
   final String? createdDate;
+  final String? receiptLabel;
   final String text;
   final bool mine;
   final String? quoted;
@@ -3466,6 +3488,7 @@ class _FakeMessage {
     senderAccount: senderAccount,
     senderName: senderName,
     createdDate: createdDate,
+    receiptLabel: receiptLabel,
     mine: mine,
     quoted: quoted,
     reply: reply,
