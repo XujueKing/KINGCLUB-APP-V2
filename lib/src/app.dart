@@ -1,3 +1,4 @@
+import 'core/design_system/king_text_scale.dart';
 import 'features/messaging/data/call_presentation_lease.dart';
 import 'features/messaging/data/foreground_call_inbox.dart';
 import 'features/messaging/data/call_launch_coordinator.dart';
@@ -347,52 +348,57 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       debugShowCheckedModeBanner: false,
       theme: KingTheme.dark,
       routerConfig: router,
-      builder: (context, child) => Stack(
-        children: [
-          child ?? const SizedBox.shrink(),
-          if (_notice != null)
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + 8,
-              left: 16,
-              right: 16,
-              child: Material(
-                color: const Color(0xF02A261E),
-                borderRadius: BorderRadius.circular(14),
-                elevation: 4,
-                child: InkWell(
-                  onTap: _openNotice,
+      builder: (context, child) => KingTextScale(
+        child: Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            if (_notice != null)
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 8,
+                left: 16,
+                right: 16,
+                child: Material(
+                  color: const Color(0xF02A261E),
                   borderRadius: BorderRadius.circular(14),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
-                          color: Color(0xFFC9B69E),
-                          size: 20,
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            '储物已核销，点击查看最新记录',
-                            style: TextStyle(
-                              color: Color(0xFFC9B69E),
-                              fontSize: 13,
+                  elevation: 4,
+                  child: InkWell(
+                    onTap: _openNotice,
+                    borderRadius: BorderRadius.circular(14),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            color: Color(0xFFC9B69E),
+                            size: 20,
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '储物已核销，点击查看最新记录',
+                              style: TextStyle(
+                                color: Color(0xFFC9B69E),
+                                fontSize: 13,
+                              ),
                             ),
                           ),
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          color: Color(0xFFC9B69E),
-                          size: 18,
-                        ),
-                      ],
+                          Icon(
+                            Icons.chevron_right,
+                            color: Color(0xFFC9B69E),
+                            size: 18,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
