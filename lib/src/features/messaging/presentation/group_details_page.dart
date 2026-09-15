@@ -21,9 +21,11 @@ class GroupDetailsPage extends StatefulWidget {
     super.key,
     required this.groupId,
     required this.repository,
+    this.events,
   });
   final String groupId;
   final GroupChatRepository repository;
+  final Stream<Map<String, dynamic>>? events;
   @override
   State<GroupDetailsPage> createState() => _GroupDetailsPageState();
 }
@@ -67,7 +69,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         });
       }
     });
-    _events = KingclubRealtime.shared.events.listen((event) {
+    _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
       final data = event['data'];
       if (!_invalid &&
           mounted &&
@@ -81,7 +83,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           mounted &&
           (event['eventType'] == 'chat.group.changed' ||
               event['eventType'] == 'connection.ready')) {
-        setState(() => _details = null);
         unawaited(_load());
       }
     });

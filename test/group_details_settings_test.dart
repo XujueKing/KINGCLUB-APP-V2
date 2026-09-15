@@ -4,11 +4,89 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/group_chat_repository.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/group_details_page.dart';
 
 void main() {
+  testWidgets(
+    'metadata refresh retains scroll while denied access removes details',
+    (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      Completer<Map<String, dynamic>>? pending;
+      Map<String, dynamic> details(String name) => {
+        'groupName': name,
+        'ownerAccount': 'me',
+        'metadataVersion': 1,
+        'members': List.generate(
+          20,
+          (i) => {
+            'account': 'member-$i',
+            'nickname': 'Member $i',
+            'role': 'member',
+            'membershipVersion': 0,
+          },
+        ),
+      };
+      final repo = GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (id, _) async {
+            if (id == 'K260913000619')
+              return pending?.future ?? Future.value(details('Before'));
+            if (id == 'K260913000621')
+              return {
+                'settings': {'muted': false, 'pinned': false},
+              };
+            return {};
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GroupDetailsPage(
+            groupId: 'group-real',
+            repository: repo,
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -450));
+      await tester.pumpAndSettle();
+      final scroll = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      final offset = scroll.position.pixels;
+      expect(offset, greaterThan(0));
+      pending = Completer<Map<String, dynamic>>();
+      events.add({'eventType': 'chat.group.changed'});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(scroll.position.pixels, offset);
+      expect(scroll.position.maxScrollExtent, greaterThan(offset));
+      pending.complete(details('After'));
+      await tester.pumpAndSettle();
+      expect(scroll.position.pixels, offset);
+      expect(tester.takeException(), isNull);
+
+      pending = Completer<Map<String, dynamic>>();
+      events.add({'eventType': 'chat.group.changed'});
+      await tester.pump();
+      pending.completeError(
+        const AuthFailure('CHAT_GROUP_ACCESS_DENIED', 'Access denied'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('group-name-row')), findsNothing);
+      expect(find.byType(Switch), findsNothing);
+      expect(find.textContaining('Access denied'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await events.close();
+    },
+  );
+
   testWidgets(
     'owner rename preserves failed draft then refreshes acknowledged name',
     (tester) async {
