@@ -45,9 +45,17 @@ void main() {
 
   test('transient cache opening failure can recover on next sync', () async {
     var opens = 0, requests = 0;
+    final queue = MemoryOutbox();
+    await queue.put({
+      'clientMessageId': 'c1',
+      'recipient': 'peer',
+      'sender': 'me',
+      'text': 'message1',
+      'status': 'queued',
+    });
     final chat = DirectChatController(
       peer: 'peer',
-      outbox: MemoryOutbox(),
+      outbox: queue,
       openHistory: () async {
         if (++opens == 1) throw StateError('temporary storage failure');
         return store;
@@ -63,10 +71,12 @@ void main() {
     await chat.initialize();
     expect(chat.error, isNotNull);
     expect(requests, 0);
+    expect(chat.messages.single['clientMessageId'], 'c1');
     await chat.synchronize();
     expect(opens, 2);
     expect(chat.error, isNull);
     expect(chat.messages.single['sequence'], 1);
+    expect(await queue.read(), isEmpty);
     expect((await store.read('direct:peer')).messages.length, 1);
     chat.dispose();
   });

@@ -148,3 +148,7 @@ Video retry now checks the cached upload copy is present and nonempty before reu
 ChatVideoUpload.finish 在 cancel 编码器之前递增 generation，作废已排队的旧 worker/native 回调，正常完成与失败也采用同一收尾。原生 acceptable 已验证缓存文件非空、较源文件小、时长差<=300ms及音轨存在性一致。此处为源码核查，不代表完整解码或真实音质验收。
 
 当前工作区 Profile/preview ARM64 构建成功，Gradle87.9秒、149.2MB；真实API及ARM64库检查通过。SHA256 ee25ef156de3856cb325c28af6cb33d96ed1c9abec01a5d0f03a448d549f01e0。adb覆盖安装Success，lastUpdateTime2026-09-15 09:32:32，启动Status ok。包括群成员搜索、缓存打开重试、通话清理和视频副本恢复；仍包含未提交onboarding三文件。真实发送、播放和双机通话未验收，在线ASR/表情云未发布。
+
+## Pending messages before history restoration
+
+Direct/group initialization now restores the account outbox before opening history. A temporary history failure no longer prevents pending messages from appearing. Recovery tests include a pending message and prove subsequent matching history acknowledgement reconciles it once and removes its queue entry. Thirty-eight history/controller tests passed; targeted analyze passed. Existing membership checks remain. Not yet installed; controlled storage/API fixtures are not handset restart delivery acceptance.

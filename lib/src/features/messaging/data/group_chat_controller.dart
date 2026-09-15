@@ -145,7 +145,6 @@ class GroupChatController extends ChatSessionController {
   @override
   Future<void> initialize() async {
     try {
-      if (openHistory != null) await _ensureHistory();
       if (_disposed) return;
       for (final message in await outbox.read()) {
         if (_disposed) return;
@@ -154,6 +153,7 @@ class GroupChatController extends ChatSessionController {
         }
       }
       _changed();
+      if (openHistory != null) await _ensureHistory();
       await synchronize();
       await retryQueued();
     } catch (e) {
