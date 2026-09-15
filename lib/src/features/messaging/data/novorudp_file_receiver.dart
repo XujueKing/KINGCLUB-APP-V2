@@ -17,6 +17,7 @@ import 'novorudp_secure_packet.dart';
 /// close: all temporary files remain owned here and are deleted on close/logout.
 class NovoRudpFileReceiver {
   static const chunkSize = NovoRudpSecurePacket.maxFramePayload;
+  static const maxQueuedFragments = 256;
   static const maxBytes = chunkSize * 1000000;
   static Future<NovoRudpFileReceiver> create({
     required Directory privateDirectory,
@@ -93,7 +94,7 @@ class NovoRudpFileReceiver {
   Future<void> _tail = Future<void>.value();
   Future<void>? _closing;
   bool _closed = false, _verified = false, _failed = false;
-  int _count = 0, _epoch = 0;
+  int _count = 0, _epoch = 0, _queuedFragments = 0;
 
   void _check() {
     if (_closed || _failed || _generation != MemberQrMemory.generation) {
@@ -107,7 +108,24 @@ class NovoRudpFileReceiver {
     return result;
   }
 
-  Future<void> acceptAuthenticated(NovoRudpFrame frame) => _serial(() async {
+  /// Overload is packet loss, not receipt: dropped fragments remain missing in
+  /// authenticated ACKs and are repaired by the sender. Bound queued payloads
+  /// before retaining them in the serialized disk-write closure.
+  Future<void> acceptAuthenticated(NovoRudpFrame frame) async {
+    _check();
+    if (frame.payload.length > chunkSize) {
+      throw const FormatException('Fragment exceeds receiver budget');
+    }
+    if (_queuedFragments >= maxQueuedFragments) return;
+    _queuedFragments++;
+    try {
+      await _accept(frame);
+    } finally {
+      _queuedFragments--;
+    }
+  }
+
+  Future<void> _accept(NovoRudpFrame frame) => _serial(() async {
     _check();
     if ((frame.kind != NovoRudpFrameKind.data &&
             frame.kind != NovoRudpFrameKind.repair) ||

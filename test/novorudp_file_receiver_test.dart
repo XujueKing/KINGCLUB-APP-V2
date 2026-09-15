@@ -82,6 +82,32 @@ void main() {
     ) async =>
         receiver.acceptAuthenticated(await rx.open(await tx.seal(frame)));
 
+    test(
+      'bounded disk backlog leaves dropped fragments missing for repair',
+      () async {
+        final bytes = List.generate(
+          2 * NovoRudpFileReceiver.chunkSize,
+          (i) => i % 251,
+        );
+        final receiver = await create(bytes);
+        final first = await rx.open(await tx.seal(part(bytes, 0)));
+        final second = await rx.open(await tx.seal(part(bytes, 1)));
+        final pending = List.generate(
+          NovoRudpFileReceiver.maxQueuedFragments,
+          (_) => receiver.acceptAuthenticated(first),
+        );
+        await receiver.acceptAuthenticated(second);
+        await Future.wait(pending);
+        final ack = jsonDecode(
+          utf8.decode((await receiver.acknowledgement()).payload),
+        ) as Map;
+        expect(ack['missing_count'], 1);
+        expect(ack['receiver_done'], false);
+        await expectLater(receiver.verifiedFile(), throwsStateError);
+        await deliver(receiver, part(bytes, 1));
+        expect(await (await receiver.verifiedFile()).readAsBytes(), bytes);
+      },
+    );
     test('out of order, missing and duplicate fragments repair to exact file bytes', () async {
       final bytes = List.generate(
         31 * NovoRudpFileReceiver.chunkSize + 17,
