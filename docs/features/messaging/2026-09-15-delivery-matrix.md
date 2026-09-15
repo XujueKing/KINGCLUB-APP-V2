@@ -1,5 +1,10 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## Profile privacy authorization acceptance
+
+The deployed content permission gate passed a rollback-only database check using the authorized test pair: onlyChat denied the peer viewing owner content, reverse direction and self access stayed allowed, either block side denied visitor content, and rollback restored the original follow/block/onlyChat flags. No persistent test relationship changes or events. Backend regression coverage and verification passed (93 files, 386 tests); the existing six public-profile widget tests passed, including late-response invalidation and retaining chat access when content is restricted. Full two-phone settings/open-media acceptance and offline cached media revocation remain unverified. No phone installation or touch actions in this node.
+
+
 ## Older history refresh and live call metadata check
 
 Direct-history pagination now renders the local older page immediately, then requests the same page boundary from the server to update call metadata and authoritative content. It no longer returns permanently after a disk hit. Offline failures retain displayed cached records. No cursor advance is made by metadata refresh. Nine direct-history tests passed, covering older cached rows appearing before a pending network response, persistence of refreshed video-call metadata, unchanged cursor, offline cache access, remote clear and generation protection; changed-file static analysis passed. This pagination update is committed but not installed on devices.
