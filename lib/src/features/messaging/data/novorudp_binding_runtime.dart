@@ -8,10 +8,12 @@ import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
+import 'member_relay_runtime.dart';
 import 'novorudp_device_binding.dart';
 import 'novorudp_device_identity_store.dart';
 
-/// Device registration only. Never opens UDP sockets or changes message routes.
+/// Registers the device and optionally maintains an explicitly configured relay.
+/// Never changes message routes without a separate member-authorized channel.
 class NovoRudpBindingRuntime {
   static const enabled = bool.fromEnvironment(
     'KINGCLUB_NOVORUDP_DEVICE_BINDING',
@@ -19,6 +21,8 @@ class NovoRudpBindingRuntime {
   static StreamSubscription<void>? _sessionEvents;
   static Future<void>? _work;
   static NovoRudpDeviceBinding? _binding;
+  static MemberRelayRuntime? _relay;
+  static MemberRelayRuntime? get relay => _relay;
   static int _generation = -1;
   static Stopwatch? _failedAt;
 
@@ -49,6 +53,8 @@ class NovoRudpBindingRuntime {
   }
 
   static void _clear() {
+    _relay?.close();
+    _relay = null;
     _binding?.dispose();
     _binding = null;
     _work = null;
@@ -81,6 +87,15 @@ class NovoRudpBindingRuntime {
         return;
       }
       debugPrint('NOVORUDP_DEVICE_BINDING_READY');
+      const relayUrl = String.fromEnvironment('KINGCLUB_NOVORUDP_RELAY_URL');
+      const relayPeer = String.fromEnvironment('KINGCLUB_NOVORUDP_RELAY_PEER');
+      if (relayUrl.isNotEmpty && relayPeer.isNotEmpty) {
+        _relay = MemberRelayRuntime(
+          binding: binding,
+          endpoint: Uri.parse(relayUrl),
+          expectedRelay: relayPeer,
+        )..start();
+      }
     } catch (error) {
       binding?.dispose();
       if (generation == MemberQrMemory.generation &&
