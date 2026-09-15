@@ -13,3 +13,7 @@ GroupCallSnapshot验证通话/群UUID、音视频类型、2–9位唯一参与�
 不确定的网络失败保留原requestId和expectedVersion，即使中间刷新看到更新版本也不重建该操作。明确版本冲突则丢弃旧请求、同步后等待下一次显式操作。登录切换/关闭后停止轮询及订阅，迟到响应和排队动作不能重新打开通话；结束或本人被撤销时关闭本地控制器。当前事件和会话变更Stream由调用方注入，尚未在App入口挂接。
 
 控制器与数据层共11项定向测试通过，控制器/测试静态检查通过。新增验证包括通知合并、持续通知不阻塞用户动作、登录变化丢弃迟到结果、网络重试编号保持、明确版本冲突换编号和撤销后停止请求。仍使用注入API/事件，不代表真实WebSocket、设备录音或群通话完成；没有媒体实现、打包或安装。
+
+新增GroupCallController.realtime构造入口，绑定现有SecureSessionStore.changes及KingclubRealtime.shared.events。仅chat.group.call.changed和connection.ready触发刷新，普通群消息或双人通话通知不触发群通话读取。构造仍不开始watch，页面后续负责显式开启和销毁。控制器/数据层共12测试及静态检查通过。
+
+后端在隔离库的真实加密WebSocket测试证明受邀账号收到邀请事件（仅eventId）、无关账号未收到该事件，随后经加密HTTP读到对应通话。但这不是Flutter与后端的端到端测试；App页面尚未调用realtime构造入口，未安装APK、未接媒体。

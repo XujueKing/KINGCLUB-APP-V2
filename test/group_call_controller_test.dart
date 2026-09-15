@@ -176,4 +176,22 @@ void main() {
     await controller.act(GroupCallAction.join);
     expect(calls, 1);
   });
+
+  test(
+    'event adapter forwards group call and reconnect invalidations only',
+    () async {
+      create((_, _) async => state(0));
+      final source = StreamController<Map<String, dynamic>>();
+      final received = groupCallInvalidations(source.stream).toList();
+      source.add({'eventType': 'chat.call.changed'});
+      source.add({'eventType': 'chat.group.message'});
+      source.add({
+        'eventType': 'chat.group.call.changed',
+        'data': {'eventId': 'test'},
+      });
+      source.add({'eventType': 'connection.ready'});
+      await source.close();
+      expect((await received).length, 2);
+    },
+  );
 }

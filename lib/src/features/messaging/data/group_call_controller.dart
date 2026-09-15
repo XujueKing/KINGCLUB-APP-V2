@@ -3,12 +3,23 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/networking/kingclub_realtime.dart';
+import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'group_call_repository.dart';
 
 /// State coordination only. Watching never accepts a call or renews its lease.
 /// Media ownership and capture authorization belong to the media controller.
 class GroupCallController extends ChangeNotifier {
+  factory GroupCallController.realtime({
+    required GroupCallRepository repository,
+    required GroupCallSnapshot initial,
+  }) => GroupCallController(
+    repository: repository,
+    initial: initial,
+    sessionChanges: SecureSessionStore.changes.stream,
+    invalidations: groupCallInvalidations(KingclubRealtime.shared.events),
+  );
   GroupCallController({
     required this.repository,
     required GroupCallSnapshot initial,
@@ -188,3 +199,13 @@ class GroupCallController extends ChangeNotifier {
     super.dispose();
   }
 }
+
+/// Reconnection requires refetch even if the original invitation frame was lost.
+Stream<void> groupCallInvalidations(Stream<Map<String, dynamic>> events) =>
+    events
+        .where(
+          (event) =>
+              event['eventType'] == 'chat.group.call.changed' ||
+              event['eventType'] == 'connection.ready',
+        )
+        .map<void>((_) {});
