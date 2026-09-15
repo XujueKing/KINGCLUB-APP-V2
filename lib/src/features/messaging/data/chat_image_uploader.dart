@@ -93,10 +93,33 @@ class ChatImageUploader {
       throw ArgumentError('图片须小于20MB');
     }
     _busy = true;
+    final owned = Uint8List.fromList(input);
+    try {
+      for (var attempt = 0; ; attempt++) {
+        try {
+          return await _uploadAttempt(owned, onProgress: onProgress);
+        } on AuthFailure catch (error) {
+          if (attempt != 0 || error.code != 'CHAT_IMAGE_UPLOAD_DENIED') {
+            rethrow;
+          }
+          // Re-request the same upload identity. A fresh grant also creates a
+          // fresh AES-GCM nonce; invalid/revoked authority still fails closed.
+          await _check();
+        }
+      }
+    } finally {
+      _busy = false;
+    }
+  }
+
+  Future<UploadedChatImage> _uploadAttempt(
+    Uint8List input, {
+    void Function(int, int)? onProgress,
+  }) async {
     _cancel = CancelToken();
     try {
       await _check();
-      final bytes = Uint8List.fromList(input);
+      final bytes = input;
       final digest = (await Sha256().hash(bytes)).bytes
           .map((b) => b.toRadixString(16).padLeft(2, '0'))
           .join();
@@ -200,7 +223,6 @@ class ChatImageUploader {
       }
       throw const AuthFailure('NETWORK_ERROR', '图片上传失败，请重试');
     } finally {
-      _busy = false;
       _cancel = null;
     }
   }
