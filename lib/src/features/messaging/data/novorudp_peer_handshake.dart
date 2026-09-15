@@ -163,6 +163,27 @@ class NovoRudpPeerHandshake {
         return _finish();
       });
 
+  /// Explicit user/route cancellation also releases the remote exchange slot.
+  /// Local handles close immediately, even if the network request fails. Logout
+  /// and disposal continue to use close(), without issuing a new request.
+  Future<void> cancel() async {
+    if (_closed) return;
+    _check();
+    final id = _exchange?.id ?? (_outgoing != null ? _requestId : null);
+    final cancellation = NetworkRendezvousRepository(
+      messaging: repository.messaging,
+      peer: repository.peer,
+      ownBindingId: repository.ownBindingId,
+      peerBindingId: repository.peerBindingId,
+    );
+    close();
+    try {
+      if (id != null) await cancellation.cancel(id);
+    } finally {
+      cancellation.close();
+    }
+  }
+
   void close() {
     if (_closed) return;
     _closed = true;
