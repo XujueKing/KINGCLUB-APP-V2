@@ -216,6 +216,30 @@ extension NearbyMessageHistory on ChatHistoryStore {
     return rows.single['count'] as int;
   }
 
+  /// Keyset pagination remains stable when earlier rows are read/cleared while
+  /// receipt checks are running. This returns identifiers, never message text.
+  Future<List<String>> nearbyUnreadIds({
+    String? afterId,
+    int limit = 200,
+  }) async {
+    if (limit < 1 ||
+        limit > 200 ||
+        (afterId != null &&
+            !RegExp(
+              r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
+            ).hasMatch(afterId))) {
+      throw ArgumentError('Invalid unread cursor');
+    }
+    final rows = await _db.rawQuery(
+      'SELECT DISTINCT id FROM (SELECT member,id FROM nearby_message '
+      'WHERE outgoing=0 AND member IS NOT NULL GROUP BY member,id '
+      'HAVING MAX(wasRead)=0 AND MAX(hidden)=0 AND MAX(serverId IS NOT NULL)=0) '
+      '${afterId == null ? '' : 'WHERE id>? '}ORDER BY id LIMIT ?',
+      [?afterId, limit],
+    );
+    return rows.map((row) => row['id'] as String).toList();
+  }
+
   /// Marks only the displayed snapshot. A later arrival must remain unread.
   Future<int> markNearbyMemberRead(String peerAccount, List<String> ids) async {
     if (peerAccount == account ||

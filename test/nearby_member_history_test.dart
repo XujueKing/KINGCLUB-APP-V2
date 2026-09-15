@@ -38,6 +38,7 @@ void main() {
       await put(a, 'friend', id);
       await put(b, 'other', id);
       expect(await store.nearbyUnreadCount(), 2);
+      expect(await store.nearbyUnreadIds(limit: 1), [id]);
       expect(await store.nearbyUnreadCount(peerAccount: 'friend'), 1);
       expect(await store.markNearbyMemberRead('friend', [id]), 1);
       expect(await store.markNearbyMemberRead('friend', [id]), 0);
@@ -62,10 +63,13 @@ void main() {
       expect((await store.nearbyMemberMessages('friend')).single['id'], fresh);
       expect(await store.nearbyMessages(a), hasLength(2));
       expect(await store.nearbyUnreadCount(), 2);
+      expect(await store.nearbyUnreadIds(), [id, fresh]);
+      await store.markNearbyMemberRead('other', [id]);
+      expect(await store.nearbyUnreadIds(afterId: id), [fresh]);
       await store.markNearbyMemberRead('friend', [id]);
       expect(await store.nearbyUnreadCount(peerAccount: 'friend'), 1);
       await store.clear('direct:friend', hideNearby: true);
-      expect(await store.nearbyUnreadCount(), 1);
+      expect(await store.nearbyUnreadCount(), 0);
     },
   );
   test('member history deduplicates devices and suppresses confirmed copies', () async {

@@ -192,7 +192,53 @@ class MessagingRepository {
   Future<Map<String, dynamic>> conversations({
     int offset = 0,
     int limit = 50,
-  }) => call('K260913000607', {'offset': offset, 'limit': limit});
+    List<String>? knownLocalMessageIds,
+  }) async {
+    final known = knownLocalMessageIds?.map((id) => id.toLowerCase()).toSet();
+    if (knownLocalMessageIds != null &&
+        (knownLocalMessageIds.length > 200 ||
+            known!.any(
+              (id) => !RegExp(
+                r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+              ).hasMatch(id),
+            ))) {
+      throw ArgumentError('Invalid local message IDs');
+    }
+    final result = await call('K260913000607', {
+      'offset': offset,
+      'limit': limit,
+      if (known != null) 'knownLocalMessageIds': known.toList(),
+    });
+    if (known == null) return result;
+    final items = result['items'];
+    if (items is! List) {
+      throw const FormatException('Invalid conversation receipt response');
+    }
+    final normalized = <Map<String, dynamic>>[];
+    for (final item in items) {
+      if (item is! Map || item['confirmedLocalMessageIds'] is! List) {
+        throw const FormatException('Conversation receipt support unavailable');
+      }
+      final matches = item['confirmedLocalMessageIds'] as List;
+      if (matches.length > known.length ||
+          matches.any(
+            (id) => id is! String || !known.contains(id.toLowerCase()),
+          ) ||
+          (item['kind'] == 'group' && matches.isNotEmpty)) {
+        throw const FormatException('Invalid conversation receipt scope');
+      }
+      final ids = matches.cast<String>().map((id) => id.toLowerCase()).toSet();
+      if (ids.length != matches.length) {
+        throw const FormatException('Duplicate conversation receipt');
+      }
+      normalized.add({
+        ...Map<String, dynamic>.from(item),
+        'confirmedLocalMessageIds': ids.toList(),
+      });
+    }
+    return {...result, 'items': normalized};
+  }
+
   Future<Map<String, dynamic>> contacts({int offset = 0, int limit = 50}) =>
       call('K260913000608', {'offset': offset, 'limit': limit});
   Future<Map<String, dynamic>> requestFromQr({
