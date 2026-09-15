@@ -1,5 +1,12 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## Group cached-history revalidation and update package
+
+Group history pagination now displays its disk page immediately and revalidates the original page boundary with the server. A transient network failure preserves cached viewing; explicit CHAT_GROUP_ACCESS_DENIED follows the existing membership-revocation path to clear memory/disk and disable send access. Added delayed-response tests verify both outcomes after a local cache hit. Twenty-two group controller/history tests passed, changed-file static analysis and diff checks passed.
+
+Built the real-API profile/preview ARM64 package successfully, including the earlier direct-history and image replacement fixes. APK SHA256 447c3722f18334ae56d2c6a8ac7dcbe561470be8d702fb275527660b8926a3c7; size 157003848 bytes. Build artifact: build/app/outputs/flutter-apk/app-preview-profile.apk. The package has not been installed on either phone in this node; touch operations remain paused. No group settings, membership or messages were changed by this verification.
+
+
 ## Cached image replacement isolation
 
 CachedMediaImage now creates a fresh FutureBuilder state for each replacement request so the previous successful image is not retained while a new URL, content identity, headers or private/public mode is loading. The normal cache remains shared; an optional cache dependency enables controlled pending-response verification without external downloads. A widget test confirms the first image disappears while its replacement is pending and late completion after disposal does not restore an image. Together with existing media-cache coverage, nine tests passed; changed files pass static analysis.

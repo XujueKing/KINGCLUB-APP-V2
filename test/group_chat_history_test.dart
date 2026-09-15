@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,6 +38,61 @@ void main() {
       MessagingRepository(account: 'me', call: call),
     ),
   );
+  for (final revoked in [false, true]) {
+    test(
+      'cached older group page revalidates access: revoked=$revoked',
+      () async {
+        await store.commit(
+          'group:group',
+          List.generate(75, (i) => row(i + 1)),
+          expectedEpoch: 0,
+          cursor: 75,
+          membershipVersion: 0,
+        );
+        final requested = Completer<void>();
+        final pending = Completer<Map<String, dynamic>>();
+        final chat = controller((id, params) async {
+          if (id == 'K260913000619') {
+            return {'groupName': 'Test', 'members': []};
+          }
+          if (params.containsKey('before')) {
+            expect(params['before'], 26);
+            requested.complete();
+            return pending.future;
+          }
+          return {
+            ...history([]),
+            'membershipVersion': 0,
+            'joinedSequence': 0,
+            'settings': {'hiddenThrough': 0},
+          };
+        });
+        await chat.initialize();
+        final loading = chat.loadOlder();
+        await requested.future.timeout(const Duration(seconds: 5));
+        expect(chat.messages.length, 75);
+        pending.completeError(
+          AuthFailure(
+            revoked ? 'CHAT_GROUP_ACCESS_DENIED' : 'NETWORK_ERROR',
+            'fixture',
+          ),
+        );
+        await loading;
+        final saved = await store.read('group:group');
+        if (revoked) {
+          expect(chat.hasAccess, false);
+          expect(chat.messages, isEmpty);
+          expect(saved.messages, isEmpty);
+        } else {
+          expect(chat.messages.length, 75);
+          expect(saved.cursor, 75);
+          expect(saved.messages, isNotEmpty);
+        }
+        chat.dispose();
+      },
+    );
+  }
+
   test('transient cache opening failure can recover on next sync', () async {
     var opens = 0;
     final queue = Queue();

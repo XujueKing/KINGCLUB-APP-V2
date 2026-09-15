@@ -49,12 +49,11 @@ class GroupChatController extends ChatSessionController {
   bool get canReply => !_disposed && _canReply;
   final _hiddenMessages = <String, Map<String, dynamic>>{};
   String get _historyKey => 'group:$groupId';
-  Future<void> _ensureHistory() => _historyReady ??= _restoreHistory().catchError(
-    (Object error, StackTrace stack) {
-      _historyReady = null;
-      Error.throwWithStackTrace(error, stack);
-    },
-  );
+  Future<void> _ensureHistory() => _historyReady ??= _restoreHistory()
+      .catchError((Object error, StackTrace stack) {
+        _historyReady = null;
+        Error.throwWithStackTrace(error, stack);
+      });
   Future<void> _restoreHistory() async {
     if (openHistory == null) return;
     final generation = _historyGeneration;
@@ -326,6 +325,7 @@ class GroupChatController extends ChatSessionController {
   Future<void> loadOlder() async {
     if (!hasOlder || _oldest == null || _disposed) return;
     final generation = _historyGeneration;
+    final before = _oldest;
     try {
       if (_history != null) {
         await _historyBarrier;
@@ -343,10 +343,10 @@ class GroupChatController extends ChatSessionController {
           }
           _oldest = local.messages.first['sequence'] as int;
           _changed();
-          return;
         }
       }
-      final result = await repository.history(groupId, before: _oldest);
+      // Keep the disk page visible while revalidating its original boundary.
+      final result = await repository.history(groupId, before: before);
       if (_disposed || generation != _historyGeneration) return;
       if (!await _acceptHistoryRevision(result)) return;
       await _merge(result, generation);
@@ -354,6 +354,7 @@ class GroupChatController extends ChatSessionController {
       final rows = result['messages'] as List;
       if (rows.isNotEmpty) _oldest = (rows.first['sequence'] as num).toInt();
       hasOlder = result['hasMore'] == true;
+      error = null;
       _changed();
     } catch (e) {
       if (_disposed || generation != _historyGeneration) return;
