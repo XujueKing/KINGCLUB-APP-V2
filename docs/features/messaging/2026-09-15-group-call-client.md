@@ -39,3 +39,7 @@ GroupCallSnapshot验证通话/群UUID、音视频类型、2–9位唯一参与�
 前台群邀请接入：App登录后建立ForegroundGroupCallInbox，群事件/重连及5秒前台轮询读取681，仅本人invited状态展示邀请；重复通知不叠加，关闭/前后台切换丢弃迟到读取，接口停用时暂停轮询。App显示接听/拒绝对话框，点击后再次读取状态；拒绝调用decline，接听进入GroupCallPage并显式join后采集。双人和群邀请展示互斥。登录代际变化阻止旧邀请操作，页面已结束的邀请不采集。
 
 验证：相关30项受控测试、4个变更文件静态检查通过；新增测试覆盖邀请去重、不自动join及后台迟到响应。首次测试夹具字段与父类read方法重名导致编译失败，已修复并重跑通过。当前只接前台邀请，没有系统来电/离线推送呼醒、铃声或后台持续通话；邀请对话框尚无自动超时关闭，但点击时重新验证权限和状态。线上接口未启用、未安装APK、未进行双机呼入验收。
+
+Android构建及安装证据（2026-09-15）：在4f02f9b工作树构建真实API preview/profile APK，保留本地3处onboarding未提交变更（不纳入本节点提交）；Gradle assemblePreviewProfile 72.8秒成功。APK 157003848字节，SHA256 26a56ceb20733c9dd0940b22e4f361b2609c2a722096dbf50b253db687bec2e9，pubspec.lock SHA256 0940f06c394649084e116e5188fe4191849746b19dcc9da3eccdf435783c7e7d。锁定NovoRUDP重建、ARM64 ELF校验通过；APK包含ARM64 libjingle_peerconnection_so.so及libkingclub_novorudp.so。部分插件仍附带armeabi-v7a/x86_64库，不将该APK描述为完全只有ARM64依赖。Flutter插件Kotlin迁移警告未阻止构建。
+
+原有单聊通话相关8文件44项回归测试通过。ADB覆盖安装Success，11:50:56更新，启动Status ok，应用进程存在，本次进程日志FATAL EXCEPTION/Unhandled Exception/UnsatisfiedLinkError匹配0条。没有开启采集或自动发送消息。此次只证明构建、安装和基本启动；不证明实际SFU连接、多方音视频、UI视觉或后台通话。群通话服务端接口仍未在线启用，不能凭APK安装将群通话计为交付。
