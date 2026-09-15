@@ -41,6 +41,38 @@ void main() {
   };
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   test(
+    'stale rotation and failure cannot overwrite or clear a renewed session',
+    () async {
+      final store = SecureSessionStore();
+      final old = {
+        ...first,
+        'refreshToken': 'old',
+        'refreshTokenVersion': 1,
+        'expiresAt': '2026-01-01T00:00:00Z',
+        'refreshExpiresAt': '2026-02-01T00:00:00Z',
+      };
+      final renewed = {
+        ...old,
+        'refreshToken': 'new',
+        'refreshTokenVersion': 2,
+        'expiresAt': '2026-01-02T00:00:00Z',
+      };
+      await store.saveSession(old);
+      expect(await store.saveSessionIfCurrent(old, renewed), true);
+      final results = await Future.wait([
+        SecureSessionStore().saveSessionIfCurrent(old, {
+          ...old,
+          'refreshToken': 'late',
+        }),
+        SecureSessionStore().clearSessionIfCurrent(old),
+      ]);
+      expect(results, [false, false]);
+      expect(await store.readSession(), renewed);
+      expect(await store.clearSessionIfCurrent(renewed), true);
+      expect(await store.readSession(), null);
+    },
+  );
+  test(
     'late membership response preserves rotated refresh credentials',
     () async {
       final store = SecureSessionStore();

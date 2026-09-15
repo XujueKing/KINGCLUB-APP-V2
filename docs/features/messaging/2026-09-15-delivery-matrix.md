@@ -1,5 +1,13 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-16 续期版本保护
+
+saveSessionIfCurrent 与 clearSessionIfCurrent 在账号/session/API 凭证外，增加 refreshToken、refreshTokenVersion、expiresAt、refreshExpiresAt 的版本比较；同一个会话已续期后，旧请求不得覆盖新令牌，也不得因旧失败响应清除新会话。资料刷新继续只合并会员字段，不要求旧令牌版本相同，因此正常续期不会把资料刷新变成换账号。当前版本的正常注销仍能完成。
+
+30 项登录续期、资料刷新、注册恢复回归通过；2 文件静态检查通过。新增测试同时提交旧续期回执与旧清除请求，均被拒绝，新会话保持完整，随后当前会话注销成功。测试为本地会话存储与受控接口时序，不冒充手机真实服务端轮换验收。日志 build/session-revision-test.log、build/session-revision-analyze.log。
+
+本节点 Preview/Profile arm64 构建成功：2026-09-16 03:13:30，157790280 字节，SHA256 6C58FF2190BCFD28652FF0917E3560599E11C4A300D60552794999DE9BFEB0B3，日志 build/session-revision-build.log，构建耗时 64 秒。包含两处续期修复及前序通讯录/位置/入群修复；尚未安装手机。工作区三处既有 onboarding 修改参与构建但未纳入本节点提交。
+
 ## 2026-09-16 资料刷新不再覆盖新续期令牌
 
 核对资料刷新路径发现：refreshMembership 使用请求前整份 session 快照回写，若同一 session 的 refreshToken/version/expiry 已轮换，迟到的资料响应可能覆盖新值。新增串行 saveMembershipIfCurrent，只在原账号及 session/API 凭证仍匹配时，将 account/membership 合并到当前存储；凭证及续期字段保留当前值，响应账号不匹配时拒绝。正常资料更新不发登录变化事件；注销、换账号、权限变化的原有失效机制保留。

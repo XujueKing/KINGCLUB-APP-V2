@@ -47,7 +47,7 @@ class SecureSessionStore {
     Map<String, dynamic> expected,
     Map<String, dynamic> value,
   ) => _exclusive(() async {
-    if (!_sameCredentials(await readSession(), expected)) return false;
+    if (!_sameRevision(await readSession(), expected)) return false;
     await _save(value);
     return true;
   });
@@ -80,6 +80,24 @@ class SecureSessionStore {
     }
     return (a['account'] as Map?)?['userAccount'] ==
         (b['account'] as Map?)?['userAccount'];
+  }
+
+  /// An old request cannot replace or revoke a renewed session, even when
+  /// the server retains the session ID and API key during token rotation.
+  static bool _sameRevision(
+    Map<String, dynamic>? current,
+    Map<String, dynamic> expected,
+  ) {
+    if (!_sameCredentials(current, expected)) return false;
+    for (final field in [
+      'refreshToken',
+      'refreshTokenVersion',
+      'expiresAt',
+      'refreshExpiresAt',
+    ]) {
+      if (current![field] != expected[field]) return false;
+    }
+    return true;
   }
 
   Future<void> _save(Map<String, dynamic> value) async {
@@ -120,7 +138,7 @@ class SecureSessionStore {
 
   Future<bool> clearSessionIfCurrent(Map<String, dynamic> expected) =>
       _exclusive(() async {
-        if (!_sameCredentials(await readSession(), expected)) return false;
+        if (!_sameRevision(await readSession(), expected)) return false;
         await _clear();
         return true;
       });
