@@ -94,3 +94,9 @@ Added an actual localhost HttpServer/WebSocket upgrade test. The server receives
 MediaCache.get now captures the cache generation before asynchronous key derivation and propagates it through lookup/download. Old work is rejected before directory creation/network work and again before returning a cached file or shared pending result. Previously a request could begin before clear but adopt the new generation afterward; the cache-hit branch also lacked the final check.
 
 Validation: 20 cache/playback tests passed; analyze passed. Added cases pause an existing private-file lookup while clearing and clear immediately after get before any network call; both old requests reject and no old cache file is returned. Controlled filesystem/network fixtures are not handset logout acceptance. Not yet installed.
+
+## Contacts loading regression check
+
+Inspected the current ContactsPage/ContactsController/ContactGroupsRepository: first-entry UI does not use an artificial delay, relation groups and request counts load independently of the contact refresh, previous contact snapshots survive refresh failure, and group repository operation numbers reject stale responses after newer loads/saves. No additional loading or cache change was made without evidence of a defect.
+
+Ran contacts_controller_test.dart, contacts_flow_test.dart and contact_groups_repository_test.dart: all 23 passed. Coverage includes account reset, incoming request count, private avatar lookup, alphabet drag, retained rows during partial failure and stale group-version rejection. Widget/demo and injected-API tests are not phone or live-interface acceptance. The earlier live SQL eligibility evidence remains separate; the user's actual missing-contact case is still awaiting handset observation.
