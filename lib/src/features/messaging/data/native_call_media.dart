@@ -346,12 +346,18 @@ class NativeCallMedia {
     _remoteReady = false;
     Object? failure;
     for (final stream in streams) {
-      for (final track in stream.getTracks()) {
-        try {
-          await track.stop();
-        } catch (e) {
-          failure ??= e;
+      try {
+        for (final track in stream.getTracks()) {
+          try {
+            await track.stop();
+          } catch (e) {
+            failure ??= e;
+          }
         }
+      } catch (e) {
+        // A native stream may already have been invalidated. Still release the
+        // stream, peer connection and audio route below.
+        failure ??= e;
       }
       try {
         await stream.dispose();

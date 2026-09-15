@@ -48,6 +48,15 @@ class VideoStreamFixture extends StreamFixture {
   List<MediaStreamTrack> getVideoTracks() => [camera];
 }
 
+class InvalidatedStream extends StreamFixture {
+  bool invalidated = false;
+  @override
+  List<MediaStreamTrack> getTracks() {
+    if (invalidated) throw StateError('native stream invalidated');
+    return super.getTracks();
+  }
+}
+
 class Peer implements RTCPeerConnection {
   int closes = 0, disposes = 0, candidates = 0;
   @override
@@ -161,6 +170,25 @@ class RestartPeer extends Peer {
 }
 
 void main() {
+  test('invalidated stream still releases connection and speaker route', () async {
+    final stream = InvalidatedStream(), peer = Peer();
+    final routes = <bool>[];
+    final media = NativeCallMedia(
+      video: false,
+      iceServers: [],
+      capture: (_) async => stream,
+      peerFactory: (_) async => peer,
+      setSpeakerphone: (enabled) async { routes.add(enabled); },
+    );
+    await media.open();
+    await media.setSpeakerphone(true);
+    stream.invalidated = true;
+    await expectLater(media.close(), throwsStateError);
+    expect(stream.disposed, 1);
+    expect(peer.closes, 1);
+    expect(peer.disposes, 1);
+    expect(routes.last, false);
+  });
   test(
     'failed opening suppresses late native events while releasing tracks',
     () async {

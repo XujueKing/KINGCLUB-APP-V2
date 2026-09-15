@@ -124,3 +124,7 @@ Validation: new controlled widget test holds pagination pending, repeats load-mo
 Added a controller test starting with sequence 1, catching up through 51, failing the next page, then resuming at 51 and completing through 131. All 131 sequences appear exactly once; an intermediate network error retains the known send permission and clears after successful catch-up. Existing implementation passed without a production code change. Direct/group controller suites: 21 passed; targeted analyze passed.
 
 This is controlled repository-response evidence only. It does not prove actual mobile WebSocket delivery, offline server retention or the historical friend-removal report resolved.
+
+## Invalidated native stream cleanup
+
+NativeCallMedia now catches track enumeration failure during release and continues stream disposal, peer close/dispose and speaker reset. The cleanup error is still reported; inability to enumerate tracks is not counted as proven capture shutdown. A controlled invalidated-stream test verifies the remaining resources are released. Native media/state controller suites: 23 passed, targeted analyze passed. Not yet installed or tested on a live call.
