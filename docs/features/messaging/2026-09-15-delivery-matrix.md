@@ -138,3 +138,7 @@ Validation: 17 history tests passed, including new first-open failure then succe
 ## Profile privacy late-response check
 
 Added a widget regression holding an authorized content response pending, delivering a settings change with contentVisible=false, then completing the old content response. Old works remain absent, the restricted-content notice remains and private chat remains available. All five public profile tests passed. No production change was needed; this verifies client generation handling with injected replies/events, not server privacy enforcement or two-device acceptance.
+
+## Video upload copy recovery
+
+Video retry now checks the cached upload copy is present and nonempty before reuse. A missing or empty copy reruns preparation from the retained source; cancellation is rechecked after filesystem access. Original media is unchanged. Twelve optimizer/send-lifecycle tests passed, including actual filesystem deletion/truncation with an injected native encoder, and analyze passed. This does not establish the cause of the user's earlier interrupted upload or measure native codec quality. Not yet installed.

@@ -60,6 +60,38 @@ void main() {
     expect(await optimizer.prepare(source), source);
   });
 
+  for (final missing in [true, false]) {
+    test(
+      'retry regenerates ${missing ? 'missing' : 'empty'} upload copy',
+      () async {
+        final copy = File('${directory.path}/copy.mp4');
+        var prepares = 0;
+        final optimizer = ChatVideoOptimizer(
+          account: 'fixture',
+          supported: true,
+          invoke: (method, _) async {
+            if (method == 'prepare') {
+              prepares++;
+              await copy.writeAsBytes([1, 2, 3]);
+            }
+            return copy.path;
+          },
+        );
+        await optimizer.prepare(source);
+        if (missing) {
+          await copy.delete();
+        } else {
+          await copy.writeAsBytes([]);
+        }
+        expect((await optimizer.prepare(source)).path, copy.path);
+        expect(prepares, 2);
+        expect(await copy.readAsBytes(), [1, 2, 3]);
+        expect(await source.length(), 4 * 1024 * 1024);
+        optimizer.dispose();
+      },
+    );
+  }
+
   test('larger output does not replace original', () async {
     final copy = await File('${directory.path}/copy.mp4')
         .writeAsBytes(List.filled(5 * 1024 * 1024, 8));
@@ -108,7 +140,10 @@ void main() {
       );
       await optimizer.prepare(source);
     }
-    expect(keys[0], 'd81194beb1eaa1bcfb0be56dced5afe0132b50d5edfcfc9aabcd5f845e406fa8');
+    expect(
+      keys[0],
+      'd81194beb1eaa1bcfb0be56dced5afe0132b50d5edfcfc9aabcd5f845e406fa8',
+    );
     expect(keys[0], isNot(keys[1]));
   });
   test('progress uses real estimates, ignores invalid values and never moves backwards', () async {

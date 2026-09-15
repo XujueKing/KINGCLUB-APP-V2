@@ -29,7 +29,18 @@ class ChatVideoOptimizer {
 
   Future<File> prepare(File source, {void Function(double)? onProgress}) async {
     _check();
-    if (_prepared != null) return _prepared!;
+    final prepared = _prepared;
+    if (prepared != null) {
+      var available = false;
+      try {
+        available = await prepared.length() > 0;
+      } on FileSystemException {
+        // Temporary upload copies may be evicted while a failed send waits.
+      }
+      _check();
+      if (available) return prepared;
+      _prepared = null;
+    }
     if (!_supported || await source.length() < 4 * 1024 * 1024) return source;
     // Pass only strings: capturing this would transfer native callbacks/state.
     _key = await _hashInBackground(source.path, account);
