@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/group_chat_repository.dart';
+import '../../contacts/presentation/public_member_page.dart';
+import 'chat_member_avatar.dart';
 import 'legacy_messaging_components.dart';
 
 class GroupJoinReviewPage extends StatefulWidget {
@@ -30,6 +32,7 @@ class _GroupJoinReviewPageState extends State<GroupJoinReviewPage>
   bool _busy = false, _saving = false, _invalid = false, _foreground = true;
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
+  final _profiles = <String, Future<Map<String, dynamic>>>{};
 
   @override
   void initState() {
@@ -54,6 +57,7 @@ class _GroupJoinReviewPageState extends State<GroupJoinReviewPage>
   void _clear() {
     _generation++;
     _items = [];
+    _profiles.clear();
     _next = null;
     _version = null;
     _busy = false;
@@ -229,6 +233,50 @@ class _GroupJoinReviewPageState extends State<GroupJoinReviewPage>
     _ => '待审核',
   };
 
+  Widget _applicant(Map<String, dynamic> item) {
+    final account = item['applicant'] as String;
+    final profile = cachedChatAvatarProfile(
+      _profiles,
+      account,
+      () =>
+          widget.repository.messaging.call('K260913000612', {'peer': account}),
+    );
+    return ListTile(
+      key: ValueKey('group-applicant-${item['applicationId']}-$_generation'),
+      leading: ChatMemberAvatar(account: account, profile: profile),
+      title: FutureBuilder<Map<String, dynamic>>(
+        future: profile,
+        builder: (_, snapshot) {
+          final nickname = snapshot.connectionState == ConnectionState.done
+              ? (snapshot.data?['nickname'])
+              : null;
+          return Text(
+            nickname is String && nickname.trim().isNotEmpty ? nickname : '申请人',
+            style: const TextStyle(color: Color(0xFFC9B69E), fontSize: 16),
+          );
+        },
+      ),
+      subtitle: Text(
+        item['note'] as String,
+        style: const TextStyle(color: Colors.grey, fontSize: 13),
+      ),
+      onTap: _busy || _saving || _invalid || !_foreground
+          ? null
+          : () async {
+              await Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => PublicMemberPage(
+                    account: account,
+                    repository: widget.repository.messaging,
+                  ),
+                ),
+              );
+              if (mounted && !_invalid) await _load();
+            },
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
@@ -258,19 +306,7 @@ class _GroupJoinReviewPageState extends State<GroupJoinReviewPage>
                     child: Text('暂无入群申请', style: TextStyle(color: Colors.grey)),
                   ),
                 for (final item in _items) ...[
-                  ListTile(
-                    title: Text(
-                      item['applicant'] as String,
-                      style: const TextStyle(
-                        color: Color(0xFFC9B69E),
-                        fontSize: 16,
-                      ),
-                    ),
-                    subtitle: Text(
-                      item['note'] as String,
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                  ),
+                  _applicant(item),
                   if (item['status'] == 'pending')
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
