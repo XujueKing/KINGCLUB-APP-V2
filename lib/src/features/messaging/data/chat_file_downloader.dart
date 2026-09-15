@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -11,6 +12,7 @@ import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
+import 'chat_download_cache.dart';
 
 /// Metadata comes from the acknowledged message, never from a download URL.
 class ChatFileReference {
@@ -34,6 +36,7 @@ class ChatFileDownloader {
     required this.checkSession,
     Dio? dio,
     Future<Directory> Function()? temporaryDirectory,
+    this.resumeCache,
   }) : _dio =
            dio ??
            Dio(
@@ -45,6 +48,7 @@ class ChatFileDownloader {
            ),
        _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory {
     _session = SecureSessionStore.changes.stream.listen((_) {
+      _sessionChanged = true;
       _invalid = true;
       cancel();
       _deleteCompleted();
@@ -52,6 +56,7 @@ class ChatFileDownloader {
   }
   static const chunkBytes = 1024 * 1024, maxBytes = 256 * 1024 * 1024;
   final MessagingRepository repository;
+  final ChatDownloadCache? resumeCache;
   final Future<void> Function() checkSession;
   final Dio _dio;
   final Future<Directory> Function() _temporaryDirectory;
@@ -62,6 +67,7 @@ class ChatFileDownloader {
   Future<void>? _disposing;
   CancelToken? _cancel;
   bool _invalid = false, _busy = false;
+  bool _sessionChanged = false;
 
   static Future<ChatFileDownloader> open(MessagingRepository repository) async {
     final store = SecureSessionStore(), generation = MemberQrMemory.generation;
@@ -70,8 +76,15 @@ class ChatFileDownloader {
         (initial['account'] as Map?)?['userAccount'] != repository.account) {
       throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
     }
+    ChatDownloadCache? cache;
+    try {
+      cache = await ChatDownloadCache.open(repository.account);
+    } catch (_) {
+      // Unavailable cache must not prevent an authorized fresh download.
+    }
     return ChatFileDownloader(
       repository: repository,
+      resumeCache: cache,
       checkSession: () async {
         final current = await store.readSession();
         if (generation != MemberQrMemory.generation ||
@@ -140,6 +153,16 @@ class ChatFileDownloader {
     Directory? working;
     RandomAccessFile? output;
     var completed = false;
+    var keepResume = false;
+    final identity = jsonEncode([
+      repository.account,
+      ref.group,
+      ref.messageId,
+      ref.assetId,
+      ref.size,
+      ref.sha256,
+      ref.fileName,
+    ]);
     try {
       final uuid = RegExp(
         r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -153,6 +176,9 @@ class ChatFileDownloader {
         throw const FormatException('文件消息无效');
       }
       var media = await _grant(ref);
+      try {
+        await resumeCache?.prune(identity);
+      } catch (_) {}
       final parent = await _temporaryDirectory();
       await _check();
       working = await parent.createTemp('kingclub-chat-download-');
@@ -163,8 +189,10 @@ class ChatFileDownloader {
       for (var index = 0; index < (media['chunkCount'] as int); index++) {
         await _check();
         final expected = (ref.size - index * chunkBytes).clamp(0, chunkBytes);
-        late Uint8List block;
-        for (var networkAttempt = 0; ; networkAttempt++) {
+        Uint8List? block = await resumeCache?.read(identity, index, expected);
+        await _check();
+        final cached = block != null;
+        for (var networkAttempt = 0; block == null; networkAttempt++) {
           try {
             block = await _readBlock(ref, media, index, expected, (count) {
               onProgress?.call(received + count, ref.size);
@@ -185,6 +213,12 @@ class ChatFileDownloader {
         digest.add(block);
         await output.writeFrom(block);
         received += block.length;
+        if (!cached) {
+          try {
+            await resumeCache?.write(identity, index, block);
+          } catch (_) {}
+        }
+        onProgress?.call(received, ref.size);
       }
       digest.close();
       final hash = (await digest.hash()).bytes
@@ -202,7 +236,19 @@ class ChatFileDownloader {
       _completed.add(working);
       completed = true;
       return file;
+    } catch (error) {
+      keepResume =
+          !_sessionChanged &&
+          (_retryable(error) ||
+              error is DioException && CancelToken.isCancel(error) ||
+              _disposing != null);
+      rethrow;
     } finally {
+      if (!keepResume) {
+        try {
+          await resumeCache?.remove(identity);
+        } catch (_) {}
+      }
       try {
         await output?.close();
       } finally {
