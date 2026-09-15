@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -10,6 +12,136 @@ void main() {
   const groupId = '11111111-1111-4111-8111-111111111111';
   const code = 'KC:G:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  testWidgets(
+    'approval event rechecks membership and session loss rejects late response',
+    (tester) async {
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      addTearDown(events.close);
+      Completer<Map<String, dynamic>>? pending;
+      var lookups = 0;
+      final repo = GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (id, p) async {
+            if (id == 'K260914000658') {
+              return {
+                'groupId': groupId,
+                'applicationId': '22222222-2222-4222-8222-222222222222',
+                'status': 'pending',
+                'changed': true,
+              };
+            }
+            expect(id, 'K260913000619');
+            lookups++;
+            return pending?.future ??
+                Future.value({
+                  'groupId': groupId,
+                  'members': [
+                    {'account': 'me'},
+                  ],
+                });
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GroupJoinRequestPage(
+            groupId: groupId,
+            groupName: 'Test group',
+            code: code,
+            repository: repo,
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.tap(find.text('提交申请'));
+      await tester.pumpAndSettle();
+      expect(find.text('进入群聊'), findsNothing);
+      events.add({'eventType': 'chat.group.changed'});
+      await tester.pumpAndSettle();
+      expect(lookups, 1);
+      expect(find.text('进入群聊'), findsOneWidget);
+      pending = Completer<Map<String, dynamic>>();
+      events.add({'eventType': 'chat.group.changed'});
+      await tester.pumpAndSettle();
+      expect(find.text('进入群聊'), findsNothing);
+      SecureSessionStore.changes.add(null);
+      await tester.pump();
+      pending.complete({
+        'groupId': groupId,
+        'members': [
+          {'account': 'me'},
+        ],
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('进入群聊'), findsNothing);
+      expect(find.text('登录状态已变化'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
+    'approval arriving before submit response is checked without resubmission',
+    (tester) async {
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      addTearDown(events.close);
+      final submitted = Completer<Map<String, dynamic>>();
+      var sends = 0, checks = 0;
+      var member = false;
+      final repo = GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (id, p) async {
+            if (id == 'K260914000658') {
+              sends++;
+              return submitted.future;
+            }
+            expect(id, 'K260913000619');
+            checks++;
+            return {
+              'groupId': groupId,
+              'members': member
+                  ? [
+                      {'account': 'me'},
+                    ]
+                  : [],
+            };
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GroupJoinRequestPage(
+            groupId: groupId,
+            groupName: 'Test group',
+            code: code,
+            repository: repo,
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.tap(find.text('提交申请'));
+      await tester.pump();
+      events.add({'eventType': 'chat.group.changed'});
+      await tester.pump();
+      submitted.complete({
+        'groupId': groupId,
+        'applicationId': '22222222-2222-4222-8222-222222222222',
+        'status': 'pending',
+        'changed': true,
+      });
+      await tester.pumpAndSettle();
+      expect(checks, 1);
+      expect(find.text('进入群聊'), findsNothing);
+      member = true;
+      await tester.tap(find.text('刷新入群状态'));
+      await tester.pumpAndSettle();
+      expect(sends, 1);
+      expect(checks, 2);
+      expect(find.text('进入群聊'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets(
     'application retries exact frozen note and only displays acknowledged pending',
     (tester) async {

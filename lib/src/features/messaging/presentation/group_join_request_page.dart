@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/session/secure_session_store.dart';
+import '../../../core/networking/kingclub_realtime.dart';
 import '../data/group_chat_repository.dart';
+import 'direct_chat_page.dart';
 import 'legacy_messaging_components.dart';
 
 class GroupJoinRequestPage extends StatefulWidget {
@@ -13,9 +15,11 @@ class GroupJoinRequestPage extends StatefulWidget {
     required this.groupName,
     required this.code,
     required this.repository,
+    this.events,
   });
   final String groupId, groupName, code;
   final GroupChatRepository repository;
+  final Stream<Map<String, dynamic>>? events;
   @override
   State<GroupJoinRequestPage> createState() => _GroupJoinRequestPageState();
 }
@@ -27,6 +31,8 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
   bool _busy = false, _invalid = false, _foreground = true;
   int _generation = 0;
   StreamSubscription<void>? _session;
+  StreamSubscription<Map<String, dynamic>>? _events;
+  bool _checking = false, _checkAgain = false, _canEnter = false;
   @override
   void initState() {
     super.initState();
@@ -37,10 +43,63 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
       _note.clear();
       _submittedNote = null;
       _status = null;
+      _canEnter = false;
       if (mounted) {
         setState(() => _error = '登录状态已变化');
       }
     });
+    _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
+      if (event['eventType'] == 'chat.group.changed' ||
+          event['eventType'] == 'connection.ready') {
+        if (_busy && _status == null) {
+          _checkAgain = true;
+          return;
+        }
+        unawaited(_checkMembership());
+      }
+    });
+  }
+
+  Future<void> _checkMembership() async {
+    if (!mounted || _invalid || !_foreground || _status == null) return;
+    if (_checking) {
+      _checkAgain = true;
+      return;
+    }
+    final generation = _generation;
+    setState(() {
+      _checking = true;
+      _canEnter = false;
+    });
+    try {
+      final details = await widget.repository.details(widget.groupId);
+      if (!mounted || _invalid || generation != _generation) return;
+      final members = details['members'];
+      if (details['groupId'] != widget.groupId ||
+          members is! List ||
+          !members.whereType<Map>().any(
+            (member) =>
+                member['account'] == widget.repository.messaging.account,
+          )) {
+        throw const FormatException('群成员信息无效');
+      }
+      setState(() {
+        _status = 'accepted';
+        _canEnter = true;
+        _error = null;
+      });
+    } catch (_) {
+      if (mounted && !_invalid && generation == _generation) {
+        setState(() => _error = '暂未确认入群，请稍后刷新');
+      }
+    } finally {
+      _checking = false;
+      if (mounted) setState(() {});
+      if (_checkAgain) {
+        _checkAgain = false;
+        unawaited(_checkMembership());
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -63,6 +122,10 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
         return;
       }
       setState(() => _status = result['status'] as String);
+      if (_status == 'accepted' || _status == 'already_member' || _checkAgain) {
+        _checkAgain = false;
+        unawaited(_checkMembership());
+      }
     } catch (_) {
       if (mounted && generation == _generation && !_invalid) {
         setState(() => _error = '申请未确认，请重试；若二维码已失效，请重新扫描');
@@ -77,15 +140,19 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
+    _generation++;
+    _canEnter = false;
     if (mounted) {
       setState(() {});
     }
+    if (_foreground) unawaited(_checkMembership());
   }
 
   @override
   void dispose() {
     _generation++;
     _session?.cancel();
+    _events?.cancel();
     _note.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -154,6 +221,33 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
                         _resultText,
                         style: const TextStyle(color: Color(0xFFC9B69E)),
                       ),
+                      if (_error != null)
+                        Text(
+                          _error!,
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      if (_canEnter)
+                        TextButton(
+                          onPressed: () {
+                            if (_invalid || !_foreground || !_canEnter) return;
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => DirectChatPage(
+                                  groupId: widget.groupId,
+                                  peerName: widget.groupName,
+                                  repository: widget.repository.messaging,
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text('进入群聊'),
+                        )
+                      else
+                        TextButton(
+                          onPressed: _checking ? null : _checkMembership,
+                          child: const Text('刷新入群状态'),
+                        ),
                       TextButton(
                         onPressed: () => Navigator.maybePop(context),
                         child: const Text('返回群资料'),
