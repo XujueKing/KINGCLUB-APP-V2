@@ -4,13 +4,14 @@ import 'dart:io';
 import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
 import 'novorudp_frame.dart';
+import 'novorudp_frame_link.dart';
 import 'novorudp_secure_packet.dart';
 import 'novorudp_secure_session.dart';
 
 /// Owns a bound socket and an already authenticated channel. Endpoint discovery
 /// and member-to-public-key trust must precede attachment. No chat route enables
 /// this lane yet; delivery acknowledgement/repair and fallback are still needed.
-class NovoRudpSecureDatagramLink {
+class NovoRudpSecureDatagramLink implements NovoRudpFrameLink {
   NovoRudpSecureDatagramLink.attach({
     required RawDatagramSocket socket,
     required this.peer,
@@ -38,6 +39,7 @@ class NovoRudpSecureDatagramLink {
 
   final RawDatagramSocket _socket;
   final void Function(Datagram)? onControlPacket;
+  @override
   final NovoRudpSecureChannel channel;
   final InternetAddress peer;
   final int peerPort;
@@ -47,6 +49,7 @@ class NovoRudpSecureDatagramLink {
   late final StreamSubscription<void> _session;
   bool _closed = false, _reading = false;
   Future<void>? _closing;
+  @override
   Stream<NovoRudpFrame> get frames => _frames.stream;
   int get localPort => _socket.port;
 
@@ -57,6 +60,7 @@ class NovoRudpSecureDatagramLink {
     }
   }
 
+  @override
   Future<void> send(NovoRudpFrame frame) async {
     _check();
     if (frame.payload.length > NovoRudpSecurePacket.maxFramePayload) {
@@ -113,6 +117,7 @@ class NovoRudpSecureDatagramLink {
     }
   }
 
+  @override
   Future<void> close() {
     _closed = true;
     return _closing ??= _close();

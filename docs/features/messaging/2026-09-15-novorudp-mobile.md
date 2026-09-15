@@ -293,3 +293,11 @@ User connected a second authorized Android device and explicitly assigned origin
 ### Relay heartbeat lifecycle correction
 
 Wrapped the periodic heartbeat callback so a generation change preceding the session event, or a synchronous send failure, closes the route instead of escaping as an unhandled timer error. Extended the actual daemon test to reject a mismatched expected relay identity and invalidate the generation without emitting a session event. Both actual client streams closed within the real heartbeat interval; previously queued forward outcomes were drained separately from new delivery. Live test passed in 15 seconds and targeted analysis clean. This correction is committed after the A/B package installation and is not claimed installed; relay selection in the app remains pending.
+
+## Authenticated relay frames and durable text integration
+
+Added NovoRudpRelayFrameLink over the existing authenticated WSS client. It owns one peer channel (not the shared relay), filters the fixed source/target, bounds queued decryption to 32 packets, authenticates before delivery, rejects malformed/replayed packets and respects account generation on asynchronous send/receive. The same 976-byte frame payload bound is used for direct and relay carriage. NearbyTextChannel now consumes this shared frame contract without changing its durable message/receipt protocol.
+
+The actual local SUPERVM relay was started through the existing two-hour test script after checking its listener. Two synthetic native identities performed signed peer handshakes, encrypted frames, 3850-character segmented text, repeated same-ID text without a duplicate row, and reverse-direction text. Both peers persisted to real encrypted SQLite journals; outgoing pending records cleared only after receiver receipts. The actual UDP dropped-handshake/receipt regression also passed. Session-generation loss closed live WSS clients on the heartbeat interval. No real A/B member data, phone operation, CCSOP deployment or mainnet source changes occurred.
+
+This is host-client interoperability with the actual upstream relay, not automatic app routing: the installed application still only registers NovoRUDP device identity. Member/device trust routing, central history reconciliation, automatic direct/relay/CCSOP selection and two-phone acceptance remain unfinished.

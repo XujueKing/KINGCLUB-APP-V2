@@ -7,7 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/session/member_qr_memory.dart';
 import 'chat_history_store.dart';
 import 'novorudp_frame.dart';
-import 'novorudp_secure_datagram_link.dart';
+import 'novorudp_frame_link.dart';
 
 class _TextSend {
   _TextSend(this.hash, this.packets);
@@ -52,7 +52,7 @@ class NearbyTextChannel {
       onDone: () => unawaited(close()),
     );
   }
-  final NovoRudpSecureDatagramLink link;
+  final NovoRudpFrameLink link;
   final ChatHistoryStore history;
   final String peerId;
   final bool Function() canExchange;

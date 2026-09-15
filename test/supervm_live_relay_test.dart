@@ -5,6 +5,12 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:cryptography/cryptography.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
+import 'package:kingclub/src/features/messaging/data/nearby_text_channel.dart';
+import 'package:kingclub/src/features/messaging/data/novorudp_relay_frame_link.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
@@ -13,6 +19,7 @@ import 'package:kingclub/src/core/session/member_qr_memory.dart';
 
 /// Explicit opt-in: actual upstream daemon, no fake WebSocket or relay.
 void main() {
+  sqfliteFfiInit();
   final env = Platform.environment;
   final enabled = [
     'SUPERVM_TEST_RELAY_URL',
@@ -145,17 +152,76 @@ void main() {
       addTearDown(rejectedEvents.cancel);
       await expectLater(wrongRelay.connect(), throwsStateError);
 
+      final directory = await Directory.systemTemp.createTemp('relay-text-');
+      final key = await AesGcm.with256bits().newSecretKey();
+      final ha = await ChatHistoryStore.openDatabaseWithKey(
+        factory: databaseFactoryFfi,
+        file: '${directory.path}/a.db',
+        key: key,
+        account: 'synthetic-a',
+      );
+      final hb = await ChatHistoryStore.openDatabaseWithKey(
+        factory: databaseFactoryFfi,
+        file: '${directory.path}/b.db',
+        key: key,
+        account: 'synthetic-b',
+      );
+      final ta = NearbyTextChannel(
+        link: NovoRudpRelayFrameLink(
+          relay: left.socket,
+          channel: channel,
+          expectedPeer: b.peerId,
+        ),
+        history: ha,
+        peerId: b.peerId,
+        canExchange: () => true,
+      );
+      final tb = NearbyTextChannel(
+        link: NovoRudpRelayFrameLink(
+          relay: right.socket,
+          channel: accepted.channel,
+          expectedPeer: a.peerId,
+        ),
+        history: hb,
+        peerId: a.peerId,
+        canExchange: () => true,
+      );
+      addTearDown(() async {
+        await ta.close();
+        await tb.close();
+        await ha.close();
+        await hb.close();
+        await directory.delete(recursive: true);
+      });
+      const id = '11111111-1111-4111-8111-111111111111';
+      final text = List.filled(350, 'relay text ').join();
+      await ta
+          .sendText(text, messageId: id)
+          .timeout(const Duration(seconds: 10));
+      expect((await hb.nearbyMessages(a.peerId)).single['text'], text);
+      expect(await ha.nearbyMessages(b.peerId, pendingOnly: true), isEmpty);
+      await ta
+          .sendText(text, messageId: id)
+          .timeout(const Duration(seconds: 10));
+      expect((await hb.nearbyMessages(a.peerId)).length, 1);
+      await tb
+          .sendText('return receipt verified')
+          .timeout(const Duration(seconds: 10));
+      expect((await ha.nearbyMessages(b.peerId)).length, 2);
+
       // Invalidate the generation before publishing a session event. The real
       // heartbeat timer must close both live connections without an async error.
       MemberQrMemory.clear();
       Future<void> waitClosed(StreamIterator<dynamic> events) async {
         var count = 0;
         while (await events.moveNext()) {
-          // Prior send outcomes may already be queued at the caller.
-          expect(events.current['kind'], 'forward_outcome');
-          expect(++count, lessThan(16));
+          // This observer also buffered the completed text exchanges above;
+          // the peer links independently consumed and authenticated them.
+          expect(events.current['kind'], anyOf('forward_outcome', 'delivery'));
+          expect(++count, lessThan(128));
         }
       }
+
       await Future.wait([waitClosed(left.events), waitClosed(right.events)])
           .timeout(const Duration(seconds: 18));
     },

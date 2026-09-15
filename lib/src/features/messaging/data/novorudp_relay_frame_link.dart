@@ -1,0 +1,114 @@
+import 'dart:async';
+
+import '../../../core/session/member_qr_memory.dart';
+import '../../../core/session/secure_session_store.dart';
+import 'novorudp_frame.dart';
+import 'novorudp_frame_link.dart';
+import 'novorudp_relay_connection.dart';
+import 'novorudp_secure_packet.dart';
+import 'novorudp_secure_session.dart';
+
+/// Owns one authenticated peer channel, not the shared relay connection.
+/// Relay acceptance never substitutes for the upper layer's durable receipt.
+class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
+  NovoRudpRelayFrameLink({
+    required this.relay,
+    required this.channel,
+    required this.expectedPeer,
+  }) : _localPeer = relay.identity.peerId {
+    if (!RegExp(r'^novovm-ed25519:[0-9a-f]{64}$').hasMatch(expectedPeer) ||
+        expectedPeer == _localPeer) {
+      throw ArgumentError('Invalid peer');
+    }
+    _incoming = relay.messages.listen(
+      (message) {
+        if (_closed || message['kind'] != 'delivery' || _queued >= 32) return;
+        final body = message['body'];
+        if (body is! Map ||
+            body['source_peer_id'] != expectedPeer ||
+            body['target_peer_id'] != _localPeer ||
+            body['envelope'] is! Map<String, dynamic>) {
+          return;
+        }
+        final envelope = body['envelope'] as Map<String, dynamic>;
+        _queued++;
+        _tail = _tail
+            .then((_) async {
+              if (_closed) return;
+              try {
+                _check();
+                final frame = await channel.open(envelope);
+                _check();
+                if (frame.payload.length <=
+                    NovoRudpSecurePacket.maxFramePayload) {
+                  _frames.add(frame);
+                }
+              } on StateError {
+                // Bad authentication/replays are discarded, never delivered.
+              } on FormatException {
+                // A malformed packet cannot terminate a valid peer lane.
+              }
+            })
+            .catchError((Object _) {
+              unawaited(close());
+            })
+            .whenComplete(() {
+              _queued--;
+            });
+      },
+      onDone: () => unawaited(close()),
+      onError: (Object _) => unawaited(close()),
+    );
+    _session = SecureSessionStore.changes.stream.listen(
+      (_) => unawaited(close()),
+    );
+  }
+  final NovoRudpRelayConnection relay;
+  final String _localPeer;
+  final String expectedPeer;
+  @override
+  final NovoRudpSecureChannel channel;
+  final _frames = StreamController<NovoRudpFrame>.broadcast();
+  final _generation = MemberQrMemory.generation;
+  late final StreamSubscription<Map<String, dynamic>> _incoming;
+  late final StreamSubscription<void> _session;
+  Future<void> _tail = Future.value();
+  Future<void>? _closing;
+  bool _closed = false;
+  int _queued = 0;
+  @override
+  Stream<NovoRudpFrame> get frames => _frames.stream;
+  void _check() {
+    if (_closed || _generation != MemberQrMemory.generation) {
+      unawaited(close());
+      throw StateError('Relay peer lane closed');
+    }
+  }
+
+  @override
+  Future<void> send(NovoRudpFrame frame) async {
+    _check();
+    if (frame.payload.length > NovoRudpSecurePacket.maxFramePayload) {
+      throw ArgumentError('Split payload before relay transmission');
+    }
+    final envelope = await channel.seal(frame);
+    _check();
+    if (envelope['recipient_peer_id'] != expectedPeer) {
+      throw StateError('Peer channel does not match route');
+    }
+    relay.sendEnvelope(envelope);
+  }
+
+  @override
+  Future<void> close() {
+    _closed = true;
+    return _closing ??= _close();
+  }
+
+  Future<void> _close() async {
+    channel.close();
+    await _incoming.cancel();
+    await _session.cancel();
+    await _frames.close();
+  }
+}
