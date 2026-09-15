@@ -20,6 +20,7 @@ class DirectChatController extends ChatSessionController {
     this.openHistory,
     this.readRelayMessages,
     this.sendRelayText,
+    this.preferRelayText,
     this.markRelayRead,
     Stream<String>? relayChanges,
   }) {
@@ -29,6 +30,7 @@ class DirectChatController extends ChatSessionController {
   }
   final Future<List<Map<String, dynamic>>> Function()? readRelayMessages;
   final Future<bool> Function(String text, String messageId)? sendRelayText;
+  final bool Function()? preferRelayText;
   final Future<void> Function(List<String> ids)? markRelayRead;
   bool _markingRelayRead = false;
 
@@ -799,10 +801,47 @@ class DirectChatController extends ChatSessionController {
     final historyGeneration = _historyGeneration;
     final pending = _pending[id];
     if (pending == null || _disposed || !_sending.add(id)) return;
+    var peerDelivered = pending['peerDelivered'] == true;
+    var attemptedPeer = false;
     _pending[id] = {...pending, 'status': 'sending'};
     _changed();
     try {
       final kind = pending['messageType'];
+      if (!peerDelivered &&
+          sendRelayText != null &&
+          preferRelayText?.call() == true &&
+          (kind == null || kind == 'text') &&
+          pending['replyToMessageId'] == null) {
+        attemptedPeer = true;
+        try {
+          peerDelivered = await sendRelayText!(
+            pending['text'] as String,
+            id,
+          ).timeout(const Duration(seconds: 3));
+        } catch (_) {
+          // An unavailable peer route must not prevent normal service delivery.
+        }
+        if (_disposed ||
+            historyGeneration != _historyGeneration ||
+            !_pending.containsKey(id)) {
+          return;
+        }
+        if (peerDelivered) {
+          final delivered = {
+            ...pending,
+            'status': 'queued',
+            'peerDelivered': true,
+          };
+          await outbox.put(delivered);
+          if (!_pending.containsKey(id)) {
+            await outbox.remove(id);
+            return;
+          }
+          if (_disposed || historyGeneration != _historyGeneration) return;
+          _pending[id] = delivered;
+          _changed();
+        }
+      }
       if (kind != null &&
           kind != 'text' &&
           kind != 'image' &&
@@ -917,9 +956,9 @@ class DirectChatController extends ChatSessionController {
     } catch (e) {
       if (_disposed || !_pending.containsKey(id)) return;
       final transient = e is AuthFailure && e.code == 'NETWORK_ERROR';
-      var peerDelivered = pending['peerDelivered'] == true;
       if (transient &&
           !peerDelivered &&
+          !attemptedPeer &&
           sendRelayText != null &&
           (pending['messageType'] == null ||
               pending['messageType'] == 'text') &&

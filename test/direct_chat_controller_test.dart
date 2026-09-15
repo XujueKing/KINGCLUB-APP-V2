@@ -52,6 +52,107 @@ Map<String, dynamic> history(
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  for (final peerAccepts in [true, false]) {
+    test('ready relay precedes service, peer receipt=$peerAccepts', () async {
+      final outbox = MemoryOutbox();
+      final order = <String>[];
+      final service = Completer<Map<String, dynamic>>();
+      final serviceStarted = Completer<void>();
+      late Map<String, dynamic> sent;
+      late String relayId;
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: outbox,
+        preferRelayText: () => true,
+        sendRelayText: (text, id) async {
+          order.add('relay');
+          relayId = id;
+          expect(text, 'route test');
+          return peerAccepts;
+        },
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, params) async {
+            order.add('service');
+            sent = params;
+            serviceStarted.complete();
+            return service.future;
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      final sending = controller.send('route test');
+      await serviceStarted.future;
+      expect(order, ['relay', 'service']);
+      expect(sent['clientMessageId'], relayId);
+      expect(outbox.items[relayId]?['peerDelivered'] == true, peerAccepts);
+      if (peerAccepts) expect(controller.messages.single['status'], 'sent');
+      service.complete({'message': ack(sent)});
+      await sending;
+      expect(outbox.items, isEmpty);
+      expect(controller.messages, hasLength(1));
+      expect(controller.messages.single['sequence'], 1);
+    });
+  }
+  test(
+    'primary relay receipt survives service failure and is not resent',
+    () async {
+      final outbox = MemoryOutbox();
+      var relayCalls = 0;
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: outbox,
+        preferRelayText: () => true,
+        sendRelayText: (_, _) async {
+          relayCalls++;
+          return true;
+        },
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, _) async {
+            throw const AuthFailure('NETWORK_ERROR', 'offline');
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      await controller.send('route test');
+      expect(outbox.items.values.single['peerDelivered'], true);
+      expect(controller.messages.single['status'], 'sent');
+      await controller.retryQueued();
+      expect(relayCalls, 1);
+      expect(controller.error, isNull);
+    },
+  );
+  test(
+    'late primary peer receipt cannot continue a disposed conversation',
+    () async {
+      final peerReceipt = Completer<bool>();
+      final started = Completer<void>();
+      var serviceCalls = 0;
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: MemoryOutbox(),
+        preferRelayText: () => true,
+        sendRelayText: (_, _) {
+          started.complete();
+          return peerReceipt.future;
+        },
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, params) async {
+            serviceCalls++;
+            return {'message': ack(params)};
+          },
+        ),
+      );
+      final sending = controller.send('late receipt');
+      await started.future;
+      controller.dispose();
+      peerReceipt.complete(true);
+      await sending;
+      expect(serviceCalls, 0);
+    },
+  );
   test('late older page cannot roll back a newer peer read receipt', () async {
     final older = Completer<Map<String, dynamic>>();
     final olderRequested = Completer<void>();
