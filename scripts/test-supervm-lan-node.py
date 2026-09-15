@@ -4,6 +4,7 @@ import ctypes
 import json
 import secrets
 import socket
+import subprocess
 import time
 
 
@@ -14,7 +15,21 @@ def main():
     parser.add_argument('--peer-id', required=True)
     parser.add_argument('--observer-port', type=int, default=45170)
     parser.add_argument('--punch-port', type=int, default=45171)
+    parser.add_argument('--adb', help='Optional absolute adb path for a phone Wi-Fi probe')
+    parser.add_argument('--serial', help='Required with --adb; selects an already authorized phone')
     args = parser.parse_args()
+    if bool(args.adb) != bool(args.serial):
+        parser.error('--adb and --serial must be supplied together')
+    # The destination is also used in an Android shell command. Accept only a
+    # numeric IPv4 address and bounded integer ports, never shell fragments.
+    socket.inet_pton(socket.AF_INET, args.host)
+    if not all(1 <= port <= 65535 for port in (args.observer_port, args.punch_port)):
+        parser.error('Invalid UDP port')
+    if args.adb:
+        state = subprocess.run([args.adb, '-s', args.serial, 'get-state'],
+                               capture_output=True, check=True, timeout=5)
+        if state.stdout.strip() != b'device':
+            raise RuntimeError('Phone is not authorized; no ADB restart was attempted')
     lib = ctypes.CDLL(args.library)
     lib.kingclub_novorudp_identity.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.c_size_t]
     lib.kingclub_novorudp_identity.restype = ctypes.c_uint64
@@ -47,13 +62,29 @@ def main():
                 deadline = time.monotonic() + 5
                 endpoint = None
                 while time.monotonic() < deadline:
-                    udp.sendto(json.dumps(request).encode(), (args.host, port))
-                    try:
-                        wire, source = udp.recvfrom(4096)
-                    except socket.timeout:
-                        continue
-                    if source != (args.host, port):
-                        continue
+                    payload = json.dumps(request).encode()
+                    if args.adb:
+                        # No app install, account access, pairing or ADB restart.
+                        # Keys and cryptography stay on this computer; only the
+                        # signed public probe traverses the phone's Wi-Fi socket.
+                        reply = subprocess.run(
+                            [args.adb, '-s', args.serial, 'shell', '-T',
+                             'toybox', 'nc', '-u', '-w', '2', '-W', '2', '-q', '1',
+                             args.host, str(port)],
+                            input=payload, capture_output=True, timeout=4)
+                        wire = reply.stdout
+                        if not wire:
+                            continue
+                    else:
+                        udp.sendto(payload, (args.host, port))
+                        try:
+                            wire, source = udp.recvfrom(4096)
+                        except socket.timeout:
+                            continue
+                        if source != (args.host, port):
+                            continue
+                    if len(wire) > 4096:
+                        raise RuntimeError('Oversized NAT acknowledgement')
                     ack = json.loads(wire)
                     try:
                         endpoint = call('natValidate', request=request, packet=ack, expectedPeer=args.peer_id)['endpoint']
@@ -72,7 +103,9 @@ def main():
                     raise TimeoutError('SUPERVM signed NAT service did not respond')
                 results.append({'mode': 'punch' if punch else 'observer', 'verified': True,
                                 'observedEndpoint': endpoint, 'tamperRejected': True})
-            print(json.dumps({'results': results, 'scope': 'computer-to-SUPERVM-network-runtime'}, indent=2))
+            scope = ('phone-Wi-Fi-to-SUPERVM-runtime-host-verified' if args.adb
+                     else 'computer-to-SUPERVM-network-runtime')
+            print(json.dumps({'results': results, 'scope': scope}, indent=2))
     finally:
         call('close')
 
