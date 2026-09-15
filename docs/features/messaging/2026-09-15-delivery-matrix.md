@@ -1,5 +1,13 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-16 媒体草稿恢复整合包
+
+以 3ed7bcc 工作树构建，包含录音稳定消息编号、文件/图片/视频/录音残留草稿防重复上传。12 个测试文件共 40 项通过（build/integrated-media-draft-recovery-test.log），涵盖草稿存储、恢复页面、视频生命周期及单聊/群聊媒体队列。
+
+00:07:29 Android preview profile arm64 构建成功，Gradle 66.2 秒，APK 157265992 字节。路径 build/app/outputs/flutter-apk/app-preview-profile.apk，SHA256 F8A65BBE89D6080883B9CA16B65A863D1BD7CAD1AA6B12C7B0C21BF2BD3B1B93。构建脚本检查包内 NovoRUDP 为真实 ARM64 ELF，通过。日志 build/integrated-media-draft-recovery-build.log。
+
+API 为 https://test.wuyexin.cn/kingclub-v2，未配置主网中继地址，不代表手机端主网路由已接通。保留构建工作树原有三处 onboarding 修改，未将它们纳入本次聊天提交。尚未安装 A/B 或进行本批双机验收；前述“尚未打包”记录在此整合包中更新为已打包，真机状态不变。
+
 ## 2026-09-16 图片、视频残留草稿恢复
 
 图片和视频发送页与文件页一致，在上传前按本人、草稿 ID、消息类型检查当前已加载消息。已经入队或已确认的草稿仅尝试清理并返回，不重复上传，视频也不重复压缩和准备资产；上传处理后再次检查，避免覆盖已被恢复流程接管的消息。
