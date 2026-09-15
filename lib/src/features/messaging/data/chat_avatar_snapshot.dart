@@ -16,6 +16,7 @@ class ChatAvatarSnapshot {
   final FlutterSecureStorage _storage;
   final Future<Map<String, dynamic>?> Function() _session;
   static final _revisions = <String, int>{};
+  static final _settled = <String, int>{};
   static final _writes = <String, Future<void>>{};
 
   Future<Map<String, dynamic>> load(
@@ -31,8 +32,13 @@ class ChatAvatarSnapshot {
         initial?['sessionId'] != null &&
         current?['sessionId'] == initial?['sessionId'] &&
         (current?['account'] as Map?)?['userAccount'] == viewer;
-    Future<bool> active() async =>
-        _revisions[key] == revision && same(await _session());
+    Future<bool> active() async {
+      final current = await _session();
+      // Starting another page's request is not a revocation. Only a newer
+      // completed authorization decision can supersede this response.
+      return (_settled[key] ?? 0) <= revision && same(current);
+    }
+
     Future<void> save(String? id) async {
       final write = (_writes[key] ?? Future<void>.value()).then((_) async {
         if (!await active()) return;
@@ -53,6 +59,7 @@ class ChatAvatarSnapshot {
       if (!await active()) {
         throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
       }
+      _settled[key] = revision;
       final avatar = profile['avatar'];
       final id = avatar is Map ? avatar['fileId'] : null;
       final path = avatar is Map ? avatar['path'] : null;
@@ -76,6 +83,7 @@ class ChatAvatarSnapshot {
     } on AuthFailure catch (error) {
       if (!await active()) rethrow;
       if (error.code != 'NETWORK_ERROR') {
+        _settled[key] = revision;
         await save(null);
         rethrow;
       }

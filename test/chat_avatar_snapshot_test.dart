@@ -117,4 +117,56 @@ void main() {
     await check;
     expect(await const FlutterSecureStorage().readAll(), isEmpty);
   });
+  test(
+    'a pending second request does not invalidate the first valid response',
+    () async {
+      final first = Completer<Map<String, dynamic>>();
+      final second = Completer<Map<String, dynamic>>();
+      final firstStarted = Completer<void>();
+      final secondStarted = Completer<void>();
+      final loadingFirst = cache.load('a', 'peer', () {
+        firstStarted.complete();
+        return first.future;
+      });
+      await firstStarted.future;
+      final loadingSecond = cache.load('a', 'peer', () {
+        secondStarted.complete();
+        return second.future;
+      });
+      await secondStarted.future;
+      final expectation = expectLater(loadingFirst, completion(profile));
+      first.complete(profile);
+      await expectation;
+      second.complete(profile);
+      expect(await loadingSecond, profile);
+    },
+  );
+  test(
+    'a newer denial still defeats a late older successful response',
+    () async {
+      final old = Completer<Map<String, dynamic>>();
+      final started = Completer<void>();
+      final loading = cache.load('a', 'peer', () {
+        started.complete();
+        return old.future;
+      });
+      final rejected = expectLater(loading, throwsA(isA<AuthFailure>()));
+      await started.future;
+      await expectLater(
+        cache.load(
+          'a',
+          'peer',
+          () async => throw const AuthFailure('ACCESS_DENIED', 'denied'),
+        ),
+        throwsA(isA<AuthFailure>()),
+      );
+      old.complete(profile);
+      await rejected;
+      await expectLater(
+        cache.load('a', 'peer', offline),
+        throwsA(isA<AuthFailure>()),
+      );
+      expect(await const FlutterSecureStorage().readAll(), isEmpty);
+    },
+  );
 }
