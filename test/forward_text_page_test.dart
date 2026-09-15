@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:kingclub/src/features/messaging/data/chat_voice_forwarder.dart';
 import 'package:kingclub/src/features/messaging/data/chat_voice_uploader.dart';
 import 'package:kingclub/src/features/messaging/data/chat_video_forwarder.dart';
@@ -69,6 +71,19 @@ class PreparedFile extends ChatFileForwarder {
   }
 }
 
+class DelayedFile extends PreparedFile {
+  DelayedFile(super.repository);
+  final result = Completer<UploadedChatFile>();
+  bool closed = false;
+  @override
+  Future<UploadedChatFile> prepare() => result.future;
+  @override
+  void dispose() {
+    closed = true;
+    super.dispose();
+  }
+}
+
 class PreparedVideo extends ChatVideoForwarder {
   PreparedVideo(MessagingRepository repository)
     : super(repository: repository, messageId: 'source');
@@ -125,6 +140,67 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('forward-text-confirm')));
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'cancel preparation drops late file completion and preserves a new attempt',
+    (tester) async {
+      final repository = repo();
+      final outbox = RecordingOutbox();
+      final first = DelayedFile(repository), second = DelayedFile(repository);
+      var opens = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ForwardTextPage(
+            repository: repository,
+            text: '[文件]',
+            file: PreparedFile.fileReference,
+            outbox: outbox,
+            createFileForwarder: () => opens++ == 0 ? first : second,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('forward-text-peer')));
+      await tester.pump();
+      await confirm(tester);
+      await tester.tap(
+        find.byKey(const ValueKey('forward-cancel-preparation')),
+      );
+      await tester.pumpAndSettle();
+      expect(first.closed, true);
+      expect(outbox.attempts, isEmpty);
+      await confirm(tester);
+      first.result.complete(
+        UploadedChatFile(
+          '11111111-1111-4111-8111-111111111111',
+          'test.bin',
+          3,
+          'a' * 64,
+          'f',
+          'r',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(outbox.attempts, isEmpty);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const ValueKey('forward-text-submit')),
+            )
+            .onPressed,
+        isNull,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('forward-cancel-preparation')),
+      );
+      await tester.pumpAndSettle();
+      second.result.completeError(StateError('canceled'));
+      await tester.pumpAndSettle();
+      expect(find.text('转发未完成，请重试'), findsNothing);
+      expect(outbox.attempts, isEmpty);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
   testWidgets(
     'image confirmation queues the asset key consumed by the real sender',

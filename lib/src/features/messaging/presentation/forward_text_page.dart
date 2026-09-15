@@ -79,6 +79,8 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
   ChatVoiceForwarder? _voiceForwarder;
   Map<String, dynamic>? _attempt;
   bool _saving = false, _invalid = false;
+  bool _preparing = false;
+  int _forwardGeneration = 0;
   String? _error;
   @override
   void initState() {
@@ -156,6 +158,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
   Future<void> _forward() async {
     final target = _selected;
     if (_saving || _invalid || target == null) return;
+    final generation = ++_forwardGeneration;
     setState(() => _saving = true);
     try {
       final confirmed = await showDialog<bool>(
@@ -194,7 +197,13 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         },
       );
       _confirmationContext = null;
-      if (confirmed != true || !mounted || _invalid) return;
+      if (confirmed != true ||
+          !mounted ||
+          _invalid ||
+          generation != _forwardGeneration) {
+        return;
+      }
+      setState(() => _preparing = true);
       if (widget.voiceMessageId == null &&
           widget.videoMessageId == null &&
           widget.file == null &&
@@ -208,7 +217,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         final details = await widget.repository.call('K260913000619', {
           'groupId': target.account,
         });
-        if (!mounted || _invalid) return;
+        if (!mounted || _invalid || generation != _forwardGeneration) return;
         if (details['groupId'] != target.account ||
             details['membershipVersion'] is! int) {
           throw StateError('群成员状态尚未确认');
@@ -225,7 +234,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
               group: widget.sourceGroup,
             );
         imageAssetId = (await forwarder.prepare()).assetId;
-        if (!mounted || _invalid) return;
+        if (!mounted || _invalid || generation != _forwardGeneration) return;
       }
       UploadedChatFile? uploadedFile;
       if (widget.file != null && _attempt == null) {
@@ -236,7 +245,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
               reference: widget.file!,
             );
         uploadedFile = await forwarder.prepare();
-        if (!mounted || _invalid) return;
+        if (!mounted || _invalid || generation != _forwardGeneration) return;
       }
       ChatVideo? video;
       if (widget.videoMessageId != null && _attempt == null) {
@@ -248,7 +257,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
               group: widget.sourceGroup,
             );
         video = await forwarder.prepare();
-        if (!mounted || _invalid) return;
+        if (!mounted || _invalid || generation != _forwardGeneration) return;
       }
       UploadedChatVoice? voice;
       if (widget.voiceMessageId != null && _attempt == null) {
@@ -260,7 +269,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
               group: widget.sourceGroup,
             );
         voice = await forwarder.prepare();
-        if (!mounted || _invalid) return;
+        if (!mounted || _invalid || generation != _forwardGeneration) return;
       }
       _attempt ??= {
         'clientMessageId': const Uuid().v4(),
@@ -308,6 +317,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         'createdDate': DateTime.now().toUtc().toIso8601String(),
         'status': 'queued',
       };
+      setState(() => _preparing = false);
       await _outbox.put(_attempt!);
       try {
         await _imageForwarder?.acknowledgeQueued();
@@ -315,7 +325,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         await _videoForwarder?.acknowledgeQueued();
         await _voiceForwarder?.acknowledgeQueued();
       } catch (_) {}
-      if (!mounted || _invalid) return;
+      if (!mounted || _invalid || generation != _forwardGeneration) return;
       // The target conversation restores this exact queued ID and owns retries.
       unawaited(
         Navigator.of(context).pushReplacement<void, void>(
@@ -331,10 +341,36 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         ),
       );
     } catch (_) {
-      if (mounted && !_invalid) setState(() => _error = '转发未完成，请重试');
+      if (mounted && !_invalid && generation == _forwardGeneration) {
+        setState(() => _error = '转发未完成，请重试');
+      }
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted && generation == _forwardGeneration) {
+        setState(() {
+          _saving = false;
+          _preparing = false;
+        });
+      }
     }
+  }
+
+  void _cancelPreparation() {
+    if (!_preparing) return;
+    _forwardGeneration++;
+    _imageForwarder?.dispose();
+    _fileForwarder?.dispose();
+    _videoForwarder?.dispose();
+    _voiceForwarder?.dispose();
+    _imageForwarder = null;
+    _fileForwarder = null;
+    _videoForwarder = null;
+    _voiceForwarder = null;
+    setState(() {
+      _preparing = false;
+      _saving = false;
+      _attempt = null;
+      _error = null;
+    });
   }
 
   @override
@@ -354,7 +390,7 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
               .map((c) => _ForwardTarget(c.account, c.displayName))
               .toList();
     return PopScope(
-      canPop: !_saving,
+      canPop: !_saving || _preparing,
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
@@ -362,7 +398,9 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
             children: [
               LegacyMessagingHeader(
                 title: '选择联系人',
-                onBack: _saving ? () {} : () => Navigator.pop(context),
+                onBack: _saving && !_preparing
+                    ? () {}
+                    : () => Navigator.pop(context),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -409,6 +447,12 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
                   ),
                 ),
               ),
+              if (_preparing)
+                TextButton(
+                  key: const ValueKey('forward-cancel-preparation'),
+                  onPressed: _cancelPreparation,
+                  child: const Text('取消转发'),
+                ),
               if (_error != null || _contacts.error != null)
                 TextButton(
                   onPressed: _invalid || _saving
