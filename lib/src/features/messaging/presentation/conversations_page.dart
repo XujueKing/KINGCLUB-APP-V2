@@ -424,20 +424,24 @@ class _ConversationsPageState extends State<ConversationsPage>
     try {
       switch (action) {
         case 'read':
-          await repository.markRead(
-            peer,
-            (item['lastSequence'] as num).toInt(),
-          );
           if (_useRelayUnread) {
             final store = await _openRelayHistory(repository);
             String? cursor;
             while (true) {
+              if (!mounted || !identical(repository, _repository)) return;
               final ids = await store.nearbyUnreadIds(afterId: cursor);
               if (ids.isEmpty) break;
+              if (!mounted || !identical(repository, _repository)) return;
               await store.markNearbyMemberRead(peer, ids);
               cursor = ids.last;
               if (ids.length < 200) break;
             }
+            await _refreshLocalRelay(repository);
+          }
+          if (!mounted || !identical(repository, _repository)) return;
+          final sequence = (item['lastSequence'] as num).toInt();
+          if (sequence > 0) {
+            await repository.markRead(peer, sequence);
           }
         case 'pin':
           await repository.settings(peer, pinned: item['pinned'] != true);
