@@ -5,9 +5,11 @@ import androidx.core.content.PermissionChecker
 import android.content.Intent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private var nearby: NearbyLanDiscovery? = null
     private var export: ChatFileExport? = null
     private var videoUpload: ChatVideoUpload? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -22,6 +24,12 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
+        val discovery = NearbyLanDiscovery(this)
+        nearby = discovery
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/nearby-lan")
+            .setMethodCallHandler(discovery::handle)
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/nearby-lan-events")
+            .setStreamHandler(discovery)
         val video = ChatVideoUpload(this)
         videoUpload = video
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/chat-video-upload")
@@ -35,7 +43,12 @@ class MainActivity : FlutterActivity() {
         if (export?.onActivityResult(requestCode, resultCode, data) == true) return
         super.onActivityResult(requestCode, resultCode, data)
     }
+    override fun onStop() {
+        nearby?.stop()
+        super.onStop()
+    }
     override fun onDestroy() {
+        nearby?.stop()
         videoUpload?.dispose()
         export?.dispose()
         super.onDestroy()
