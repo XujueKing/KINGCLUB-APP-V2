@@ -1,5 +1,13 @@
 part of 'chat_history_store.dart';
 
+Future<void> _createNearbyServerPresence(DatabaseExecutor db) => db.execute(
+  'CREATE TABLE nearby_server_presence (member TEXT NOT NULL, id TEXT NOT NULL, PRIMARY KEY(member,id))',
+);
+
+const _notServerPresent =
+    'NOT EXISTS (SELECT 1 FROM nearby_server_presence p '
+    'WHERE p.member=nearby_message.member AND p.id=nearby_message.id)';
+
 Future<void> _createNearbyMessages(DatabaseExecutor db) async {
   await db.execute(
     'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, serverId TEXT, member TEXT, hidden INTEGER NOT NULL DEFAULT 0, wasRead INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(peer,id,outgoing))',
@@ -209,7 +217,7 @@ extension NearbyMessageHistory on ChatHistoryStore {
         : await _conversation('direct:$peerAccount');
     final rows = await _db.rawQuery(
       'SELECT COUNT(*) AS count FROM (SELECT member,id FROM nearby_message '
-      'WHERE outgoing=0 AND member IS NOT NULL ${member == null ? '' : 'AND member=? '}'
+      'WHERE outgoing=0 AND member IS NOT NULL AND $_notServerPresent ${member == null ? '' : 'AND member=? '}'
       'GROUP BY member,id HAVING MAX(wasRead)=0 AND MAX(hidden)=0 AND MAX(serverId IS NOT NULL)=0)',
       [?member],
     );
@@ -232,12 +240,40 @@ extension NearbyMessageHistory on ChatHistoryStore {
     }
     final rows = await _db.rawQuery(
       'SELECT DISTINCT id FROM (SELECT member,id FROM nearby_message '
-      'WHERE outgoing=0 AND member IS NOT NULL GROUP BY member,id '
+      'WHERE outgoing=0 AND member IS NOT NULL AND $_notServerPresent GROUP BY member,id '
       'HAVING MAX(wasRead)=0 AND MAX(hidden)=0 AND MAX(serverId IS NOT NULL)=0) '
       '${afterId == null ? '' : 'WHERE id>? '}ORDER BY id LIMIT ?',
       [?afterId, limit],
     );
     return rows.map((row) => row['id'] as String).toList();
+  }
+
+  /// This separate marker is server presence, not a local or remote read receipt.
+  Future<void> confirmNearbyServerPresence(
+    String peerAccount,
+    List<String> ids,
+  ) async {
+    if (peerAccount == account ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peerAccount) ||
+        ids.length > 200 ||
+        ids.any(
+          (id) => !RegExp(
+            r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
+          ).hasMatch(id),
+        )) {
+      throw ArgumentError('Invalid server presence scope');
+    }
+    if (ids.isEmpty) return;
+    final member = await _conversation('direct:$peerAccount');
+    await _db.transaction((tx) async {
+      for (final id in ids.toSet()) {
+        await tx.rawInsert(
+          'INSERT OR IGNORE INTO nearby_server_presence(member,id) '
+          'SELECT member,id FROM nearby_message WHERE member=? AND id=? AND outgoing=0 LIMIT 1',
+          [member, id],
+        );
+      }
+    });
   }
 
   /// Marks only the displayed snapshot. A later arrival must remain unread.

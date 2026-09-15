@@ -89,8 +89,9 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 10,
+        version: 11,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 11) await _createNearbyServerPresence(db);
           if (oldVersion < 6) await _createNearbyMessages(db);
           if (oldVersion >= 6 && oldVersion < 7) {
             await db.execute(
@@ -135,6 +136,7 @@ class ChatHistoryStore {
           }
         },
         onCreate: (db, _) async {
+          await _createNearbyServerPresence(db);
           await _createNearbyMessages(db);
           await db.execute(
             'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER, presentation BLOB, historyVersion INTEGER)',
