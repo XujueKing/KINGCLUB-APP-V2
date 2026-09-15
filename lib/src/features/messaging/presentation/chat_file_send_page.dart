@@ -33,6 +33,15 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
   String? _error;
   double? _progress;
 
+  bool get _alreadyQueued =>
+      widget.draft != null &&
+      widget.chat.messages.any(
+        (message) =>
+            message['clientMessageId'] == widget.draft!.id &&
+            message['sender'] == widget.chat.messaging.account &&
+            message['messageType'] == 'file',
+      );
+
   @override
   void dispose() {
     _uploader?.dispose();
@@ -47,6 +56,13 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
       _progress = null;
     });
     try {
+      if (_alreadyQueued) {
+        try {
+          await widget.drafts?.remove(widget.draft!.id);
+        } catch (_) {}
+        if (mounted) Navigator.of(context).pop(true);
+        return;
+      }
       final uploader =
           _uploader ?? await ChatFileUploader.open(widget.chat.messaging);
       if (!mounted) {
@@ -62,15 +78,17 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
         },
       );
       if (!mounted) return;
-      var queued = false;
-      await widget.chat.sendFile(
-        file.assetId,
-        file.fileName,
-        file.size,
-        file.sha256,
-        onQueued: () => queued = true,
-        clientMessageId: widget.draft?.id,
-      );
+      var queued = _alreadyQueued;
+      if (!queued) {
+        await widget.chat.sendFile(
+          file.assetId,
+          file.fileName,
+          file.size,
+          file.sha256,
+          onQueued: () => queued = true,
+          clientMessageId: widget.draft?.id,
+        );
+      }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
       // A journal cleanup error must not invite a second send of an already
       // durable message. The outbox now owns delivery and retry.
