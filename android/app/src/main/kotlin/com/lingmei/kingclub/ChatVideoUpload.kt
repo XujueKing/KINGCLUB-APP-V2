@@ -181,6 +181,9 @@ class ChatVideoUpload(private val context: Context) {
     }
 
     private fun finish(file: File?) {
+        // Invalidate queued worker/native callbacks before cancel can emit any
+        // more callbacks for this export, including successful completion.
+        generation++
         main.removeCallbacks(timeout)
         val old = transformer; transformer = null
         old?.cancel()
@@ -189,7 +192,6 @@ class ChatVideoUpload(private val context: Context) {
         result?.success(file?.absolutePath)
     }
     private fun cancel() {
-        generation++
         finish(null)
     }
     fun dispose() {
