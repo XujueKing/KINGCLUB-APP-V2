@@ -58,6 +58,8 @@ class ChatFileDownloader {
   late final StreamSubscription<void> _session;
   final List<Directory> _completed = [];
   Future<void> _cleanup = Future<void>.value();
+  Completer<void>? _downloadDone;
+  Future<void>? _disposing;
   CancelToken? _cancel;
   bool _invalid = false, _busy = false;
 
@@ -130,8 +132,10 @@ class ChatFileDownloader {
     ChatFileReference ref, {
     void Function(int received, int total)? onProgress,
   }) async {
+    if (_invalid) throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
     if (_busy) throw StateError('正在下载文件');
     _busy = true;
+    _downloadDone = Completer<void>();
     _cancel = CancelToken();
     Directory? working;
     RandomAccessFile? output;
@@ -209,6 +213,8 @@ class ChatFileDownloader {
         } finally {
           _busy = false;
           _cancel = null;
+          _downloadDone!.complete();
+          _downloadDone = null;
         }
       }
     }
@@ -309,11 +315,17 @@ class ChatFileDownloader {
     return _cleanup;
   }
 
-  Future<void> dispose() async {
+  Future<void> dispose() {
     _invalid = true;
     cancel();
-    await _session.cancel();
-    await _deleteCompleted();
+    return _disposing ??= _dispose();
+  }
+
+  Future<void> _dispose() async {
+    final active = _downloadDone?.future;
     _dio.close(force: true);
+    await _session.cancel();
+    await active;
+    await _deleteCompleted();
   }
 }

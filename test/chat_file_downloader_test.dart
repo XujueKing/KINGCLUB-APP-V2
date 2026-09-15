@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:dio/dio.dart';
@@ -51,6 +52,7 @@ void main() {
     'truncated-retry',
     'retry-exhausted',
     'socket-retry',
+    'dispose-before-directory',
   ]) {
     test('private chunk file download: $scenario', () async {
       final dir = await Directory.systemTemp.createTemp('chat-download-test-');
@@ -219,11 +221,19 @@ void main() {
           ),
         );
       }
+      final directoryEntered = Completer<void>();
+      final directoryRelease = Completer<Directory>();
       final downloader = ChatFileDownloader(
         repository: repo,
         checkSession: () async {},
         dio: dio,
-        temporaryDirectory: () async => dir,
+        temporaryDirectory: () async {
+          if (scenario == 'dispose-before-directory') {
+            directoryEntered.complete();
+            return directoryRelease.future;
+          }
+          return dir;
+        },
       );
       addTearDown(downloader.dispose);
       final operation = downloader.download(
@@ -236,6 +246,24 @@ void main() {
           }
         },
       );
+      if (scenario == 'dispose-before-directory') {
+        final rejected = expectLater(operation, throwsA(anything));
+        await directoryEntered.future;
+        var finished = false;
+        final disposal = downloader.dispose();
+        disposal.then((_) => finished = true);
+        expect(identical(disposal, downloader.dispose()), true);
+        await Future<void>.delayed(Duration.zero);
+        expect(finished, false);
+        directoryRelease.complete(dir);
+        await rejected;
+        await disposal;
+        expect(finished, true);
+        expect(await dir.list().toList(), isEmpty);
+        await expectLater(downloader.download(ref), throwsA(anything));
+        expect(requests, 0);
+        return;
+      }
       if ([
         'direct',
         'group',
