@@ -4,6 +4,10 @@ import 'dart:io';
 import 'chat_image_uploader.dart';
 import 'sticker_library_repository.dart';
 
+class StickerLibraryConflict extends StateError {
+  StickerLibraryConflict() : super('两端表情库都有修改');
+}
+
 /// Keeps existing local files until the panel commits a matching snapshot.
 class StickerLibrarySync {
   StickerLibrarySync(this.cloud, this.directory, {this.openUploader});
@@ -18,8 +22,9 @@ class StickerLibrarySync {
 
   Future<void> synchronize(
     List<Map<String, dynamic>> local,
-    Future<bool> Function(List<Map<String, dynamic>>) apply,
-  ) async {
+    Future<bool> Function(List<Map<String, dynamic>>) apply, {
+    bool combine = false,
+  }) async {
     _check();
     final journal = File('${directory.path}/cloud.json');
     Map<String, dynamic> state = {};
@@ -36,11 +41,12 @@ class StickerLibrarySync {
     final dirty = state['local'] != signature;
     final hasLocal = local.any((pack) => (pack['images'] as List).isNotEmpty);
     final hasRemote = remote.packs.any((pack) => pack.assets.isNotEmpty);
-    if (dirty &&
+    if (!combine &&
+        dirty &&
         ((state.containsKey('revision') &&
                 state['revision'] != remote.revision) ||
             (!state.containsKey('revision') && hasLocal && hasRemote))) {
-      throw StateError('另一台设备也修改了表情库，本机修改已保留，暂未覆盖');
+      throw StickerLibraryConflict();
     }
     var saved = remote;
     final uploaded = <UploadedChatImage>[];
@@ -73,7 +79,10 @@ class StickerLibrarySync {
         }
         packs.add(StickerPack(pack['name'] as String, assets));
       }
-      saved = await cloud.write(remote.revision, packs);
+      saved = await cloud.write(
+        remote.revision,
+        combine ? combineStickerPacks(remote.packs, packs) : packs,
+      );
       _check();
     }
     final resolved = <Map<String, dynamic>>[];
@@ -127,4 +136,32 @@ class StickerLibrarySync {
     _uploader?.dispose();
     cloud.dispose();
   }
+}
+
+/// Explicit keep-both resolution: union assets in matching named categories.
+List<StickerPack> combineStickerPacks(
+  List<StickerPack> remote,
+  List<StickerPack> local,
+) {
+  final result = remote.map((p) => StickerPack(p.name, p.assets)).toList();
+  for (var i = 0; i < local.length; i++) {
+    final pack = local[i];
+    final index = i == 0 && result.isNotEmpty
+        ? 0
+        : result.indexWhere((p) => p.name == pack.name);
+    if (index < 0) {
+      result.add(StickerPack(pack.name, pack.assets));
+    } else {
+      final old = result[index];
+      result[index] = StickerPack(
+        old.name,
+        {...old.assets, ...pack.assets}.toList(),
+      );
+    }
+  }
+  StickerLibrarySnapshot.parse({
+    'revision': 0,
+    'packs': result.map((p) => p.toJson()).toList(),
+  });
+  return result;
 }

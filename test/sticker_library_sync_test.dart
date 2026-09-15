@@ -39,6 +39,57 @@ void main() {
     await dir.delete(recursive: true);
   });
   test(
+    'explicit keep-both resolves conflict using latest remote revision',
+    () async {
+      const second = '22345678-1234-4234-8234-123456789012';
+      final localFile = await File('${dir.path}/local.image')
+          .writeAsBytes([4, 5, 6]);
+      final cloud = Cloud(
+        StickerLibrarySnapshot(3, [
+          StickerPack('favorites', [asset]),
+        ]),
+      );
+      final sync = StickerLibrarySync(cloud, dir);
+      addTearDown(sync.dispose);
+      await File('${dir.path}/cloud.json').writeAsString(
+        jsonEncode({
+          'revision': 2,
+          'local': 'old',
+          'mapping': {localFile.path: second},
+        }),
+      );
+      await sync.synchronize(
+        [
+          {
+            'name': 'favorites',
+            'images': [localFile.path],
+          },
+        ],
+        (packs) async {
+          expect((packs.single['images'] as List).length, 2);
+          return true;
+        },
+        combine: true,
+      );
+      expect(cloud.snapshot.revision, 4);
+      expect(cloud.snapshot.packs.single.assets, [asset, second]);
+    },
+  );
+  test('keep-both deduplicates assets and retains differently named packs', () {
+    final merged = combineStickerPacks(
+      [
+        StickerPack('favorites', [asset]),
+        StickerPack('remote', [asset]),
+      ],
+      [
+        StickerPack('local favorites', [asset]),
+        StickerPack('local', [asset]),
+      ],
+    );
+    expect(merged.map((p) => p.name), ['favorites', 'remote', 'local']);
+    expect(merged.first.assets, [asset]);
+  });
+  test(
     'new device restores cloud files and commits baseline after local apply',
     () async {
       final cloud = Cloud(

@@ -166,7 +166,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
     for (var i = 0; i < _names.length; i++)
       {'name': _names[i], 'images': List<String>.of(_images[i])},
   ];
-  Future<void> _syncCloud({bool notify = false}) async {
+  Future<void> _syncCloud({bool notify = false, bool combine = false}) async {
     final repository = widget.repository;
     if (!mounted ||
         _invalid ||
@@ -180,6 +180,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
       return;
     }
     _syncing = true;
+    var combineRequested = false;
     final epoch = _epoch;
     final local = _localPacks(), signature = jsonEncode(_localPacks());
     try {
@@ -218,14 +219,42 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
         } finally {
           if (_current(epoch)) setState(() => _importing = false);
         }
-      });
+      }, combine: combine);
+    } on StickerLibraryConflict {
+      if (mounted && _current(epoch) && !_importing) {
+        combineRequested =
+            await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                backgroundColor: const Color(0xFF202020),
+                title: const Text('表情库有新修改'),
+                content: const Text(
+                  '另一台设备也修改了表情库。合并会保留两边的表情，同名分类合并，另一端仍保留的表情也会恢复。',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('稍后'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('保留两边并合并'),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
+      }
     } catch (_) {
       if (mounted && notify && _current(epoch)) {
         KingNotice.of(context).show('表情已保留在本机，云同步暂未完成');
       }
     } finally {
       _syncing = false;
-      if (_syncAgain) {
+      if (combineRequested && _current(epoch)) {
+        _syncAgain = false;
+        unawaited(_syncCloud(notify: true, combine: true));
+      } else if (_syncAgain) {
         _syncAgain = false;
         if (mounted && !_invalid) unawaited(_syncCloud());
       }
