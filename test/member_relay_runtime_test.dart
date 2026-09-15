@@ -200,6 +200,10 @@ void main() {
         messageId: textId,
       );
       expect(await textChanged.timeout(const Duration(seconds: 2)), 'friend');
+      expect(
+        (await receiveText.messages('friend')).single['text'],
+        'durable runtime text',
+      );
       await sendText.sendText(
         peer: 'runtime-member',
         bindingId: targetBinding,
@@ -231,6 +235,7 @@ void main() {
         'confirmed-text',
       );
       final ended = accepted.link.frames.drain<void>();
+      expect(await receiveText.messages('friend'), isEmpty);
       final readsBeforePause = reads;
       caller.close();
       await expectLater(sender.send(frame), throwsStateError);

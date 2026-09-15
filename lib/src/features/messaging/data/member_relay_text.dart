@@ -32,6 +32,22 @@ class MemberRelayText {
   final _subscriptions = <String, StreamSubscription<String>>{};
   final _changes = StreamController<String>.broadcast();
   Stream<String> get changes => _changes.stream;
+
+  /// Local history remains readable offline, but never across account changes.
+  Future<List<Map<String, dynamic>>> messages(
+    String peer, {
+    int limit = 100,
+  }) async {
+    if (_closed || _generation != MemberQrMemory.generation) {
+      throw StateError('Relay text account changed');
+    }
+    final rows = await history.nearbyMemberMessages(peer, limit: limit);
+    if (_closed || _generation != MemberQrMemory.generation) {
+      throw StateError('Relay text account changed');
+    }
+    return rows;
+  }
+
   late final StreamSubscription<MemberRelayArrival> _incoming;
   late final StreamSubscription _connections;
   bool _closed = false;

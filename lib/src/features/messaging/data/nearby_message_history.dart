@@ -149,6 +149,54 @@ extension NearbyMessageHistory on ChatHistoryStore {
     return result;
   }
 
+  /// Member-scoped local additions to confirmed history, without fake sequences.
+  /// One logical message may have travelled through several devices. A server
+  /// association on any copy suppresses all copies, including tombstones.
+  Future<List<Map<String, dynamic>>> nearbyMemberMessages(
+    String peerAccount, {
+    int limit = 100,
+  }) async {
+    if (peerAccount == account ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peerAccount) ||
+        limit < 1 ||
+        limit > 200) {
+      throw ArgumentError('Invalid member history scope');
+    }
+    final member = await _conversation('direct:$peerAccount');
+    return _db.transaction((tx) async {
+      final groups = await tx.rawQuery(
+        'SELECT id, outgoing, MIN(created) AS created, MAX(delivered) AS delivered '
+        'FROM nearby_message WHERE member=? GROUP BY id, outgoing '
+        'HAVING MAX(serverId IS NOT NULL)=0 '
+        'ORDER BY created DESC, id DESC, outgoing DESC LIMIT ?',
+        [member, limit],
+      );
+      final result = <Map<String, dynamic>>[];
+      for (final group in groups) {
+        final copies = await tx.query(
+          'nearby_message',
+          where: 'member=? AND id=? AND outgoing=?',
+          whereArgs: [member, group['id'], group['outgoing']],
+        );
+        final text = await _nearbyText(copies.first);
+        for (final copy in copies.skip(1)) {
+          if (await _nearbyText(copy) != text) {
+            throw StateError('Member message identity conflict');
+          }
+        }
+        result.add({
+          'id': group['id'],
+          'text': text,
+          'outgoing': group['outgoing'] == 1,
+          'delivered': group['delivered'] == 1,
+          'created': group['created'],
+          'serverMessageId': null,
+        });
+      }
+      return result;
+    });
+  }
+
   /// Reconciles only authenticated service history, never peer-supplied claims.
   /// Server persistence and a recipient receipt remain distinct states.
   Future<int> reconcileNearbyText({
