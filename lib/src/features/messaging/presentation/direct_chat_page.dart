@@ -1,3 +1,4 @@
+import '../data/chat_outbox_recovery.dart';
 import '../data/call_presentation_lease.dart';
 import 'message_voice_transcription_page.dart';
 import 'voice_transcription_page.dart';
@@ -423,6 +424,8 @@ class _DirectChatPageState extends State<DirectChatPage>
     }
   }
 
+  void Function()? _releaseOutboxRecovery;
+
   Future<void> _connectRealChat({MessagingRepository? renewed}) async {
     final generation = ++_connectionGeneration;
     try {
@@ -432,6 +435,12 @@ class _DirectChatPageState extends State<DirectChatPage>
           await (widget.openRepository ?? MessagingRepository.open)();
       if (!mounted || generation != _connectionGeneration) return;
       _conversationAccount ??= repository.account;
+      _releaseOutboxRecovery?.call();
+      _releaseOutboxRecovery = ChatOutboxRecovery.hold(
+        repository.account,
+        widget.groupId ?? widget.peerAccount!,
+        widget.groupId != null,
+      );
       final outbox = widget.chatOutbox ?? SecureChatOutbox(repository.account);
       final ChatSessionController chat = widget.groupId != null
           ? GroupChatController(
@@ -504,6 +513,8 @@ class _DirectChatPageState extends State<DirectChatPage>
     _chatEvents?.cancel();
     _chat?.removeListener(_realChatChanged);
     _chat?.dispose();
+    _releaseOutboxRecovery?.call();
+    _releaseOutboxRecovery = null;
     _chat = null;
     _avatarProfiles.clear();
     if (!mounted) return;
@@ -765,6 +776,8 @@ class _DirectChatPageState extends State<DirectChatPage>
     _voicePlayback?.dispose();
     _chat?.removeListener(_realChatChanged);
     _chat?.dispose();
+    _releaseOutboxRecovery?.call();
+    _releaseOutboxRecovery = null;
     WidgetsBinding.instance.removeObserver(this);
     _endVoiceHold(interrupted: true);
     _capture?.dispose().catchError((Object _) {});

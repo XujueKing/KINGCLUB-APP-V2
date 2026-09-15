@@ -1,5 +1,15 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-15 App-level outbox recovery
+
+Native A evidence: RESTART-GROUP-A-1643 was queued while Android had no default network, then the process was force-stopped before connectivity was restored. Cold-starting the App and opening the conversation list still showed the preceding message. Entering the group restored and sent the durable queued message, exactly once in the visible history. This exposed the missing App-level drain; page re-entry recovery alone is not sufficient.
+
+The new foreground recovery worker reads the account-specific secure outbox on startup/resume, connection-ready and every 15 seconds while foreground. It reuses existing direct/group controller receipt validation, stable client IDs and group membership checks; it does not mark messages read. Visible conversation pages take over delivery and cancel that worker's controller before opening theirs. Session changes, backgrounding and disposal stop workers; failed items are left for explicit handling. No operating-system background execution or killed-App delivery is claimed.
+
+Five recovery tests cover direct/group delivery without pages, repeated drain deduplication, visible-page ownership, closing during history and revoked group access/failed-message exclusion. Two existing acknowledgment/failure race tests and the session rebind test passed; modified source/test static analysis passed. The app smoke suite reported 14 failures; temporarily restoring app.dart and direct_chat_page.dart to HEAD (preserving all unrelated onboarding edits) reproduced 14 baseline failures, and task sources were restored afterward. This suite is not reported green.
+
+Native acceptance at 16:51: built profile/preview ARM64 in 65.6 seconds, 149.7MB, APK SHA256 6c517ced59add404f9598b35e563134227b95e77a92547b74ffa9fe6e1583b5d. Installed only A (Success). A queued APP-RECOVERY-A-1651 with no default network, then was force-stopped while still offline. Both previous enabled network settings were restored. Cold start and opening only the conversation list, without entering the group, showed APP-RECOVERY-A-1651 as the new server-backed list preview. This directly verifies recovery no longer depends on reopening a conversation. B remains on the prior package; recipient delivery and broader media recovery are not claimed by this check.
+
 ## 2026-09-15 16:41 Sender offline group retry on A
 
 A composed OFFLINE-GROUP-A-1640 in the authorized A/B test group. Before sending, both Wi-Fi and mobile data were temporarily disabled; Android dumpsys connectivity confirmed Active default network: none. A single send displayed the queued message with the waiting-for-network label. A finally block restored both previously enabled settings; subsequent reads confirmed wifi_on=1, mobile_data=1 and an active default network. Without another send or retry tap, the queued label disappeared after reconnection and only one copy of the test message was visible.

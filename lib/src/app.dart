@@ -1,3 +1,5 @@
+import 'features/messaging/data/chat_outbox_recovery.dart';
+import 'features/messaging/data/chat_outbox.dart';
 import 'core/design_system/king_text_scale.dart';
 import 'features/messaging/data/call_presentation_lease.dart';
 import 'features/messaging/data/foreground_call_inbox.dart';
@@ -45,6 +47,31 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   bool _presentingGroupCall = false, _presentingDirectCall = false;
   int _callGeneration = 0;
   Future<void>? _openingCallInbox;
+  ChatOutboxRecovery? _outboxRecovery;
+  int _outboxGeneration = 0;
+
+  void _stopOutboxRecovery() {
+    _outboxGeneration++;
+    _outboxRecovery?.close();
+    _outboxRecovery = null;
+  }
+
+  Future<void> _recoverOutbox() async {
+    if (!mounted || !_foreground || kingclubApiBaseUrl.isEmpty) return;
+    if (_outboxRecovery != null) {
+      await _outboxRecovery!.notify();
+      return;
+    }
+    final generation = ++_outboxGeneration;
+    try {
+      final repository = await MessagingRepository.open();
+      if (!mounted || !_foreground || generation != _outboxGeneration) return;
+      _outboxRecovery = ChatOutboxRecovery(
+        repository,
+        SecureChatOutbox(repository.account),
+      )..start();
+    } catch (_) {}
+  }
 
   Future<void> _ensureCallInbox() => _openingCallInbox ??= _openCallInbox()
       .whenComplete(() => _openingCallInbox = null);
@@ -185,6 +212,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   }
 
   void _clearCallInbox() {
+    _stopOutboxRecovery();
     _callGeneration++;
     _callInbox?.close();
     _callInbox = null;
@@ -202,6 +230,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       _messenger.currentState?.clearSnackBars();
       if (mounted) setState(() => _notice = null);
     } else {
+      unawaited(_recoverOutbox());
       await KingclubRealtime.shared.start();
       await _ensureCallInbox();
     }
@@ -211,6 +240,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   Timer? _noticeTimer;
   String? _noticeSession;
   Future<void> _notification(Map<String, dynamic> event) async {
+    if (event['eventType'] == 'connection.ready') {
+      unawaited(_recoverOutbox());
+    }
     if (event['eventType'] == 'auth.session.revoked') {
       await SecureSessionStore().clearSession();
       if (mounted) {
@@ -324,6 +356,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       _checkMobileWindow();
       unawaited(_syncRealtime().catchError((Object _) {}));
     } else {
+      _stopOutboxRecovery();
       KingclubRealtime.shared.stop();
     }
   }
