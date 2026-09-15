@@ -8,6 +8,7 @@ import '../data/novorudp_binding_runtime.dart';
 import 'dart:async';
 
 import '../data/messaging_repository.dart';
+import '../data/chat_sync_failure.dart';
 import 'direct_chat_page.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
@@ -141,6 +142,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   double _friendSlide = 0;
   bool _refreshing = false;
   bool _showOfflineBanner = false;
+  String? _refreshFailure;
   bool _conversationRecovering = false;
   int _conversationGeneration = 0;
   _FriendConversationStatus _friendStatus = _FriendConversationStatus.active;
@@ -240,8 +242,13 @@ class _ConversationsPageState extends State<ConversationsPage>
         }
       }
       await _refreshReal();
-    } catch (_) {
-      if (mounted) setState(() => _showOfflineBanner = true);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _showOfflineBanner = true;
+          _refreshFailure = chatSyncFailureMessage(error);
+        });
+      }
     }
   }
 
@@ -323,6 +330,7 @@ class _ConversationsPageState extends State<ConversationsPage>
             (result['nextServerOffset'] as int?) ?? _realItems.length;
         _realReady = true;
         _showOfflineBanner = false;
+        _refreshFailure = null;
       });
       widget.onFriendUnreadChanged(
         _realItems.fold<int>(
@@ -338,9 +346,12 @@ class _ConversationsPageState extends State<ConversationsPage>
           // Cache availability must not turn a successful refresh into an error.
         }
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted && generation == _realGeneration) {
-        setState(() => _showOfflineBanner = true);
+        setState(() {
+          _showOfflineBanner = true;
+          _refreshFailure = chatSyncFailureMessage(error);
+        });
       }
     }
   }
@@ -654,8 +665,12 @@ class _ConversationsPageState extends State<ConversationsPage>
                     if (widget.networkUnavailable || _showOfflineBanner)
                       _ConversationStatusRow(
                         key: const ValueKey('conversation-offline-banner'),
-                        icon: Icons.wifi_off_outlined,
-                        text: _refreshing ? '正在重新连接…' : '网络不可用，已保留最近会话',
+                        icon: _refreshFailure == null
+                            ? Icons.wifi_off_outlined
+                            : Icons.info_outline,
+                        text: _refreshing
+                            ? '正在重新连接…'
+                            : (_refreshFailure ?? '网络不可用，已保留最近会话'),
                         onTap: _refreshing
                             ? null
                             : () => _refreshConversations(retry: true),

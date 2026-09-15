@@ -510,9 +510,11 @@ class _ContactsPageState extends State<ContactsPage>
                         color: KingColors.warning,
                       ),
                     if (_state == ContactsDemoState.partialError)
-                      const _StatusBanner(
+                      _StatusBanner(
                         icon: Icons.sync_problem_outlined,
-                        title: '更多好友加载失败',
+                        title: widget.realData
+                            ? (_real?.error ?? '暂时无法更新好友')
+                            : '更多好友加载失败',
                         message: '已显示的好友仍可使用，下拉可重试',
                         color: KingColors.warning,
                       ),

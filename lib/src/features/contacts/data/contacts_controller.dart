@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 
 import '../../messaging/data/chat_history_store.dart';
+import '../../messaging/data/chat_sync_failure.dart';
 
 import 'contact_name_index.dart';
 
@@ -163,7 +164,7 @@ class ContactsController extends ChangeNotifier {
       unawaited(_save(_contacts, started, generation));
     } catch (e) {
       if (_disposed || generation != _generation) return;
-      error = e.toString();
+      error = chatSyncFailureMessage(e);
       notifyListeners();
     }
   }
