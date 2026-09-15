@@ -52,6 +52,23 @@ class SecureSessionStore {
     return true;
   });
 
+  /// Membership reads may finish after a refresh-token rotation. Apply only
+  /// their profile fields to the current session, never the old token snapshot.
+  Future<bool> saveMembershipIfCurrent(
+    Map<String, dynamic> expected, {
+    required Map<String, dynamic> account,
+    required Map<String, dynamic> membership,
+  }) => _exclusive(() async {
+    final current = await readSession();
+    if (!_sameCredentials(current, expected) ||
+        account['userAccount'] !=
+            (current!['account'] as Map?)?['userAccount']) {
+      return false;
+    }
+    await _save({...current, 'account': account, 'membership': membership});
+    return true;
+  });
+
   static bool _sameCredentials(
     Map<String, dynamic>? a,
     Map<String, dynamic> b,

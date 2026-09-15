@@ -225,11 +225,11 @@ class RealAuthRepository implements AuthRepository {
     }
     final result = await _client.call('K260824000104', {}, session: session);
     final snapshot = parseMembership(result);
-    if (!await _sessionStore.saveSessionIfCurrent(session, {
-      ...session,
-      'account': result['account'],
-      'membership': result['membership'],
-    })) {
+    if (!await _sessionStore.saveMembershipIfCurrent(
+      session,
+      account: Map<String, dynamic>.from(result['account'] as Map),
+      membership: Map<String, dynamic>.from(result['membership'] as Map),
+    )) {
       throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
     }
     onAuthenticated?.call(snapshot);

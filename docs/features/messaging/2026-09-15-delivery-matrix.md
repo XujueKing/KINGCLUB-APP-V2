@@ -1,5 +1,13 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-16 资料刷新不再覆盖新续期令牌
+
+核对资料刷新路径发现：refreshMembership 使用请求前整份 session 快照回写，若同一 session 的 refreshToken/version/expiry 已轮换，迟到的资料响应可能覆盖新值。新增串行 saveMembershipIfCurrent，只在原账号及 session/API 凭证仍匹配时，将 account/membership 合并到当前存储；凭证及续期字段保留当前值，响应账号不匹配时拒绝。正常资料更新不发登录变化事件；注销、换账号、权限变化的原有失效机制保留。
+
+29 项相关测试通过，4 文件静态检查通过。新增控制时序测试验证旧资料响应晚于令牌轮换时，新令牌、版本、期限均保留，昵称更新且无登录变化事件；原有注销/切换/上传草稿/注册恢复回归通过。注册测试的内存存储替身补齐新方法，首轮遗漏该方法导致插件错误与等待，已修正后完整通过；旧失败测试进程已停止。日志 build/session-rotation-merge-final-test.log、build/session-rotation-merge-analyze.log。
+
+本轮修复基于代码竞态及测试证据，不声称已证明它是之前手机报错的唯一原因。未重新打包或安装，03:03 更新包不含此次修复。
+
 ## 2026-09-16 03:03 汇总更新包
 
 基于 2c09c88 构建 Preview/Profile arm64 成功，包含通讯录加密离线快照、位置详情小屏滚动和入群申请恢复。APK：build/app/outputs/flutter-apk/app-preview-profile.apk；157790280 字节；SHA256 32D3EEE60F8370F03A766680DC281B260A5CBF3F08E5CE7ACE431D9EE6B40495。编译 78.7 秒，日志 build/contact-snapshot-build.log。包含工作区原有三处 onboarding 修改，未把这些修改纳入聊天提交。

@@ -40,6 +40,47 @@ void main() {
     'account': {'userAccount': 'member-b', 'accountStatus': 'active'},
   };
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  test(
+    'late membership response preserves rotated refresh credentials',
+    () async {
+      final store = SecureSessionStore();
+      final original = {
+        ...first,
+        'refreshToken': 'old-token',
+        'refreshTokenVersion': 1,
+        'expiresAt': '2026-01-01T00:00:00Z',
+      };
+      await store.saveSession(original);
+      await Future<void>.delayed(Duration.zero);
+      final client = _DelayedClient();
+      final pending = RealAuthRepository(client, store).refreshMembership();
+      await client.started.future;
+      var changes = 0;
+      final subscription = SecureSessionStore.changes.stream.listen(
+        (_) => changes++,
+      );
+      addTearDown(subscription.cancel);
+      final rotated = {
+        ...original,
+        'refreshToken': 'new-token',
+        'refreshTokenVersion': 2,
+        'expiresAt': '2026-02-01T00:00:00Z',
+      };
+      await store.saveSessionIfCurrent(original, rotated);
+      client.result.complete({
+        'account': {...first['account'] as Map, 'nickname': 'Updated name'},
+        'membership': first['membership'],
+      });
+      await pending;
+      await Future<void>.delayed(Duration.zero);
+      final saved = (await store.readSession())!;
+      expect(saved['refreshToken'], 'new-token');
+      expect(saved['refreshTokenVersion'], 2);
+      expect(saved['expiresAt'], rotated['expiresAt']);
+      expect(saved['account']['nickname'], 'Updated name');
+      expect(changes, 0);
+    },
+  );
   for (final logout in [true, false]) {
     test(
       'late membership refresh after ${logout ? 'logout' : 'account switch'} is discarded',
