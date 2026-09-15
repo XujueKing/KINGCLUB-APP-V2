@@ -82,8 +82,9 @@ void main() {
                   systemUnreadCount: 0,
                   initialFriendUnreadCount: 0,
                   onFriendUnreadChanged: (value) {
-                    if (!count.isCompleted && value == expectedCount)
+                    if (!count.isCompleted && value == expectedCount) {
                       count.complete(value);
+                    }
                   },
                   onOpenContacts: () {},
                   onAddFriend: () {},
