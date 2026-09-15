@@ -1,5 +1,11 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-16 已读恢复整合包
+
+20a80b7 工作树整合单聊/群聊已读持久化补交、本地 relay 已读与补交后的列表刷新。11 个测试文件 70 项通过（build/integrated-read-recovery-test.log），覆盖单/群消息控制器、历史存储、队列、未读合并与分页。2026-09-16 00:27:29 Android preview profile arm64 构建成功，Gradle 76.8 秒；包内 NovoRUDP ARM64 ELF 检查通过。
+
+APK：build/app/outputs/flutter-apk/app-preview-profile.apk，157265992 字节，SHA256 86014A094D7943AAA4AE786F95B37D1BA9B9144159D58ECD9260385DD689A5DA。构建日志 build/integrated-read-recovery-build.log。API https://test.wuyexin.cn/kingclub-v2；未配置主网中继地址。保留原有三处 onboarding 工作树修改。本包尚未安装 A/B，不代表双机验收或主网切换交付；前述本批未打包状态由此更新。
+
 ## 2026-09-16 已读补交后主动刷新列表
 
 已读重试接口成功且恢复任务仍有效时，发出账号隔离的本机通知；会话列表订阅后重新读取服务端结果并更新父级未读数，不再只依赖 WebSocket 事件。退出页面、重绑仓库和登录变化时取消旧订阅。失败不发成功通知；本地队列清理失败仍允许刷新已获服务器确认的状态。
