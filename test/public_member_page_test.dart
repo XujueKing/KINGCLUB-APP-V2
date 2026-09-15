@@ -2,12 +2,57 @@ import 'dart:async';
 
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/contacts/presentation/public_member_page.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
 
 void main() {
+  testWidgets('profile tabs fit large system text on a narrow phone', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 713));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final repository = MessagingRepository(
+      account: 'me',
+      call: (id, _) async => id == 'K260913000614'
+          ? {'items': [], 'nextOffset': null}
+          : {
+              'peer': 'peer',
+              'memberId': 'TEST001',
+              'nickname': 'Friend',
+              'bio': '',
+              'details': {},
+              'friends': true,
+              'following': true,
+              'contentVisible': true,
+            },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(1.35)),
+          child: child!,
+        ),
+        home: PublicMemberPage(account: 'peer', repository: repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+    for (final label in ['作品', '动态', '相册']) {
+      final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
+      expect(
+        paragraph.computeMaxIntrinsicWidth(double.infinity),
+        lessThanOrEqualTo(paragraph.size.width + 0.1),
+      );
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('暂无相册内容'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'late content response cannot restore a newly restricted profile',
     (tester) async {

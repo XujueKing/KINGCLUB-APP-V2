@@ -783,36 +783,43 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                 SliverToBoxAdapter(
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          SizedBox(width: 16 * scale),
-                          for (var i = 0; i < 3; i++)
-                            SizedBox(
-                              width: 56 * scale,
-                              child: TextButton(
-                                onPressed: () {
-                                  if (_tab == i) return;
-                                  setState(() {
-                                    _tab = i;
-                                    _clearContent();
-                                  });
-                                  unawaited(_loadContent(reset: true));
-                                },
-                                child: Text(
-                                  ['作品', '动态', '相册'][i],
-                                  style: TextStyle(
-                                    color: _tab == i
-                                        ? const Color(0xFF222222)
-                                        : const Color(0xFF999999),
-                                    fontSize: 14,
-                                    fontWeight: _tab == i
-                                        ? FontWeight.w600
-                                        : FontWeight.w400,
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            SizedBox(width: 16 * scale),
+                            for (var i = 0; i < 3; i++)
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minWidth: 56 * scale,
+                                ),
+                                child: TextButton(
+                                  onPressed: () {
+                                    if (_tab == i) return;
+                                    setState(() {
+                                      _tab = i;
+                                      _clearContent();
+                                    });
+                                    unawaited(_loadContent(reset: true));
+                                  },
+                                  child: Text(
+                                    ['作品', '动态', '相册'][i],
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    style: TextStyle(
+                                      color: _tab == i
+                                          ? const Color(0xFF222222)
+                                          : const Color(0xFF999999),
+                                      fontSize: 14,
+                                      fontWeight: _tab == i
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                       const Divider(height: 1, color: Color(0xFFE6E6E6)),
                     ],
