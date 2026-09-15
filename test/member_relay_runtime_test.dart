@@ -9,6 +9,8 @@ import 'package:cryptography/cryptography.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/member_relay_text.dart';
+import 'package:kingclub/src/features/messaging/data/direct_chat_controller.dart';
+import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/member_relay_runtime.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
@@ -19,6 +21,16 @@ import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
 class _NetworkBinding extends AutomatedTestWidgetsFlutterBinding {
   @override
   bool get overrideHttpClient => false;
+}
+
+class _UnusedOutbox implements ChatOutbox {
+  @override
+  Future<List<Map<String, dynamic>>> read() async => [];
+  @override
+  Future<void> put(Map<String, dynamic> message) async =>
+      throw StateError('Unexpected send');
+  @override
+  Future<void> remove(String id) async {}
 }
 
 void main() {
@@ -147,6 +159,23 @@ void main() {
         history: receiverHistory,
       );
       final sendText = MemberRelayText(runtime: caller, history: senderHistory);
+      final conversation = DirectChatController(
+        repository: runtime.binding.messaging,
+        peer: 'friend',
+        outbox: _UnusedOutbox(),
+        readRelayMessages: () => receiveText.messages('friend'),
+        relayChanges: receiveText.changes,
+      );
+      final displayed = Completer<void>();
+      conversation.addListener(() {
+        if (!displayed.isCompleted &&
+            conversation.messages.any(
+              (m) => m['text'] == 'durable runtime text',
+            )) {
+          displayed.complete();
+        }
+      });
+      addTearDown(conversation.dispose);
       addTearDown(() async {
         await receiveText.close();
         await sendText.close();
@@ -200,6 +229,8 @@ void main() {
         messageId: textId,
       );
       expect(await textChanged.timeout(const Duration(seconds: 2)), 'friend');
+      await displayed.future.timeout(const Duration(seconds: 2));
+      expect(conversation.messages.single['sequence'], isNull);
       expect(
         (await receiveText.messages('friend')).single['text'],
         'durable runtime text',

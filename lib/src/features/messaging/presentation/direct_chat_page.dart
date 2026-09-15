@@ -23,6 +23,7 @@ import 'group_call_page.dart';
 import 'call_page.dart';
 import 'chat_member_avatar.dart';
 import '../data/chat_history_store.dart';
+import '../data/novorudp_binding_runtime.dart';
 import 'chat_location_message.dart';
 import '../data/chat_location.dart';
 import 'chat_location_picker_page.dart';
@@ -543,6 +544,15 @@ class _DirectChatPageState extends State<DirectChatPage>
               repository: repository,
               peer: widget.peerAccount!,
               outbox: outbox,
+              readRelayMessages: repository.persistHistory
+                  ? NovoRudpBindingRuntime.textReader(
+                      repository.account,
+                      widget.peerAccount!,
+                    )
+                  : null,
+              relayChanges: repository.persistHistory
+                  ? NovoRudpBindingRuntime.textChanges(repository.account)
+                  : null,
               openHistory: repository.persistHistory
                   ? () => ChatHistoryStore.open(repository.account)
                   : null,

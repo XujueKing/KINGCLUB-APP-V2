@@ -9,6 +9,8 @@ import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
 import 'member_relay_runtime.dart';
+import 'member_relay_text.dart';
+import 'chat_history_store.dart';
 import 'novorudp_device_binding.dart';
 import 'novorudp_device_identity_store.dart';
 
@@ -23,6 +25,35 @@ class NovoRudpBindingRuntime {
   static NovoRudpDeviceBinding? _binding;
   static MemberRelayRuntime? _relay;
   static MemberRelayRuntime? get relay => _relay;
+  static MemberRelayText? _text;
+  static StreamSubscription<String>? _textEvents;
+  static final _textChanges =
+      StreamController<({String account, String peer})>.broadcast();
+  static Stream<String> textChanges(String account) => _textChanges.stream
+      .where((event) => event.account == account)
+      .map((event) => event.peer);
+
+  static Future<List<Map<String, dynamic>>> Function() textReader(
+    String account,
+    String peer,
+  ) {
+    final generation = MemberQrMemory.generation;
+    return () async {
+      if (generation != MemberQrMemory.generation) {
+        throw StateError('Chat account changed');
+      }
+      final history = await ChatHistoryStore.open(account);
+      if (generation != MemberQrMemory.generation) {
+        throw StateError('Chat account changed');
+      }
+      final rows = await history.nearbyMemberMessages(peer);
+      if (generation != MemberQrMemory.generation) {
+        throw StateError('Chat account changed');
+      }
+      return rows;
+    };
+  }
+
   static int _generation = -1;
   static Stopwatch? _failedAt;
 
@@ -53,6 +84,10 @@ class NovoRudpBindingRuntime {
   }
 
   static void _clear() {
+    unawaited(_textEvents?.cancel());
+    _textEvents = null;
+    unawaited(_text?.close());
+    _text = null;
     _relay?.close();
     _relay = null;
     _binding?.dispose();
@@ -67,6 +102,8 @@ class NovoRudpBindingRuntime {
     int generation,
   ) async {
     NovoRudpDeviceBinding? binding;
+    MemberRelayRuntime? runtime;
+    MemberRelayText? text;
     try {
       final library = DynamicLibrary.open('libkingclub_novorudp.so');
       final identity = await NovoRudpDeviceIdentityStore().open(
@@ -90,13 +127,36 @@ class NovoRudpBindingRuntime {
       const relayUrl = String.fromEnvironment('KINGCLUB_NOVORUDP_RELAY_URL');
       const relayPeer = String.fromEnvironment('KINGCLUB_NOVORUDP_RELAY_PEER');
       if (relayUrl.isNotEmpty && relayPeer.isNotEmpty) {
-        _relay = MemberRelayRuntime(
+        final history = await ChatHistoryStore.open(messaging.account);
+        if (generation != MemberQrMemory.generation ||
+            !identical(_binding, binding)) {
+          return;
+        }
+        runtime = MemberRelayRuntime(
           binding: binding,
           endpoint: Uri.parse(relayUrl),
           expectedRelay: relayPeer,
-        )..start();
+        );
+        text = MemberRelayText(runtime: runtime, history: history);
+        _text = text;
+        _textEvents = text.changes.listen((peer) {
+          if (generation == MemberQrMemory.generation &&
+              identical(_text, text)) {
+            _textChanges.add((account: messaging.account, peer: peer));
+          }
+        });
+        _relay = runtime;
+        runtime.start();
       }
     } catch (error) {
+      unawaited(text?.close());
+      runtime?.close();
+      if (text != null && identical(_text, text)) {
+        unawaited(_textEvents?.cancel());
+        _textEvents = null;
+        _text = null;
+        _relay = null;
+      }
       binding?.dispose();
       if (generation == MemberQrMemory.generation &&
           generation == _generation) {
