@@ -3169,7 +3169,7 @@ class _MessageContent extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  message.text,
+                  message.call!.displayText(outgoing: message.mine),
                   style: legacyChatBodyTextStyle.copyWith(color: color),
                 ),
               ),

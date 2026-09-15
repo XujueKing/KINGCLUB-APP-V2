@@ -7,6 +7,27 @@ class ChatCallHistory {
   final CallMedia media;
   final String endReason;
   final int? durationMs;
+
+  String displayText({required bool outgoing}) {
+    final label = media == CallMedia.video ? '视频通话' : '语音通话';
+    final duration = durationMs;
+    if (duration != null) {
+      final seconds = duration ~/ 1000;
+      final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
+      final remainder = (seconds % 60).toString().padLeft(2, '0');
+      return '$label · $minutes:$remainder'
+          '${endReason == 'failed' ? ' · 连接中断' : ''}';
+    }
+    final status = switch (endReason) {
+      'cancelled' => outgoing ? '已取消' : '对方已取消',
+      'declined' => outgoing ? '对方已拒绝' : '已拒绝',
+      'missed' => outgoing ? '对方未接听' : '未接听',
+      'failed' => '连接中断',
+      _ => '通话已结束',
+    };
+    return '$label · $status';
+  }
+
   Map<String, dynamic> toJson() => {
     'callId': id,
     'mediaKind': media.name,

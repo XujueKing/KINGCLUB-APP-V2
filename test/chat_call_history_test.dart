@@ -17,6 +17,33 @@ Map<String, dynamic> record(String media) => {
 };
 
 void main() {
+  test(
+    'call status is relative to the viewer and retains connected duration',
+    () {
+      for (final entry in {
+        'cancelled': ['已取消', '对方已取消'],
+        'declined': ['对方已拒绝', '已拒绝'],
+        'missed': ['对方未接听', '未接听'],
+        'failed': ['连接中断', '连接中断'],
+        'revoked': ['通话已结束', '通话已结束'],
+        'hangup': ['通话已结束', '通话已结束'],
+      }.entries) {
+        final call = ChatCallHistory.tryParse({
+          ...record('audio'),
+          'durationMs': null,
+          'endReason': entry.key,
+        })!;
+        expect(call.displayText(outgoing: true), '语音通话 · ${entry.value[0]}');
+        expect(call.displayText(outgoing: false), '语音通话 · ${entry.value[1]}');
+      }
+      final connected = ChatCallHistory.tryParse({
+        ...record('video'),
+        'durationMs': 65000,
+        'endReason': 'failed',
+      })!;
+      expect(connected.displayText(outgoing: false), '视频通话 · 01:05 · 连接中断');
+    },
+  );
   test('rejects plain text and malformed call metadata', () {
     expect(ChatCallHistory.tryParse('语音通话 · 00:15'), isNull);
     for (final override in [
@@ -71,6 +98,13 @@ void main() {
       await tester.pumpAndSettle();
       final card = find.byKey(const ValueKey('chat-call-record-$callId'));
       expect(card, findsOneWidget);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.text('${media == 'audio' ? '语音通话' : '视频通话'} · 00:15'),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(card);
       await tester.pump();
       await tester.tap(card);
