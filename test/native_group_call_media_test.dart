@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:mediasfu_mediasoup_client/mediasfu_mediasoup_client.dart'
     as rtc;
 import 'package:kingclub/src/features/messaging/data/group_call_media_repository.dart';
@@ -59,6 +60,8 @@ class ProducerFixture implements rtc.Producer {
 
 class TransportFixture implements rtc.Transport {
   Function? produced;
+  Function? consumed;
+  ConsumerFixture? consumer;
   void Function()? afterProduced;
   int closes = 0;
   bool failProduce = false, failClose = false;
@@ -77,6 +80,11 @@ class TransportFixture implements rtc.Transport {
 
   @override
   dynamic noSuchMethod(Invocation i) {
+    if (i.memberName == #consume) {
+      consumer = ConsumerFixture();
+      consumed!(consumer, null);
+      return null;
+    }
     if (i.memberName == #produce) {
       if (failProduce) {
         throw StateError('Produce failed');
@@ -96,6 +104,8 @@ class DeviceFixture implements rtc.Device {
   final send = TransportFixture(), receive = TransportFixture();
   int loads = 0;
   @override
+  rtc.RtpCapabilities get rtpCapabilities => rtc.RtpCapabilities();
+  @override
   Future<void> load({
     required rtc.RtpCapabilities routerRtpCapabilities,
   }) async {
@@ -109,10 +119,53 @@ class DeviceFixture implements rtc.Device {
       return send;
     }
     if (i.memberName == #createRecvTransport) {
+      receive.consumed = i.namedArguments[#consumerCallback] as Function;
       return receive;
     }
     return super.noSuchMethod(i);
   }
+}
+
+class ConsumerFixture implements rtc.Consumer {
+  @override
+  String get id => callId;
+  @override
+  String get producerId => callId;
+  @override
+  final StreamFixture stream = StreamFixture();
+  int closes = 0;
+  @override
+  Future<void> close() async {
+    closes++;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
+}
+
+class DepartingRepo extends Repo {
+  bool stays = false, failResume = false;
+  String failureCode = 'CHAT_GROUP_MEDIA_STATE_CHANGED';
+  int reads = 0;
+  @override
+  Future<List<GroupMediaSource>> sources() async => ++reads == 1 || stays
+      ? [const GroupMediaSource(callId, 'friend', 'audio', false)]
+      : [];
+  @override
+  Future<GroupMediaConsumer> consume(
+    String transportId,
+    GroupMediaSource source,
+    rtc.RtpCapabilities caps,
+  ) async {
+    if (failResume) {
+      return GroupMediaConsumer(callId, source, rtc.RtpParameters(codecs: []));
+    }
+    throw AuthFailure(failureCode, 'Synthetic failure');
+  }
+
+  @override
+  Future<void> resumeConsumer(String id) async =>
+      throw AuthFailure(failureCode, 'Synthetic failure');
 }
 
 class Repo extends GroupCallMediaRepository {
@@ -162,6 +215,53 @@ class Repo extends GroupCallMediaRepository {
 }
 
 void main() {
+  for (final failResume in [false, true]) {
+    test(
+      'remote departure during ${failResume ? "resume" : "consume"} preserves local media',
+      () async {
+        final repo = DepartingRepo()..failResume = failResume;
+        final device = DeviceFixture(), stream = StreamFixture();
+        List<NativeGroupRemote>? remote;
+        final media = NativeGroupCallMedia(
+          repository: repo,
+          device: device,
+          capture: (_) async => stream,
+          onRemote: (value) => remote = value,
+        );
+        await media.open();
+        expect(media.isClosed, false);
+        expect(remote, isEmpty);
+        expect(stream.track.stops, 0);
+        if (failResume) {
+          expect(device.receive.consumer!.closes, 1);
+          expect(device.receive.consumer!.stream.disposed, 1);
+        }
+        await media.close();
+      },
+    );
+  }
+  test('a remaining source failure is not swallowed', () async {
+    final repo = DepartingRepo()..stays = true;
+    final media = NativeGroupCallMedia(
+      repository: repo,
+      device: DeviceFixture(),
+      capture: (_) async => StreamFixture(),
+    );
+    await expectLater(media.open(), throwsA(isA<AuthFailure>()));
+    expect(media.isClosed, true);
+    expect(repo.reads, 2);
+  });
+  test('login failures do not retry as remote departures', () async {
+    final repo = DepartingRepo()..failureCode = 'SESSION_CHANGED';
+    final media = NativeGroupCallMedia(
+      repository: repo,
+      device: DeviceFixture(),
+      capture: (_) async => StreamFixture(),
+    );
+    await expectLater(media.open(), throwsA(isA<AuthFailure>()));
+    expect(media.isClosed, true);
+    expect(repo.reads, 1);
+  });
   test('close between producer callback and await continuation still closes the producer', () async {
     final device = DeviceFixture(), stream = StreamFixture();
     final media = NativeGroupCallMedia(

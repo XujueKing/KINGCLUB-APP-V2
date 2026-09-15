@@ -9,6 +9,7 @@ import 'package:mediasfu_mediasoup_client/src/handlers/handler_interface.dart'
     as handler;
 
 import 'call_repository.dart' show CallMedia;
+import '../../auth/domain/auth_repository.dart';
 import 'call_relay_configuration.dart';
 import 'group_call_media_repository.dart';
 
@@ -260,47 +261,67 @@ class NativeGroupCallMedia {
       if (_consumers.containsKey(source.producerId)) {
         continue;
       }
-      final spec = await repository.consume(
-        receive.id,
-        source,
-        _device.rtpCapabilities,
-      );
-      _check();
-      final completer = Completer<rtc.Consumer>();
-      _consuming[spec.id] = completer;
-      final ready = completer.future.timeout(const Duration(seconds: 15));
       try {
-        receive.consume(
-          id: spec.id,
-          producerId: source.producerId,
-          peerId: source.account,
-          kind: source.kind == 'audio'
-              ? rtc.RTCRtpMediaType.RTCRtpMediaTypeAudio
-              : rtc.RTCRtpMediaType.RTCRtpMediaTypeVideo,
-          rtpParameters: spec.rtpParameters,
-        );
-      } catch (error, stack) {
-        if (!completer.isCompleted) {
-          completer.completeError(error, stack);
-        }
-      }
-      final consumer = await ready;
-      _consuming.remove(spec.id);
-      if (_closed) {
-        await _disposeConsumer(consumer);
+        await _receiveSource(receive, source);
+      } on AuthFailure catch (error) {
+        if (error.code != 'CHAT_GROUP_MEDIA_STATE_CHANGED') rethrow;
+        // A producer may disappear between listing, consuming and resuming.
+        // Confirm its removal through an authorized read; never hide a login,
+        // transport or codec failure when the source is still present.
+        final current = await repository.sources();
+        _check();
+        if (current.any((s) => s.producerId == source.producerId)) rethrow;
+        final stale = _consumers.remove(source.producerId);
+        if (stale != null) await _disposeConsumer(stale);
         _check();
       }
-      _consumers[source.producerId] = consumer;
-      await repository.resumeConsumer(consumer.id);
-      _check();
     }
     onRemote?.call(
       List.unmodifiable(
-        sources.map(
-          (s) => NativeGroupRemote(s, _consumers[s.producerId]!.stream),
-        ),
+        sources
+            .where((s) => _consumers.containsKey(s.producerId))
+            .map((s) => NativeGroupRemote(s, _consumers[s.producerId]!.stream)),
       ),
     );
+  }
+
+  Future<void> _receiveSource(
+    rtc.Transport receive,
+    GroupMediaSource source,
+  ) async {
+    final spec = await repository.consume(
+      receive.id,
+      source,
+      _device.rtpCapabilities,
+    );
+    _check();
+    final completer = Completer<rtc.Consumer>();
+    _consuming[spec.id] = completer;
+    final ready = completer.future.timeout(const Duration(seconds: 15));
+    try {
+      receive.consume(
+        id: spec.id,
+        producerId: source.producerId,
+        peerId: source.account,
+        kind: source.kind == 'audio'
+            ? rtc.RTCRtpMediaType.RTCRtpMediaTypeAudio
+            : rtc.RTCRtpMediaType.RTCRtpMediaTypeVideo,
+        rtpParameters: spec.rtpParameters,
+      );
+    } catch (error, stack) {
+      if (!completer.isCompleted) {
+        completer.completeError(error, stack);
+      }
+    }
+    final consumer = await ready;
+    _consuming.remove(spec.id);
+    if (_closed) {
+      await _disposeConsumer(consumer);
+      _check();
+    }
+    _consumers[source.producerId] = consumer;
+    await repository.resumeConsumer(consumer.id);
+    _check();
   }
 
   Future<void> setPaused(String kind, bool paused) {
