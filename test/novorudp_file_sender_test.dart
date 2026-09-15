@@ -7,6 +7,7 @@ import 'package:cryptography/dart.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_receiver.dart';
+import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_sender.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_datagram_link.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
@@ -157,6 +158,79 @@ void main() {
         timeout: const Timeout(Duration(minutes: 2)),
       );
     }
+    test(
+      'new sender resumes live partial receiver without another data pass',
+      () async {
+        final bytes = List.generate(
+          80 * NovoRudpFileReceiver.chunkSize,
+          (i) => i % 251,
+        );
+        final input = await source(bytes);
+        final receiver = await NovoRudpFileReceiver.create(
+          privateDirectory: directory,
+          sessionId: left.channel.sessionId,
+          streamId: BigInt.one,
+          objectId: BigInt.two,
+          size: bytes.length,
+          sha256: input.hash,
+        );
+        addTearDown(receiver.close);
+        final half = Completer<void>();
+        var dataFrames = 0, repairFrames = 0;
+        final errors = <Object>[];
+        final sub = right.frames.listen((frame) async {
+          try {
+            final ack = await receiver.receiveAuthenticated(frame);
+            if (frame.kind == NovoRudpFrameKind.data) {
+              if (++dataFrames == 40) half.complete();
+            }
+            if (frame.kind == NovoRudpFrameKind.repair) {
+              repairFrames++;
+              expect(frame.sequence.toInt(), greaterThanOrEqualTo(40));
+            }
+            if (ack != null) await right.send(ack);
+          } catch (e) {
+            errors.add(e);
+          }
+        });
+        addTearDown(sub.cancel);
+        for (var i = 0; i < 40; i++) {
+          await left.send(
+            NovoRudpFrame(
+              kind: NovoRudpFrameKind.data,
+              sessionId: left.channel.sessionId,
+              streamId: BigInt.one,
+              objectId: BigInt.two,
+              sequence: BigInt.from(i),
+              ackEpoch: BigInt.zero,
+              payload: bytes.sublist(
+                i * NovoRudpFileReceiver.chunkSize,
+                (i + 1) * NovoRudpFileReceiver.chunkSize,
+              ),
+            ),
+          );
+        }
+        await half.future.timeout(const Duration(seconds: 3));
+        NovoRudpFileSender sender() => NovoRudpFileSender(
+          link: left,
+          file: input.file,
+          streamId: BigInt.one,
+          objectId: BigInt.two,
+          size: bytes.length,
+          sha256: input.hash,
+          ackWait: const Duration(milliseconds: 150),
+        );
+        await sender().run();
+        expect(errors, isEmpty);
+        expect(dataFrames, 40);
+        expect(repairFrames, greaterThan(0));
+        expect(await (await receiver.verifiedFile()).readAsBytes(), bytes);
+        final repaired = repairFrames;
+        await sender().run();
+        expect(dataFrames, 40);
+        expect(repairFrames, repaired);
+      },
+    );
     test(
       'unreachable receiver times out and cancellation wakes ACK wait',
       () async {

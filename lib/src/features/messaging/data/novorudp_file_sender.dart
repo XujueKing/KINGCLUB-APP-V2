@@ -170,45 +170,76 @@ class NovoRudpFileSender {
       if (digest != sha256) {
         throw const FormatException('Source digest changed');
       }
-      // Send the initial data once. The ACK repair planner is for actual loss,
-      // not for delivering every byte through small repeated repair windows.
-      // Keep conservative pacing while transport congestion control is pending.
-      await source.setPosition(0);
-      for (var index = 0; index < fragments; index++) {
-        _check();
-        final length = math.min(
-          NovoRudpFileReceiver.chunkSize,
-          size - index * NovoRudpFileReceiver.chunkSize,
-        );
-        final bytes = await source.read(length);
-        if (bytes.length != length) {
-          throw const FormatException('Source truncated');
+      NovoRudpFrame? resumeAck;
+      dynamic resumeDecision;
+      for (var attempt = 0; attempt < maxStalls; attempt++) {
+        await _send(_frame(NovoRudpFrameKind.done, 0, const []));
+        final ack = await _nextAck();
+        if (ack == null) continue;
+        final decision = await planner.acceptAuthenticatedAck(ack);
+        if (decision == 'ReceiverDone') return;
+        if (decision is Map && decision.containsKey('Repair')) {
+          resumeAck = ack;
+          resumeDecision = decision;
+          break;
         }
-        await _send(_frame(NovoRudpFrameKind.data, index, bytes));
-        if ((index + 1) % 16 == 0) {
-          await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      if (resumeAck == null) {
+        throw TimeoutException('Receiver did not acknowledge');
+      }
+      final missingAtStart =
+          (jsonDecode(utf8.decode(resumeAck.payload)) as Map)['missing_count'];
+      if (missingAtStart == fragments) {
+        // Send the initial data once. The ACK repair planner is for actual loss,
+        // not for delivering every byte through small repeated repair windows.
+        // Keep conservative pacing while transport congestion control is pending.
+        await source.setPosition(0);
+        for (var index = 0; index < fragments; index++) {
+          _check();
+          final length = math.min(
+            NovoRudpFileReceiver.chunkSize,
+            size - index * NovoRudpFileReceiver.chunkSize,
+          );
+          final bytes = await source.read(length);
+          if (bytes.length != length) {
+            throw const FormatException('Source truncated');
+          }
+          await _send(_frame(NovoRudpFrameKind.data, index, bytes));
+          if ((index + 1) % 16 == 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+          }
         }
+        resumeAck = null;
+        resumeDecision = null;
       }
       var stalls = 0, previousMissing = fragments + 1;
       while (true) {
         _check();
-        await _send(_frame(NovoRudpFrameKind.done, 0, const []));
-        final ack = await _nextAck();
-        if (ack == null) {
-          if (++stalls >= maxStalls) {
-            throw TimeoutException('Receiver did not acknowledge');
-          }
-          continue;
-        }
+        NovoRudpFrame? ack;
         dynamic decision;
-        try {
-          decision = await planner.acceptAuthenticatedAck(ack);
-        } on StateError {
-          _check();
-          if (++stalls >= maxStalls) {
-            throw const FormatException('Invalid transfer acknowledgements');
+        if (resumeAck != null) {
+          ack = resumeAck;
+          decision = resumeDecision;
+          resumeAck = null;
+          resumeDecision = null;
+        } else {
+          await _send(_frame(NovoRudpFrameKind.done, 0, const []));
+          ack = await _nextAck();
+          if (ack == null) {
+            if (++stalls >= maxStalls) {
+              throw TimeoutException('Receiver did not acknowledge');
+            }
+            continue;
           }
-          continue;
+          try {
+            decision = await planner.acceptAuthenticatedAck(ack);
+          } on StateError {
+            _check();
+            if (++stalls >= maxStalls) {
+              throw const FormatException('Invalid transfer acknowledgements');
+            }
+            continue;
+          }
         }
         if (decision == 'ReceiverDone') return;
         if (decision is! Map || !decision.containsKey('Repair')) {
