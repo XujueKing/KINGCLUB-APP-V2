@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'chat_video.dart';
 import 'chat_history_store.dart';
 import 'chat_location.dart';
@@ -16,7 +18,58 @@ class DirectChatController extends ChatSessionController {
     required this.peer,
     required this.outbox,
     this.openHistory,
-  });
+    this.readRelayMessages,
+    Stream<String>? relayChanges,
+  }) {
+    _relayEvents = relayChanges?.listen((member) {
+      if (member == peer) unawaited(_refreshRelay());
+    });
+  }
+  final Future<List<Map<String, dynamic>>> Function()? readRelayMessages;
+  StreamSubscription<String>? _relayEvents;
+  List<Map<String, dynamic>> _relayMessages = [];
+  int _relayRead = 0;
+
+  Future<void> _refreshRelay() async {
+    if (_disposed || readRelayMessages == null) return;
+    final generation = _historyGeneration;
+    final read = ++_relayRead;
+    try {
+      final rows = await readRelayMessages!();
+      if (_disposed || generation != _historyGeneration || read != _relayRead) {
+        return;
+      }
+      _relayMessages = rows
+          .where((row) => row['outgoing'] != true || row['delivered'] == true)
+          .map(
+            (row) => {
+              'clientMessageId': row['id'],
+              'sender': row['outgoing'] == true ? repository.account : peer,
+              'recipient': row['outgoing'] == true ? peer : repository.account,
+              'text': row['text'],
+              'messageType': 'text',
+              'createdDate': DateTime.fromMillisecondsSinceEpoch(
+                row['created'] as int,
+                isUtc: true,
+              ).toIso8601String(),
+              'status': 'sent',
+              'peerDelivered': row['delivered'] == true,
+            },
+          )
+          .toList();
+      _changed();
+    } catch (_) {
+      // A relay read cannot take down service history. Never keep a stale
+      // snapshot after a failed validation or account change.
+      if (!_disposed &&
+          generation == _historyGeneration &&
+          read == _relayRead) {
+        _relayMessages = [];
+        _changed();
+      }
+    }
+  }
+
   final MessagingRepository repository;
   @override
   MessagingRepository get messaging => repository;
@@ -95,10 +148,25 @@ class DirectChatController extends ChatSessionController {
         .where((m) => m['sender'] == repository.account)
         .map((m) => m['clientMessageId'])
         .toSet();
+    final confirmedKeys = confirmed
+        .map((m) => (m['sender'], m['clientMessageId']))
+        .toSet();
+    final relay = _relayMessages
+        .where(
+          (m) => !confirmedKeys.contains((m['sender'], m['clientMessageId'])),
+        )
+        .toList();
+    final relayOutgoing = relay
+        .where((m) => m['sender'] == repository.account)
+        .map((m) => m['clientMessageId'])
+        .toSet();
     return [
       ...confirmed.where((m) => m['messageType'] != 'hidden'),
+      ...relay,
       ..._pending.values.where(
-        (m) => !acknowledged.contains(m['clientMessageId']),
+        (m) =>
+            !acknowledged.contains(m['clientMessageId']) &&
+            !relayOutgoing.contains(m['clientMessageId']),
       ),
     ];
   }
@@ -110,6 +178,7 @@ class DirectChatController extends ChatSessionController {
   @override
   void dispose() {
     _disposed = true;
+    unawaited(_relayEvents?.cancel());
     super.dispose();
   }
 
@@ -124,6 +193,7 @@ class DirectChatController extends ChatSessionController {
         }
       }
       _changed();
+      await _refreshRelay();
       if (openHistory != null) await _ensureHistory();
       await synchronize();
       await retryQueued();
@@ -319,6 +389,7 @@ class DirectChatController extends ChatSessionController {
       if (hidden is int && (message['sequence'] as int) <= hidden) continue;
       await _acknowledge(message, persist: false);
     }
+    await _refreshRelay();
   }
 
   Map<String, dynamic> _preserveHidden(Map<String, dynamic> message) {
@@ -809,6 +880,8 @@ class DirectChatController extends ChatSessionController {
   @override
   void resetVisibleHistory() {
     _historyGeneration++;
+    _relayRead++;
+    _relayMessages = [];
     if (openHistory != null) {
       _historyBarrier = (_historyBarrier ?? _ensureHistory()).then((_) async {
         if (_history != null) _diskEpoch = await _history!.clear(_historyKey);

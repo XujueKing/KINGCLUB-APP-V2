@@ -53,6 +53,104 @@ Map<String, dynamic> history(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    'relay updates merge by sender and client ID without server sequences',
+    () async {
+      final changes = StreamController<String>.broadcast(sync: true);
+      var confirmed = <Map<String, dynamic>>[];
+      var reads = 0;
+      var relay = <Map<String, dynamic>>[
+        {
+          'id': 'relay-1',
+          'text': 'peer text',
+          'outgoing': false,
+          'delivered': false,
+          'created': 1,
+        },
+      ];
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: MemoryOutbox(),
+        relayChanges: changes.stream,
+        readRelayMessages: () async {
+          reads++;
+          return relay;
+        },
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, params) async => history(confirmed),
+        ),
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await changes.close();
+      });
+      await controller.initialize();
+      expect(controller.messages.single['text'], 'peer text');
+      expect(controller.messages.single['sequence'], isNull);
+      expect(controller.messages.single['messageId'], isNull);
+      final previousReads = reads;
+      changes.add('someone-else');
+      await Future<void>.delayed(Duration.zero);
+      expect(reads, previousReads);
+      relay = [
+        {...relay.single, 'text': 'updated'},
+      ];
+      changes.add('peer');
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.messages.single['text'], 'updated');
+      confirmed = [
+        {
+          ...ack({'clientMessageId': 'relay-1', 'text': 'updated'}),
+          'sender': 'peer',
+          'recipient': 'me',
+        },
+      ];
+      await controller.synchronize();
+      expect(controller.messages, hasLength(1));
+      expect(controller.messages.single['messageId'], 'message-1');
+    },
+  );
+
+  test(
+    'reset ignores a late relay read and disposal cancels event reads',
+    () async {
+      final changes = StreamController<String>.broadcast(sync: true);
+      final pending = Completer<List<Map<String, dynamic>>>();
+      var reads = 0;
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: MemoryOutbox(),
+        relayChanges: changes.stream,
+        readRelayMessages: () {
+          reads++;
+          return pending.future;
+        },
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, params) async => history([]),
+        ),
+      );
+      changes.add('peer');
+      controller.resetVisibleHistory();
+      pending.complete([
+        {
+          'id': 'late',
+          'text': 'stale',
+          'outgoing': false,
+          'delivered': false,
+          'created': 1,
+        },
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.messages, isEmpty);
+      controller.dispose();
+      changes.add('peer');
+      await Future<void>.delayed(Duration.zero);
+      expect(reads, 1);
+      await changes.close();
+    },
+  );
+  test(
     'offline catch-up resumes after a failed middle page without duplicates',
     () async {
       final cursors = <Object?>[];
