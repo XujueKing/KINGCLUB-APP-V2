@@ -143,7 +143,7 @@ void main() {
         await dir.delete(recursive: true);
       });
       const messageId = '11111111-1111-4111-8111-111111111111';
-      final body = List.filled(900, '\u{1f642}').join();
+      final body = List.filled(4000, '聊').join();
       dropReceipt = true;
       await ta
           .sendText(body, messageId: messageId)

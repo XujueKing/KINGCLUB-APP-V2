@@ -73,5 +73,36 @@ void main() {
           .single['delivered'],
       isTrue,
     );
+    const longId = '00000000-0000-4000-8000-000000000002';
+    final chinese = List.filled(4000, '中').join();
+    await store.persistNearbyText(
+      peerId: peer,
+      id: longId,
+      text: chinese,
+      outgoing: true,
+    );
+    await store.close();
+    store = await open();
+    expect(
+      (await store.nearbyMessages(peer))
+          .where((row) => row['id'] == longId)
+          .single['text'],
+      chinese,
+    );
+    for (final invalid in [
+      List.filled(4001, 'a').join(),
+      List.filled(2001, '\u{1f642}').join(),
+    ]) {
+      await expectLater(
+        store.persistNearbyText(
+          peerId: peer,
+          id: '00000000-0000-4000-8000-000000000003',
+          text: invalid,
+          outgoing: true,
+        ),
+        throwsArgumentError,
+      );
+    }
+    expect((await store.nearbyMessages(peer)).length, 3);
   });
 }

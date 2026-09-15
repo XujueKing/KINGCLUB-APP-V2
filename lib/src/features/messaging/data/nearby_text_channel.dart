@@ -215,7 +215,7 @@ class NearbyTextChannel {
     if (index is! int ||
         count is! int ||
         count < 1 ||
-        count > 8 ||
+        count > 24 ||
         index < 0 ||
         index >= count ||
         encoded is! String ||
@@ -239,13 +239,15 @@ class NearbyTextChannel {
     if (parts.parts.length != count) return;
     final all = [for (var i = 0; i < count; i++) ...parts.parts[i]!];
     _assembling.remove(id);
-    if (all.length > 4000 || await _hash(all) != hash) return;
+    // Match the UI/server's 4000 UTF-16 units: up to 12000 UTF-8 bytes.
+    if (all.length > 12000 || await _hash(all) != hash) return;
     String text;
     try {
       text = utf8.decode(all);
     } on FormatException {
       return;
     }
+    if (text.isEmpty || text.length > 4000) return;
     _check();
     await history.persistNearbyText(
       peerId: peerId,

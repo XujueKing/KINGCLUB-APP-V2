@@ -196,7 +196,7 @@ void main() {
         await directory.delete(recursive: true);
       });
       const id = '11111111-1111-4111-8111-111111111111';
-      final text = List.filled(350, 'relay text ').join();
+      final text = List.filled(4000, '语').join();
       await ta
           .sendText(text, messageId: id)
           .timeout(const Duration(seconds: 10));

@@ -44,7 +44,7 @@ extension NearbyMessageHistory on ChatHistoryStore {
           r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
         ).hasMatch(id) ||
         text.isEmpty ||
-        utf8.encode(text).length > 4000) {
+        text.length > 4000) {
       throw ArgumentError('Invalid nearby text');
     }
     final peer = await _nearbyPeer(peerId);
