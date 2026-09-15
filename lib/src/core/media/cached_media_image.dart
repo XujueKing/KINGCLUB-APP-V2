@@ -18,6 +18,7 @@ class CachedMediaImage extends StatefulWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.errorBuilder,
+    this.cache,
   });
   final String url;
   final String? contentKey;
@@ -27,6 +28,7 @@ class CachedMediaImage extends StatefulWidget {
   final double? width, height;
   final BoxFit fit;
   final ImageErrorWidgetBuilder? errorBuilder;
+  final MediaCache? cache;
   @override
   State<CachedMediaImage> createState() => _CachedMediaImageState();
 }
@@ -45,6 +47,7 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
     if (old.url != widget.url ||
         old.contentKey != widget.contentKey ||
         old.private != widget.private ||
+        old.cache != widget.cache ||
         !mapEquals(old.headers, widget.headers)) {
       _file = _load();
     }
@@ -59,7 +62,7 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
       if (id == null) throw StateError('请重新登录');
       scope = 'member:$id';
     }
-    return MediaCache.shared.get(
+    return (widget.cache ?? MediaCache.shared).get(
       widget.url,
       scope: scope,
       contentKey: widget.contentKey,
@@ -69,6 +72,8 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<File>(
+    // A new request must not retain the previous image while it is waiting.
+    key: ObjectKey(_file),
     future: _file,
     builder: (context, snapshot) {
       if (snapshot.hasData) {

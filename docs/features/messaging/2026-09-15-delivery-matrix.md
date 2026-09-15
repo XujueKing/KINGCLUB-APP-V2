@@ -1,5 +1,12 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## Cached image replacement isolation
+
+CachedMediaImage now creates a fresh FutureBuilder state for each replacement request so the previous successful image is not retained while a new URL, content identity, headers or private/public mode is loading. The normal cache remains shared; an optional cache dependency enables controlled pending-response verification without external downloads. A widget test confirms the first image disappears while its replacement is pending and late completion after disposal does not restore an image. Together with existing media-cache coverage, nine tests passed; changed files pass static analysis.
+
+This fixes stale-image display during replacement, including reused avatar/content widgets. It does not revoke files already downloaded to a device, establish end-to-end encryption, or prove open-media permission revocation while offline. The existing profile media route listens for parent visibility invalidation; full two-phone acceptance remains pending. This source update is not yet installed on A/B.
+
+
 ## Profile privacy authorization acceptance
 
 The deployed content permission gate passed a rollback-only database check using the authorized test pair: onlyChat denied the peer viewing owner content, reverse direction and self access stayed allowed, either block side denied visitor content, and rollback restored the original follow/block/onlyChat flags. No persistent test relationship changes or events. Backend regression coverage and verification passed (93 files, 386 tests); the existing six public-profile widget tests passed, including late-response invalidation and retaining chat access when content is restricted. Full two-phone settings/open-media acceptance and offline cached media revocation remain unverified. No phone installation or touch actions in this node.
