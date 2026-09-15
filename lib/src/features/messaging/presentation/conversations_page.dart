@@ -111,6 +111,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   bool _refreshAgain = false;
   bool _realReady = false;
   bool _hasMore = false;
+  int _serverOffset = 0;
   final _searchController = TextEditingController();
   String _query = "";
   bool _matches(String name) => name.toLowerCase().contains(_query);
@@ -225,7 +226,13 @@ class _ConversationsPageState extends State<ConversationsPage>
           ? await conversationsWithRelayUnread(
               repository: repository,
               history: await _openRelayHistory(repository),
-              offset: more ? _realItems.length : 0,
+              offset: more ? _serverOffset : 0,
+              loadedPeers: more
+                  ? _realItems
+                        .where((i) => i['kind'] != 'group')
+                        .map((i) => i['peer'] as String)
+                        .toSet()
+                  : const {},
             )
           : await repository.conversations(
               offset: more ? _realItems.length : 0,
@@ -239,6 +246,8 @@ class _ConversationsPageState extends State<ConversationsPage>
           ),
         );
         _hasMore = result['hasMore'] == true;
+        _serverOffset =
+            (result['nextServerOffset'] as int?) ?? _realItems.length;
         _realReady = true;
         _showOfflineBanner = false;
       });
