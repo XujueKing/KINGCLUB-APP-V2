@@ -134,3 +134,7 @@ NativeCallMedia now catches track enumeration failure during release and continu
 Direct/group controllers now discard a failed history-opening Future, allowing the next synchronization to reopen storage. Successful initialization remains shared. Account checks, encryption, hidden-history revisions and existing files are retained; persistent corruption is still reported rather than silently deleting or bypassing history.
 
 Validation: 17 history tests passed, including new first-open failure then successful synchronization and encrypted real SQLite persistence for both direct and group histories. Targeted analyze passed. Injected open failure/server replies are not Android storage failure acceptance. Not yet installed.
+
+## Profile privacy late-response check
+
+Added a widget regression holding an authorized content response pending, delivering a settings change with contentVisible=false, then completing the old content response. Old works remain absent, the restricted-content notice remains and private chat remains available. All five public profile tests passed. No production change was needed; this verifies client generation handling with injected replies/events, not server privacy enforcement or two-device acceptance.

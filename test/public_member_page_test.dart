@@ -8,6 +8,62 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
 
 void main() {
+  testWidgets(
+    'late content response cannot restore a newly restricted profile',
+    (tester) async {
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      final content = Completer<Map<String, dynamic>>();
+      var visible = true, contentReads = 0;
+      final repository = MessagingRepository(
+        account: 'me',
+        call: (id, _) async {
+          if (id == 'K260913000614') {
+            contentReads++;
+            return content.future;
+          }
+          return {
+            'peer': 'peer',
+            'memberId': 'TEST001',
+            'nickname': 'Friend',
+            'bio': '',
+            'details': {},
+            'friends': true,
+            'following': true,
+            'contentVisible': visible,
+          };
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PublicMemberPage(
+            account: 'peer',
+            repository: repository,
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(contentReads, 1);
+      visible = false;
+      events.add({'eventType': 'chat.settings.changed'});
+      await tester.pumpAndSettle();
+      expect(find.text('暂时无法查看'), findsOneWidget);
+      content.complete({
+        'items': [
+          {'ref': 'old-private-work', 'media': null},
+        ],
+        'nextOffset': null,
+      });
+      await tester.pumpAndSettle();
+      expect(find.byType(SliverGrid), findsNothing);
+      expect(find.text('暂时无法查看'), findsOneWidget);
+      expect(find.text('私信'), findsOneWidget);
+      expect(contentReads, 1);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await events.close();
+    },
+  );
   testWidgets('accepted QR friend request refreshes open profile relation', (
     tester,
   ) async {
