@@ -87,6 +87,8 @@ void main() {
           .where((r) => r['outgoing'] == true)
           .single;
       expect(sent['read'], true);
+      expect(await store.nearbyPeerReadIds('friend', [id]), {id});
+      expect(await store.nearbyPeerReadIds('wrong', [id]), isEmpty);
       expect(sent['delivered'], true);
       expect(await store.pendingNearbyReadReceipts(peer), [id]);
       await store.applyNearbyReadReceipt(

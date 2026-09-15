@@ -378,6 +378,29 @@ extension NearbyMessageHistory on ChatHistoryStore {
     return rows.map((r) => r['id'] as String).toList();
   }
 
+  Future<Set<String>> nearbyPeerReadIds(
+    String peerAccount,
+    List<String> ids,
+  ) async {
+    if (peerAccount == account ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peerAccount) ||
+        ids.length > 200 ||
+        ids.any(
+          (id) => !RegExp(
+            r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
+          ).hasMatch(id),
+        )) {
+      throw ArgumentError('Invalid peer read scope');
+    }
+    if (ids.isEmpty) return {};
+    final member = await _conversation('direct:$peerAccount');
+    final rows = await _db.rawQuery(
+      'SELECT DISTINCT id FROM nearby_message WHERE member=? AND outgoing=1 AND wasRead=1 AND id IN (${List.filled(ids.length, '?').join(',')})',
+      [member, ...ids],
+    );
+    return rows.map((row) => row['id'] as String).toSet();
+  }
+
   /// Only the authenticated device/member may acknowledge its own outgoing text.
   Future<List<String>> applyNearbyReadReceipt({
     required String peerId,

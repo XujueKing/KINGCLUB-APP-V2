@@ -52,6 +52,7 @@ class DirectChatController extends ChatSessionController {
 
   StreamSubscription<String>? _relayEvents;
   List<Map<String, dynamic>> _relayMessages = [];
+  Set<String> _relayPeerRead = {};
   int _relayRead = 0;
 
   Future<void> _refreshRelay() async {
@@ -64,9 +65,34 @@ class DirectChatController extends ChatSessionController {
         return;
       }
       final rows = await readRelayMessages!();
+      final peerRead = rows
+          .where((row) => row['outgoing'] == true && row['read'] == true)
+          .map((row) => row['id'] as String)
+          .toSet();
+      final store = _history;
+      if (store != null) {
+        final ids = _confirmed.values
+            .where((m) => m['sender'] == repository.account)
+            .map((m) => m['clientMessageId'] as String)
+            .where(
+              (id) => RegExp(
+                r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
+              ).hasMatch(id),
+            )
+            .toList();
+        for (var start = 0; start < ids.length; start += 200) {
+          peerRead.addAll(
+            await store.nearbyPeerReadIds(
+              peer,
+              ids.skip(start).take(200).toList(),
+            ),
+          );
+        }
+      }
       if (_disposed || generation != _historyGeneration || read != _relayRead) {
         return;
       }
+      _relayPeerRead = peerRead;
       _relayMessages = rows
           .where((row) => row['outgoing'] != true || row['delivered'] == true)
           .map(
@@ -94,6 +120,7 @@ class DirectChatController extends ChatSessionController {
           generation == _historyGeneration &&
           read == _relayRead) {
         _relayMessages = [];
+        _relayPeerRead = {};
         _changed();
       }
     }
@@ -171,8 +198,22 @@ class DirectChatController extends ChatSessionController {
 
   @override
   List<Map<String, dynamic>> get messages {
-    final confirmed = _confirmed.values.toList()
-      ..sort((a, b) => (a['sequence'] as num).compareTo(b['sequence'] as num));
+    final confirmed =
+        _confirmed.values
+            .map(
+              (message) => {
+                ...message,
+                if (message['sender'] == repository.account)
+                  'peerRead':
+                      _relayPeerRead.contains(message['clientMessageId']) ||
+                      ((message['sequence'] as num) > 0 &&
+                          (message['sequence'] as num) <= peerReadSequence),
+              },
+            )
+            .toList()
+          ..sort(
+            (a, b) => (a['sequence'] as num).compareTo(b['sequence'] as num),
+          );
     final acknowledged = confirmed
         .where((m) => m['sender'] == repository.account)
         .map((m) => m['clientMessageId'])
@@ -967,6 +1008,7 @@ class DirectChatController extends ChatSessionController {
     _historyGeneration++;
     _relayRead++;
     _relayMessages = [];
+    _relayPeerRead = {};
     if (openHistory != null) {
       _historyBarrier = (_historyBarrier ?? _ensureHistory()).then((_) async {
         if (_history != null) {

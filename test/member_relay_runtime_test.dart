@@ -307,6 +307,56 @@ void main() {
         await receiverHistory.pendingNearbyReadReceipts(callerIdentity.peerId),
         isEmpty,
       );
+      final formalRepository = MessagingRepository(
+        account: 'friend',
+        call: (_, _) async => {
+          'conversationId': 'formal',
+          'messages': [
+            {
+              'messageId': 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+              'clientMessageId': textId,
+              'sequence': 1,
+              'sender': 'friend',
+              'recipient': 'runtime-member',
+              'text': 'durable runtime text',
+              'messageType': 'text',
+              'createdDate': '2026-09-15T00:00:00Z',
+            },
+          ],
+          'settings': {'hiddenThrough': 0},
+          'sendPermission': {'allowed': true},
+          'lastSequence': 1,
+          'peerReadSequence': 0,
+          'hasMore': false,
+          'historyVersion': 1,
+        },
+      );
+      for (var reopen = 0; reopen < 2; reopen++) {
+        final formal = DirectChatController(
+          repository: formalRepository,
+          peer: 'runtime-member',
+          outbox: _UnusedOutbox(),
+          openHistory: () async => senderHistory,
+          readRelayMessages: () => sendText.messages('runtime-member'),
+        );
+        final readVisible = Completer<void>();
+        formal.addListener(() {
+          if (!readVisible.isCompleted &&
+              formal.messages.any(
+                (m) => m['sequence'] == 1 && m['peerRead'] == true,
+              )) {
+            readVisible.complete();
+          }
+        });
+        try {
+          await formal.initialize();
+          await readVisible.future.timeout(const Duration(seconds: 5));
+          expect(formal.messages, hasLength(1));
+          expect(formal.messages.single['peerRead'], true);
+        } finally {
+          formal.dispose();
+        }
+      }
       expect(
         (await offlineRelayConversations(
           receiverHistory,
