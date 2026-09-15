@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 
 /// Best-effort encrypted complete-block cache, never an authorization source.
@@ -104,7 +105,7 @@ class ChatDownloadCache {
     final current = (await _directory(identity)).path;
     final directories = <({Directory directory, DateTime modified})>[];
     await for (final entity in root.list(followLinks: false)) {
-      if (entity is! Directory || entity.path == current) continue;
+      if (entity is! Directory || path.equals(entity.path, current)) continue;
       directories.add((
         directory: entity,
         modified: (await entity.stat()).modified,
