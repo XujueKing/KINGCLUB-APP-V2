@@ -1,4 +1,5 @@
 import 'package:kingclub/src/features/messaging/data/member_relay_handshake.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_device_binding.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 
@@ -345,8 +346,9 @@ void main() {
       var directoryReads = 0;
       NovoRudpDeviceBinding bound(
         String account,
-        NovoRudpSecureSession identity,
-      ) => NovoRudpDeviceBinding(
+        NovoRudpSecureSession identity, {
+        bool revokePeer = false,
+      }) => NovoRudpDeviceBinding(
         identity: identity,
         messaging: MessagingRepository(
           account: account,
@@ -358,17 +360,38 @@ void main() {
             final device = isA ? a : b;
             return {
               'cacheSeconds': 0,
-              'keys': [
-                {
-                  'bindingId': isA ? bindingA : bindingB,
-                  'peerId': device.peerId,
-                  'publicKey': device.peerId.split(':').last,
-                },
-              ],
+              'keys': revokePeer && params['peer'] != account
+                  ? []
+                  : [
+                      {
+                        'bindingId': isA ? bindingA : bindingB,
+                        'peerId': device.peerId,
+                        'publicKey': device.peerId.split(':').last,
+                      },
+                    ],
             };
           },
         ),
       );
+      // Missing/revoked membership must fail without waiting for the peer or
+      // closing the shared authenticated relay used by the subsequent attempt.
+      final denied = MemberRelayHandshake(
+        binding: bound('member-a', a, revokePeer: true),
+        relay: renewedLeft.socket,
+        peer: 'member-b',
+        peerBindingId: bindingB,
+      );
+      await expectLater(
+        denied.connect().timeout(const Duration(seconds: 2)),
+        throwsA(
+          isA<AuthFailure>().having(
+            (error) => error.code,
+            'code',
+            'NETWORK_KEY_DENIED',
+          ),
+        ),
+      );
+      expect(denied.connect, throwsStateError);
       final memberA = MemberRelayHandshake(
         binding: bound('member-a', a),
         relay: renewedLeft.socket,

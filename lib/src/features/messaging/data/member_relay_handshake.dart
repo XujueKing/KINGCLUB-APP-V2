@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
+import '../../auth/domain/auth_repository.dart';
 import 'novorudp_device_binding.dart';
 import 'novorudp_relay_connection.dart';
 import 'novorudp_relay_frame_link.dart';
@@ -72,7 +73,14 @@ class MemberRelayHandshake {
     try {
       final keys = await binding.directory(peer);
       _check();
-      final key = keys.where((key) => key.bindingId == peerBindingId).single;
+      final matches = keys.where((key) => key.bindingId == peerBindingId);
+      if (matches.isEmpty) {
+        throw const AuthFailure(
+          'NETWORK_KEY_DENIED',
+          'Peer device binding unavailable',
+        );
+      }
+      final key = matches.single;
       _key = key;
       if (_ownPeerId.compareTo(key.peerId) < 0) {
         final offer = await binding.startPeer(peer, peerBindingId);
@@ -82,6 +90,12 @@ class MemberRelayHandshake {
         }
         _offer = offer;
         _check();
+        if (offer.key.publicKey != key.publicKey) {
+          throw const AuthFailure(
+            'NETWORK_KEY_DENIED',
+            'Peer device binding changed',
+          );
+        }
         relay.sendPeerHandshake(key.peerId, {
           'kind': 'offer',
           'body': offer.offer,
@@ -102,6 +116,7 @@ class MemberRelayHandshake {
     final body = event['body'];
     if (body is! Map ||
         body['source_peer_id'] != _key?.peerId ||
+        body['target_peer_id'] != _ownPeerId ||
         body['handshake'] is! Map) {
       return;
     }
