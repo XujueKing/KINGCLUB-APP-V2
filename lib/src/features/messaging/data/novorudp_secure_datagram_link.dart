@@ -16,25 +16,28 @@ class NovoRudpSecureDatagramLink {
     required this.peer,
     required this.peerPort,
     required this.channel,
+    StreamSubscription<RawSocketEvent>? existingEvents,
+    this.onControlPacket,
   }) : _socket = socket {
     if (peerPort < 1 || peerPort > 65535 || socket.address.type != peer.type) {
       throw ArgumentError('Invalid secure UDP endpoint');
     }
     _socket.writeEventsEnabled = false;
     _session = SecureSessionStore.changes.stream.listen((_) => close());
-    _events = _socket.listen(
-      (event) {
-        if (event == RawSocketEvent.read) unawaited(_read());
-        if (event == RawSocketEvent.closed) unawaited(close());
-      },
-      onError: (Object error, StackTrace stack) {
-        if (!_closed) _frames.addError(error, stack);
-        unawaited(close());
-      },
-    );
+    _events = existingEvents ?? _socket.listen(null);
+    _events.onData((event) {
+      if (event == RawSocketEvent.read) unawaited(_read());
+      if (event == RawSocketEvent.closed) unawaited(close());
+    });
+    _events.onError((Object error, StackTrace stack) {
+      if (!_closed) _frames.addError(error, stack);
+      unawaited(close());
+    });
+    _events.onDone(() => unawaited(close()));
   }
 
   final RawDatagramSocket _socket;
+  final void Function(Datagram)? onControlPacket;
   final NovoRudpSecureChannel channel;
   final InternetAddress peer;
   final int peerPort;
@@ -82,6 +85,12 @@ class NovoRudpSecureDatagramLink {
           continue;
         }
         try {
+          if (packet.data.isNotEmpty &&
+              packet.data.first == 123 &&
+              packet.data.length <= 4096) {
+            onControlPacket?.call(packet);
+            continue;
+          }
           final frame = await channel.open(
             NovoRudpSecurePacket.decode(packet.data),
           );
