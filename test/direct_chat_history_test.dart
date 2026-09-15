@@ -43,6 +43,33 @@ void main() {
     repository: MessagingRepository(account: 'me', call: call),
   );
 
+  test('transient cache opening failure can recover on next sync', () async {
+    var opens = 0, requests = 0;
+    final chat = DirectChatController(
+      peer: 'peer',
+      outbox: MemoryOutbox(),
+      openHistory: () async {
+        if (++opens == 1) throw StateError('temporary storage failure');
+        return store;
+      },
+      repository: MessagingRepository(
+        account: 'me',
+        call: (_, _) async {
+          requests++;
+          return response([message(1)]);
+        },
+      ),
+    );
+    await chat.initialize();
+    expect(chat.error, isNotNull);
+    expect(requests, 0);
+    await chat.synchronize();
+    expect(opens, 2);
+    expect(chat.error, isNull);
+    expect(chat.messages.single['sequence'], 1);
+    expect((await store.read('direct:peer')).messages.length, 1);
+    chat.dispose();
+  });
   test(
     'recall after offline cursor refresh removes old memory and disk payload',
     () async {

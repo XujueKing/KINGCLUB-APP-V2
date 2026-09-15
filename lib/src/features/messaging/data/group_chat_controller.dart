@@ -49,7 +49,12 @@ class GroupChatController extends ChatSessionController {
   bool get canReply => !_disposed && _canReply;
   final _hiddenMessages = <String, Map<String, dynamic>>{};
   String get _historyKey => 'group:$groupId';
-  Future<void> _ensureHistory() => _historyReady ??= _restoreHistory();
+  Future<void> _ensureHistory() => _historyReady ??= _restoreHistory().catchError(
+    (Object error, StackTrace stack) {
+      _historyReady = null;
+      Error.throwWithStackTrace(error, stack);
+    },
+  );
   Future<void> _restoreHistory() async {
     if (openHistory == null) return;
     final generation = _historyGeneration;

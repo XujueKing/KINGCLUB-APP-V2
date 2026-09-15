@@ -37,14 +37,50 @@ void main() {
       MessagingRepository(account: 'me', call: call),
     ),
   );
+  test('transient cache opening failure can recover on next sync', () async {
+    var opens = 0;
+    final chat = GroupChatController(
+      groupId: 'group',
+      outbox: Queue(),
+      openHistory: () async {
+        if (++opens == 1) throw StateError('temporary storage failure');
+        return store;
+      },
+      repository: GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (id, _) async {
+            if (id == 'K260913000619') {
+              return {'groupName': 'Test', 'members': <Map<String, dynamic>>[]};
+            }
+            return {
+              ...history([row(1)]),
+              'membershipVersion': 0,
+              'joinedSequence': 0,
+              'settings': {'hiddenThrough': 0},
+            };
+          },
+        ),
+      ),
+    );
+    await chat.initialize();
+    expect(chat.error, isNotNull);
+    await chat.synchronize();
+    expect(opens, 2);
+    expect(chat.error, isNull);
+    expect(chat.messages.single['sequence'], 1);
+    expect((await store.read('group:group')).messages.length, 1);
+    chat.dispose();
+  });
   test(
     'recall after offline cursor refresh removes old memory and disk payload',
     () async {
       var revision = 0;
       final requests = <Map<String, dynamic>>[];
       final chat = controller((id, params) async {
-        if (id == 'K260913000619')
+        if (id == 'K260913000619') {
           return {'groupName': 'Test', 'members': <Map<String, dynamic>>[]};
+        }
         requests.add(Map<String, dynamic>.from(params));
         final rows = params.containsKey('after')
             ? <Map<String, dynamic>>[]

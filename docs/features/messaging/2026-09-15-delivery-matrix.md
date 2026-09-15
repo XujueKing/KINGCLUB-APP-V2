@@ -128,3 +128,9 @@ This is controlled repository-response evidence only. It does not prove actual m
 ## Invalidated native stream cleanup
 
 NativeCallMedia now catches track enumeration failure during release and continues stream disposal, peer close/dispose and speaker reset. The cleanup error is still reported; inability to enumerate tracks is not counted as proven capture shutdown. A controlled invalidated-stream test verifies the remaining resources are released. Native media/state controller suites: 23 passed, targeted analyze passed. Not yet installed or tested on a live call.
+
+## Retry transient history opening failure
+
+Direct/group controllers now discard a failed history-opening Future, allowing the next synchronization to reopen storage. Successful initialization remains shared. Account checks, encryption, hidden-history revisions and existing files are retained; persistent corruption is still reported rather than silently deleting or bypassing history.
+
+Validation: 17 history tests passed, including new first-open failure then successful synchronization and encrypted real SQLite persistence for both direct and group histories. Targeted analyze passed. Injected open failure/server replies are not Android storage failure acceptance. Not yet installed.
