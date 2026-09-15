@@ -33,6 +33,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   for (final scenario in [
     'direct',
+    'peer-unavailable',
+    'peer-connect-cancel',
     'group',
     'empty',
     'corrupt',
@@ -223,8 +225,18 @@ void main() {
       }
       final directoryEntered = Completer<void>();
       final directoryRelease = Completer<Directory>();
+      final peerEntered = Completer<void>(), peerRelease = Completer<void>();
       final downloader = ChatFileDownloader(
         repository: repo,
+        peerDownload: scenario == 'peer-unavailable'
+            ? (_, _) async => throw const SocketException('peer unavailable')
+            : scenario == 'peer-connect-cancel'
+            ? (_, _) async {
+                peerEntered.complete();
+                await peerRelease.future;
+                return null;
+              }
+            : null,
         checkSession: () async {},
         dio: dio,
         temporaryDirectory: () async {
@@ -246,6 +258,17 @@ void main() {
           }
         },
       );
+      if (scenario == 'peer-connect-cancel') {
+        final rejected = expectLater(operation, throwsA(anything));
+        await peerEntered.future;
+        downloader.cancel();
+        await rejected.timeout(const Duration(milliseconds: 500));
+        peerRelease.complete();
+        await Future<void>.delayed(Duration.zero);
+        expect(requests, 0);
+        expect(await dir.list().toList(), isEmpty);
+        return;
+      }
       if (scenario == 'dispose-before-directory') {
         final rejected = expectLater(operation, throwsA(anything));
         await directoryEntered.future;
@@ -266,6 +289,7 @@ void main() {
       }
       if ([
         'direct',
+        'peer-unavailable',
         'group',
         'empty',
         'session-after-download',
@@ -277,7 +301,10 @@ void main() {
       ].contains(scenario)) {
         final result = await operation;
         expect(await result.readAsBytes(), bytes);
-        expect(grants, scenario == 'expired-grant' ? 3 : 2);
+        expect(
+          grants,
+          ['expired-grant', 'peer-unavailable'].contains(scenario) ? 3 : 2,
+        );
         expect(
           requests,
           [

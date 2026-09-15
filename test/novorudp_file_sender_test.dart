@@ -4,6 +4,9 @@ import 'dart:ffi';
 import 'dart:io';
 
 import 'package:cryptography/dart.dart';
+import 'package:dio/dio.dart';
+import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
+import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kingclub/src/core/session/member_qr_memory.dart';
@@ -210,6 +213,103 @@ void main() {
         );
       },
     );
+
+    for (final revoked in [false, true]) {
+      test(
+        'chat downloader uses verified peer file; final revocation=$revoked',
+        () async {
+          final bytes = List.generate(70000, (i) => i % 251);
+          final input = await source(bytes);
+          const id = '12345678-1234-4234-8234-123456789012';
+          const asset = '22345678-1234-4234-8234-123456789012';
+          var grants = 0, httpRequests = 0;
+          Future<void>? sending;
+          final repository = MessagingRepository(
+            account: 'a',
+            call: (_, _) async {
+              if (++grants == 2 && revoked) throw StateError('revoked');
+              return {
+                'messageId': id,
+                'file': {
+                  'assetId': asset,
+                  'fileName': 'sample.bin',
+                  'size': bytes.length,
+                  'sha256': input.hash,
+                  'chunkBytes': 1024 * 1024,
+                  'chunkCount': 1,
+                  'contentType': 'application/octet-stream',
+                  'path': '/kingclub/chat-file/$id',
+                  'headers': {'authorization': 'Bearer synthetic-only'},
+                },
+              };
+            },
+          );
+          final dio = Dio()
+            ..interceptors.add(
+              InterceptorsWrapper(
+                onRequest: (options, handler) {
+                  httpRequests++;
+                  handler.reject(DioException(requestOptions: options));
+                },
+              ),
+            );
+          final downloader = ChatFileDownloader(
+            repository: repository,
+            checkSession: () async {},
+            dio: dio,
+            temporaryDirectory: () async => directory,
+            peerDownload: (ref, active) async {
+              final reception = await NovoRudpFileDownload.open(
+                link: right,
+                privateDirectory: directory,
+                streamId: BigInt.from(71),
+                objectId: BigInt.from(92),
+                size: ref.size,
+                sha256: ref.sha256,
+                canReceive: active,
+              );
+              sending = NovoRudpFileSender(
+                link: left,
+                file: input.file,
+                streamId: BigInt.from(71),
+                objectId: BigInt.from(92),
+                size: bytes.length,
+                sha256: input.hash,
+              ).run();
+              return reception;
+            },
+          );
+          addTearDown(downloader.dispose);
+          final result = downloader.download(
+            ChatFileReference(
+              messageId: id,
+              assetId: asset,
+              fileName: 'sample.bin',
+              size: bytes.length,
+              sha256: input.hash,
+            ),
+          );
+          if (revoked) {
+            await expectLater(result, throwsStateError);
+          } else {
+            final file = await result;
+            expect(await file.readAsBytes(), bytes);
+            expect(file.path, contains('kingclub-chat-download-'));
+          }
+          await sending;
+          expect(grants, 2);
+          expect(httpRequests, 0);
+          await downloader.dispose();
+          expect(
+            await directory
+                .list()
+                .where((entry) => entry is Directory)
+                .toList(),
+            isEmpty,
+          );
+        },
+      );
+    }
 
     for (final revoke in [false, true]) {
       test(

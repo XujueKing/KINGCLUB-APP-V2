@@ -13,6 +13,7 @@ import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
 import 'chat_download_cache.dart';
+import 'novorudp_file_download.dart';
 
 /// Metadata comes from the acknowledged message, never from a download URL.
 class ChatFileReference {
@@ -37,6 +38,7 @@ class ChatFileDownloader {
     Dio? dio,
     Future<Directory> Function()? temporaryDirectory,
     this.resumeCache,
+    this.peerDownload,
   }) : _dio =
            dio ??
            Dio(
@@ -57,6 +59,14 @@ class ChatFileDownloader {
   static const chunkBytes = 1024 * 1024, maxBytes = 256 * 1024 * 1024;
   final MessagingRepository repository;
   final ChatDownloadCache? resumeCache;
+
+  /// Only a runtime with an authenticated peer/message binding may supply this.
+  /// Service authorization is checked before connecting and after receiving.
+  final Future<NovoRudpFileDownload?> Function(
+    ChatFileReference reference,
+    bool Function() stillActive,
+  )?
+  peerDownload;
   final Future<void> Function() checkSession;
   final Dio _dio;
   final Future<Directory> Function() _temporaryDirectory;
@@ -66,6 +76,7 @@ class ChatFileDownloader {
   Completer<void>? _downloadDone;
   Future<void>? _disposing;
   CancelToken? _cancel;
+  NovoRudpFileDownload? _peer;
   bool _invalid = false, _busy = false;
   bool _sessionChanged = false;
 
@@ -102,7 +113,81 @@ class ChatFileDownloader {
     await _grant(reference);
   }
 
-  void cancel() => _cancel?.cancel('download cancelled');
+  void cancel() {
+    _cancel?.cancel('download cancelled');
+    unawaited(_peer?.close());
+  }
+
+  Future<bool> _tryPeer(ChatFileReference ref, File destination) async {
+    final connect = peerDownload;
+    if (connect == null || ref.group) return false;
+    final token = _cancel;
+    var opening = true;
+    bool active() =>
+        !_invalid &&
+        token != null &&
+        identical(token, _cancel) &&
+        !token.isCancelled;
+    try {
+      final pending = connect(ref, active).then((download) async {
+        if (!opening || !active()) {
+          await download?.close();
+          return null;
+        }
+        return download;
+      });
+      _peer = await Future.any<NovoRudpFileDownload?>([
+        pending,
+        token!.whenCancel.then((error) => throw error),
+      ]).timeout(const Duration(seconds: 3));
+      opening = false;
+      await _check();
+      final peer = _peer;
+      if (peer == null) return false;
+      final source = await peer.completed;
+      await _check();
+      // Independently validate and copy: callers never receive a peer-owned
+      // temporary path, and a failed lane cannot append to the HTTP fallback.
+      if (await source.length() != ref.size) {
+        throw const FormatException('Peer file size mismatch');
+      }
+      final output = await destination.open(mode: FileMode.write);
+      final digest = const DartSha256().newHashSink();
+      var received = 0;
+      try {
+        await for (final bytes in source.openRead()) {
+          await _check();
+          received += bytes.length;
+          if (received > ref.size) {
+            throw const FormatException('Peer file too large');
+          }
+          digest.add(bytes);
+          await output.writeFrom(bytes);
+        }
+        await output.flush();
+      } finally {
+        digest.close();
+        await output.close();
+      }
+      final hash = (await digest.hash()).bytes
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join();
+      if (received != ref.size || hash != ref.sha256) {
+        throw const FormatException('Peer file digest mismatch');
+      }
+      await _check();
+      return true;
+    } catch (_) {
+      // Cancellation/logout must not silently start another network transfer.
+      await _check();
+      return false;
+    } finally {
+      opening = false;
+      final peer = _peer;
+      _peer = null;
+      await peer?.close();
+    }
+  }
 
   Future<void> _check() async {
     if (_invalid) throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
@@ -183,6 +268,18 @@ class ChatFileDownloader {
       await _check();
       working = await parent.createTemp('kingclub-chat-download-');
       final file = File('${working.path}/content.bin');
+      if (await _tryPeer(ref, file)) {
+        await _grant(ref);
+        await _check();
+        _completed.add(working);
+        completed = true;
+        onProgress?.call(ref.size, ref.size);
+        return file;
+      }
+      if (peerDownload != null && !ref.group) {
+        // The peer attempt may outlive a grant or a membership change.
+        media = await _grant(ref);
+      }
       output = await file.open(mode: FileMode.write);
       final digest = const DartSha256().newHashSink();
       var received = 0;
