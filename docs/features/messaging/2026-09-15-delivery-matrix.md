@@ -104,3 +104,9 @@ Ran contacts_controller_test.dart, contacts_flow_test.dart and contact_groups_re
 ## Unread badge display consistency
 
 Bottom navigation now caps its visible unread number at 99, matching the conversation rows and the user requirement. Real-chat initialization already uses zero instead of demo counts; this inspection does not prove the earlier fixed badge or missing-message report resolved. Existing shell and mute widget regressions: 12 passed. No handset acceptance; not yet installed.
+
+## Conversation refresh ordering
+
+Conversation list requests now run sequentially. Repeated pagination shares the pending request; first-page refreshes arriving during a request are coalesced into a trailing refresh. This prevents overlapping offsets from invalidating one another and ensures updates observed while loading are fetched afterward. Existing account-generation guards remain in place.
+
+Validation: new controlled widget test holds pagination pending, repeats load-more and tab activation, then verifies one pagination request followed by one fresh first page and replacement of old rows. Together with group routing and mute regressions, four tests passed; targeted analyze passed. This is injected API evidence, not real handset delivery. Not installed yet.

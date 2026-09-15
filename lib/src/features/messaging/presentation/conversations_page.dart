@@ -80,6 +80,8 @@ class _ConversationsPageState extends State<ConversationsPage>
   StreamSubscription<Map<String, dynamic>>? _events;
   StreamSubscription<void>? _sessions;
   int _realGeneration = 0;
+  Future<void>? _refreshTask;
+  bool _refreshAgain = false;
   bool _realReady = false;
   bool _hasMore = false;
   final _searchController = TextEditingController();
@@ -155,7 +157,30 @@ class _ConversationsPageState extends State<ConversationsPage>
     }
   }
 
-  Future<void> _refreshReal({bool more = false}) async {
+  Future<void> _refreshReal({bool more = false}) {
+    final pending = _refreshTask;
+    if (pending != null) {
+      // Repeated pagination must not append the same offset twice. A realtime
+      // update during a request still needs one fresh first-page read afterward.
+      if (!more) _refreshAgain = true;
+      return pending;
+    }
+    return _refreshTask = _drainRefresh(more);
+  }
+
+  Future<void> _drainRefresh(bool more) async {
+    try {
+      do {
+        _refreshAgain = false;
+        await _fetchReal(more: more);
+        more = false;
+      } while (mounted && _refreshAgain);
+    } finally {
+      _refreshTask = null;
+    }
+  }
+
+  Future<void> _fetchReal({bool more = false}) async {
     final repository = _repository;
     if (repository == null) return;
     final generation = ++_realGeneration;
