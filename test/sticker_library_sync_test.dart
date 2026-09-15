@@ -38,6 +38,68 @@ void main() {
   tearDown(() async {
     await dir.delete(recursive: true);
   });
+  test('unchanged reconnect leaves panel snapshot untouched', () async {
+    final file = await File('${dir.path}/local.image').writeAsBytes([1, 2, 3]);
+    final local = [
+      {
+        'name': 'favorites',
+        'images': [file.path],
+      },
+    ];
+    final cloud = Cloud(
+      StickerLibrarySnapshot(2, [
+        StickerPack('favorites', [asset]),
+      ]),
+    );
+    final sync = StickerLibrarySync(cloud, dir);
+    addTearDown(sync.dispose);
+    await File('${dir.path}/cloud.json').writeAsString(
+      jsonEncode({
+        'revision': 2,
+        'local': jsonEncode(local),
+        'mapping': {file.path: asset},
+      }),
+    );
+    await sync.synchronize(
+      local,
+      (_) async => throw StateError('must not reset panel'),
+    );
+    expect(cloud.writes, 0);
+  });
+  test('unchanged cloud still restores a missing local image', () async {
+    final path = '${dir.path}/missing.image';
+    final local = [
+      {
+        'name': 'favorites',
+        'images': [path],
+      },
+    ];
+    final cloud = Cloud(
+      StickerLibrarySnapshot(2, [
+        StickerPack('favorites', [asset]),
+      ]),
+    );
+    final sync = StickerLibrarySync(cloud, dir);
+    addTearDown(sync.dispose);
+    await File('${dir.path}/cloud.json').writeAsString(
+      jsonEncode({
+        'revision': 2,
+        'local': jsonEncode(local),
+        'mapping': {path: asset},
+      }),
+    );
+    var applied = false;
+    await sync.synchronize(local, (packs) async {
+      applied = true;
+      expect(
+        await File((packs.single['images'] as List).single as String).exists(),
+        true,
+      );
+      return true;
+    });
+    expect(applied, true);
+    expect(cloud.writes, 0);
+  });
   test(
     'explicit keep-both resolves conflict using latest remote revision',
     () async {

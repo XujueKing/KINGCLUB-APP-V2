@@ -225,7 +225,6 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
               ..clear()
               ..addAll(next.map((p) => (p['images'] as List).cast<String>()));
             if (_category > _names.length + 2) _category = 3;
-            _page = 0;
           });
           return true;
         } finally {

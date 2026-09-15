@@ -39,6 +39,23 @@ class StickerLibrarySync {
     final remote = await cloud.read();
     _check();
     final dirty = state['local'] != signature;
+    if (!dirty && state['revision'] == remote.revision) {
+      var intact = true;
+      for (final pack in local) {
+        for (final path in (pack['images'] as List).cast<String>()) {
+          final file = File(path);
+          if (file.parent.absolute.path != directory.absolute.path ||
+              !await file.exists()) {
+            intact = false;
+            break;
+          }
+        }
+        if (!intact) break;
+      }
+      _check();
+      if (intact) return;
+    }
+
     final hasLocal = local.any((pack) => (pack['images'] as List).isNotEmpty);
     final hasRemote = remote.packs.any((pack) => pack.assets.isNotEmpty);
     if (!combine &&
