@@ -90,6 +90,7 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
         );
       }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
+      await uploader.retainQueuedSource(widget.file, file);
       // A journal cleanup error must not invite a second send of an already
       // durable message. The outbox now owns delivery and retry.
       try {

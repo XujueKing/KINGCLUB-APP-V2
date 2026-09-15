@@ -18,6 +18,8 @@ import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
 import 'group_request_store.dart';
+import 'chat_download_cache.dart';
+import 'chat_sent_file_cache.dart';
 
 class UploadedChatFile {
   const UploadedChatFile(
@@ -38,7 +40,9 @@ class ChatFileUploader {
     required this.checkSession,
     Dio? dio,
     GroupRequestStore? requests,
-  }) : _dio =
+    Future<ChatDownloadCache> Function(String account)? openSentCache,
+  }) : _openSentCache = openSentCache ?? ChatDownloadCache.openSentFiles,
+       _dio =
            dio ??
            Dio(
              BaseOptions(
@@ -60,6 +64,7 @@ class ChatFileUploader {
   final Future<void> Function() checkSession;
   final Dio _dio;
   final GroupRequestStore _requests;
+  final Future<ChatDownloadCache> Function(String account) _openSentCache;
   StreamSubscription<void>? _session;
   CancelToken? _cancel;
   bool _invalid = false, _busy = false;
@@ -332,6 +337,24 @@ class ChatFileUploader {
 
   Future<void> acknowledgeQueued(UploadedChatFile file) =>
       _requests.acknowledge(file.fingerprint, file.requestId);
+
+  /// A cache miss must never turn a durably queued message into a send error.
+  Future<void> retainQueuedSource(File source, UploadedChatFile file) async {
+    try {
+      await _check();
+      if (file.size > ChatSentFileCache.maxBytes) return;
+      final cache = await _openSentCache(repository.account);
+      await ChatSentFileCache(cache: cache, checkSession: _check).retain(
+        source,
+        assetId: file.assetId,
+        size: file.size,
+        sha256: file.sha256,
+      );
+    } catch (_) {
+      // Service delivery already owns the message; caching is opportunistic.
+    }
+  }
+
   void dispose() {
     _invalid = true;
     _cancel?.cancel();

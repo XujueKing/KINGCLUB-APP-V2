@@ -23,31 +23,40 @@ class ChatDownloadCache {
           .join();
 
   static Future<ChatDownloadCache> open(String account) =>
-      _opens.putIfAbsent(account, () async {
-        try {
-          final id = await _hash(account);
-          const secure = FlutterSecureStorage();
-          final name = 'kingclub.chat.download.key.$id';
-          final saved = await secure.read(key: name);
-          final key = saved == null
-              ? await _cipher.newSecretKey()
-              : SecretKey(base64Decode(saved));
-          if (saved == null) {
-            await secure.write(
-              key: name,
-              value: base64Encode(await key.extractBytes()),
-            );
-          }
-          final parent = await getTemporaryDirectory();
-          return ChatDownloadCache(
-            root: Directory('${parent.path}/kingclub-download-cache-$id'),
-            key: key,
+      _open(account, false);
+
+  static Future<ChatDownloadCache> openSentFiles(String account) =>
+      _open(account, true);
+
+  static Future<ChatDownloadCache> _open(String account, bool sent) {
+    final scope = jsonEncode([account, sent]);
+    return _opens.putIfAbsent(scope, () async {
+      try {
+        final id = await _hash(account);
+        const secure = FlutterSecureStorage();
+        final purpose = sent ? 'sent-file' : 'download';
+        final name = 'kingclub.chat.$purpose.key.$id';
+        final saved = await secure.read(key: name);
+        final key = saved == null
+            ? await _cipher.newSecretKey()
+            : SecretKey(base64Decode(saved));
+        if (saved == null) {
+          await secure.write(
+            key: name,
+            value: base64Encode(await key.extractBytes()),
           );
-        } catch (_) {
-          _opens.remove(account);
-          rethrow;
         }
-      });
+        final parent = await getTemporaryDirectory();
+        return ChatDownloadCache(
+          root: Directory('${parent.path}/kingclub-$purpose-cache-$id'),
+          key: key,
+        );
+      } catch (_) {
+        _opens.remove(scope);
+        rethrow;
+      }
+    });
+  }
 
   Future<Directory> _directory(String identity) async =>
       Directory('${root.path}/${await _hash(identity)}');
