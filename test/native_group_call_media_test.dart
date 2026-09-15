@@ -216,6 +216,39 @@ class Repo extends GroupCallMediaRepository {
 
 void main() {
   test(
+    'hangup stops capture before pending speaker enable and resets after it',
+    () async {
+      final pendingRoute = Completer<void>(), started = Completer<void>();
+      final routes = <bool>[];
+      final stream = StreamFixture();
+      final media = NativeGroupCallMedia(
+        repository: Repo(),
+        device: DeviceFixture(),
+        capture: (_) async => stream,
+        setSpeakerphone: (enabled) async {
+          routes.add(enabled);
+          if (enabled) {
+            started.complete();
+            await pendingRoute.future;
+          }
+        },
+      );
+      await media.open();
+      final routing = media.setSpeakerphone(true);
+      final assertion = expectLater(routing, throwsStateError);
+      await started.future;
+      await expectLater(media.setSpeakerphone(false), throwsStateError);
+      final closing = media.close();
+      await Future<void>.delayed(Duration.zero);
+      expect(stream.track.stops, 1);
+      expect(routes, [true]);
+      pendingRoute.complete();
+      await assertion;
+      await closing;
+      expect(routes, [true, false]);
+    },
+  );
+  test(
     'camera switch returns actual facing and drops a late result after close',
     () async {
       final stream = VideoStream(), result = Completer<bool>();

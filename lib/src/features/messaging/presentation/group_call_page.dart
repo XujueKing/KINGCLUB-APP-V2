@@ -40,6 +40,7 @@ class _GroupCallPageState extends State<GroupCallPage>
   String? _requestId, _error;
   bool _busy = false, _invalid = false, _allowPop = false, _muted = false;
   bool _videoOff = false, _frontFacing = true;
+  bool _speaker = false;
   @override
   void initState() {
     super.initState();
@@ -207,6 +208,20 @@ class _GroupCallPageState extends State<GroupCallPage>
     }
   }
 
+  Future<void> _routeAudio() async {
+    final media = _session?.media;
+    if (_busy || media == null || media.isClosed) return;
+    setState(() => _busy = true);
+    try {
+      await media.setSpeakerphone(!_speaker);
+      if (mounted) setState(() => _speaker = !_speaker);
+    } catch (error) {
+      _failed(error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   void dispose() {
     _invalid = true;
@@ -363,6 +378,14 @@ class _GroupCallPageState extends State<GroupCallPage>
                       child: Text(_busy ? '正在发起…' : '发起通话'),
                     ),
                   if (_session != null && !_session!.isClosed) ...[
+                    IconButton(
+                      tooltip: _speaker ? '切换听筒' : '开启免提',
+                      onPressed: _busy ? null : _routeAudio,
+                      icon: Icon(
+                        _speaker ? Icons.volume_up : Icons.hearing,
+                        color: Colors.white,
+                      ),
+                    ),
                     if (widget.media == CallMedia.video) ...[
                       IconButton(
                         tooltip: _videoOff ? '开启摄像头' : '关闭摄像头',

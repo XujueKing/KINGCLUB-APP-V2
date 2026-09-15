@@ -28,6 +28,7 @@ class NativeGroupCallMedia {
     rtc.Device? device,
     Future<rtc.MediaStream> Function(Map<String, dynamic>)? capture,
     Future<bool> Function(rtc.MediaStreamTrack)? switchCamera,
+    Future<void> Function(bool)? setSpeakerphone,
     this.onLocal,
     this.onRemote,
     this.onConnection,
@@ -35,12 +36,16 @@ class NativeGroupCallMedia {
   }) : _device = device ?? rtc.Device(),
        _capture = capture ?? rtc.navigator.mediaDevices.getUserMedia,
        _switchCamera =
-           switchCamera ?? ((track) => rtc.Helper.switchCamera(track));
+           switchCamera ?? ((track) => rtc.Helper.switchCamera(track)),
+       _setSpeakerphone = setSpeakerphone ?? rtc.Helper.setSpeakerphoneOn;
   final GroupCallMediaRepository repository;
   final CallRelayConfiguration? relay;
   final rtc.Device _device;
   final Future<rtc.MediaStream> Function(Map<String, dynamic>) _capture;
   final Future<bool> Function(rtc.MediaStreamTrack) _switchCamera;
+  final Future<void> Function(bool) _setSpeakerphone;
+  Future<void>? _routingAudio;
+  bool _speakerControlUsed = false;
   final void Function(rtc.MediaStream)? onLocal;
   final void Function(List<NativeGroupRemote>)? onRemote;
   final void Function(String direction, String state)? onConnection;
@@ -386,6 +391,22 @@ class NativeGroupCallMedia {
     onError?.call(error);
   }
 
+  Future<void> setSpeakerphone(bool enabled) {
+    _check();
+    if (_local == null) return Future.error(StateError('Call media not ready'));
+    if (_routingAudio != null) {
+      return Future.error(StateError('Audio route change in progress'));
+    }
+    _speakerControlUsed = true;
+    return _routingAudio = _routeAudio(enabled)
+        .whenComplete(() => _routingAudio = null);
+  }
+
+  Future<void> _routeAudio(bool enabled) async {
+    await _setSpeakerphone(enabled);
+    _check();
+  }
+
   static Future<void> _disposeStream(rtc.MediaStream stream) async {
     try {
       for (final track in stream.getTracks()) {
@@ -451,5 +472,17 @@ class NativeGroupCallMedia {
     }
     _send = null;
     _receive = null;
+    if (_speakerControlUsed) {
+      // Capture is stopped before waiting; reset after any late enable settles.
+      try {
+        await _routingAudio;
+      } catch (_) {}
+      try {
+        await _setSpeakerphone(false);
+        _speakerControlUsed = false;
+      } catch (error) {
+        onError?.call(error);
+      }
+    }
   }
 }
