@@ -1,3 +1,4 @@
+import 'features/messaging/data/call_presentation_lease.dart';
 import 'features/messaging/data/foreground_call_inbox.dart';
 import 'features/messaging/data/call_launch_coordinator.dart';
 import 'features/messaging/data/call_repository.dart';
@@ -90,17 +91,20 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
             .navigatorKey
             .currentState;
         if (navigator == null) return false;
-        final page = CallPage.native(
-          repository: repository,
-          initial: current!,
-          peerName: profile['nickname'] as String? ?? prepared.call.caller,
-          relay: prepared.relay,
-        );
+        final lease = CallPresentationLease.acquire();
+        if (lease == null) return false;
         _presentingDirectCall = true;
         try {
+          final page = CallPage.native(
+            repository: repository,
+            initial: current!,
+            peerName: profile['nickname'] as String? ?? prepared.call.caller,
+            relay: prepared.relay,
+          );
           await navigator.push<void>(MaterialPageRoute(builder: (_) => page));
         } finally {
           _presentingDirectCall = false;
+          lease.release();
         }
         return true;
       },
@@ -123,6 +127,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
             .navigatorKey
             .currentState;
         if (navigator == null) return false;
+        final lease = CallPresentationLease.acquire();
+        if (lease == null) return false;
         _presentingGroupCall = true;
         try {
           final invitation = GroupCallController.realtime(
@@ -175,6 +181,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
           return true;
         } finally {
           _presentingGroupCall = false;
+          lease.release();
         }
       },
     );

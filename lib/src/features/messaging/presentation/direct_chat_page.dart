@@ -1,3 +1,4 @@
+import '../data/call_presentation_lease.dart';
 import 'message_voice_transcription_page.dart';
 import 'voice_transcription_page.dart';
 import 'chat_video_view.dart';
@@ -571,6 +572,17 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   Future<void> _openCall(CallMedia media) async {
     if (_openingCall || _leaving) return;
+    final lease = CallPresentationLease.acquire();
+    if (lease == null) return;
+    try {
+      await _openExclusiveCall(media);
+    } finally {
+      lease.release();
+    }
+  }
+
+  Future<void> _openExclusiveCall(CallMedia media) async {
+    if (_openingCall || _leaving) return;
     final chat = _chat;
     final peer = widget.peerAccount;
     if (widget.groupId != null) {
@@ -578,9 +590,15 @@ class _DirectChatPageState extends State<DirectChatPage>
       _openingCall = true;
       _dismissComposer();
       try {
-        await Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) =>
-          GroupCallPage(repository: GroupChatRepository(chat.messaging),
-            groupId: widget.groupId!, media: media)));
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) => GroupCallPage(
+              repository: GroupChatRepository(chat.messaging),
+              groupId: widget.groupId!,
+              media: media,
+            ),
+          ),
+        );
       } finally {
         _openingCall = false;
       }
