@@ -128,6 +128,7 @@ class NativeCallMedia {
         _check();
       }
     } catch (_) {
+      _closed = true;
       await _release();
       rethrow;
     }

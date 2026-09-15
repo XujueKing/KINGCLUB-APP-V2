@@ -7,3 +7,9 @@ Default mode remains the empty-stream DataChannel probe. Completion now preserve
 Validation: tool analyze passed; calltest Profile ARM64 build passed (137.1MB), with capture flag true. Final SHA256: 3e6f9186e129cbdc19dabbc804944417abb493f2c19fd278f0cf86fb398142b8.
 
 Not executed: real capture, RTP reception/decode and camera/microphone permission prompts. The earlier install attempt did not return and its exact adb install process was stopped before installing the corrected artifact. Do not record installation or media test success. The phone update remains pending.
+
+## Failed-open cleanup callback guard
+
+NativeCallMedia now marks itself closed before releasing resources after opening fails. This prevents native ICE callbacks raised during track shutdown from publishing events for an already failed call. Regression coverage injects an addTrack failure and a candidate callback during track.stop, verifies no candidate escapes and confirms track, stream and peer resources are released exactly once, including a subsequent close.
+
+Validation: targeted Flutter analyze passed; native_call_media_test.dart passed all 14 tests. This is controlled lifecycle coverage, not handset call or audio-quality validation. Not yet included in the installed APK.

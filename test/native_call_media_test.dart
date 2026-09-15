@@ -79,6 +79,39 @@ class Peer implements RTCPeerConnection {
   }
 }
 
+class FailingTrackPeer extends Peer {
+  void Function(RTCIceCandidate)? _candidate;
+  @override
+  void Function(RTCIceCandidate)? get onIceCandidate => _candidate;
+  @override
+  set onIceCandidate(void Function(RTCIceCandidate)? value) =>
+      _candidate = value;
+  @override
+  Future<RTCRtpSender> addTrack(
+    MediaStreamTrack track, [
+    MediaStream? stream,
+  ]) async {
+    throw StateError('synthetic track failure');
+  }
+}
+
+class CallbackTrack extends Track {
+  CallbackTrack(this.onStop);
+  final void Function() onStop;
+  @override
+  Future<void> stop() async {
+    onStop();
+    await super.stop();
+  }
+}
+
+class CallbackStream extends StreamFixture {
+  CallbackStream(this.stoppingTrack);
+  final Track stoppingTrack;
+  @override
+  List<MediaStreamTrack> getTracks() => [stoppingTrack];
+}
+
 class Sender implements RTCRtpSender {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -128,6 +161,33 @@ class RestartPeer extends Peer {
 }
 
 void main() {
+  test(
+    'failed opening suppresses late native events while releasing tracks',
+    () async {
+      final peer = FailingTrackPeer();
+      final track = CallbackTrack(
+        () => peer.onIceCandidate?.call(RTCIceCandidate('late', '0', 0)),
+      );
+      final stream = CallbackStream(track);
+      var candidates = 0;
+      final media = NativeCallMedia(
+        video: false,
+        iceServers: [],
+        capture: (_) async => stream,
+        peerFactory: (_) async => peer,
+        onCandidate: (_) => candidates++,
+      );
+      await expectLater(media.open(), throwsStateError);
+      expect(candidates, 0);
+      expect(track.stops, 1);
+      expect(stream.disposed, 1);
+      expect(peer.closes, 1);
+      expect(peer.disposes, 1);
+      await media.close();
+      expect(track.stops, 1);
+    },
+  );
+
   test('pause video preserves microphone and capture, handles failure and late completion', () async {
     final stream = VideoStreamFixture();
     var captures = 0;
