@@ -6,11 +6,15 @@ import 'direct_chat_controller.dart';
 import 'group_chat_controller.dart';
 import 'group_chat_repository.dart';
 import 'messaging_repository.dart';
+import 'novorudp_binding_runtime.dart';
+import 'chat_history_store.dart';
 
 /// Foreground delivery is independent of which conversation is visible.
 /// Existing controllers retain receipt validation and membership checks.
 class ChatOutboxRecovery {
-  ChatOutboxRecovery(this.repository, this.outbox);
+  ChatOutboxRecovery(this.repository, this.outbox, {this.relaySenderFor});
+  final Future<bool> Function(String text, String id) Function(String peer)?
+  relaySenderFor;
   final MessagingRepository repository;
   final ChatOutbox outbox;
   static final _visible = <String, int>{};
@@ -78,6 +82,17 @@ class ChatOutboxRecovery {
                 repository: repository,
                 peer: target,
                 outbox: outbox,
+                openHistory: repository.persistHistory
+                    ? () => ChatHistoryStore.open(repository.account)
+                    : null,
+                sendRelayText:
+                    relaySenderFor?.call(target) ??
+                    (repository.persistHistory
+                        ? NovoRudpBindingRuntime.textSender(
+                            repository.account,
+                            target,
+                          )
+                        : null),
               );
         _running[key] = chat;
         try {

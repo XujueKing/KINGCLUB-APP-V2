@@ -9,6 +9,54 @@ import 'direct_chat_controller_test.dart' as direct;
 import 'group_chat_controller_test.dart' as group;
 
 void main() {
+  test(
+    'foreground recovery retains peer receipt across worker restart',
+    () async {
+      final queue = direct.MemoryOutbox();
+      await queue.put({
+        'clientMessageId': 'queued',
+        'status': 'queued',
+        'recipient': 'peer',
+        'sender': 'me',
+        'text': 'hello',
+      });
+      var offline = true;
+      var relays = 0;
+      final ids = <String>[];
+      ChatOutboxRecovery worker() => ChatOutboxRecovery(
+        MessagingRepository(
+          account: 'me',
+          call: (method, params) async {
+            if (method == 'K260913000604') return direct.history([]);
+            ids.add(params['clientMessageId'] as String);
+            if (offline) throw const AuthFailure('NETWORK_ERROR', 'offline');
+            return {'message': direct.ack(params)};
+          },
+        ),
+        queue,
+        relaySenderFor: (peer) => (text, id) async {
+          expect(peer, 'peer');
+          expect(text, 'hello');
+          expect(id, 'queued');
+          relays++;
+          return true;
+        },
+      );
+      var current = worker();
+      await current.notify();
+      expect(queue.items['queued']!['peerDelivered'], true);
+      expect(queue.items['queued']!['status'], 'queued');
+      current.close();
+      current = worker();
+      await current.notify();
+      expect(relays, 1);
+      offline = false;
+      await current.notify();
+      expect(ids, ['queued', 'queued', 'queued']);
+      expect(queue.items, isEmpty);
+      current.close();
+    },
+  );
   for (final isGroup in [false, true]) {
     test(
       'recovers ${isGroup ? "group" : "direct"} without a visible page',
