@@ -91,12 +91,14 @@ class _ContactsPageState extends State<ContactsPage>
   ContactGroupsRepository? _groupRepository;
   StreamSubscription<void>? _sessions;
   StreamSubscription<Map<String, dynamic>>? _events;
+  StreamSubscription<String>? _remarkEvents;
   int _connectionGeneration = 0;
 
   Future<void> _connectReal() async {
     _sessions ??= SecureSessionStore.changes.stream.listen((_) {
       _connectionGeneration++;
       _events?.cancel();
+      _remarkEvents?.cancel();
       _real?.dispose();
       _real = null;
       widget.onPendingRequestsChanged?.call(0);
@@ -114,6 +116,7 @@ class _ContactsPageState extends State<ContactsPage>
     });
     final generation = ++_connectionGeneration;
     _events?.cancel();
+    _remarkEvents?.cancel();
     _real?.dispose();
     _real = null;
     try {
@@ -122,6 +125,12 @@ class _ContactsPageState extends State<ContactsPage>
       _avatarProfiles.clear();
       final controller = ContactsController(repository);
       _real = controller;
+      _remarkEvents = MessagingRepository.remarkChanges(repository.account)
+          .listen((_) {
+            if (mounted && identical(controller, _real)) {
+              unawaited(controller.refresh(afterCurrent: true));
+            }
+          });
       _groupRepository = ContactGroupsRepository(repository);
       unawaited(_loadGroups());
       controller.addListener(() {
@@ -348,6 +357,7 @@ class _ContactsPageState extends State<ContactsPage>
 
   @override
   void dispose() {
+    _remarkEvents?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _connectionGeneration++;
     _sessions?.cancel();

@@ -18,6 +18,11 @@ typedef ChatApiCall = Future<Map<String, dynamic>> Function(
 
 /// All requests are bound to the account which opened this repository.
 class MessagingRepository {
+  static final _remarkChanges =
+      StreamController<({String account, String peer})>.broadcast();
+  static Stream<String> remarkChanges(String account) => _remarkChanges.stream
+      .where((event) => event.account == account)
+      .map((event) => event.peer);
   static final _readChanges = StreamController<String>.broadcast();
   static Stream<String> readChanges(String account) =>
       _readChanges.stream.where((changedAccount) => changedAccount == account);
@@ -263,14 +268,19 @@ class MessagingRepository {
     bool? onlyChat,
     String? remark,
     bool? hide,
-  }) => call('K260913000606', {
-    'peer': peer,
-    'muted': ?muted,
-    'pinned': ?pinned,
-    'onlyChat': ?onlyChat,
-    'remark': ?remark,
-    'hide': ?hide,
-  });
+  }) async {
+    final result = await call('K260913000606', {
+      'peer': peer,
+      'muted': ?muted,
+      'pinned': ?pinned,
+      'onlyChat': ?onlyChat,
+      'remark': ?remark,
+      'hide': ?hide,
+    });
+    if (remark != null) _remarkChanges.add((account: account, peer: peer));
+    return result;
+  }
+
   Future<Map<String, dynamic>> conversations({
     int offset = 0,
     int limit = 50,

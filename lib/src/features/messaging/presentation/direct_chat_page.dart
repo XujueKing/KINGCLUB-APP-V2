@@ -200,6 +200,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   StreamSubscription<Map<String, dynamic>>? _chatEvents;
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   String? _peerNickname;
+  StreamSubscription<String>? _remarkEvents;
 
   String get _displayPeerName {
     if (widget.groupId != null) {
@@ -598,6 +599,16 @@ class _DirectChatPageState extends State<DirectChatPage>
                   : null,
             );
       _chat = chat;
+      _remarkEvents?.cancel();
+      _remarkEvents = MessagingRepository.remarkChanges(repository.account)
+          .listen((peer) {
+            if (mounted &&
+                identical(chat, _chat) &&
+                widget.groupId == null &&
+                peer == widget.peerAccount) {
+              unawaited(chat.synchronize());
+            }
+          });
       chat.addListener(_realChatChanged);
       unawaited(_refreshPeerNickname(chat));
       _chatEvents = KingclubRealtime.shared.events.listen((event) {
@@ -643,6 +654,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Future<void> _rebindChatSession() async {
+    _remarkEvents?.cancel();
     _textDraftTimer?.cancel();
     _textDrafts = null;
     final generation = ++_connectionGeneration;
@@ -926,6 +938,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   @override
   void dispose() {
+    _remarkEvents?.cancel();
     unawaited(_flushTextDraft());
     _controller.removeListener(_captureTextDraft);
     _leaving = true;

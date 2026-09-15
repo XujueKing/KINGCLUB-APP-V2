@@ -15,7 +15,8 @@ void main() {
       var profiles = 0;
       final repo = MessagingRepository(
         account: 'me',
-        call: (method, _) async {
+        call: (method, params) async {
+          if (method == 'K260913000606') remark = params['remark'] as String;
           if (method == 'K260913000604') {
             return {
               ...history([]),
@@ -47,15 +48,23 @@ void main() {
         'New remark',
       );
       expect(profiles, 1);
+      await repo.settings('peer', remark: 'Updated remark');
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<LegacyMessagingHeader>(find.byType(LegacyMessagingHeader))
+            .title,
+        'Updated remark',
+      );
       await tester.tap(find.byKey(const ValueKey('direct-chat-details')));
       await tester.pumpAndSettle();
       expect(
         tester
             .widget<DirectChatDetailsPage>(find.byType(DirectChatDetailsPage))
             .peerName,
-        'New remark',
+        'Updated remark',
       );
-      remark = '';
+      await repo.settings('peer', remark: '');
       Navigator.of(tester.element(find.byType(DirectChatDetailsPage))).pop();
       await tester.pumpAndSettle();
       expect(
