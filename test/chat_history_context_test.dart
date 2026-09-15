@@ -9,6 +9,8 @@ void main() {
     'sequence': n,
     'messageId': 'm$n',
     'text': 'text$n',
+    'sender': 'me',
+    'createdDate': DateTime(2020, 1, 2, 10).toUtc().toIso8601String(),
   };
   Map<String, dynamic> page(
     List<int> numbers, {
@@ -58,6 +60,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('text20').hitTestable(), findsOneWidget);
+    expect(find.text('me · 2020年1月2日 10:00'), findsNWidgets(22));
     SecureSessionStore.changes.add(null);
     await tester.pumpAndSettle();
     expect(find.text('text20'), findsNothing);

@@ -10,7 +10,7 @@ Map<String, dynamic> row(int sequence, String text) => {
   'sequence': sequence,
   'text': text,
   'sender': 'synthetic',
-  'createdDate': '2026-09-14T10:00:00Z',
+  'createdDate': DateTime(2020, 1, 2, 10).toUtc().toIso8601String(),
 };
 void main() {
   testWidgets(
@@ -45,6 +45,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 301));
       await tester.pumpAndSettle();
       expect(find.text('needle newer'), findsOneWidget);
+      expect(find.text('synthetic · 2020年1月2日 10:00'), findsOneWidget);
       await tester.tap(find.text('加载更早结果'));
       await tester.pumpAndSettle();
       expect(calls, [null, 9]);

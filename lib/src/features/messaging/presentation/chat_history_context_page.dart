@@ -6,6 +6,7 @@ import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/chat_history_context.dart';
 import 'legacy_messaging_components.dart';
+import 'chat_timestamp.dart';
 
 class ChatHistoryContextPage extends StatefulWidget {
   const ChatHistoryContextPage({
@@ -149,7 +150,15 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
                                   : CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${message['sender']} · ${message['createdDate'] ?? ''}',
+                                  [
+                                        message['sender']?.toString() ?? '',
+                                        ?chatTimestampLabel(
+                                          message['createdDate']?.toString(),
+                                          null,
+                                        ),
+                                      ]
+                                      .where((part) => part.isNotEmpty)
+                                      .join(' · '),
                                   style: const TextStyle(
                                     color: Color(0x888A8178),
                                     fontSize: 11,

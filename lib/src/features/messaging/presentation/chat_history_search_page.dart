@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'chat_timestamp.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/networking/kingclub_realtime.dart';
@@ -228,9 +230,10 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
                         );
                       }
                       final row = _items[index];
-                      final date = DateTime.tryParse(
-                        row['createdDate']?.toString() ?? '',
-                      )?.toLocal();
+                      final date = chatTimestampLabel(
+                        row['createdDate']?.toString(),
+                        null,
+                      );
                       return ListTile(
                         onTap: widget.onSelected == null
                             ? null
@@ -240,7 +243,10 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
                           style: const TextStyle(color: Colors.white),
                         ),
                         subtitle: Text(
-                          '${row['sender']}${date == null ? '' : ' · ${date.toString().split('.').first}'}',
+                          [
+                            row['sender']?.toString() ?? '',
+                            ?date,
+                          ].where((part) => part.isNotEmpty).join(' · '),
                           style: const TextStyle(
                             color: Color(0x88FFFFFF),
                             fontSize: 12,
