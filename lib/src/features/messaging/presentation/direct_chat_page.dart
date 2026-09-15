@@ -168,6 +168,7 @@ class DirectChatPage extends StatefulWidget {
     this.repository,
     this.openRepository,
     this.chatOutbox,
+    this.openTextDraftStore,
   }) : assert(peerAccount == null || groupId == null);
 
   final String? peerAccount;
@@ -175,6 +176,8 @@ class DirectChatPage extends StatefulWidget {
   final MessagingRepository? repository;
   final Future<MessagingRepository> Function()? openRepository;
   final ChatOutbox? chatOutbox;
+  final Future<ChatTextDraftStore> Function(String account, String target)?
+  openTextDraftStore;
   final VoiceCapture? voiceCapture;
   final String peerName;
   final bool initialMuted;
@@ -444,12 +447,13 @@ class _DirectChatPageState extends State<DirectChatPage>
   ) async {
     final revision = _textDraftRevision;
     try {
-      final store = await ChatTextDraftStore.open(
-        repository.account,
-        widget.groupId != null
-            ? 'group:${widget.groupId}'
-            : 'peer:${widget.peerAccount}',
-      );
+      final store =
+          await (widget.openTextDraftStore ?? ChatTextDraftStore.open)(
+            repository.account,
+            widget.groupId != null
+                ? 'group:${widget.groupId}'
+                : 'peer:${widget.peerAccount}',
+          );
       final draft = await store.read();
       if (!mounted || generation != _connectionGeneration) return;
       _textDrafts = store;
@@ -516,7 +520,7 @@ class _DirectChatPageState extends State<DirectChatPage>
           await (widget.openRepository ?? MessagingRepository.open)();
       if (!mounted || generation != _connectionGeneration) return;
       _conversationAccount ??= repository.account;
-      if (repository.persistHistory) {
+      if (repository.persistHistory || widget.openTextDraftStore != null) {
         unawaited(_loadTextDraft(repository, generation));
       }
       _releaseOutboxRecovery?.call();
