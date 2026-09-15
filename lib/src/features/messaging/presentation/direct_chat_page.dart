@@ -9,6 +9,7 @@ import '../data/chat_reply.dart';
 import 'chat_history_context_page.dart';
 import 'forward_text_page.dart';
 import '../data/chat_file_draft_store.dart';
+import '../data/chat_text_draft_store.dart';
 import 'chat_file_details_page.dart';
 import '../data/chat_file_downloader.dart';
 import 'chat_file_card.dart';
@@ -384,6 +385,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) unawaited(_flushTextDraft());
     if (state != AppLifecycleState.resumed) _endVoiceHold(interrupted: true);
     if (state == AppLifecycleState.resumed) {
       _chat?.synchronize().then((_) => _chat?.retryQueued());
@@ -396,6 +398,83 @@ class _DirectChatPageState extends State<DirectChatPage>
   int _goldBalance = 501;
   String? _quotedDraft;
   String? _quotedMessageId;
+  ChatTextDraftStore? _textDrafts;
+  ChatTextDraft? _textDraft;
+  Timer? _textDraftTimer;
+  int _textDraftRevision = 0;
+  bool _restoringTextDraft = false;
+
+  void _captureTextDraft() {
+    if (_realTarget == null || _restoringTextDraft) return;
+    final text = _controller.text;
+    if (_textDraft?.text == text &&
+        _textDraft?.replyTo == _quotedMessageId &&
+        _textDraft?.preview == _quotedDraft) {
+      return;
+    }
+    _textDraftRevision++;
+    _textDraft = ChatTextDraft(
+      text,
+      replyTo: _quotedMessageId,
+      preview: _quotedDraft,
+    );
+    _textDraftTimer?.cancel();
+    _textDraftTimer = Timer(
+      const Duration(milliseconds: 300),
+      () => unawaited(_flushTextDraft()),
+    );
+  }
+
+  Future<void> _flushTextDraft() async {
+    _textDraftTimer?.cancel();
+    final store = _textDrafts, draft = _textDraft;
+    if (store == null) return;
+    try {
+      await store.write(draft);
+    } catch (_) {
+      if (mounted && identical(store, _textDrafts)) {
+        KingNotice.of(context).show('草稿暂未保存，请稍后重试');
+      }
+    }
+  }
+
+  Future<void> _loadTextDraft(
+    MessagingRepository repository,
+    int generation,
+  ) async {
+    final revision = _textDraftRevision;
+    try {
+      final store = await ChatTextDraftStore.open(
+        repository.account,
+        widget.groupId != null
+            ? 'group:${widget.groupId}'
+            : 'peer:${widget.peerAccount}',
+      );
+      final draft = await store.read();
+      if (!mounted || generation != _connectionGeneration) return;
+      _textDrafts = store;
+      if (revision == _textDraftRevision &&
+          _controller.text.isEmpty &&
+          draft != null) {
+        _restoringTextDraft = true;
+        setState(() {
+          _textDraft = draft;
+          _quotedDraft = draft.preview;
+          _quotedMessageId = draft.replyTo;
+          _controller.value = TextEditingValue(
+            text: draft.text,
+            selection: TextSelection.collapsed(offset: draft.text.length),
+          );
+        });
+        _restoringTextDraft = false;
+      } else if (_textDraft != null) {
+        await _flushTextDraft();
+      }
+    } catch (_) {
+      // Chat remains usable if the local draft cannot be restored.
+    }
+  }
+
   bool get _readOnly => _realTarget != null && _chat == null;
   late final List<_FakeMessage> _messages = _realTarget != null
       ? []
@@ -416,6 +495,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     WidgetsBinding.instance.addObserver(this);
     _muted = widget.initialMuted;
     _inputFocusNode.addListener(_handleInputFocusChanged);
+    _controller.addListener(_captureTextDraft);
     if (_realTarget != null) {
       _sessionEvents = SecureSessionStore.changes.stream.listen(
         (_) => _rebindChatSession(),
@@ -436,6 +516,9 @@ class _DirectChatPageState extends State<DirectChatPage>
           await (widget.openRepository ?? MessagingRepository.open)();
       if (!mounted || generation != _connectionGeneration) return;
       _conversationAccount ??= repository.account;
+      if (repository.persistHistory) {
+        unawaited(_loadTextDraft(repository, generation));
+      }
       _releaseOutboxRecovery?.call();
       _releaseOutboxRecovery = ChatOutboxRecovery.hold(
         repository.account,
@@ -504,6 +587,8 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Future<void> _rebindChatSession() async {
+    _textDraftTimer?.cancel();
+    _textDrafts = null;
     final generation = ++_connectionGeneration;
     _callLauncher?.close();
     _callLauncher = null;
@@ -774,6 +859,8 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   @override
   void dispose() {
+    unawaited(_flushTextDraft());
+    _controller.removeListener(_captureTextDraft);
     _leaving = true;
     _connectionGeneration++;
     unawaited(_callLauncher?.abandonOutgoing().catchError((Object _) {}));
@@ -1098,6 +1185,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                     onPressed: () => setState(() {
                       _quotedDraft = null;
                       _quotedMessageId = null;
+                      _captureTextDraft();
                     }),
                     icon: const Icon(Icons.close, size: 18),
                   ),
@@ -1739,18 +1827,31 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Future<void> _sendRealText(ChatSessionController chat, String text) async {
+    _captureTextDraft();
+    final draft = _textDraft;
+    final store = _textDrafts;
     try {
+      _textDraftTimer?.cancel();
+      if (store != null && draft != null) await store.write(draft);
+      if (!mounted || !identical(chat, _chat)) return;
       await chat.send(
         text,
-        replyToMessageId: _quotedMessageId,
+        replyToMessageId: draft?.replyTo ?? _quotedMessageId,
+        clientMessageId: draft?.id,
         onQueued: () {
-          if (mounted && _controller.text.trim() == text) {
+          if (store != null && draft != null) {
+            unawaited(store.remove(draft.id).catchError((Object _) {}));
+          }
+          if (mounted &&
+              _controller.text.trim() == text &&
+              identical(_textDraft, draft)) {
             setState(() {
               _controller.clear();
               _quotedDraft = null;
               _quotedMessageId = null;
               _composerPanel = _ComposerPanel.none;
             });
+            _captureTextDraft();
           }
         },
       );
@@ -2600,6 +2701,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         setState(() {
           _quotedDraft = _messagePreview(message);
           _quotedMessageId = message.messageId;
+          _captureTextDraft();
         });
       case _FakeMessageAction.forward:
         _voicePlayback?.stop();

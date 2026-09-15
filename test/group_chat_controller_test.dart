@@ -301,7 +301,9 @@ void main() {
       outbox: queue,
     );
     await first.initialize();
-    await first.send('hello');
+    const draftId = '22222222-2222-4222-8222-222222222222';
+    await first.send('hello', clientMessageId: draftId);
+    expect(committed!['clientMessageId'], draftId);
     expect(queue.rows.length, 2);
     first.dispose();
     final restored = GroupChatController(

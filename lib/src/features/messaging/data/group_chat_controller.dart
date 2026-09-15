@@ -490,6 +490,7 @@ class GroupChatController extends ChatSessionController {
     String text, {
     VoidCallback? onQueued,
     String? replyToMessageId,
+    String? clientMessageId,
   }) async {
     if (replyToMessageId != null &&
         (!canReply ||
@@ -502,7 +503,12 @@ class GroupChatController extends ChatSessionController {
     if (text.isEmpty || _disposed) return;
     if (!hasAccess) throw StateError('请先确认群聊访问权限');
     if (text.length > 4000) throw StateError('文字最多4000字');
-    final id = const Uuid().v4();
+    final id = clientMessageId ?? const Uuid().v4();
+    if (!RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(id)) {
+      throw ArgumentError('Invalid message identifier');
+    }
     final message = <String, dynamic>{
       'clientMessageId': id,
       'groupId': groupId,

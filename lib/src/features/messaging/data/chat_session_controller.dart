@@ -22,6 +22,7 @@ abstract class ChatSessionController extends ChangeNotifier {
     String text, {
     VoidCallback? onQueued,
     String? replyToMessageId,
+    String? clientMessageId,
   });
   Future<void> sendImage(
     String assetId, {

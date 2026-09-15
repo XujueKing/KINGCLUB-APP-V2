@@ -395,9 +395,11 @@ void main() {
         outbox: outbox,
         repository: repository,
       );
-      await first.send('hello');
+      const draftId = '11111111-1111-4111-8111-111111111111';
+      await first.send('hello', clientMessageId: draftId);
       expect(outbox.items, hasLength(1));
       final id = first.messages.single['clientMessageId'];
+      expect(id, draftId);
       await first.retry(id as String);
       expect(committed!['clientMessageId'], id);
       first.dispose();

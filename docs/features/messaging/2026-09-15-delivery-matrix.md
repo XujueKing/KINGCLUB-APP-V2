@@ -1,5 +1,11 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 文字草稿恢复（代码完成，手机验收待做）
+
+单聊与群聊输入按账号、会话分别写入安全存储，保存文本和引用信息；输入停止 300ms、离开页面和应用切至后台时触发保存。恢复结果不会覆盖读取期间用户新输入的内容。消息进入持久发送队列后才清理对应草稿；清理使用草稿 ID 比对，保留期间新写的其他草稿。发送沿用草稿 UUID，离线重试和重建控制器使用同一消息标识。突然杀进程仍可能丢失最后尚未落盘的输入，不保证操作系统终止前执行异步保存。
+
+26 项草稿存储、单聊及群聊控制器测试通过；涵盖账号/会话隔离、迟到清理、会话失效、非法草稿以及使用固定草稿 ID 的丢失回执恢复。六个相关 Dart 文件静态检查通过。本节点尚未安装 A/B；输入后退出重进、引用恢复和发送过程中继续输入的真机验收待做。
+
 ## Recoverable photo drafts (implemented, native acceptance pending)
 
 Photo selection now uses the existing verified private draft store with separate image-peer/image-group target namespaces. It validates the 20MB source bound before saving, restores a hashed private copy on re-entry, and offers explicit discard from the send preview. Missing/damaged copies can be replaced through the picker. Draft cleanup occurs only after durable message queueing, before upload-journal acknowledgement. No message is sent simply by restoring a draft.
