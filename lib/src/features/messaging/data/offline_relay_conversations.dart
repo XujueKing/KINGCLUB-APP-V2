@@ -4,9 +4,15 @@ import 'chat_history_store.dart';
 /// No network call or permission decision is made here.
 Future<List<Map<String, dynamic>>> offlineRelayConversations(
   ChatHistoryStore history,
-  List<Map<String, dynamic>> cached,
-) async {
+  List<Map<String, dynamic>> cached, {
+  List<Map<String, dynamic>> knownRows = const [],
+}) async {
   final rows = [for (final row in cached) Map<String, dynamic>.from(row)];
+  final known = {
+    for (final row in knownRows)
+      if (row['kind'] != 'group')
+        row['peer'] as String: Map<String, dynamic>.from(row),
+  };
   final seen = rows
       .where((r) => r['kind'] != 'group')
       .map((r) => r['peer'] as String)
@@ -28,6 +34,7 @@ Future<List<Map<String, dynamic>>> offlineRelayConversations(
         'relayUnreadCount': 0,
         'muted': false,
         'pinned': false,
+        ...?known[peer],
         'localOnly': true,
       });
     }
@@ -66,7 +73,28 @@ Future<List<Map<String, dynamic>>> offlineRelayConversations(
     }
     result.add(row);
   }
-  // Stable tie ordering avoids jumping equal-date rows during local refreshes.
+  sortConversationRows(result);
+  return result;
+}
+
+/// Sort loaded rows without disturbing the relative order of equal dates.
+List<Map<String, dynamic>> mergeConversationRows(
+  List<Map<String, dynamic>> existing,
+  List<Map<String, dynamic>> incoming,
+) {
+  String key(Map<String, dynamic> row) => row['kind'] == 'group'
+      ? 'group:${row['groupId']}'
+      : 'direct:${row['peer']}';
+  final keyed = {
+    for (final row in [...existing, ...incoming])
+      key(row): Map<String, dynamic>.from(row),
+  };
+  final result = keyed.values.toList();
+  sortConversationRows(result);
+  return result;
+}
+
+void sortConversationRows(List<Map<String, dynamic>> result) {
   final indices = {for (var i = 0; i < result.length; i++) result[i]: i};
   result.sort((a, b) {
     final pinned =
@@ -83,5 +111,4 @@ Future<List<Map<String, dynamic>>> offlineRelayConversations(
     final date = bDate.compareTo(aDate);
     return date == 0 ? indices[a]!.compareTo(indices[b]!) : date;
   });
-  return result;
 }

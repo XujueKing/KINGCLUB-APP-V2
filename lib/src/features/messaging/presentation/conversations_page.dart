@@ -111,6 +111,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   int _realGeneration = 0;
   Future<void>? _refreshTask;
   bool _refreshAgain = false;
+  bool _loadMoreAgain = false;
   bool _realReady = false;
   bool _hasMore = false;
   int _serverOffset = 0;
@@ -234,6 +235,7 @@ class _ConversationsPageState extends State<ConversationsPage>
       // Repeated pagination must not append the same offset twice. A realtime
       // update during a request still needs one fresh first-page read afterward.
       if (!more) _refreshAgain = true;
+      if (more && _hasMore) _loadMoreAgain = true;
       return pending;
     }
     return _refreshTask = _drainRefresh(more);
@@ -243,9 +245,10 @@ class _ConversationsPageState extends State<ConversationsPage>
     try {
       do {
         _refreshAgain = false;
+        _loadMoreAgain = false;
         await _fetchReal(more: more);
-        more = false;
-      } while (mounted && _refreshAgain);
+        more = !_refreshAgain && _loadMoreAgain && _hasMore;
+      } while (mounted && (_refreshAgain || more));
     } finally {
       _refreshTask = null;
     }
@@ -263,7 +266,9 @@ class _ConversationsPageState extends State<ConversationsPage>
               offset: more ? _serverOffset : 0,
               loadedPeers: more
                   ? _realItems
-                        .where((i) => i['kind'] != 'group')
+                        .where(
+                          (i) => i['kind'] != 'group' && i['localOnly'] != true,
+                        )
                         .map((i) => i['peer'] as String)
                         .toSet()
                   : const {},
@@ -271,12 +276,22 @@ class _ConversationsPageState extends State<ConversationsPage>
           : await repository.conversations(
               offset: more ? _realItems.length : 0,
             );
+      var pageRows = (result['items'] as List)
+          .map((raw) => Map<String, dynamic>.from(raw as Map))
+          .toList();
+      if (_useRelayUnread) {
+        if (more) pageRows = mergeConversationRows(_realItems, pageRows);
+        pageRows = await offlineRelayConversations(
+          await _openRelayHistory(repository),
+          pageRows,
+          knownRows: _realItems,
+        );
+      }
       if (!mounted || generation != _realGeneration) return;
       _localRead++;
       setState(() {
         if (!more) _realItems.clear();
-        for (final raw in result['items'] as List) {
-          final item = Map<String, dynamic>.from(raw as Map);
+        for (final item in pageRows) {
           _realItems.removeWhere(
             (old) =>
                 (old['kind'] == 'group') == (item['kind'] == 'group') &&
@@ -286,6 +301,7 @@ class _ConversationsPageState extends State<ConversationsPage>
           );
           _realItems.add(item);
         }
+        if (_useRelayUnread) sortConversationRows(_realItems);
         _hasMore = result['hasMore'] == true;
         _serverOffset =
             (result['nextServerOffset'] as int?) ?? _realItems.length;
