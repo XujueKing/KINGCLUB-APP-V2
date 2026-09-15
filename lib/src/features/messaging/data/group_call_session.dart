@@ -107,7 +107,10 @@ class GroupCallSession {
     }
     _renewing = true;
     try {
-      await controller.act(GroupCallAction.heartbeat);
+      await controller.act(
+        GroupCallAction.heartbeat,
+        canSend: () => !_closed && _sendConnected && _media?.isClosed == false,
+      );
     } catch (error) {
       if (!_closed) onError?.call(error);
     } finally {

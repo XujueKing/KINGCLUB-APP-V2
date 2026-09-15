@@ -43,3 +43,5 @@ GroupCallSnapshot验证通话/群UUID、音视频类型、2–9位唯一参与�
 Android构建及安装证据（2026-09-15）：在4f02f9b工作树构建真实API preview/profile APK，保留本地3处onboarding未提交变更（不纳入本节点提交）；Gradle assemblePreviewProfile 72.8秒成功。APK 157003848字节，SHA256 26a56ceb20733c9dd0940b22e4f361b2609c2a722096dbf50b253db687bec2e9，pubspec.lock SHA256 0940f06c394649084e116e5188fe4191849746b19dcc9da3eccdf435783c7e7d。锁定NovoRUDP重建、ARM64 ELF校验通过；APK包含ARM64 libjingle_peerconnection_so.so及libkingclub_novorudp.so。部分插件仍附带armeabi-v7a/x86_64库，不将该APK描述为完全只有ARM64依赖。Flutter插件Kotlin迁移警告未阻止构建。
 
 原有单聊通话相关8文件44项回归测试通过。ADB覆盖安装Success，11:50:56更新，启动Status ok，应用进程存在，本次进程日志FATAL EXCEPTION/Unhandled Exception/UnsatisfiedLinkError匹配0条。没有开启采集或自动发送消息。此次只证明构建、安装和基本启动；不证明实际SFU连接、多方音视频、UI视觉或后台通话。群通话服务端接口仍未在线启用，不能凭APK安装将群通话计为交付。
+
+续租排队修复：GroupCallController在串行请求实际开始前执行canSend条件，GroupCallSession再次检查未关闭、发送连接仍connected、媒体未关闭。慢读取阻塞期间发生断线/挂断时，已经排队但尚未发送的heartbeat不再发送；已发出的请求仍由服务端状态和租约处理，不声称可以撤回在途请求。控制器/会话10项测试及3文件静态检查通过，新增测试覆盖读取阻塞后断线的队列竞争。此代码尚未包含在11:50安装包内。

@@ -84,6 +84,27 @@ void main() {
     expect(calls, 1);
   });
 
+  test('queued heartbeat rechecks the live media before sending', () async {
+    final response = Completer<Map<String, dynamic>>();
+    var calls = 0, connected = true;
+    create((_, _) {
+      calls++;
+      return response.future;
+    });
+    final read = controller.refresh();
+    await tick();
+    final heartbeat = controller.act(
+      GroupCallAction.heartbeat,
+      canSend: () => connected,
+    );
+    connected = false;
+    response.complete(state(1, 'joined'));
+    await read;
+    await heartbeat;
+    expect(calls, 1);
+    expect(controller.isClosed, false);
+  });
+
   test('continuous invalidations cannot starve a queued user action', () async {
     final first = Completer<Map<String, dynamic>>();
     final second = Completer<Map<String, dynamic>>();

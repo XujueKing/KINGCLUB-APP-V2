@@ -153,7 +153,13 @@ class GroupCallController extends ChangeNotifier {
   }
 
   /// The owner calls heartbeat only while its real media connection is alive.
-  Future<void> act(GroupCallAction action) => _serialize(() async {
+  Future<void> act(
+    GroupCallAction action, {
+    bool Function()? canSend,
+  }) => _serialize(() async {
+    // Evaluate when the serialized request starts, not when it is enqueued.
+    // A slow read ahead of a heartbeat may outlive the media connection.
+    if (canSend != null && !canSend()) return;
     final attempt = _pending.putIfAbsent(
       action,
       () => (call: _call, id: _requestId()),
