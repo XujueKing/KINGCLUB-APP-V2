@@ -1,3 +1,4 @@
+import '../../../core/networking/kingclub_realtime.dart';
 import '../data/messaging_repository.dart';
 import '../data/sticker_library_repository.dart';
 import '../data/sticker_library_sync.dart';
@@ -53,6 +54,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
   int _epoch = 0;
   bool _invalid = false;
   StreamSubscription<void>? _session;
+  StreamSubscription<Map<String, dynamic>>? _realtime;
   bool _current(int epoch) => mounted && !_invalid && epoch == _epoch;
   int _category = 0;
   int _page = 0;
@@ -109,6 +111,12 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
   @override
   void initState() {
     super.initState();
+    _realtime = KingclubRealtime.shared.events.listen((event) {
+      if (event['eventType'] == 'chat.stickers.changed' ||
+          event['eventType'] == 'connection.ready') {
+        unawaited(_syncCloud());
+      }
+    });
     _session = SecureSessionStore.changes.stream.listen((_) {
       if (!mounted || widget.account == null) return;
       setState(() {
@@ -158,6 +166,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
   @override
   void dispose() {
     _session?.cancel();
+    _realtime?.cancel();
     _cloud?.dispose();
     super.dispose();
   }
@@ -167,6 +176,9 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
       {'name': _names[i], 'images': List<String>.of(_images[i])},
   ];
   Future<void> _syncCloud({bool notify = false, bool combine = false}) async {
+    final requestedEpoch = _epoch;
+    await (_load ??= _restore());
+    if (!_current(requestedEpoch)) return;
     final repository = widget.repository;
     if (!mounted ||
         _invalid ||
