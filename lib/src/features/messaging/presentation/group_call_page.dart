@@ -12,6 +12,7 @@ import '../data/group_call_session.dart';
 import '../data/group_chat_repository.dart';
 import '../data/native_group_call_media.dart';
 import 'legacy_messaging_components.dart';
+import 'chat_member_avatar.dart';
 
 class GroupCallPage extends StatefulWidget {
   const GroupCallPage({
@@ -34,6 +35,7 @@ class _GroupCallPageState extends State<GroupCallPage>
   late Future<Map<String, dynamic>> _details;
   final _selected = <String>{};
   final _streams = <String, MediaStream>{};
+  final _profiles = <String, Future<Map<String, dynamic>>>{};
   GroupCallSession? _session;
   GroupCallController? _controller;
   StreamSubscription<void>? _login;
@@ -53,6 +55,7 @@ class _GroupCallPageState extends State<GroupCallPage>
     WidgetsBinding.instance.addObserver(this);
     _login = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
+      _profiles.clear();
       unawaited(_session?.close());
       if (mounted) {
         setState(() {
@@ -157,6 +160,36 @@ class _GroupCallPageState extends State<GroupCallPage>
 
   void _failed(Object error) {
     if (mounted) setState(() => _error = '$error');
+  }
+
+  Widget _avatar(String account, {double size = 48}) {
+    if (_invalid) return const Icon(Icons.person, color: Colors.white54);
+    final own = account == widget.repository.account;
+    return ChatMemberAvatar(
+      account: account,
+      own: own,
+      size: size,
+      profile: _profiles.putIfAbsent(
+        account,
+        () => widget.repository.messaging.call(
+          own ? 'K260912000501' : 'K260913000612',
+          own ? {} : {'peer': account},
+        ),
+      ),
+    );
+  }
+
+  String _participantStatus(GroupCallParticipant participant) {
+    if (_controller!.isClosed) return '通话已结束';
+    return switch (participant.phase) {
+      GroupCallPhase.invited => '等待接听',
+      GroupCallPhase.joined =>
+        _streams.containsKey(participant.account) ? '已加入' : '连接中',
+      GroupCallPhase.left => '已离开',
+      GroupCallPhase.declined => '已拒绝',
+      GroupCallPhase.expired => '已超时',
+      GroupCallPhase.revoked => '已退出通话',
+    };
   }
 
   Future<void> _stop() async {
@@ -289,6 +322,7 @@ class _GroupCallPageState extends State<GroupCallPage>
                         for (final member in members)
                           if (member['account'] != widget.repository.account)
                             CheckboxListTile(
+                              secondary: _avatar(member['account'] as String),
                               value: _selected.contains(member['account']),
                               title: Text(
                                 '${member['nickname'] ?? member['account']}',
@@ -335,10 +369,11 @@ class _GroupCallPageState extends State<GroupCallPage>
                                                 widget.repository.account &&
                                             _frontFacing,
                                       )
-                                    : const Icon(
-                                        Icons.person,
-                                        color: Colors.white54,
-                                        size: 40,
+                                    : Center(
+                                        child: _avatar(
+                                          participant.account,
+                                          size: 64,
+                                        ),
                                       ),
                               ),
                               Text(
@@ -346,14 +381,7 @@ class _GroupCallPageState extends State<GroupCallPage>
                                 style: const TextStyle(color: Colors.white),
                               ),
                               Text(
-                                _controller!.isClosed
-                                    ? '通话已结束'
-                                    : participant.phase ==
-                                          GroupCallPhase.invited
-                                    ? '等待接听'
-                                    : _streams.containsKey(participant.account)
-                                    ? '已加入'
-                                    : '连接中',
+                                _participantStatus(participant),
                                 style: const TextStyle(color: Colors.white54),
                               ),
                               const SizedBox(height: 12),
