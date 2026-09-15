@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cryptography/dart.dart';
 import 'package:dio/dio.dart';
@@ -158,58 +159,28 @@ class ChatFileDownloader {
       for (var index = 0; index < (media['chunkCount'] as int); index++) {
         await _check();
         final expected = (ref.size - index * chunkBytes).clamp(0, chunkBytes);
-        late Response<ResponseBody> response;
-        for (var attempt = 0; attempt < 2; attempt++) {
-          await _check();
-          response = await _dio.get<ResponseBody>(
-            '${media['path']}/$index',
-            cancelToken: _cancel,
-            options: Options(
-              responseType: ResponseType.stream,
-              followRedirects: false,
-              validateStatus: (code) =>
-                  code == 200 || code == 401 || code == 403,
-              headers: {
-                'authorization': (media['headers'] as Map)['authorization'],
-                'accept-encoding': 'identity',
-              },
-            ),
-          );
-          if (response.statusCode == 200) break;
-          await response.data?.stream.listen((_) {}).cancel();
-          if (attempt == 1) {
-            throw const AuthFailure('FILE_ACCESS_DENIED', '文件下载授权已失效');
+        late Uint8List block;
+        for (var networkAttempt = 0; ; networkAttempt++) {
+          try {
+            block = await _readBlock(ref, media, index, expected, (count) {
+              onProgress?.call(received + count, ref.size);
+            });
+            break;
+          } catch (error) {
+            await _check();
+            if (networkAttempt >= 2 || !_retryable(error)) rethrow;
+            onProgress?.call(received, ref.size);
+            await Future<void>.delayed(
+              Duration(milliseconds: 250 * (networkAttempt + 1)),
+            );
+            await _check();
           }
-          // No bytes from this rejected block were written. Keep prior blocks,
-          // but require the server to re-authorize exactly the same message.
-          media = await _grant(ref);
         }
-        await _check();
-        final body = response.data;
-        if (body == null) throw const FormatException('文件响应为空');
-        final length = response.headers.value('content-length');
-        final encoding = response.headers.value('content-encoding');
-        if ((length != null && int.tryParse(length) != expected) ||
-            (encoding != null && encoding != 'identity') ||
-            response.headers.value('content-type')?.split(';').first.trim() !=
-                'application/octet-stream') {
-          await body.stream.listen((_) {}).cancel();
-          throw const FormatException('文件分块响应无效');
-        }
-        var blockReceived = 0;
-        await for (final bytes in body.stream.timeout(
-          const Duration(seconds: 30),
-        )) {
-          await _check();
-          blockReceived += bytes.length;
-          if (blockReceived > expected) throw const FormatException('文件分块超长');
-          digest.add(bytes);
-          await output.writeFrom(bytes);
-          received += bytes.length;
-          await _check();
-          onProgress?.call(received, ref.size);
-        }
-        if (blockReceived != expected) throw const FormatException('文件分块不完整');
+        // Commit only a complete block, so retry cannot double-hash or append
+        // a partially received block. Memory is bounded by one 1 MiB block.
+        digest.add(block);
+        await output.writeFrom(block);
+        received += block.length;
       }
       digest.close();
       final hash = (await digest.hash()).bytes
@@ -241,6 +212,85 @@ class ChatFileDownloader {
         }
       }
     }
+  }
+
+  static bool _retryable(Object error) {
+    if (error is SocketException ||
+        error is TimeoutException ||
+        error is HttpException) {
+      return true;
+    }
+    if (error is! DioException) return false;
+    return [
+          DioExceptionType.connectionError,
+          DioExceptionType.connectionTimeout,
+          DioExceptionType.receiveTimeout,
+          DioExceptionType.sendTimeout,
+        ].contains(error.type) ||
+        (error.type == DioExceptionType.badResponse &&
+            [502, 503, 504].contains(error.response?.statusCode));
+  }
+
+  Future<Uint8List> _readBlock(
+    ChatFileReference ref,
+    Map<String, dynamic> media,
+    int index,
+    int expected,
+    void Function(int) progress,
+  ) async {
+    late Response<ResponseBody> response;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      await _check();
+      response = await _dio.get<ResponseBody>(
+        '${media['path']}/$index',
+        cancelToken: _cancel,
+        options: Options(
+          responseType: ResponseType.stream,
+          followRedirects: false,
+          validateStatus: (code) => code == 200 || code == 401 || code == 403,
+          headers: {
+            'authorization': (media['headers'] as Map)['authorization'],
+            'accept-encoding': 'identity',
+          },
+        ),
+      );
+      if (response.statusCode == 200) break;
+      await response.data?.stream.listen((_) {}).cancel();
+      if (attempt == 1) {
+        throw const AuthFailure('FILE_ACCESS_DENIED', '文件下载授权已失效');
+      }
+      // No bytes from this rejected block were written. Keep prior blocks,
+      // but require the server to re-authorize exactly the same message.
+      final renewed = await _grant(ref);
+      media.clear();
+      media.addAll(renewed);
+    }
+    await _check();
+    final body = response.data;
+    if (body == null) throw const FormatException('文件响应为空');
+    final length = response.headers.value('content-length');
+    final encoding = response.headers.value('content-encoding');
+    if ((length != null && int.tryParse(length) != expected) ||
+        (encoding != null && encoding != 'identity') ||
+        response.headers.value('content-type')?.split(';').first.trim() !=
+            'application/octet-stream') {
+      await body.stream.listen((_) {}).cancel();
+      throw const FormatException('文件分块响应无效');
+    }
+    var blockReceived = 0;
+    final block = BytesBuilder(copy: false);
+    await for (final bytes in body.stream.timeout(
+      const Duration(seconds: 30),
+    )) {
+      await _check();
+      blockReceived += bytes.length;
+      if (blockReceived > expected) throw const FormatException('文件分块超长');
+      block.add(bytes);
+      await _check();
+      progress(blockReceived);
+    }
+    if (blockReceived != expected) throw const HttpException('文件分块不完整');
+    return block.takeBytes();
   }
 
   Future<void> _deleteCompleted() {

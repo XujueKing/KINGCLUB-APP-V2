@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
@@ -24,6 +26,8 @@ class DownloadTransport implements HttpClientAdapter {
 const messageId = '12345678-1234-1234-1234-123456789012';
 const assetId = '22345678-1234-1234-1234-123456789012';
 
+class RealHttpOverrides extends HttpOverrides {}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   for (final scenario in [
@@ -42,6 +46,11 @@ void main() {
     'renewal-denied',
     'renewal-mismatch',
     'renewal-rejected',
+    'connection-retry',
+    'stream-retry',
+    'truncated-retry',
+    'retry-exhausted',
+    'socket-retry',
   ]) {
     test('private chunk file download: $scenario', () async {
       final dir = await Directory.systemTemp.createTemp('chat-download-test-');
@@ -111,6 +120,14 @@ void main() {
           final index = int.parse(options.path.split('/').last);
           requestedBlocks.add(index);
           if (index == 1 &&
+              (scenario == 'retry-exhausted' ||
+                  (scenario == 'connection-retry' && requests == 2))) {
+            throw DioException(
+              requestOptions: options,
+              type: DioExceptionType.connectionError,
+            );
+          }
+          if (index == 1 &&
               [
                 'expired-grant',
                 'renewal-denied',
@@ -127,6 +144,25 @@ void main() {
           final wire = scenario == 'oversize'
               ? Uint8List.fromList([...chunk, 9])
               : chunk;
+          if (index == 1 &&
+              requests == 2 &&
+              ['stream-retry', 'truncated-retry'].contains(scenario)) {
+            Stream<Uint8List> broken() async* {
+              yield Uint8List.fromList([wire.first]);
+              if (scenario == 'stream-retry') {
+                throw const SocketException('lost network');
+              }
+            }
+
+            return ResponseBody(
+              broken(),
+              200,
+              headers: {
+                'content-type': ['application/octet-stream'],
+                'content-length': ['${wire.length}'],
+              },
+            );
+          }
           return ResponseBody(
             Stream.fromIterable([
               for (var offset = 0; offset < wire.length; offset += 8192)
@@ -144,6 +180,45 @@ void main() {
             },
           );
         });
+      if (scenario == 'socket-retry') {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => server.close(force: true));
+        server.listen((request) async {
+          requests++;
+          final index = int.parse(request.uri.pathSegments.last);
+          requestedBlocks.add(index);
+          final begin = index * 1024 * 1024;
+          final chunk = bytes.sublist(
+            begin,
+            (begin + 1024 * 1024).clamp(0, bytes.length),
+          );
+          request.response.headers.contentType = ContentType.binary;
+          request.response.contentLength = chunk.length;
+          if (index == 1 && requests == 2) {
+            final socket = await request.response.detachSocket(
+              writeHeaders: false,
+            );
+            socket.add(
+              ascii.encode(
+                'HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: ${chunk.length}\r\nConnection: close\r\n\r\n',
+              ),
+            );
+            socket.add([chunk.first]);
+            await socket.flush();
+            socket.destroy();
+          } else {
+            request.response.add(chunk);
+            await request.response.close();
+          }
+        });
+        dio.options.baseUrl = 'http://127.0.0.1:${server.port}';
+        dio.httpClientAdapter = IOHttpClientAdapter(
+          createHttpClient: () => HttpOverrides.runWithHttpOverrides(
+            () => HttpClient(),
+            RealHttpOverrides(),
+          ),
+        );
+      }
       final downloader = ChatFileDownloader(
         repository: repo,
         checkSession: () async {},
@@ -167,19 +242,37 @@ void main() {
         'empty',
         'session-after-download',
         'expired-grant',
+        'connection-retry',
+        'stream-retry',
+        'truncated-retry',
+        'socket-retry',
       ].contains(scenario)) {
         final result = await operation;
         expect(await result.readAsBytes(), bytes);
         expect(grants, scenario == 'expired-grant' ? 3 : 2);
         expect(
           requests,
-          scenario == 'expired-grant'
+          [
+                'expired-grant',
+                'connection-retry',
+                'stream-retry',
+                'truncated-retry',
+                'socket-retry',
+              ].contains(scenario)
               ? 3
               : bytes.isEmpty
               ? 1
               : 2,
         );
         if (scenario == 'expired-grant') expect(requestedBlocks, [0, 1, 1]);
+        if ([
+          'connection-retry',
+          'stream-retry',
+          'truncated-retry',
+          'socket-retry',
+        ].contains(scenario)) {
+          expect(requestedBlocks, [0, 1, 1]);
+        }
         if (scenario == 'session-after-download') {
           SecureSessionStore.changes.add(null);
           await Future<void>.delayed(Duration.zero);
@@ -191,6 +284,9 @@ void main() {
       } else {
         await expectLater(operation, throwsA(anything));
         expect(await dir.list().toList(), isEmpty);
+        if (scenario == 'retry-exhausted') {
+          expect(requestedBlocks, [0, 1, 1, 1]);
+        }
         if (scenario == 'wrong-path') expect(requests, 0);
         if (scenario == 'renewal-rejected') expect(requestedBlocks, [0, 1, 1]);
         if (scenario == 'renewal-denied' || scenario == 'renewal-mismatch') {
