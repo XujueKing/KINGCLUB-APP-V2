@@ -10,6 +10,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 
+part 'nearby_message_history.dart';
+
 class ChatHistoryPage {
   const ChatHistoryPage(
     this.messages,
@@ -86,8 +88,9 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 5,
+        version: 6,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 6) await _createNearbyMessages(db);
           if (oldVersion < 2) {
             await db.execute(
               'ALTER TABLE conversation ADD COLUMN hiddenThrough INTEGER NOT NULL DEFAULT 0',
@@ -110,6 +113,7 @@ class ChatHistoryStore {
           }
         },
         onCreate: (db, _) async {
+          await _createNearbyMessages(db);
           await db.execute(
             'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER, presentation BLOB, historyVersion INTEGER)',
           );

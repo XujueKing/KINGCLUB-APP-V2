@@ -227,3 +227,9 @@ Production device-directory reads now save the validated peer public-key identit
 These records are historical identity observations, not offline send grants: API cacheSeconds=0 authorization still applies to the existing online path. They do not establish that the friendship remains active or that a key has not subsequently been revoked. Local authorization and integration with nearby chat UI remain unfinished; no connector automatically trusts a discovered IP.
 
 Validation: one scoped storage/lifecycle unit test uses the existing storage fixture; five device-binding tests use real native identity with injected HTTP and passed unchanged. Six tests total; this does not prove device secure-storage persistence or dual-phone offline chat. Also clarified the encrypted-payload pass-through catch in the nearby test without changing behavior.
+
+### 2026-09-15 durable nearby text journal
+
+Local chat history schema v6 adds a nearby-message journal without inventing server sequence numbers. Text is AES-GCM encrypted with account/peer/id/direction AAD; index metadata remains plaintext. Transactional inserts deduplicate identical IDs and reject conflicting text; outgoing receipt updates are scoped to the peer device identity. Pending messages and history survive reopen. This is storage only: no automatic permission, UDP receipt handler, UI merge or server reconciliation is enabled yet.
+
+Validation: real SQLite disk test verified concurrent duplicate inserts, conflicting duplicate rejection, wrong-peer receipt rejection, reopen, pending/confirmed persistence and plaintext absence. Existing history tests, including v1 migration and wrong encryption key, remained green: 11 total. Native peer receipt must only be sent after this persistence future succeeds; wiring remains next work.
