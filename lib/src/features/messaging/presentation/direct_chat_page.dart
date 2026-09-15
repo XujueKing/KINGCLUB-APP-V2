@@ -1,5 +1,6 @@
 import '../data/chat_outbox_recovery.dart';
 import '../data/chat_call_history.dart';
+import 'chat_timestamp.dart';
 import '../data/call_presentation_lease.dart';
 import 'message_voice_transcription_page.dart';
 import 'voice_transcription_page.dart';
@@ -1041,6 +1042,12 @@ class _DirectChatPageState extends State<DirectChatPage>
                           ? ObjectKey(message)
                           : ValueKey(message.clientMessageId),
                       child: _MessageRow(
+                        timestamp: chatTimestampLabel(
+                          message.createdDate,
+                          messageIndex == 0
+                              ? null
+                              : _messages[messageIndex - 1].createdDate,
+                        ),
                         avatar: _chat == null || message.senderAccount == null
                             ? null
                             : ChatMemberAvatar(
@@ -2984,6 +2991,7 @@ class _MessageRow extends StatelessWidget {
     this.onQuoteTap,
     this.avatar,
     this.imageContent,
+    this.timestamp,
   });
 
   final _FakeMessage message;
@@ -2993,9 +3001,29 @@ class _MessageRow extends StatelessWidget {
   final VoidCallback? onAvatarTap, onQuoteTap;
   final Widget? imageContent;
   final Widget? avatar;
+  final String? timestamp;
 
   @override
   Widget build(BuildContext context) {
+    final label = timestamp;
+    if (label == null) return _buildContent(context);
+    return Column(
+      children: [
+        Padding(
+          key: ValueKey('chat-timestamp-${message.messageId}'),
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0x998A8178), fontSize: 12),
+          ),
+        ),
+        _buildContent(context),
+      ],
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     if (message.system) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 16),
