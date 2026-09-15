@@ -36,6 +36,7 @@ void main() {
       );
     }
     final requests = <List<String>>[];
+    String? serverDate;
     final repository = MessagingRepository(
       account: 'me',
       call: (_, params) async {
@@ -47,6 +48,8 @@ void main() {
               'kind': 'direct',
               'peer': 'friend',
               'unreadCount': 1,
+              'preview': 'server preview',
+              'messageDate': ?serverDate,
               if (ids != null)
                 'confirmedLocalMessageIds': [
                   if (ids.contains(matched)) matched,
@@ -69,6 +72,32 @@ void main() {
     );
     expect(result['items'][0]['unreadCount'], 2);
     expect(result['items'][1]['unreadCount'], 3);
+    expect(result['items'][0]['preview'], local);
+    expect(DateTime.tryParse(result['items'][0]['messageDate']), isNotNull);
+    expect(result['items'][1].containsKey('preview'), isFalse);
+    expect(
+      (await store.nearbyMemberMessages(
+        'friend',
+        forPreview: true,
+      )).map((message) => message['id']),
+      [local],
+    );
+    const pending = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    await store.persistNearbyText(
+      peerId: device,
+      peerAccount: 'friend',
+      id: pending,
+      text: 'not delivered',
+      outgoing: true,
+    );
+    expect(
+      (await store.nearbyMemberMessages(
+        'friend',
+        limit: 1,
+        forPreview: true,
+      )).single['id'],
+      local,
+    );
     expect(await store.nearbyUnreadIds(), [local]);
     expect(
       (await store.nearbyMemberMessages('friend'))
@@ -108,5 +137,20 @@ void main() {
     );
     expect(requests.map((ids) => ids.length), [200, 2]);
     expect(many['items'][0]['unreadCount'], 203);
+    serverDate = DateTime.now()
+        .toUtc()
+        .add(const Duration(days: 1))
+        .toIso8601String();
+    final newerServer = await conversationsWithRelayUnread(
+      repository: repository,
+      history: store,
+    );
+    expect(newerServer['items'][0]['preview'], 'server preview');
+    expect(newerServer['items'][0]['messageDate'], serverDate);
+    await store.clear('direct:friend', hideNearby: true);
+    expect(
+      await store.nearbyMemberMessages('friend', forPreview: true),
+      isEmpty,
+    );
   });
 }

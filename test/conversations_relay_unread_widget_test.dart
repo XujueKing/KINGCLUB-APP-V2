@@ -113,7 +113,7 @@ void main() {
         expect(find.text('3'), findsOneWidget);
         count = Completer<int>();
         final press = await tester.startGesture(
-          tester.getCenter(find.text('preview')),
+          tester.getCenter(find.text('relay')),
         );
         await Future<void>.delayed(const Duration(milliseconds: 600));
         await press.up();

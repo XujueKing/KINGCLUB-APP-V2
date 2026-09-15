@@ -56,6 +56,26 @@ Future<Map<String, dynamic>> conversationsWithRelayUnread({
       check();
       item['relayUnreadCount'] = extra;
       item['unreadCount'] = (item['unreadCount'] as num).toInt() + extra;
+      final local = await history.nearbyMemberMessages(
+        item['peer'] as String,
+        limit: 1,
+        forPreview: true,
+      );
+      check();
+      if (local.isNotEmpty) {
+        final latest = local.single;
+        final received = DateTime.fromMillisecondsSinceEpoch(
+          latest['created'] as int,
+          isUtc: true,
+        );
+        final serverDate = DateTime.tryParse(
+          item['messageDate'] as String? ?? '',
+        );
+        if (serverDate == null || received.isAfter(serverDate)) {
+          item['preview'] = latest['text'];
+          item['messageDate'] = received.toIso8601String();
+        }
+      }
     }
     items.add(item);
   }

@@ -163,6 +163,7 @@ extension NearbyMessageHistory on ChatHistoryStore {
   Future<List<Map<String, dynamic>>> nearbyMemberMessages(
     String peerAccount, {
     int limit = 100,
+    bool forPreview = false,
   }) async {
     if (peerAccount == account ||
         !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peerAccount) ||
@@ -174,8 +175,10 @@ extension NearbyMessageHistory on ChatHistoryStore {
     return _db.transaction((tx) async {
       final groups = await tx.rawQuery(
         'SELECT id, outgoing, MIN(created) AS created, MAX(delivered) AS delivered, MAX(wasRead) AS wasRead '
-        'FROM nearby_message WHERE member=? GROUP BY id, outgoing '
+        'FROM nearby_message WHERE member=? '
+        '${forPreview ? 'AND $_notServerPresent ' : ''}GROUP BY id, outgoing '
         'HAVING MAX(serverId IS NOT NULL)=0 AND MAX(hidden)=0 '
+        '${forPreview ? 'AND (outgoing=0 OR MAX(delivered)=1) ' : ''}'
         'ORDER BY created DESC, id DESC, outgoing DESC LIMIT ?',
         [member, limit],
       );
