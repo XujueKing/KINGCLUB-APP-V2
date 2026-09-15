@@ -35,6 +35,39 @@ class NetworkDeviceKey {
 /// Server-verified membership binding around one locally persisted identity.
 /// Production callers use open(); injected sessions are for embedding/tests.
 /// It does not start a UDP lane or silently rotate a revoked/lost device key.
+class BoundNetworkHandshake {
+  BoundNetworkHandshake._(this._binding, this.peer, this.key, this._native);
+  final NovoRudpDeviceBinding _binding;
+  final String peer;
+  final NetworkDeviceKey key;
+  final NovoRudpHandshake _native;
+  Map<String, dynamic> get offer => _native.offer;
+  bool _closed = false, _completing = false;
+
+  Future<NovoRudpSecureChannel> complete(Map<String, dynamic> response) async {
+    if (_closed || _completing) throw StateError('Handshake closed');
+    _completing = true;
+    try {
+      await _binding._requirePeerKey(peer, key.bindingId, key.publicKey);
+      if (_closed) throw StateError('Handshake cancelled');
+      return _binding.identity.complete(_native, response);
+    } finally {
+      _closed = true;
+      try {
+        _binding.identity.cancel(_native);
+      } catch (_) {}
+    }
+  }
+
+  void cancel() {
+    if (_closed) return;
+    _closed = true;
+    try {
+      _binding.identity.cancel(_native);
+    } catch (_) {}
+  }
+}
+
 class NovoRudpDeviceBinding {
   NovoRudpDeviceBinding({required this.messaging, required this.identity})
     : _publicKey = identity.peerId.substring('novovm-ed25519:'.length);
@@ -81,6 +114,40 @@ class NovoRudpDeviceBinding {
     final result = await messaging.call(id, params);
     _check(revoking: revoking);
     return result;
+  }
+
+  Future<NetworkDeviceKey> _requirePeerKey(
+    String peer,
+    String bindingId, [
+    String? expectedPublicKey,
+  ]) async {
+    if (peer == messaging.account) {
+      throw ArgumentError('Peer must be another member');
+    }
+    await ensureRegistered();
+    final keys = await directory(peer);
+    _check();
+    for (final key in keys) {
+      if (key.bindingId == bindingId &&
+          (expectedPublicKey == null || key.publicKey == expectedPublicKey)) {
+        return key;
+      }
+    }
+    throw const AuthFailure(
+      'NETWORK_KEY_DENIED',
+      'Peer device binding unavailable',
+    );
+  }
+
+  Future<BoundNetworkHandshake> startPeer(String peer, String bindingId) async {
+    final key = await _requirePeerKey(peer, bindingId);
+    return BoundNetworkHandshake._(this, peer, key, identity.start(key.peerId));
+  }
+
+  Future<({NovoRudpSecureChannel channel, Map<String, dynamic> response})>
+  respondPeer(String peer, String bindingId, Map<String, dynamic> offer) async {
+    final key = await _requirePeerKey(peer, bindingId);
+    return identity.respond(offer, expectedPeer: key.peerId);
   }
 
   Future<List<NetworkDeviceKey>> directory(String peer) async {

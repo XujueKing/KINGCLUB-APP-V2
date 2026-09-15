@@ -1,3 +1,5 @@
+﻿import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
@@ -37,6 +39,74 @@ void main() {
     NovoRudpDeviceBinding client(ChatApiCall call) => NovoRudpDeviceBinding(
       messaging: MessagingRepository(account: 'UM_SYNTHETIC', call: call),
       identity: identity,
+    );
+    test(
+      'member-bound handshake rechecks directory before native completion',
+      () async {
+        final other = NovoRudpSecureSession.fromSeed(
+          library: DynamicLibrary.open(path!),
+          seed: Uint8List.fromList(List.filled(32, 9)),
+        );
+        addTearDown(other.dispose);
+        const otherId = '22222222-2222-4222-8222-222222222222';
+        var revoked = false;
+        Completer<void>? hold;
+        final binding = client((api, params) async {
+          expect(api, 'K260915000672');
+          if (params['peer'] == 'friend') await hold?.future;
+          return {
+            'cacheSeconds': 0,
+            'keys': params['peer'] == 'UM_SYNTHETIC'
+                ? [key]
+                : revoked
+                ? []
+                : [
+                    {
+                      'bindingId': otherId,
+                      'publicKey': other.peerId.split(':').last,
+                      'peerId': other.peerId,
+                    },
+                  ],
+          };
+        });
+        final attempt = await binding.startPeer('friend', otherId);
+        final answer = other.respond(
+          attempt.offer,
+          expectedPeer: identity.peerId,
+        );
+        final channel = await attempt.complete(answer.response);
+        expect(channel.sessionId, answer.channel.sessionId);
+        channel.close();
+        answer.channel.close();
+        final stale = await binding.startPeer('friend', otherId);
+        final staleAnswer = other.respond(
+          stale.offer,
+          expectedPeer: identity.peerId,
+        );
+        revoked = true;
+        await expectLater(
+          stale.complete(staleAnswer.response),
+          throwsA(isA<AuthFailure>()),
+        );
+        await expectLater(
+          stale.complete(staleAnswer.response),
+          throwsStateError,
+        );
+        staleAnswer.channel.close();
+        revoked = false;
+        final cancelled = await binding.startPeer('friend', otherId);
+        final cancelledAnswer = other.respond(
+          cancelled.offer,
+          expectedPeer: identity.peerId,
+        );
+        hold = Completer<void>();
+        final pendingCompletion = cancelled.complete(cancelledAnswer.response);
+        final rejected = expectLater(pendingCompletion, throwsStateError);
+        cancelled.cancel();
+        hold.complete();
+        await rejected;
+        cancelledAnswer.channel.close();
+      },
     );
     test(
       'concurrent registration shares signed request and refreshes directory',
@@ -163,3 +233,4 @@ void main() {
     });
   }, skip: path == null ? 'Set NOVORUDP_NATIVE_LIBRARY' : false);
 }
+
