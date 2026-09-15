@@ -35,6 +35,7 @@ class _GroupCallPageState extends State<GroupCallPage>
   late Future<Map<String, dynamic>> _details;
   final _selected = <String>{};
   final _streams = <String, MediaStream>{};
+  final _remoteMuted = <String, bool>{};
   final _profiles = <String, Future<Map<String, dynamic>>>{};
   GroupCallSession? _session;
   GroupCallController? _controller;
@@ -64,6 +65,7 @@ class _GroupCallPageState extends State<GroupCallPage>
       if (mounted) {
         setState(() {
           _streams.clear();
+          _remoteMuted.clear();
           _error = '登录状态已变化';
         });
       }
@@ -124,6 +126,14 @@ class _GroupCallPageState extends State<GroupCallPage>
               _streams.removeWhere(
                 (key, _) => key != widget.repository.account,
               );
+              _remoteMuted.clear();
+              for (final item in remote) {
+                // A paused source still belongs to a joined participant.
+                _remoteMuted.putIfAbsent(item.source.account, () => false);
+                if (item.source.kind == 'audio') {
+                  _remoteMuted[item.source.account] = item.source.paused;
+                }
+              }
               // A video stream is preferred for a member with audio and video.
               for (final item in remote) {
                 if (item.source.paused) continue;
@@ -157,7 +167,10 @@ class _GroupCallPageState extends State<GroupCallPage>
   void _changed() {
     if (mounted) {
       setState(() {
-        if (_controller!.isClosed) _streams.clear();
+        if (_controller!.isClosed) {
+          _streams.clear();
+          _remoteMuted.clear();
+        }
       });
     }
   }
@@ -187,13 +200,21 @@ class _GroupCallPageState extends State<GroupCallPage>
     if (_controller!.isClosed) return '通话已结束';
     return switch (participant.phase) {
       GroupCallPhase.invited => '等待接听',
-      GroupCallPhase.joined =>
-        _streams.containsKey(participant.account) ? '已加入' : '连接中',
+      GroupCallPhase.joined => _joinedStatus(participant.account),
       GroupCallPhase.left => '已离开',
       GroupCallPhase.declined => '已拒绝',
       GroupCallPhase.expired => '已超时',
       GroupCallPhase.revoked => '已退出通话',
     };
+  }
+
+  String _joinedStatus(String account) {
+    if (account == widget.repository.account) {
+      if (!_streams.containsKey(account)) return '连接中';
+      return _muted ? '已静音' : '已加入';
+    }
+    if (!_remoteMuted.containsKey(account)) return '连接中';
+    return _remoteMuted[account]! ? '已静音' : '已加入';
   }
 
   Future<void> _stop() async {
@@ -202,7 +223,12 @@ class _GroupCallPageState extends State<GroupCallPage>
     } catch (error) {
       _failed(error);
     }
-    if (mounted) setState(() => _streams.clear());
+    if (mounted) {
+      setState(() {
+        _streams.clear();
+        _remoteMuted.clear();
+      });
+    }
   }
 
   Future<void> _back() async {
