@@ -47,6 +47,28 @@ void main() {
     if (await dir.exists()) await dir.delete(recursive: true);
   });
   test(
+    'eviction removes only matching account audio and retry downloads',
+    () async {
+      Future<File> load(String account) => cache.get(
+        'https://media.example.test/voice',
+        scope: account,
+        contentKey: 'voice',
+        kind: MediaKind.audio,
+      );
+      final first = await load('member:a');
+      final other = await load('member:b');
+      await cache.evict(
+        scope: 'member:a',
+        contentKey: 'voice',
+        kind: MediaKind.audio,
+      );
+      expect(await first.exists(), false);
+      expect(await other.exists(), true);
+      await load('member:a');
+      expect(transport.calls, 3);
+    },
+  );
+  test(
     'video posters persist, deduplicate and isolate account scopes',
     () async {
       var decodes = 0;

@@ -15,3 +15,9 @@
 Playback now receives its conversationId from the active chat controller. Scoped direct settings/relationship events for another conversation no longer stop the current direct or group audio. The backend outbox includes conversationId for these direct events. Matching events still stop immediately; unscoped events keep the conservative existing behavior. Group access events, session changes and permission rechecks remain unchanged.
 
 Validation: targeted analyze passed; all 11 playback tests passed. Added direct/group cases prove unrelated direct events preserve playback and matching access events still stop it. This fixes an identified interruption path; it does not establish that this caused the user's earlier silent recording, nor prove native audio audibility or route behavior. Not included in the installed 08:29 APK.
+
+## Rejected audio cache recovery
+
+If native play throws, stop the partially started output and evict only that account's immutable voice cache entry. A later tap follows the normal authorization and download flow again; it cannot bypass access checks or indefinitely reuse the rejected file. Cache eviction derives the internal hashed path from scope/content identity/media kind, waits for that entry's active load and respects cache-generation changes. It does not accept an arbitrary path. Permission/network failures before play do not evict media.
+
+Validation: analyze passed and 18 playback/cache tests passed. New coverage verifies decoder failure, stop, targeted eviction, a successful re-authorized retry, and preserving another account's cached audio. This is recovery behavior, not evidence that the user's prior silent clip was corrupted or that native audio routing is correct. Not yet installed.

@@ -61,6 +61,32 @@ class MediaCache {
     });
   }
 
+  /// Forget one immutable media object after a decoder rejects it. Scope and
+  /// content identity are hashed; callers cannot supply a filesystem path.
+  Future<void> evict({
+    required String scope,
+    required String contentKey,
+    required MediaKind kind,
+  }) async {
+    final generation = _generation;
+    final key = await _hash('$scope|${kind.name}|$contentKey');
+    try {
+      await _pending[key];
+    } catch (_) {}
+    if (generation != _generation) return;
+    final root = await _directory();
+    final extension = switch (kind) {
+      MediaKind.video => '.mp4',
+      MediaKind.audio => '.m4a',
+      MediaKind.image => '.media',
+    };
+    final file = File(
+      '${root.path}/${scope == 'public' ? 'public' : 'private'}/${await _hash(scope)}/${kind.name}/$key$extension',
+    );
+    if (generation != _generation) return;
+    if (await file.exists()) await file.delete();
+  }
+
   /// Derivatives share image eviction and account cleanup with other media.
   /// The caller must have a current authorization before requesting a poster.
   Future<File> videoPoster(

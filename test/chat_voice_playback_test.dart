@@ -10,13 +10,14 @@ class Output implements ChatVoiceOutput {
   final plays = <String>[];
   int stops = 0;
   int disposals = 0;
-  bool failStop = false;
+  bool failStop = false, failPlay = false;
   final done = StreamController<void>.broadcast();
   @override
   Stream<void> get completed => done.stream;
   @override
   Future<void> play(String path) async {
     plays.add(path);
+    if (failPlay) throw StateError("decoder rejected cache");
   }
 
   @override
@@ -44,6 +45,45 @@ Map<String, dynamic> grant(String message, {bool group = false}) => {
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'decoder failure evicts only its object and retry authorizes again',
+    () async {
+      final output = Output()..failPlay = true;
+      final evicted = <String>[];
+      var grants = 0, loads = 0;
+      final repo = MessagingRepository(
+        account: 'me',
+        call: (_, p) async {
+          grants++;
+          return grant(p['messageId'] as String);
+        },
+      );
+      final player = ChatVoicePlayback(
+        output: output,
+        events: const Stream.empty(),
+        loadFile: (_, _, _, _) async {
+          loads++;
+          return File('/fixture.m4a');
+        },
+        evictFile: (account, fileId) async {
+          evicted.add('$account:$fileId');
+        },
+      );
+      addTearDown(player.dispose);
+      await player.toggle(repo, 'one');
+      expect(player.error, isNotNull);
+      expect(player.activeId, isNull);
+      expect(evicted, ['me:12345678-1234-1234-1234-123456789012']);
+      expect(output.stops, 2);
+      output.failPlay = false;
+      await player.toggle(repo, 'one');
+      expect(grants, 2);
+      expect(loads, 2);
+      expect(player.activeId, 'one');
+      expect(player.error, isNull);
+      expect(evicted.length, 1);
+    },
+  );
   test('old completion during download cannot clear the new clip', () async {
     final output = Output();
     final pending = Completer<File>();

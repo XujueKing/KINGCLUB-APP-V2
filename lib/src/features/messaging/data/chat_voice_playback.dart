@@ -41,9 +41,11 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
   ChatVoicePlayback({
     ChatVoiceOutput? output,
     VoiceFileLoader? loadFile,
+    Future<void> Function(String account, String fileId)? evictFile,
     Stream<Map<String, dynamic>>? events,
   }) : _output = output ?? NativeChatVoiceOutput(),
-       _loadFile = loadFile ?? _cached {
+       _loadFile = loadFile ?? _cached,
+       _evictFile = evictFile ?? _evictCached {
     WidgetsBinding.instance.addObserver(this);
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
@@ -103,6 +105,13 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
     kind: MediaKind.audio,
     headers: headers,
   );
+  static Future<void> _evictCached(String account, String fileId) =>
+      MediaCache.shared.evict(
+        scope: 'member:$account',
+        contentKey: 'chat-voice:$account:$fileId',
+        kind: MediaKind.audio,
+      );
+  final Future<void> Function(String, String) _evictFile;
   final ChatVoiceOutput _output;
   final VoiceFileLoader _loadFile;
   StreamSubscription<void>? _session, _complete;
@@ -219,7 +228,18 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
       await _serialize(() async {
         if (current()) {
           _playingGeneration = generation;
-          await _output.play(file.path);
+          try {
+            await _output.play(file.path);
+          } catch (_) {
+            // Stop a partially started native player before forgetting its file.
+            try {
+              await _output.stop();
+            } catch (_) {}
+            try {
+              await _evictFile(repository.account, fileId);
+            } catch (_) {}
+            rethrow;
+          }
         }
       });
       if (!current()) return;
