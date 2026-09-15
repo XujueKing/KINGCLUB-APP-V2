@@ -1,6 +1,6 @@
 // Device-only SDK probe. Use --flavor calltest, never preview.
-// No account store, HTTP signaling, microphone or camera capture. Host ICE
-// connects two native peers in the same app using synthetic channel messages.
+// Default: no account store, HTTP signaling or capture. Optional media mode
+// requires an explicit on-screen start and exercises same-device RTP only.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -12,7 +12,11 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/native_call_media.dart';
 
 const _id = '00000000-0000-4000-8000-000000000001';
-final _status = ValueNotifier('Running local WebRTC probe');
+const _mediaProbe = bool.fromEnvironment('KINGCLUB_RTC_MEDIA_PROBE');
+final _status = ValueNotifier(
+  _mediaProbe ? '点击开始后使用摄像头和麦克风，仅在本机测试，不上传或保存。' : 'Running local WebRTC probe',
+);
+bool _running = false;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,13 +26,26 @@ void main() {
         body: Center(
           child: ValueListenableBuilder<String>(
             valueListenable: _status,
-            builder: (_, text, _) => Text(text, textAlign: TextAlign.center),
+            builder: (_, text, _) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(text, textAlign: TextAlign.center),
+                if (_mediaProbe && !_running)
+                  ElevatedButton(
+                    onPressed: () {
+                      _running = true;
+                      unawaited(_run());
+                    },
+                    child: const Text('开始本机音视频测试'),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     ),
   );
-  unawaited(_run());
+  if (!_mediaProbe) unawaited(_run());
 }
 
 void _require(bool condition, String stage) {
@@ -42,6 +59,9 @@ void _mark(String value) {
 
 Future<void> _run() async {
   final sessions = <CallMediaSession>[];
+  final peers = <String, RTCPeerConnection>{};
+  final renderer = _mediaProbe ? RTCVideoRenderer() : null;
+  var outcome = 'FAILED';
   final channels = <RTCDataChannel>[];
   final signals = <Map<String, dynamic>>[];
   var generation = 0, captures = 0;
@@ -50,11 +70,12 @@ Future<void> _run() async {
   final received = <String>[];
   RTCDataChannel? callerChannel, calleeChannel;
   try {
+    await renderer?.initialize();
     Map<String, dynamic> snapshot(String phase) => {
       'callId': _id,
       'caller': 'probe-a',
       'callee': 'probe-b',
-      'mediaKind': 'audio',
+      'mediaKind': _mediaProbe ? 'video' : 'audio',
       'phase': phase,
       'version': 3,
       'deadlineMs': DateTime.now().millisecondsSinceEpoch + 45000,
@@ -136,11 +157,19 @@ Future<void> _run() async {
         repository: repository(account),
         call: CallSnapshot.parse(snapshot('connecting'), account),
         mediaFactory: (onCandidate) => NativeCallMedia(
-          video: false,
+          video: _mediaProbe,
           iceServers: [],
           onCandidate: onCandidate,
-          capture: (_) async {
+          onRemoteStream: (stream) {
+            if (_mediaProbe && account == 'probe-b') {
+              renderer!.srcObject = stream;
+            }
+          },
+          capture: (constraints) async {
             captures++;
+            if (_mediaProbe && account == 'probe-a') {
+              return navigator.mediaDevices.getUserMedia(constraints);
+            }
             return createLocalMediaStream(account); // Empty stream, no devices.
           },
           onConnection: (state) {
@@ -154,6 +183,7 @@ Future<void> _run() async {
           },
           peerFactory: (config) async {
             final peer = await createPeerConnection(config);
+            peers[account] = peer;
             if (account == 'probe-a') {
               callerChannel = await peer.createDataChannel(
                 'local-probe',
@@ -238,9 +268,32 @@ Future<void> _run() async {
       'resources recreated',
     );
     _mark('RESTART_BIDIRECTIONAL_PASSED');
+    if (_mediaProbe) {
+      stage = 'RTP_MEDIA';
+      final deadline = DateTime.now().add(const Duration(seconds: 20));
+      var audio = false, video = false;
+      while (DateTime.now().isBefore(deadline) && (!audio || !video)) {
+        final reports = await peers['probe-b']!.getStats();
+        for (final report in reports) {
+          if (report.type != 'inbound-rtp') continue;
+          final values = report.values;
+          num number(String key) => num.tryParse('${values[key]}') ?? 0;
+          final kind = values['kind'] ?? values['mediaType'];
+          if (kind == 'audio' && number('packetsReceived') > 0) audio = true;
+          if (kind == 'video' && number('framesDecoded') > 0) video = true;
+        }
+        if (!audio || !video) {
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        }
+      }
+      _require(audio && video, 'RTP media not received');
+      _mark('LOCAL_AUDIO_RTP_VIDEO_DECODE_PASSED');
+    }
+    outcome = _mediaProbe ? 'LOCAL_MEDIA_PASSED' : 'DATA_CHANNEL_PASSED';
   } catch (error) {
     // Never print SDP, ICE addresses, bearer credentials or arbitrary SDK errors.
-    _mark('FAILED_${stage}_${error.runtimeType}');
+    outcome = 'FAILED_${stage}_${error.runtimeType}';
+    _mark(outcome);
   } finally {
     for (final channel in channels) {
       await channel.close();
@@ -248,6 +301,8 @@ Future<void> _run() async {
     for (final session in sessions) {
       await session.close();
     }
-    _mark('CLEANUP_FINISHED');
+    await renderer?.dispose();
+    _running = false;
+    _mark('${outcome}_CLEANUP_FINISHED');
   }
 }
