@@ -2,6 +2,7 @@ import 'chat_member_avatar.dart';
 import '../data/group_chat_repository.dart';
 import '../data/chat_history_store.dart';
 import '../data/conversation_relay_unread.dart';
+import '../data/offline_relay_conversations.dart';
 import '../data/novorudp_binding_runtime.dart';
 
 import 'dart:async';
@@ -89,6 +90,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   StreamSubscription<Map<String, dynamic>>? _events;
   StreamSubscription<void>? _sessions;
   StreamSubscription<String>? _relayEvents;
+  int _localRead = 0;
   bool get _useRelayUnread =>
       widget.openRelayHistory != null ||
       (_repository?.persistHistory == true &&
@@ -160,7 +162,12 @@ class _ConversationsPageState extends State<ConversationsPage>
         _relayEvents =
             (widget.relayChanges ??
                     NovoRudpBindingRuntime.textChanges(repository.account))
-                .listen((_) => _refreshReal());
+                .listen((_) async {
+                  await _refreshLocalRelay(repository);
+                  if (mounted && identical(repository, _repository)) {
+                    _refreshReal();
+                  }
+                });
       }
       _events = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
@@ -190,8 +197,11 @@ class _ConversationsPageState extends State<ConversationsPage>
       });
       if (repository.persistHistory || widget.openRelayHistory != null) {
         try {
-          final cached = await (await _openRelayHistory(repository))
-              .readConversationList();
+          final store = await _openRelayHistory(repository);
+          var cached = await store.readConversationList();
+          if (_useRelayUnread) {
+            cached = await offlineRelayConversations(store, cached);
+          }
           if (!mounted || generation != _realGeneration) return;
           if (cached.isNotEmpty) {
             setState(() {
@@ -262,13 +272,20 @@ class _ConversationsPageState extends State<ConversationsPage>
               offset: more ? _realItems.length : 0,
             );
       if (!mounted || generation != _realGeneration) return;
+      _localRead++;
       setState(() {
         if (!more) _realItems.clear();
-        _realItems.addAll(
-          (result['items'] as List).map(
-            (item) => Map<String, dynamic>.from(item as Map),
-          ),
-        );
+        for (final raw in result['items'] as List) {
+          final item = Map<String, dynamic>.from(raw as Map);
+          _realItems.removeWhere(
+            (old) =>
+                (old['kind'] == 'group') == (item['kind'] == 'group') &&
+                (item['kind'] == 'group'
+                    ? old['groupId'] == item['groupId']
+                    : old['peer'] == item['peer']),
+          );
+          _realItems.add(item);
+        }
         _hasMore = result['hasMore'] == true;
         _serverOffset =
             (result['nextServerOffset'] as int?) ?? _realItems.length;
@@ -293,6 +310,35 @@ class _ConversationsPageState extends State<ConversationsPage>
       if (mounted && generation == _realGeneration) {
         setState(() => _showOfflineBanner = true);
       }
+    }
+  }
+
+  Future<void> _refreshLocalRelay(MessagingRepository repository) async {
+    final read = ++_localRead;
+    final generation = _realGeneration;
+    try {
+      final store = await _openRelayHistory(repository);
+      final rows = await offlineRelayConversations(store, _realItems);
+      if (!mounted ||
+          !identical(repository, _repository) ||
+          generation != _realGeneration ||
+          read != _localRead) {
+        return;
+      }
+      setState(() {
+        _realItems
+          ..clear()
+          ..addAll(rows);
+        _realReady = true;
+      });
+      widget.onFriendUnreadChanged(
+        rows.fold<int>(
+          0,
+          (sum, row) => sum + (row['unreadCount'] as num).toInt(),
+        ),
+      );
+    } catch (_) {
+      // A local read failure must not block the following server refresh.
     }
   }
 

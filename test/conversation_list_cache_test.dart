@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
@@ -25,6 +26,7 @@ void main() {
           key: await AesGcm.with256bits().newSecretKey(),
           account: 'me',
         );
+        final events = StreamController<String>.broadcast();
         try {
           await store.saveConversationList([
             {
@@ -53,7 +55,7 @@ void main() {
                   realData: true,
                   repository: repository,
                   openRelayHistory: () async => store,
-                  relayChanges: const Stream<String>.empty(),
+                  relayChanges: events.stream,
                   systemUnreadCount: 0,
                   initialFriendUnreadCount: 0,
                   onFriendUnreadChanged: (value) {
@@ -73,9 +75,32 @@ void main() {
           expect(find.text('Cached friend'), findsOneWidget);
           expect(find.text('Cached text'), findsOneWidget);
           expect(unread, 2);
+          await store.persistNearbyText(
+            peerId: 'novovm-ed25519:${'a' * 64}',
+            peerAccount: 'newfriend',
+            id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            text: 'Arrived offline',
+            outgoing: false,
+          );
+          events.add('newfriend');
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await tester.pumpAndSettle();
+          expect(find.text('Arrived offline'), findsOneWidget);
+          expect(unread, 3);
+          events.add('newfriend');
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await tester.pumpAndSettle();
+          expect(unread, 3);
+          await store.clear('direct:newfriend', hideNearby: true);
+          events.add('newfriend');
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await tester.pumpAndSettle();
+          expect(find.text('Arrived offline'), findsNothing);
+          expect(unread, 2);
           expect(find.text('卡座搭子'), findsNothing);
         } finally {
           await tester.pumpWidget(const SizedBox.shrink());
+          await events.close();
           await store.close();
           await dir.delete(recursive: true);
         }

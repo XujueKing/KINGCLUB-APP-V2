@@ -40,6 +40,7 @@ void main() {
           await receive('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
         });
         var count = Completer<int>();
+        var expectedCount = 2;
         var serverUnread = 1;
         final repository = MessagingRepository(
           account: 'me',
@@ -81,7 +82,8 @@ void main() {
                   systemUnreadCount: 0,
                   initialFriendUnreadCount: 0,
                   onFriendUnreadChanged: (value) {
-                    if (!count.isCompleted) count.complete(value);
+                    if (!count.isCompleted && value == expectedCount)
+                      count.complete(value);
                   },
                   onOpenContacts: () {},
                   onAddFriend: () {},
@@ -98,6 +100,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text('2'), findsOneWidget);
+        expectedCount = 3;
         count = Completer<int>();
         await real(() => receive('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'));
         await real(() async {
@@ -111,6 +114,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text('3'), findsOneWidget);
+        expectedCount = 0;
         count = Completer<int>();
         final press = await tester.startGesture(
           tester.getCenter(find.text('relay')),
