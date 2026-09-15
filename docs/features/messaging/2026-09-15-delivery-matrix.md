@@ -1,5 +1,11 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-15 16:41 Sender offline group retry on A
+
+A composed OFFLINE-GROUP-A-1640 in the authorized A/B test group. Before sending, both Wi-Fi and mobile data were temporarily disabled; Android dumpsys connectivity confirmed Active default network: none. A single send displayed the queued message with the waiting-for-network label. A finally block restored both previously enabled settings; subsequent reads confirmed wifi_on=1, mobile_data=1 and an active default network. Without another send or retry tap, the queued label disappeared after reconnection and only one copy of the test message was visible.
+
+This is actual sender-side offline enqueue and automatic recovery evidence, not recipient delivery or server-level duplicate-count verification. The first screenshot immediately after restoration still showed queued; the later 16:41 screenshot showed completion, so no subsecond retry latency is claimed. B receipt, offline process-death recovery and acknowledgment-loss races remain separate acceptance items. No app code or installed package changed.
+
 ## 2026-09-15 16:38 Group transfer and file sender acceptance
 
 Using the existing installed preview and real API, A transferred ownership of the authorized A/B test group KINGCLUB-AB-0915-OK to B. A then displayed itself as an ordinary member and B as owner; owner-only transfer/name-edit controls disappeared and the departure action became leave-group. Current owner is B. Recipient-side owner controls, transfer-back and removal/rejoin remain pending; B was not operated further while awaiting the concurrent-device-use clarification.
