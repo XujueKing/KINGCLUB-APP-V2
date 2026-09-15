@@ -13,6 +13,7 @@ import 'member_relay_text.dart';
 import 'chat_history_store.dart';
 import 'novorudp_device_binding.dart';
 import 'novorudp_device_identity_store.dart';
+import 'relay_security_context.dart';
 
 /// Registers the device and optionally maintains an explicitly configured relay.
 /// Never changes message routes without a separate member-authorized channel.
@@ -20,6 +21,9 @@ class NovoRudpBindingRuntime {
   static const relayUrl = String.fromEnvironment('KINGCLUB_NOVORUDP_RELAY_URL');
   static const relayPeer = String.fromEnvironment(
     'KINGCLUB_NOVORUDP_RELAY_PEER',
+  );
+  static const relayCertificate = String.fromEnvironment(
+    'KINGCLUB_NOVORUDP_RELAY_CA_BASE64',
   );
   static bool get relayConfigured =>
       relayUrl.isNotEmpty && relayPeer.isNotEmpty;
@@ -208,6 +212,7 @@ class NovoRudpBindingRuntime {
           binding: binding,
           endpoint: Uri.parse(relayUrl),
           expectedRelay: relayPeer,
+          securityContext: relaySecurityContext(relayCertificate),
         );
         text = MemberRelayText(runtime: runtime, history: history);
         _text = text;

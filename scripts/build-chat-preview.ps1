@@ -1,6 +1,9 @@
 param(
   [Parameter(Mandatory=$true)][uri]$ApiBaseUrl,
   [string]$FlutterCommand = 'D:/SDK/flutter/bin/flutter.bat',
+  [uri]$RelayUrl,
+  [string]$RelayPeer,
+  [string]$RelayCertificatePath,
   [switch]$SkipNovoRudp
 )
 $ErrorActionPreference = 'Stop'
@@ -10,6 +13,25 @@ if ($ApiBaseUrl.Scheme -ne 'https' -or $ApiBaseUrl.UserInfo -or $ApiBaseUrl.Quer
 Push-Location (Split-Path -Parent $PSScriptRoot)
 $previousJni = $env:KINGCLUB_NOVORUDP_JNI_DIR
 try {
+  $relayArguments = @()
+  if ($RelayUrl -or $RelayPeer -or $RelayCertificatePath) {
+    if ($SkipNovoRudp -or !$RelayUrl -or $RelayUrl.Scheme -ne 'wss' -or
+        !$RelayUrl.Host -or $RelayUrl.UserInfo -or $RelayUrl.Query -or $RelayUrl.Fragment -or
+        $RelayUrl.AbsolutePath -ne '/novovm' -or $RelayPeer -cnotmatch '^novovm-ed25519:[0-9a-f]{64}$') {
+      throw 'Relay requires NovoRUDP, a credential-free WSS /novovm URL and a pinned Ed25519 peer ID.'
+    }
+    $relayArguments += "--dart-define=KINGCLUB_NOVORUDP_RELAY_URL=$($RelayUrl.AbsoluteUri)"
+    $relayArguments += "--dart-define=KINGCLUB_NOVORUDP_RELAY_PEER=$RelayPeer"
+    if ($RelayCertificatePath) {
+      $certificate = [IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $RelayCertificatePath).Path)
+      $pem = [Text.Encoding]::UTF8.GetString($certificate).Trim()
+      if ($certificate.Length -gt 49152 -or !$pem.StartsWith('-----BEGIN CERTIFICATE-----') -or
+          !$pem.EndsWith('-----END CERTIFICATE-----') -or $pem.Contains('PRIVATE KEY')) {
+        throw 'Relay certificate must contain only public PEM certificate data.'
+      }
+      $relayArguments += "--dart-define=KINGCLUB_NOVORUDP_RELAY_CA_BASE64=$([Convert]::ToBase64String($certificate))"
+    }
+  }
   $env:KINGCLUB_NOVORUDP_JNI_DIR = $null
   if (!$SkipNovoRudp) {
     & (Join-Path $PSScriptRoot 'build-novorudp-android.ps1') | Out-Host
@@ -19,7 +41,7 @@ try {
   # Flutter's exit code, not a plugin warning, determines build success.
   $ErrorActionPreference = 'Continue'
   $bindingEnabled = if ($SkipNovoRudp) { 'false' } else { 'true' }
-  & $FlutterCommand build apk --profile --flavor preview --target-platform android-arm64 "--dart-define=KINGCLUB_API_BASE_URL=$($ApiBaseUrl.AbsoluteUri.TrimEnd('/'))" "--dart-define=KINGCLUB_NOVORUDP_DEVICE_BINDING=$bindingEnabled"
+  & $FlutterCommand build apk --profile --flavor preview --target-platform android-arm64 "--dart-define=KINGCLUB_API_BASE_URL=$($ApiBaseUrl.AbsoluteUri.TrimEnd('/'))" "--dart-define=KINGCLUB_NOVORUDP_DEVICE_BINDING=$bindingEnabled" @relayArguments
   $buildExitCode = $LASTEXITCODE
   $ErrorActionPreference = 'Stop'
   if ($buildExitCode -ne 0) { throw 'Chat preview APK build failed.' }

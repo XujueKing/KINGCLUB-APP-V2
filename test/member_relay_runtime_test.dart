@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -17,6 +18,7 @@ import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/member_relay_runtime.dart';
+import 'package:kingclub/src/features/messaging/data/relay_security_context.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_device_binding.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
@@ -105,8 +107,11 @@ void main() {
           binding: binding,
           endpoint: Uri.parse(env['SUPERVM_TEST_RELAY_URL']!),
           expectedRelay: env['SUPERVM_TEST_RELAY_PEER']!,
-          securityContext: SecurityContext(withTrustedRoots: false)
-            ..setTrustedCertificates(env['SUPERVM_TEST_RELAY_CERT']!),
+          securityContext: relaySecurityContext(
+            base64Encode(
+              await File(env['SUPERVM_TEST_RELAY_CERT']!).readAsBytes(),
+            ),
+          ),
         );
         addTearDown(runtime.close);
         final firstReady = runtime.connections.firstWhere(
