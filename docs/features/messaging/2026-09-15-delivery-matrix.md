@@ -1,5 +1,13 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-16 01:07 备注与联系人搜索集成安装包
+
+以 594ee99 工作区完成 Android arm64 preview/Profile 构建，Gradle 65.1 秒。纳入此前备注保存跨页刷新、当前聊天昵称/备注切换、中文通讯录 A–Z 分组、全拼/首字母搜索及转发群名搜索；保留已构建的加密分块下载续传和已读补报。工作区原有三个 onboarding 文件改动一并进入 APK，但未纳入本节点提交。
+
+产物：build/app/outputs/flutter-apk/app-preview-profile.apk，157790280 字节，2026-09-16 01:07:08；SHA-256：03D669E41FE66DA1281C72DE74D868BCBFA914FFC55ABD031BA399D3AAF51A36。日志：build/contacts-delivery-build.log。API 为 https://test.wuyexin.cn/kingclub-v2；本次未配置 SUPERVM relay endpoint，不能据此宣称手机主网自适应已接通。尚未安装 A/B，线上后端未变更。
+
+本轮核查已读补报：网络/登录失效中止本轮并保留记录，单个权限错误不挡住其他对象；权限拒绝记录仍保留并可能按前台周期重复请求，未实现退避或清理。未把这一点标为修复。
+
 ## 2026-09-16 建群及转发搜索统一
 
 核查真实建群/邀请与转发好友入口均复用 ContactsController.search，已继承昵称、备注、账号及拼音匹配；补齐转发群聊的群名全拼、首字母及群标识匹配。保留现有选择与确认流程，不改页面布局。
