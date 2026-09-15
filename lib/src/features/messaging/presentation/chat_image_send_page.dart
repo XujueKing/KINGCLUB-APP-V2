@@ -32,6 +32,15 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
   String? _error;
   double? _progress;
 
+  bool get _alreadyQueued =>
+      widget.draft != null &&
+      widget.chat.messages.any(
+        (message) =>
+            message['clientMessageId'] == widget.draft!.id &&
+            message['sender'] == widget.chat.messaging.account &&
+            message['messageType'] == 'image',
+      );
+
   @override
   void dispose() {
     _uploader?.dispose();
@@ -46,6 +55,13 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
       _progress = null;
     });
     try {
+      if (_alreadyQueued) {
+        try {
+          await widget.drafts?.remove(widget.draft!.id);
+        } catch (_) {}
+        if (mounted) Navigator.of(context).pop(true);
+        return;
+      }
       final uploader =
           _uploader ?? await ChatImageUploader.open(widget.chat.messaging);
       if (!mounted) {
@@ -60,12 +76,14 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
         },
       );
       if (!mounted) return;
-      var queued = false;
-      await widget.chat.sendImage(
-        image.assetId,
-        onQueued: () => queued = true,
-        clientMessageId: widget.draft?.id,
-      );
+      var queued = _alreadyQueued;
+      if (!queued) {
+        await widget.chat.sendImage(
+          image.assetId,
+          onQueued: () => queued = true,
+          clientMessageId: widget.draft?.id,
+        );
+      }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
       // A journal cleanup error must not invite a second send of an already
       // durable message. The outbox now owns delivery and retry.

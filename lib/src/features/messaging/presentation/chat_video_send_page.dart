@@ -87,6 +87,15 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
     super.dispose();
   }
 
+  bool get _alreadyQueued =>
+      widget.draft != null &&
+      widget.chat.messages.any(
+        (message) =>
+            message['clientMessageId'] == widget.draft!.id &&
+            message['sender'] == widget.chat.messaging.account &&
+            message['messageType'] == 'video',
+      );
+
   Future<void> _send() async {
     if (_busy || _invalid) return;
     var stage = 'opening';
@@ -105,6 +114,13 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
       _progress = null;
     });
     try {
+      if (_alreadyQueued) {
+        try {
+          await widget.drafts?.remove(widget.draft!.id);
+        } catch (_) {}
+        if (mounted && _usable) Navigator.of(context).pop(true);
+        return;
+      }
       final uploader =
           _uploader ??
           await (widget.createUploader?.call() ??
@@ -165,13 +181,15 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
           _prepared ?? await widget.chat.messaging.prepareVideo(file.assetId);
       if (!_usable) return;
       _prepared = video;
-      var queued = false;
+      var queued = _alreadyQueued;
       trace('queueing');
-      await widget.chat.sendVideo(
-        video,
-        onQueued: () => queued = true,
-        clientMessageId: widget.draft?.id,
-      );
+      if (!queued) {
+        await widget.chat.sendVideo(
+          video,
+          onQueued: () => queued = true,
+          clientMessageId: widget.draft?.id,
+        );
+      }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
       trace('queued');
       // A journal cleanup error must not invite a second send of an already
