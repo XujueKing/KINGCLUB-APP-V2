@@ -31,6 +31,25 @@ class VoiceDraftSender {
       if (store.account != chat.messaging.account) throw StateError('录音账号已变化');
       if (!store.owns(draft.path)) throw StateError('录音不属于当前账号');
       final file = File(draft.path);
+      final messageId = store.messageId(draft.path);
+      bool alreadyQueued() => chat.messages.any(
+        (message) =>
+            message['clientMessageId'] == messageId &&
+            message['sender'] == chat.messaging.account &&
+            message['messageType'] == 'voice',
+      );
+      if (_disposed || generation != MemberQrMemory.generation) {
+        throw StateError('登录状态已变化');
+      }
+      if (alreadyQueued()) {
+        // A crash may leave the audio behind after the outbox/history already
+        // owns this draft. Never replace its asset or issue another upload.
+        queued = true;
+        try {
+          if (await file.exists()) await file.delete();
+        } catch (_) {}
+        return;
+      }
       if (await file.length() > 2 * 1024 * 1024) throw StateError('录音须小于2MB');
       uploader = await _openUploader(chat.messaging);
       _uploads.add(uploader);
@@ -42,12 +61,16 @@ class VoiceDraftSender {
         throw StateError('登录状态已变化');
       }
       try {
-        await chat.sendVoice(
-          voice.assetId,
-          voice.durationMs,
-          onQueued: () => queued = true,
-          clientMessageId: store.messageId(draft.path),
-        );
+        if (alreadyQueued()) {
+          queued = true;
+        } else {
+          await chat.sendVoice(
+            voice.assetId,
+            voice.durationMs,
+            onQueued: () => queued = true,
+            clientMessageId: messageId,
+          );
+        }
       } finally {
         if (queued) {
           // Once the durable queue owns retries, cleanup failures must not invite

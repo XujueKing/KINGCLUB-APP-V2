@@ -12,7 +12,7 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/direct_chat_controller.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 
-import 'direct_chat_controller_test.dart' show MemoryOutbox;
+import 'direct_chat_controller_test.dart' show MemoryOutbox, ack;
 
 class Upload extends ChatVoiceUploader {
   Upload(MessagingRepository repo)
@@ -43,6 +43,58 @@ class Upload extends ChatVoiceUploader {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  for (final confirmed in [false, true]) {
+    test(
+      'leftover queued voice draft does not upload again: $confirmed',
+      () async {
+        final root = await Directory.systemTemp.createTemp('voice-owned-');
+        addTearDown(() => root.delete(recursive: true));
+        final store = VoiceDraftStore(root: root, account: 'me');
+        final path = await store.allocate();
+        await File(path).writeAsBytes([1, 2, 3]);
+        final queue = MemoryOutbox();
+        var calls = 0;
+        final repo = MessagingRepository(
+          account: 'me',
+          call: (_, params) async {
+            calls++;
+            if (!confirmed) throw const AuthFailure('NETWORK_ERROR', 'offline');
+            return {
+              'message': {
+                ...ack(params),
+                'messageType': 'voice',
+                'voiceAssetId': params['assetId'],
+                'voiceDurationMs': 2000,
+                'text': '[语音]',
+              },
+            };
+          },
+        );
+        final chat = DirectChatController(
+          repository: repo,
+          peer: 'peer',
+          outbox: queue,
+        );
+        addTearDown(chat.dispose);
+        await chat.sendVoice(
+          '12345678-1234-1234-1234-123456789012',
+          2000,
+          clientMessageId: store.messageId(path),
+        );
+        expect(chat.messages, hasLength(1));
+        final sender = VoiceDraftSender(
+          currentStore: () async => store,
+          openUploader: (_) async => throw StateError('duplicate upload'),
+        );
+        addTearDown(sender.dispose);
+        await sender.send(chat, VoiceDraft(path, const Duration(seconds: 2)));
+        expect(calls, 1);
+        expect(chat.messages, hasLength(1));
+        expect(queue.items, confirmed ? isEmpty : hasLength(1));
+        expect(await File(path).exists(), false);
+      },
+    );
+  }
   for (final stage in ['upload', 'queue', 'network']) {
     test(
       'draft survives $stage failure until durable queue takes ownership',
