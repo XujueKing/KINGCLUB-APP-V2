@@ -12,6 +12,112 @@ void main() {
   const groupId = '11111111-1111-4111-8111-111111111111';
   const code = 'KC:G:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  test('own status rejects mismatched or non-read-only receipts', () async {
+    const applicationId = '22222222-2222-4222-8222-222222222222';
+    for (final changes in [
+      {'groupId': 'other'},
+      {'applicationId': 'other'},
+      {'changed': true},
+      {'status': 'unknown'},
+    ]) {
+      final repo = GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (_, _) async => {
+            'groupId': groupId,
+            'applicationId': applicationId,
+            'changed': false,
+            'status': 'accepted',
+            ...changes,
+          },
+        ),
+      );
+      await expectLater(
+        repo.ownApplicationStatus(
+          groupId: groupId,
+          applicationId: applicationId,
+        ),
+        throwsFormatException,
+      );
+    }
+  });
+  testWidgets('own status updates without resubmitting or granting entry', (
+    tester,
+  ) async {
+    const applicationId = '22222222-2222-4222-8222-222222222222';
+    final events = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(events.close);
+    var status = 'pending', submits = 0;
+    Completer<Map<String, dynamic>>? delayed;
+    final repo = GroupChatRepository(
+      MessagingRepository(
+        account: 'me',
+        call: (id, params) async {
+          if (id == 'K260914000658') {
+            submits++;
+            return {
+              'groupId': groupId,
+              'applicationId': applicationId,
+              'status': 'pending',
+              'changed': true,
+            };
+          }
+          if (id == 'K260913000619') throw StateError('not a current member');
+          expect(id, 'K260916000684');
+          expect(params, {'groupId': groupId, 'applicationId': applicationId});
+          return delayed?.future ??
+              Future.value({
+                'groupId': groupId,
+                'applicationId': applicationId,
+                'status': status,
+                'changed': false,
+              });
+        },
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GroupJoinRequestPage(
+          groupId: groupId,
+          groupName: 'Test group',
+          code: code,
+          repository: repo,
+          events: events.stream,
+        ),
+      ),
+    );
+    await tester.tap(find.text('提交申请'));
+    await tester.pumpAndSettle();
+    for (final entry in {
+      'rejected': '申请未通过',
+      'expired': '申请已过期，请重新扫描',
+      'canceled': '申请已取消',
+      'accepted': '申请已通过',
+    }.entries) {
+      status = entry.key;
+      events.add({'eventType': 'chat.group.changed'});
+      await tester.pumpAndSettle();
+      expect(find.text(entry.value), findsOneWidget);
+      expect(find.text('进入群聊'), findsNothing);
+      expect(submits, 1);
+    }
+    delayed = Completer<Map<String, dynamic>>();
+    events.add({'eventType': 'chat.group.changed'});
+    await tester.pumpAndSettle();
+    SecureSessionStore.changes.add(null);
+    await tester.pump();
+    delayed.complete({
+      'groupId': groupId,
+      'applicationId': applicationId,
+      'status': 'accepted',
+      'changed': false,
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('申请已通过'), findsNothing);
+    expect(find.text('进入群聊'), findsNothing);
+    expect(find.text('登录状态已变化'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets(
     'approval event rechecks membership and session loss rejects late response',
     (tester) async {
@@ -96,6 +202,7 @@ void main() {
               sends++;
               return submitted.future;
             }
+            if (id == 'K260916000684') return {}; // Older server fallback.
             expect(id, 'K260913000619');
             checks++;
             return {

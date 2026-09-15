@@ -28,6 +28,7 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
     with WidgetsBindingObserver {
   final _note = TextEditingController();
   String? _submittedNote, _status, _error;
+  String? _applicationId;
   bool _busy = false, _invalid = false, _foreground = true;
   int _generation = 0;
   StreamSubscription<void>? _session;
@@ -43,6 +44,7 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
       _note.clear();
       _submittedNote = null;
       _status = null;
+      _applicationId = null;
       _canEnter = false;
       if (mounted) {
         setState(() => _error = '登录状态已变化');
@@ -89,8 +91,27 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
         _error = null;
       });
     } catch (_) {
+      if (!mounted || _invalid || generation != _generation) return;
+      String? status;
+      final applicationId = _applicationId;
+      if (applicationId != null) {
+        try {
+          status = await widget.repository.ownApplicationStatus(
+            groupId: widget.groupId,
+            applicationId: applicationId,
+          );
+        } catch (_) {
+          // An older deployment or failed status read cannot grant entry
+          // or be interpreted as an application rejection.
+        }
+      }
       if (mounted && !_invalid && generation == _generation) {
-        setState(() => _error = '暂未确认入群，请稍后刷新');
+        setState(() {
+          if (status != null) _status = status;
+          _error = status == null || status == 'accepted'
+              ? '暂未确认入群，请稍后刷新'
+              : null;
+        });
       }
     } finally {
       _checking = false;
@@ -121,7 +142,10 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
       if (!mounted || generation != _generation || _invalid) {
         return;
       }
-      setState(() => _status = result['status'] as String);
+      setState(() {
+        _status = result['status'] as String;
+        _applicationId = result['applicationId'] as String?;
+      });
       if (_status == 'accepted' || _status == 'already_member' || _checkAgain) {
         _checkAgain = false;
         unawaited(_checkMembership());

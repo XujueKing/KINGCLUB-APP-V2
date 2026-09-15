@@ -111,6 +111,29 @@ class GroupChatRepository {
     }
   }
 
+  Future<String> ownApplicationStatus({
+    required String groupId,
+    required String applicationId,
+  }) async {
+    final result = await messaging.call('K260916000684', {
+      'groupId': groupId,
+      'applicationId': applicationId,
+    });
+    if (result['groupId'] != groupId ||
+        result['applicationId'] != applicationId ||
+        result['changed'] != false ||
+        !const [
+          'pending',
+          'accepted',
+          'rejected',
+          'canceled',
+          'expired',
+        ].contains(result['status'])) {
+      throw const FormatException('入群申请状态无效');
+    }
+    return result['status'] as String;
+  }
+
   Future<Map<String, dynamic>> joinApplications(
     String groupId, {
     String? before,
