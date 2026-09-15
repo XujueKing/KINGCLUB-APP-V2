@@ -170,6 +170,11 @@ class MessagingRepository {
   }) =>
       call(group ? 'K260914000654' : 'K260914000652', {'messageId': messageId});
 
+  Future<Map<String, dynamic>> peerFileAuthority(
+    String messageId,
+    String peer,
+  ) => call('K260916000686', {'messageId': messageId, 'peer': peer});
+
   Future<Map<String, dynamic>> voiceMedia(
     String messageId, {
     bool group = false,
