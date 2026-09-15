@@ -483,12 +483,19 @@ class DirectChatController extends ChatSessionController {
         (_, message) => (message['sequence'] as int) <= hidden,
       );
     }
-    conversationId = result['conversationId'] as String;
+    final nextConversationId = result['conversationId'] as String;
+    final nextPeerRead = (result['peerReadSequence'] as num).toInt();
+    // An older-page request can finish after a newer synchronization. Reads
+    // cannot be undone by that stale snapshot within the same conversation.
+    if (conversationId != nextConversationId ||
+        nextPeerRead > peerReadSequence) {
+      peerReadSequence = nextPeerRead;
+    }
+    conversationId = nextConversationId;
     permission = Map<String, dynamic>.from(result['sendPermission'] as Map);
     _canHideMessage = result['canHideMessage'] == true;
     _canReply = result['canReply'] == true;
     settings = Map<String, dynamic>.from(result['settings'] as Map);
-    peerReadSequence = (result['peerReadSequence'] as num).toInt();
     for (final message in rows) {
       if (_disposed || generation != _historyGeneration) return;
       if (hidden is int && (message['sequence'] as int) <= hidden) continue;

@@ -52,6 +52,50 @@ Map<String, dynamic> history(
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('late older page cannot roll back a newer peer read receipt', () async {
+    final older = Completer<Map<String, dynamic>>();
+    final olderRequested = Completer<void>();
+    var requests = 0;
+    final controller = DirectChatController(
+      peer: 'peer',
+      outbox: MemoryOutbox(),
+      repository: MessagingRepository(
+        account: 'me',
+        call: (_, params) async {
+          if (params['before'] != null) {
+            olderRequested.complete();
+            return older.future;
+          }
+          requests++;
+          return {
+            ...history([
+              ack({'clientMessageId': 'new', 'text': 'new'}, sequence: 2),
+            ], more: requests == 1),
+            'peerReadSequence': requests == 1 ? 0 : 2,
+          };
+        },
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.synchronize();
+    final loading = controller.loadOlder();
+    await olderRequested.future;
+    await controller.synchronize();
+    expect(controller.peerReadSequence, 2);
+    older.complete({
+      ...history([
+        ack({'clientMessageId': 'old', 'text': 'old'}),
+      ]),
+      'peerReadSequence': 0,
+    });
+    await loading;
+    expect(controller.messages, hasLength(2));
+    expect(
+      controller.messages.every((message) => message['peerRead'] == true),
+      isTrue,
+    );
+    expect(controller.peerReadSequence, 2);
+  });
   testWidgets('only confirmed outgoing reads display a read receipt', (
     tester,
   ) async {
