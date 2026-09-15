@@ -213,3 +213,9 @@ This working-set limit, and the preceding 16-relay default, are not SUPERVM rout
 Reference: Android NSD https://developer.android.com/develop/connectivity/wifi/use-nsd . Dart targeted analysis passed; native Kotlin compilation is checked separately below. Real two-phone LAN discovery and offline message exchange have not been tested.
 
 Final native check: `:app:compilePreviewProfileKotlin --offline` passed after the ready-event change (49 seconds). Connected phone advertises Bluetooth Classic, BLE and Wi-Fi Direct features, but not Wi-Fi Aware; feature presence alone is not a successful connection test. This node has not been installed or exercised as a two-device flow.
+
+### 2026-09-15 LAN direct authenticated handshake
+
+Added `NearbyPeerConnector`: given an independently confirmed peer public-key identity and discovered endpoint, both peers can initiate concurrently; deterministic identity order selects one initiator. The native signed offer/answer travels over UDP without CCSOP/HTTP. The connector retries every 250 ms with an 8-second deadline, hands the same socket to the encrypted carrier and retains a short response replay window for a lost answer. Cancellation/session change releases pending handshake and socket; discovery alone is never sufficient identity authorization.
+
+Validation: real native crypto and real loopback UDP through a packet-loss forwarder recovered a deliberately dropped first handshake answer, produced matching channel IDs, preserved ports, delivered an encrypted payload and cancelled a pending connector. This is protocol integration evidence, not a two-phone chat acceptance. Offline member/device trust binding, discovery-to-UI integration, durable messages and synchronization remain pending. User clarified to defer Bluetooth requiring individual pairing; prioritize automatic same-LAN discovery and direct communication.
