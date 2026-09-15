@@ -22,3 +22,9 @@ ChatEmojiPanel 由真实会话传入 repository，本地恢复后后台调用同
 
 ## 重连不打断浏览
 云版本、本地快照均未变化且图片仍存在时，同步不重新写本地索引/应用面板；图片缺失仍触发恢复。同步不清空内置表情页码，避免正在浏览时页码指示被重置。8项同步测试通过，包含无变化不应用、缺失文件恢复；3文件 analyze 通过。未安装/双机验收。
+
+## Local journal recovery
+
+A malformed or structurally invalid cloud.json now becomes an unknown baseline instead of permanently preventing synchronization. The existing first-sync rules restore remote files when the local library is empty and require explicit keep-both resolution when both sides contain images. Invalid mappings are not reused. Disk read failures still propagate; they are not silently interpreted as a cleared library.
+
+Validation: analyze passed; all 12 sync tests passed, including truncated/invalid records, cloud restore without writes, both-sided conflict protection, unchanged reconnect, missing-file recovery and deliberate local deletion. Earlier tests used the placeholder baseline string old; these fixtures now contain a real serialized local snapshot. This is local controlled recovery coverage, not online deployment or dual-phone acceptance. Not included in the 08:29 installed APK.

@@ -38,6 +38,69 @@ void main() {
   tearDown(() async {
     await dir.delete(recursive: true);
   });
+  for (final damaged in [
+    '{"revision":',
+    '{"revision":"two"}',
+    '{"revision":2,"local":"[]","mapping":{"x":42}}',
+  ]) {
+    test(
+      'damaged baseline restores cloud without overwriting: $damaged',
+      () async {
+        await File('${dir.path}/cloud.json').writeAsString(damaged);
+        final cloud = Cloud(
+          StickerLibrarySnapshot(2, [
+            StickerPack('favorites', [asset]),
+          ]),
+        );
+        final sync = StickerLibrarySync(cloud, dir);
+        addTearDown(sync.dispose);
+        List<Map<String, dynamic>>? restored;
+        await sync.synchronize(
+          [
+            {'name': 'favorites', 'images': <String>[]},
+          ],
+          (next) async {
+            restored = next;
+            return true;
+          },
+        );
+        expect(cloud.writes, 0);
+        final path = (restored!.first['images'] as List).single as String;
+        expect(await File(path).readAsBytes(), [1, 2, 3]);
+        expect(
+          jsonDecode(
+            await File('${dir.path}/cloud.json').readAsString(),
+          )['revision'],
+          2,
+        );
+      },
+    );
+  }
+  test(
+    'damaged baseline with both libraries requires explicit merge',
+    () async {
+      await File('${dir.path}/cloud.json').writeAsString('{');
+      final file = await File('${dir.path}/local.image').writeAsBytes([4]);
+      final cloud = Cloud(
+        StickerLibrarySnapshot(2, [
+          StickerPack('favorites', [asset]),
+        ]),
+      );
+      final sync = StickerLibrarySync(cloud, dir);
+      addTearDown(sync.dispose);
+      await expectLater(
+        sync.synchronize([
+          {
+            'name': 'favorites',
+            'images': [file.path],
+          },
+        ], (_) async => throw StateError('must not apply')),
+        throwsA(isA<StickerLibraryConflict>()),
+      );
+      expect(cloud.writes, 0);
+      expect(await file.readAsBytes(), [4]);
+    },
+  );
   test('unchanged reconnect leaves panel snapshot untouched', () async {
     final file = await File('${dir.path}/local.image').writeAsBytes([1, 2, 3]);
     final local = [
@@ -116,7 +179,9 @@ void main() {
       await File('${dir.path}/cloud.json').writeAsString(
         jsonEncode({
           'revision': 2,
-          'local': 'old',
+          'local': jsonEncode([
+            {'name': 'old', 'images': <String>[]},
+          ]),
           'mapping': {localFile.path: second},
         }),
       );
@@ -188,9 +253,15 @@ void main() {
     );
     final sync = StickerLibrarySync(cloud, dir);
     addTearDown(sync.dispose);
-    await File(
-      '${dir.path}/cloud.json',
-    ).writeAsString(jsonEncode({'revision': 2, 'local': 'old', 'mapping': {}}));
+    await File('${dir.path}/cloud.json').writeAsString(
+      jsonEncode({
+        'revision': 2,
+        'local': jsonEncode([
+          {'name': 'old', 'images': <String>[]},
+        ]),
+        'mapping': {},
+      }),
+    );
     await expectLater(
       sync.synchronize([
         {'name': 'local', 'images': <String>[]},
@@ -213,9 +284,15 @@ void main() {
     );
     final sync = StickerLibrarySync(cloud, dir);
     addTearDown(sync.dispose);
-    await File(
-      '${dir.path}/cloud.json',
-    ).writeAsString(jsonEncode({'revision': 2, 'local': 'old', 'mapping': {}}));
+    await File('${dir.path}/cloud.json').writeAsString(
+      jsonEncode({
+        'revision': 2,
+        'local': jsonEncode([
+          {'name': 'old', 'images': <String>[]},
+        ]),
+        'mapping': {},
+      }),
+    );
     await sync.synchronize([
       {'name': 'favorites', 'images': <String>[]},
     ], (_) async => true);

@@ -29,9 +29,7 @@ class StickerLibrarySync {
     final journal = File('${directory.path}/cloud.json');
     Map<String, dynamic> state = {};
     if (await journal.exists()) {
-      state = Map<String, dynamic>.from(
-        jsonDecode(await journal.readAsString()) as Map,
-      );
+      state = _decodeJournal(await journal.readAsString());
     }
     _check();
     final mapping = Map<String, dynamic>.from(state['mapping'] as Map? ?? {});
@@ -181,4 +179,44 @@ List<StickerPack> combineStickerPacks(
     'packs': result.map((p) => p.toJson()).toList(),
   });
   return result;
+}
+
+// A damaged local baseline must not permanently disable cloud recovery. Treat
+// it as an unknown baseline: existing first-sync conflict rules protect both
+// libraries. File-system failures still propagate and are not treated as empty.
+Map<String, dynamic> _decodeJournal(String source) {
+  try {
+    final raw = jsonDecode(source);
+    if (raw is! Map<String, dynamic> ||
+        raw['revision'] is! int ||
+        (raw['revision'] as int) < 0 ||
+        (raw['revision'] as int) > 2147483647 ||
+        raw['local'] is! String ||
+        raw['mapping'] is! Map<String, dynamic>) {
+      return {};
+    }
+    final local = jsonDecode(raw['local'] as String);
+    if (local is! List ||
+        local.isEmpty ||
+        local.any(
+          (pack) =>
+              pack is! Map ||
+              pack['name'] is! String ||
+              pack['images'] is! List ||
+              (pack['images'] as List).any((path) => path is! String),
+        )) {
+      return {};
+    }
+    final uuid = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    if ((raw['mapping'] as Map).values.any(
+      (asset) => asset is! String || !uuid.hasMatch(asset),
+    )) {
+      return {};
+    }
+    return raw;
+  } on FormatException {
+    return {};
+  }
 }
