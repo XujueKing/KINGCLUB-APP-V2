@@ -49,6 +49,12 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
 
   static const _history = ['周末 KING CLUB 见', '好，晚上九点', 'A6 卡座见'];
 
+  String _senderLabel(String account) => account == widget.repository?.account
+      ? '我'
+      : account == widget.peerAccount
+      ? widget.peerName
+      : '聊天成员';
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -145,10 +151,12 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                   Navigator.of(context).push<void>(
                     MaterialPageRoute(
                       builder: (_) => ChatHistorySearchPage(
+                        senderLabel: _senderLabel,
                         onSelected: (message) =>
                             Navigator.of(context).push<void>(
                               MaterialPageRoute(
                                 builder: (_) => ChatHistoryContextPage(
+                                  senderLabel: _senderLabel,
                                   account: widget.repository!.account,
                                   messageId: message['messageId'] as String,
                                   sequence: message['sequence'] as int,

@@ -19,8 +19,10 @@ class ChatHistorySearchPage extends StatefulWidget {
     required this.search,
     this.events,
     this.onSelected,
+    this.senderLabel,
   });
   final HistorySearch search;
+  final String Function(String account)? senderLabel;
   final ValueChanged<Map<String, dynamic>>? onSelected;
   final Stream<Map<String, dynamic>>? events;
   @override
@@ -244,7 +246,8 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
                         ),
                         subtitle: Text(
                           [
-                            row['sender']?.toString() ?? '',
+                            widget.senderLabel?.call(row['sender'] as String) ??
+                                row['sender'] as String,
                             ?date,
                           ].where((part) => part.isNotEmpty).join(' · '),
                           style: const TextStyle(

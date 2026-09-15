@@ -23,6 +23,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: ChatHistorySearchPage(
+            senderLabel: (account) => account == 'synthetic' ? '朋友备注' : '群成员',
             events: events.stream,
             search: (query, before) async {
               expect(query, 'needle');
@@ -45,7 +46,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 301));
       await tester.pumpAndSettle();
       expect(find.text('needle newer'), findsOneWidget);
-      expect(find.text('synthetic · 2020年1月2日 10:00'), findsOneWidget);
+      expect(find.text('朋友备注 · 2020年1月2日 10:00'), findsOneWidget);
+      expect(find.textContaining('synthetic'), findsNothing);
       await tester.tap(find.text('加载更早结果'));
       await tester.pumpAndSettle();
       expect(calls, [null, 9]);

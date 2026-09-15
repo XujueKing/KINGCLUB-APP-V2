@@ -38,6 +38,17 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   final _name = TextEditingController();
   final _memberSearch = TextEditingController();
   String _memberQuery = '';
+  String _senderLabel(String account) {
+    if (account == widget.repository.account) return '我';
+    for (final member in (_details?['members'] as List?) ?? const []) {
+      if (member is Map && member['account'] == account) {
+        final nickname = member['nickname'];
+        if (nickname is String && nickname.trim().isNotEmpty) return nickname;
+      }
+    }
+    return '群成员';
+  }
+
   Iterable<Map> get _visibleMembers =>
       ((_details?['members'] as List?) ?? const []).cast<Map>().where(
         (member) =>
@@ -606,10 +617,12 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                         : () => Navigator.of(context).push<void>(
                             MaterialPageRoute(
                               builder: (_) => ChatHistorySearchPage(
+                                senderLabel: _senderLabel,
                                 onSelected: (message) => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
                                         builder: (_) => ChatHistoryContextPage(
+                                          senderLabel: _senderLabel,
                                           account: widget
                                               .repository
                                               .messaging

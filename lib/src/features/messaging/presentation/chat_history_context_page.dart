@@ -15,9 +15,11 @@ class ChatHistoryContextPage extends StatefulWidget {
     required this.messageId,
     required this.sequence,
     required this.account,
+    this.senderLabel,
   });
   final ContextHistoryReader read;
   final String messageId, account;
+  final String Function(String account)? senderLabel;
   final int sequence;
   @override
   State<ChatHistoryContextPage> createState() => _ChatHistoryContextPageState();
@@ -151,7 +153,12 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
                               children: [
                                 Text(
                                   [
-                                        message['sender']?.toString() ?? '',
+                                        widget.senderLabel?.call(
+                                              message['sender']?.toString() ??
+                                                  '',
+                                            ) ??
+                                            message['sender']?.toString() ??
+                                            '',
                                         ?chatTimestampLabel(
                                           message['createdDate']?.toString(),
                                           null,
