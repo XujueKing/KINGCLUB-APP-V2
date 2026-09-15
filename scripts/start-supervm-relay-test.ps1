@@ -18,6 +18,9 @@ $bound = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Sile
 if ($bound.Count -gt 0) {
   $existing = Get-CimInstance Win32_Process -Filter "ProcessId=$($bound[0].OwningProcess)"
   if ($existing.ExecutablePath -eq $binary -and $existing.CommandLine.Contains($configPath)) {
+    if (!($bound | Where-Object {$_.OwningProcess -eq $existing.ProcessId -and $_.LocalAddress -eq $LanAddress})) {
+      throw 'Existing relay listens on a different address. Stop that test process before changing the bind address.'
+    }
     @{ pid=$existing.ProcessId; endpoint="wss://${LanAddress}:$Port/novovm"; reused=$true } | ConvertTo-Json
     exit 0
   }
@@ -46,6 +49,6 @@ if (!(Test-Path -LiteralPath $cert)) {
 $process = Start-Process -FilePath $binary -ArgumentList ('"'+$configPath+'"') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $runtime 'relay.stdout.log') -RedirectStandardError (Join-Path $runtime 'relay.stderr.log')
 Start-Sleep -Milliseconds 500
 if ($process.HasExited) { throw 'Relay exited; inspect its local stderr log.' }
-$bound = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Where-Object {$_.OwningProcess -eq $process.Id})
+$bound = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Where-Object {$_.OwningProcess -eq $process.Id -and $_.LocalAddress -eq $LanAddress})
 if ($bound.Count -eq 0) { throw 'Relay process started but listener not verified.' }
 @{ pid=$process.Id; endpoint="wss://${LanAddress}:$Port/novovm"; reused=$false } | ConvertTo-Json

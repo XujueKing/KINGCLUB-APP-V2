@@ -119,7 +119,12 @@ class MemberRelayRuntime with WidgetsBindingObserver {
       }
       _ready = socket;
       _connections.add(socket);
-    } catch (_) {
+    } catch (error) {
+      debugPrint('NOVORUDP_RELAY_CONNECT_FAILURE ${error.runtimeType}');
+      if (error is StateError) {
+        // Local state/native protocol errors contain no member credentials.
+        debugPrint('NOVORUDP_RELAY_STATE ${error.message}');
+      }
       socket?.close();
       _lost(attempt);
     }
