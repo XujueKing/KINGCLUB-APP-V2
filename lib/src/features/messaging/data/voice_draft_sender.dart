@@ -28,6 +28,7 @@ class VoiceDraftSender {
     var queued = false;
     try {
       final store = await _currentStore();
+      if (store.account != chat.messaging.account) throw StateError('录音账号已变化');
       if (!store.owns(draft.path)) throw StateError('录音不属于当前账号');
       final file = File(draft.path);
       if (await file.length() > 2 * 1024 * 1024) throw StateError('录音须小于2MB');
@@ -45,6 +46,7 @@ class VoiceDraftSender {
           voice.assetId,
           voice.durationMs,
           onQueued: () => queued = true,
+          clientMessageId: store.messageId(draft.path),
         );
       } finally {
         if (queued) {

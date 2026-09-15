@@ -46,6 +46,7 @@ abstract class ChatSessionController extends ChangeNotifier {
     String assetId,
     int durationMs, {
     VoidCallback? onQueued,
+    String? clientMessageId,
   });
   Future<void> sendLocation(ChatLocation location, {VoidCallback? onQueued});
   Future<void> loadOlder();

@@ -79,6 +79,7 @@ void main() {
           expect(await File(path).exists(), false);
           expect(upload.acknowledged, true);
           expect(queue.items.length, 1);
+          expect(queue.items.keys.single, store.messageId(path));
           expect(chat.messages.single['status'], 'queued');
         } else {
           await expectLater(future, throwsStateError);

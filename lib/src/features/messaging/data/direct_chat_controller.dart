@@ -719,6 +719,7 @@ class DirectChatController extends ChatSessionController {
     String assetId,
     int durationMs, {
     VoidCallback? onQueued,
+    String? clientMessageId,
   }) async {
     if (_disposed) return;
     if (!RegExp(
@@ -727,7 +728,12 @@ class DirectChatController extends ChatSessionController {
       throw ArgumentError('语音上传结果无效');
     }
     if (durationMs < 1000 || durationMs > 60500) throw ArgumentError('录音时长无效');
-    final id = const Uuid().v4();
+    final id = clientMessageId ?? const Uuid().v4();
+    if (!RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(id)) {
+      throw const FormatException('语音消息编号无效');
+    }
     final message = <String, dynamic>{
       'clientMessageId': id,
       'recipient': peer,

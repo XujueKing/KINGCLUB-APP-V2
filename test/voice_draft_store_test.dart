@@ -21,6 +21,13 @@ void main() {
         expect((await a.list()).map((f) => f.path), [aPath]);
         expect((await b.list()).map((f) => f.path), [bPath]);
         expect(a.owns(bPath), false);
+        final reopened = VoiceDraftStore(root: root, account: 'member-a');
+        expect(reopened.messageId(aPath), a.messageId(aPath));
+        expect(
+          a.messageId('${a.directory.path}/same.m4a'),
+          isNot(b.messageId('${b.directory.path}/same.m4a')),
+        );
+        expect(() => b.messageId(aPath), throwsStateError);
         expect(b.owns(aPath), false);
         expect(a.owns('${root.path}/voice_drafts/legacy.m4a'), false);
         expect(a.owns('${a.directory.path}/../foreign.m4a'), false);

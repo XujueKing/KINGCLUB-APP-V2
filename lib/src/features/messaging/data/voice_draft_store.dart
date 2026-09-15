@@ -3,12 +3,13 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/session/secure_session_store.dart';
 import '../../../core/session/member_qr_memory.dart';
 
 class VoiceDraftStore {
-  VoiceDraftStore({required Directory root, required String account})
+  VoiceDraftStore({required Directory root, required this.account})
     : directory = Directory(
         p.join(
           root.path,
@@ -20,6 +21,15 @@ class VoiceDraftStore {
     if (account.isEmpty) throw ArgumentError('Missing account');
   }
   final Directory directory;
+  final String account;
+  String messageId(String path) {
+    if (!owns(path)) throw StateError('录音不属于当前账号');
+    return const Uuid().v5(
+      Namespace.url.value,
+      jsonEncode(['kingclub-voice-draft-v1', account, p.basename(path)]),
+    );
+  }
+
   static Future<VoiceDraftStore> current() async {
     final generation = MemberQrMemory.generation;
     final session = await SecureSessionStore().readSession();

@@ -51,7 +51,8 @@ void main() {
         outbox: queue,
       );
       await first.initialize();
-      await first.sendVoice(asset, 2000);
+      const draftId = '44444444-4444-5444-8444-444444444444';
+      await first.sendVoice(asset, 2000, clientMessageId: draftId);
       expect(queue.items.length, 1);
       expect(first.messages.single['status'], 'queued');
       first.dispose();
@@ -63,6 +64,7 @@ void main() {
       await restored.initialize();
       expect(requests.length, 2);
       expect(requests[0], requests[1]);
+      expect(requests[0]['clientMessageId'], draftId);
       expect(queue.items, isEmpty);
       expect(restored.messages.single['voiceAssetId'], asset);
       restored.dispose();
