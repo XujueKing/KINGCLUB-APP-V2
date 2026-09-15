@@ -6,6 +6,8 @@ import 'dart:io';
 import 'package:cryptography/dart.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/foundation.dart';
+import 'package:kingclub/src/core/session/member_qr_memory.dart';
+import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_receiver.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_sender.dart';
@@ -250,6 +252,38 @@ void main() {
         final running = cancelled.run();
         Timer(const Duration(milliseconds: 10), cancelled.cancel);
         await expectLater(running, throwsStateError);
+      },
+    );
+    test(
+      'account change stops a pending transfer and releases its source',
+      () async {
+        final input = await source([1, 2, 3]);
+        final sender = NovoRudpFileSender(
+          link: left,
+          file: input.file,
+          streamId: BigInt.one,
+          objectId: BigInt.two,
+          size: 3,
+          sha256: input.hash,
+          ackWait: const Duration(minutes: 1),
+        );
+        final running = sender.run();
+        final switched = Timer(const Duration(milliseconds: 20), () {
+          MemberQrMemory.clear();
+          SecureSessionStore.changes.add(null);
+        });
+        addTearDown(switched.cancel);
+        await expectLater(
+          running.timeout(const Duration(seconds: 2)),
+          throwsStateError,
+        );
+        final sent = packets;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(packets, sent);
+        final renamed = await input.file.rename(
+          '${directory.path}/released.bin',
+        );
+        expect(await renamed.readAsBytes(), [1, 2, 3]);
       },
     );
     test('changed source fails before any datagram leaves', () async {

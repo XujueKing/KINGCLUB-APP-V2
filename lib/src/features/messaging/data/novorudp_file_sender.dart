@@ -177,6 +177,7 @@ class NovoRudpFileSender {
         final ack = await _nextAck();
         if (ack == null) continue;
         final decision = await planner.acceptAuthenticatedAck(ack);
+        _check();
         if (decision == 'ReceiverDone') return;
         if (decision is Map && decision.containsKey('Repair')) {
           resumeAck = ack;
@@ -233,6 +234,7 @@ class NovoRudpFileSender {
           }
           try {
             decision = await planner.acceptAuthenticatedAck(ack);
+            _check();
           } on StateError {
             _check();
             if (++stalls >= maxStalls) {
