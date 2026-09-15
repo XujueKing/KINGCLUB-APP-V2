@@ -88,6 +88,41 @@ class RealAuthRepository implements AuthRepository {
   Future<AuthLoginResult?> restoreSession() => _restoring ??=
       _coordinatedRestore().whenComplete(() => _restoring = null);
 
+  /// Only the app entry point may use a previously approved local snapshot.
+  /// API credential renewal must still require an online confirmation.
+  Future<AuthLoginResult?> restoreForBootstrap() async {
+    final original = await _sessionStore.readSession();
+    try {
+      return await restoreSession();
+    } on AuthFailure catch (error) {
+      if (error.code != 'NETWORK_ERROR' || original == null) rethrow;
+      final current = await _sessionStore.readSession();
+      if (current == null ||
+          ['sessionId', 'apiKeyId', 'apiKey'].any(
+            (key) =>
+                original[key] is! String ||
+                (original[key] as String).isEmpty ||
+                original[key] != current[key],
+          ) ||
+          (original['account'] as Map?)?['userAccount'] !=
+              (current['account'] as Map?)?['userAccount']) {
+        throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
+      }
+      final account = (current['account'] as Map?)?['userAccount'];
+      final deadline = DateTime.tryParse('${current['refreshExpiresAt']}');
+      if (account is! String ||
+          account.isEmpty ||
+          !_savedMemberApproved(current) ||
+          deadline == null ||
+          !deadline.isAfter(_now())) {
+        rethrow;
+      }
+      final result = parseMembership(current);
+      onAuthenticated?.call(result);
+      return result;
+    }
+  }
+
   Future<AuthLoginResult?> _coordinatedRestore() async {
     final saved = await _sessionStore.readSession();
     if (saved == null) return null;

@@ -135,7 +135,7 @@ class _RealBootstrapState extends ConsumerState<_RealBootstrap> {
     try {
       final result = await (ref.read(
         authRepositoryProvider,
-      ) as RealAuthRepository).restoreSession();
+      ) as RealAuthRepository).restoreForBootstrap();
       if (!mounted) return;
       if (result == null) {
         ref.read(authenticatedMemberProvider.notifier).clear();
