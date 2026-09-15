@@ -1,3 +1,7 @@
+import 'package:kingclub/src/features/messaging/data/member_relay_handshake.dart';
+import 'package:kingclub/src/features/messaging/data/novorudp_device_binding.dart';
+import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
@@ -336,47 +340,59 @@ void main() {
       );
 
       final renewedRight = await connect(b), renewedLeft = await connect(a);
-      final renewedOffer = a.start(b.peerId);
-      renewedLeft.socket.sendPeerHandshake(b.peerId, {
-        'kind': 'offer',
-        'body': renewedOffer.offer,
-      });
-      final inbound = await receive(
-        renewedRight.events,
-        'peer_handshake_delivery',
-      );
-      final renewedAnswer = b.respond(
-        inbound['handshake']['body'] as Map<String, dynamic>,
-        expectedPeer: a.peerId,
-      );
-      renewedRight.socket.sendPeerHandshake(a.peerId, {
-        'kind': 'response',
-        'body': renewedAnswer.response,
-      });
-      final response = await receive(
-        renewedLeft.events,
-        'peer_handshake_delivery',
-      );
-      final renewedChannel = a.complete(
-        renewedOffer,
-        response['handshake']['body'] as Map<String, dynamic>,
-      );
-      activeRelay = NearbyTextChannel(
-        link: NovoRudpRelayFrameLink(
-          relay: renewedLeft.socket,
-          channel: renewedChannel,
-          expectedPeer: b.peerId,
+      const bindingA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      const bindingB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+      var directoryReads = 0;
+      NovoRudpDeviceBinding bound(
+        String account,
+        NovoRudpSecureSession identity,
+      ) => NovoRudpDeviceBinding(
+        identity: identity,
+        messaging: MessagingRepository(
+          account: account,
+          call: (api, params) async {
+            expect(api, 'K260915000672');
+            directoryReads++;
+            final isA = params['peer'] == 'member-a';
+            expect(params['peer'], anyOf('member-a', 'member-b'));
+            final device = isA ? a : b;
+            return {
+              'cacheSeconds': 0,
+              'keys': [
+                {
+                  'bindingId': isA ? bindingA : bindingB,
+                  'peerId': device.peerId,
+                  'publicKey': device.peerId.split(':').last,
+                },
+              ],
+            };
+          },
         ),
+      );
+      final memberA = MemberRelayHandshake(
+        binding: bound('member-a', a),
+        relay: renewedLeft.socket,
+        peer: 'member-b',
+        peerBindingId: bindingB,
+      );
+      final memberB = MemberRelayHandshake(
+        binding: bound('member-b', b),
+        relay: renewedRight.socket,
+        peer: 'member-a',
+        peerBindingId: bindingA,
+      );
+      addTearDown(memberA.close);
+      addTearDown(memberB.close);
+      final lanes = await Future.wait([memberA.connect(), memberB.connect()]);
+      expect(directoryReads, greaterThanOrEqualTo(6));
+      activeRelay = NearbyTextChannel(
+        link: lanes[0],
         history: ha,
         peerId: b.peerId,
         canExchange: () => true,
       );
       final renewedReceiver = NearbyTextChannel(
-        link: NovoRudpRelayFrameLink(
-          relay: renewedRight.socket,
-          channel: renewedAnswer.channel,
-          expectedPeer: a.peerId,
-        ),
+        link: lanes[1],
         history: hb,
         peerId: a.peerId,
         canExchange: () => true,
@@ -398,7 +414,10 @@ void main() {
         while (await events.moveNext()) {
           // This observer also buffered the completed text exchanges above;
           // the peer links independently consumed and authenticated them.
-          expect(events.current['kind'], anyOf('forward_outcome', 'delivery'));
+          expect(
+            events.current['kind'],
+            anyOf('forward_outcome', 'delivery', 'peer_handshake_delivery'),
+          );
           expect(++count, lessThan(128));
         }
       }
