@@ -61,6 +61,41 @@ void main() {
         await expectLater(sender.seal(frame), throwsStateError);
       });
       test(
+        'packet worker handles concurrent frames without mixing replies',
+        () async {
+          final offer = a.start(b.peerId);
+          final response = b.respond(offer.offer, expectedPeer: a.peerId);
+          final channel = a.complete(offer, response.response);
+          final envelopes = await Future.wait(
+            List.generate(
+              32,
+              (i) => channel.seal(
+                NovoRudpFrame(
+                  kind: NovoRudpFrameKind.data,
+                  sessionId: channel.sessionId,
+                  streamId: BigInt.one,
+                  objectId: BigInt.one,
+                  sequence: BigInt.from(i),
+                  ackEpoch: BigInt.zero,
+                  payload: List.filled(800, i),
+                ),
+              ),
+            ),
+          );
+          final decoded = await Future.wait(
+            envelopes.map(response.channel.open),
+          );
+          for (var i = 0; i < decoded.length; i++) {
+            expect(decoded[i].sequence, BigInt.from(i));
+            expect(decoded[i].payload, List.filled(800, i));
+          }
+          await expectLater(
+            response.channel.open(envelopes.first),
+            throwsStateError,
+          );
+        },
+      );
+      test(
         'generation change during encryption cannot return an old envelope',
         () async {
           final start = a.start(b.peerId);

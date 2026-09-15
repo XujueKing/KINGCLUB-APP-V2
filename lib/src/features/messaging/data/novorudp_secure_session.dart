@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -11,7 +12,17 @@ import 'novorudp_frame.dart';
 
 class _Bridge {
   _Bridge(DynamicLibrary library)
-    : identity = library
+    : requestAddress = library
+          .lookup<
+            NativeFunction<Pointer<Utf8> Function(Pointer<Uint8>, UintPtr)>
+          >('kingclub_novorudp_request')
+          .address,
+      releaseAddress = library
+          .lookup<NativeFunction<Void Function(Pointer<Utf8>)>>(
+            'kingclub_novorudp_free',
+          )
+          .address,
+      identity = library
           .lookupFunction<
             Uint64 Function(Pointer<Uint8>, UintPtr),
             int Function(Pointer<Uint8>, int)
@@ -26,6 +37,28 @@ class _Bridge {
             Void Function(Pointer<Utf8>),
             void Function(Pointer<Utf8>)
           >('kingclub_novorudp_free');
+  _Bridge.fromAddresses(this.requestAddress, this.releaseAddress)
+    : identity = ((_, _) => throw StateError('Identity import unavailable')),
+      request =
+          Pointer<
+                NativeFunction<Pointer<Utf8> Function(Pointer<Uint8>, UintPtr)>
+              >.fromAddress(requestAddress)
+              .asFunction<Pointer<Utf8> Function(Pointer<Uint8>, int)>(),
+      release =
+          Pointer<NativeFunction<Void Function(Pointer<Utf8>)>>.fromAddress(
+            releaseAddress,
+          ).asFunction<void Function(Pointer<Utf8>)>();
+  final int requestAddress, releaseAddress;
+  _NativePacketWorker? _worker;
+  Future<Map<String, dynamic>> background(
+    String op,
+    int handle,
+    Map<String, dynamic> fields,
+  ) => (_worker ??= _NativePacketWorker(
+    requestAddress,
+    releaseAddress,
+  )).call(op, handle, fields);
+  void stopWorker() => _worker?.close();
   final int Function(Pointer<Uint8>, int) identity;
   final Pointer<Utf8> Function(Pointer<Uint8>, int) request;
   final void Function(Pointer<Utf8>) release;
@@ -112,13 +145,19 @@ class NovoRudpSecureChannel {
     _owner._checkHandle(_owner, _handle);
     final bytes = await frame.encode();
     _owner._checkHandle(_owner, _handle);
-    return _owner._bridge.call('seal', _handle, {'frame': bytes})['envelope']
-        as Map<String, dynamic>;
+    final result = await _owner._bridge.background('seal', _handle, {
+      'frame': bytes,
+    });
+    _owner._checkHandle(_owner, _handle);
+    return result['envelope'] as Map<String, dynamic>;
   }
 
   Future<NovoRudpFrame> open(Map<String, dynamic> envelope) async {
     _owner._checkHandle(_owner, _handle);
-    final result = _owner._bridge.call('open', _handle, {'envelope': envelope});
+    final result = await _owner._bridge.background('open', _handle, {
+      'envelope': envelope,
+    });
+    _owner._checkHandle(_owner, _handle);
     final frame = await NovoRudpFrame.decode(
       Uint8List.fromList((result['frame'] as List).cast<int>()),
     );
@@ -148,9 +187,12 @@ class NovoRudpRepairSender {
     final bytes = await frame.encode();
     owner._checkHandle(owner, _channel._handle);
     owner._checkHandle(owner, _handle);
-    return owner._bridge.call('repairAck', _handle, {
+    final result = await owner._bridge.background('repairAck', _handle, {
       'frame': bytes,
-    })['decision'];
+    });
+    owner._checkHandle(owner, _channel._handle);
+    owner._checkHandle(owner, _handle);
+    return result['decision'];
   }
 
   void close() {
@@ -283,6 +325,7 @@ class NovoRudpSecureSession {
     if (_disposed) return;
     _disposed = true;
     unawaited(_changes.cancel());
+    _bridge.stopWorker();
     for (final handle in _handles.toList()) {
       try {
         _close(handle);
@@ -291,4 +334,110 @@ class NovoRudpSecureSession {
       }
     }
   }
+}
+
+// One serialized native packet worker per login owner. Native handles remain
+// process-local and are protected by the Rust bridge mutex. Only entry-point
+// addresses and bounded protocol messages cross this same-process boundary.
+class _NativePacketWorker {
+  _NativePacketWorker(int request, int release) {
+    _responses.listen((value) {
+      if (value is SendPort) {
+        _commands = value;
+        if (_closed) value.send(null);
+        if (!_ready.isCompleted) _ready.complete();
+      } else if (value == null) {
+        _finish();
+      } else if (!_closed) {
+        final response = value as List;
+        final pending = _pending.remove(response[0]);
+        if (response[1] == true) {
+          pending?.complete(Map<String, dynamic>.from(response[2] as Map));
+        } else {
+          pending?.completeError(StateError(response[2] as String));
+        }
+      }
+    });
+    _errors.listen((_) => _finish());
+    Isolate.spawn(
+      _nativePacketMain,
+      [_responses.sendPort, request, release],
+      onExit: _responses.sendPort,
+      onError: _errors.sendPort,
+    ).then((_) {}, onError: (Object _) => _finish());
+  }
+  final _responses = ReceivePort(), _errors = ReceivePort();
+  final _ready = Completer<void>();
+  final _pending = <int, Completer<Map<String, dynamic>>>{};
+  SendPort? _commands;
+  bool _closed = false;
+  int _sequence = 0, _waiting = 0;
+
+  Future<Map<String, dynamic>> call(
+    String op,
+    int handle,
+    Map<String, dynamic> fields,
+  ) async {
+    if (_closed) throw StateError('Native packet worker closed');
+    if (_waiting >= 64) throw StateError('Native packet queue full');
+    _waiting++;
+    try {
+      await _ready.future;
+      if (_closed) throw StateError('Native packet worker closed');
+      final id = ++_sequence;
+      final result = Completer<Map<String, dynamic>>();
+      _pending[id] = result;
+      _commands!.send([id, op, handle, fields]);
+      return await result.future;
+    } finally {
+      _waiting--;
+    }
+  }
+
+  void close() {
+    if (_closed) return;
+    _closed = true;
+    for (final pending in _pending.values) {
+      pending.completeError(StateError('Native packet worker closed'));
+    }
+    _pending.clear();
+    // Graceful shutdown lets native allocations finish their finally cleanup.
+    // A worker still starting receives this stop as soon as it announces ready.
+    _commands?.send(null);
+  }
+
+  void _finish() {
+    close();
+    if (!_ready.isCompleted) _ready.complete();
+    _responses.close();
+    _errors.close();
+  }
+}
+
+void _nativePacketMain(List<Object> startup) {
+  final replies = startup[0] as SendPort;
+  final bridge = _Bridge.fromAddresses(startup[1] as int, startup[2] as int);
+  final commands = ReceivePort();
+  replies.send(commands.sendPort);
+  commands.listen((value) {
+    if (value == null) {
+      commands.close();
+      return;
+    }
+    final request = value as List;
+    try {
+      final result = bridge.call(
+        request[1] as String,
+        request[2] as int,
+        Map<String, dynamic>.from(request[3] as Map),
+      );
+      replies.send([request[0], true, result]);
+    } catch (error) {
+      replies.send([
+        request[0],
+        false,
+        error is StateError ? error.message : 'Native packet operation failed',
+      ]);
+    }
+  });
 }

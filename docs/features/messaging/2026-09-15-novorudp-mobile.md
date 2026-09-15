@@ -129,3 +129,11 @@ App业务路由、可信manifest/会员设备目录、worker、NAT/中继及自�
 定向analyze通过；登录/会话更新两项回归通过；真实Rust身份的四项绑定协调测试通过（这些测试HTTP为受控响应）。本批profile/preview构建64.6秒、149.0MB，APK SHA256 f21ad8738b30f9aed690fc2ecf30f58d19d25ce1b82076ee3116910a3dd74f06；原生ARM64 ELF包内校验通过，adb install -r Success并启动Status ok。包含工作区原有onboarding改动，本节点未编辑或提交它们。
 
 安装后暂未观察到手机绑定完成标记，待用户解锁进入聊天触发；不能把构建/受控测试记作手机端到端登记已通过。自动直连/中继、原生worker及公网验收仍未完成。
+
+## Persistent native packet worker
+
+SecureChannel.seal/open and repair ACK processing now dispatch to one persistent isolate per secure-session owner, with at most 64 outstanding requests. Replies are correlated by local request number. The bridge uses same-process native function addresses and Rust mutex-protected handles; no library file is downloaded or selected from network data. Identity/handshake creation and explicit handle release remain synchronous and are not claimed as migrated. Session/channel checks after awaited native replies prevent late data returning after logout or closure.
+
+Worker close rejects waiting callers and sends a graceful stop, allowing native finally blocks to release allocated input/output memory. Packet read events are paused during the async UDP receive drain and re-enabled afterward. Without that pause, readiness notifications starved completion callbacks in the actual Windows UDP test after moving decrypt off the main isolate; this was reproduced and corrected.
+
+Validation: 11 tests passed with the actual locally built Rust DLL (not skipped), including authenticated 1200-byte UDP socket packets, tamper/replay/source rejection, repair ACK decisions, logout rejection, and 32 concurrent 800-byte frame round trips with matching replies. Targeted analyze passed. This does not prove Android worker performance, NAT traversal, public relay, trusted handshake signaling or automatic route selection. Installed app still performs device binding only; packet transport is not yet selected for real chats. Not packaged in the 08:29 APK.

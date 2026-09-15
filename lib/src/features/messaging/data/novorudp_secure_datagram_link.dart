@@ -72,6 +72,7 @@ class NovoRudpSecureDatagramLink {
   Future<void> _read() async {
     if (_reading || _closed) return;
     _reading = true;
+    _socket.readEventsEnabled = false;
     try {
       while (!_closed) {
         _check();
@@ -99,6 +100,7 @@ class NovoRudpSecureDatagramLink {
       unawaited(close());
     } finally {
       _reading = false;
+      if (!_closed) _socket.readEventsEnabled = true;
     }
   }
 
