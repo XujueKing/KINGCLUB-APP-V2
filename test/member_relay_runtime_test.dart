@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+
+import 'package:kingclub/src/features/messaging/data/offline_relay_conversations.dart';
+
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -271,6 +274,25 @@ void main() {
         (await senderHistory.nearbyMessages(identity.peerId))
             .single['delivered'],
         true,
+      );
+      final localRows = await offlineRelayConversations(receiverHistory, []);
+      expect(localRows, hasLength(1));
+      expect(localRows.single['peer'], 'friend');
+      expect(localRows.single['preview'], 'durable runtime text');
+      expect(localRows.single['unreadCount'], 1);
+      await receiverHistory.saveConversationList(localRows);
+      final restoredRows = await offlineRelayConversations(
+        receiverHistory,
+        await receiverHistory.readConversationList(),
+      );
+      expect(restoredRows.single['unreadCount'], 1);
+      await receiverHistory.markNearbyMemberRead('friend', [textId]);
+      expect(
+        (await offlineRelayConversations(
+          receiverHistory,
+          restoredRows,
+        )).single['unreadCount'],
+        0,
       );
       await receiverHistory.commit('direct:friend', [
         {
