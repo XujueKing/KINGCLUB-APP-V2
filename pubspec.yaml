@@ -62,6 +62,7 @@ dependencies:
   file_picker: ^12.3.0
   unorm_dart: 0.3.2
   mediasfu_mediasoup_client: 0.1.4
+  lpinyin: 2.0.3
 dev_dependencies:
   video_player_platform_interface: ^6.9.0
   flutter_test:

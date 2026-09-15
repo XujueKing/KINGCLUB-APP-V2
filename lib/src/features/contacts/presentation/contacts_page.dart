@@ -3,6 +3,7 @@ import '../../messaging/presentation/group_invitations_page.dart';
 import '../../messaging/data/group_chat_repository.dart';
 import '../data/contact_groups_repository.dart';
 import '../data/contacts_controller.dart';
+import '../data/contact_name_index.dart';
 import '../../messaging/data/messaging_repository.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
@@ -193,11 +194,12 @@ class _ContactsPageState extends State<ContactsPage>
   }
 
   List<_FakeContact> get _realContacts {
+    final sortKeys = <String, String>{};
     final rows = (_real?.contacts ?? const <MemberContact>[]).map((contact) {
       final initial = contact.displayName.characters.firstOrNull ?? '#';
-      final section = RegExp(r'^[A-Za-z]$').hasMatch(initial)
-          ? initial.toUpperCase()
-          : '#';
+      final key = contactPhoneticKey(contact.displayName);
+      sortKeys[contact.account] = key;
+      final section = contactIndexSection(key);
       return _FakeContact(
         section,
         contact.account,
@@ -213,9 +215,9 @@ class _ContactsPageState extends State<ContactsPage>
       final section = alphabet
           .indexOf(a.section)
           .compareTo(alphabet.indexOf(b.section));
-      return section != 0
-          ? section
-          : (a.remark ?? a.nickname).compareTo(b.remark ?? b.nickname);
+      if (section != 0) return section;
+      final phonetic = sortKeys[a.ref]!.compareTo(sortKeys[b.ref]!);
+      return phonetic != 0 ? phonetic : a.ref.compareTo(b.ref);
     });
     return rows;
   }
