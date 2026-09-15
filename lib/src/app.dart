@@ -7,6 +7,8 @@ import 'features/messaging/data/foreground_group_call_inbox.dart';
 import 'features/messaging/data/group_call_repository.dart';
 import 'features/messaging/data/group_chat_repository.dart';
 import 'features/messaging/presentation/group_call_page.dart';
+import 'features/messaging/presentation/group_call_invitation_dialog.dart';
+import 'features/messaging/data/group_call_controller.dart';
 
 import 'package:uuid/uuid.dart';
 
@@ -123,25 +125,15 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
         if (navigator == null) return false;
         _presentingGroupCall = true;
         try {
+          final invitation = GroupCallController.realtime(
+            repository: groups,
+            initial: call,
+          );
           final accepted = await showDialog<bool>(
             context: navigator.context,
             barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              title: Text(
-                call.media == CallMedia.video ? '群视频通话邀请' : '群语音通话邀请',
-              ),
-              content: const Text('是否接听群通话？'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('拒绝'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('接听'),
-                ),
-              ],
-            ),
+            builder: (context) =>
+                GroupCallInvitationDialog(controller: invitation),
           );
           if (!mounted ||
               !_foreground ||
