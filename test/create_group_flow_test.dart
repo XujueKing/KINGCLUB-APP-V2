@@ -34,7 +34,7 @@ void main() {
                   {
                     'peer': 'second-peer',
                     'nickname': 'Other friend',
-                    'remark': 'College',
+                    'remark': '同学',
                     'bio': '',
                   },
                 ],
@@ -87,11 +87,11 @@ void main() {
       await tester.pump();
       await tester.enterText(
         find.byKey(const ValueKey('group-contact-search')),
-        'college',
+        'TX',
       );
       await tester.pumpAndSettle();
       expect(find.text('Actual friend'), findsNothing);
-      await tester.tap(find.text('College'));
+      await tester.tap(find.text('同学'));
       await tester.pump();
       await tester.enterText(
         find.byKey(const ValueKey('group-contact-search')),

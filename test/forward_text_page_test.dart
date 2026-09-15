@@ -491,7 +491,8 @@ void main() {
           if (id == 'K260913000618') {
             return {
               'items': [
-                {'groupId': 'group', 'groupName': 'Test group'},
+                {'groupId': 'group', 'groupName': '周末朋友'},
+                {'groupId': 'other', 'groupName': '同学群'},
               ],
               'nextCursor': null,
             };
@@ -527,8 +528,25 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('群聊'));
       await tester.pumpAndSettle();
+      for (final query in ['ZMPY', 'zhou mo peng you', 'group']) {
+        await tester.enterText(find.byType(TextField), query);
+        await tester.pumpAndSettle();
+        expect(find.text('周末朋友'), findsOneWidget);
+        expect(find.text('同学群'), findsNothing);
+      }
       await tester.tap(find.byKey(const ValueKey('forward-text-group')));
       await tester.pump();
+      await tester.enterText(find.byType(TextField), 'no-match');
+      await tester.pumpAndSettle();
+      expect(find.text('没有找到可转发的对象'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const ValueKey('forward-text-submit')),
+            )
+            .onPressed,
+        isNotNull,
+      );
       expect(detailCalls, 0);
       expect(outbox.items, isEmpty);
       await confirm(tester);

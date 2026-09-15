@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/session/secure_session_store.dart';
 import '../../contacts/data/contacts_controller.dart';
+import '../../contacts/data/contact_name_index.dart';
 import '../data/chat_outbox.dart';
 import '../data/chat_location.dart';
 import '../data/chat_image_forwarder.dart';
@@ -380,8 +381,10 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
         : _showGroups
         ? _groups
               .where(
-                (g) => g.displayName.toLowerCase().contains(
-                  _search.text.trim().toLowerCase(),
+                (g) => contactNameMatches(
+                  nickname: g.displayName,
+                  account: g.account,
+                  query: _search.text,
                 ),
               )
               .toList()
