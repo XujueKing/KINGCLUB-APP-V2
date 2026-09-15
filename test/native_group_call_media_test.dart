@@ -59,6 +59,7 @@ class ProducerFixture implements rtc.Producer {
 }
 
 class TransportFixture implements rtc.Transport {
+  final events = <String, Function>{};
   Function? produced;
   Function? consumed;
   ConsumerFixture? consumer;
@@ -69,7 +70,10 @@ class TransportFixture implements rtc.Transport {
   @override
   String get id => callId;
   @override
-  void on(String event, Function handler) {}
+  void on(String event, Function handler) {
+    events[event] = handler;
+  }
+
   @override
   Future<void> close() async {
     closes++;
@@ -188,6 +192,14 @@ class Repo extends GroupCallMediaRepository {
         }, 'me'),
       );
   int closes = 0;
+  Object? connectFailure;
+  int connects = 0;
+  @override
+  Future<void> connect(String id, rtc.DtlsParameters parameters) async {
+    connects++;
+    if (connectFailure != null) throw connectFailure!;
+  }
+
   @override
   Future<rtc.RtpCapabilities> capabilities() async => rtc.RtpCapabilities();
   @override
@@ -215,6 +227,55 @@ class Repo extends GroupCallMediaRepository {
 }
 
 void main() {
+  test('SDK connect callback acknowledges server success and releases capture on rejection', () async {
+    final repo = Repo(), device = DeviceFixture(), stream = StreamFixture();
+    final errors = <Object>[];
+    final media = NativeGroupCallMedia(
+      repository: repo,
+      device: device,
+      capture: (_) async => stream,
+      onError: errors.add,
+    );
+    await media.open();
+    final dtls = rtc.DtlsParameters.fromMap({
+      'role': 'client',
+      'fingerprints': <dynamic>[],
+    });
+    var acknowledgements = 0;
+    Object? rejected;
+    await device.send.events['connect']!({
+      'dtlsParameters': dtls,
+      'callback': () {
+        acknowledgements++;
+      },
+      'errback': (Object error) {
+        rejected = error;
+      },
+    });
+    expect(repo.connects, 1);
+    expect(acknowledgements, 1);
+    expect(rejected, null);
+    repo.connectFailure = const AuthFailure(
+      'SESSION_CHANGED',
+      'Session changed',
+    );
+    await device.receive.events['connect']!({
+      'dtlsParameters': dtls,
+      'callback': () {
+        acknowledgements++;
+      },
+      'errback': (Object error) {
+        rejected = error;
+      },
+    });
+    await media.close();
+    expect(acknowledgements, 1);
+    expect(rejected, same(repo.connectFailure));
+    expect(errors, [repo.connectFailure]);
+    expect(stream.track.stops, 1);
+    expect(device.send.closes, 1);
+    expect(device.receive.closes, 1);
+  });
   test(
     'hangup stops capture before pending speaker enable and resets after it',
     () async {
