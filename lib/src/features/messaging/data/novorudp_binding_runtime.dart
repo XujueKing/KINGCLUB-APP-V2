@@ -56,6 +56,22 @@ class NovoRudpBindingRuntime {
 
   static int _generation = -1;
 
+  static Future<void> Function(List<String>) textReadMarker(
+    String account,
+    String peer,
+  ) {
+    final generation = MemberQrMemory.generation;
+    return (ids) async {
+      if (generation != MemberQrMemory.generation) return;
+      final history = await ChatHistoryStore.open(account);
+      if (generation != MemberQrMemory.generation) return;
+      final changed = await history.markNearbyMemberRead(peer, ids);
+      if (generation == MemberQrMemory.generation && changed > 0) {
+        _textChanges.add((account: account, peer: peer));
+      }
+    };
+  }
+
   static Future<bool> Function(String, String) textSender(
     String account,
     String peer,

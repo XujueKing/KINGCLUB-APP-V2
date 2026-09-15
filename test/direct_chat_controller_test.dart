@@ -191,6 +191,7 @@ void main() {
       final changes = StreamController<String>.broadcast(sync: true);
       var confirmed = <Map<String, dynamic>>[];
       var reads = 0;
+      final marked = <List<String>>[];
       var relay = <Map<String, dynamic>>[
         {
           'id': 'relay-1',
@@ -204,6 +205,10 @@ void main() {
         peer: 'peer',
         outbox: MemoryOutbox(),
         relayChanges: changes.stream,
+        markRelayRead: (ids) async {
+          marked.add(ids);
+          relay = relay.map((m) => {...m, 'read': true}).toList();
+        },
         readRelayMessages: () async {
           reads++;
           return relay;
@@ -221,6 +226,12 @@ void main() {
       expect(controller.messages.single['text'], 'peer text');
       expect(controller.messages.single['sequence'], isNull);
       expect(controller.messages.single['messageId'], isNull);
+      expect(marked, isEmpty);
+      await controller.markRelayVisibleRead();
+      await controller.markRelayVisibleRead();
+      expect(marked, [
+        ['relay-1'],
+      ]);
       final previousReads = reads;
       changes.add('someone-else');
       await Future<void>.delayed(Duration.zero);

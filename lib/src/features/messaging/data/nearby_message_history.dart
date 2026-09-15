@@ -2,7 +2,7 @@ part of 'chat_history_store.dart';
 
 Future<void> _createNearbyMessages(DatabaseExecutor db) async {
   await db.execute(
-    'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, serverId TEXT, member TEXT, hidden INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(peer,id,outgoing))',
+    'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, serverId TEXT, member TEXT, hidden INTEGER NOT NULL DEFAULT 0, wasRead INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(peer,id,outgoing))',
   );
   await _createNearbyMemberIndex(db);
 }
@@ -165,7 +165,7 @@ extension NearbyMessageHistory on ChatHistoryStore {
     final member = await _conversation('direct:$peerAccount');
     return _db.transaction((tx) async {
       final groups = await tx.rawQuery(
-        'SELECT id, outgoing, MIN(created) AS created, MAX(delivered) AS delivered '
+        'SELECT id, outgoing, MIN(created) AS created, MAX(delivered) AS delivered, MAX(wasRead) AS wasRead '
         'FROM nearby_message WHERE member=? GROUP BY id, outgoing '
         'HAVING MAX(serverId IS NOT NULL)=0 AND MAX(hidden)=0 '
         'ORDER BY created DESC, id DESC, outgoing DESC LIMIT ?',
@@ -191,10 +191,52 @@ extension NearbyMessageHistory on ChatHistoryStore {
           'delivered': group['delivered'] == 1,
           'created': group['created'],
           'serverMessageId': null,
+          'read': group['wasRead'] == 1,
         });
       }
       return result;
     });
+  }
+
+  Future<int> nearbyUnreadCount({String? peerAccount}) async {
+    if (peerAccount != null &&
+        (peerAccount == account ||
+            !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peerAccount))) {
+      throw ArgumentError('Invalid unread scope');
+    }
+    final member = peerAccount == null
+        ? null
+        : await _conversation('direct:$peerAccount');
+    final rows = await _db.rawQuery(
+      'SELECT COUNT(*) AS count FROM (SELECT member,id FROM nearby_message '
+      'WHERE outgoing=0 AND member IS NOT NULL ${member == null ? '' : 'AND member=? '}'
+      'GROUP BY member,id HAVING MAX(wasRead)=0 AND MAX(hidden)=0 AND MAX(serverId IS NOT NULL)=0)',
+      [?member],
+    );
+    return rows.single['count'] as int;
+  }
+
+  /// Marks only the displayed snapshot. A later arrival must remain unread.
+  Future<int> markNearbyMemberRead(String peerAccount, List<String> ids) async {
+    if (peerAccount == account ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peerAccount) ||
+        ids.length > 200 ||
+        ids.any(
+          (id) => !RegExp(
+            r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
+          ).hasMatch(id),
+        )) {
+      throw ArgumentError('Invalid read snapshot');
+    }
+    if (ids.isEmpty) return 0;
+    final member = await _conversation('direct:$peerAccount');
+    return _db.update(
+      'nearby_message',
+      {'wasRead': 1},
+      where:
+          'member=? AND outgoing=0 AND wasRead=0 AND id IN (${List.filled(ids.length, '?').join(',')})',
+      whereArgs: [member, ...ids],
+    );
   }
 
   /// Reconciles only authenticated service history, never peer-supplied claims.

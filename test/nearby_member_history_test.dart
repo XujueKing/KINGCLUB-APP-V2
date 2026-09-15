@@ -37,6 +37,15 @@ void main() {
           );
       await put(a, 'friend', id);
       await put(b, 'other', id);
+      expect(await store.nearbyUnreadCount(), 2);
+      expect(await store.nearbyUnreadCount(peerAccount: 'friend'), 1);
+      expect(await store.markNearbyMemberRead('friend', [id]), 1);
+      expect(await store.markNearbyMemberRead('friend', [id]), 0);
+      expect(await store.nearbyUnreadCount(), 1);
+      final readReplay = 'novovm-ed25519:${'d' * 64}';
+      await put(readReplay, 'friend', id);
+      expect(await store.nearbyUnreadCount(peerAccount: 'friend'), 0);
+      expect((await store.nearbyMemberMessages('friend')).single['read'], true);
       await store.clear('direct:friend');
       expect(await store.nearbyMemberMessages('friend'), hasLength(1));
       await store.clear('direct:friend', hideNearby: true);
@@ -52,6 +61,11 @@ void main() {
       store = await open();
       expect((await store.nearbyMemberMessages('friend')).single['id'], fresh);
       expect(await store.nearbyMessages(a), hasLength(2));
+      expect(await store.nearbyUnreadCount(), 2);
+      await store.markNearbyMemberRead('friend', [id]);
+      expect(await store.nearbyUnreadCount(peerAccount: 'friend'), 1);
+      await store.clear('direct:friend', hideNearby: true);
+      expect(await store.nearbyUnreadCount(), 1);
     },
   );
   test('member history deduplicates devices and suppresses confirmed copies', () async {

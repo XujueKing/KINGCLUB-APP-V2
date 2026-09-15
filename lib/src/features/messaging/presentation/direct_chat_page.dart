@@ -544,6 +544,12 @@ class _DirectChatPageState extends State<DirectChatPage>
               repository: repository,
               peer: widget.peerAccount!,
               outbox: outbox,
+              markRelayRead: repository.persistHistory
+                  ? NovoRudpBindingRuntime.textReadMarker(
+                      repository.account,
+                      widget.peerAccount!,
+                    )
+                  : null,
               sendRelayText: repository.persistHistory
                   ? NovoRudpBindingRuntime.textSender(
                       repository.account,
@@ -850,6 +856,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     final confirmed = chat.messages.where(
       (message) => message['sequence'] is num,
     );
+    if (chat is DirectChatController) unawaited(chat.markRelayVisibleRead());
     if (confirmed.isNotEmpty) {
       chat.markVisibleRead((confirmed.last['sequence'] as num).toInt());
     }

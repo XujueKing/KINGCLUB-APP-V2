@@ -20,6 +20,7 @@ class DirectChatController extends ChatSessionController {
     this.openHistory,
     this.readRelayMessages,
     this.sendRelayText,
+    this.markRelayRead,
     Stream<String>? relayChanges,
   }) {
     _relayEvents = relayChanges?.listen((member) {
@@ -28,6 +29,27 @@ class DirectChatController extends ChatSessionController {
   }
   final Future<List<Map<String, dynamic>>> Function()? readRelayMessages;
   final Future<bool> Function(String text, String messageId)? sendRelayText;
+  final Future<void> Function(List<String> ids)? markRelayRead;
+  bool _markingRelayRead = false;
+
+  Future<void> markRelayVisibleRead() async {
+    if (_disposed || _markingRelayRead || markRelayRead == null) return;
+    final ids = _relayMessages
+        .where((m) => m['sender'] == peer && m['peerRead'] != true)
+        .map((m) => m['clientMessageId'] as String)
+        .toList();
+    if (ids.isEmpty) return;
+    _markingRelayRead = true;
+    try {
+      await markRelayRead!(ids);
+      await _refreshRelay();
+    } catch (_) {
+      // A later visible-frame/scroll event can retry the durable read marker.
+    } finally {
+      _markingRelayRead = false;
+    }
+  }
+
   StreamSubscription<String>? _relayEvents;
   List<Map<String, dynamic>> _relayMessages = [];
   int _relayRead = 0;
@@ -60,6 +82,7 @@ class DirectChatController extends ChatSessionController {
               ).toIso8601String(),
               'status': 'sent',
               'peerDelivered': row['delivered'] == true,
+              'peerRead': row['read'] == true,
             },
           )
           .toList();

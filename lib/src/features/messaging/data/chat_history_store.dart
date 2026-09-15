@@ -89,7 +89,7 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 9,
+        version: 10,
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 6) await _createNearbyMessages(db);
           if (oldVersion >= 6 && oldVersion < 7) {
@@ -106,6 +106,11 @@ class ChatHistoryStore {
           if (oldVersion >= 6 && oldVersion < 9) {
             await db.execute(
               'ALTER TABLE nearby_message ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0',
+            );
+          }
+          if (oldVersion >= 6 && oldVersion < 10) {
+            await db.execute(
+              'ALTER TABLE nearby_message ADD COLUMN wasRead INTEGER NOT NULL DEFAULT 0',
             );
           }
           if (oldVersion < 2) {
