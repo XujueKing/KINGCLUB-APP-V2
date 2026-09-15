@@ -12,12 +12,47 @@ class NovoRudpRelayDirectory {
     required this.identity,
     required Set<String> trustedPeers,
     this.capacity = 16,
+    this.trustedUntil,
   }) : _trustedPeers = Set.unmodifiable(trustedPeers) {
     if (capacity < 1 || capacity > 32 || trustedPeers.length > 128) {
       throw ArgumentError('Mobile relay directory limits exceeded');
     }
     _session = SecureSessionStore.changes.stream.listen((_) => close());
   }
+  factory NovoRudpRelayDirectory.fromManifest({
+    required NovoRudpSecureSession identity,
+    required Map<String, dynamic> manifest,
+    required Set<String> trustedSignerPeerIds,
+    required int minimumSignatures,
+  }) {
+    final checked = identity.validateBootstrapManifest(
+      manifest,
+      trustedSignerPeerIds: trustedSignerPeerIds,
+      minimumSignatures: minimumSignatures,
+    );
+    final records = (checked['records'] as List).cast<Map<String, dynamic>>();
+    final peers = records
+        .map((record) => record['relay_peer_id'] as String)
+        .toSet();
+    final directory = NovoRudpRelayDirectory(
+      identity: identity,
+      trustedPeers: peers,
+      capacity: peers.isEmpty ? 1 : peers.length,
+      trustedUntil: DateTime.fromMillisecondsSinceEpoch(
+        checked['expiresAt'] as int,
+      ),
+    );
+    try {
+      for (final record in records) {
+        directory.accept(record);
+      }
+      return directory;
+    } catch (_) {
+      directory.close();
+      rethrow;
+    }
+  }
+  final DateTime? trustedUntil;
   final NovoRudpSecureSession identity;
   final int capacity;
   final Set<String> _trustedPeers;
@@ -27,7 +62,9 @@ class NovoRudpRelayDirectory {
   bool _closed = false;
 
   void _check() {
-    if (_closed || _generation != MemberQrMemory.generation) {
+    if (_closed ||
+        _generation != MemberQrMemory.generation ||
+        (trustedUntil != null && !DateTime.now().isBefore(trustedUntil!))) {
       close();
       throw StateError('Relay directory closed');
     }

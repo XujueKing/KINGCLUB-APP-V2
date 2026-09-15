@@ -264,6 +264,27 @@ class NovoRudpSecureSession {
         .asUnmodifiableView();
   }
 
+  Map<String, dynamic> signBootstrapManifest(Map<String, dynamic> manifest) {
+    _check();
+    return _bridge.call('signBootstrap', _identity, {
+          'manifest': manifest,
+        })['manifest']
+        as Map<String, dynamic>;
+  }
+
+  Map<String, dynamic> validateBootstrapManifest(
+    Map<String, dynamic> manifest, {
+    required Set<String> trustedSignerPeerIds,
+    required int minimumSignatures,
+  }) {
+    _check();
+    return _bridge.call('validateBootstrap', _identity, {
+      'manifest': manifest,
+      'trustedPeers': trustedSignerPeerIds.toList(),
+      'minimum': minimumSignatures,
+    });
+  }
+
   /// Signs a short-lived advertisement only; does not start a relay or publish it.
   Map<String, dynamic> signRelayRecord({
     required String recordId,

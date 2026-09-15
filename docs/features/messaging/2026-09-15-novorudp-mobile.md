@@ -239,3 +239,11 @@ Validation: real SQLite disk test verified concurrent duplicate inserts, conflic
 Added NearbyTextChannel over the authenticated carrier: 512-byte text chunks, SHA-256 reassembly identity, fresh encrypted frame sequences on retries, durable receive before ACK, peer-scoped durable outgoing confirmation, bounded in-flight/reassembly work and retry deadline. Existing pending records can be resumed in batches. Caller must supply a valid local authorization decision; loss of that decision closes the lane. This does not turn historical key observations into permission.
 
 Validation: real native handshake + real loopback UDP with deliberate loss of the first handshake answer and first text receipt + real SQLite at both ends. A 3600-byte Unicode message arrived once, resend stayed deduplicated, pending outgoing became confirmed, a pre-saved pending message resumed, and authorization denial prevented another send. Targeted analysis checked. Local integration is complete for this transport test, not for the app UI, actual two-phone network or chain-based authorization. Those remain pending.
+
+### 2026-09-15 mainnet bootstrap verification
+
+Native FFI now reuses upstream bootstrap manifest signing/validation with an explicit trusted signer set and signature threshold. The relay-directory factory accepts only verified bootstrap records; the directory's trust expires with the parent manifest, independently of each relay record's expiry. This does not start a relay or trust keys supplied by an untrusted manifest itself. Mobile request limits remain bounded.
+
+Validation: real native DLL tests reject insufficient signatures, invalid thresholds, signed-content tampering and expired directory trust; a two-signer manifest populated the relay directory. Together with existing relay tests, two tests passed; targeted analysis clean and Android ARM64 build passed.
+
+Repository config inspection found `config/runtime/lifecycle/overlay.relay.discovery.seeds.json` uses `novovm.example` sample hosts; discovery records include loopback sample probes. These are not evidence of live public nodes. Requested actual deployed bootstrap endpoints/config and trusted public-key config from the user; no fabricated mainnet connection or use of example hosts. Actual bootstrap fetch, peer address lookup and automatic production routing remain pending.

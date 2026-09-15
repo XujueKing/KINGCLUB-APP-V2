@@ -126,6 +126,60 @@ fn command(v: Value) -> Result<Value, String> {
             bytes.extend_from_slice(&key.verifying_key().to_bytes());
             Ok(json!({"signature":key.sign(&bytes).to_bytes().to_vec()}))
         }
+        "signBootstrap" => {
+            let Some(Object::Identity(key)) = s.objects.get(&id) else {
+                return Err("identity unavailable".into());
+            };
+            let mut manifest: product_directory::SignedBootstrapManifestV1 =
+                serde_json::from_value(v["manifest"].clone())
+                    .map_err(|_| "invalid bootstrap manifest")?;
+            if manifest.relay_records.len() > 32 || manifest.signatures.len() > 16 {
+                return Err("mobile bootstrap limit".into());
+            }
+            product_directory::sign_bootstrap_manifest_v1(&mut manifest, key)
+                .map_err(|e| e.to_string())?;
+            Ok(json!({"manifest":manifest}))
+        }
+        "validateBootstrap" => {
+            let manifest: product_directory::SignedBootstrapManifestV1 =
+                serde_json::from_value(v["manifest"].clone())
+                    .map_err(|_| "invalid bootstrap manifest")?;
+            let trusted: std::collections::BTreeSet<String> =
+                serde_json::from_value(v["trustedPeers"].clone())
+                    .map_err(|_| "invalid bootstrap trust")?;
+            let minimum = v["minimum"].as_u64().ok_or("invalid bootstrap threshold")? as usize;
+            if manifest.relay_records.len() > 32
+                || manifest.signatures.len() > 16
+                || trusted.len() > 16
+                || minimum == 0
+                || minimum > trusted.len()
+            {
+                return Err("invalid mobile bootstrap limits".into());
+            }
+            let policy = product_directory::BootstrapTrustPolicyV1 {
+                allowed_signer_peer_ids: trusted,
+                minimum_valid_signatures: minimum,
+            };
+            let validation =
+                product_directory::validate_bootstrap_manifest_v1(&manifest, &policy, now());
+            if !validation.accepted {
+                return Err(validation
+                    .reject_reason
+                    .unwrap_or("bootstrap rejected".into()));
+            }
+            let records: Vec<_> = manifest
+                .relay_records
+                .iter()
+                .filter_map(|record| {
+                    product_directory::validate_relay_record_v1(record, now())
+                        .ok()
+                        .map(|r| r.record)
+                })
+                .collect();
+            Ok(
+                json!({"records":records,"validation":validation,"expiresAt":manifest.expires_at_ms}),
+            )
+        }
         "relayRecord" => {
             let Some(Object::Identity(key)) = s.objects.get(&id) else {
                 return Err("identity unavailable".into());
