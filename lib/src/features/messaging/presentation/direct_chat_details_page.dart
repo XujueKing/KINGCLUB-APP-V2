@@ -3,6 +3,7 @@ import 'chat_member_avatar.dart';
 import 'chat_history_context_page.dart';
 import 'chat_history_search_page.dart';
 import '../data/messaging_repository.dart';
+import '../data/call_repository.dart';
 import '../../../core/design_system/king_notice.dart';
 
 import 'package:flutter/material.dart';
@@ -21,12 +22,14 @@ class DirectChatDetailsPage extends StatefulWidget {
     this.initialPinned = false,
     this.initialOnlyChat = false,
     this.loadedHistory = const [],
+    this.onCall,
   });
 
   final String? peerAccount;
   final MessagingRepository? repository;
   final bool initialPinned, initialOnlyChat;
   final List<String> loadedHistory;
+  final Future<void> Function(CallMedia media)? onCall;
   final String peerName;
   final bool initialMuted;
   final ValueChanged<bool>? onMutedChanged;
@@ -156,6 +159,7 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                             Navigator.of(context).push<void>(
                               MaterialPageRoute(
                                 builder: (_) => ChatHistoryContextPage(
+                                  onCall: widget.onCall,
                                   repository: widget.repository,
                                   senderLabel: _senderLabel,
                                   account: widget.repository!.account,

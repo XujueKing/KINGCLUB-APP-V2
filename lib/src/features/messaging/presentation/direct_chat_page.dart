@@ -2580,6 +2580,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       MaterialPageRoute<bool>(
         allowSnapshotting: false,
         builder: (_) => DirectChatDetailsPage(
+          onCall: _openCall,
           peerName: _displayPeerName,
           peerAccount: widget.peerAccount,
           repository: _chat?.messaging,
@@ -2620,6 +2621,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => ChatHistoryContextPage(
+          onCall: widget.groupId == null ? _openCall : null,
           repository: repository,
           groupId: widget.groupId,
           senderLabel: (account) {

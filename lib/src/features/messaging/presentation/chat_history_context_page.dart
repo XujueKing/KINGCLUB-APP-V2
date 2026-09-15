@@ -13,6 +13,8 @@ import '../data/messaging_repository.dart';
 import '../data/chat_voice_playback.dart';
 import '../data/chat_file_downloader.dart';
 import '../data/chat_location.dart';
+import '../data/chat_call_history.dart';
+import '../data/call_repository.dart';
 import 'chat_image_view.dart';
 import 'chat_video_view.dart';
 import 'chat_file_card.dart';
@@ -31,6 +33,7 @@ class ChatHistoryContextPage extends StatefulWidget {
     this.groupId,
     this.events,
     this.createVoicePlayback,
+    this.onCall,
   });
   final ContextHistoryReader read;
   final String messageId, account;
@@ -40,6 +43,7 @@ class ChatHistoryContextPage extends StatefulWidget {
   final String? groupId;
   final Stream<Map<String, dynamic>>? events;
   final ChatVoicePlayback Function()? createVoicePlayback;
+  final Future<void> Function(CallMedia media)? onCall;
   @override
   State<ChatHistoryContextPage> createState() => _ChatHistoryContextPageState();
 }
@@ -54,6 +58,23 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
   int _generation = 0;
   String? _error;
   ChatVoicePlayback? _voice;
+  bool _openingCall = false;
+
+  Future<void> _call(CallMedia media) async {
+    if (_invalid || !_foreground || _openingCall || widget.onCall == null) {
+      return;
+    }
+    _openingCall = true;
+    try {
+      await _voice?.stop();
+      if (!mounted || _invalid || !_foreground) return;
+      await widget.onCall!(media);
+    } catch (_) {
+      if (mounted && !_invalid) KingNotice.of(context).show('暂时无法发起通话，请重试');
+    } finally {
+      _openingCall = false;
+    }
+  }
 
   void _voiceChanged() {
     if (mounted) setState(() {});
@@ -93,6 +114,28 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
   );
 
   Widget _content(Map<String, dynamic> message) {
+    final call =
+        widget.groupId == null &&
+            (message['messageType'] == 'text' || message['messageType'] == null)
+        ? ChatCallHistory.tryParse(message['call'])
+        : null;
+    if (call != null) {
+      return TextButton.icon(
+        key: ValueKey('context-call-${call.id}'),
+        style: TextButton.styleFrom(
+          foregroundColor: message['sender'] == widget.account
+              ? const Color(0xFF222222)
+              : legacyMessageGold,
+          textStyle: legacyChatBodyTextStyle,
+          iconSize: 20,
+        ),
+        onPressed: widget.onCall == null ? null : () => _call(call.media),
+        icon: Icon(call.media == CallMedia.audio ? Icons.call : Icons.videocam),
+        label: Text(
+          call.displayText(outgoing: message['sender'] == widget.account),
+        ),
+      );
+    }
     final repository = widget.repository;
     final id = message['messageId'];
     final group = widget.groupId != null;
