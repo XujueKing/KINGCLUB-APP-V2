@@ -24,6 +24,7 @@ class NovoRudpFileSender {
     this.ackWait = const Duration(seconds: 1),
     this.maxStalls = 8,
     this.deadline = const Duration(minutes: 5),
+    this.canSend,
   }) {
     if (size < 0 ||
         size > NovoRudpFileReceiver.maxBytes ||
@@ -40,6 +41,7 @@ class NovoRudpFileSender {
   final int size, maxStalls;
   final String sha256;
   final Duration ackWait, deadline;
+  final bool Function()? canSend;
   final _clock = Stopwatch();
   final int _generation = MemberQrMemory.generation;
   bool _started = false, _cancelled = false, _timedOut = false;
@@ -70,7 +72,9 @@ class NovoRudpFileSender {
   }
 
   void _check() {
-    if (_cancelled || _generation != MemberQrMemory.generation) {
+    if (_cancelled ||
+        _generation != MemberQrMemory.generation ||
+        (canSend != null && !canSend!())) {
       throw StateError('File transfer cancelled');
     }
     if (_failure != null) throw StateError('Secure lane ended: $_failure');

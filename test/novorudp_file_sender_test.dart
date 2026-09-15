@@ -18,6 +18,9 @@ import 'package:kingclub/src/features/messaging/data/novorudp_frame_link.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_sender.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_datagram_link.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
+import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
+import 'package:kingclub/src/features/messaging/data/chat_sent_file_cache.dart';
+import 'package:kingclub/src/features/messaging/data/peer_file_channel.dart';
 
 class HeldSendLink implements NovoRudpFrameLink {
   HeldSendLink(this.delegate);
@@ -120,6 +123,122 @@ void main() {
           .map((b) => b.toRadixString(16).padLeft(2, '0'))
           .join();
       return (file: file, hash: hash);
+    }
+
+    test(
+      'sender refuses an expired live authorization before sending bytes',
+      () async {
+        final input = await source([1, 2, 3]);
+        final sender = NovoRudpFileSender(
+          link: left,
+          file: input.file,
+          streamId: BigInt.from(71),
+          objectId: BigInt.from(92),
+          size: 3,
+          sha256: input.hash,
+          canSend: () => false,
+        );
+        await expectLater(sender.run(), throwsStateError);
+        expect(packets, 0);
+      },
+    );
+
+    for (final scenario in ['success', 'missing', 'wrong-member']) {
+      test('peer file negotiation over encrypted UDP: $scenario', () async {
+        const messageId = '00000000-0000-4000-8000-000000000001';
+        const assetId = '00000000-0000-4000-8000-000000000002';
+        final bytes = List.generate(70000, (i) => i % 251);
+        final input = await source(bytes);
+        final cache = ChatSentFileCache(
+          cache: ChatDownloadCache(
+            root: Directory('${directory.path}/cache'),
+            key: await DartAesGcm.with256bits().newSecretKey(),
+          ),
+          checkSession: () async {},
+          temporaryDirectory: () async => directory,
+        );
+        if (scenario != 'missing') {
+          await cache.retain(
+            input.file,
+            assetId: assetId,
+            size: bytes.length,
+            sha256: input.hash,
+          );
+        }
+        var senderChecks = 0, receiverChecks = 0;
+        MessagingRepository repository(String account) => MessagingRepository(
+          account: account,
+          call: (id, params) async {
+            expect(id, 'K260916000686');
+            expect(params['messageId'], messageId);
+            expect(params['peer'], account == 'a' ? 'b' : 'a');
+            if (account == 'a') {
+              senderChecks++;
+            } else {
+              receiverChecks++;
+            }
+            return {
+              'messageId': messageId,
+              'sender': scenario == 'wrong-member' && account == 'a'
+                  ? 'outsider'
+                  : 'a',
+              'recipient': 'b',
+              'assetId': assetId,
+              'fileName': 'fixture.bin',
+              'size': bytes.length,
+              'sha256': input.hash,
+              'expiresAt': DateTime.now()
+                  .toUtc()
+                  .add(const Duration(seconds: 15))
+                  .toIso8601String(),
+            };
+          },
+        );
+        final sending = PeerFileChannel(
+          link: left,
+          repository: repository('a'),
+          peer: 'b',
+          cache: cache,
+          privateDirectory: directory,
+          canExchange: () => true,
+        );
+        final receiving = PeerFileChannel(
+          link: right,
+          repository: repository('b'),
+          peer: 'a',
+          cache: cache,
+          privateDirectory: directory,
+          canExchange: () => true,
+        );
+        addTearDown(sending.close);
+        addTearDown(receiving.close);
+        final authority = await receiving.authorize(messageId, sending: false);
+        if (scenario == 'success') {
+          final transfer = await receiving.receive(authority, () => true);
+          try {
+            expect(await (await transfer.completed).readAsBytes(), bytes);
+          } finally {
+            await transfer.close();
+          }
+          expect(senderChecks, greaterThanOrEqualTo(2));
+        } else {
+          await expectLater(
+            receiving.receive(authority, () => true),
+            throwsStateError,
+          );
+          expect(senderChecks, 1);
+        }
+        expect(receiverChecks, 2);
+        await sending.close();
+        await receiving.close();
+        expect(
+          await directory
+              .list()
+              .where((e) => e.path.contains('kingclub-peer-source-'))
+              .toList(),
+          isEmpty,
+        );
+      });
     }
 
     for (final throws in [false, true]) {
