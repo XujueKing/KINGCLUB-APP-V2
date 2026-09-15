@@ -29,6 +29,8 @@ class ChatHistoryContextPage extends StatefulWidget {
     this.senderLabel,
     this.repository,
     this.groupId,
+    this.events,
+    this.createVoicePlayback,
   });
   final ContextHistoryReader read;
   final String messageId, account;
@@ -36,6 +38,8 @@ class ChatHistoryContextPage extends StatefulWidget {
   final int sequence;
   final MessagingRepository? repository;
   final String? groupId;
+  final Stream<Map<String, dynamic>>? events;
+  final ChatVoicePlayback Function()? createVoicePlayback;
   @override
   State<ChatHistoryContextPage> createState() => _ChatHistoryContextPageState();
 }
@@ -58,7 +62,9 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
   Future<void> _playVoice(String id) async {
     final repository = widget.repository;
     if (_invalid || !_foreground || repository == null) return;
-    final voice = _voice ??= (ChatVoicePlayback()..addListener(_voiceChanged));
+    final voice = _voice ??=
+        ((widget.createVoicePlayback?.call() ?? ChatVoicePlayback())
+          ..addListener(_voiceChanged));
     await voice.toggle(
       repository,
       id,
@@ -206,7 +212,18 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
         });
       }
     });
-    _events = KingclubRealtime.shared.events.listen((event) {
+    _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
+      final type = event['eventType'];
+      if (type == 'chat.group.read' || type == 'chat.group.changed') {
+        final data = event['data'];
+        final groupId = data is Map ? data['groupId'] : null;
+        if (widget.groupId == null ||
+            (groupId is String &&
+                groupId.isNotEmpty &&
+                groupId != widget.groupId)) {
+          return;
+        }
+      }
       if ([
         'connection.ready',
         'chat.relationship.changed',
@@ -214,18 +231,19 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
         'chat.group.changed',
         'chat.group.read',
       ].contains(event['eventType'])) {
-        _load();
+        _load(background: type == 'chat.group.read');
       }
     });
     _load();
   }
 
-  Future<void> _load() async {
-    _voice?.stop();
+  Future<void> _load({bool background = false}) async {
+    if (_invalid) return;
+    if (!background) _voice?.stop();
     final generation = ++_generation;
     if (mounted) {
       setState(() {
-        _messages = [];
+        if (!background) _messages = [];
         _error = null;
       });
     }
@@ -237,7 +255,17 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
         sequence: widget.sequence,
       );
       if (!mounted || generation != _generation) return;
+      final activeId = _voice?.activeId;
+      if (activeId != null &&
+          !messages.any(
+            (message) =>
+                message['messageId'] == activeId &&
+                message['messageType'] == 'voice',
+          )) {
+        _voice?.stop();
+      }
       setState(() => _messages = messages);
+      if (background) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final target = _target.currentContext;
         if (mounted && generation == _generation && target != null) {
@@ -246,7 +274,11 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
       });
     } catch (_) {
       if (!mounted || generation != _generation) return;
-      setState(() => _error = '暂时无法查看该消息，可能已清空或权限已变化');
+      _voice?.stop();
+      setState(() {
+        _messages = [];
+        _error = '暂时无法查看该消息，可能已清空或权限已变化';
+      });
     }
   }
 
