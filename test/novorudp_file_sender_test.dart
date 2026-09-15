@@ -10,9 +10,34 @@ import 'package:kingclub/src/core/session/member_qr_memory.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_receiver.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
+import 'package:kingclub/src/features/messaging/data/novorudp_frame_link.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_sender.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_datagram_link.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
+
+class HeldSendLink implements NovoRudpFrameLink {
+  HeldSendLink(this.delegate);
+  final NovoRudpFrameLink delegate;
+  final entered = Completer<void>();
+  final release = Completer<void>();
+  int sends = 0;
+  bool closed = false;
+  @override
+  NovoRudpSecureChannel get channel => delegate.channel;
+  @override
+  Stream<NovoRudpFrame> get frames => delegate.frames;
+  @override
+  Future<void> send(NovoRudpFrame frame) {
+    sends++;
+    if (!entered.isCompleted) entered.complete();
+    return release.future;
+  }
+
+  @override
+  Future<void> close() async {
+    closed = true;
+  }
+}
 
 void main() {
   final path = Platform.environment['NOVORUDP_NATIVE_LIBRARY'];
@@ -286,6 +311,54 @@ void main() {
         expect(await renamed.readAsBytes(), [1, 2, 3]);
       },
     );
+    for (final reason in ['cancel', 'account', 'deadline']) {
+      test(
+        '$reason interrupts a stalled transport without closing shared lane',
+        () async {
+          final input = await source([1, 2, 3]);
+          final held = HeldSendLink(left);
+          final sender = NovoRudpFileSender(
+            link: held,
+            file: input.file,
+            streamId: BigInt.one,
+            objectId: BigInt.two,
+            size: 3,
+            sha256: input.hash,
+            deadline: reason == 'deadline'
+                ? const Duration(milliseconds: 150)
+                : const Duration(minutes: 1),
+          );
+          final running = sender.run();
+          final assertion = expectLater(
+            running.timeout(const Duration(seconds: 2)),
+            reason == 'deadline'
+                ? throwsA(
+                    isA<TimeoutException>().having(
+                      (error) => error.message,
+                      'message',
+                      'File transfer deadline',
+                    ),
+                  )
+                : throwsStateError,
+          );
+          await held.entered.future.timeout(const Duration(seconds: 1));
+          if (reason == 'cancel') sender.cancel();
+          if (reason == 'account') {
+            MemberQrMemory.clear();
+            SecureSessionStore.changes.add(null);
+          }
+          await assertion;
+          expect(held.closed, isFalse);
+          final renamed = await input.file.rename(
+            '${directory.path}/released.bin',
+          );
+          expect(await renamed.readAsBytes(), [1, 2, 3]);
+          held.release.completeError(const SocketException('late failure'));
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          expect(held.sends, 1);
+        },
+      );
+    }
     test('changed source fails before any datagram leaves', () async {
       final input = await source([1, 2, 3]);
       await input.file.writeAsBytes([3, 2, 1]);

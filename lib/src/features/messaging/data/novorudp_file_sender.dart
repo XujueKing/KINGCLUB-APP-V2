@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:cryptography/dart.dart';
 
 import '../../../core/session/member_qr_memory.dart';
+import '../../../core/session/secure_session_store.dart';
 import 'novorudp_file_receiver.dart';
 import 'novorudp_frame.dart';
 import 'novorudp_frame_link.dart';
@@ -41,14 +42,27 @@ class NovoRudpFileSender {
   final Duration ackWait, deadline;
   final _clock = Stopwatch();
   final int _generation = MemberQrMemory.generation;
-  bool _started = false, _cancelled = false;
+  bool _started = false, _cancelled = false, _timedOut = false;
   Object? _failure;
   NovoRudpFrame? _latest;
   Completer<void>? _wake;
+  final _interrupted = Completer<void>();
 
   void cancel() {
     _cancelled = true;
+    _interrupt();
+  }
+
+  void _interrupt() {
+    if (!_interrupted.isCompleted) _interrupted.complete();
     _signal();
+  }
+
+  // Stop waiting for a lane without closing the shared chat connection. A send
+  // already handed to the transport cannot be recalled; no later frames follow.
+  Future<void> _waitTransport(Future<void> work) async {
+    await Future.any([work, _interrupted.future]);
+    _check();
   }
 
   void _signal() {
@@ -60,7 +74,7 @@ class NovoRudpFileSender {
       throw StateError('File transfer cancelled');
     }
     if (_failure != null) throw StateError('Secure lane ended: $_failure');
-    if (_clock.elapsed >= deadline) {
+    if (_timedOut || _clock.elapsed >= deadline) {
       throw TimeoutException('File transfer deadline');
     }
   }
@@ -85,11 +99,13 @@ class NovoRudpFileSender {
     for (var attempt = 0; ; attempt++) {
       _check();
       try {
-        await link.send(frame);
+        await _waitTransport(link.send(frame));
         return;
       } on SocketException {
         if (attempt >= maxStalls) rethrow;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await _waitTransport(
+          Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
       }
     }
   }
@@ -129,6 +145,11 @@ class NovoRudpFileSender {
       fragments: fragments,
     );
     RandomAccessFile? source;
+    final deadlineTimer = Timer(deadline - _clock.elapsed, () {
+      _timedOut = true;
+      _interrupt();
+    });
+    final session = SecureSessionStore.changes.stream.listen((_) => cancel());
     final subscription = link.frames.listen(
       (frame) {
         if (frame.kind == NovoRudpFrameKind.ack &&
@@ -141,11 +162,11 @@ class NovoRudpFileSender {
       },
       onError: (Object error) {
         _failure = error;
-        _signal();
+        _interrupt();
       },
       onDone: () {
         _failure = StateError('Socket closed');
-        _signal();
+        _interrupt();
       },
     );
     try {
@@ -207,7 +228,9 @@ class NovoRudpFileSender {
           }
           await _send(_frame(NovoRudpFrameKind.data, index, bytes));
           if ((index + 1) % 16 == 0) {
-            await Future<void>.delayed(const Duration(milliseconds: 10));
+            await _waitTransport(
+              Future<void>.delayed(const Duration(milliseconds: 10)),
+            );
           }
         }
         resumeAck = null;
@@ -286,12 +309,16 @@ class NovoRudpFileSender {
             }
             for (var copy = 0; copy < plan['packet_copies']; copy++) {
               await _send(_frame(NovoRudpFrameKind.repair, index, bytes));
-              if (++sent % batch == 0) await Future<void>.delayed(pause);
+              if (++sent % batch == 0) {
+                await _waitTransport(Future<void>.delayed(pause));
+              }
             }
           }
         }
       }
     } finally {
+      deadlineTimer.cancel();
+      await session.cancel();
       await subscription.cancel();
       planner.close();
       await source?.close();
