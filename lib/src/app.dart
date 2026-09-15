@@ -3,6 +3,12 @@ import 'features/messaging/data/call_launch_coordinator.dart';
 import 'features/messaging/data/call_repository.dart';
 import 'features/messaging/data/messaging_repository.dart';
 import 'features/messaging/presentation/call_page.dart';
+import 'features/messaging/data/foreground_group_call_inbox.dart';
+import 'features/messaging/data/group_call_repository.dart';
+import 'features/messaging/data/group_chat_repository.dart';
+import 'features/messaging/presentation/group_call_page.dart';
+
+import 'package:uuid/uuid.dart';
 
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
@@ -33,6 +39,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   StreamSubscription<Map<String, dynamic>>? _messages;
   bool _foreground = true;
   ForegroundCallInbox? _callInbox;
+  ForegroundGroupCallInbox? _groupCallInbox;
+  bool _presentingGroupCall = false, _presentingDirectCall = false;
   int _callGeneration = 0;
   Future<void>? _openingCallInbox;
 
@@ -48,6 +56,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     }
     if (_callInbox != null) {
       _callInbox!.foreground(true);
+      _groupCallInbox?.foreground(true);
       return;
     }
     final generation = _callGeneration;
@@ -69,7 +78,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
         if (!mounted ||
             !_foreground ||
             generation != _callGeneration ||
-            current?.phase != CallPhase.ringing) {
+            current?.phase != CallPhase.ringing ||
+            _presentingGroupCall) {
           return false;
         }
         final navigator = ref
@@ -84,11 +94,99 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
           peerName: profile['nickname'] as String? ?? prepared.call.caller,
           relay: prepared.relay,
         );
-        await navigator.push<void>(MaterialPageRoute(builder: (_) => page));
+        _presentingDirectCall = true;
+        try {
+          await navigator.push<void>(MaterialPageRoute(builder: (_) => page));
+        } finally {
+          _presentingDirectCall = false;
+        }
         return true;
       },
     );
     _callInbox = inbox;
+    final groups = GroupCallRepository(repository.messaging);
+    _groupCallInbox = ForegroundGroupCallInbox(
+      repository: groups,
+      present: (call) async {
+        if (!mounted ||
+            !_foreground ||
+            generation != _callGeneration ||
+            _presentingDirectCall ||
+            _presentingGroupCall) {
+          return false;
+        }
+        final navigator = ref
+            .read(appRouterProvider)
+            .routerDelegate
+            .navigatorKey
+            .currentState;
+        if (navigator == null) return false;
+        _presentingGroupCall = true;
+        try {
+          final accepted = await showDialog<bool>(
+            context: navigator.context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: Text(
+                call.media == CallMedia.video ? '群视频通话邀请' : '群语音通话邀请',
+              ),
+              content: const Text('是否接听群通话？'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('拒绝'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('接听'),
+                ),
+              ],
+            ),
+          );
+          if (!mounted ||
+              !_foreground ||
+              generation != _callGeneration ||
+              accepted == null) {
+            return false;
+          }
+          final current = await groups.read(call.id);
+          if (!mounted ||
+              !_foreground ||
+              generation != _callGeneration ||
+              current.endedAtMs != null ||
+              current.participants
+                      .singleWhere(
+                        (p) => p.account == repository.messaging.account,
+                      )
+                      .phase !=
+                  GroupCallPhase.invited) {
+            return true;
+          }
+          if (!accepted) {
+            await groups.act(
+              call: current,
+              action: GroupCallAction.decline,
+              requestId: const Uuid().v4(),
+            );
+          } else {
+            await navigator.push<void>(
+              MaterialPageRoute(
+                builder: (_) => GroupCallPage(
+                  repository: GroupChatRepository(repository.messaging),
+                  groupId: current.groupId,
+                  media: current.media,
+                  acceptedInvitation: current,
+                ),
+              ),
+            );
+          }
+          return true;
+        } finally {
+          _presentingGroupCall = false;
+        }
+      },
+    );
+    _groupCallInbox!.foreground(true);
     inbox.foreground(true);
   }
 
@@ -96,6 +194,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     _callGeneration++;
     _callInbox?.close();
     _callInbox = null;
+    _groupCallInbox?.close();
+    _groupCallInbox = null;
   }
 
   Future<void> _syncRealtime() async {
@@ -126,10 +226,12 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       return;
     }
     if (event['eventType'] == 'chat.call.changed' ||
+        event['eventType'] == 'chat.group.call.changed' ||
         event['eventType'] == 'connection.ready') {
       try {
         await _ensureCallInbox();
         _callInbox?.notify();
+        _groupCallInbox?.notify();
       } catch (_) {}
       return;
     }
@@ -223,6 +325,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
     _callInbox?.foreground(_foreground);
+    _groupCallInbox?.foreground(_foreground);
     if (_foreground) {
       _checkMobileWindow();
       unawaited(_syncRealtime().catchError((Object _) {}));

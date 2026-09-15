@@ -19,10 +19,12 @@ class GroupCallPage extends StatefulWidget {
     required this.repository,
     required this.groupId,
     required this.media,
+    this.acceptedInvitation,
   });
   final GroupChatRepository repository;
   final String groupId;
   final CallMedia media;
+  final GroupCallSnapshot? acceptedInvitation;
   @override
   State<GroupCallPage> createState() => _GroupCallPageState();
 }
@@ -41,6 +43,11 @@ class _GroupCallPageState extends State<GroupCallPage>
   void initState() {
     super.initState();
     _details = widget.repository.details(widget.groupId);
+    if (widget.acceptedInvitation != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_start());
+      });
+    }
     WidgetsBinding.instance.addObserver(this);
     _login = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
@@ -65,7 +72,11 @@ class _GroupCallPageState extends State<GroupCallPage>
   }
 
   Future<void> _start() async {
-    if (_busy || _invalid || _selected.isEmpty) return;
+    if (_busy ||
+        _invalid ||
+        (_selected.isEmpty && widget.acceptedInvitation == null)) {
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -73,15 +84,17 @@ class _GroupCallPageState extends State<GroupCallPage>
     try {
       final repo = GroupCallRepository(widget.repository.messaging);
       _requestId ??= const Uuid().v4();
-      final result = await repo.start(
-        groupId: widget.groupId,
-        invitees: _selected.toList(),
-        media: widget.media,
-        requestId: _requestId!,
-      );
+      final initial = widget.acceptedInvitation != null
+          ? await repo.read(widget.acceptedInvitation!.id)
+          : (await repo.start(
+              groupId: widget.groupId,
+              invitees: _selected.toList(),
+              media: widget.media,
+              requestId: _requestId!,
+            )).call;
       final controller = GroupCallController.realtime(
         repository: repo,
-        initial: result.call,
+        initial: initial,
       );
       _controller = controller;
       final session = GroupCallSession(
