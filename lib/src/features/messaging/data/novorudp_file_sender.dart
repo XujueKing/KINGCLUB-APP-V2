@@ -8,7 +8,7 @@ import 'package:cryptography/dart.dart';
 import '../../../core/session/member_qr_memory.dart';
 import 'novorudp_file_receiver.dart';
 import 'novorudp_frame.dart';
-import 'novorudp_secure_datagram_link.dart';
+import 'novorudp_frame_link.dart';
 
 /// One authenticated file transfer. Completion means the receiver verified its
 /// temporary file, not that a chat message was durably accepted by the service.
@@ -33,7 +33,7 @@ class NovoRudpFileSender {
       throw ArgumentError('Invalid file sender configuration');
     }
   }
-  final NovoRudpSecureDatagramLink link;
+  final NovoRudpFrameLink link;
   final File file;
   final BigInt streamId, objectId;
   final int size, maxStalls;
