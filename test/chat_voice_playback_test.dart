@@ -280,6 +280,55 @@ void main() {
   );
   for (final group in [false, true]) {
     test(
+      'other direct conversation events preserve ${group ? "group" : "direct"} voice',
+      () async {
+        final output = Output();
+        final events = StreamController<Map<String, dynamic>>.broadcast();
+        final repo = MessagingRepository(
+          account: 'me',
+          call: (_, p) async => grant(p['messageId'] as String, group: group),
+        );
+        final player = ChatVoicePlayback(
+          output: output,
+          events: events.stream,
+          loadFile: (_, _, _, _) async => File('/fixture.m4a'),
+        );
+        addTearDown(player.dispose);
+        addTearDown(events.close);
+        await player.toggle(
+          repo,
+          'one',
+          group: group,
+          groupId: group ? 'group' : null,
+          conversationId: 'current',
+        );
+        final stops = output.stops;
+        for (final type in [
+          'chat.settings.changed',
+          'chat.relationship.changed',
+        ]) {
+          events.add({
+            'eventType': type,
+            'data': {'conversationId': 'other'},
+          });
+        }
+        await Future<void>.delayed(Duration.zero);
+        expect(player.activeId, 'one');
+        expect(output.stops, stops);
+        events.add({
+          'eventType': group
+              ? 'chat.group.changed'
+              : 'chat.relationship.changed',
+          'data': group ? {'groupId': 'group'} : {'conversationId': 'current'},
+        });
+        await Future<void>.delayed(Duration.zero);
+        expect(player.activeId, isNull);
+        expect(output.stops, stops + 1);
+      },
+    );
+  }
+  for (final group in [false, true]) {
+    test(
       'unrelated group events do not interrupt ${group ? "group" : "direct"} audio',
       () async {
         final output = Output();
