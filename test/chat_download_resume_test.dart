@@ -23,6 +23,7 @@ void main() {
     'revoked',
     'leave-page',
     'socket-resume',
+    'group-resume',
   ]) {
     test('encrypted file resume across downloader recreation: $scenario', () async {
       final root = await Directory.systemTemp.createTemp('chat-resume-test-');
@@ -43,6 +44,7 @@ void main() {
         fileName: 'file.bin',
         size: bytes.length,
         sha256: hash,
+        group: scenario == 'group-resume',
       );
       var first = true;
       var grants = 0;
@@ -81,7 +83,9 @@ void main() {
       }
       final repo = MessagingRepository(
         account: 'me',
-        call: (_, _) async {
+        call: (method, params) async {
+          expect(method, ref.group ? 'K260914000654' : 'K260914000652');
+          expect(params, {'messageId': messageId});
           grants++;
           if (!first && scenario == 'revoked') {
             throw const AuthFailure('CHAT_ACCESS_DENIED', 'revoked');
@@ -96,7 +100,8 @@ void main() {
               'chunkBytes': 1024 * 1024,
               'chunkCount': 2,
               'contentType': 'application/octet-stream',
-              'path': '/kingclub/chat-file/$messageId',
+              'path':
+                  '/kingclub/${ref.group ? 'group-chat-file' : 'chat-file'}/$messageId',
               'headers': {'authorization': 'Bearer test-only'},
             },
           };

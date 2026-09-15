@@ -1,5 +1,11 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-16 文件续传整合包
+
+群文件新增重建下载器续传用例，明确断言群文件授权 654 与单聊 652 接口及各自下载路径。连同加密缓存、真实 TCP 断线、文件下载器、详情页和转发器，5 个测试文件 33 项通过，4 文件静态检查通过（build/integrated-download-resume-test.log）。
+
+42cb937 工作树于 00:40:43 完成 Android preview profile arm64 构建，Gradle 64.8 秒，包内 NovoRUDP ARM64 ELF 检查通过。APK build/app/outputs/flutter-apk/app-preview-profile.apk，157331528 字节，SHA256 19ABACBA493D9729B2119519CA0B948B18CEC3947C5F64750104CE9D9742D899。日志 build/integrated-download-resume-build.log。包含当前文件续传修复和此前已读恢复；API https://test.wuyexin.cn/kingclub-v2，仍未配置主网中继地址，保留原有三处 onboarding 工作树修改。尚未安装 A/B，手机安全存储与进程重启续传未验收。
+
 ## 2026-09-16 真实 TCP 断线续传及缓存隔离验证
 
 本机 HttpServer + Dio 原生 IOHttpClientAdapter 实际传输 1 MiB + 3 字节文件：第一块完整，第二块连续三次仅发送 1 字节后断开 TCP；下载器销毁后重新创建，仅请求第二块，第一块由磁盘 AES-GCM 缓存恢复，完整输出字节一致。请求携带预期测试授权头、每次下载重新授权、最终再次授权。服务器授权 API 为注入，非 CCSOP/手机联调。
