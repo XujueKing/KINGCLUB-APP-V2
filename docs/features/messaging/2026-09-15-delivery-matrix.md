@@ -1,5 +1,13 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-16 03:03 汇总更新包
+
+基于 2c09c88 构建 Preview/Profile arm64 成功，包含通讯录加密离线快照、位置详情小屏滚动和入群申请恢复。APK：build/app/outputs/flutter-apk/app-preview-profile.apk；157790280 字节；SHA256 32D3EEE60F8370F03A766680DC281B260A5CBF3F08E5CE7ACE431D9EE6B40495。编译 78.7 秒，日志 build/contact-snapshot-build.log。包含工作区原有三处 onboarding 修改，未把这些修改纳入聊天提交。
+
+因连续更新包大小相同，额外读取 APK 内 libapp.so 核验：17236872 字节，SHA256 76a76911b56617dec2ead73886c58041a036495f82a3f6e651961076e84e73c4，包含本轮新增 contact_snapshot 和 group-join-receipts 字符串，确认最新代码实际进入产物；原生 NovoRUDP ARM64 库存在。
+
+只读检查两台手机均 USB 在线；A 在 KINGCLUB，B 在其他应用登录页。未执行安装或触屏，不将构建成功计为手机断网重启验收。仍需验收当前 APK 的通讯录离线恢复、位置按钮可达、入群状态及通话记录显示；新入群状态接口上线也尚未完成。
+
 ## 2026-09-16 通讯录加密离线快照
 
 通讯录不再仅保留内存列表：复用按账号隔离的 ChatHistoryStore，SQLite 升至 15，新增 contact_snapshot。姓名、备注、简介、性别及会员标识整体 AES-256-GCM 加密；AAD 绑定账号和刷新起始时间，只保留允许字段。整批服务端列表成功后后台替换快照，失败不覆盖，晚到的旧刷新不能覆盖新版本。网络确认空列表会清除旧好友快照，不从缓存推导发消息权限。
