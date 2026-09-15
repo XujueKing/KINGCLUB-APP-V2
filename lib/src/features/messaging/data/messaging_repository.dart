@@ -239,6 +239,14 @@ class MessagingRepository {
           _readRetryAfter.remove(key);
           _readChanges.add(account);
           await queue.acknowledge(entry.key, entry.value);
+        } on FormatException {
+          if (!isActive()) return;
+          // A malformed receipt belongs to this intent; it must not starve
+          // healthy conversations later in the same recovery pass.
+          _readRetryAfter[key] = (
+            sequence: entry.value,
+            after: _readRetryClock().add(const Duration(minutes: 5)),
+          );
         } on AuthFailure catch (error) {
           if (!isActive()) return;
           if (error.code == 'NETWORK_ERROR' ||

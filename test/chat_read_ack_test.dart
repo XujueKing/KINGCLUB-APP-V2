@@ -11,6 +11,7 @@ void main() {
       test(
         '${group ? "group" : "direct"} invalid acknowledgement $value stays pending',
         () async {
+          var now = DateTime.utc(2026, 9, 16);
           final queue = ChatReadOutbox('me', group: group);
           var result = <String, dynamic>{
             'readSequence': value,
@@ -22,6 +23,7 @@ void main() {
           addTearDown(subscription.cancel);
           final repo = MessagingRepository(
             account: 'me',
+            readRetryClock: () => now,
             readOutbox: group ? null : queue,
             groupReadOutbox: group ? queue : null,
             call: (_, _) async => result,
@@ -38,6 +40,7 @@ void main() {
           expect(await queue.read(), {'target': 5});
           expect(notifications, isEmpty);
           result = {'readSequence': 7, 'groupId': 'target'};
+          now = now.add(const Duration(minutes: 5));
           await repo.retryPendingReads(isActive: () => true);
           await Future<void>.delayed(Duration.zero);
           expect(await queue.read(), isEmpty);
@@ -45,6 +48,49 @@ void main() {
         },
       );
     }
+  }
+  for (final group in [false, true]) {
+    test(
+      'malformed ${group ? "group" : "direct"} read cannot starve healthy reads',
+      () async {
+        var now = DateTime.utc(2026, 9, 16);
+        final direct = ChatReadOutbox('me');
+        final groups = ChatReadOutbox('me', group: true);
+        final affected = group ? groups : direct;
+        await affected.put('broken', 5);
+        await affected.put('healthy', 8);
+        if (!group) await groups.put('healthy-group', 9);
+        var malformed = true;
+        final calls = <String>[];
+        final repo = MessagingRepository(
+          account: 'me',
+          readOutbox: direct,
+          groupReadOutbox: groups,
+          readRetryClock: () => now,
+          call: (_, params) async {
+            final target = (params['groupId'] ?? params['peer']) as String;
+            calls.add(target);
+            if (target == 'broken' && malformed) return {};
+            return {
+              'readSequence': params['sequence'],
+              'groupId': params['groupId'],
+            };
+          },
+        );
+        await repo.retryPendingReads(isActive: () => true);
+        expect(calls, ['broken', 'healthy', if (!group) 'healthy-group']);
+        expect(await affected.read(), {'broken': 5});
+        if (!group) expect(await groups.read(), isEmpty);
+        calls.clear();
+        await repo.retryPendingReads(isActive: () => true);
+        expect(calls, isEmpty);
+        malformed = false;
+        now = now.add(const Duration(minutes: 5));
+        await repo.retryPendingReads(isActive: () => true);
+        expect(calls, ['broken']);
+        expect(await affected.read(), isEmpty);
+      },
+    );
   }
   test(
     'another group acknowledgement cannot erase the intended group',
