@@ -40,6 +40,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.text('作品')).dx, lessThan(48));
     for (final label in ['作品', '动态', '相册']) {
       final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
       expect(
