@@ -46,6 +46,52 @@ void main() {
   tearDown(() async {
     if (await dir.exists()) await dir.delete(recursive: true);
   });
+  test('clear rejects an old request paused before cache lookup', () async {
+    final cached = await cache.get(
+      'https://media.example.test/voice',
+      scope: 'member:a',
+      contentKey: 'voice',
+      kind: MediaKind.audio,
+    );
+    final started = Completer<void>(), release = Completer<void>();
+    var reads = 0;
+    final reopened = MediaCache(
+      directory: () async {
+        if (++reads == 1) {
+          started.complete();
+          await release.future;
+        }
+        return dir;
+      },
+      dio: Dio()..httpClientAdapter = transport,
+    );
+    final pending = reopened.get(
+      'https://media.example.test/voice',
+      scope: 'member:a',
+      contentKey: 'voice',
+      kind: MediaKind.audio,
+    );
+    final check = expectLater(pending, throwsStateError);
+    await started.future;
+    final clearing = reopened.clear(privateOnly: true);
+    release.complete();
+    await check;
+    await clearing;
+    expect(await cached.exists(), false);
+    expect(transport.calls, 1);
+  });
+  test('clear immediately after get cancels before network starts', () async {
+    final pending = cache.get(
+      'https://media.example.test/voice',
+      scope: 'member:a',
+      contentKey: 'voice',
+      kind: MediaKind.audio,
+    );
+    final check = expectLater(pending, throwsStateError);
+    await cache.clear(privateOnly: true);
+    await check;
+    expect(transport.calls, 0);
+  });
   test(
     'eviction removes only matching account audio and retry downloads',
     () async {

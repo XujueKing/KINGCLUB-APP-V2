@@ -88,3 +88,9 @@ Validation: targeted analyze and five controlled connection lifecycle tests pass
 ## Actual delayed WebSocket upgrade check
 
 Added an actual localhost HttpServer/WebSocket upgrade test. The server receives the HTTP request but holds its upgrade until the production connector times out; after release, the server observes the client's late socket close. No fake WebSocket is used in this case. Six connection tests and analyze pass. This validates native socket cleanup, not TLS, CCSOP authentication, handset reconnect or message catch-up.
+
+## Cache-clear generation at request entry
+
+MediaCache.get now captures the cache generation before asynchronous key derivation and propagates it through lookup/download. Old work is rejected before directory creation/network work and again before returning a cached file or shared pending result. Previously a request could begin before clear but adopt the new generation afterward; the cache-hit branch also lacked the final check.
+
+Validation: 20 cache/playback tests passed; analyze passed. Added cases pause an existing private-file lookup while clearing and clear immediately after get before any network call; both old requests reject and no old cache file is returned. Controlled filesystem/network fixtures are not handset logout acceptance. Not yet installed.

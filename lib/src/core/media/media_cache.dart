@@ -49,16 +49,20 @@ class MediaCache {
     MediaKind kind = MediaKind.image,
     Map<String, String>? headers,
   }) async {
+    final generation = _generation;
     final uri = Uri.parse(url);
     if (uri.scheme != 'https') throw const FormatException('媒体地址必须使用HTTPS');
     final key = await _hash('$scope|${kind.name}|${contentKey ?? url}');
-    return _pending.putIfAbsent(key, () async {
+    if (generation != _generation) throw StateError('Cache request cancelled');
+    final result = await _pending.putIfAbsent(key, () async {
       try {
-        return await _load(key, url, scope, kind, headers);
+        return await _load(key, url, scope, kind, headers, generation);
       } finally {
         _pending.remove(key);
       }
     });
+    if (generation != _generation) throw StateError('Cache request cancelled');
+    return result;
   }
 
   /// Forget one immutable media object after a decoder rejects it. Scope and
@@ -148,13 +152,16 @@ class MediaCache {
     String scope,
     MediaKind kind,
     Map<String, String>? headers,
+    int generation,
   ) async {
-    final generation = _generation;
     final root = await _directory();
+    if (generation != _generation) throw StateError('Cache request cancelled');
     final dir = Directory(
       '${root.path}/${scope == 'public' ? 'public' : 'private'}/${await _hash(scope)}/${kind.name}',
     );
+    if (generation != _generation) throw StateError('Cache request cancelled');
     await dir.create(recursive: true);
+    if (generation != _generation) throw StateError('Cache request cancelled');
     final extension = switch (kind) {
       MediaKind.video => '.mp4',
       MediaKind.audio => '.m4a',
@@ -163,6 +170,9 @@ class MediaCache {
     final file = File('${dir.path}/$key$extension');
     if (await file.exists() && await file.length() > 0) {
       await file.setLastModified(DateTime.now());
+      if (generation != _generation) {
+        throw StateError('Cache request cancelled');
+      }
       return file;
     }
     final temp = File('${file.path}.part');
