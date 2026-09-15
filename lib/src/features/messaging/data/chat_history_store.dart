@@ -90,8 +90,9 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 14,
+        version: 15,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 15) await _createContactSnapshot(db);
           if (oldVersion >= 6 && oldVersion < 14) {
             await db.execute(
               'ALTER TABLE nearby_message ADD COLUMN readReported INTEGER NOT NULL DEFAULT 0',
@@ -144,6 +145,7 @@ class ChatHistoryStore {
           }
         },
         onCreate: (db, _) async {
+          await _createContactSnapshot(db);
           await _createConversationListCache(db);
           await _createNearbyMembers(db);
           await _createNearbyServerPresence(db);
@@ -158,6 +160,52 @@ class ChatHistoryStore {
       ),
     );
     return ChatHistoryStore._(db, key, account);
+  }
+
+  static Future<void> _createContactSnapshot(Database db) => db.execute(
+    'CREATE TABLE contact_snapshot (id INTEGER PRIMARY KEY CHECK(id=1), started INTEGER NOT NULL, payload BLOB NOT NULL)',
+  );
+
+  Future<List<Map<String, dynamic>>?> contactSnapshot() async {
+    final rows = await _db.query('contact_snapshot');
+    if (rows.isEmpty) return null;
+    final bytes = await _cipher.decrypt(
+      SecretBox.fromConcatenation(
+        rows.single['payload'] as List<int>,
+        nonceLength: 12,
+        macLength: 16,
+      ),
+      secretKey: _key,
+      aad: utf8.encode('contacts:$account:${rows.single['started']}'),
+    );
+    return (jsonDecode(utf8.decode(bytes)) as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
+  /// Only a complete successful list may replace the offline snapshot.
+  /// The request start orders concurrent refreshes; a late old response loses.
+  Future<void> saveContactSnapshot(
+    List<Map<String, dynamic>> contacts,
+    int started,
+  ) async {
+    final safe = contacts
+        .map(
+          (row) => {
+            for (final field in ['peer', 'nickname', 'remark', 'bio', 'gender'])
+              if (row.containsKey(field)) field: row[field],
+          },
+        )
+        .toList();
+    final box = await _cipher.encrypt(
+      utf8.encode(jsonEncode(safe)),
+      secretKey: _key,
+      aad: utf8.encode('contacts:$account:$started'),
+    );
+    await _db.rawInsert(
+      'INSERT INTO contact_snapshot(id,started,payload) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET started=excluded.started,payload=excluded.payload WHERE excluded.started>=contact_snapshot.started',
+      [started, box.concatenation()],
+    );
   }
 
   static Future<String> _hash(String value) async =>

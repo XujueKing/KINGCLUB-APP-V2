@@ -1,5 +1,9 @@
 import 'package:flutter/foundation.dart';
 
+import 'dart:async';
+
+import '../../messaging/data/chat_history_store.dart';
+
 import 'contact_name_index.dart';
 
 import '../../messaging/data/messaging_repository.dart';
@@ -40,7 +44,13 @@ class MemberContact {
 /// An atomic, account-bound contact snapshot. Never mixes partial refresh pages
 /// with the prior snapshot: removed friendships disappear only after a full read.
 class ContactsController extends ChangeNotifier {
-  ContactsController(this.repository);
+  ContactsController(
+    this.repository, {
+    Future<ChatHistoryStore> Function()? historyStore,
+  }) : _historyStore =
+           historyStore ?? (() => ChatHistoryStore.open(repository.account));
+  final Future<ChatHistoryStore> Function() _historyStore;
+  bool _restoring = false;
   final MessagingRepository repository;
   List<MemberContact> _contacts = const [];
   List<MemberContact> get contacts => _contacts;
@@ -68,6 +78,10 @@ class ContactsController extends ChangeNotifier {
 
   Future<void> refresh({bool afterCurrent = false}) {
     if (_disposed) return Future.value();
+    if (!_restoring && !hasSnapshot) {
+      _restoring = true;
+      unawaited(_restore(_generation));
+    }
     final active = _refreshing;
     if (active != null) {
       if (afterCurrent) _refreshAgain = true;
@@ -122,6 +136,7 @@ class ContactsController extends ChangeNotifier {
   }
 
   Future<void> _fetch(int generation) async {
+    final started = DateTime.now().microsecondsSinceEpoch;
     final next = <String, MemberContact>{};
     var offset = 0;
     try {
@@ -145,10 +160,59 @@ class ContactsController extends ChangeNotifier {
       hasSnapshot = true;
       error = null;
       notifyListeners();
+      unawaited(_save(_contacts, started, generation));
     } catch (e) {
       if (_disposed || generation != _generation) return;
       error = e.toString();
       notifyListeners();
+    }
+  }
+
+  Future<void> _restore(int generation) async {
+    try {
+      final store = await _historyStore();
+      if (store.account != repository.account) return;
+      final rows = await store.contactSnapshot();
+      if (_disposed ||
+          generation != _generation ||
+          hasSnapshot ||
+          rows == null) {
+        return;
+      }
+      final contacts = rows.map(MemberContact.fromJson).toList();
+      _contacts = List.unmodifiable(contacts);
+      hasSnapshot = true;
+      notifyListeners();
+    } catch (_) {
+      // Unavailable/corrupt cache must never suppress the network refresh.
+    }
+  }
+
+  Future<void> _save(
+    List<MemberContact> contacts,
+    int started,
+    int generation,
+  ) async {
+    try {
+      final store = await _historyStore();
+      if (store.account != repository.account) return;
+      if (_disposed || generation != _generation) return;
+      await store.saveContactSnapshot(
+        contacts
+            .map(
+              (contact) => {
+                'peer': contact.account,
+                'nickname': contact.nickname,
+                'remark': contact.remark,
+                'bio': contact.bio,
+                'gender': contact.gender,
+              },
+            )
+            .toList(),
+        started,
+      );
+    } catch (_) {
+      // Cache failure does not turn a confirmed server result into an error.
     }
   }
 
@@ -157,6 +221,7 @@ class ContactsController extends ChangeNotifier {
     _generation++;
     _requestsGeneration++;
     _refreshAgain = false;
+    _restoring = false;
     pendingRequests = 0;
     _refreshing = null;
     _contacts = const [];
