@@ -24,7 +24,9 @@ object ChatMap {
                 .appendQueryParameter("name", name)
                 .appendQueryParameter("coordinate", if (system == "gcj02") "gaode" else "wgs84")
                 .appendQueryParameter("src", "KINGCLUB")
-                .appendQueryParameter("callnative", "1").build()
+                // Keep the web fallback usable without an installed map app.
+                // Native auto-launch redirects some browsers to an APK download.
+                .appendQueryParameter("callnative", "0").build()
             activity.startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
             result.success(true)
         } catch (_: IllegalArgumentException) {
