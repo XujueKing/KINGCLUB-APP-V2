@@ -106,7 +106,8 @@ class GroupChatController extends ChatSessionController {
   @override
   String? error;
   int readSequence = 0;
-  int _readRequested = 0;
+  int _readConfirmed = 0;
+  final _readsPending = <int>{};
 
   @override
   List<Map<String, dynamic>> get messages {
@@ -935,13 +936,25 @@ class GroupChatController extends ChatSessionController {
 
   @override
   Future<void> markVisibleRead(int sequence) async {
-    if (_disposed || sequence <= _readRequested) return;
-    final previous = _readRequested;
-    _readRequested = sequence;
+    if (_disposed ||
+        sequence <= _readConfirmed ||
+        _readsPending.any((pending) => pending >= sequence)) {
+      return;
+    }
+    final generation = _historyGeneration;
+    _readsPending.add(sequence);
     try {
       await repository.markRead(groupId, sequence);
+      if (!_disposed &&
+          generation == _historyGeneration &&
+          sequence > _readConfirmed) {
+        _readConfirmed = sequence;
+      }
     } catch (_) {
-      if (_readRequested == sequence) _readRequested = previous;
+      // Only successful requests advance the cursor; failed concurrent
+      // requests must not leave one another looking acknowledged.
+    } finally {
+      if (generation == _historyGeneration) _readsPending.remove(sequence);
     }
   }
 
@@ -960,6 +973,8 @@ class GroupChatController extends ChatSessionController {
     _groupName = null;
     _membersLoaded = false;
     _historyGeneration++;
+    _readConfirmed = 0;
+    _readsPending.clear();
     if (openHistory != null) {
       _historyBarrier = (_historyBarrier ?? _ensureHistory()).then((_) async {
         if (_history != null) _diskEpoch = await _history!.clear(_historyKey);
