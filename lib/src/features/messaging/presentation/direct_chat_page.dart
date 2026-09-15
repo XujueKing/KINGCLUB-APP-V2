@@ -219,7 +219,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       final profile = await cachedChatAvatarProfile(
         _avatarProfiles,
         peer,
-        () => chat.messaging.call('K260913000612', {'peer': peer}),
+        () => chat.messaging.avatarProfile(peer),
       );
       if (!mounted || !identical(chat, _chat)) return;
       final nickname = (profile['nickname'] as String?)?.trim();
@@ -1059,13 +1059,8 @@ class _DirectChatPageState extends State<DirectChatPage>
                                 profile: cachedChatAvatarProfile(
                                   _avatarProfiles,
                                   message.senderAccount!,
-                                  () => _chat!.messaging.call(
-                                    message.mine
-                                        ? 'K260912000501'
-                                        : 'K260913000612',
-                                    message.mine
-                                        ? {}
-                                        : {'peer': message.senderAccount!},
+                                  () => _chat!.messaging.avatarProfile(
+                                    message.senderAccount!,
                                   ),
                                 ),
                               ),

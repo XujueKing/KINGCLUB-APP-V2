@@ -489,9 +489,8 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
                                     account: contact.account,
                                     profile: _profiles.putIfAbsent(
                                       contact.account,
-                                      () => widget.repository.call(
-                                        'K260913000612',
-                                        {'peer': contact.account},
+                                      () => widget.repository.avatarProfile(
+                                        contact.account,
                                       ),
                                     ),
                                   ),

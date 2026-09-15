@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/chat_avatar_snapshot.dart';
+import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,34 @@ void main() {
       'account': {'userAccount': 'a'},
     };
     cache = ChatAvatarSnapshot(session: () async => session);
+  });
+  test('own avatar uses owner endpoint and persists no signed URL', () async {
+    final calls = <String>[];
+    final own = <String, dynamic>{
+      'avatar': {
+        'fileId': 'own-file',
+        'path': '/attachments/own-file?token=private.token',
+      },
+    };
+    final repository = MessagingRepository(
+      account: 'a',
+      call: (method, params) async {
+        calls.add(method);
+        if (method == 'K260912000501') {
+          expect(params, isEmpty);
+          return own;
+        }
+        expect(params, {'peer': 'peer'});
+        return profile;
+      },
+    );
+    await cache.load('a', 'a', () => repository.avatarProfile('a'));
+    expect(await cache.load('a', 'a', offline), {
+      'avatar': {'fileId': 'own-file', 'cacheOnly': true},
+    });
+    expect((await const FlutterSecureStorage().readAll()).values, ['own-file']);
+    await repository.avatarProfile('peer');
+    expect(calls, ['K260912000501', 'K260913000612']);
   });
   test(
     'restart restores only image ID after network error, scoped to viewer',

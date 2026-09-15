@@ -47,7 +47,7 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
   bool _searching = false;
   late final Future<Map<String, dynamic>> _profile =
       widget.peerAccount != null && widget.repository != null
-      ? widget.repository!.call('K260913000612', {'peer': widget.peerAccount!})
+      ? widget.repository!.avatarProfile(widget.peerAccount!)
       : Future.value({});
 
   static const _history = ['周末 KING CLUB 见', '好，晚上九点', 'A6 卡座见'];

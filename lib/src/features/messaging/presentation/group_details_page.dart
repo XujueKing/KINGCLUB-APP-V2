@@ -788,9 +788,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                             own: own,
                             profile: _avatarProfiles.putIfAbsent(
                               account,
-                              () => widget.repository.messaging.call(
-                                own ? 'K260912000501' : 'K260913000612',
-                                own ? {} : {'peer': account},
+                              () => widget.repository.messaging.avatarProfile(
+                                account,
                               ),
                             ),
                           );

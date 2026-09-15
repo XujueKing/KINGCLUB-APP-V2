@@ -61,8 +61,9 @@ class MessagingRepository {
   final ChatApiCall call;
 
   Future<Map<String, dynamic>> avatarProfile(String peer) {
-    Future<Map<String, dynamic>> fetch() =>
-        call('K260913000612', {'peer': peer});
+    Future<Map<String, dynamic>> fetch() => peer == account
+        ? call('K260912000501', {})
+        : call('K260913000612', {'peer': peer});
     return persistHistory
         ? ChatAvatarSnapshot().load(account, peer, fetch)
         : fetch();

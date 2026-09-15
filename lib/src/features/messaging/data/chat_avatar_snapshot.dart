@@ -60,10 +60,14 @@ class ChatAvatarSnapshot {
           id is String &&
           RegExp(r'^[A-Za-z0-9_-]{1,200}$').hasMatch(id) &&
           path is String &&
-          path.startsWith('/kingclub/profile-media/') &&
-          !path.contains('..') &&
-          !path.contains('?') &&
-          !path.contains('#');
+          (viewer == peer
+              ? RegExp(
+                  r'^/attachments/[A-Za-z0-9_-]+\?token=[A-Za-z0-9%._~-]+$',
+                ).hasMatch(path)
+              : path.startsWith('/kingclub/profile-media/') &&
+                    !path.contains('..') &&
+                    !path.contains('?') &&
+                    !path.contains('#'));
       await save(valid ? id : null);
       if (!await active()) {
         throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');

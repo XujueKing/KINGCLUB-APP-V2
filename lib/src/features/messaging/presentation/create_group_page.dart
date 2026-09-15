@@ -285,9 +285,9 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                         account: contact.account,
                         profile: _avatarProfiles.putIfAbsent(
                           contact.account,
-                          () => _repository!.messaging.call('K260913000612', {
-                            'peer': contact.account,
-                          }),
+                          () => _repository!.messaging.avatarProfile(
+                            contact.account,
+                          ),
                         ),
                       ),
                     ),
