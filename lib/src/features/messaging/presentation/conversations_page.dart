@@ -364,6 +364,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     if (widget.realData && !oldWidget.realData) {
       _connectReal();
     } else if (widget.realData && widget.active && !oldWidget.active) {
+      _avatarProfiles.clear();
       if (_repository == null) {
         _rebindIfSignedIn();
       } else {
@@ -387,6 +388,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed || !widget.realData) return;
+    _avatarProfiles.clear();
     if (_repository == null) {
       _rebindIfSignedIn();
     } else {
@@ -1005,6 +1007,7 @@ class _ConversationsPageState extends State<ConversationsPage>
 
   Future<void> _refreshConversations({bool retry = false}) async {
     if (widget.realData) {
+      _avatarProfiles.clear();
       await _refreshReal();
       return;
     }

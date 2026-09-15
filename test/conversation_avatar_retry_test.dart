@@ -4,7 +4,7 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/conversations_page.dart';
 
 void main() {
-  testWidgets('failed avatar fetch retries on next list activation', (
+  testWidgets('avatar grants refresh on activation and app resume', (
     tester,
   ) async {
     var profiles = 0;
@@ -63,11 +63,23 @@ void main() {
     await show(true);
     expect(profiles, 1);
     await show(false);
+    expect(profiles, 2); // The failed grant retries during this rebuild.
     await show(true);
-    expect(profiles, 2);
+    expect(profiles, 3);
     await show(false);
     await show(true);
-    expect(profiles, 2);
+    expect(profiles, 4);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(profiles, 5);
+    // An ordinary parent rebuild still shares the current grant.
+    await show(true);
+    expect(profiles, 5);
     await tester.pumpWidget(const SizedBox());
     expect(tester.takeException(), isNull);
   });
