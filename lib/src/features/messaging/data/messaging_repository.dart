@@ -3,10 +3,10 @@ import 'chat_video.dart';
 import 'dart:async';
 
 import 'chat_read_outbox.dart';
+import 'authenticated_chat_api.dart';
 import 'novorudp_binding_runtime.dart';
 import 'chat_location.dart';
 import '../../../core/networking/kingclub_secure_client.dart';
-import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
@@ -70,29 +70,12 @@ class MessagingRepository {
     final repository = MessagingRepository(
       account: account,
       persistHistory: true,
-      call: (id, params) async {
-        final generation = MemberQrMemory.generation;
-        final current = await store.readSession();
-        if (current == null ||
-            (current['account'] as Map?)?['userAccount'] != account ||
-            current['sessionId'] != session['sessionId']) {
-          throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
-        }
-        final data = await client.call(
-          id,
-          params,
-          session: current,
-          receiveTimeout: id == 'K260915000669'
-              ? const Duration(seconds: 125)
-              : (id == 'K260915000674' || id == 'K260915000675')
-              ? const Duration(seconds: 65)
-              : null,
-        );
-        if (generation != MemberQrMemory.generation) {
-          throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
-        }
-        return Map<String, dynamic>.from(data['result'] as Map);
-      },
+      call: AuthenticatedChatApi(
+        account: account,
+        sessionId: session['sessionId'] as String,
+        client: client,
+        store: store,
+      ).call,
     );
     NovoRudpBindingRuntime.start(repository);
     return repository;

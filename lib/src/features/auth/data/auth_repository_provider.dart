@@ -82,9 +82,34 @@ class RealAuthRepository implements AuthRepository {
   final void Function(AuthLoginResult)? onAuthenticated;
   List<Map<String, String>>? _consents;
   Future<AuthLoginResult?>? _restoring;
+  static final _sharedRestores =
+      <(String, String, Object?), Future<AuthLoginResult?>>{};
 
-  Future<AuthLoginResult?> restoreSession() =>
-      _restoring ??= _restoreSession().whenComplete(() => _restoring = null);
+  Future<AuthLoginResult?> restoreSession() => _restoring ??=
+      _coordinatedRestore().whenComplete(() => _restoring = null);
+
+  Future<AuthLoginResult?> _coordinatedRestore() async {
+    final saved = await _sessionStore.readSession();
+    if (saved == null) return null;
+    final key = (
+      '${saved['sessionId']}',
+      '${saved['apiKeyId']}',
+      saved['refreshTokenVersion'],
+    );
+    final existing = _sharedRestores[key];
+    if (existing != null) {
+      final result = await existing;
+      if (result != null) onAuthenticated?.call(result);
+      return result;
+    }
+    final pending = _restoreSession();
+    _sharedRestores[key] = pending;
+    try {
+      return await pending;
+    } finally {
+      if (identical(_sharedRestores[key], pending)) _sharedRestores.remove(key);
+    }
+  }
 
   Future<AuthLoginResult?> _restoreSession() async {
     final saved = await _sessionStore.readSession();
