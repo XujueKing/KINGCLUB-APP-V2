@@ -60,6 +60,7 @@ class ProducerFixture implements rtc.Producer {
 }
 
 class TransportFixture implements rtc.Transport {
+  final networkOperations = <Symbol>[];
   final events = <String, Function>{};
   Function? produced;
   Function? consumed;
@@ -85,6 +86,10 @@ class TransportFixture implements rtc.Transport {
 
   @override
   dynamic noSuchMethod(Invocation i) {
+    if (i.memberName == #updateIceServers || i.memberName == #restartIce) {
+      networkOperations.add(i.memberName);
+      return null;
+    }
     if (i.memberName == #consume) {
       consumer = ConsumerFixture();
       consumed!(consumer, null);
@@ -196,6 +201,20 @@ class Repo extends GroupCallMediaRepository {
         }, 'me'),
       );
   int closes = 0;
+  int restarts = 0;
+  Completer<rtc.IceParameters>? restartReply;
+  @override
+  Future<rtc.IceParameters> restartIce(String id) async {
+    restarts++;
+    return restartReply != null
+        ? restartReply!.future
+        : rtc.IceParameters(
+            usernameFragment: 'restart',
+            password: 'synthetic',
+            iceLite: true,
+          );
+  }
+
   Object? relayFailure;
   @override
   Future<CallRelayConfiguration> readRelay() async {
@@ -248,6 +267,58 @@ class Repo extends GroupCallMediaRepository {
 }
 
 void main() {
+  test(
+    'network refresh updates both transports without creating new capture',
+    () async {
+      final repo = Repo(), device = DeviceFixture(), stream = StreamFixture();
+      var captures = 0;
+      final media = NativeGroupCallMedia(
+        repository: repo,
+        device: device,
+        capture: (_) async {
+          captures++;
+          return stream;
+        },
+      );
+      await media.open();
+      final first = media.refreshNetwork();
+      expect(identical(first, media.refreshNetwork()), true);
+      await first;
+      expect(repo.restarts, 2);
+      expect(captures, 1);
+      expect(device.send.networkOperations, [#updateIceServers, #restartIce]);
+      expect(device.receive.networkOperations, [
+        #updateIceServers,
+        #restartIce,
+      ]);
+      await media.close();
+    },
+  );
+  test('late ICE reply after hangup cannot modify native transports', () async {
+    final repo = Repo()..restartReply = Completer<rtc.IceParameters>();
+    final device = DeviceFixture();
+    final media = NativeGroupCallMedia(
+      repository: repo,
+      device: device,
+      capture: (_) async => StreamFixture(),
+    );
+    await media.open();
+    final refreshing = media.refreshNetwork();
+    final assertion = expectLater(refreshing, throwsStateError);
+    await Future<void>.delayed(Duration.zero);
+    expect(repo.restarts, 1);
+    await media.close();
+    repo.restartReply!.complete(
+      rtc.IceParameters(
+        usernameFragment: 'late',
+        password: 'synthetic',
+        iceLite: true,
+      ),
+    );
+    await assertion;
+    expect(device.send.networkOperations, isEmpty);
+    expect(device.receive.networkOperations, isEmpty);
+  });
   test('relay failure cannot start native capture', () async {
     final repo = Repo()..relayFailure = const FormatException('Expired relay');
     final device = DeviceFixture();

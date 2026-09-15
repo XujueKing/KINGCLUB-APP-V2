@@ -95,6 +95,18 @@ class GroupCallMediaRepository {
   Future<CallRelayConfiguration> readRelay() async =>
       CallRelayConfiguration.parse(call.id, await _send({'type': 'relay'}));
 
+  Future<IceParameters> restartIce(String transportId) async {
+    final result = await _send({
+      'type': 'restartIce',
+      'transportId': _id(transportId),
+    });
+    final parameters = IceParameters.fromMap(_object(result['iceParameters']));
+    if (parameters.usernameFragment.isEmpty || parameters.password.isEmpty) {
+      throw const FormatException('Missing restarted ICE credentials');
+    }
+    return parameters;
+  }
+
   Future<RtpCapabilities> capabilities() async {
     final result = await _send({'type': 'capabilities'});
     final raw = _object(result['rtpCapabilities']);

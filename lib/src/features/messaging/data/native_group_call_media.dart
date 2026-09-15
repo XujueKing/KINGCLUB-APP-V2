@@ -60,6 +60,10 @@ class NativeGroupCallMedia {
   Future<void>? _opening, _closing, _refreshing;
   Future<void> _controls = Future.value();
   Timer? _poll;
+  Timer? _renewRelay, _recoverNetwork;
+  Timer? _recoveryDeadline;
+  final _unhealthyDirections = <String>{};
+  Future<void>? _refreshingNetwork;
   bool get isClosed => _closed;
   rtc.MediaStream? get localStream => _local;
   void _check() {
@@ -188,6 +192,7 @@ class NativeGroupCallMedia {
       onLocal?.call(stream);
       await refreshRemote();
       _check();
+      _scheduleRelay(configuration);
       _poll = Timer.periodic(const Duration(seconds: 2), (_) {
         unawaited(refreshRemote().catchError((Object error) => _fail(error)));
       });
@@ -218,8 +223,30 @@ class NativeGroupCallMedia {
       }
       final state = data['connectionState'] as String;
       onConnection?.call(direction, state);
-      if (state == 'failed' || state == 'closed') {
+      if (state == 'connected') {
+        _unhealthyDirections.remove(direction);
+        if (_unhealthyDirections.isEmpty) {
+          _recoverNetwork?.cancel();
+          _recoverNetwork = null;
+          _recoveryDeadline?.cancel();
+          _recoveryDeadline = null;
+        }
+      }
+      if (state == 'closed') {
         _fail(StateError('Group media transport failed'));
+      } else if (state == 'disconnected' || state == 'failed') {
+        _unhealthyDirections.add(direction);
+        _recoveryDeadline ??= Timer(const Duration(seconds: 25), () {
+          if (_unhealthyDirections.isNotEmpty) {
+            _fail(StateError('Group media reconnect timed out'));
+          }
+        });
+        _recoverNetwork ??= Timer(const Duration(seconds: 2), () {
+          _recoverNetwork = null;
+          unawaited(
+            refreshNetwork().catchError((Object error) => _fail(error)),
+          );
+        });
       }
     });
   }
@@ -385,6 +412,57 @@ class NativeGroupCallMedia {
     return next;
   }
 
+  void _scheduleRelay(CallRelayConfiguration configuration) {
+    _renewRelay?.cancel();
+    final delay =
+        configuration.expiresAtMs -
+        DateTime.now().millisecondsSinceEpoch -
+        60000;
+    _renewRelay = Timer(
+      Duration(milliseconds: delay < 1000 ? 1000 : delay),
+      () {
+        unawaited(refreshNetwork().catchError((Object error) => _fail(error)));
+      },
+    );
+  }
+
+  /// Completes when SDK restart operations have been queued, not when ICE has
+  /// connected. Only SDK connection events may report actual connection state.
+  Future<void> refreshNetwork() {
+    _check();
+    return _refreshingNetwork ??= _refreshNetwork().whenComplete(
+      () => _refreshingNetwork = null,
+    );
+  }
+
+  Future<void> _refreshNetwork() async {
+    final send = _send, receive = _receive;
+    if (send == null || receive == null) {
+      throw StateError('Media transports not ready');
+    }
+    final configuration = await repository.readRelay();
+    _check();
+    configuration.requireUsable(repository.call.id);
+    final servers = configuration.iceServers
+        .map(
+          (server) => handler.RTCIceServer(
+            credentialType: handler.RTCIceCredentialType.password,
+            username: server['username'] as String,
+            credential: server['credential'],
+            urls: List<String>.from(server['urls'] as List),
+          ),
+        )
+        .toList();
+    for (final transport in [send, receive]) {
+      final parameters = await repository.restartIce(transport.id);
+      _check();
+      configuration.requireUsable(repository.call.id);
+      transport.updateIceServers(servers);
+      transport.restartIce(parameters);
+    }
+    _scheduleRelay(configuration);
+  }
+
   void _fail(Object error) {
     if (_closed) {
       return;
@@ -436,6 +514,9 @@ class NativeGroupCallMedia {
     _closed = true;
     repository.close();
     _poll?.cancel();
+    _renewRelay?.cancel();
+    _recoverNetwork?.cancel();
+    _recoveryDeadline?.cancel();
     for (final pending in _publishing.values) {
       if (!pending.isCompleted) {
         pending.completeError(StateError('Group media closed'));
