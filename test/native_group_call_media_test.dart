@@ -267,6 +267,58 @@ class Repo extends GroupCallMediaRepository {
 }
 
 void main() {
+  for (final recovers in [true, false]) {
+    testWidgets(
+      'automatic ICE recovery ${recovers ? "cancels expiry on recovery" : "stops capture on timeout"}',
+      (tester) async {
+        final repo = Repo(), device = DeviceFixture(), stream = StreamFixture();
+        final errors = <Object>[];
+        final media = NativeGroupCallMedia(
+          repository: repo,
+          device: device,
+          capture: (_) async => stream,
+          onError: errors.add,
+        );
+        await media.open();
+        void state(String value) =>
+            device.send.events['connectionstatechange']!({
+              'connectionState': value,
+            });
+        state('disconnected');
+        state('failed');
+        await tester.pump(const Duration(seconds: 2));
+        expect(repo.restarts, 2);
+        expect(stream.track.stops, 0);
+        if (recovers) state('connected');
+        await tester.pump(const Duration(seconds: 26));
+        expect(media.isClosed, !recovers);
+        expect(stream.track.stops, recovers ? 0 : 1);
+        expect(errors.length, recovers ? 0 : 1);
+        expect(repo.restarts, 2);
+        await media.close();
+      },
+    );
+  }
+  testWidgets('relay is renewed before expiry without re-capturing', (
+    tester,
+  ) async {
+    final repo = Repo(), device = DeviceFixture(), stream = StreamFixture();
+    var captures = 0;
+    final media = NativeGroupCallMedia(
+      repository: repo,
+      device: device,
+      capture: (_) async {
+        captures++;
+        return stream;
+      },
+    );
+    await media.open();
+    await tester.pump(const Duration(seconds: 541));
+    expect(repo.restarts, 2);
+    expect(captures, 1);
+    expect(media.isClosed, false);
+    await media.close();
+  });
   test(
     'network refresh updates both transports without creating new capture',
     () async {

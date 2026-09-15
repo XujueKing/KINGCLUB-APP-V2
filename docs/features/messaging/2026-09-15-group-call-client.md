@@ -73,3 +73,9 @@ SDK接线核对：读取已锁定mediasfu_mediasoup_client 0.1.4的Transport实�
 客户端ICE续签/恢复：新增restartIce仓库方法，接入181ad7c服务端command。凭据到期前60秒获取新TURN配置，对现有send/receive分别更新iceServers并排队重启ICE，不重新采集；同一时刻合并refreshNetwork请求，关闭后迟到参数不进入SDK。SDK报告disconnected/failed后延迟2秒尝试重启，25秒仍未报告connected则关闭；恢复连接取消相关计时。closed状态仍立即关闭。媒体来源HTTP轮询失败仍按现有失败路径结束，因此这里尚不保证整个信令网络断开时可恢复。
 
 SDK updateIceServers/restartIce是void队列接口，本方法完成只证明提交给SDK，不代表ICE成功；界面继续依赖SDK连接事件。相关22项受控测试与3文件静态分析通过，新增同批更新两路Transport且不重采集、请求合并、挂断后迟到ICE不应用的验证。未实测自动恢复计时、公网TURN续签、网络切换、长通话或在线部署；未更新APK。
+
+## 2026-09-15 自动恢复定时验证
+
+新增三项虚拟时钟测试：连续 disconnected/failed 事件只触发一轮双 transport ICE 重启；connected 后取消恢复超时；持续失败超过 25 秒停止本地采集并关闭媒体；另覆盖 TURN 凭据到期前续签且不重复采集（前两种恢复结局分别执行）。native_group_call_media_test.dart 共 17 项通过。
+
+这些测试使用替身 transport 和虚拟时间，证明客户端定时与资源释放逻辑，不代表真实手机网络切换、DTLS/RTP 或群通话已经验收。HTTP 信令轮询失败仍会关闭通话，尚未实现完整断网容错。
