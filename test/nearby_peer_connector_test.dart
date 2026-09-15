@@ -46,7 +46,9 @@ void main() {
                 dropped = true;
                 continue;
               }
-            } on FormatException {}
+            } on FormatException {
+              /* Encrypted payload is forwarded without inspection. */
+            }
           }
           proxy.send(p.data, host, p.port == ap ? bp : ap);
         }

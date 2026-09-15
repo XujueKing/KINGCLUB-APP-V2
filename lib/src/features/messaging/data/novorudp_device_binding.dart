@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../../../core/session/member_qr_memory.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
+import 'nearby_peer_identity_store.dart';
 import 'novorudp_device_identity_store.dart';
 import 'novorudp_secure_session.dart';
 
@@ -79,8 +80,11 @@ class BoundNetworkHandshake {
 }
 
 class NovoRudpDeviceBinding {
-  NovoRudpDeviceBinding({required this.messaging, required this.identity})
-    : _publicKey = identity.peerId.substring('novovm-ed25519:'.length);
+  NovoRudpDeviceBinding({
+    required this.messaging,
+    required this.identity,
+    this.offlineIdentities,
+  }) : _publicKey = identity.peerId.substring('novovm-ed25519:'.length);
   static Future<NovoRudpDeviceBinding> open({
     required DynamicLibrary library,
   }) async {
@@ -94,9 +98,17 @@ class NovoRudpDeviceBinding {
       identity.dispose();
       throw StateError('Device binding session changed');
     }
-    return NovoRudpDeviceBinding(messaging: messaging, identity: identity);
+    return NovoRudpDeviceBinding(
+      messaging: messaging,
+      identity: identity,
+      offlineIdentities: NearbyPeerIdentityStore(
+        account: messaging.account,
+        ownPeerId: identity.peerId,
+      ),
+    );
   }
 
+  final NearbyPeerIdentityStore? offlineIdentities;
   final MessagingRepository messaging;
   final NovoRudpSecureSession identity;
   final String _publicKey;
@@ -171,6 +183,17 @@ class NovoRudpDeviceBinding {
         keys.map((k) => k.publicKey).toSet().length != keys.length) {
       throw const FormatException('Duplicate device key binding');
     }
+    // Historical key observations do not change the API's cacheSeconds=0
+    // authorization contract. Storage failure must not break online chat.
+    try {
+      await offlineIdentities?.save(
+        peer,
+        keys.map((key) => key.peerId).toList(),
+      );
+    } catch (_) {
+      /* Offline observation unavailable; live authorization remains authoritative. */
+    }
+    _check();
     return List.unmodifiable(keys);
   }
 
