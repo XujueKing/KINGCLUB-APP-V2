@@ -175,3 +175,11 @@ NovoRudpPeerHandshake now connects the typed 683 repository and member-bound nat
 BoundNetworkHandshake now preserves a pending native handle only when its pre-completion directory query fails with NETWORK_ERROR. A native completion attempt, denied key, cancellation or other terminal failure still consumes/releases it.
 
 Validation: six tests passed with the real Rust DLL, including orchestration through an injected rendezvous mailbox with lost offer response, lost answer response, transient directory failure, matching session IDs, actual seal/open of payload bytes, replay rejection and closed-channel rejection. Targeted analyze passed. The mailbox is not live HTTP and no UDP socket/NAT traversal is part of this test. Existing independent backend encrypted HTTP/Redis evidence does not turn this into end-to-end public-network delivery. Not installed or wired to attachment sending.
+
+## Real encrypted HTTP plus native handshake verification
+
+The new opt-in native_rendezvous_http_test.dart passed against an actual isolated API, MySQL and Redis via a loopback SSH tunnel, using KingclubSecureClient (not an HTTP stub) and the existing Rust DLL. Two short-lived synthetic accounts registered newly generated native public keys through 670/671, read authorized 672 directories, exchanged native offer/answer through 683, established matching native session IDs, sealed/opened payload bytes, rejected replay and acknowledged remote cancellation. No microphone/camera or real member messages were used.
+
+Fixture host: backend tests/scripts/native-rendezvous-host.mjs, hard-gated to kingclub_chat_test_20260913, 300-second lifetime; temporary container port published only at server 127.0.0.1:39183, tunnel workstation 127.0.0.1:39184. Credentials were kept in a temporary non-committed fixture file and removed after the test. Container/tunnel stopped. A subsequent independent SQL check proved active native-rendezvous-device test sessions = 0 and interface 683 enabled = 0. Targeted Dart analyze passed.
+
+Scope: this joins the previously separate real native and real HTTP/Redis evidence. Payload encryption was exercised locally after server negotiation, not over public UDP. NAT traversal, public data relay, sustained authorization after handshake and automatic chat attachment fallback are still unfinished. No phone update or online API replacement.
