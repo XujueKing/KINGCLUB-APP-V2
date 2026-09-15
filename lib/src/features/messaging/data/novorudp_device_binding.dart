@@ -47,15 +47,25 @@ class BoundNetworkHandshake {
   Future<NovoRudpSecureChannel> complete(Map<String, dynamic> response) async {
     if (_closed || _completing) throw StateError('Handshake closed');
     _completing = true;
+    var nativeAttempted = false;
     try {
       await _binding._requirePeerKey(peer, key.bindingId, key.publicKey);
       if (_closed) throw StateError('Handshake cancelled');
+      nativeAttempted = true;
       return _binding.identity.complete(_native, response);
+    } catch (error) {
+      if (error is! AuthFailure || error.code != 'NETWORK_ERROR') {
+        _closed = true;
+      }
+      rethrow;
     } finally {
-      _closed = true;
-      try {
-        _binding.identity.cancel(_native);
-      } catch (_) {}
+      _completing = false;
+      if (nativeAttempted) _closed = true;
+      if (_closed) {
+        try {
+          _binding.identity.cancel(_native);
+        } catch (_) {}
+      }
     }
   }
 
