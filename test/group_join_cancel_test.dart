@@ -43,7 +43,13 @@ void main() {
       }
     },
   );
-  for (final outcome in ['success', 'failure', 'accepted', 'session']) {
+  for (final outcome in [
+    'success',
+    'failure',
+    'accepted',
+    'session',
+    'resume',
+  ]) {
     testWidgets('withdrawal confirmation and $outcome result', (tester) async {
       await GroupJoinReceiptStore('a').save(group, application);
       var status = 'pending', calls = 0;
@@ -84,7 +90,9 @@ void main() {
                 'already accepted',
               );
             }
-            if (outcome == 'session') return pending.future;
+            if (outcome == 'session' || outcome == 'resume') {
+              return pending.future;
+            }
             status = 'canceled';
             return {
               'groupId': group,
@@ -118,7 +126,25 @@ void main() {
       await tester.tap(find.text('确认撤回'));
       await tester.pumpAndSettle();
       expect(calls, 1);
-      if (outcome == 'session') {
+      if (outcome == 'resume') {
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        await tester.pump();
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pumpAndSettle();
+        status = 'canceled';
+        pending.complete({
+          'groupId': group,
+          'applicationId': application,
+          'status': status,
+          'changed': true,
+        });
+        await tester.pumpAndSettle();
+        expect(find.text('申请已取消'), findsOneWidget);
+        expect(find.text('撤回申请'), findsNothing);
+        expect(calls, 1);
+      } else if (outcome == 'session') {
         SecureSessionStore.changes.add(null);
         await tester.pump();
         pending.complete({

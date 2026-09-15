@@ -110,6 +110,7 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
       }
     } finally {
       if (mounted) setState(() => _busy = false);
+      _flushStatusCheck();
     }
   }
 
@@ -174,16 +175,23 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
       }
     } finally {
       if (mounted) setState(() => _busy = false);
-      if (_checkAgain && mounted && !_invalid && _foreground) {
-        _checkAgain = false;
-        unawaited(_checkMembership());
-      }
+      _flushStatusCheck();
+    }
+  }
+
+  void _flushStatusCheck() {
+    if (!_checkAgain || !mounted || _invalid || !_foreground || _busy) return;
+    _checkAgain = false;
+    if (_status == null) {
+      unawaited(_restoreApplication());
+    } else {
+      unawaited(_checkMembership());
     }
   }
 
   Future<void> _checkMembership() async {
     if (!mounted || _invalid || !_foreground || _status == null) return;
-    if (_checking) {
+    if (_checking || _busy) {
       _checkAgain = true;
       return;
     }
@@ -277,6 +285,7 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
       if (mounted) {
         setState(() => _busy = false);
       }
+      _flushStatusCheck();
     }
   }
 
@@ -289,6 +298,10 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
       setState(() {});
     }
     if (_foreground) {
+      if (_busy) {
+        _checkAgain = true;
+        return;
+      }
       if (_status == null) {
         unawaited(_restoreApplication());
       } else {
