@@ -53,6 +53,77 @@ Map<String, dynamic> history(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    'relay chronology interleaves without reordering server sequences',
+    () async {
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: MemoryOutbox(),
+        readRelayMessages: () async => [
+          for (final time in [4000, 1000, 3000])
+            {
+              'id': 'local-$time',
+              'text': 'local-$time',
+              'created': time,
+              'outgoing': false,
+              'delivered': false,
+            },
+        ],
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, params) async => history([
+            {
+              ...ack({'clientMessageId': 'server-a', 'text': 'server-a'}),
+              'createdDate': '1970-01-01T00:00:02Z',
+            },
+            {
+              ...ack({
+                'clientMessageId': 'server-b',
+                'text': 'server-b',
+              }, sequence: 2),
+              'createdDate': '1970-01-01T00:00:03.500Z',
+            },
+          ]),
+        ),
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.messages.map((m) => m['text']), [
+        'local-1000',
+        'server-a',
+        'local-3000',
+        'server-b',
+        'local-4000',
+      ]);
+      expect(
+        controller.messages
+            .where((m) => m['sequence'] != null)
+            .map((m) => m['sequence']),
+        [1, 2],
+      );
+    },
+  );
+  test('slow relay storage does not block normal service history', () async {
+    final pending = Completer<List<Map<String, dynamic>>>();
+    final controller = DirectChatController(
+      peer: 'peer',
+      outbox: MemoryOutbox(),
+      readRelayMessages: () => pending.future,
+      repository: MessagingRepository(
+        account: 'me',
+        call: (_, params) async => history([
+          ack({'clientMessageId': 'normal', 'text': 'normal'}),
+        ]),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize().timeout(const Duration(seconds: 2));
+    expect(controller.messages.single['text'], 'normal');
+    pending.complete([]);
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.messages.single['text'], 'normal');
+  });
+  test(
     'relay updates merge by sender and client ID without server sequences',
     () async {
       final changes = StreamController<String>.broadcast(sync: true);

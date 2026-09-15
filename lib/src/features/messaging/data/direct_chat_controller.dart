@@ -155,18 +155,49 @@ class DirectChatController extends ChatSessionController {
     final confirmedKeys = confirmed
         .map((m) => (m['sender'], m['clientMessageId']))
         .toSet();
-    final relay = _relayMessages
-        .where(
-          (m) => !confirmedKeys.contains((m['sender'], m['clientMessageId'])),
-        )
-        .toList();
+    final relay =
+        _relayMessages
+            .where(
+              (m) =>
+                  !confirmedKeys.contains((m['sender'], m['clientMessageId'])),
+            )
+            .toList()
+          ..sort((a, b) {
+            final time = (a['createdDate'] as String).compareTo(
+              b['createdDate'] as String,
+            );
+            if (time != 0) return time;
+            final id = (a['clientMessageId'] as String).compareTo(
+              b['clientMessageId'] as String,
+            );
+            return id != 0
+                ? id
+                : (a['sender'] as String).compareTo(b['sender'] as String);
+          });
     final relayOutgoing = relay
         .where((m) => m['sender'] == repository.account)
         .map((m) => m['clientMessageId'])
         .toSet();
+    // Keep authoritative server sequence order. Insert local additions by
+    // observed time without assigning them an invented server position.
+    final visible = <Map<String, dynamic>>[];
+    var localIndex = 0;
+    for (final message in confirmed.where(
+      (m) => m['messageType'] != 'hidden',
+    )) {
+      final time = DateTime.tryParse(message['createdDate'] as String? ?? '');
+      if (time != null) {
+        while (localIndex < relay.length &&
+            !DateTime.parse(relay[localIndex]['createdDate'] as String)
+                .isAfter(time)) {
+          visible.add(relay[localIndex++]);
+        }
+      }
+      visible.add(message);
+    }
     return [
-      ...confirmed.where((m) => m['messageType'] != 'hidden'),
-      ...relay,
+      ...visible,
+      ...relay.skip(localIndex),
       ..._pending.values.where(
         (m) =>
             !acknowledged.contains(m['clientMessageId']) &&
@@ -197,7 +228,7 @@ class DirectChatController extends ChatSessionController {
         }
       }
       _changed();
-      await _refreshRelay();
+      unawaited(_refreshRelay());
       if (openHistory != null) await _ensureHistory();
       await synchronize();
       await retryQueued();
@@ -393,7 +424,7 @@ class DirectChatController extends ChatSessionController {
       if (hidden is int && (message['sequence'] as int) <= hidden) continue;
       await _acknowledge(message, persist: false);
     }
-    await _refreshRelay();
+    unawaited(_refreshRelay());
   }
 
   Map<String, dynamic> _preserveHidden(Map<String, dynamic> message) {
