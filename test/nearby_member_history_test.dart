@@ -137,7 +137,24 @@ void main() {
       store.nearbyMemberMessages('friend', limit: 201),
       throwsArgumentError,
     );
-    await put(b, 'friend', false, 'unbound');
-    await expectLater(store.nearbyMemberMessages('friend'), throwsStateError);
+    await expectLater(put(b, 'friend', false, 'unbound'), throwsStateError);
+    expect(
+      (await store.nearbyMemberMessages('friend')).single['text'],
+      'reply',
+    );
+    expect(
+      (await store.nearbyMessages(b))
+          .where((row) => row['outgoing'] == false)
+          .single['text'],
+      'unbound',
+    );
+    final c = 'novovm-ed25519:${'c' * 64}';
+    await expectLater(put(c, 'friend', false, 'conflicting'), throwsStateError);
+    expect(await store.nearbyMessages(c), isEmpty);
+    await put(c, 'friend', false, 'reply');
+    expect(
+      (await store.nearbyMemberMessages('friend')).single['text'],
+      'reply',
+    );
   });
 }

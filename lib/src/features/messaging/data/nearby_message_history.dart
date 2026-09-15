@@ -100,6 +100,19 @@ extension NearbyMessageHistory on ChatHistoryStore {
         where: 'peer=? AND id=? AND outgoing=?',
         whereArgs: [peer, id, outgoing ? 1 : 0],
       );
+      final scope = member ?? (rows.isEmpty ? null : rows.single['member']);
+      if (scope != null) {
+        final copies = await tx.query(
+          'nearby_message',
+          where: 'member=? AND id=? AND outgoing=?',
+          whereArgs: [scope, id, outgoing ? 1 : 0],
+        );
+        for (final copy in copies) {
+          if (await _nearbyText(copy) != text) {
+            throw StateError('Member message identity conflict');
+          }
+        }
+      }
       if (rows.isNotEmpty) {
         if (await _nearbyText(rows.single) != text ||
             (member != null &&
