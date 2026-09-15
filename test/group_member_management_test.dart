@@ -80,11 +80,24 @@ void main() {
         await tester.scrollUntilVisible(
           find.byKey(const ValueKey('group-member-actions-member')),
           150,
+          scrollable: find.byType(Scrollable).first,
         );
         await tester.pumpAndSettle();
         expect(profileAccounts, containsAll(['me', 'admin', 'member']));
         expect(profileAccounts.toSet().length, profileAccounts.length);
         expect(find.byType(ChatMemberAvatar), findsNWidgets(owner ? 3 : 4));
+        final search = find.byKey(const ValueKey('group-member-search'));
+        await tester.ensureVisible(search);
+        await tester.enterText(search, '  MEMBER  ');
+        await tester.pumpAndSettle();
+        expect(find.text('普通成员'), findsOneWidget);
+        expect(find.text('另一管理员'), findsNothing);
+        await tester.enterText(search, '不存在');
+        await tester.pumpAndSettle();
+        expect(find.text('未找到群成员'), findsOneWidget);
+        await tester.tap(find.byTooltip('清除成员搜索'));
+        await tester.pumpAndSettle();
+        expect(find.text('另一管理员'), findsOneWidget);
         expect(
           find.byKey(const ValueKey('group-member-actions-me')),
           findsNothing,
@@ -100,7 +113,11 @@ void main() {
         final button = find.byKey(
           const ValueKey('group-member-actions-member'),
         );
-        await tester.ensureVisible(button);
+        await tester.scrollUntilVisible(
+          button,
+          150,
+          scrollable: find.byType(Scrollable).first,
+        );
         await tester.tap(button);
         await tester.pumpAndSettle();
         expect(find.text('设为管理员'), owner ? findsOneWidget : findsNothing);

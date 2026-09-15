@@ -34,6 +34,15 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   bool _invalid = false;
   bool _saving = false;
   final _name = TextEditingController();
+  final _memberSearch = TextEditingController();
+  String _memberQuery = '';
+  Iterable<Map> get _visibleMembers =>
+      ((_details?['members'] as List?) ?? const []).cast<Map>().where(
+        (member) =>
+            _memberQuery.isEmpty ||
+            '${member['nickname']}'.toLowerCase().contains(_memberQuery) ||
+            '${member['account']}'.toLowerCase().contains(_memberQuery),
+      );
   int? _editingVersion;
   Map<String, dynamic> _settings = {};
   int _generation = 0;
@@ -47,6 +56,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       _invalid = true;
       _avatarProfiles.clear();
       _name.clear();
+      _memberSearch.clear();
+      _memberQuery = '';
       _editingVersion = null;
       _generation++;
       if (mounted) {
@@ -431,6 +442,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   @override
   void dispose() {
     _name.dispose();
+    _memberSearch.dispose();
     _generation++;
     _session?.cancel();
     _events?.cancel();
@@ -694,11 +706,65 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     height: 1,
                     color: Color(0xFF1A1611),
                   ),
-                  for (final raw in _details!['members'] as List) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    child: TextField(
+                      key: const ValueKey('group-member-search'),
+                      controller: _memberSearch,
+                      enabled: !_invalid,
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      onChanged: (value) => setState(
+                        () => _memberQuery = value.trim().toLowerCase(),
+                      ),
+                      decoration: InputDecoration(
+                        hintText: '搜索群成员',
+                        hintStyle: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 15,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                        suffixIcon: _memberSearch.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: '清除成员搜索',
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.grey,
+                                  size: 18,
+                                ),
+                                onPressed: () => setState(() {
+                                  _memberSearch.clear();
+                                  _memberQuery = '';
+                                }),
+                              ),
+                        filled: true,
+                        fillColor: const Color(0x0DFFFFFF),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_memberQuery.isNotEmpty && _visibleMembers.isEmpty)
+                    const ListTile(
+                      title: Text(
+                        '未找到群成员',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  for (final raw in _visibleMembers) ...[
                     ListTile(
                       leading: Builder(
                         builder: (_) {
-                          final account = (raw as Map)['account'] as String;
+                          final account = raw['account'] as String;
                           final own = account == widget.repository.account;
                           return ChatMemberAvatar(
                             account: account,
@@ -714,7 +780,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                         },
                       ),
                       title: Text(
-                        (raw as Map)['nickname'] as String,
+                        raw['nickname'] as String,
                         style: const TextStyle(color: Colors.white),
                       ),
                       trailing: _memberTrailing(raw),
