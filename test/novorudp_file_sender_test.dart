@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:cryptography/dart.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_receiver.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_sender.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_datagram_link.dart';
@@ -90,66 +90,73 @@ void main() {
       return (file: file, hash: hash);
     }
 
-    test(
-      'dropped data and final ACK recover without duplicate file delivery',
-      () async {
-        loss = true;
-        final bytes = List.generate(
-          70 * NovoRudpFileReceiver.chunkSize + 21,
-          (i) => i % 251,
-        );
-        final input = await source(bytes);
-        final receiver = await NovoRudpFileReceiver.create(
-          privateDirectory: directory,
-          sessionId: left.channel.sessionId,
-          streamId: BigInt.one,
-          objectId: BigInt.two,
-          size: bytes.length,
-          sha256: input.hash,
-        );
-        addTearDown(receiver.close);
-        var finalAcks = 0;
-        final errors = <Object>[];
-        final sub = right.frames.listen((frame) async {
-          try {
-            final ack = await receiver.receiveAuthenticated(frame);
-            if (ack == null) return;
-            if ((jsonDecode(utf8.decode(ack.payload))
-                    as Map)['receiver_done'] ==
-                true) {
-              finalAcks++;
-              if (finalAcks == 1) dropFinal = true;
-            }
-            // Local-buffer failure is not an acknowledged send; the sender's
-            // ACK request timer recovers it just like an actually dropped ACK.
+    for (final transferBytes in [
+      70 * NovoRudpFileReceiver.chunkSize + 21,
+      18 * 1024 * 1024,
+    ]) {
+      test(
+        'dropped data and final ACK recover without duplicate file delivery ($transferBytes bytes)',
+        () async {
+          loss = true;
+          final bytes = List.generate(transferBytes, (i) => i % 251);
+          final input = await source(bytes);
+          final receiver = await NovoRudpFileReceiver.create(
+            privateDirectory: directory,
+            sessionId: left.channel.sessionId,
+            streamId: BigInt.one,
+            objectId: BigInt.two,
+            size: bytes.length,
+            sha256: input.hash,
+          );
+          addTearDown(receiver.close);
+          var finalAcks = 0;
+          final errors = <Object>[];
+          final sub = right.frames.listen((frame) async {
             try {
-              await right.send(ack);
-            } on SocketException {
-              // A subsequent ACK request retries a locally unaccepted send.
+              final ack = await receiver.receiveAuthenticated(frame);
+              if (ack == null) return;
+              if ((jsonDecode(utf8.decode(ack.payload))
+                      as Map)['receiver_done'] ==
+                  true) {
+                finalAcks++;
+                if (finalAcks == 1) dropFinal = true;
+              }
+              // Local-buffer failure is not an acknowledged send; the sender's
+              // ACK request timer recovers it just like an actually dropped ACK.
+              try {
+                await right.send(ack);
+              } on SocketException {
+                // A subsequent ACK request retries a locally unaccepted send.
+              }
+            } catch (error) {
+              errors.add(error);
             }
-          } catch (error) {
-            errors.add(error);
-          }
-        });
-        addTearDown(sub.cancel);
-        final sender = NovoRudpFileSender(
-          link: left,
-          file: input.file,
-          streamId: BigInt.one,
-          objectId: BigInt.two,
-          size: bytes.length,
-          sha256: input.hash,
-          ackWait: const Duration(milliseconds: 150),
-          deadline: const Duration(seconds: 15),
-        );
-        await sender.run();
-        expect(errors, isEmpty);
-        expect(dropped, greaterThan(0));
-        expect(finalAcks, greaterThanOrEqualTo(2));
-        expect(await (await receiver.verifiedFile()).readAsBytes(), bytes);
-        await expectLater(sender.run(), throwsStateError);
-      },
-    );
+          });
+          addTearDown(sub.cancel);
+          final sender = NovoRudpFileSender(
+            link: left,
+            file: input.file,
+            streamId: BigInt.one,
+            objectId: BigInt.two,
+            size: bytes.length,
+            sha256: input.hash,
+            ackWait: const Duration(milliseconds: 150),
+            deadline: const Duration(seconds: 90),
+          );
+          final elapsed = Stopwatch()..start();
+          await sender.run();
+          debugPrint(
+            'NOVORUDP_LOOPBACK_FILE bytes=$transferBytes elapsedMs=${elapsed.elapsedMilliseconds} packets=$packets dropped=$dropped',
+          );
+          expect(errors, isEmpty);
+          expect(dropped, greaterThan(0));
+          expect(finalAcks, greaterThanOrEqualTo(2));
+          expect(await (await receiver.verifiedFile()).readAsBytes(), bytes);
+          await expectLater(sender.run(), throwsStateError);
+        },
+        timeout: const Timeout(Duration(minutes: 2)),
+      );
+    }
     test(
       'unreachable receiver times out and cancellation wakes ACK wait',
       () async {

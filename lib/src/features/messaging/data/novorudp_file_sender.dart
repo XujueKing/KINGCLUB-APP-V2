@@ -170,6 +170,25 @@ class NovoRudpFileSender {
       if (digest != sha256) {
         throw const FormatException('Source digest changed');
       }
+      // Send the initial data once. The ACK repair planner is for actual loss,
+      // not for delivering every byte through small repeated repair windows.
+      // Keep conservative pacing while transport congestion control is pending.
+      await source.setPosition(0);
+      for (var index = 0; index < fragments; index++) {
+        _check();
+        final length = math.min(
+          NovoRudpFileReceiver.chunkSize,
+          size - index * NovoRudpFileReceiver.chunkSize,
+        );
+        final bytes = await source.read(length);
+        if (bytes.length != length) {
+          throw const FormatException('Source truncated');
+        }
+        await _send(_frame(NovoRudpFrameKind.data, index, bytes));
+        if ((index + 1) % 16 == 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      }
       var stalls = 0, previousMissing = fragments + 1;
       while (true) {
         _check();
