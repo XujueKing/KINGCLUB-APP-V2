@@ -39,6 +39,7 @@ class _GroupCallPageState extends State<GroupCallPage>
   StreamSubscription<void>? _login;
   String? _requestId, _error;
   bool _busy = false, _invalid = false, _allowPop = false, _muted = false;
+  bool _videoOff = false, _frontFacing = true;
   @override
   void initState() {
     super.initState();
@@ -117,6 +118,7 @@ class _GroupCallPageState extends State<GroupCallPage>
               );
               // A video stream is preferred for a member with audio and video.
               for (final item in remote) {
+                if (item.source.paused) continue;
                 if (item.source.kind == 'video' ||
                     !_streams.containsKey(item.source.account)) {
                   _streams[item.source.account] = item.stream;
@@ -179,6 +181,25 @@ class _GroupCallPageState extends State<GroupCallPage>
     try {
       await _session?.media?.setPaused('audio', !_muted);
       if (mounted) setState(() => _muted = !_muted);
+    } catch (error) {
+      _failed(error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _camera({bool switchFacing = false}) async {
+    final media = _session?.media;
+    if (_busy || media == null || media.isClosed) return;
+    setState(() => _busy = true);
+    try {
+      if (switchFacing) {
+        final facing = await media.switchCamera();
+        if (mounted) setState(() => _frontFacing = facing);
+      } else {
+        await media.setPaused('video', !_videoOff);
+        if (mounted) setState(() => _videoOff = !_videoOff);
+      }
     } catch (error) {
       _failed(error);
     } finally {
@@ -285,15 +306,19 @@ class _GroupCallPageState extends State<GroupCallPage>
                             children: [
                               Expanded(
                                 child:
-                                    _streams[participant.account]
-                                            ?.getVideoTracks()
-                                            .isNotEmpty ==
-                                        true
+                                    !(participant.account ==
+                                                widget.repository.account &&
+                                            _videoOff) &&
+                                        (_streams[participant.account]
+                                                ?.getVideoTracks()
+                                                .isNotEmpty ==
+                                            true)
                                     ? _GroupVideo(
                                         stream: _streams[participant.account]!,
                                         own:
                                             participant.account ==
-                                            widget.repository.account,
+                                                widget.repository.account &&
+                                            _frontFacing,
                                       )
                                     : const Icon(
                                         Icons.person,
@@ -338,6 +363,26 @@ class _GroupCallPageState extends State<GroupCallPage>
                       child: Text(_busy ? '正在发起…' : '发起通话'),
                     ),
                   if (_session != null && !_session!.isClosed) ...[
+                    if (widget.media == CallMedia.video) ...[
+                      IconButton(
+                        tooltip: _videoOff ? '开启摄像头' : '关闭摄像头',
+                        onPressed: _busy ? null : () => _camera(),
+                        icon: Icon(
+                          _videoOff ? Icons.videocam_off : Icons.videocam,
+                          color: Colors.white,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '切换摄像头',
+                        onPressed: _busy || _videoOff
+                            ? null
+                            : () => _camera(switchFacing: true),
+                        icon: const Icon(
+                          Icons.cameraswitch,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                     IconButton(
                       onPressed: _busy ? null : _mute,
                       icon: Icon(

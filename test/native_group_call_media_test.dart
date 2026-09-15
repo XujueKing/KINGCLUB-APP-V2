@@ -45,7 +45,7 @@ class ProducerFixture implements rtc.Producer {
   @override
   final rtc.MediaStreamTrack track;
   @override
-  String get kind => 'audio';
+  String get kind => track.kind!;
   @override
   String get id => callId;
   int closes = 0;
@@ -169,7 +169,7 @@ class DepartingRepo extends Repo {
 }
 
 class Repo extends GroupCallMediaRepository {
-  Repo()
+  Repo({bool video = false})
     : super(
         MessagingRepository(
           account: 'me',
@@ -178,7 +178,7 @@ class Repo extends GroupCallMediaRepository {
         GroupCallSnapshot.parse({
           'callId': callId,
           'groupId': callId,
-          'mediaKind': 'audio',
+          'mediaKind': video ? 'video' : 'audio',
           'version': 1,
           'endedAtMs': null,
           'participants': [
@@ -215,6 +215,35 @@ class Repo extends GroupCallMediaRepository {
 }
 
 void main() {
+  test(
+    'camera switch returns actual facing and drops a late result after close',
+    () async {
+      final stream = VideoStream(), result = Completer<bool>();
+      final switching = Completer<void>();
+      var calls = 0;
+      final media = NativeGroupCallMedia(
+        repository: Repo(video: true),
+        device: DeviceFixture(),
+        capture: (_) async => stream,
+        switchCamera: (track) async {
+          expect(track, same(stream.camera));
+          if (++calls == 1) return false;
+          switching.complete();
+          return result.future;
+        },
+      );
+      await media.open();
+      expect(await media.switchCamera(), false);
+      final pending = media.switchCamera();
+      final assertion = expectLater(pending, throwsStateError);
+      await switching.future;
+      await media.close();
+      result.complete(true);
+      await assertion;
+      expect(stream.camera.stops, 1);
+      expect(stream.track.stops, 1);
+    },
+  );
   for (final failResume in [false, true]) {
     test(
       'remote departure during ${failResume ? "resume" : "consume"} preserves local media',
@@ -345,4 +374,17 @@ void main() {
     expect(device.receive.closes, 1);
     expect(media.isClosed, true);
   });
+}
+
+class CameraTrack extends Track {
+  @override
+  String get kind => 'video';
+}
+
+class VideoStream extends StreamFixture {
+  final camera = CameraTrack();
+  @override
+  List<rtc.MediaStreamTrack> getTracks() => [track, camera];
+  @override
+  List<rtc.MediaStreamTrack> getVideoTracks() => [camera];
 }

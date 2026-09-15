@@ -27,16 +27,20 @@ class NativeGroupCallMedia {
     this.relay,
     rtc.Device? device,
     Future<rtc.MediaStream> Function(Map<String, dynamic>)? capture,
+    Future<bool> Function(rtc.MediaStreamTrack)? switchCamera,
     this.onLocal,
     this.onRemote,
     this.onConnection,
     this.onError,
   }) : _device = device ?? rtc.Device(),
-       _capture = capture ?? rtc.navigator.mediaDevices.getUserMedia;
+       _capture = capture ?? rtc.navigator.mediaDevices.getUserMedia,
+       _switchCamera =
+           switchCamera ?? ((track) => rtc.Helper.switchCamera(track));
   final GroupCallMediaRepository repository;
   final CallRelayConfiguration? relay;
   final rtc.Device _device;
   final Future<rtc.MediaStream> Function(Map<String, dynamic>) _capture;
+  final Future<bool> Function(rtc.MediaStreamTrack) _switchCamera;
   final void Function(rtc.MediaStream)? onLocal;
   final void Function(List<NativeGroupRemote>)? onRemote;
   final void Function(String direction, String state)? onConnection;
@@ -358,6 +362,20 @@ class NativeGroupCallMedia {
       'enabled': enabled,
       'peerConnectionId': '',
     });
+  }
+
+  Future<bool> switchCamera() {
+    final next = _controls.then((_) async {
+      _check();
+      final camera = _producers['video'];
+      if (camera == null) throw StateError('No camera published');
+      final frontFacing = await _switchCamera(camera.track);
+      _check();
+      return frontFacing;
+    });
+    // A rejected switch must not block a subsequent mute or camera-off action.
+    _controls = next.then<void>((_) {}, onError: (Object _) {});
+    return next;
   }
 
   void _fail(Object error) {
