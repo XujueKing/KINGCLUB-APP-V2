@@ -11,6 +11,7 @@ import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/member_relay_text.dart';
 import 'package:kingclub/src/features/messaging/data/direct_chat_controller.dart';
 import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/member_relay_runtime.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
@@ -24,13 +25,18 @@ class _NetworkBinding extends AutomatedTestWidgetsFlutterBinding {
 }
 
 class _UnusedOutbox implements ChatOutbox {
+  final items = <String, Map<String, dynamic>>{};
   @override
-  Future<List<Map<String, dynamic>>> read() async => [];
+  Future<List<Map<String, dynamic>>> read() async => items.values.toList();
   @override
-  Future<void> put(Map<String, dynamic> message) async =>
-      throw StateError('Unexpected send');
+  Future<void> put(Map<String, dynamic> message) async {
+    items[message['clientMessageId'] as String] = message;
+  }
+
   @override
-  Future<void> remove(String id) async {}
+  Future<void> remove(String id) async {
+    items.remove(id);
+  }
 }
 
 void main() {
@@ -222,12 +228,28 @@ void main() {
       ]);
       const textId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
       final textChanged = receiveText.changes.first;
-      await sendText.sendText(
+      final fallbackOutbox = _UnusedOutbox();
+      final fallback = DirectChatController(
+        repository: MessagingRepository(
+          account: 'friend',
+          call: (_, _) async =>
+              throw const AuthFailure('NETWORK_ERROR', 'service unavailable'),
+        ),
         peer: 'runtime-member',
-        bindingId: targetBinding,
-        text: 'durable runtime text',
-        messageId: textId,
+        outbox: fallbackOutbox,
+        sendRelayText: (text, id) async {
+          await sendText.sendText(
+            peer: 'runtime-member',
+            bindingId: targetBinding,
+            text: text,
+            messageId: id,
+          );
+          return true;
+        },
       );
+      addTearDown(fallback.dispose);
+      await fallback.send('durable runtime text', clientMessageId: textId);
+      expect(fallbackOutbox.items[textId]!['peerDelivered'], true);
       expect(await textChanged.timeout(const Duration(seconds: 2)), 'friend');
       await displayed.future.timeout(const Duration(seconds: 2));
       expect(conversation.messages.single['sequence'], isNull);

@@ -53,6 +53,68 @@ Map<String, dynamic> history(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    'network failure uses same relay ID and keeps server reconciliation queued',
+    () async {
+      final outbox = MemoryOutbox();
+      var offline = true;
+      final relayIds = <String>[];
+      final serviceIds = <String>[];
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: outbox,
+        sendRelayText: (text, id) async {
+          expect(text, 'hello');
+          relayIds.add(id);
+          return true;
+        },
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, params) async {
+            serviceIds.add(params['clientMessageId'] as String);
+            if (offline) throw const AuthFailure('NETWORK_ERROR', 'offline');
+            return {'message': ack(params)};
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      await controller.send('hello');
+      final id = relayIds.single;
+      expect(serviceIds.single, id);
+      expect(outbox.items[id]!['status'], 'queued');
+      expect(outbox.items[id]!['peerDelivered'], true);
+      expect(controller.messages.single['status'], 'sent');
+      expect(controller.messages.single['sequence'], isNull);
+      expect(controller.error, isNull);
+      await controller.retryQueued();
+      expect(relayIds, [id]);
+      offline = false;
+      await controller.retryQueued();
+      expect(serviceIds, [id, id, id]);
+      expect(outbox.items, isEmpty);
+      expect(controller.messages.single['sequence'], 1);
+    },
+  );
+  test('permission denial never falls back to peer transport', () async {
+    var relayCalls = 0;
+    final controller = DirectChatController(
+      peer: 'peer',
+      outbox: MemoryOutbox(),
+      sendRelayText: (_, _) async {
+        relayCalls++;
+        return true;
+      },
+      repository: MessagingRepository(
+        account: 'me',
+        call: (_, _) async =>
+            throw const AuthFailure('CHAT_BLOCKED', 'blocked'),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.send('blocked');
+    expect(relayCalls, 0);
+    expect(controller.messages.single['status'], 'failed');
+  });
+  test(
     'relay chronology interleaves without reordering server sequences',
     () async {
       final controller = DirectChatController(

@@ -19,6 +19,7 @@ class DirectChatController extends ChatSessionController {
     required this.outbox,
     this.openHistory,
     this.readRelayMessages,
+    this.sendRelayText,
     Stream<String>? relayChanges,
   }) {
     _relayEvents = relayChanges?.listen((member) {
@@ -26,6 +27,7 @@ class DirectChatController extends ChatSessionController {
     });
   }
   final Future<List<Map<String, dynamic>>> Function()? readRelayMessages;
+  final Future<bool> Function(String text, String messageId)? sendRelayText;
   StreamSubscription<String>? _relayEvents;
   List<Map<String, dynamic>> _relayMessages = [];
   int _relayRead = 0;
@@ -198,11 +200,15 @@ class DirectChatController extends ChatSessionController {
     return [
       ...visible,
       ...relay.skip(localIndex),
-      ..._pending.values.where(
-        (m) =>
-            !acknowledged.contains(m['clientMessageId']) &&
-            !relayOutgoing.contains(m['clientMessageId']),
-      ),
+      ..._pending.values
+          .where(
+            (m) =>
+                !acknowledged.contains(m['clientMessageId']) &&
+                !relayOutgoing.contains(m['clientMessageId']),
+          )
+          .map(
+            (m) => m['peerDelivered'] == true ? {...m, 'status': 'sent'} : m,
+          ),
     ];
   }
 
@@ -821,10 +827,31 @@ class DirectChatController extends ChatSessionController {
     } catch (e) {
       if (_disposed || !_pending.containsKey(id)) return;
       final transient = e is AuthFailure && e.code == 'NETWORK_ERROR';
+      var peerDelivered = pending['peerDelivered'] == true;
+      if (transient &&
+          !peerDelivered &&
+          sendRelayText != null &&
+          (pending['messageType'] == null ||
+              pending['messageType'] == 'text') &&
+          pending['replyToMessageId'] == null &&
+          historyGeneration == _historyGeneration) {
+        try {
+          peerDelivered = await sendRelayText!(
+            pending['text'] as String,
+            id,
+          ).timeout(const Duration(seconds: 8));
+        } catch (_) {
+          // Keep the durable service retry queue if no peer receipt arrives.
+        }
+      }
+      if (_disposed || !_pending.containsKey(id)) {
+        return;
+      }
       final failed = {
         ...pending,
         'status': transient ? 'queued' : 'failed',
         'error': e.toString(),
+        if (peerDelivered) 'peerDelivered': true,
       };
       await outbox.put(failed);
       // History may confirm delivery while the failed-state write is pending.
@@ -835,7 +862,7 @@ class DirectChatController extends ChatSessionController {
       }
       if (_disposed) return;
       _pending[id] = failed;
-      error = e.toString();
+      error = peerDelivered ? null : e.toString();
     } finally {
       _sending.remove(id);
       _changed();

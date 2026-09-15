@@ -544,6 +544,12 @@ class _DirectChatPageState extends State<DirectChatPage>
               repository: repository,
               peer: widget.peerAccount!,
               outbox: outbox,
+              sendRelayText: repository.persistHistory
+                  ? NovoRudpBindingRuntime.textSender(
+                      repository.account,
+                      widget.peerAccount!,
+                    )
+                  : null,
               readRelayMessages: repository.persistHistory
                   ? NovoRudpBindingRuntime.textReader(
                       repository.account,

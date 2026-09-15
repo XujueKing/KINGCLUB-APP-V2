@@ -55,6 +55,54 @@ class NovoRudpBindingRuntime {
   }
 
   static int _generation = -1;
+
+  static Future<bool> Function(String, String) textSender(
+    String account,
+    String peer,
+  ) {
+    final generation = MemberQrMemory.generation;
+    return (text, id) async {
+      final channel = _text;
+      final binding = _binding;
+      if (generation != MemberQrMemory.generation ||
+          channel == null ||
+          binding == null ||
+          binding.messaging.account != account ||
+          _relay?.connection == null) {
+        return false;
+      }
+      final keys = await binding
+          .directory(peer)
+          .timeout(const Duration(seconds: 3));
+      if (generation != MemberQrMemory.generation ||
+          !identical(channel, _text)) {
+        return false;
+      }
+      // The current directory is authorization; cached keys never grant access.
+      // Try a bounded set, retaining the original ID on every attempt.
+      for (final key in keys.take(2)) {
+        try {
+          await channel
+              .sendText(
+                peer: peer,
+                bindingId: key.bindingId,
+                text: text,
+                messageId: id,
+              )
+              .timeout(const Duration(seconds: 3));
+          return generation == MemberQrMemory.generation &&
+              identical(channel, _text);
+        } catch (_) {
+          if (generation != MemberQrMemory.generation ||
+              !identical(channel, _text)) {
+            return false;
+          }
+        }
+      }
+      return false;
+    };
+  }
+
   static Stopwatch? _failedAt;
 
   static void start(MessagingRepository messaging) {
