@@ -10,6 +10,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/nearby_text_channel.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_relay_frame_link.dart';
+import 'package:kingclub/src/features/messaging/data/novorudp_secure_datagram_link.dart';
+import 'package:kingclub/src/features/messaging/data/peer_text_failover.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
@@ -208,6 +210,102 @@ void main() {
           .sendText('return receipt verified')
           .timeout(const Duration(seconds: 10));
       expect((await ha.nearbyMessages(b.peerId)).length, 2);
+
+      // Actual direct UDP delivers the message, but a proxy drops every ACK.
+      // The policy must switch to the actual WSS lane using the same journal ID.
+      final udpA = await RawDatagramSocket.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      final udpB = await RawDatagramSocket.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      final proxy = await RawDatagramSocket.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      addTearDown(proxy.close);
+      final portA = udpA.port, portB = udpB.port;
+      var droppedReceipts = 0;
+      var dropReceipts = false;
+      proxy.writeEventsEnabled = false;
+      final pump = proxy.listen((event) {
+        if (event != RawSocketEvent.read) return;
+        Datagram? packet;
+        while ((packet = proxy.receive()) != null) {
+          if (packet!.port == portA) {
+            proxy.send(packet.data, InternetAddress.loopbackIPv4, portB);
+          } else if (packet.port == portB) {
+            if (dropReceipts) {
+              droppedReceipts++;
+            } else {
+              proxy.send(packet.data, InternetAddress.loopbackIPv4, portA);
+            }
+          }
+        }
+      });
+      addTearDown(pump.cancel);
+      final directOffer = a.start(b.peerId);
+      final directAnswer = b.respond(directOffer.offer, expectedPeer: a.peerId);
+      final directChannel = a.complete(directOffer, directAnswer.response);
+      final directA = NearbyTextChannel(
+        link: NovoRudpSecureDatagramLink.attach(
+          socket: udpA,
+          peer: InternetAddress.loopbackIPv4,
+          peerPort: proxy.port,
+          channel: directChannel,
+        ),
+        history: ha,
+        peerId: b.peerId,
+        canExchange: () => true,
+      );
+      final directB = NearbyTextChannel(
+        link: NovoRudpSecureDatagramLink.attach(
+          socket: udpB,
+          peer: InternetAddress.loopbackIPv4,
+          peerPort: proxy.port,
+          channel: directAnswer.channel,
+        ),
+        history: hb,
+        peerId: a.peerId,
+        canExchange: () => true,
+      );
+      addTearDown(directB.close);
+      var relayOpens = 0;
+      final failover = PeerTextFailover(
+        history: ha,
+        peerId: b.peerId,
+        canExchange: () => true,
+        direct: directA,
+        connectRelay: () async {
+          relayOpens++;
+          return ta;
+        },
+      );
+      addTearDown(failover.close);
+      expect(
+        await failover.sendText(
+          'direct receipt works',
+          messageId: '33333333-3333-4333-8333-333333333333',
+        ),
+        PeerTextRoute.direct,
+      );
+      expect(relayOpens, 0);
+      dropReceipts = true;
+      const switchedId = '22222222-2222-4222-8222-222222222222';
+      expect(
+        await failover.sendText(
+          'same message across routes',
+          messageId: switchedId,
+        ),
+        PeerTextRoute.relay,
+      );
+      expect(droppedReceipts, greaterThan(0));
+      expect(relayOpens, 1);
+      final receivedRows = await hb.nearbyMessages(a.peerId);
+      expect(receivedRows.where((row) => row['id'] == switchedId).length, 1);
+      expect(await ha.nearbyMessages(b.peerId, pendingOnly: true), isEmpty);
 
       // Invalidate the generation before publishing a session event. The real
       // heartbeat timer must close both live connections without an async error.
