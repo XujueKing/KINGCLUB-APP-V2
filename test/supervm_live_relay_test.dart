@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
+import 'package:kingclub/src/features/messaging/data/novorudp_relay_connection.dart';
 
 /// Explicit opt-in: actual upstream daemon, no fake WebSocket or relay.
 void main() {
@@ -37,33 +38,45 @@ void main() {
       final a = identity(), b = identity();
       final context = SecurityContext(withTrustedRoots: false)
         ..setTrustedCertificates(env['SUPERVM_TEST_RELAY_CERT']!);
-      Future<({WebSocket socket, StreamIterator<dynamic> events})> connect(
-        NovoRudpSecureSession owner,
-      ) async {
-        final http = HttpClient(context: context);
-        addTearDown(() => http.close(force: true));
-        final socket = await WebSocket.connect(
-          env['SUPERVM_TEST_RELAY_URL']!,
-          customClient: http,
-          compression: CompressionOptions.compressionOff,
-        ).timeout(const Duration(seconds: 5));
-        addTearDown(socket.close);
-        final events = StreamIterator<dynamic>(socket);
-        addTearDown(events.cancel);
-        final offer = owner.start(env['SUPERVM_TEST_RELAY_PEER']!);
-        socket.add(
-          utf8.encode(
-            jsonEncode({'kind': 'handshake_offer', 'body': offer.offer}),
-          ),
+      Future<({NovoRudpRelayConnection socket, StreamIterator<dynamic> events})>
+      connect(NovoRudpSecureSession owner) async {
+        final socket = NovoRudpRelayConnection(
+          identity: owner,
+          endpoint: Uri.parse(env['SUPERVM_TEST_RELAY_URL']!),
+          expectedRelay: env['SUPERVM_TEST_RELAY_PEER']!,
+          securityContext: context,
         );
-        final response = await receive(events, 'handshake_response');
-        owner.complete(offer, response).close();
+        addTearDown(socket.close);
+        final queue = StreamController<Map<String, dynamic>>();
+        final subscription = socket.messages.listen(
+          queue.add,
+          onDone: queue.close,
+        );
+        addTearDown(subscription.cancel);
+        final events = StreamIterator<dynamic>(queue.stream);
+        addTearDown(events.cancel);
+        await socket.connect();
+        socket.heartbeat();
+        await receive(events, 'heartbeat_ack');
         return (socket: socket, events: events);
       }
 
       final right = await connect(b), left = await connect(a);
-      void send(WebSocket socket, String kind, Map<String, dynamic> body) =>
-          socket.add(utf8.encode(jsonEncode({'kind': kind, 'body': body})));
+      void send(
+        NovoRudpRelayConnection socket,
+        String kind,
+        Map<String, dynamic> body,
+      ) {
+        if (kind == 'data') {
+          socket.sendEnvelope(body);
+        } else {
+          socket.sendPeerHandshake(
+            body['target_peer_id'] as String,
+            body['handshake'] as Map<String, dynamic>,
+          );
+        }
+      }
+
       final offer = a.start(b.peerId);
       send(left.socket, 'peer_handshake', {
         'target_peer_id': b.peerId,
@@ -134,13 +147,9 @@ Future<Map<String, dynamic>> receive(
       if (!await events.moveNext()) {
         throw StateError('Relay closed before $kind');
       }
-      final wire = events.current;
-      if (wire is! List<int> || wire.length > 16384) {
-        throw StateError('Invalid relay frame');
-      }
-      final message = jsonDecode(utf8.decode(wire)) as Map<String, dynamic>;
+      final message = events.current as Map<String, dynamic>;
       if (message['kind'] == kind) {
-        return message['body'] as Map<String, dynamic>;
+        return (message['body'] as Map<String, dynamic>?) ?? <String, dynamic>{};
       }
       if (message['kind'] != 'forward_outcome' &&
           message['kind'] != 'heartbeat_ack') {
