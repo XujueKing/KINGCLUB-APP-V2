@@ -5,6 +5,10 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
+import 'package:cryptography/cryptography.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
+import 'package:kingclub/src/features/messaging/data/member_relay_text.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/member_relay_runtime.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
@@ -19,6 +23,7 @@ class _NetworkBinding extends AutomatedTestWidgetsFlutterBinding {
 
 void main() {
   _NetworkBinding();
+  sqfliteFfiInit();
   final env = Platform.environment;
   final enabled = [
     'NOVORUDP_NATIVE_LIBRARY',
@@ -125,6 +130,30 @@ void main() {
       caller.start();
       caller.didChangeAppLifecycleState(AppLifecycleState.resumed);
       await callerReady.timeout(const Duration(seconds: 5));
+      final directory = await Directory.systemTemp.createTemp(
+        'relay-text-runtime-',
+      );
+      Future<ChatHistoryStore> history(String account, String name) async =>
+          ChatHistoryStore.openDatabaseWithKey(
+            factory: databaseFactoryFfi,
+            file: '${directory.path}/$name.db',
+            account: account,
+            key: await AesGcm.with256bits().newSecretKey(),
+          );
+      final receiverHistory = await history('runtime-member', 'receiver');
+      final senderHistory = await history('friend', 'sender');
+      final receiveText = MemberRelayText(
+        runtime: runtime,
+        history: receiverHistory,
+      );
+      final sendText = MemberRelayText(runtime: caller, history: senderHistory);
+      addTearDown(() async {
+        await receiveText.close();
+        await sendText.close();
+        await receiverHistory.close();
+        await senderHistory.close();
+        await directory.delete(recursive: true);
+      });
       final offered = runtime.incomingHandshakes.first;
       final arrival = runtime.incomingChannels.first;
       const targetBinding = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -162,6 +191,45 @@ void main() {
         2,
         3,
       ]);
+      const textId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+      final textChanged = receiveText.changes.first;
+      await sendText.sendText(
+        peer: 'runtime-member',
+        bindingId: targetBinding,
+        text: 'durable runtime text',
+        messageId: textId,
+      );
+      expect(await textChanged.timeout(const Duration(seconds: 2)), 'friend');
+      await sendText.sendText(
+        peer: 'runtime-member',
+        bindingId: targetBinding,
+        text: 'durable runtime text',
+        messageId: textId,
+      );
+      expect(
+        (await receiverHistory.nearbyMessages(callerIdentity.peerId)).length,
+        1,
+      );
+      expect(
+        (await senderHistory.nearbyMessages(identity.peerId))
+            .single['delivered'],
+        true,
+      );
+      await receiverHistory.commit('direct:friend', [
+        {
+          'messageId': 'confirmed-text',
+          'clientMessageId': textId,
+          'sequence': 1,
+          'sender': 'friend',
+          'recipient': 'runtime-member',
+          'text': 'durable runtime text',
+        },
+      ], expectedEpoch: 0);
+      expect(
+        (await receiverHistory.nearbyMessages(callerIdentity.peerId))
+            .single['serverMessageId'],
+        'confirmed-text',
+      );
       final ended = accepted.link.frames.drain<void>();
       final readsBeforePause = reads;
       caller.close();
