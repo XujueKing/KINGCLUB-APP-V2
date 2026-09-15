@@ -247,3 +247,11 @@ Native FFI now reuses upstream bootstrap manifest signing/validation with an exp
 Validation: real native DLL tests reject insufficient signatures, invalid thresholds, signed-content tampering and expired directory trust; a two-signer manifest populated the relay directory. Together with existing relay tests, two tests passed; targeted analysis clean and Android ARM64 build passed.
 
 Repository config inspection found `config/runtime/lifecycle/overlay.relay.discovery.seeds.json` uses `novovm.example` sample hosts; discovery records include loopback sample probes. These are not evidence of live public nodes. Requested actual deployed bootstrap endpoints/config and trusted public-key config from the user; no fabricated mainnet connection or use of example hosts. Actual bootstrap fetch, peer address lookup and automatic production routing remain pending.
+
+### 2026-09-15 actual local SUPERVM NAT runtime startup
+
+User authorized starting the test node on this computer. Built the actual pinned upstream novovm-product-nat binary with cargo build -p novovm-node --bin novovm-product-nat --offline --locked (5m22s). Started observed_endpoint_observer at 192.168.1.5:45170 and nat_punch_target at 192.168.1.5:45171; both are UDP listeners with a two-hour test lifetime. This is the signed NAT network runtime, not a ledger/RPC node or WSS media relay.
+
+Added scripts/start-supervm-lan-test.ps1 to launch existing local configs in hidden processes, verify bound ports and reuse matching processes. Runtime config and generated test identity remain in build/supervm-lan with restricted Windows ACL; no private key is committed. The script requires an existing binary and prepared configs. Added scripts/test-supervm-lan-node.py to send requests through the app's real native DLL to the upstream services and validate signatures and rejection of altered acknowledgements.
+
+Validation: both actual services responded and returned the same observed client UDP endpoint; modified signatures were rejected. This proves computer-to-runtime UDP interoperability only. It does not establish phone reachability through Windows firewall, public NAT traversal, relay delivery or decentralized chat UI. ADB reconnect changed the attached phone from offline to unauthorized; waiting for the user's USB debugging authorization before phone validation.
