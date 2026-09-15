@@ -3,6 +3,7 @@ import 'chat_video.dart';
 import 'dart:async';
 
 import 'chat_read_outbox.dart';
+import 'chat_avatar_snapshot.dart';
 import 'authenticated_chat_api.dart';
 import 'novorudp_binding_runtime.dart';
 import 'chat_location.dart';
@@ -58,6 +59,14 @@ class MessagingRepository {
 
   final String account;
   final ChatApiCall call;
+
+  Future<Map<String, dynamic>> avatarProfile(String peer) {
+    Future<Map<String, dynamic>> fetch() =>
+        call('K260913000612', {'peer': peer});
+    return persistHistory
+        ? ChatAvatarSnapshot().load(account, peer, fetch)
+        : fetch();
+  }
 
   static Future<MessagingRepository> open() async {
     final store = SecureSessionStore();

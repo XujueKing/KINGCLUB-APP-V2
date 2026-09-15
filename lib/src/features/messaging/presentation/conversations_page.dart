@@ -541,7 +541,7 @@ class _ConversationsPageState extends State<ConversationsPage>
               profile: cachedChatAvatarProfile(
                 _avatarProfiles,
                 target,
-                () => _repository!.call('K260913000612', {'peer': target}),
+                () => _repository!.avatarProfile(target),
               ),
             ),
       name: name,

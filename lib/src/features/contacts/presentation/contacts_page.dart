@@ -715,9 +715,7 @@ class _ContactsPageState extends State<ContactsPage>
                         profile: cachedChatAvatarProfile(
                           _avatarProfiles,
                           contact.ref,
-                          () => _real!.repository.call('K260913000612', {
-                            'peer': contact.ref,
-                          }),
+                          () => _real!.repository.avatarProfile(contact.ref),
                         ),
                       )
                     : null,

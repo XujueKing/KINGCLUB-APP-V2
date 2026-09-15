@@ -65,6 +65,25 @@ class MediaCache {
     return result;
   }
 
+  /// Read an existing image only; an offline descriptor is not a download grant.
+  Future<File> cachedImage({
+    required String scope,
+    required String contentKey,
+  }) async {
+    final generation = _generation;
+    final key = await _hash('$scope|image|$contentKey');
+    final root = await _directory();
+    final file = File(
+      '${root.path}/${scope == 'public' ? 'public' : 'private'}/${await _hash(scope)}/image/$key.media',
+    );
+    if (!await file.exists() ||
+        await file.length() == 0 ||
+        generation != _generation) {
+      throw StateError('图片尚未缓存');
+    }
+    return file;
+  }
+
   /// Forget one immutable media object after a decoder rejects it. Scope and
   /// content identity are hashed; callers cannot supply a filesystem path.
   Future<void> evict({

@@ -19,6 +19,7 @@ class CachedMediaImage extends StatefulWidget {
     this.fit = BoxFit.cover,
     this.errorBuilder,
     this.cache,
+    this.cacheOnly = false,
   });
   final String url;
   final String? contentKey;
@@ -29,6 +30,7 @@ class CachedMediaImage extends StatefulWidget {
   final BoxFit fit;
   final ImageErrorWidgetBuilder? errorBuilder;
   final MediaCache? cache;
+  final bool cacheOnly;
   @override
   State<CachedMediaImage> createState() => _CachedMediaImageState();
 }
@@ -48,6 +50,7 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
         old.contentKey != widget.contentKey ||
         old.private != widget.private ||
         old.cache != widget.cache ||
+        old.cacheOnly != widget.cacheOnly ||
         !mapEquals(old.headers, widget.headers)) {
       _file = _load();
     }
@@ -62,7 +65,13 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
       if (id == null) throw StateError('请重新登录');
       scope = 'member:$id';
     }
-    return (widget.cache ?? MediaCache.shared).get(
+    final cache = widget.cache ?? MediaCache.shared;
+    if (widget.cacheOnly) {
+      final key = widget.contentKey;
+      if (key == null) throw StateError('缺少缓存标识');
+      return cache.cachedImage(scope: scope, contentKey: key);
+    }
+    return cache.get(
       widget.url,
       scope: scope,
       contentKey: widget.contentKey,

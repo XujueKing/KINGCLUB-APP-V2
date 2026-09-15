@@ -46,6 +46,37 @@ void main() {
   tearDown(() async {
     if (await dir.exists()) await dir.delete(recursive: true);
   });
+  test(
+    'offline image lookup never downloads and respects account isolation',
+    () async {
+      final file = await cache.get(
+        'https://media.example.test/avatar',
+        scope: 'member:a',
+        contentKey: 'avatar-1',
+      );
+      final reopened = MediaCache(
+        directory: () async => dir,
+        dio: Dio()..httpClientAdapter = transport,
+      );
+      expect(
+        (await reopened.cachedImage(
+          scope: 'member:a',
+          contentKey: 'avatar-1',
+        )).path,
+        file.path,
+      );
+      await expectLater(
+        reopened.cachedImage(scope: 'member:b', contentKey: 'avatar-1'),
+        throwsStateError,
+      );
+      await reopened.clear(privateOnly: true);
+      await expectLater(
+        reopened.cachedImage(scope: 'member:a', contentKey: 'avatar-1'),
+        throwsStateError,
+      );
+      expect(transport.calls, 1);
+    },
+  );
   test('clear rejects an old request paused before cache lookup', () async {
     final cached = await cache.get(
       'https://media.example.test/voice',

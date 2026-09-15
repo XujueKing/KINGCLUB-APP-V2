@@ -41,6 +41,7 @@ class ChatMemberAvatar extends StatelessWidget {
             if (avatar is! Map) return fallback;
             final path = avatar['path'];
             final fileId = avatar['fileId'];
+            final cacheOnly = avatar['cacheOnly'] == true;
             final validPath =
                 path is String &&
                 (own
@@ -51,7 +52,7 @@ class ChatMemberAvatar extends StatelessWidget {
                           !path.contains('..') &&
                           !path.contains('?') &&
                           !path.contains('#'));
-            if (!validPath ||
+            if ((!cacheOnly && !validPath) ||
                 fileId is! String ||
                 fileId.isEmpty ||
                 baseUrl.isEmpty) {
@@ -60,6 +61,7 @@ class ChatMemberAvatar extends StatelessWidget {
             return CachedMediaImage(
               '${baseUrl.replaceFirst(RegExp(r'/+$'), '')}$path',
               private: true,
+              cacheOnly: cacheOnly,
               contentKey: 'profile:$account:$fileId',
               headers: (avatar['headers'] as Map? ?? {}).map(
                 (key, value) => MapEntry(key.toString(), value.toString()),
