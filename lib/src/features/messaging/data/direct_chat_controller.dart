@@ -237,6 +237,7 @@ class DirectChatController extends ChatSessionController {
   Future<void> loadOlder() async {
     if (!hasOlder || _oldest == null || _disposed) return;
     final generation = _historyGeneration;
+    final before = _oldest;
     try {
       if (_history != null) {
         await _historyBarrier;
@@ -253,10 +254,11 @@ class DirectChatController extends ChatSessionController {
           }
           _oldest = local.messages.first['sequence'] as int;
           _changed();
-          return;
         }
       }
-      final result = await repository.history(peer, before: _oldest);
+      // Show cached rows immediately, then refresh the same page from the
+      // server. Advancing before first would skip those cached records forever.
+      final result = await repository.history(peer, before: before);
       if (_disposed || generation != _historyGeneration) return;
       if (!await _acceptHistoryRevision(result)) return;
       await _merge(result, generation);
@@ -264,6 +266,7 @@ class DirectChatController extends ChatSessionController {
       final rows = result['messages'] as List;
       if (rows.isNotEmpty) _oldest = (rows.first['sequence'] as num).toInt();
       hasOlder = result['hasMore'] == true;
+      error = null;
       _changed();
     } catch (e) {
       if (_disposed || generation != _historyGeneration) return;

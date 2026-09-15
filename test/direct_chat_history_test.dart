@@ -75,6 +75,49 @@ void main() {
     chat.dispose();
   });
 
+  test('older cached page is visible before its metadata refresh completes', () async {
+    await store.commit(
+      'direct:peer',
+      List.generate(75, (i) => message(i + 1)),
+      expectedEpoch: 0,
+      cursor: 75,
+    );
+    final pending = Completer<Map<String, dynamic>>();
+    final requested = Completer<void>();
+    final metadata = {
+      'callId': '00000000-0000-4000-8000-000000000001',
+      'mediaKind': 'video',
+      'endReason': 'hangup',
+      'durationMs': 29000,
+    };
+    final chat = controller((_, params) async {
+      if (params.containsKey('before')) {
+        expect(params['before'], 26);
+        requested.complete();
+        return pending.future;
+      }
+      return response([]);
+    });
+    await chat.initialize();
+    final loading = chat.loadOlder();
+    await requested.future.timeout(const Duration(seconds: 5));
+    expect(chat.messages.length, 75);
+    expect(pending.isCompleted, false);
+    pending.complete(
+      response([
+        {...message(1), 'call': metadata},
+        ...List.generate(24, (i) => message(i + 2)),
+      ]),
+    );
+    await loading;
+    expect(chat.error, isNull);
+    expect(chat.messages.first['call'], metadata);
+    final saved = await store.read('direct:peer', before: 26);
+    expect(saved.cursor, 75);
+    expect(saved.messages.first['call'], metadata);
+    chat.dispose();
+  });
+
   test('transient cache opening failure can recover on next sync', () async {
     var opens = 0, requests = 0;
     final queue = MemoryOutbox();
@@ -169,7 +212,7 @@ void main() {
       expect(chat.messages.first['sequence'], 26);
       await chat.loadOlder();
       expect(chat.messages.length, 75);
-      expect(calls, 1);
+      expect(calls, 2);
       chat.dispose();
     },
   );
@@ -183,10 +226,11 @@ void main() {
         cursor: 1,
       );
       final chat = controller((_, params) async {
-        expect(params['after'], 1);
+        if (params.containsKey('after')) expect(params['after'], 1);
         return response([message(2)], hidden: 1);
       });
       await chat.initialize();
+      expect(chat.error, isNull);
       expect(chat.messages.single['sequence'], 2);
       final saved = await store.read('direct:peer');
       expect(saved.cursor, 2);

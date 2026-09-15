@@ -1,5 +1,12 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## Older history refresh and live call metadata check
+
+Direct-history pagination now renders the local older page immediately, then requests the same page boundary from the server to update call metadata and authoritative content. It no longer returns permanently after a disk hit. Offline failures retain displayed cached records. No cursor advance is made by metadata refresh. Nine direct-history tests passed, covering older cached rows appearing before a pending network response, persistence of refreshed video-call metadata, unchanged cursor, offline cache access, remote clear and generation protection; changed-file static analysis passed. This pagination update is committed but not installed on devices.
+
+Read-only verification against the deployed metadata helper checked six actual ended-call message rows: all six projected metadata (four audio, two video). Only aggregate counts were returned. This establishes runtime data projection, not native redial acceptance. A/B touch operations remain paused; neither native redial nor B's updated call icons are claimed verified.
+
+
 ## Call metadata release and cached-history compatibility
 
 Backend metadata deployed as kingclub-v2-api:call-history-metadata; TURN configuration, no-active-call guard and runtime health/readiness/status checks passed. Initial native A check showed existing audio 00:15 and video 00:29 records, but old disk rows lacked new metadata/icons. Added one background latest-page refresh after incremental catch-up when restoring cached direct history; rows remain visible and the sync cursor is retained. Eleven targeted history/call-widget tests passed, including metadata persistence and refresh-once behavior; changed-file static analysis passed.
