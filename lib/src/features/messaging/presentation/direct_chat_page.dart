@@ -2114,18 +2114,45 @@ class _DirectChatPageState extends State<DirectChatPage>
     _selectingImage = true;
     try {
       _inputFocusNode.unfocus();
-      final file = await ImagePicker().pickImage(source: source);
-      if (file == null || !mounted || !identical(chat, _chat)) return;
-      final length = await file.length();
-      if (length == 0 || length > 20 * 1024 * 1024) {
+      final drafts = await ChatFileDraftStore.open(
+        chat.messaging.account,
+        widget.groupId != null
+            ? 'image-group:${widget.groupId}'
+            : 'image-peer:${widget.peerAccount}',
+      );
+      ChatFileDraft? draft;
+      try {
+        draft = await drafts.read();
+      } on FileSystemException {
+        // Reselect a missing private copy.
+      } on StateError {
+        // Damaged bytes must be replaced through the picker.
+      }
+      if (!mounted || !identical(chat, _chat)) return;
+      if (draft == null) {
+        final file = await ImagePicker().pickImage(source: source);
+        if (file == null || !mounted || !identical(chat, _chat)) return;
+        final length = await file.length();
+        if (length == 0 || length > 20 * 1024 * 1024) {
+          throw StateError('请选择不超过20MB的静态图片');
+        }
+        draft = await drafts.save(File(file.path), file.name);
+      }
+      if (draft.size == 0 || draft.size > 20 * 1024 * 1024) {
         throw StateError('请选择不超过20MB的静态图片');
       }
-      final bytes = await file.readAsBytes();
+      final bytes = await draft.file.readAsBytes();
       if (!mounted || !identical(chat, _chat)) return;
+      final selectedDraft = draft;
       _voicePlayback?.stop();
       await Navigator.of(context).push<bool>(
         MaterialPageRoute(
-          builder: (_) => ChatImageSendPage(bytes: bytes, chat: chat),
+          builder: (_) => ChatImageSendPage(
+            bytes: bytes,
+            chat: chat,
+            draft: selectedDraft,
+            drafts: drafts,
+          ),
         ),
       );
     } catch (error) {

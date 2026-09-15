@@ -1,5 +1,14 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## Recoverable photo drafts (implemented, native acceptance pending)
+
+Photo selection now uses the existing verified private draft store with separate image-peer/image-group target namespaces. It validates the 20MB source bound before saving, restores a hashed private copy on re-entry, and offers explicit discard from the send preview. Missing/damaged copies can be replaced through the picker. Draft cleanup occurs only after durable message queueing, before upload-journal acknowledgement. No message is sent simply by restoring a draft.
+
+Direct and group image queues accept a validated optional clientMessageId. The persisted photo draft UUID is reused on retry, including reopening the send flow after acknowledgement/cleanup interruption; existing callers still receive fresh IDs. Nine image queue and draft-store tests passed, including direct/group controller recreation, repeated submission with the same ID and single visible receipt, failed queue writes, membership rejection, scope isolation and session loss during draft copy. Changed Dart files pass static analysis and diff checks. Android profile/preview ARM64 build succeeded: SHA256 5bbded244ff516498afb0f86b161331182cc5a164c0bec121bb4ab7d54873f81, 157003848 bytes.
+
+Not installed on A/B in this node. Actual kill/restart during photo upload, resuming the native picker path and two-device duplicate-count acceptance remain pending. The draft store retains one current photo per conversation; this is not multi-photo batch composition or an automatic background upload queue.
+
+
 ## Android location map handoff (native acceptance pending)
 
 Location details now has an explicit View in Amap action. The Android bridge accepts validated microdegree coordinates, coordinate-system name and place name, builds only a fixed HTTPS Amap marker URI, and dispatches ACTION_VIEW. GCJ-02 uses coordinate=gaode; WGS84 uses coordinate=wgs84. Longitude precedes latitude and formatting is locale-independent. No chat text, account identifiers, authorization headers or address field are sent to the external map. Nothing opens until the user taps. The web URI may hand off to Amap when installed; otherwise the browser handles it. Map/browser launch failure retains the existing copy-location fallback.

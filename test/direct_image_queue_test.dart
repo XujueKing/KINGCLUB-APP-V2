@@ -38,7 +38,8 @@ void main() {
       peer: 'peer',
       outbox: queue,
     );
-    await first.sendImage(asset);
+    const draftId = '22345678-1234-1234-1234-123456789012';
+    await first.sendImage(asset, clientMessageId: draftId);
     expect(queue.items.length, 1);
     expect(first.messages.single['status'], 'queued');
     first.dispose();
@@ -51,6 +52,10 @@ void main() {
     expect(requests.length, 2);
     expect(requests[0], requests[1]);
     expect(requests[1]['assetId'], asset);
+    expect(requests[1]['clientMessageId'], draftId);
+    await restored.sendImage(asset, clientMessageId: draftId);
+    expect(requests.length, 3);
+    expect(requests.last, requests.first);
     expect(queue.items, isEmpty);
     expect(restored.messages.single['messageType'], 'image');
     restored.dispose();

@@ -50,7 +50,8 @@ void main() {
         outbox: queue,
       );
       await first.initialize();
-      await first.sendImage(asset);
+      const draftId = '22345678-1234-1234-1234-123456789012';
+      await first.sendImage(asset, clientMessageId: draftId);
       expect(queue.items.length, 1);
       expect(first.messages.single['status'], 'queued');
       first.dispose();
@@ -62,6 +63,11 @@ void main() {
       await restored.initialize();
       expect(requests.length, 2);
       expect(requests[0], requests[1]);
+      expect(requests[1]['clientMessageId'], draftId);
+      await restored.sendImage(asset, clientMessageId: draftId);
+      expect(requests.length, 3);
+      expect(requests.last, requests.first);
+      expect(restored.messages.length, 1);
       expect(queue.items, isEmpty);
       expect(restored.messages.single['imageAssetId'], asset);
       restored.dispose();

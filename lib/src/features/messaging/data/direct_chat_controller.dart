@@ -403,14 +403,23 @@ class DirectChatController extends ChatSessionController {
   /// Queue the owned, completed upload reference; credentials/bytes never enter
   /// the secure message queue. Network retries reuse this message identifier.
   @override
-  Future<void> sendImage(String assetId, {VoidCallback? onQueued}) async {
+  Future<void> sendImage(
+    String assetId, {
+    VoidCallback? onQueued,
+    String? clientMessageId,
+  }) async {
     if (_disposed) return;
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
     ).hasMatch(assetId)) {
       throw ArgumentError('图片上传结果无效');
     }
-    final id = const Uuid().v4();
+    final id = clientMessageId ?? const Uuid().v4();
+    if (!RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(id)) {
+      throw ArgumentError('Invalid image message identifier');
+    }
     final message = <String, dynamic>{
       'clientMessageId': id,
       'recipient': peer,
