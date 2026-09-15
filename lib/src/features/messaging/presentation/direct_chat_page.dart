@@ -464,9 +464,8 @@ class _DirectChatPageState extends State<DirectChatPage>
         if (type == 'connection.ready' && chat is GroupChatController) {
           chat.invalidateMemberNames();
         }
-        if (widget.groupId != null && type == 'chat.group.changed') {
-          chat.resetVisibleHistory();
-          chat.synchronize();
+        if (chat is GroupChatController && type == 'chat.group.changed') {
+          chat.refreshGroup();
           return;
         }
         if (type == 'connection.ready' ||

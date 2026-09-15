@@ -43,6 +43,50 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   FlutterSecureStorage.setMockInitialValues({});
   test(
+    'group refresh keeps messages during rename but clears revoked access',
+    () async {
+      Completer<Map<String, dynamic>>? pending;
+      var name = 'Before';
+      final chat = GroupChatController(
+        groupId: 'group',
+        outbox: Queue(),
+        repository: GroupChatRepository(
+          MessagingRepository(
+            account: 'me',
+            call: (id, _) async {
+              if (id == 'K260913000619') {
+                return {'groupName': name, 'members': []};
+              }
+              return pending?.future ?? Future.value(history([message('one')]));
+            },
+          ),
+        ),
+      );
+      await chat.synchronize();
+      pending = Completer<Map<String, dynamic>>();
+      name = 'After';
+      final rename = chat.refreshGroup();
+      await Future<void>.delayed(Duration.zero);
+      expect(chat.messages.single['messageId'], 'server-one');
+      expect(chat.hasAccess, isTrue);
+      pending.complete(history([]));
+      await rename;
+      expect(chat.messages.single['messageId'], 'server-one');
+      expect(chat.settings['groupName'], 'After');
+
+      pending = Completer<Map<String, dynamic>>();
+      final revoked = chat.refreshGroup();
+      pending.completeError(
+        const AuthFailure('CHAT_GROUP_ACCESS_DENIED', 'Access denied'),
+      );
+      await revoked;
+      expect(chat.messages, isEmpty);
+      expect(chat.hasAccess, isFalse);
+      chat.dispose();
+    },
+  );
+
+  test(
     'rejoining drops pre-admission messages and rejects an old member snapshot',
     () async {
       var version = 0, joined = 0;
