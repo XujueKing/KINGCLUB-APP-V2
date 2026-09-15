@@ -117,11 +117,20 @@ class NearbyPeerConnector {
             value['kind'] == 'kingclub_nearby_answer_v1' &&
             value['id'] == _id &&
             value['response'] is Map<String, dynamic>) {
-          final channel = identity.complete(
-            _offer!,
-            value['response'] as Map<String, dynamic>,
-          );
+          final offer = _offer!;
           _offer = null;
+          late final NovoRudpSecureChannel channel;
+          try {
+            // Completion consumes the native offer even when validation fails.
+            // Retrying that offer can never succeed; release this attempt now.
+            channel = identity.complete(
+              offer,
+              value['response'] as Map<String, dynamic>,
+            );
+          } catch (error) {
+            close(error);
+            return;
+          }
           _handoff(channel);
         } else if (identity.peerId.compareTo(expectedPeer) > 0 &&
             value['kind'] == 'kingclub_nearby_offer_v1' &&

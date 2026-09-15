@@ -10,6 +10,68 @@ import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
 
 void main() {
   final path = Platform.environment['NOVORUDP_NATIVE_LIBRARY'];
+  test('invalid signed answer fails immediately instead of retrying a consumed offer', () async {
+    final lib = DynamicLibrary.open(path!);
+    final identities =
+        [31, 47]
+            .map(
+              (seed) => NovoRudpSecureSession.fromSeed(
+                library: lib,
+                seed: Uint8List.fromList(List.filled(32, seed)),
+              ),
+            )
+            .toList()
+          ..sort((a, b) => a.peerId.compareTo(b.peerId));
+    for (final identity in identities) {
+      addTearDown(identity.dispose);
+    }
+    final host = InternetAddress.loopbackIPv4;
+    final responder = await RawDatagramSocket.bind(host, 0);
+    addTearDown(responder.close);
+    responder.writeEventsEnabled = false;
+    var offers = 0;
+    final events = responder.listen((event) {
+      if (event != RawSocketEvent.read) return;
+      final packet = responder.receive();
+      if (packet == null) return;
+      final request =
+          jsonDecode(utf8.decode(packet.data)) as Map<String, dynamic>;
+      offers++;
+      final accepted = identities[1].respond(
+        request['offer'] as Map<String, dynamic>,
+        expectedPeer: identities[0].peerId,
+      );
+      accepted.channel.close();
+      final response = accepted.response;
+      (response['signature'] as List)[0] ^= 1;
+      responder.send(
+        utf8.encode(
+          jsonEncode({
+            'kind': 'kingclub_nearby_answer_v1',
+            'id': request['id'],
+            'response': response,
+          }),
+        ),
+        packet.address,
+        packet.port,
+      );
+    });
+    addTearDown(events.cancel);
+    final connector = NearbyPeerConnector(
+      socket: await RawDatagramSocket.bind(host, 0),
+      identity: identities[0],
+      expectedPeer: identities[1].peerId,
+      address: host,
+      port: responder.port,
+    );
+    addTearDown(connector.close);
+    await expectLater(
+      connector.connect().timeout(const Duration(seconds: 2)),
+      throwsStateError,
+    );
+    expect(offers, 1);
+    expect(connector.connect, throwsStateError);
+  }, skip: path == null ? 'Requires real native library' : false);
   test(
     'offline UDP handshake recovers lost response and transfers encrypted data',
     () async {
