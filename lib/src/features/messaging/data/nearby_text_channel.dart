@@ -34,6 +34,7 @@ class NearbyTextChannel {
     required this.history,
     required this.peerId,
     required this.canExchange,
+    this.peerAccount,
   }) {
     _subscription = link.frames.listen(
       (frame) {
@@ -55,6 +56,7 @@ class NearbyTextChannel {
   final NovoRudpFrameLink link;
   final ChatHistoryStore history;
   final String peerId;
+  final String? peerAccount;
   final bool Function() canExchange;
   static final _stream = BigInt.from(0x4b43544d);
   static final _uuid = RegExp(
@@ -105,6 +107,7 @@ class NearbyTextChannel {
     if (_pending.length >= 8) throw StateError('Nearby send queue full');
     final id = messageId ?? const Uuid().v4();
     await history.persistNearbyText(
+      peerAccount: peerAccount,
       peerId: peerId,
       id: id,
       text: text,
@@ -250,6 +253,7 @@ class NearbyTextChannel {
     if (text.isEmpty || text.length > 4000) return;
     _check();
     await history.persistNearbyText(
+      peerAccount: peerAccount,
       peerId: peerId,
       id: id,
       text: text,

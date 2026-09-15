@@ -89,13 +89,19 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 7,
+        version: 8,
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 6) await _createNearbyMessages(db);
           if (oldVersion >= 6 && oldVersion < 7) {
             await db.execute(
               'ALTER TABLE nearby_message ADD COLUMN serverId TEXT',
             );
+          }
+          if (oldVersion >= 6 && oldVersion < 8) {
+            await db.execute(
+              'ALTER TABLE nearby_message ADD COLUMN member TEXT',
+            );
+            await _createNearbyMemberIndex(db);
           }
           if (oldVersion < 2) {
             await db.execute(
@@ -357,6 +363,15 @@ class ChatHistoryStore {
         );
       }
       await batch.commit(noResult: true);
+      if (conversation.startsWith('direct:')) {
+        await _reconcileNearbyRows(
+          tx,
+          'member',
+          id,
+          conversation.substring('direct:'.length),
+          messages,
+        );
+      }
       return true;
     });
   }

@@ -7,6 +7,83 @@ import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 
 void main() {
   sqfliteFfiInit();
+  test(
+    'confirmed page atomically reconciles only its bound member devices',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('bound-peer-history-');
+      final store = await ChatHistoryStore.openDatabaseWithKey(
+        factory: databaseFactoryFfi,
+        file: '${dir.path}/history.db',
+        key: await AesGcm.with256bits().newSecretKey(),
+        account: 'alice',
+      );
+      addTearDown(() async {
+        await store.close();
+        await dir.delete(recursive: true);
+      });
+      final first = 'novovm-ed25519:${'ab' * 32}';
+      final second = 'novovm-ed25519:${'cd' * 32}';
+      final unknown = 'novovm-ed25519:${'ef' * 32}';
+      const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      for (final device in [first, second, unknown]) {
+        await store.persistNearbyText(
+          peerId: device,
+          peerAccount: device == unknown ? null : 'bob',
+          id: id,
+          text: 'same message',
+          outgoing: true,
+        );
+      }
+      final confirmed = <String, dynamic>{
+        'messageId': 'server-one',
+        'clientMessageId': id,
+        'sequence': 1,
+        'sender': 'alice',
+        'recipient': 'bob',
+        'text': 'same message',
+      };
+      expect(
+        await store.commit('direct:bob', [confirmed], expectedEpoch: 1),
+        false,
+      );
+      expect((await store.nearbyMessages(first, pendingOnly: true)).length, 1);
+      await expectLater(
+        store.commit('direct:bob', [
+          {...confirmed, 'text': 'conflict'},
+        ], expectedEpoch: 0),
+        throwsStateError,
+      );
+      expect((await store.read('direct:bob')).messages, isEmpty);
+      expect(
+        await store.commit('direct:bob', [confirmed], expectedEpoch: 0),
+        true,
+      );
+      for (final device in [first, second]) {
+        expect(await store.nearbyMessages(device, pendingOnly: true), isEmpty);
+        final row = (await store.nearbyMessages(device)).single;
+        expect(row['serverMessageId'], 'server-one');
+        expect(row['delivered'], false);
+      }
+      expect(
+        (await store.nearbyMessages(unknown, pendingOnly: true)).length,
+        1,
+      );
+      await expectLater(
+        store.persistNearbyText(
+          peerId: first,
+          peerAccount: 'outsider',
+          id: id,
+          text: 'same message',
+          outgoing: true,
+        ),
+        throwsStateError,
+      );
+      expect(
+        (await store.read('direct:bob')).messages.single['messageId'],
+        'server-one',
+      );
+    },
+  );
   test('real SQLite upgrade and scoped server reconciliation persist across reopen', () async {
     final dir = await Directory.systemTemp.createTemp('peer-reconciliation-');
     final file = '${dir.path}/history.db';

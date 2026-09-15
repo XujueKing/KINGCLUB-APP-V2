@@ -1,7 +1,14 @@
 part of 'chat_history_store.dart';
 
-Future<void> _createNearbyMessages(DatabaseExecutor db) => db.execute(
-  'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, serverId TEXT, PRIMARY KEY(peer,id,outgoing))',
+Future<void> _createNearbyMessages(DatabaseExecutor db) async {
+  await db.execute(
+    'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, serverId TEXT, member TEXT, PRIMARY KEY(peer,id,outgoing))',
+  );
+  await _createNearbyMemberIndex(db);
+}
+
+Future<void> _createNearbyMemberIndex(DatabaseExecutor db) => db.execute(
+  'CREATE INDEX IF NOT EXISTS nearby_member_message ON nearby_message(member,id,outgoing)',
 );
 
 /// Device-to-device local messages have no server sequence until reconciled.
@@ -39,6 +46,7 @@ extension NearbyMessageHistory on ChatHistoryStore {
     required String id,
     required String text,
     required bool outgoing,
+    String? peerAccount,
   }) async {
     if (!RegExp(
           r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
@@ -48,6 +56,14 @@ extension NearbyMessageHistory on ChatHistoryStore {
       throw ArgumentError('Invalid nearby text');
     }
     final peer = await _nearbyPeer(peerId);
+    if (peerAccount != null &&
+        (peerAccount == account ||
+            !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peerAccount))) {
+      throw ArgumentError('Invalid peer member');
+    }
+    final member = peerAccount == null
+        ? null
+        : await _conversation('direct:$peerAccount');
     final box = await ChatHistoryStore._cipher.encrypt(
       utf8.encode(text),
       secretKey: _key,
@@ -60,8 +76,19 @@ extension NearbyMessageHistory on ChatHistoryStore {
         whereArgs: [peer, id, outgoing ? 1 : 0],
       );
       if (rows.isNotEmpty) {
-        if (await _nearbyText(rows.single) != text) {
+        if (await _nearbyText(rows.single) != text ||
+            (member != null &&
+                rows.single['member'] != null &&
+                rows.single['member'] != member)) {
           throw StateError('Nearby message identity conflict');
+        }
+        if (member != null && rows.single['member'] == null) {
+          await tx.update(
+            'nearby_message',
+            {'member': member},
+            where: 'peer=? AND id=? AND outgoing=?',
+            whereArgs: [peer, id, outgoing ? 1 : 0],
+          );
         }
         return;
       }
@@ -71,6 +98,7 @@ extension NearbyMessageHistory on ChatHistoryStore {
         'outgoing': outgoing ? 1 : 0,
         'created': DateTime.now().millisecondsSinceEpoch,
         'payload': box.concatenation(),
+        'member': member,
       });
     });
   }
@@ -135,31 +163,42 @@ extension NearbyMessageHistory on ChatHistoryStore {
     }
     final peer = await _nearbyPeer(peerId);
     final messages = confirmed.map(_payload).toList();
-    return _db.transaction((tx) async {
-      var changed = 0;
-      for (final message in messages) {
-        if (message['groupId'] != null ||
-            message['call'] != null ||
-            ![
-              null,
-              'text',
-              'hidden',
-              'recalled',
-            ].contains(message['messageType'])) {
-          continue;
-        }
-        final outgoing =
-            message['sender'] == account && message['recipient'] == peerAccount;
-        final incoming =
-            message['sender'] == peerAccount && message['recipient'] == account;
-        if (!outgoing && !incoming) continue;
-        final rows = await tx.query(
-          'nearby_message',
-          where: 'peer=? AND id=? AND outgoing=?',
-          whereArgs: [peer, message['clientMessageId'], outgoing ? 1 : 0],
-        );
-        if (rows.isEmpty) continue;
-        final row = rows.single;
+    return _db.transaction(
+      (tx) => _reconcileNearbyRows(tx, 'peer', peer, peerAccount, messages),
+    );
+  }
+
+  Future<int> _reconcileNearbyRows(
+    DatabaseExecutor tx,
+    String scopeColumn,
+    String scope,
+    String peerAccount,
+    List<Map<String, dynamic>> messages,
+  ) async {
+    var changed = 0;
+    for (final message in messages) {
+      if (message['groupId'] != null ||
+          message['call'] != null ||
+          ![
+            null,
+            'text',
+            'hidden',
+            'recalled',
+          ].contains(message['messageType'])) {
+        continue;
+      }
+      final outgoing =
+          message['sender'] == account && message['recipient'] == peerAccount;
+      final incoming =
+          message['sender'] == peerAccount && message['recipient'] == account;
+      if (!outgoing && !incoming) continue;
+      final rows = await tx.query(
+        'nearby_message',
+        where: '$scopeColumn=? AND id=? AND outgoing=?',
+        whereArgs: [scope, message['clientMessageId'], outgoing ? 1 : 0],
+      );
+      if (rows.isEmpty) continue;
+      for (final row in rows) {
         final tombstone = [
           'hidden',
           'recalled',
@@ -174,11 +213,15 @@ extension NearbyMessageHistory on ChatHistoryStore {
             'nearby_message',
             {'serverId': message['messageId']},
             where: 'peer=? AND id=? AND outgoing=?',
-            whereArgs: [peer, message['clientMessageId'], outgoing ? 1 : 0],
+            whereArgs: [
+              row['peer'],
+              message['clientMessageId'],
+              outgoing ? 1 : 0,
+            ],
           );
         }
       }
-      return changed;
-    });
+    }
+    return changed;
   }
 }
