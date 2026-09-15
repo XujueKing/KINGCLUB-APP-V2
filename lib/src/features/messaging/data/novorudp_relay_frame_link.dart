@@ -15,6 +15,7 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
     required this.relay,
     required this.channel,
     required this.expectedPeer,
+    this.authorize,
   }) : _localPeer = relay.identity.peerId {
     if (!RegExp(r'^novovm-ed25519:[0-9a-f]{64}$').hasMatch(expectedPeer) ||
         expectedPeer == _localPeer) {
@@ -38,6 +39,7 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
               try {
                 _check();
                 final frame = await channel.open(envelope);
+                await _authorization;
                 _check();
                 if (frame.payload.length <=
                     NovoRudpSecurePacket.maxFramePayload) {
@@ -62,10 +64,18 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
     _session = SecureSessionStore.changes.stream.listen(
       (_) => unawaited(close()),
     );
+    if (authorize != null) {
+      _authorizationTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+        unawaited(Future<void>.sync(revalidate).catchError((Object _) {}));
+      });
+    }
   }
   final NovoRudpRelayConnection relay;
   final String _localPeer;
   final String expectedPeer;
+  final Future<void> Function()? authorize;
+  Timer? _authorizationTimer;
+  Future<void>? _authorization;
   @override
   final NovoRudpSecureChannel channel;
   final _frames = StreamController<NovoRudpFrame>.broadcast();
@@ -78,6 +88,27 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
   int _queued = 0;
   @override
   Stream<NovoRudpFrame> get frames => _frames.stream;
+
+  /// Also called by the owner when a relationship/device event arrives.
+  /// Failed/unavailable authority closes the lane; durable messages remain
+  /// available to the transport owner's recovery policy.
+  Future<void> revalidate() {
+    _check();
+    return _authorization ??= _revalidate();
+  }
+
+  Future<void> _revalidate() async {
+    try {
+      await authorize?.call().timeout(const Duration(seconds: 5));
+      _check();
+    } catch (_) {
+      unawaited(close());
+      rethrow;
+    } finally {
+      _authorization = null;
+    }
+  }
+
   void _check() {
     if (_closed || _generation != MemberQrMemory.generation) {
       unawaited(close());
@@ -87,11 +118,13 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
 
   @override
   Future<void> send(NovoRudpFrame frame) async {
+    await _authorization;
     _check();
     if (frame.payload.length > NovoRudpSecurePacket.maxFramePayload) {
       throw ArgumentError('Split payload before relay transmission');
     }
     final envelope = await channel.seal(frame);
+    await _authorization;
     _check();
     if (envelope['recipient_peer_id'] != expectedPeer) {
       throw StateError('Peer channel does not match route');
@@ -102,6 +135,7 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
   @override
   Future<void> close() {
     _closed = true;
+    _authorizationTimer?.cancel();
     return _closing ??= _close();
   }
 

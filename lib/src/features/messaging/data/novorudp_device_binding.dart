@@ -166,6 +166,12 @@ class NovoRudpDeviceBinding {
     return BoundNetworkHandshake._(this, peer, key, identity.start(key.peerId));
   }
 
+  /// Revalidates an established channel against live membership and the exact
+  /// public key authenticated during its handshake.
+  Future<void> verifyPeer(String peer, NetworkDeviceKey key) async {
+    await _requirePeerKey(peer, key.bindingId, key.publicKey);
+  }
+
   Future<({NovoRudpSecureChannel channel, Map<String, dynamic> response})>
   respondPeer(String peer, String bindingId, Map<String, dynamic> offer) async {
     final key = await _requirePeerKey(peer, bindingId);

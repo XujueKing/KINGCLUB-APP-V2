@@ -163,6 +163,7 @@ class MemberRelayHandshake {
         relay: relay,
         channel: channel,
         expectedPeer: _key!.peerId,
+        authorize: () => binding.verifyPeer(peer, _key!),
       );
       channel = null;
       _result!.complete(link);

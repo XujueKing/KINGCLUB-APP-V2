@@ -344,6 +344,7 @@ void main() {
       const bindingA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
       const bindingB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
       var directoryReads = 0;
+      var membershipRevoked = false;
       NovoRudpDeviceBinding bound(
         String account,
         NovoRudpSecureSession identity, {
@@ -360,7 +361,8 @@ void main() {
             final device = isA ? a : b;
             return {
               'cacheSeconds': 0,
-              'keys': revokePeer && params['peer'] != account
+              'keys':
+                  (revokePeer || membershipRevoked) && params['peer'] != account
                   ? []
                   : [
                       {
@@ -428,6 +430,39 @@ void main() {
           .where((row) => row['id'] == pendingId);
       expect(recovered.length, 1);
       expect(recovered.single['text'], 'saved through relay outage');
+
+      // Revocation after establishment must end the peer stream without
+      // destroying the shared relay. Concurrent checks share the lookup.
+      final laneEnded = Completer<void>();
+      final revokedSubscription = lanes[0].frames.listen(
+        (_) {},
+        onDone: laneEnded.complete,
+      );
+      addTearDown(revokedSubscription.cancel);
+      membershipRevoked = true;
+      final readsBeforeRevocation = directoryReads;
+      final validation = lanes[0].revalidate();
+      expect(identical(validation, lanes[0].revalidate()), isTrue);
+      await expectLater(validation, throwsA(isA<AuthFailure>()));
+      await laneEnded.future.timeout(const Duration(seconds: 2));
+      expect(directoryReads - readsBeforeRevocation, 2);
+      const revokedMessage = '55555555-5555-4555-8555-555555555555';
+      await expectLater(
+        failover.sendText(
+          'pending after device revocation',
+          messageId: revokedMessage,
+        ),
+        throwsStateError,
+      );
+      expect(
+        (await ha.nearbyMessages(b.peerId, pendingOnly: true)).single['id'],
+        revokedMessage,
+      );
+      expect(
+        (await hb.nearbyMessages(a.peerId))
+            .where((row) => row['id'] == revokedMessage),
+        isEmpty,
+      );
 
       // Invalidate the generation before publishing a session event. The real
       // heartbeat timer must close both live connections without an async error.
