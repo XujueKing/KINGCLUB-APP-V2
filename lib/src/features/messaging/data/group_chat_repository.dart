@@ -120,6 +120,23 @@ class GroupChatRepository {
   Future<String?> savedJoinApplication(String groupId) =>
       _joinReceipts.application(groupId);
 
+  Future<String> cancelApplication({
+    required String groupId,
+    required String applicationId,
+  }) async {
+    final result = await messaging.call('K260916000685', {
+      'groupId': groupId,
+      'applicationId': applicationId,
+    });
+    if (result['groupId'] != groupId ||
+        result['applicationId'] != applicationId ||
+        result['changed'] is! bool ||
+        !['canceled', 'expired'].contains(result['status'])) {
+      throw const FormatException('撤回申请结果无效');
+    }
+    return result['status'] as String;
+  }
+
   Future<void> forgetJoinApplication(String groupId, String applicationId) =>
       _joinReceipts.forget(groupId, applicationId);
 

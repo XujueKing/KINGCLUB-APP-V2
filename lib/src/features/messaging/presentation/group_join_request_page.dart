@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/session/secure_session_store.dart';
 import '../../../core/networking/kingclub_realtime.dart';
+import '../../auth/domain/auth_repository.dart';
 import '../data/group_chat_repository.dart';
 import 'direct_chat_page.dart';
 import 'legacy_messaging_components.dart';
@@ -53,7 +54,7 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
       if (event['eventType'] == 'chat.group.changed' ||
           event['eventType'] == 'connection.ready') {
-        if (_busy && _status == null) {
+        if (_busy) {
           _checkAgain = true;
           return;
         }
@@ -109,6 +110,74 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
       }
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _cancelApplication() async {
+    if (_invalid ||
+        !_foreground ||
+        _busy ||
+        _checking ||
+        _status != 'pending') {
+      return;
+    }
+    final id = _applicationId;
+    if (id == null) return;
+    final generation = _generation;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('撤回入群申请？'),
+          content: const Text('撤回后，群主和管理员将无法再通过这次申请。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('保留申请'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('确认撤回'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true ||
+          !mounted ||
+          _invalid ||
+          !_foreground ||
+          generation != _generation) {
+        return;
+      }
+      final status = await widget.repository.cancelApplication(
+        groupId: widget.groupId,
+        applicationId: id,
+      );
+      if (!mounted || _invalid || !_foreground || generation != _generation) {
+        return;
+      }
+      setState(() {
+        _status = status;
+        _canEnter = false;
+        _error = null;
+      });
+    } catch (error) {
+      if (mounted && !_invalid && generation == _generation) {
+        setState(() => _error = '撤回结果未确认，请刷新后重试');
+        if (error is AuthFailure && error.code == 'CHAT_GROUP_JOIN_RESOLVED') {
+          _checkAgain = true;
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+      if (_checkAgain && mounted && !_invalid && _foreground) {
+        _checkAgain = false;
+        unawaited(_checkMembership());
+      }
     }
   }
 
@@ -302,6 +371,13 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
                         _resultText,
                         style: const TextStyle(color: Color(0xFFC9B69E)),
                       ),
+                      if (_status == 'pending' && _applicationId != null)
+                        TextButton(
+                          onPressed: _busy || _checking
+                              ? null
+                              : _cancelApplication,
+                          child: const Text('撤回申请'),
+                        ),
                       if (['rejected', 'canceled', 'expired'].contains(_status))
                         TextButton(
                           onPressed: _busy || _checking
@@ -333,7 +409,9 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
                         )
                       else
                         TextButton(
-                          onPressed: _checking ? null : _checkMembership,
+                          onPressed: _checking || _busy
+                              ? null
+                              : _checkMembership,
                           child: const Text('刷新入群状态'),
                         ),
                       TextButton(
