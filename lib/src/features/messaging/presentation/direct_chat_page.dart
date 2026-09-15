@@ -199,6 +199,34 @@ class _DirectChatPageState extends State<DirectChatPage>
   String? get _realTarget => widget.groupId ?? widget.peerAccount;
   StreamSubscription<Map<String, dynamic>>? _chatEvents;
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
+  String? _peerNickname;
+
+  String get _displayPeerName {
+    if (widget.groupId != null) {
+      return _chat?.settings['groupName'] as String? ?? widget.peerName;
+    }
+    final remark = (_chat?.settings['remark'] as String?)?.trim();
+    if (remark != null && remark.isNotEmpty) return remark;
+    return _peerNickname ?? widget.peerName;
+  }
+
+  Future<void> _refreshPeerNickname(ChatSessionController chat) async {
+    final peer = widget.peerAccount;
+    if (widget.groupId != null || peer == null) return;
+    try {
+      final profile = await cachedChatAvatarProfile(
+        _avatarProfiles,
+        peer,
+        () => chat.messaging.call('K260913000612', {'peer': peer}),
+      );
+      if (!mounted || !identical(chat, _chat)) return;
+      final nickname = (profile['nickname'] as String?)?.trim();
+      if (nickname != null && nickname.isNotEmpty) {
+        setState(() => _peerNickname = nickname);
+      }
+    } catch (_) {}
+  }
+
   StreamSubscription<void>? _sessionEvents;
   bool _loadingOlder = false;
   bool _selectingImage = false;
@@ -571,6 +599,7 @@ class _DirectChatPageState extends State<DirectChatPage>
             );
       _chat = chat;
       chat.addListener(_realChatChanged);
+      unawaited(_refreshPeerNickname(chat));
       _chatEvents = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
         final data = event['data'];
@@ -579,6 +608,7 @@ class _DirectChatPageState extends State<DirectChatPage>
             type == 'chat.group.changed' ||
             type == 'chat.relationship.changed') {
           if (mounted) setState(_avatarProfiles.clear);
+          unawaited(_refreshPeerNickname(chat));
         }
         if (type == 'connection.ready' && chat is GroupChatController) {
           chat.invalidateMemberNames();
@@ -628,6 +658,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     _releaseOutboxRecovery?.call();
     _releaseOutboxRecovery = null;
     _chat = null;
+    _peerNickname = null;
     _avatarProfiles.clear();
     if (!mounted) return;
     setState(() {
@@ -741,7 +772,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       final page = CallPage.native(
         repository: launcher.repository,
         initial: prepared.call,
-        peerName: widget.peerName,
+        peerName: _displayPeerName,
         relay: prepared.relay,
         outgoingAttempt: prepared.outgoingAttempt,
       );
@@ -930,7 +961,7 @@ class _DirectChatPageState extends State<DirectChatPage>
           children: [
             LegacyMessagingHeader(
               alignToConversationTitle: true,
-              title: _chat?.settings['groupName'] as String? ?? widget.peerName,
+              title: _displayPeerName,
               onBack: () => Navigator.pop(context),
               trailing: IconButton(
                 key: const ValueKey('direct-chat-details'),
@@ -2526,7 +2557,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       MaterialPageRoute<bool>(
         allowSnapshotting: false,
         builder: (_) => DirectChatDetailsPage(
-          peerName: widget.peerName,
+          peerName: _displayPeerName,
           peerAccount: widget.peerAccount,
           repository: _chat?.messaging,
           initialPinned: _chat?.settings['pinned'] == true,
