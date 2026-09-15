@@ -309,7 +309,17 @@ class ChatHistoryStore {
     int hiddenThrough = 0,
     int? membershipVersion,
     int? historyVersion,
+    int? peerReadSequence,
+    String? serverConversationId,
   }) async {
+    if ((peerReadSequence == null) != (serverConversationId == null) ||
+        (peerReadSequence != null &&
+            (!conversation.startsWith('direct:') ||
+                peerReadSequence < 0 ||
+                serverConversationId!.isEmpty ||
+                serverConversationId.length > 128))) {
+      throw ArgumentError('Invalid direct read receipt');
+    }
     if ((historyVersion != null &&
             (historyVersion < 0 || historyVersion > 4294967295)) ||
         (membershipVersion != null && membershipVersion < 0) ||
@@ -353,6 +363,44 @@ class ChatHistoryStore {
       final savedHidden = state['hiddenThrough'] as int;
       final floor = hiddenThrough > savedHidden ? hiddenThrough : savedHidden;
       final batch = tx.batch();
+      if (peerReadSequence != null) {
+        var readSequence = peerReadSequence;
+        final encoded = state['presentation'];
+        if (encoded is List) {
+          final bytes = await _cipher.decrypt(
+            SecretBox.fromConcatenation(
+              encoded.cast<int>(),
+              nonceLength: 12,
+              macLength: 16,
+            ),
+            secretKey: _key,
+            aad: _aad(id, 0),
+          );
+          final saved = jsonDecode(utf8.decode(bytes)) as Map;
+          final priorRead = saved['peerReadSequence'];
+          if (saved['conversationId'] == serverConversationId &&
+              priorRead is int &&
+              priorRead > readSequence) {
+            readSequence = priorRead;
+          }
+        }
+        final box = await _cipher.encrypt(
+          utf8.encode(
+            jsonEncode({
+              'conversationId': serverConversationId,
+              'peerReadSequence': readSequence,
+            }),
+          ),
+          secretKey: _key,
+          aad: _aad(id, 0),
+        );
+        batch.update(
+          'conversation',
+          {'presentation': box.concatenation()},
+          where: 'id=?',
+          whereArgs: [id],
+        );
+      }
       batch.delete(
         'message',
         where: 'conversation=? AND sequence<=?',

@@ -161,6 +161,16 @@ class DirectChatController extends ChatSessionController {
     _historyVersion = page.historyVersion;
     _hiddenThrough = page.hiddenThrough;
     if (_disposed || generation != _historyGeneration) return;
+    final savedRead = page.presentation?['peerReadSequence'];
+    final savedConversation = page.presentation?['conversationId'];
+    if (savedRead is int &&
+        savedRead >= 0 &&
+        savedConversation is String &&
+        (page.messages.isEmpty ||
+            page.messages.first['conversationId'] == savedConversation)) {
+      peerReadSequence = savedRead;
+      conversationId = savedConversation;
+    }
     for (final message in page.messages) {
       _confirmed[message['messageId'] as String] = message;
     }
@@ -468,6 +478,8 @@ class DirectChatController extends ChatSessionController {
         expectedEpoch: _diskEpoch,
         historyVersion: _historyVersion,
         hiddenThrough: hidden,
+        peerReadSequence: (result['peerReadSequence'] as num).toInt(),
+        serverConversationId: result['conversationId'] as String,
         cursor: advanceCursor && rows.isNotEmpty
             ? rows.last['sequence'] as int
             : null,

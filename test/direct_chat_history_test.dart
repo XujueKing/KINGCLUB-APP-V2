@@ -14,12 +14,14 @@ void main() {
   sqfliteFfiInit();
   late Directory dir;
   late ChatHistoryStore store;
+  late SecretKey key;
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('direct-history-');
+    key = await AesGcm.with256bits().newSecretKey();
     store = await ChatHistoryStore.openDatabaseWithKey(
       factory: databaseFactoryFfi,
       file: '${dir.path}/history.db',
-      key: await AesGcm.with256bits().newSecretKey(),
+      key: key,
       account: 'me',
     );
   });
@@ -41,6 +43,56 @@ void main() {
     outbox: MemoryOutbox(),
     openHistory: () async => store,
     repository: MessagingRepository(account: 'me', call: call),
+  );
+
+  test(
+    'server peer reads survive database reopen and offline history',
+    () async {
+      final online = controller(
+        (_, _) async => {
+          ...response([message(1), message(2)]),
+          'peerReadSequence': 2,
+        },
+      );
+      await online.initialize();
+      expect(online.error, isNull);
+      online.dispose();
+      // A late older snapshot cannot roll back the durable receipt either.
+      await store.commit(
+        'direct:peer',
+        [],
+        expectedEpoch: 0,
+        peerReadSequence: 0,
+        serverConversationId: 'conversation',
+      );
+      await store.close();
+      store = await ChatHistoryStore.openDatabaseWithKey(
+        factory: databaseFactoryFfi,
+        file: '${dir.path}/history.db',
+        key: key,
+        account: 'me',
+      );
+      final offline = controller((_, _) async => throw StateError('offline'));
+      await offline.initialize();
+      expect(offline.messages, hasLength(2));
+      expect(offline.peerReadSequence, 2);
+      expect(offline.messages.every((row) => row['peerRead'] == true), true);
+      offline.dispose();
+      expect((await store.read('direct:another-peer')).presentation, isNull);
+      final epoch = await store.clear('direct:peer');
+      expect((await store.read('direct:peer')).presentation, isNull);
+      expect(
+        await store.commit(
+          'direct:peer',
+          [],
+          expectedEpoch: epoch - 1,
+          peerReadSequence: 9,
+          serverConversationId: 'conversation',
+        ),
+        false,
+      );
+      expect((await store.read('direct:peer')).presentation, isNull);
+    },
   );
 
   test('cached call metadata refresh preserves cursor and runs once', () async {
@@ -75,48 +127,51 @@ void main() {
     chat.dispose();
   });
 
-  test('older cached page is visible before its metadata refresh completes', () async {
-    await store.commit(
-      'direct:peer',
-      List.generate(75, (i) => message(i + 1)),
-      expectedEpoch: 0,
-      cursor: 75,
-    );
-    final pending = Completer<Map<String, dynamic>>();
-    final requested = Completer<void>();
-    final metadata = {
-      'callId': '00000000-0000-4000-8000-000000000001',
-      'mediaKind': 'video',
-      'endReason': 'hangup',
-      'durationMs': 29000,
-    };
-    final chat = controller((_, params) async {
-      if (params.containsKey('before')) {
-        expect(params['before'], 26);
-        requested.complete();
-        return pending.future;
-      }
-      return response([]);
-    });
-    await chat.initialize();
-    final loading = chat.loadOlder();
-    await requested.future.timeout(const Duration(seconds: 5));
-    expect(chat.messages.length, 75);
-    expect(pending.isCompleted, false);
-    pending.complete(
-      response([
-        {...message(1), 'call': metadata},
-        ...List.generate(24, (i) => message(i + 2)),
-      ]),
-    );
-    await loading;
-    expect(chat.error, isNull);
-    expect(chat.messages.first['call'], metadata);
-    final saved = await store.read('direct:peer', before: 26);
-    expect(saved.cursor, 75);
-    expect(saved.messages.first['call'], metadata);
-    chat.dispose();
-  });
+  test(
+    'older cached page is visible before its metadata refresh completes',
+    () async {
+      await store.commit(
+        'direct:peer',
+        List.generate(75, (i) => message(i + 1)),
+        expectedEpoch: 0,
+        cursor: 75,
+      );
+      final pending = Completer<Map<String, dynamic>>();
+      final requested = Completer<void>();
+      final metadata = {
+        'callId': '00000000-0000-4000-8000-000000000001',
+        'mediaKind': 'video',
+        'endReason': 'hangup',
+        'durationMs': 29000,
+      };
+      final chat = controller((_, params) async {
+        if (params.containsKey('before')) {
+          expect(params['before'], 26);
+          requested.complete();
+          return pending.future;
+        }
+        return response([]);
+      });
+      await chat.initialize();
+      final loading = chat.loadOlder();
+      await requested.future.timeout(const Duration(seconds: 5));
+      expect(chat.messages.length, 75);
+      expect(pending.isCompleted, false);
+      pending.complete(
+        response([
+          {...message(1), 'call': metadata},
+          ...List.generate(24, (i) => message(i + 2)),
+        ]),
+      );
+      await loading;
+      expect(chat.error, isNull);
+      expect(chat.messages.first['call'], metadata);
+      final saved = await store.read('direct:peer', before: 26);
+      expect(saved.cursor, 75);
+      expect(saved.messages.first['call'], metadata);
+      chat.dispose();
+    },
+  );
 
   test('transient cache opening failure can recover on next sync', () async {
     var opens = 0, requests = 0;
