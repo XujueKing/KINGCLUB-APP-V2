@@ -111,6 +111,15 @@ class MemberRelayText {
     _subscriptions.clear();
   }
 
+  Future<void> flushReadReceipts(String peer) async {
+    if (!_active) return;
+    await Future.wait(
+      _channels.values
+          .where((channel) => channel.peerAccount == peer)
+          .map((channel) => channel.flushReadReceipts()),
+    );
+  }
+
   Future<void> close() {
     _closed = true;
     return _closing ??= _close();

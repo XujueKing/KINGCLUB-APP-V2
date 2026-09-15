@@ -14,7 +14,7 @@ const _notServerPresent =
 
 Future<void> _createNearbyMessages(DatabaseExecutor db) async {
   await db.execute(
-    'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, serverId TEXT, member TEXT, hidden INTEGER NOT NULL DEFAULT 0, wasRead INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(peer,id,outgoing))',
+    'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, serverId TEXT, member TEXT, hidden INTEGER NOT NULL DEFAULT 0, wasRead INTEGER NOT NULL DEFAULT 0, readReported INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(peer,id,outgoing))',
   );
   await _createNearbyMemberIndex(db);
 }
@@ -117,6 +117,12 @@ extension NearbyMessageHistory on ChatHistoryStore {
         }
         return;
       }
+      final priorRead = member != null && !outgoing
+          ? await tx.rawQuery(
+              'SELECT MAX(wasRead) AS wasRead FROM nearby_message WHERE member=? AND id=? AND outgoing=0',
+              [member, id],
+            )
+          : <Map<String, Object?>>[];
       await tx.insert('nearby_message', {
         'peer': peer,
         'id': id,
@@ -124,6 +130,9 @@ extension NearbyMessageHistory on ChatHistoryStore {
         'created': DateTime.now().millisecondsSinceEpoch,
         'payload': box.concatenation(),
         'member': member,
+        'wasRead': priorRead.isNotEmpty && priorRead.single['wasRead'] == 1
+            ? 1
+            : 0,
       });
     });
   }
@@ -356,6 +365,59 @@ extension NearbyMessageHistory on ChatHistoryStore {
   }
 
   /// Marks only the displayed snapshot. A later arrival must remain unread.
+  Future<List<String>> pendingNearbyReadReceipts(String peerId) async {
+    final peer = await _nearbyPeer(peerId);
+    final rows = await _db.query(
+      'nearby_message',
+      columns: ['id'],
+      where: 'peer=? AND member IS NOT NULL AND outgoing=0 AND wasRead=1 AND readReported=0',
+      whereArgs: [peer],
+      orderBy: 'id',
+      limit: 16,
+    );
+    return rows.map((r) => r['id'] as String).toList();
+  }
+
+  /// Only the authenticated device/member may acknowledge its own outgoing text.
+  Future<List<String>> applyNearbyReadReceipt({
+    required String peerId,
+    required String peerAccount,
+    required List<String> ids,
+    required bool acknowledgement,
+  }) async {
+    if (peerAccount == account ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peerAccount) ||
+        ids.isEmpty ||
+        ids.length > 16 ||
+        ids.any(
+          (id) => !RegExp(
+            r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
+          ).hasMatch(id),
+        )) {
+      throw ArgumentError('Invalid peer read receipt');
+    }
+    final peer = await _nearbyPeer(peerId);
+    final member = await _conversation('direct:$peerAccount');
+    return _db.transaction((tx) async {
+      final where =
+          'peer=? AND member=? AND outgoing=? ${acknowledgement ? 'AND wasRead=1 ' : ''}AND id IN (${List.filled(ids.length, '?').join(',')})';
+      final args = [peer, member, acknowledgement ? 0 : 1, ...ids];
+      final rows = await tx.query(
+        'nearby_message',
+        columns: ['id'],
+        where: where,
+        whereArgs: args,
+      );
+      await tx.update(
+        'nearby_message',
+        acknowledgement ? {'readReported': 1} : {'wasRead': 1, 'delivered': 1},
+        where: where,
+        whereArgs: args,
+      );
+      return rows.map((r) => r['id'] as String).toList();
+    });
+  }
+
   Future<int> markNearbyMemberRead(String peerAccount, List<String> ids) async {
     if (peerAccount == account ||
         !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peerAccount) ||

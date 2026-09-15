@@ -39,6 +39,7 @@ void main() {
       addTearDown(proxy.close);
       var dropped = false;
       var dropReceipt = false;
+      var dropReadAck = false;
       proxy.writeEventsEnabled = false;
       final forwarding = proxy.listen((event) {
         if (event != RawSocketEvent.read) return;
@@ -46,6 +47,10 @@ void main() {
         while ((packet = proxy.receive()) != null) {
           final p = packet!;
           if (p.port != ap && p.port != bp) continue;
+          if (dropReadAck && p.port == ap) {
+            dropReadAck = false;
+            continue;
+          }
           if (dropReceipt && p.port == bp) {
             dropReceipt = false;
             continue;
@@ -127,12 +132,14 @@ void main() {
         link: links[0],
         history: ha,
         peerId: b.peerId,
+        peerAccount: 'member-b',
         canExchange: () => authorized,
       );
       final tb = NearbyTextChannel(
         link: links[1],
         history: hb,
         peerId: a.peerId,
+        peerAccount: 'member-a',
         canExchange: () => authorized,
       );
       addTearDown(() async {
@@ -153,6 +160,18 @@ void main() {
       expect(await ha.nearbyMessages(b.peerId, pendingOnly: true), isEmpty);
       await ta.sendText(body, messageId: messageId);
       expect((await hb.nearbyMessages(a.peerId)).length, 1);
+      await hb.markNearbyMemberRead('member-a', [messageId]);
+      dropReceipt = true;
+      dropReadAck = true;
+      await tb.flushReadReceipts();
+      for (var attempt = 0; attempt < 90; attempt++) {
+        if ((await hb.pendingNearbyReadReceipts(a.peerId)).isEmpty) break;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      expect(dropReceipt, false);
+      expect(dropReadAck, false);
+      expect(await hb.pendingNearbyReadReceipts(a.peerId), isEmpty);
+      expect((await ha.nearbyMemberMessages('member-b')).single['read'], true);
       await ha.persistNearbyText(
         peerId: b.peerId,
         id: '22222222-2222-4222-8222-222222222222',

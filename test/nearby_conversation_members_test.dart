@@ -66,6 +66,7 @@ void main() {
     // and a later authenticated replay safely restores the missing mapping.
     await raw.execute('DROP TABLE nearby_member');
     await raw.execute('DROP TABLE conversation_list_cache');
+    await raw.execute('ALTER TABLE nearby_message DROP COLUMN readReported');
     await raw.setVersion(11);
     await raw.close();
     store = await open();

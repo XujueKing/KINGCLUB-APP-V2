@@ -74,6 +74,10 @@ class NovoRudpBindingRuntime {
       final changed = await history.markNearbyMemberRead(peer, ids);
       if (generation == MemberQrMemory.generation && changed > 0) {
         _textChanges.add((account: account, peer: peer));
+        final text = _text;
+        if (text != null && text.history.account == account) {
+          unawaited(text.flushReadReceipts(peer));
+        }
       }
     };
   }

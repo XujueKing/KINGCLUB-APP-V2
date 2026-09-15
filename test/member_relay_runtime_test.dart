@@ -287,6 +287,26 @@ void main() {
       );
       expect(restoredRows.single['unreadCount'], 1);
       await receiverHistory.markNearbyMemberRead('friend', [textId]);
+      await receiveText.flushReadReceipts('friend');
+      for (var attempt = 0; attempt < 50; attempt++) {
+        final sent = await senderHistory.nearbyMemberMessages('runtime-member');
+        if (sent.single['read'] == true &&
+            (await receiverHistory.pendingNearbyReadReceipts(
+              callerIdentity.peerId,
+            )).isEmpty) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      expect(
+        (await senderHistory.nearbyMemberMessages('runtime-member'))
+            .single['read'],
+        true,
+      );
+      expect(
+        await receiverHistory.pendingNearbyReadReceipts(callerIdentity.peerId),
+        isEmpty,
+      );
       expect(
         (await offlineRelayConversations(
           receiverHistory,

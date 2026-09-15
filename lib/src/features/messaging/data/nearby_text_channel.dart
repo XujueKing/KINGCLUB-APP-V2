@@ -52,6 +52,13 @@ class NearbyTextChannel {
       onError: (Object _) => unawaited(close()),
       onDone: () => unawaited(close()),
     );
+    if (peerAccount != null) {
+      _readRetry = Timer.periodic(
+        const Duration(seconds: 3),
+        (_) => unawaited(flushReadReceipts()),
+      );
+      unawaited(flushReadReceipts());
+    }
   }
   final NovoRudpFrameLink link;
   final ChatHistoryStore history;
@@ -72,6 +79,25 @@ class NearbyTextChannel {
   BigInt _sequence = BigInt.zero;
   int _queued = 0;
   bool _closed = false;
+  Timer? _readRetry;
+  bool _sendingRead = false;
+  Future<void> flushReadReceipts() async {
+    if (_closed || _sendingRead || peerAccount == null) return;
+    _sendingRead = true;
+    try {
+      _check();
+      final ids = await history.pendingNearbyReadReceipts(peerId);
+      _check();
+      if (ids.isNotEmpty) {
+        await _send({'v': 1, 'op': 'read', 'ids': ids}, NovoRudpFrameKind.data);
+      }
+    } catch (_) {
+      // Durable pending IDs remain available for the next live channel.
+    } finally {
+      _sendingRead = false;
+    }
+  }
+
   Stream<String> get changes => _changes.stream;
   void _check() {
     if (_closed || _generation != MemberQrMemory.generation || !canExchange()) {
@@ -195,6 +221,36 @@ class NearbyTextChannel {
     } on FormatException {
       return;
     }
+    if (value['v'] == 1 &&
+        (value['op'] == 'read' || value['op'] == 'read_ack')) {
+      if (frame.kind != NovoRudpFrameKind.data || peerAccount == null) return;
+      final ids = value['ids'];
+      if (ids is! List ||
+          ids.isEmpty ||
+          ids.length > 16 ||
+          ids.any((id) => id is! String || !_uuid.hasMatch(id))) {
+        return;
+      }
+      final ack = value['op'] == 'read_ack';
+      final matched = await history.applyNearbyReadReceipt(
+        peerId: peerId,
+        peerAccount: peerAccount!,
+        ids: ids.cast<String>(),
+        acknowledgement: ack,
+      );
+      _check();
+      if (!ack && matched.isNotEmpty) {
+        await _send({
+          'v': 1,
+          'op': 'read_ack',
+          'ids': matched,
+        }, NovoRudpFrameKind.data);
+        for (final id in matched) {
+          _changes.add(id);
+        }
+      }
+      return;
+    }
     final id = value['id'], hash = value['hash'];
     if (value['v'] != 1 ||
         id is! String ||
@@ -278,6 +334,7 @@ class NearbyTextChannel {
 
   Future<void> close() {
     _closed = true;
+    _readRetry?.cancel();
     return _closing ??= _close();
   }
 
