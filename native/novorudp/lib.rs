@@ -12,8 +12,16 @@ mod product_overlay {
         "/crates/novovm-network/src/product_overlay.rs"
     ));
 }
+#[allow(dead_code)]
+mod product_nat {
+    include!(concat!(
+        env!("NOVORUDP_SOURCE_ROOT"),
+        "/crates/novovm-network/src/product_nat.rs"
+    ));
+}
 use ed25519_dalek::{Signer, SigningKey};
 use novorudp::NovoRudpTransportFrameV0;
+use product_nat::*;
 use product_overlay::*;
 use serde_json::{json, Value};
 use std::{
@@ -110,6 +118,86 @@ fn command(v: Value) -> Result<Value, String> {
             bytes.extend_from_slice(&nonce);
             bytes.extend_from_slice(&key.verifying_key().to_bytes());
             Ok(json!({"signature":key.sign(&bytes).to_bytes().to_vec()}))
+        }
+        "natProbe" => {
+            let Some(Object::Identity(key)) = s.objects.get(&id) else {
+                return Err("identity unavailable".into());
+            };
+            let packet = if v["targetPeer"].is_null() {
+                NatDatagramV1::ObservedProbe(build_observed_endpoint_probe_v1(key, now(), 10000))
+            } else {
+                NatDatagramV1::PunchRequest(build_nat_punch_request_v1(
+                    key,
+                    text(&v, "targetPeer")?,
+                    now(),
+                    10000,
+                ))
+            };
+            Ok(json!({"packet":packet}))
+        }
+        "natRespond" => {
+            let Some(Object::Identity(key)) = s.objects.get(&id) else {
+                return Err("identity unavailable".into());
+            };
+            let packet: NatDatagramV1 =
+                serde_json::from_value(v["packet"].clone()).map_err(|_| "invalid NAT packet")?;
+            let expected = text(&v, "expectedPeer")?;
+            let endpoint: std::net::SocketAddr = text(&v, "observedEndpoint")?
+                .parse()
+                .map_err(|_| "invalid endpoint")?;
+            if endpoint.port() == 0 {
+                return Err("invalid endpoint".into());
+            }
+            let ack = match packet {
+                NatDatagramV1::ObservedProbe(probe) if probe.requester_peer_id == expected => {
+                    NatDatagramV1::ObservedAck(
+                        handle_observed_endpoint_probe_v1(key, &probe, endpoint, now(), 10000)
+                            .map_err(|e| e.to_string())?,
+                    )
+                }
+                NatDatagramV1::PunchRequest(request) if request.source_peer_id == expected => {
+                    NatDatagramV1::PunchAck(
+                        handle_nat_punch_request_v1(key, &request, endpoint, now(), 10000)
+                            .map_err(|e| e.to_string())?,
+                    )
+                }
+                _ => return Err("unexpected NAT requester".into()),
+            };
+            Ok(json!({"packet":ack}))
+        }
+        "natValidate" => {
+            let Some(Object::Identity(key)) = s.objects.get(&id) else {
+                return Err("identity unavailable".into());
+            };
+            let own = peer_id_from_ed25519_public_key_v1(&key.verifying_key().to_bytes());
+            let request: NatDatagramV1 =
+                serde_json::from_value(v["request"].clone()).map_err(|_| "invalid NAT request")?;
+            let ack: NatDatagramV1 =
+                serde_json::from_value(v["packet"].clone()).map_err(|_| "invalid NAT response")?;
+            let expected = text(&v, "expectedPeer")?;
+            let endpoint = match (request, ack) {
+                (NatDatagramV1::ObservedProbe(probe), NatDatagramV1::ObservedAck(ack))
+                    if probe.requester_peer_id == own =>
+                {
+                    validate_observed_endpoint_ack_v1(&ack, &probe, expected, now())
+                        .map_err(|e| e.to_string())?;
+                    ack.observed_endpoint
+                }
+                (NatDatagramV1::PunchRequest(request), NatDatagramV1::PunchAck(ack))
+                    if request.source_peer_id == own && request.target_peer_id == expected =>
+                {
+                    validate_nat_punch_ack_v1(&ack, &request, expected, now())
+                        .map_err(|e| e.to_string())?;
+                    ack.observed_source_endpoint
+                }
+                _ => return Err("NAT response scope mismatch".into()),
+            };
+            let parsed: std::net::SocketAddr =
+                endpoint.parse().map_err(|_| "invalid observed endpoint")?;
+            if parsed.port() == 0 {
+                return Err("invalid observed endpoint".into());
+            }
+            Ok(json!({"endpoint":parsed.to_string()}))
         }
         "start" => {
             if s.objects.len() >= 128 {

@@ -108,6 +108,15 @@ class _Bridge {
   }
 }
 
+class NovoRudpNatProbe {
+  NovoRudpNatProbe._(this._owner, Map<String, dynamic> packet)
+    : _encoded = jsonEncode(packet);
+  final NovoRudpSecureSession _owner;
+  final String _encoded;
+  Map<String, dynamic> get packet =>
+      jsonDecode(_encoded) as Map<String, dynamic>;
+}
+
 class NovoRudpHandshake {
   NovoRudpHandshake._(this._owner, this._handle, this.offer);
   final NovoRudpSecureSession _owner;
@@ -253,6 +262,45 @@ class NovoRudpSecureSession {
     });
     return Uint8List.fromList((result['signature'] as List).cast<int>())
         .asUnmodifiableView();
+  }
+
+  NovoRudpNatProbe natProbe({String? targetPeer}) {
+    _check();
+    final value = _bridge.call('natProbe', _identity, {
+      'targetPeer': targetPeer,
+    });
+    return NovoRudpNatProbe._(this, value['packet'] as Map<String, dynamic>);
+  }
+
+  Map<String, dynamic> respondNat(
+    Map<String, dynamic> packet, {
+    required String expectedPeer,
+    required String observedEndpoint,
+  }) {
+    _check();
+    return _bridge.call('natRespond', _identity, {
+          'packet': packet,
+          'expectedPeer': expectedPeer,
+          'observedEndpoint': observedEndpoint,
+        })['packet']
+        as Map<String, dynamic>;
+  }
+
+  String validateNat(
+    NovoRudpNatProbe probe,
+    Map<String, dynamic> packet, {
+    required String expectedPeer,
+  }) {
+    _check();
+    if (!identical(probe._owner, this)) {
+      throw StateError('Wrong NAT probe owner');
+    }
+    return _bridge.call('natValidate', _identity, {
+          'request': probe.packet,
+          'packet': packet,
+          'expectedPeer': expectedPeer,
+        })['endpoint']
+        as String;
   }
 
   NovoRudpHandshake start(String expectedPeer) {

@@ -183,3 +183,9 @@ The new opt-in native_rendezvous_http_test.dart passed against an actual isolate
 Fixture host: backend tests/scripts/native-rendezvous-host.mjs, hard-gated to kingclub_chat_test_20260913, 300-second lifetime; temporary container port published only at server 127.0.0.1:39183, tunnel workstation 127.0.0.1:39184. Credentials were kept in a temporary non-committed fixture file and removed after the test. Container/tunnel stopped. A subsequent independent SQL check proved active native-rendezvous-device test sessions = 0 and interface 683 enabled = 0. Targeted Dart analyze passed.
 
 Scope: this joins the previously separate real native and real HTTP/Redis evidence. Payload encryption was exercised locally after server negotiation, not over public UDP. NAT traversal, public data relay, sustained authorization after handshake and automatic chat attachment fallback are still unfinished. No phone update or online API replacement.
+
+### 2026-09-15 signed NAT protocol bridge
+
+Reused pinned SUPERVM `product_nat.rs` without changing its signed datagram format. The native identity can create discovery/punch requests, respond to an expected identity, and validate signed acknowledgements against the original challenge and expected observer/peer. The Dart probe retains an immutable serialized request; wrong-owner validation is rejected. The Android source guard now includes this upstream file.
+
+Validation: 34 Rust tests passed; a real Windows dynamic-library Dart test passed for discovery/punch, IPv4/IPv6 endpoint results, wrong identity/owner/nonce/target rejection and signature tampering. Android ARM64 release native build passed. This is packet compatibility and authentication evidence, not public NAT traversal or phone-to-phone delivery. The bridge opens no sockets; shared-socket traversal, observer provisioning, relay and production chat routing remain unfinished.
