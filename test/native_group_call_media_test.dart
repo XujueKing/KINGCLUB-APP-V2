@@ -258,7 +258,12 @@ class Repo extends GroupCallMediaRepository {
         }),
       );
   @override
-  Future<List<GroupMediaSource>> sources() async => [];
+  Future<List<GroupMediaSource>> sources() async {
+    if (sourceFailure != null) throw sourceFailure!;
+    return [];
+  }
+
+  Object? sourceFailure;
   @override
   void close() {
     closes++;
@@ -267,6 +272,35 @@ class Repo extends GroupCallMediaRepository {
 }
 
 void main() {
+  for (final mode in ['recover', 'timeout', 'denied']) {
+    testWidgets('source polling $mode', (tester) async {
+      final repo = Repo(), stream = StreamFixture();
+      final errors = <Object>[];
+      final media = NativeGroupCallMedia(
+        repository: repo,
+        device: DeviceFixture(),
+        capture: (_) async => stream,
+        onError: errors.add,
+      );
+      await media.open();
+      repo.sourceFailure = AuthFailure(
+        mode == 'denied' ? 'SESSION_CHANGED' : 'NETWORK_ERROR',
+        'test',
+      );
+      await tester.pump(const Duration(seconds: 2));
+      expect(media.isClosed, mode == 'denied');
+      if (mode == 'recover') {
+        repo.sourceFailure = null;
+        await tester.pump(const Duration(seconds: 2));
+      }
+      await tester.pump(const Duration(seconds: 9));
+      expect(media.isClosed, mode != 'recover');
+      expect(stream.track.stops, mode == 'recover' ? 0 : 1);
+      expect(errors.length, mode == 'recover' ? 0 : 1);
+      await media.close();
+    });
+  }
+
   for (final recovers in [true, false]) {
     testWidgets(
       'automatic ICE recovery ${recovers ? "cancels expiry on recovery" : "stops capture on timeout"}',

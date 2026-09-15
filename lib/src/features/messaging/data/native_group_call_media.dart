@@ -60,6 +60,8 @@ class NativeGroupCallMedia {
   Future<void>? _opening, _closing, _refreshing;
   Future<void> _controls = Future.value();
   Timer? _poll;
+  Timer? _sourceReadDeadline;
+  bool _opened = false;
   Timer? _renewRelay, _recoverNetwork;
   Timer? _recoveryDeadline;
   final _unhealthyDirections = <String>{};
@@ -193,6 +195,7 @@ class NativeGroupCallMedia {
       await refreshRemote();
       _check();
       _scheduleRelay(configuration);
+      _opened = true;
       _poll = Timer.periodic(const Duration(seconds: 2), (_) {
         unawaited(refreshRemote().catchError((Object error) => _fail(error)));
       });
@@ -285,8 +288,21 @@ class NativeGroupCallMedia {
     if (receive == null) {
       throw StateError('Receive transport not ready');
     }
-    final sources = await repository.sources();
-    _check();
+    late final List<GroupMediaSource> sources;
+    try {
+      sources = await repository.sources();
+      _check();
+      _sourceReadDeadline?.cancel();
+      _sourceReadDeadline = null;
+    } on AuthFailure catch (error) {
+      // Retry only the read-only source listing after an established open.
+      // Never hide authorization failures or retry publish/consume mutations.
+      if (!_opened || _closed || error.code != 'NETWORK_ERROR') rethrow;
+      _sourceReadDeadline ??= Timer(const Duration(seconds: 8), () {
+        _fail(error);
+      });
+      return;
+    }
     final active = sources.map((s) => s.producerId).toSet();
     for (final id in _consumers.keys.toList()) {
       if (!active.contains(id)) {
@@ -514,6 +530,7 @@ class NativeGroupCallMedia {
     _closed = true;
     repository.close();
     _poll?.cancel();
+    _sourceReadDeadline?.cancel();
     _renewRelay?.cancel();
     _recoverNetwork?.cancel();
     _recoveryDeadline?.cancel();
