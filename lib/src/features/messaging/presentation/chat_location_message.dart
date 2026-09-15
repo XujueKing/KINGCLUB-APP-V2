@@ -132,7 +132,7 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
         leading: KingBackButton(onPressed: () => Navigator.of(context).pop()),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: !_valid
               ? const Text('登录状态已变化，请重新进入')

@@ -8,6 +8,60 @@ import 'package:kingclub/src/features/messaging/data/chat_location.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_location_message.dart';
 
 void main() {
+  testWidgets(
+    'long location remains actionable on a small phone with large text',
+    (tester) async {
+      tester.view.physicalSize = const Size(720, 1604);
+      tester.view.devicePixelRatio = 2.25;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final longLocation = ChatLocation.fromJson({
+        'latitudeE6': 28000001,
+        'longitudeE6': 113000001,
+        'coordinateSystem': 'gcj02',
+        'name': List.filled(10, '测试地点长名称').join(),
+        'address': List.filled(25, '测试地址详细楼栋及房间').join(),
+      });
+      var opened = false;
+      const channel = MethodChannel('kingclub/chat-map');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        opened = true;
+        expect(call.arguments['name'], longLocation.name);
+        expect(call.arguments['latitudeE6'], longLocation.latitudeE6);
+        return true;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(1.35)),
+            child: child!,
+          ),
+          home: ChatLocationDetailsPage(location: longLocation),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.text('在高德地图查看'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('在高德地图查看'));
+      await tester.pumpAndSettle();
+      expect(opened, true);
+      await tester.ensureVisible(find.text('复制地点信息'));
+      await tester.pumpAndSettle();
+      expect(find.text('复制地点信息').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   final location = ChatLocation.fromJson({
     'latitudeE6': 28000001,
     'longitudeE6': 113000001,
