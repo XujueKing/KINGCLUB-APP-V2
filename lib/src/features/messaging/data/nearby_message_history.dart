@@ -1,7 +1,7 @@
 part of 'chat_history_store.dart';
 
 Future<void> _createNearbyMessages(DatabaseExecutor db) => db.execute(
-  'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(peer,id,outgoing))',
+  'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, serverId TEXT, PRIMARY KEY(peer,id,outgoing))',
 );
 
 /// Device-to-device local messages have no server sequence until reconciled.
@@ -100,7 +100,9 @@ extension NearbyMessageHistory on ChatHistoryStore {
     final peer = await _nearbyPeer(peerId);
     final rows = await _db.query(
       'nearby_message',
-      where: pendingOnly ? 'peer=? AND outgoing=1 AND delivered=0' : 'peer=?',
+      where: pendingOnly
+          ? 'peer=? AND outgoing=1 AND delivered=0 AND serverId IS NULL'
+          : 'peer=?',
       whereArgs: [peer],
       orderBy: pendingOnly ? 'created ASC, id ASC' : 'created DESC, id DESC',
       limit: limit,
@@ -113,8 +115,70 @@ extension NearbyMessageHistory on ChatHistoryStore {
         'outgoing': row['outgoing'] == 1,
         'delivered': row['delivered'] == 1,
         'created': row['created'],
+        'serverMessageId': row['serverId'],
       });
     }
     return result;
+  }
+
+  /// Reconciles only authenticated service history, never peer-supplied claims.
+  /// Server persistence and a recipient receipt remain distinct states.
+  Future<int> reconcileNearbyText({
+    required String peerId,
+    required String peerAccount,
+    required List<Map<String, dynamic>> confirmed,
+  }) async {
+    if (peerAccount == account ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peerAccount) ||
+        confirmed.length > 200) {
+      throw ArgumentError('Invalid reconciliation scope');
+    }
+    final peer = await _nearbyPeer(peerId);
+    final messages = confirmed.map(_payload).toList();
+    return _db.transaction((tx) async {
+      var changed = 0;
+      for (final message in messages) {
+        if (message['groupId'] != null ||
+            message['call'] != null ||
+            ![
+              null,
+              'text',
+              'hidden',
+              'recalled',
+            ].contains(message['messageType'])) {
+          continue;
+        }
+        final outgoing =
+            message['sender'] == account && message['recipient'] == peerAccount;
+        final incoming =
+            message['sender'] == peerAccount && message['recipient'] == account;
+        if (!outgoing && !incoming) continue;
+        final rows = await tx.query(
+          'nearby_message',
+          where: 'peer=? AND id=? AND outgoing=?',
+          whereArgs: [peer, message['clientMessageId'], outgoing ? 1 : 0],
+        );
+        if (rows.isEmpty) continue;
+        final row = rows.single;
+        final tombstone = [
+          'hidden',
+          'recalled',
+        ].contains(message['messageType']);
+        if ((!tombstone && await _nearbyText(row) != message['text']) ||
+            (row['serverId'] != null &&
+                row['serverId'] != message['messageId'])) {
+          throw StateError('Peer/server message identity conflict');
+        }
+        if (row['serverId'] == null) {
+          changed += await tx.update(
+            'nearby_message',
+            {'serverId': message['messageId']},
+            where: 'peer=? AND id=? AND outgoing=?',
+            whereArgs: [peer, message['clientMessageId'], outgoing ? 1 : 0],
+          );
+        }
+      }
+      return changed;
+    });
   }
 }
