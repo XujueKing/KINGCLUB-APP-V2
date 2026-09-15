@@ -195,3 +195,11 @@ Validation: 34 Rust tests passed; a real Windows dynamic-library Dart test passe
 Added explicit-peer signed discovery/punch over a real RawDatagramSocket, with 250 ms retries and an 8 second deadline. A verified punch hands its existing socket and subscription to the encrypted carrier without rebinding. The carrier continues answering that peer's signed punch retries, covering a lost acknowledgement during asymmetric handoff. Session changes close pending work; the former owner cannot close an already transferred carrier. Authorization/observer trust must be established by the caller; no production route enables it yet.
 
 Validation: actual loopback UDP plus real native crypto confirmed discovery, simultaneous punch, unchanged ports, late punch retry after one side's handoff and encrypted payload receipt. Together with existing secure carrier tests, 5 tests passed; targeted analysis clean. This proves local socket/protocol integration, not traversal across mobile carriers, public relay availability or automatic CCSOP fallback. Those remain pending.
+
+### 2026-09-15 mobile relay directory
+
+Pinned `product_directory.rs` is now included and protected by the Android upstream source guard. Native calls sign a 60-second relay advertisement (at most four endpoints) and validate advertisements against an explicitly expected peer using upstream canonical signatures. Signing does not publish the record or start a relay.
+
+Added a session-scoped authorized candidate cache: default 16, hard maximum 32 records, at most 128 explicitly trusted identities; expired records are removed on access, lower sequence and conflicting equal sequence updates rejected, returned maps are independent copies. Session changes clear the cache. Trust identities must come from a separately verified bootstrap source; a self-signed record alone does not grant trust. No public bootstrap discovery or automatic connection is enabled by this cache.
+
+Validation: 40 native Rust tests passed; real DLL Dart test passed for signature, identity, capacity, sequence, mutation isolation and close guards. Targeted analysis clean and Android ARM64 release native compilation passed. Public relay reachability, phone relay service/resource policy, mainnet bootstrap integration and automatic chat fallback remain unfinished.

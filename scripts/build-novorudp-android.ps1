@@ -11,7 +11,7 @@ if (!(Test-Path -LiteralPath $linker)) { throw 'Android API 24 ARM64 linker is m
 # Compile the reviewed upstream sources, not an arbitrary local branch revision.
 $upstreamHead = & git -C $source rev-parse HEAD
 if ($LASTEXITCODE -ne 0 -or $upstreamHead.Trim() -ne '12c1f3b40b544fda6f776ae437c325fa917341ee') { throw 'Unreviewed SUPERVM source revision.' }
-& git -C $source diff --quiet HEAD -- crates/novovm-network/src/novorudp.rs crates/novovm-network/src/product_overlay.rs crates/novovm-network/src/product_nat.rs
+& git -C $source diff --quiet HEAD -- crates/novovm-network/src/novorudp.rs crates/novovm-network/src/product_overlay.rs crates/novovm-network/src/product_nat.rs crates/novovm-network/src/product_directory.rs
 if ($LASTEXITCODE -ne 0) { throw 'Upstream protocol source has unreviewed changes.' }
 $names = @('NOVORUDP_SOURCE_ROOT','CARGO_TARGET_DIR','CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER')
 $saved = @{}

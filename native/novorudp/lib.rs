@@ -19,6 +19,13 @@ mod product_nat {
         "/crates/novovm-network/src/product_nat.rs"
     ));
 }
+#[allow(dead_code)]
+mod product_directory {
+    include!(concat!(
+        env!("NOVORUDP_SOURCE_ROOT"),
+        "/crates/novovm-network/src/product_directory.rs"
+    ));
+}
 use ed25519_dalek::{Signer, SigningKey};
 use novorudp::NovoRudpTransportFrameV0;
 use product_nat::*;
@@ -118,6 +125,40 @@ fn command(v: Value) -> Result<Value, String> {
             bytes.extend_from_slice(&nonce);
             bytes.extend_from_slice(&key.verifying_key().to_bytes());
             Ok(json!({"signature":key.sign(&bytes).to_bytes().to_vec()}))
+        }
+        "relayRecord" => {
+            let Some(Object::Identity(key)) = s.objects.get(&id) else {
+                return Err("identity unavailable".into());
+            };
+            let endpoints: Vec<product_directory::RelayEndpointV1> =
+                serde_json::from_value(v["endpoints"].clone())
+                    .map_err(|_| "invalid relay endpoints")?;
+            if endpoints.is_empty() || endpoints.len() > 4 {
+                return Err("relay endpoint limit".into());
+            }
+            let record = product_directory::sign_relay_record_v1(
+                key,
+                text(&v, "recordId")?,
+                endpoints,
+                now(),
+                now() + 60000,
+                v["sequence"].as_u64().ok_or("invalid sequence")?,
+            )
+            .map_err(|e| e.to_string())?;
+            Ok(json!({"record":record}))
+        }
+        "validateRelay" => {
+            let record: product_directory::PeerSignedRelayRecordV1 =
+                serde_json::from_value(v["record"].clone()).map_err(|_| "invalid relay record")?;
+            if record.relay_peer_id != text(&v, "expectedPeer")? {
+                return Err("untrusted relay identity".into());
+            }
+            if record.endpoints.len() > 4 {
+                return Err("relay endpoint limit".into());
+            }
+            let verified = product_directory::validate_relay_record_v1(&record, now())
+                .map_err(|e| e.to_string())?;
+            Ok(json!({"record":verified.record}))
         }
         "natProbe" => {
             let Some(Object::Identity(key)) = s.objects.get(&id) else {

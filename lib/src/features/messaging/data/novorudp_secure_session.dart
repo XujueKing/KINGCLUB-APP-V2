@@ -264,6 +264,33 @@ class NovoRudpSecureSession {
         .asUnmodifiableView();
   }
 
+  /// Signs a short-lived advertisement only; does not start a relay or publish it.
+  Map<String, dynamic> signRelayRecord({
+    required String recordId,
+    required int sequence,
+    required List<Map<String, dynamic>> endpoints,
+  }) {
+    _check();
+    return _bridge.call('relayRecord', _identity, {
+          'recordId': recordId,
+          'sequence': sequence,
+          'endpoints': endpoints,
+        })['record']
+        as Map<String, dynamic>;
+  }
+
+  Map<String, dynamic> validateRelayRecord(
+    Map<String, dynamic> record, {
+    required String expectedPeer,
+  }) {
+    _check();
+    return _bridge.call('validateRelay', _identity, {
+          'record': record,
+          'expectedPeer': expectedPeer,
+        })['record']
+        as Map<String, dynamic>;
+  }
+
   NovoRudpNatProbe natProbe({String? targetPeer}) {
     _check();
     final value = _bridge.call('natProbe', _identity, {
