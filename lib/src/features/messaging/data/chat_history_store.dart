@@ -12,6 +12,7 @@ import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 
 part 'nearby_message_history.dart';
+part 'conversation_list_cache.dart';
 
 class ChatHistoryPage {
   const ChatHistoryPage(
@@ -89,8 +90,9 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 12,
+        version: 13,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 13) await _createConversationListCache(db);
           if (oldVersion < 12) await _createNearbyMembers(db);
           if (oldVersion < 11) await _createNearbyServerPresence(db);
           if (oldVersion < 6) await _createNearbyMessages(db);
@@ -137,6 +139,7 @@ class ChatHistoryStore {
           }
         },
         onCreate: (db, _) async {
+          await _createConversationListCache(db);
           await _createNearbyMembers(db);
           await _createNearbyServerPresence(db);
           await _createNearbyMessages(db);

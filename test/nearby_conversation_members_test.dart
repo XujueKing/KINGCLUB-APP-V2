@@ -65,6 +65,7 @@ void main() {
     // Re-create the prior version without a catalogue: migration keeps journals,
     // and a later authenticated replay safely restores the missing mapping.
     await raw.execute('DROP TABLE nearby_member');
+    await raw.execute('DROP TABLE conversation_list_cache');
     await raw.setVersion(11);
     await raw.close();
     store = await open();

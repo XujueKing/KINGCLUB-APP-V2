@@ -188,6 +188,30 @@ class _ConversationsPageState extends State<ConversationsPage>
           _rebindIfSignedIn();
         }
       });
+      if (repository.persistHistory || widget.openRelayHistory != null) {
+        try {
+          final cached = await (await _openRelayHistory(repository))
+              .readConversationList();
+          if (!mounted || generation != _realGeneration) return;
+          if (cached.isNotEmpty) {
+            setState(() {
+              _realItems
+                ..clear()
+                ..addAll(cached);
+              _realReady = true;
+              _hasMore = false;
+            });
+            widget.onFriendUnreadChanged(
+              cached.fold<int>(
+                0,
+                (sum, item) => sum + (item['unreadCount'] as num).toInt(),
+              ),
+            );
+          }
+        } catch (_) {
+          // A damaged/missing cache must not prevent a fresh server request.
+        }
+      }
       await _refreshReal();
     } catch (_) {
       if (mounted) setState(() => _showOfflineBanner = true);
@@ -257,6 +281,14 @@ class _ConversationsPageState extends State<ConversationsPage>
           (sum, item) => sum + (item['unreadCount'] as num).toInt(),
         ),
       );
+      if (repository.persistHistory || widget.openRelayHistory != null) {
+        try {
+          await (await _openRelayHistory(repository))
+              .saveConversationList(_realItems);
+        } catch (_) {
+          // Cache availability must not turn a successful refresh into an error.
+        }
+      }
     } catch (_) {
       if (mounted && generation == _realGeneration) {
         setState(() => _showOfflineBanner = true);
