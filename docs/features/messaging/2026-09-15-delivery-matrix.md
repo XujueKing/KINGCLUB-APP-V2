@@ -110,3 +110,11 @@ Bottom navigation now caps its visible unread number at 99, matching the convers
 Conversation list requests now run sequentially. Repeated pagination shares the pending request; first-page refreshes arriving during a request are coalesced into a trailing refresh. This prevents overlapping offsets from invalidating one another and ensures updates observed while loading are fetched afterward. Existing account-generation guards remain in place.
 
 Validation: new controlled widget test holds pagination pending, repeats load-more and tab activation, then verifies one pagination request followed by one fresh first page and replacement of old rows. Together with group routing and mute regressions, four tests passed; targeted analyze passed. This is injected API evidence, not real handset delivery. Not installed yet.
+
+## 09:14 手机安装
+
+- 51ea94f 工作区构建 Profile/preview ARM64，保留未提交 onboarding 三文件变更。真实测试 API；NovoRUDP ARM64 ELF 检查通过。Gradle 60.7 秒，149.2MB。
+- APK SHA256: abca640b6cbfed659f1a6522d45d96b35b4401a930304d1be40950a4da6a050e。
+- adb install -r Success；lastUpdateTime 2026-09-15 09:14:14；am start Status ok，WaitTime 3026ms；近期 AndroidRuntime/flutter error 过滤无输出。
+- 包含顺序刷新/分页、底栏 99 上限、晚到 WebSocket 清理、缓存清除 generation 修复及 NovoRUDP 接收队列/同进程续传修复。仅设备身份绑定已接客户端，实际聊天尚未选择 UDP。
+- 手机检查时处于休眠；安装启动不等于用户视频成功发送、语音可听或双机验收。在线表情云/ASR发布限制仍未解除。
