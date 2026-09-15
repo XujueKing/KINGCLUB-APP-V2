@@ -16,6 +16,36 @@ class Socket extends Fake implements WebSocket {
 
 void main() {
   final uri = Uri.parse('wss://fixture.invalid/ws');
+  test('real delayed upgrade closes late connection on server', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final arrived = Completer<void>(), allowUpgrade = Completer<void>();
+    final closed = Completer<void>();
+    final subscription = server.listen((request) async {
+      arrived.complete();
+      await allowUpgrade.future;
+      try {
+        final socket = await WebSocketTransformer.upgrade(request);
+        socket.listen(
+          (_) {},
+          onDone: () => closed.complete(),
+          onError: (Object e, StackTrace st) => closed.completeError(e, st),
+        );
+      } catch (e, st) {
+        closed.completeError(e, st);
+      }
+    });
+    addTearDown(subscription.cancel);
+    final pending = connectRealtimeSocket(
+      Uri.parse('ws://127.0.0.1:${server.port}/ws'),
+      timeout: const Duration(milliseconds: 200),
+    );
+    final timeout = expectLater(pending, throwsA(isA<TimeoutException>()));
+    await arrived.future.timeout(const Duration(seconds: 2));
+    await timeout;
+    allowUpgrade.complete();
+    await closed.future.timeout(const Duration(seconds: 3));
+  });
   test('successful handshake stays open for the owner', () async {
     final socket = Socket();
     expect(

@@ -84,3 +84,7 @@
 The production reconnect path now owns the original native handshake after its 10-second timeout. If that handshake later succeeds, its socket is closed instead of remaining an unobserved authenticated connection. A late native failure/close failure is consumed; early failures still reach the existing bounded reconnect policy. The signed URL, encrypted event codec and old-epoch checks are unchanged.
 
 Validation: targeted analyze and five controlled connection lifecycle tests passed (success, delayed success, delayed success with close failure, delayed failure and early failure). These tests use a socket fake to control timing, not a phone/network outage simulation. The change is not yet installed and does not by itself prove multi-device message delivery or resolve the earlier missed-message report.
+
+## Actual delayed WebSocket upgrade check
+
+Added an actual localhost HttpServer/WebSocket upgrade test. The server receives the HTTP request but holds its upgrade until the production connector times out; after release, the server observes the client's late socket close. No fake WebSocket is used in this case. Six connection tests and analyze pass. This validates native socket cleanup, not TLS, CCSOP authentication, handset reconnect or message catch-up.
