@@ -85,3 +85,11 @@ SDK updateIceServers/restartIce是void队列接口，本方法完成只证明提
 已建立通话的只读 sources 轮询遇到 NETWORK_ERROR 时，保留当前媒体并继续每 2 秒读取，首次失败启动不可被后续失败延长的 8 秒截止时间；读取恢复取消截止，持续失败关闭媒体和采集。首次打开失败、身份/权限错误、发布或消费操作失败不进入此宽限。
 
 验证：native media 20 项、session 与 media repository 8 项全部通过，相关静态分析无问题。包含恢复、持续失败、登录失效立即释放三种时序。仍为受控客户端测试；后端席位租约和媒体连接可能更早失效，此修改不保证完整断网恢复，也未完成真实手机网络切换验收。
+
+## 2026-09-15 12:29 当前手机安装版本
+
+本记录优先于下文历史安装状态。ec26f6c 工作区已构建并覆盖安装到测试安卓，保留 onboarding 三文件未提交修改。Profile/preview ARM64、真实测试 API；Gradle 65.7 秒，APK 157003848 字节，SHA256 3cbc23a7ac59c2cd1d4765b7dfe3a06636e64b3d2489241e3b81d16e9c9ce9d6，NovoRUDP ARM64 ELF 检查通过。
+
+ADB install -r Success，lastUpdateTime 2026-09-15 12:29:59。首次 am start 返回 ok 后未查到进程，未据此判定启动验收；再次启动返回 ok，随后两次查到进程，当前进程日志 FATAL EXCEPTION / Unhandled Exception / UnsatisfiedLinkError 匹配数为 0。尚未验证实际页面交互与手机流畅度。
+
+本包包含群通话摄像头切换、扬声器控制、邀请过期、TURN 续签、ICE 重连与媒体列表网络错误宽限等客户端修改。语音播放、视频发送生命周期、单人通话媒体回归合计 33 项通过；群媒体与会话相关 28 项通过。均不能替代真实双机验收。在线群通话服务仍未发布，视频本次新发送结果仍待确认。
