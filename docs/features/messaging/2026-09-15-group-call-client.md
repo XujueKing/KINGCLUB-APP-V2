@@ -17,3 +17,9 @@ GroupCallSnapshot验证通话/群UUID、音视频类型、2–9位唯一参与�
 新增GroupCallController.realtime构造入口，绑定现有SecureSessionStore.changes及KingclubRealtime.shared.events。仅chat.group.call.changed和connection.ready触发刷新，普通群消息或双人通话通知不触发群通话读取。构造仍不开始watch，页面后续负责显式开启和销毁。控制器/数据层共12测试及静态检查通过。
 
 后端在隔离库的真实加密WebSocket测试证明受邀账号收到邀请事件（仅eventId）、无关账号未收到该事件，随后经加密HTTP读到对应通话。但这不是Flutter与后端的端到端测试；App页面尚未调用realtime构造入口，未安装APK、未接媒体。
+
+媒体接入契约：使用锁定mediasfu_mediasoup_client 0.1.4（沿用flutter_webrtc 1.6.2+hotfix.1），通过后端682传输信令。GroupCallMediaRepository绑定已知通话及参与者集合，复用MessagingRepository会话/加密请求；校验媒体编号、来源成员、消费对应关系和操作回执，关闭后丢弃迟到响应。SDK只能在用户明确接听/发起后开启采集；本批数据层构造不申请麦克风/摄像头。后端682默认停用，手机实际DTLS/RTP及页面仍待完成。
+
+数据层已实现capabilities、createTransport、connect、produce、sources、consume、resumeConsumer、setProducerPaused和closeProducer。ICE/DTLS/RTP响应转换成锁定SDK的类型；来源列表仅允许既有通话其他成员，拒绝同成员同种媒体重复、重复编号、音频通话返回视频和错误回执；列表不可修改。关闭后不再发送请求，已发请求的迟到结果拒绝返回。
+
+验证：群媒体数据层、群通话数据层与控制器共17测试通过，新增文件和测试静态分析通过。使用注入ChatApiCall及合成参数验证SDK实际解析、成员约束、回执不一致和迟到结果；首次测试省略SDK要求的headerExtensions造成测试夹具失败，已修正并通过。没有调用设备采集/建立原生PeerConnection，没有Flutter到真实HTTP或真机通话证据。未打包安装，本节点不计作可用群通话。下一步接SDK Transport事件与原生媒体资源生命周期。

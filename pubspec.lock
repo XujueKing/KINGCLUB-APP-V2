@@ -329,6 +329,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.4.0"
+  events2:
+    dependency: transitive
+    description:
+      name: events2
+      sha256: "41eec2689af52ecd2581494b9241589769b2873359909c9260588e51fbc188e7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   fake_async:
     dependency: transitive
     description:
@@ -757,6 +765,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.8"
+  h264_profile_level_id:
+    dependency: transitive
+    description:
+      name: h264_profile_level_id
+      sha256: "8854d223ba85da786ff6e3ade38dd447caaf1ba0094c0a5e03d368ae54a7249b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.1"
   hooks:
     dependency: transitive
     description:
@@ -1013,6 +1029,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
+  mediasfu_mediasoup_client:
+    dependency: "direct main"
+    description:
+      name: mediasfu_mediasoup_client
+      sha256: fabcc4d534a7b54e0063165f12310869d12c88cf84cc9b62ac6d86674ee3dd69
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.4"
   meta:
     dependency: transitive
     description:
@@ -1325,6 +1349,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.8"
+  sdp_transform:
+    dependency: transitive
+    description:
+      name: sdp_transform
+      sha256: "73e412a5279a5c2de74001535208e20fff88f225c9a4571af0f7146202755e45"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.2"
   shelf:
     dependency: transitive
     description:
