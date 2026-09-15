@@ -1,3 +1,6 @@
+import 'package:uuid/uuid.dart';
+
+import '../../auth/domain/auth_repository.dart';
 import 'call_repository.dart' show CallMedia;
 import 'messaging_repository.dart';
 
@@ -118,7 +121,43 @@ class GroupCallResult {
 /// Reuses the session-bound encrypted messaging client. No capture, automatic
 /// dialing or retry is performed here; callers retain the same request ID.
 class GroupCallRepository {
-  const GroupCallRepository(this.messaging);
+  ({GroupCallSnapshot call, String requestId})? _declineAttempt;
+
+  /// A lost response must replay the same decline, including its original
+  /// expected version, even when the next invitation read has a newer version.
+  Future<GroupCallResult> declineInvitation(GroupCallSnapshot call) async {
+    if (call.endedAtMs != null ||
+        call.participants
+                .singleWhere((p) => p.account == messaging.account)
+                .phase !=
+            GroupCallPhase.invited) {
+      throw StateError('No active invitation');
+    }
+    if (_declineAttempt?.call.id != call.id) {
+      _declineAttempt = (call: call, requestId: const Uuid().v4());
+    }
+    final attempt = _declineAttempt!;
+    try {
+      final result = await act(
+        call: attempt.call,
+        action: GroupCallAction.decline,
+        requestId: attempt.requestId,
+      );
+      if (_declineAttempt?.requestId == attempt.requestId) {
+        _declineAttempt = null;
+      }
+      return result;
+    } on AuthFailure catch (error) {
+      // Only a definite version rejection permits a new command on retry.
+      if (error.code == 'CHAT_GROUP_CALL_VERSION_CONFLICT' &&
+          _declineAttempt?.requestId == attempt.requestId) {
+        _declineAttempt = null;
+      }
+      rethrow;
+    }
+  }
+
+  GroupCallRepository(this.messaging);
   final MessagingRepository messaging;
 
   GroupCallResult _result(Map<String, dynamic> raw, int appliedVersion) {
@@ -222,3 +261,4 @@ class GroupCallRepository {
     return result;
   }
 }
+

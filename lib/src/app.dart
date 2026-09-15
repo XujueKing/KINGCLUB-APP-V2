@@ -11,8 +11,6 @@ import 'features/messaging/presentation/group_call_page.dart';
 import 'features/messaging/presentation/group_call_invitation_dialog.dart';
 import 'features/messaging/data/group_call_controller.dart';
 
-import 'package:uuid/uuid.dart';
-
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:async';
@@ -161,11 +159,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
             return true;
           }
           if (!accepted) {
-            await groups.act(
-              call: current,
-              action: GroupCallAction.decline,
-              requestId: const Uuid().v4(),
-            );
+            await groups.declineInvitation(current);
           } else {
             await navigator.push<void>(
               MaterialPageRoute(

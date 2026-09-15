@@ -23,6 +23,43 @@ Map<String, dynamic> snapshot() => {
 GroupCallRepository repo(ChatApiCall call) =>
     GroupCallRepository(MessagingRepository(account: 'me', call: call));
 void main() {
+  for (final code in ['NETWORK_ERROR', 'CHAT_GROUP_CALL_VERSION_CONFLICT']) {
+    test(
+      'decline retry preserves identity except definite conflict: $code',
+      () async {
+        final sent = <Map<String, dynamic>>[];
+        final repository = repo((api, params) async {
+          expect(api, 'K260915000679');
+          sent.add(params);
+          throw AuthFailure(code, 'test');
+        });
+        GroupCallSnapshot invitation(int version) => GroupCallSnapshot.parse({
+          ...snapshot(),
+          'version': version,
+          'participants': [
+            {'account': 'me', 'phase': 'invited', 'deadlineMs': 1000},
+            {'account': 'friend', 'phase': 'joined', 'deadlineMs': 1000},
+          ],
+        }, 'me');
+        await expectLater(
+          repository.declineInvitation(invitation(0)),
+          throwsA(isA<AuthFailure>()),
+        );
+        await expectLater(
+          repository.declineInvitation(invitation(2)),
+          throwsA(isA<AuthFailure>()),
+        );
+        expect(sent[1]['action'], 'decline');
+        if (code == 'NETWORK_ERROR') {
+          expect(sent[1], sent[0]);
+        } else {
+          expect(sent[1]['requestId'], isNot(sent[0]['requestId']));
+          expect(sent[1]['expectedVersion'], 2);
+        }
+      },
+    );
+  }
+
   test(
     'construction is passive and network retry keeps the supplied request',
     () async {
