@@ -156,6 +156,7 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                             Navigator.of(context).push<void>(
                               MaterialPageRoute(
                                 builder: (_) => ChatHistoryContextPage(
+                                  repository: widget.repository,
                                   senderLabel: _senderLabel,
                                   account: widget.repository!.account,
                                   messageId: message['messageId'] as String,

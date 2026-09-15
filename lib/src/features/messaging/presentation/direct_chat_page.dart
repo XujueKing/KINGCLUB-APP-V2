@@ -2615,10 +2615,25 @@ class _DirectChatPageState extends State<DirectChatPage>
   void _openReply(ChatReply reply) {
     final chat = _chat;
     if (chat == null || !reply.available) return;
+    _voicePlayback?.stop();
     final repository = chat.messaging;
     Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => ChatHistoryContextPage(
+          repository: repository,
+          groupId: widget.groupId,
+          senderLabel: (account) {
+            if (account == repository.account) return '我';
+            if (widget.groupId == null) return _displayPeerName;
+            for (final row in chat.messages) {
+              if (row['sender'] == account &&
+                  row['senderName'] is String &&
+                  row['senderName'] != account) {
+                return row['senderName'] as String;
+              }
+            }
+            return '群成员';
+          },
           account: repository.account,
           messageId: reply.messageId,
           sequence: reply.sequence!,

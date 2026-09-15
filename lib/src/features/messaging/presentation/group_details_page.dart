@@ -622,6 +622,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                     .push<void>(
                                       MaterialPageRoute(
                                         builder: (_) => ChatHistoryContextPage(
+                                          repository:
+                                              widget.repository.messaging,
+                                          groupId: widget.groupId,
                                           senderLabel: _senderLabel,
                                           account: widget
                                               .repository
