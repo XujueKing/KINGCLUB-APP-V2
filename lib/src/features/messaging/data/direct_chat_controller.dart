@@ -4,6 +4,7 @@ import 'chat_video.dart';
 import 'chat_history_store.dart';
 import 'chat_location.dart';
 import 'chat_session_controller.dart';
+import 'chat_message_order.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -257,36 +258,21 @@ class DirectChatController extends ChatSessionController {
         .where((m) => m['sender'] == repository.account)
         .map((m) => m['clientMessageId'])
         .toSet();
-    // Keep authoritative server sequence order. Insert local additions by
-    // observed time without assigning them an invented server position.
-    final visible = <Map<String, dynamic>>[];
-    var localIndex = 0;
-    for (final message in confirmed.where(
-      (m) => m['messageType'] != 'hidden',
-    )) {
-      final time = DateTime.tryParse(message['createdDate'] as String? ?? '');
-      if (time != null) {
-        while (localIndex < relay.length &&
-            !DateTime.parse(relay[localIndex]['createdDate'] as String)
-                .isAfter(time)) {
-          visible.add(relay[localIndex++]);
-        }
-      }
-      visible.add(message);
-    }
-    return [
-      ...visible,
-      ...relay.skip(localIndex),
-      ..._pending.values
-          .where(
-            (m) =>
-                !acknowledged.contains(m['clientMessageId']) &&
-                !relayOutgoing.contains(m['clientMessageId']),
-          )
-          .map(
-            (m) => m['peerDelivered'] == true ? {...m, 'status': 'sent'} : m,
-          ),
-    ];
+    return mergeLocalChatMessages(
+      confirmed.where((m) => m['messageType'] != 'hidden'),
+      [
+        ...relay,
+        ..._pending.values
+            .where(
+              (m) =>
+                  !acknowledged.contains(m['clientMessageId']) &&
+                  !relayOutgoing.contains(m['clientMessageId']),
+            )
+            .map(
+              (m) => m['peerDelivered'] == true ? {...m, 'status': 'sent'} : m,
+            ),
+      ],
+    );
   }
 
   void _changed() {

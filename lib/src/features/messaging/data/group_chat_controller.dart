@@ -2,6 +2,7 @@ import 'chat_video.dart';
 import 'chat_history_store.dart';
 import 'chat_location.dart';
 import 'chat_session_controller.dart';
+import 'chat_message_order.dart';
 import 'messaging_repository.dart';
 
 import 'package:flutter/foundation.dart';
@@ -117,8 +118,8 @@ class GroupChatController extends ChatSessionController {
         .where((m) => m['sender'] == repository.account)
         .map((m) => m['clientMessageId'])
         .toSet();
-    return [
-      ...confirmed
+    return mergeLocalChatMessages(
+      confirmed
           .where((m) => m['messageType'] != 'hidden')
           .map(
             (m) => {
@@ -126,10 +127,10 @@ class GroupChatController extends ChatSessionController {
               'senderName': _memberNames[m['sender']] ?? m['sender'],
             },
           ),
-      ..._pending.values.where(
+      _pending.values.where(
         (m) => !acknowledged.contains(m['clientMessageId']),
       ),
-    ];
+    );
   }
 
   void _changed() {

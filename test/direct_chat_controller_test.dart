@@ -52,6 +52,44 @@ Map<String, dynamic> history(
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'restored failed text appears before newer history without resending',
+    () async {
+      final outbox = MemoryOutbox();
+      await outbox.put({
+        'clientMessageId': 'old-failed',
+        'recipient': 'peer',
+        'sender': 'me',
+        'text': 'old failed draft',
+        'status': 'failed',
+        'createdDate': '2026-09-15T18:52:00+08:00',
+      });
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: outbox,
+        repository: MessagingRepository(
+          account: 'me',
+          call: (method, _) async {
+            expect(method, 'K260913000604');
+            return history([
+              {
+                ...ack({'clientMessageId': 'newer', 'text': 'newer text'}),
+                'createdDate': '2026-09-15T12:48:00Z',
+              },
+            ]);
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+      expect(controller.messages.map((row) => row['clientMessageId']), [
+        'old-failed',
+        'newer',
+      ]);
+      expect(outbox.items['old-failed']!['status'], 'failed');
+      expect(controller.messages.first['sequence'], isNull);
+    },
+  );
   for (final peerAccepts in [true, false]) {
     test('ready relay precedes service, peer receipt=$peerAccepts', () async {
       final outbox = MemoryOutbox();

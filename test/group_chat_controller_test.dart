@@ -42,6 +42,42 @@ Map<String, dynamic> message(String id) => {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   FlutterSecureStorage.setMockInitialValues({});
+  test('restored failed group text stays before newer group history', () async {
+    final outbox = Queue();
+    await outbox.put({
+      'clientMessageId': 'old-failed',
+      'groupId': 'group',
+      'sender': 'me',
+      'text': 'old failed draft',
+      'status': 'failed',
+      'createdDate': '2026-09-15T18:52:00+08:00',
+    });
+    final controller = GroupChatController(
+      groupId: 'group',
+      outbox: outbox,
+      repository: GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (method, _) async {
+            if (method == 'K260913000619') {
+              return {'groupName': 'Group', 'members': []};
+            }
+            expect(method, 'K260913000621');
+            return history([
+              {...message('newer'), 'createdDate': '2026-09-15T12:48:00Z'},
+            ]);
+          },
+        ),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    expect(controller.messages.map((row) => row['clientMessageId']), [
+      'old-failed',
+      'newer',
+    ]);
+    expect(outbox.rows['old-failed']!['status'], 'failed');
+  });
   test(
     'group refresh keeps messages during rename but clears revoked access',
     () async {
