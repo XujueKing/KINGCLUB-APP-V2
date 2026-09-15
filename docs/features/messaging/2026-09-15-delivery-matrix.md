@@ -1,5 +1,13 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-15 16:57 Native video compression and group playback
+
+Generated an 8-second synthetic 1920x1080/30fps testsrc2 video with 440Hz audio, without private media. Original size 20,071,696 bytes, SHA256 2dc044e30f183d43f59ca75824d9a9a3835544f5c45e7a432b8970ea9ec2a474. An interrupted download was completed and the local hash verified against the remote source before selecting/sending it on A. File name kingclub-ab-compression-20260915.mp4, sent only to the authorized A/B test group.
+
+On installed c7f71f9 worktree package, native PLAN reported skip=false/cached=false/hdr=false, duration 8021ms. Encoder selected HEVC CBR mode 2, 1,500,000bps, 1280x720. Native output validation accepted 1,962,230 bytes (90.22% smaller). Send-stage elapsed times: optimizing 17ms, uploading 3382ms, processing 4869ms, queueing 9123ms, queued 9256ms. Actual UI displayed compression progress (captured at 53%), followed by a video card with the synthetic thumbnail and 8-second label. Tapping the sent group card opened playback; captured frame time advanced to approximately 1.23 seconds with the pause control active.
+
+This is one synthetic high-bitrate sample, not a universal compression ratio or camera-video quality acceptance. Native validation checks duration and audio-track preservation; audible playback confirmation and B reception remain pending. No app code/package change was needed for this check. Current policy still preserves small/low-bitrate, HDR or unsupported exports as original rather than claiming compression occurred.
+
 ## 2026-09-15 App-level outbox recovery
 
 Native A evidence: RESTART-GROUP-A-1643 was queued while Android had no default network, then the process was force-stopped before connectivity was restored. Cold-starting the App and opening the conversation list still showed the preceding message. Entering the group restored and sent the durable queued message, exactly once in the visible history. This exposed the missing App-level drain; page re-entry recovery alone is not sufficient.
