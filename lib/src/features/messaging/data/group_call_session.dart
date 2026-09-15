@@ -42,6 +42,10 @@ class GroupCallSession {
   NativeGroupCallMedia? _media;
   NativeGroupCallMedia? get media => _media;
   bool _closed = false, _sendConnected = false, _renewing = false;
+  bool _receiveConnected = false, _everConnected = false;
+  final _duration = Stopwatch();
+  bool get isConnected => !_closed && _sendConnected && _receiveConnected;
+  Duration? get connectedDuration => _everConnected ? _duration.elapsed : null;
   Future<void>? _opening, _closing;
   Timer? _heartbeat;
   bool get isClosed => _closed;
@@ -99,6 +103,11 @@ class GroupCallSession {
   void _connection(String direction, String state) {
     if (_closed) return;
     if (direction == 'send') _sendConnected = state == 'connected';
+    if (direction == 'receive') _receiveConnected = state == 'connected';
+    if (isConnected && !_everConnected) {
+      _everConnected = true;
+      _duration.start();
+    }
   }
 
   Future<void> _renew() async {
@@ -131,6 +140,7 @@ class GroupCallSession {
   Future<void> hangUp() async {
     // Stop capture immediately, before waiting for any network acknowledgement.
     _closed = true;
+    _duration.stop();
     _heartbeat?.cancel();
     _sendConnected = false;
     await _media?.close();
@@ -159,6 +169,7 @@ class GroupCallSession {
   Future<void> close() {
     if (_closing != null) return _closing!;
     _closed = true;
+    _duration.stop();
     _heartbeat?.cancel();
     controller.removeListener(_stateChanged);
     controller.close();

@@ -39,6 +39,7 @@ class _GroupCallPageState extends State<GroupCallPage>
   GroupCallSession? _session;
   GroupCallController? _controller;
   StreamSubscription<void>? _login;
+  Timer? _clock;
   String? _requestId, _error;
   bool _busy = false, _invalid = false, _allowPop = false, _muted = false;
   bool _videoOff = false, _frontFacing = true;
@@ -46,6 +47,9 @@ class _GroupCallPageState extends State<GroupCallPage>
   @override
   void initState() {
     super.initState();
+    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && _session != null && !_session!.isClosed) setState(() {});
+    });
     _details = widget.repository.details(widget.groupId);
     if (widget.acceptedInvitation != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -257,6 +261,7 @@ class _GroupCallPageState extends State<GroupCallPage>
 
   @override
   void dispose() {
+    _clock?.cancel();
     _invalid = true;
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_login?.cancel());
@@ -281,6 +286,11 @@ class _GroupCallPageState extends State<GroupCallPage>
               title: widget.media == CallMedia.video ? '群视频通话' : '群语音通话',
               onBack: _back,
             ),
+            if (_session != null)
+              Text(
+                _callStatus,
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+              ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -454,6 +464,17 @@ class _GroupCallPageState extends State<GroupCallPage>
       ),
     ),
   );
+
+  String get _callStatus {
+    final session = _session!;
+    if (session.isClosed) return '通话已结束';
+    final duration = session.connectedDuration;
+    if (duration == null) return '正在连接';
+    final seconds = duration.inSeconds;
+    final time =
+        '${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
+    return session.isConnected ? time : '$time · 连接中';
+  }
 }
 
 class _GroupVideo extends StatefulWidget {

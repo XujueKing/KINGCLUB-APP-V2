@@ -61,3 +61,7 @@ Android构建及安装证据（2026-09-15）：在4f02f9b工作树构建真实AP
 成员显示：选择列表及无视频的通话卡片复用ChatMemberAvatar，按本人501/他人612授权资料读取真实头像；当前页面按账号复用Future，登录变化清除并不再请求。成员终态明确显示已离开/已拒绝/已超时/已退出通话，不再统一显示连接中。页面静态分析与现有发起重试widget测试通过；头像实际加载和UI视觉仍待真机验收，未更新APK。
 
 SDK接线核对：读取已锁定mediasfu_mediasoup_client 0.1.4的Transport实现，produce事件提供String kind和RtpParameters；consumerCallback在Handler.receive创建Consumer后调用，accept是可选调用方参数，并非SDK强制的接收确认。服务端resumeConsumer仍由当前适配显式调用。新增connect回调测试验证授权连接成功后才调用callback，服务端拒绝时调用errback并关闭两路Transport、停止采集。原生适配11项受控测试及测试文件静态分析通过，测试没有建立真实DTLS/RTP连接，不能作为有声通话证据。
+
+通话状态/时长：本地send及receive Transport均报告connected后才启动单调Stopwatch，邀请与初始连接等待不计时；后续连接中保留累计通话时长，挂断/关闭立即停止，迟到连接事件不恢复计时。页面每秒更新时长并显示连接中/已结束，销毁取消计时器。这衡量SDK连接状态，不证明对方音频已播放。
+
+会话及页面3项测试通过、3文件静态分析通过；扩展现有会话测试验证仅send连接不计时、双向连接开始、断线状态及关闭后计时不再改变。未更新APK或进行真机时长验收。
