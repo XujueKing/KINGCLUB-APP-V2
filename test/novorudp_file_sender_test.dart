@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:kingclub/src/core/session/member_qr_memory.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_receiver.dart';
+import 'package:kingclub/src/features/messaging/data/novorudp_file_download.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame_link.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_sender.dart';
@@ -116,6 +117,146 @@ void main() {
           .map((b) => b.toRadixString(16).padLeft(2, '0'))
           .join();
       return (file: file, hash: hash);
+    }
+
+    test(
+      'download coordinator verifies file and leaves shared lane open',
+      () async {
+        final bytes = List.generate(70000, (i) => i % 251);
+        final input = await source(bytes);
+        final download = await NovoRudpFileDownload.open(
+          link: right,
+          privateDirectory: directory,
+          streamId: BigInt.from(71),
+          objectId: BigInt.from(92),
+          size: bytes.length,
+          sha256: input.hash,
+          canReceive: () => true,
+        );
+        addTearDown(download.close);
+        await left.send(
+          NovoRudpFrame(
+            kind: NovoRudpFrameKind.data,
+            sessionId: left.channel.sessionId,
+            streamId: BigInt.from(70),
+            objectId: BigInt.from(92),
+            sequence: BigInt.zero,
+            ackEpoch: BigInt.zero,
+            payload: [9],
+          ),
+        );
+        await NovoRudpFileSender(
+          link: left,
+          file: input.file,
+          streamId: BigInt.from(71),
+          objectId: BigInt.from(92),
+          size: bytes.length,
+          sha256: input.hash,
+        ).run();
+        final received = await download.completed;
+        expect(await received.readAsBytes(), bytes);
+        await download.close();
+        expect(await received.exists(), false);
+        final arrival = right.frames.first;
+        await left.send(
+          NovoRudpFrame(
+            kind: NovoRudpFrameKind.data,
+            sessionId: left.channel.sessionId,
+            streamId: BigInt.from(99),
+            objectId: BigInt.one,
+            sequence: BigInt.zero,
+            ackEpoch: BigInt.zero,
+            payload: [1, 2, 3],
+          ),
+        );
+        expect((await arrival.timeout(const Duration(seconds: 2))).payload, [
+          1,
+          2,
+          3,
+        ]);
+      },
+    );
+
+    test(
+      'download coordinator rejects corrupt content and removes partial file',
+      () async {
+        final input = await source([1, 2, 3]);
+        final download = await NovoRudpFileDownload.open(
+          link: right,
+          privateDirectory: directory,
+          streamId: BigInt.from(71),
+          objectId: BigInt.from(92),
+          size: 3,
+          sha256: input.hash,
+          canReceive: () => true,
+        );
+        final rejected = expectLater(download.completed, throwsFormatException);
+        await left.send(
+          NovoRudpFrame(
+            kind: NovoRudpFrameKind.data,
+            sessionId: left.channel.sessionId,
+            streamId: BigInt.from(71),
+            objectId: BigInt.from(92),
+            sequence: BigInt.zero,
+            ackEpoch: BigInt.zero,
+            payload: [1, 2, 4],
+          ),
+        );
+        await rejected;
+        await download.close();
+        expect(
+          await directory.list().where((entry) => entry is Directory).toList(),
+          isEmpty,
+        );
+      },
+    );
+
+    for (final revoke in [false, true]) {
+      test(
+        'download coordinator cleans ${revoke ? 'revoked' : 'timed out'} transfer',
+        () async {
+          final input = await source([1, 2, 3]);
+          var allowed = true;
+          final download = await NovoRudpFileDownload.open(
+            link: right,
+            privateDirectory: directory,
+            streamId: BigInt.from(71),
+            objectId: BigInt.from(92),
+            size: 3,
+            sha256: input.hash,
+            canReceive: () => allowed,
+            deadline: const Duration(milliseconds: 200),
+          );
+          final expectation = expectLater(
+            download.completed,
+            revoke ? throwsStateError : throwsA(isA<TimeoutException>()),
+          );
+          if (revoke) {
+            allowed = false;
+            await left.send(
+              NovoRudpFrame(
+                kind: NovoRudpFrameKind.data,
+                sessionId: left.channel.sessionId,
+                streamId: BigInt.from(71),
+                objectId: BigInt.from(92),
+                sequence: BigInt.zero,
+                ackEpoch: BigInt.zero,
+                payload: [1, 2, 3],
+              ),
+            );
+          }
+          await expectation;
+          await download.close();
+          expect(
+            await directory
+                .list()
+                .where((entry) => entry is Directory)
+                .toList(),
+            isEmpty,
+          );
+          expect(await input.file.exists(), true);
+        },
+      );
     }
 
     for (final transferBytes in [

@@ -1,0 +1,152 @@
+import 'dart:async';
+import 'dart:io';
+
+import '../../../core/session/secure_session_store.dart';
+import 'novorudp_file_receiver.dart';
+import 'novorudp_frame.dart';
+import 'novorudp_frame_link.dart';
+
+/// Receives one independently authorized manifest over a shared secure lane.
+/// The verified file remains owned here until close; copy it before closing.
+class NovoRudpFileDownload {
+  static Future<NovoRudpFileDownload> open({
+    required NovoRudpFrameLink link,
+    required Directory privateDirectory,
+    required BigInt streamId,
+    required BigInt objectId,
+    required int size,
+    required String sha256,
+    required bool Function() canReceive,
+    Duration deadline = const Duration(minutes: 5),
+  }) async {
+    if (deadline <= Duration.zero) throw ArgumentError('Invalid deadline');
+    if (!canReceive()) throw StateError('File access unavailable');
+    final receiver = await NovoRudpFileReceiver.create(
+      privateDirectory: privateDirectory,
+      sessionId: link.channel.sessionId,
+      streamId: streamId,
+      objectId: objectId,
+      size: size,
+      sha256: sha256,
+    );
+    if (!canReceive()) {
+      await receiver.close();
+      throw StateError('File access unavailable');
+    }
+    return NovoRudpFileDownload._(
+      link,
+      receiver,
+      streamId,
+      objectId,
+      canReceive,
+      deadline,
+    );
+  }
+
+  NovoRudpFileDownload._(
+    this._link,
+    this._receiver,
+    this._streamId,
+    this._objectId,
+    this._canReceive,
+    Duration deadline,
+  ) {
+    _subscription = _link.frames.listen(
+      (frame) {
+        if (_closed ||
+            frame.streamId != _streamId ||
+            frame.objectId != _objectId ||
+            ![
+              NovoRudpFrameKind.data,
+              NovoRudpFrameKind.repair,
+              NovoRudpFrameKind.done,
+            ].contains(frame.kind)) {
+          return;
+        }
+        // Drop overload instead of retaining an unbounded queue of payloads.
+        // Sender ACK requests repair dropped data and retry dropped requests.
+        if (_queued >= NovoRudpFileReceiver.maxQueuedFragments) return;
+        _queued++;
+        unawaited(_receive(frame).whenComplete(() => _queued--));
+      },
+      onError: (Object error) => _fail(error),
+      onDone: () => _fail(StateError('File lane closed')),
+    );
+    _session = SecureSessionStore.changes.stream.listen(
+      (_) => _fail(StateError('File session changed')),
+    );
+    _timer = Timer(
+      deadline,
+      () => _fail(TimeoutException('File receive deadline')),
+    );
+    // Failure may arrive before the consumer starts awaiting completion.
+    unawaited(_done.future.then<void>((_) {}, onError: (Object _) {}));
+  }
+
+  final NovoRudpFrameLink _link;
+  final NovoRudpFileReceiver _receiver;
+  final BigInt _streamId, _objectId;
+  final bool Function() _canReceive;
+  final _done = Completer<File>();
+  late final StreamSubscription<NovoRudpFrame> _subscription;
+  late final StreamSubscription<void> _session;
+  late final Timer _timer;
+  Future<void>? _closing;
+  bool _closed = false;
+  int _queued = 0;
+
+  Future<File> get completed => _done.future;
+
+  void _check() {
+    if (_closed || !_canReceive()) throw StateError('File access unavailable');
+  }
+
+  Future<void> _receive(NovoRudpFrame frame) async {
+    try {
+      _check();
+      final ack = await _receiver.receiveAuthenticated(frame);
+      _check();
+      if (ack == null) return;
+      // A verified file is useful only after the current permission recheck.
+      File? file;
+      try {
+        file = await _receiver.verifiedFile();
+      } on StateError {
+        // Normal partial receipt: send missing ranges, not completion.
+      }
+      _check();
+      try {
+        await _link.send(ack);
+      } on SocketException {
+        // A dropped local ACK is retried by the sender's next DONE request.
+      }
+      _check();
+      if (file != null && !_done.isCompleted) {
+        _timer.cancel();
+        _done.complete(file);
+      }
+    } catch (error) {
+      _fail(error);
+    }
+  }
+
+  void _fail(Object error) {
+    if (!_done.isCompleted) _done.completeError(error);
+    unawaited(close());
+  }
+
+  Future<void> close() {
+    _closed = true;
+    if (!_done.isCompleted) {
+      _done.completeError(StateError('File receive closed'));
+    }
+    return _closing ??= _close();
+  }
+
+  Future<void> _close() async {
+    _timer.cancel();
+    await _subscription.cancel();
+    await _session.cancel();
+    await _receiver.close();
+  }
+}
