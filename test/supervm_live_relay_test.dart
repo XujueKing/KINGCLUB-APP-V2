@@ -273,6 +273,7 @@ void main() {
       );
       addTearDown(directB.close);
       var relayOpens = 0;
+      var activeRelay = ta;
       final failover = PeerTextFailover(
         history: ha,
         peerId: b.peerId,
@@ -280,7 +281,7 @@ void main() {
         direct: directA,
         connectRelay: () async {
           relayOpens++;
-          return ta;
+          return activeRelay;
         },
       );
       addTearDown(failover.close);
@@ -307,6 +308,88 @@ void main() {
       expect(receivedRows.where((row) => row['id'] == switchedId).length, 1);
       expect(await ha.nearbyMessages(b.peerId, pendingOnly: true), isEmpty);
 
+      // Close both real WSS connections, retain the failed message, then make
+      // fresh authenticated connections and recover via the same policy object.
+      left.socket.close();
+      right.socket.close();
+      Future<void> drained(StreamIterator<dynamic> events) async {
+        while (await events.moveNext()) {
+          /* previously buffered packets */
+        }
+      }
+
+      await Future.wait([drained(left.events), drained(right.events)])
+          .timeout(const Duration(seconds: 5));
+      const pendingId = '44444444-4444-4444-8444-444444444444';
+      await expectLater(
+        failover.sendText('saved through relay outage', messageId: pendingId),
+        throwsStateError,
+      );
+      expect(
+        (await ha.nearbyMessages(b.peerId, pendingOnly: true)).single['id'],
+        pendingId,
+      );
+      expect(
+        (await hb.nearbyMessages(a.peerId))
+            .where((row) => row['id'] == pendingId),
+        isEmpty,
+      );
+
+      final renewedRight = await connect(b), renewedLeft = await connect(a);
+      final renewedOffer = a.start(b.peerId);
+      renewedLeft.socket.sendPeerHandshake(b.peerId, {
+        'kind': 'offer',
+        'body': renewedOffer.offer,
+      });
+      final inbound = await receive(
+        renewedRight.events,
+        'peer_handshake_delivery',
+      );
+      final renewedAnswer = b.respond(
+        inbound['handshake']['body'] as Map<String, dynamic>,
+        expectedPeer: a.peerId,
+      );
+      renewedRight.socket.sendPeerHandshake(a.peerId, {
+        'kind': 'response',
+        'body': renewedAnswer.response,
+      });
+      final response = await receive(
+        renewedLeft.events,
+        'peer_handshake_delivery',
+      );
+      final renewedChannel = a.complete(
+        renewedOffer,
+        response['handshake']['body'] as Map<String, dynamic>,
+      );
+      activeRelay = NearbyTextChannel(
+        link: NovoRudpRelayFrameLink(
+          relay: renewedLeft.socket,
+          channel: renewedChannel,
+          expectedPeer: b.peerId,
+        ),
+        history: ha,
+        peerId: b.peerId,
+        canExchange: () => true,
+      );
+      final renewedReceiver = NearbyTextChannel(
+        link: NovoRudpRelayFrameLink(
+          relay: renewedRight.socket,
+          channel: renewedAnswer.channel,
+          expectedPeer: a.peerId,
+        ),
+        history: hb,
+        peerId: a.peerId,
+        canExchange: () => true,
+      );
+      addTearDown(renewedReceiver.close);
+      await Future.wait([failover.resumePending(), failover.resumePending()]);
+      expect(relayOpens, 2);
+      expect(await ha.nearbyMessages(b.peerId, pendingOnly: true), isEmpty);
+      final recovered = (await hb.nearbyMessages(a.peerId))
+          .where((row) => row['id'] == pendingId);
+      expect(recovered.length, 1);
+      expect(recovered.single['text'], 'saved through relay outage');
+
       // Invalidate the generation before publishing a session event. The real
       // heartbeat timer must close both live connections without an async error.
       MemberQrMemory.clear();
@@ -320,8 +403,10 @@ void main() {
         }
       }
 
-      await Future.wait([waitClosed(left.events), waitClosed(right.events)])
-          .timeout(const Duration(seconds: 18));
+      await Future.wait([
+        waitClosed(renewedLeft.events),
+        waitClosed(renewedRight.events),
+      ]).timeout(const Duration(seconds: 18));
     },
     skip: enabled
         ? false

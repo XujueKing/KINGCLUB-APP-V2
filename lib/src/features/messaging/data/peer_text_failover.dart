@@ -34,6 +34,7 @@ class PeerTextFailover {
   late final StreamSubscription<void> _session;
   Future<void> _tail = Future.value();
   Future<void>? _closing;
+  Future<void>? _recovery;
   bool _closed = false;
   int _queued = 0, _opening = 0;
   void _check() {
@@ -121,6 +122,31 @@ class PeerTextFailover {
       _relay = null;
       await relay?.close();
       rethrow;
+    }
+  }
+
+  Future<void> resumePending() {
+    _check();
+    return _recovery ??= _recoverPending();
+  }
+
+  Future<void> _recoverPending() async {
+    try {
+      while (true) {
+        _check();
+        final rows = await history.nearbyMessages(
+          peerId,
+          pendingOnly: true,
+          limit: 200,
+        );
+        _check();
+        if (rows.isEmpty) return;
+        for (final row in rows) {
+          await sendText(row['text'] as String, messageId: row['id'] as String);
+        }
+      }
+    } finally {
+      _recovery = null;
     }
   }
 
