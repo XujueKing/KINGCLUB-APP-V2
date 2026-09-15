@@ -92,8 +92,6 @@ class ChatFileUploader {
   }
 
   static const chunkBytes = 1024 * 1024, maxBytes = 256 * 1024 * 1024;
-  String _hex(List<int> bytes) =>
-      bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   Future<UploadedChatFile> upload(
     File input, {
     required String fileName,
@@ -212,8 +210,14 @@ class ChatFileUploader {
           final length = (size - index * chunkBytes).clamp(0, chunkBytes);
           final bytes = await reader.read(length);
           if (bytes.length != length) throw StateError('文件已变化');
-          final chunkHash = _hex((await Sha256().hash(bytes)).bytes);
           final old = uploaded[index];
+          final (chunkHash, initialWire) = await _prepareFileChunk(
+            bytes,
+            index,
+            old == null ? key : null,
+            aad,
+          );
+          await _check();
           if (old != null) {
             if (old['size'] != length || old['sha256'] != chunkHash) {
               throw StateError('文件已变化，请重新选择');
@@ -221,19 +225,9 @@ class ChatFileUploader {
           } else {
             for (var attempt = 0; attempt < 2; attempt++) {
               try {
-                final derived = await Hmac.sha256().calculateMac(
-                  utf8.encode('chat-file-chunk-key:v1:$index'),
-                  secretKey: SecretKey(key),
-                );
-                final box = await AesGcm.with256bits().encrypt(
-                  bytes,
-                  secretKey: SecretKey(derived.bytes),
-                  aad: utf8.encode(jsonEncode([aad, index, length])),
-                );
-                final wire = Uint8List(length + 28)
-                  ..setRange(0, 12, box.nonce)
-                  ..setRange(12, 28, box.mac.bytes)
-                  ..setRange(28, length + 28, box.cipherText);
+                final wire = attempt == 0
+                    ? initialWire!
+                    : (await _prepareFileChunk(bytes, index, key, aad)).$2!;
                 await _check();
                 final response = await _dio.post<Map<String, dynamic>>(
                   '$path/$index',
@@ -364,3 +358,32 @@ Future<String> _fileDigest(String path, int expectedSize) =>
           .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
           .join();
     });
+
+// Only byte buffers and protocol values cross the isolate boundary. No uploader,
+// credentials store, Dio instance or UI callback is captured. A retry builds a
+// fresh nonce with the current grant, including after grant renewal.
+Future<(String, Uint8List?)> _prepareFileChunk(
+  Uint8List bytes,
+  int index,
+  List<int>? key,
+  String aad,
+) => Isolate.run(() async {
+  final hash = (await const DartSha256().hash(bytes)).bytes
+      .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+      .join();
+  if (key == null) return (hash, null);
+  final derived = await Hmac.sha256().calculateMac(
+    utf8.encode('chat-file-chunk-key:v1:$index'),
+    secretKey: SecretKey(key),
+  );
+  final box = await DartAesGcm.with256bits().encrypt(
+    bytes,
+    secretKey: SecretKey(derived.bytes),
+    aad: utf8.encode(jsonEncode([aad, index, bytes.length])),
+  );
+  final wire = Uint8List(bytes.length + 28)
+    ..setRange(0, 12, box.nonce)
+    ..setRange(12, 28, box.mac.bytes)
+    ..setRange(28, bytes.length + 28, box.cipherText);
+  return (hash, wire);
+});

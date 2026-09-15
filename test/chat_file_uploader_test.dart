@@ -95,6 +95,7 @@ void main() {
             ids = <String>[],
             uploaded = <int, Map<String, dynamic>>{};
         var aad = '', lost = false, posts = 0, ready = false;
+        final nonces = <String>{};
         Map<String, dynamic> meta = {};
         final repo = MessagingRepository(
           account: 'me',
@@ -150,6 +151,11 @@ void main() {
         Dio transport() => Dio(BaseOptions(baseUrl: 'https://fixture.invalid'))
           ..httpClientAdapter = Transport((options, wire) async {
             posts++;
+            expect(
+              nonces.add(base64Encode(wire.sublist(0, 12))),
+              isTrue,
+              reason: 'Each transmission must use a fresh GCM nonce',
+            );
             final index = int.parse(options.path.split('/').last);
             expect(options.followRedirects, false);
             if (renew &&
