@@ -1,5 +1,13 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-15 16:38 Group transfer and file sender acceptance
+
+Using the existing installed preview and real API, A transferred ownership of the authorized A/B test group KINGCLUB-AB-0915-OK to B. A then displayed itself as an ordinary member and B as owner; owner-only transfer/name-edit controls disappeared and the departure action became leave-group. Current owner is B. Recipient-side owner controls, transfer-back and removal/rejoin remain pending; B was not operated further while awaiting the concurrent-device-use clarification.
+
+A selected the existing synthetic kingclub-ab-file-20260915.txt through the native Download picker and explicitly sent it to this group. The 69,675-byte file appeared as a 68.0 KB file message. After force-stop and cold start, the conversation list showed the file preview and reopening the group restored the file message together with prior text history. This verifies sender-side submission and restart retention only; B group download and content-hash verification remain pending (the earlier direct-chat file hash verification does not substitute for this).
+
+The user confirmed voice clarity. No application code or APK changed in this acceptance node.
+
 ## 2026-09-15 16:30 群资料保留滚动位置双机验收
 
 `8e2918f` 工作区 Profile/preview ARM64 包构建 68.3 秒、149.7MB，真实测试 API 与 NovoRUDP ARM64 ELF 检查通过；A、B 覆盖安装 Success、冷启动 Status ok。APK SHA256：`fe4f2e5212d930a1edcd67b9974b6ed266d738dfe31d081b329f8cd1cdde4405`。保留未提交 onboarding 三文件。
