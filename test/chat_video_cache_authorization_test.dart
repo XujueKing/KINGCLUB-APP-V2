@@ -28,8 +28,114 @@ class _UnsupportedPlayer extends VideoPlayerController {
   Future<void> dispose() async {}
 }
 
+class _PlayingPlayer extends VideoPlayerController {
+  _PlayingPlayer() : super.file(File('synthetic.mp4'));
+  int plays = 0, disposals = 0;
+  @override
+  Future<void> initialize() async {
+    value = const VideoPlayerValue(
+      duration: Duration(seconds: 30),
+      size: Size(320, 240),
+      isInitialized: true,
+      position: Duration(seconds: 7),
+    );
+  }
+
+  @override
+  Future<void> play() async {
+    plays++;
+  }
+
+  @override
+  // No platform player is created by this double.
+  // ignore: must_call_super
+  Future<void> dispose() async {
+    disposals++;
+  }
+}
+
 void main() {
   const id = '12345678-1234-1234-1234-123456789012';
+  for (final reason in ['denied', 'changed', 'late-denied']) {
+    testWidgets('read receipt keeps player until $reason', (tester) async {
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      addTearDown(events.close);
+      final player = _PlayingPlayer();
+      var calls = 0, downloads = 0;
+      var invalid = false;
+      Completer<Map<String, dynamic>>? pending;
+      Map<String, dynamic> grant() => {
+        'messageId': id,
+        'video': {
+          'fileId': id,
+          'path': '/kingclub/group-chat-video/$id/video',
+          'size': invalid && reason == 'changed' ? 4 : 3,
+          'sha256': '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81',
+          'headers': {'authorization': 'Bearer fixture'},
+        },
+      };
+      final repo = MessagingRepository(
+        account: 'synthetic',
+        call: (_, _) async {
+          calls++;
+          if (pending != null) return pending.future;
+          if (invalid && reason != 'changed') throw StateError('hidden');
+          return grant();
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChatVideoView(
+              repository: repo,
+              messageId: id,
+              group: true,
+              full: true,
+              events: events.stream,
+              loadFile: (_) async {
+                downloads++;
+                return _CachedFile();
+              },
+              createPlayer: (_) => player,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(player.plays, 1);
+      expect(calls, 2);
+      void read() => events.add({'eventType': 'chat.group.read'});
+      read();
+      await tester.pumpAndSettle();
+      expect(calls, 3);
+      expect(player.disposals, 0);
+      expect(player.plays, 1);
+      expect(downloads, 1);
+      expect(player.value.position, const Duration(seconds: 7));
+      if (reason == 'late-denied') {
+        pending = Completer<Map<String, dynamic>>();
+        read();
+        await tester.pump();
+        expect(calls, 4);
+        read();
+        await tester.pump();
+        expect(calls, 4);
+        final stale = pending;
+        pending = null;
+        invalid = true;
+        stale.complete(grant());
+      } else {
+        invalid = true;
+        read();
+      }
+      await tester.pumpAndSettle();
+      expect(player.disposals, 1);
+      expect(downloads, 1);
+      expect(find.byType(VideoPlayer), findsNothing);
+      expect(find.text('视频暂不可播放，点击重试'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
   testWidgets(
     'permission revoked during cached file read cannot start playback',
     (tester) async {

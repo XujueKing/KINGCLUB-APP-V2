@@ -48,6 +48,9 @@ class _ChatVideoViewState extends State<ChatVideoView>
   bool _invalid = false, _failed = false, _foreground = true;
   int _generation = 0;
   bool _preferHevc = true;
+  ChatVideoGrant? _displayedGrant;
+  int _permissionRevision = 0;
+  int? _checkingGeneration;
   @override
   void initState() {
     super.initState();
@@ -57,10 +60,13 @@ class _ChatVideoViewState extends State<ChatVideoView>
       _clear();
     });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((e) {
+      if (e['eventType'] == 'chat.group.read') {
+        if (widget.group) unawaited(_recheckPermission());
+        return;
+      }
       if ([
         'chat.settings.changed',
         'chat.group.changed',
-        'chat.group.read',
         'chat.relationship.changed',
         'connection.ready',
       ].contains(e['eventType'])) {
@@ -72,11 +78,43 @@ class _ChatVideoViewState extends State<ChatVideoView>
 
   void _clear() {
     _generation++;
+    _displayedGrant = null;
     final old = _player;
     _player = null;
     old?.dispose();
     _poster = null;
     if (mounted) setState(() => _failed = true);
+  }
+
+  Future<void> _recheckPermission() async {
+    if (_invalid || !mounted || !_foreground) return;
+    final displayed = _displayedGrant;
+    if (displayed == null) {
+      await _load();
+      return;
+    }
+    final generation = _generation;
+    _permissionRevision++;
+    if (_checkingGeneration == generation) return;
+    _checkingGeneration = generation;
+    try {
+      while (mounted && !_invalid && generation == _generation) {
+        final revision = _permissionRevision;
+        final fresh = await _grant();
+        if (!mounted || _invalid || generation != _generation) return;
+        if (fresh.fileId != displayed.fileId ||
+            fresh.sha256 != displayed.sha256 ||
+            fresh.size != displayed.size ||
+            fresh.codec != displayed.codec) {
+          throw const FormatException('视频已变化');
+        }
+        if (revision == _permissionRevision) return;
+      }
+    } catch (_) {
+      if (mounted && generation == _generation) _clear();
+    } finally {
+      if (_checkingGeneration == generation) _checkingGeneration = null;
+    }
   }
 
   @override
@@ -162,10 +200,16 @@ class _ChatVideoViewState extends State<ChatVideoView>
           await player.dispose();
           return;
         }
-        setState(() => _player = player);
+        setState(() {
+          _displayedGrant = grant;
+          _player = player;
+        });
         await player.play();
       } else {
-        setState(() => _poster = file);
+        setState(() {
+          _displayedGrant = grant;
+          _poster = file;
+        });
       }
     } catch (_) {
       await player?.dispose();
@@ -181,6 +225,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
       if (mounted && generation == _generation) {
         setState(() {
           _player = null;
+          _displayedGrant = null;
           _poster = null;
           _failed = true;
         });
