@@ -78,3 +78,9 @@
 - adb install -r Success；lastUpdateTime 2026-09-15 08:50:34；启动Status ok。近期启动日志未匹配FATAL EXCEPTION / Unhandled Exception。
 - 包含无关会话事件不打断语音、播放失败清除对应缓存并重新鉴权重试、表情同步记录恢复，以及NovoRUDP后台封包/解包和首轮文件发送代码。设备绑定相关10项真实DLL回归通过；UDP仍未被选为实际聊天传输。
 - 手机仍处于锁屏状态，未自动录音/拍摄/发消息。语音可听性、实际视频发送和新代码手机运行效果仍待用户操作及双机验收。在线ASR/表情云接口未发布状态不变。
+
+## WebSocket timeout ownership
+
+The production reconnect path now owns the original native handshake after its 10-second timeout. If that handshake later succeeds, its socket is closed instead of remaining an unobserved authenticated connection. A late native failure/close failure is consumed; early failures still reach the existing bounded reconnect policy. The signed URL, encrypted event codec and old-epoch checks are unchanged.
+
+Validation: targeted analyze and five controlled connection lifecycle tests passed (success, delayed success, delayed success with close failure, delayed failure and early failure). These tests use a socket fake to control timing, not a phone/network outage simulation. The change is not yet installed and does not by itself prove multi-device message delivery or resolve the earlier missed-message report.

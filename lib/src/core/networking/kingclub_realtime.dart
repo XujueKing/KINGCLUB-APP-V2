@@ -150,9 +150,9 @@ class KingclubRealtime {
         session,
         await SecureSessionStore().deviceId(),
       );
-      final socket = await WebSocket.connect(
-        (await codec.uri(kingclubApiBaseUrl)).toString(),
-      ).timeout(const Duration(seconds: 10));
+      final socket = await connectRealtimeSocket(
+        await codec.uri(kingclubApiBaseUrl),
+      );
       if (epoch != _epoch || !_active) {
         await socket.close();
         return;
@@ -198,4 +198,31 @@ class KingclubRealtime {
       reconnect,
     );
   }
+}
+
+/// Future.timeout cannot cancel the native WebSocket handshake. Own its late
+/// result and close it instead of leaving an unobserved authenticated socket.
+Future<WebSocket> connectRealtimeSocket(
+  Uri uri, {
+  Duration timeout = const Duration(seconds: 10),
+  Future<WebSocket> Function(String)? connect,
+}) {
+  var expired = false;
+  final pending = (connect ?? WebSocket.connect)(uri.toString())
+      .then((socket) async {
+        if (expired) {
+          try {
+            await socket.close();
+          } catch (_) {}
+          throw TimeoutException('Realtime connection expired');
+        }
+        return socket;
+      });
+  return pending.timeout(
+    timeout,
+    onTimeout: () {
+      expired = true;
+      throw TimeoutException('Realtime connection timed out');
+    },
+  );
 }
