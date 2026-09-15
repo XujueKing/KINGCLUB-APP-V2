@@ -1,4 +1,4 @@
-﻿import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -39,6 +39,42 @@ void main() {
     NovoRudpDeviceBinding client(ChatApiCall call) => NovoRudpDeviceBinding(
       messaging: MessagingRepository(account: 'UM_SYNTHETIC', call: call),
       identity: identity,
+    );
+    test(
+      'resolves incoming identity without trusting a mismatched directory',
+      () async {
+        final remote = 'ab' * 32;
+        final peerId = 'novovm-ed25519:$remote';
+        var owner = 'friend';
+        var resolvedKey = remote;
+        final binding = client((api, params) async {
+          expect(api, 'K260915000672');
+          expect(params, {'peerId': peerId});
+          return {
+            'peer': owner,
+            'cacheSeconds': 0,
+            'keys': [
+              {
+                'bindingId': id,
+                'publicKey': resolvedKey,
+                'peerId': 'novovm-ed25519:$resolvedKey',
+              },
+            ],
+          };
+        });
+        final result = await binding.resolvePeer(peerId);
+        expect(result.peer, 'friend');
+        expect(result.key.peerId, peerId);
+        owner = 'UM_SYNTHETIC';
+        await expectLater(binding.resolvePeer(peerId), throwsFormatException);
+        owner = 'friend';
+        resolvedKey = 'cd' * 32;
+        await expectLater(binding.resolvePeer(peerId), throwsFormatException);
+        await expectLater(
+          binding.resolvePeer('not-a-key'),
+          throwsArgumentError,
+        );
+      },
     );
     test(
       'member-bound handshake rechecks directory before native completion',
@@ -233,4 +269,3 @@ void main() {
     });
   }, skip: path == null ? 'Set NOVORUDP_NATIVE_LIBRARY' : false);
 }
-

@@ -180,6 +180,40 @@ class NovoRudpDeviceBinding {
 
   Future<List<NetworkDeviceKey>> directory(String peer) async {
     final result = await _call('K260915000672', {'peer': peer});
+    final keys = _directoryKeys(result);
+    // Historical observations are not cached authorization.
+    try {
+      await offlineIdentities?.save(
+        peer,
+        keys.map((key) => key.peerId).toList(),
+      );
+    } catch (_) {}
+    _check();
+    return keys;
+  }
+
+  /// Finds the member behind an incoming relay identity. Server checks live
+  /// mutual friendship/blocking; the subsequent handshake still verifies keys.
+  Future<({String peer, NetworkDeviceKey key})> resolvePeer(
+    String peerId,
+  ) async {
+    if (!RegExp(r'^novovm-ed25519:[a-f0-9]{64}$').hasMatch(peerId)) {
+      throw ArgumentError('Invalid peer identity');
+    }
+    final result = await _call('K260915000672', {'peerId': peerId});
+    final peer = result['peer'];
+    if (peer is! String ||
+        peer == messaging.account ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peer)) {
+      throw const FormatException('Invalid resolved member');
+    }
+    final keys = _directoryKeys(result).where((key) => key.peerId == peerId);
+    if (keys.length != 1) throw const FormatException('Resolved key mismatch');
+    _check();
+    return (peer: peer, key: keys.single);
+  }
+
+  List<NetworkDeviceKey> _directoryKeys(Map<String, dynamic> result) {
     final raw = result['keys'];
     if (raw is! List || raw.length > 8 || result['cacheSeconds'] != 0) {
       throw const FormatException('Invalid device key directory');
@@ -189,17 +223,6 @@ class NovoRudpDeviceBinding {
         keys.map((k) => k.publicKey).toSet().length != keys.length) {
       throw const FormatException('Duplicate device key binding');
     }
-    // Historical key observations do not change the API's cacheSeconds=0
-    // authorization contract. Storage failure must not break online chat.
-    try {
-      await offlineIdentities?.save(
-        peer,
-        keys.map((key) => key.peerId).toList(),
-      );
-    } catch (_) {
-      /* Offline observation unavailable; live authorization remains authoritative. */
-    }
-    _check();
     return List.unmodifiable(keys);
   }
 
