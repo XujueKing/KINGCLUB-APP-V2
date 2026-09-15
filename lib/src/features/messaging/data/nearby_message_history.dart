@@ -295,9 +295,19 @@ extension NearbyMessageHistory on ChatHistoryStore {
 
   /// Keyset pagination remains stable when earlier rows are read/cleared while
   /// receipt checks are running. This returns identifiers, never message text.
-  Future<List<String>> nearbyUnreadIds({
+  Future<List<String>> nearbyUnreadIds({String? afterId, int limit = 200}) =>
+      _nearbyIncomingIds(afterId: afterId, limit: limit, unreadOnly: true);
+
+  /// Read messages still need server reconciliation to suppress stale previews.
+  Future<List<String>> nearbyUnconfirmedIncomingIds({
     String? afterId,
     int limit = 200,
+  }) => _nearbyIncomingIds(afterId: afterId, limit: limit, unreadOnly: false);
+
+  Future<List<String>> _nearbyIncomingIds({
+    String? afterId,
+    required int limit,
+    required bool unreadOnly,
   }) async {
     if (limit < 1 ||
         limit > 200 ||
@@ -305,12 +315,12 @@ extension NearbyMessageHistory on ChatHistoryStore {
             !RegExp(
               r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
             ).hasMatch(afterId))) {
-      throw ArgumentError('Invalid unread cursor');
+      throw ArgumentError('Invalid incoming message cursor');
     }
     final rows = await _db.rawQuery(
       'SELECT DISTINCT id FROM (SELECT member,id FROM nearby_message '
       'WHERE outgoing=0 AND member IS NOT NULL AND $_notServerPresent GROUP BY member,id '
-      'HAVING MAX(wasRead)=0 AND MAX(hidden)=0 AND MAX(serverId IS NOT NULL)=0) '
+      'HAVING ${unreadOnly ? 'MAX(wasRead)=0 AND ' : ''}MAX(hidden)=0 AND MAX(serverId IS NOT NULL)=0) '
       '${afterId == null ? '' : 'WHERE id>? '}ORDER BY id LIMIT ?',
       [?afterId, limit],
     );

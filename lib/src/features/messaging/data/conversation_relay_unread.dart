@@ -26,7 +26,7 @@ Future<Map<String, dynamic>> conversationsWithRelayUnread({
   Map<String, dynamic>? result;
   while (true) {
     check();
-    final ids = await history.nearbyUnreadIds(afterId: cursor);
+    final ids = await history.nearbyUnconfirmedIncomingIds(afterId: cursor);
     check();
     if (ids.isEmpty) break;
     result = await repository.conversations(
