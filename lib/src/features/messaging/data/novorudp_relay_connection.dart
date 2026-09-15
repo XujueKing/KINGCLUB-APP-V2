@@ -116,10 +116,16 @@ class NovoRudpRelayConnection {
         _authenticated = true;
         _deadline?.cancel();
         _heartbeat = Timer.periodic(const Duration(seconds: 15), (_) {
-          if (_heartbeatPending) {
-            close(TimeoutException('Relay heartbeat missing'));
-          } else {
-            heartbeat();
+          try {
+            if (_heartbeatPending) {
+              close(TimeoutException('Relay heartbeat missing'));
+            } else {
+              heartbeat();
+            }
+          } catch (error) {
+            // Generation changes can precede the session stream notification.
+            // A timer failure must close this route, not escape to the UI zone.
+            close(error);
           }
         });
         _ready!.complete();

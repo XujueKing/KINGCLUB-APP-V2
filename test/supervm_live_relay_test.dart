@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_relay_connection.dart';
+import 'package:kingclub/src/core/session/member_qr_memory.dart';
 
 /// Explicit opt-in: actual upstream daemon, no fake WebSocket or relay.
 void main() {
@@ -131,6 +132,32 @@ void main() {
         accepted.channel.open(delivery['envelope'] as Map<String, dynamic>),
         throwsStateError,
       );
+      final wrongRelay = NovoRudpRelayConnection(
+        identity: identity(),
+        endpoint: Uri.parse(env['SUPERVM_TEST_RELAY_URL']!),
+        expectedRelay: a.peerId,
+        securityContext: context,
+      );
+      addTearDown(wrongRelay.close);
+      final rejectedEvents = wrongRelay.messages.listen(
+        (_) => fail('Untrusted relay delivered data'),
+      );
+      addTearDown(rejectedEvents.cancel);
+      await expectLater(wrongRelay.connect(), throwsStateError);
+
+      // Invalidate the generation before publishing a session event. The real
+      // heartbeat timer must close both live connections without an async error.
+      MemberQrMemory.clear();
+      Future<void> waitClosed(StreamIterator<dynamic> events) async {
+        var count = 0;
+        while (await events.moveNext()) {
+          // Prior send outcomes may already be queued at the caller.
+          expect(events.current['kind'], 'forward_outcome');
+          expect(++count, lessThan(16));
+        }
+      }
+      await Future.wait([waitClosed(left.events), waitClosed(right.events)])
+          .timeout(const Duration(seconds: 18));
     },
     skip: enabled
         ? false
@@ -149,7 +176,8 @@ Future<Map<String, dynamic>> receive(
       }
       final message = events.current as Map<String, dynamic>;
       if (message['kind'] == kind) {
-        return (message['body'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+        return (message['body'] as Map<String, dynamic>?) ??
+            <String, dynamic>{};
       }
       if (message['kind'] != 'forward_outcome' &&
           message['kind'] != 'heartbeat_ack') {
