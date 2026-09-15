@@ -344,9 +344,12 @@ class _ContactsPageState extends State<ContactsPage>
     if (_query.isEmpty) return contacts;
     return contacts
         .where(
-          (contact) =>
-              contact.nickname.toLowerCase().contains(_query) ||
-              (contact.remark?.toLowerCase().contains(_query) ?? false),
+          (contact) => contactNameMatches(
+            nickname: contact.nickname,
+            remark: contact.remark,
+            account: contact.ref,
+            query: _query,
+          ),
         )
         .toList();
   }

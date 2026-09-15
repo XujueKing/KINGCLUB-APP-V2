@@ -6,6 +6,32 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 
 void main() {
   test(
+    'name search supports original nickname, remark, full pinyin and initials',
+    () {
+      bool matches(String query) => contactNameMatches(
+        nickname: '徐珏',
+        remark: '卡座搭子',
+        account: 'UM12345',
+        query: query,
+      );
+      for (final query in [
+        '徐',
+        '卡座',
+        'xujue',
+        'XJ',
+        'ka zuo da zi',
+        'kzdz',
+        'um12345',
+        '',
+      ]) {
+        expect(matches(query), true, reason: query);
+      }
+      for (final query in ['zhangsan', '不存在', 'UM999']) {
+        expect(matches(query), false, reason: query);
+      }
+    },
+  );
+  test(
     'Chinese, traditional Chinese and Latin names have phonetic sections',
     () {
       for (final entry in {
@@ -88,6 +114,16 @@ void main() {
       expect(y('陈朋友'), lessThan(y('徐珏')));
       expect(y('徐珏'), lessThan(y('张伟')));
       expect(y('张伟'), lessThan(y('😊朋友')));
+      await tester.enterText(find.byType(TextField), 'XJ');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(find.text('徐珏'), findsOneWidget);
+      expect(find.text('陈朋友'), findsNothing);
+      await tester.enterText(find.byType(TextField), 'chen peng you');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(find.text('陈朋友'), findsOneWidget);
+      expect(find.text('徐珏'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'contact_name_index.dart';
+
 import '../../messaging/data/messaging_repository.dart';
 
 class MemberContact {
@@ -52,13 +54,14 @@ class ContactsController extends ChangeNotifier {
   int _requestsGeneration = 0;
 
   List<MemberContact> search(String query) {
-    final needle = query.trim().toLowerCase();
     return _contacts
         .where(
-          (c) =>
-              c.nickname.toLowerCase().contains(needle) ||
-              c.displayName.toLowerCase().contains(needle) ||
-              c.account.toLowerCase().contains(needle),
+          (c) => contactNameMatches(
+            nickname: c.nickname,
+            remark: c.remark,
+            account: c.account,
+            query: query,
+          ),
         )
         .toList();
   }
