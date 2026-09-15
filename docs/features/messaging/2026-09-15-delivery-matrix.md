@@ -1022,3 +1022,7 @@ ChatVideoUpload.finish 在 cancel 编码器之前递增 generation，作废已�
 ## Pending messages before history restoration
 
 Direct/group initialization now restores the account outbox before opening history. A temporary history failure no longer prevents pending messages from appearing. Recovery tests include a pending message and prove subsequent matching history acknowledgement reconciles it once and removes its queue entry. Thirty-eight history/controller tests passed; targeted analyze passed. Existing membership checks remain. Not yet installed; controlled storage/API fixtures are not handset restart delivery acceptance.
+
+## 2026-09-16 撤回接口在线状态更新
+
+后端测试 API 已最小发布 117/685（镜像 group-join-cancel-117），真实 MySQL / 加密 HTTP 和并发审核撤回检查通过；在线健康、接口目录、执行器及环境/端口/挂载一致性核验通过。替代此前“117/685 未部署”状态。客户端撤回代码及测试已完成，但新包尚未安装，A/B 手机撤回验收未完成，不能计作整项交付。
