@@ -36,6 +36,34 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  test('call metadata survives reopen but hidden records lose it', () async {
+    final call = {
+      'callId': '00000000-0000-4000-8000-000000000001',
+      'mediaKind': 'audio',
+      'endReason': 'missed',
+      'durationMs': null,
+      'privateUrl': 'must-not-persist',
+    };
+    await store.commit(
+      'direct:peer',
+      [
+        {...message(1), 'call': call},
+        {...message(2), 'call': call, 'messageType': 'hidden', 'text': ''},
+      ],
+      expectedEpoch: 0,
+      cursor: 2,
+    );
+    await store.close();
+    store = await open();
+    final rows = (await store.read('direct:peer')).messages;
+    expect(rows.first['call'], {
+      'callId': call['callId'],
+      'mediaKind': 'audio',
+      'endReason': 'missed',
+      'durationMs': null,
+    });
+    expect(rows.last.containsKey('call'), false);
+  });
   test(
     'recall revision invalidates old disk pages and rejects delayed writes',
     () async {

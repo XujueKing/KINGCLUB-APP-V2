@@ -1,4 +1,5 @@
 import '../data/chat_outbox_recovery.dart';
+import '../data/chat_call_history.dart';
 import '../data/call_presentation_lease.dart';
 import 'message_voice_transcription_page.dart';
 import 'voice_transcription_page.dart';
@@ -681,6 +682,12 @@ class _DirectChatPageState extends State<DirectChatPage>
               system: message['messageType'] == 'recalled',
               quoted: ChatReply.tryParse(message['reply'])?.text,
               reply: ChatReply.tryParse(message['reply']),
+              call:
+                  widget.groupId == null &&
+                      (message['messageType'] == null ||
+                          message['messageType'] == 'text')
+                  ? ChatCallHistory.tryParse(message['call'])
+                  : null,
               fileName: message['messageType'] == 'file'
                   ? message['fileName'] as String?
                   : null,
@@ -2674,6 +2681,10 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Future<void> _openMediaPreview(_FakeMessage message) async {
+    if (message.call != null && widget.groupId == null && _chat != null) {
+      await _openCall(message.call!.media);
+      return;
+    }
     if (_realTarget != null) {
       final repository = _chat?.messaging;
       if (message.messageId == null ||
@@ -2918,6 +2929,31 @@ class _MessageContent extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (message.kind) {
       case _FakeMessageKind.text:
+        if (message.call != null) {
+          final color = message.mine
+              ? const Color(0xFF222222)
+              : legacyMessageGold;
+          return Row(
+            key: ValueKey('chat-call-record-${message.call!.id}'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                message.call!.media == CallMedia.audio
+                    ? Icons.call
+                    : Icons.videocam,
+                size: 20,
+                color: color,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  message.text,
+                  style: legacyChatBodyTextStyle.copyWith(color: color),
+                ),
+              ),
+            ],
+          );
+        }
         return Text(
           message.text,
           style: legacyChatBodyTextStyle.copyWith(
@@ -3211,6 +3247,7 @@ class _FakeMessage {
     required this.mine,
     this.quoted,
     this.reply,
+    this.call,
     this.clientMessageId,
     this.messageId,
     this.fileName,
@@ -3246,6 +3283,7 @@ class _FakeMessage {
   final bool mine;
   final String? quoted;
   final ChatReply? reply;
+  final ChatCallHistory? call;
   final bool system;
   final _FakeMessageKind kind;
   final String? assetPath;
@@ -3273,6 +3311,7 @@ class _FakeMessage {
     mine: mine,
     quoted: quoted,
     reply: reply,
+    call: call,
     system: system,
     kind: kind,
     assetPath: assetPath,

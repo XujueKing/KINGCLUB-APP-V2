@@ -35,12 +35,11 @@ class DirectChatController extends ChatSessionController {
   int _hiddenThrough = 0;
   String get _historyKey => 'direct:$peer';
 
-  Future<void> _ensureHistory() => _historyReady ??= _restoreHistory().catchError(
-    (Object error, StackTrace stack) {
-      _historyReady = null;
-      Error.throwWithStackTrace(error, stack);
-    },
-  );
+  Future<void> _ensureHistory() => _historyReady ??= _restoreHistory()
+      .catchError((Object error, StackTrace stack) {
+        _historyReady = null;
+        Error.throwWithStackTrace(error, stack);
+      });
   Future<void> _restoreHistory() async {
     if (openHistory == null) return;
     final generation = _historyGeneration;
@@ -745,7 +744,9 @@ class DirectChatController extends ChatSessionController {
 
   @override
   bool canRecall(String messageId) =>
-      _historyVersion != null && super.canRecall(messageId);
+      _historyVersion != null &&
+      !messages.any((m) => m['messageId'] == messageId && m['call'] is Map) &&
+      super.canRecall(messageId);
 
   @override
   Future<void> recall(String messageId) async {

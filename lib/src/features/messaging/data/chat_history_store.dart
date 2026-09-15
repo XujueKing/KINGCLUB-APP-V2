@@ -1,3 +1,4 @@
+import 'chat_call_history.dart';
 import 'chat_reply.dart';
 
 import 'dart:convert';
@@ -188,6 +189,11 @@ class ChatHistoryStore {
     if (!['hidden', 'recalled'].contains(value['messageType'])) {
       final reply = ChatReply.tryParse(message['reply']);
       if (reply != null) value['reply'] = reply.toJson();
+    }
+    if (value['groupId'] == null &&
+        (value['messageType'] == null || value['messageType'] == 'text')) {
+      final call = ChatCallHistory.tryParse(message['call']);
+      if (call != null) value['call'] = call.toJson();
     }
     if (utf8.encode(jsonEncode(value)).length > 32768) {
       throw const FormatException('History message exceeds limit');

@@ -1,5 +1,11 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## Native call-record actions (code verified, not installed)
+
+Client support for the backend ca666ff optional call metadata is implemented. Valid direct-message records show an audio/video icon in the existing bubble and text style. Tapping uses the existing exclusive call launcher with the same media kind and the current conversation peer; the old call ID is not reused as a new request ID. Repeated taps and late completion after leaving retain existing protections. Plain text, malformed metadata and group records never become redial entries. Authoritative call records are excluded from client recall eligibility; server enforcement remains required.
+
+Encrypted history caching retains only validated callId/mediaKind/endReason/durationMs and drops extra nested data; hidden/recalled messages do not retain the call payload. Sixteen targeted parsing, native widget call-entry and SQLite history tests passed, including reopening the database and cancelling a pending launch after leaving. Changed production files and new call tests pass static analysis. These are code-level results: the metadata backend is not deployed, this client is not yet built/installed, and actual record-to-call redial remains pending.
+
 ## 2026-09-15 16:57 Native video compression and group playback
 
 Generated an 8-second synthetic 1920x1080/30fps testsrc2 video with 440Hz audio, without private media. Original size 20,071,696 bytes, SHA256 2dc044e30f183d43f59ca75824d9a9a3835544f5c45e7a432b8970ea9ec2a474. An interrupted download was completed and the local hash verified against the remote source before selecting/sending it on A. File name kingclub-ab-compression-20260915.mp4, sent only to the authorized A/B test group.
