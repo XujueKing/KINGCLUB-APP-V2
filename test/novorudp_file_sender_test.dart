@@ -122,6 +122,42 @@ void main() {
       return (file: file, hash: hash);
     }
 
+    for (final throws in [false, true]) {
+      test(
+        'download coordinator cleans initialization permission ${throws ? 'error' : 'denial'}',
+        () async {
+          final input = await source([1, 2, 3]);
+          var checks = 0;
+          await expectLater(
+            NovoRudpFileDownload.open(
+              link: right,
+              privateDirectory: directory,
+              streamId: BigInt.from(71),
+              objectId: BigInt.from(92),
+              size: 3,
+              sha256: input.hash,
+              canReceive: () {
+                if (++checks == 1) return true;
+                if (throws) throw StateError('Permission check failed');
+                return false;
+              },
+            ),
+            throwsStateError,
+          );
+          expect(checks, 2);
+          expect(
+            await directory
+                .list()
+                .where((entry) => entry is Directory)
+                .toList(),
+            isEmpty,
+          );
+          expect(await input.file.readAsBytes(), [1, 2, 3]);
+          expect(packets, 0);
+        },
+      );
+    }
+
     test(
       'download coordinator verifies file and leaves shared lane open',
       () async {

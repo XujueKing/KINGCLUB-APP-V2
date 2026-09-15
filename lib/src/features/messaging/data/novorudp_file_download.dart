@@ -29,18 +29,20 @@ class NovoRudpFileDownload {
       size: size,
       sha256: sha256,
     );
-    if (!canReceive()) {
+    try {
+      if (!canReceive()) throw StateError('File access unavailable');
+      return NovoRudpFileDownload._(
+        link,
+        receiver,
+        streamId,
+        objectId,
+        canReceive,
+        deadline,
+      );
+    } catch (_) {
       await receiver.close();
-      throw StateError('File access unavailable');
+      rethrow;
     }
-    return NovoRudpFileDownload._(
-      link,
-      receiver,
-      streamId,
-      objectId,
-      canReceive,
-      deadline,
-    );
   }
 
   NovoRudpFileDownload._(
