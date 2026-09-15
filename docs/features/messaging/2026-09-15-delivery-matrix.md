@@ -1,5 +1,12 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## Call metadata release and cached-history compatibility
+
+Backend metadata deployed as kingclub-v2-api:call-history-metadata; TURN configuration, no-active-call guard and runtime health/readiness/status checks passed. Initial native A check showed existing audio 00:15 and video 00:29 records, but old disk rows lacked new metadata/icons. Added one background latest-page refresh after incremental catch-up when restoring cached direct history; rows remain visible and the sync cursor is retained. Eleven targeted history/call-widget tests passed, including metadata persistence and refresh-once behavior; changed-file static analysis passed.
+
+The updated profile/preview ARM64 package built successfully and was installed on A. Final visual verification was stopped when A appeared in the system phone screen; native icons and record-to-call redial remain pending. B was not operated or updated. User confirmed audio can be heard clearly; no broader noise or cross-network acceptance is inferred.
+
+
 ## Native call-record actions (code verified, not installed)
 
 Client support for the backend ca666ff optional call metadata is implemented. Valid direct-message records show an audio/video icon in the existing bubble and text style. Tapping uses the existing exclusive call launcher with the same media kind and the current conversation peer; the old call ID is not reused as a new request ID. Repeated taps and late completion after leaving retain existing protections. Plain text, malformed metadata and group records never become redial entries. Authoritative call records are excluded from client recall eligibility; server enforcement remains required.

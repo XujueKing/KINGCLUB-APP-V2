@@ -57,6 +57,7 @@ class DirectChatController extends ChatSessionController {
     }
     _lastSynced = page.cursor;
     if (page.messages.isNotEmpty) {
+      _refreshCachedPage = true;
       _oldest = page.messages.first['sequence'] as int;
       conversationId = page.messages.first['conversationId'] as String?;
       hasOlder = true;
@@ -72,6 +73,7 @@ class DirectChatController extends ChatSessionController {
   bool _syncAgain = false;
   int _historyGeneration = 0;
   int _lastSynced = 0;
+  bool _refreshCachedPage = false;
   int? _oldest;
   @override
   bool hasOlder = false;
@@ -211,6 +213,17 @@ class DirectChatController extends ChatSessionController {
         if (initial) hasOlder = result['hasMore'] == true;
         more = !initial && result['hasMore'] == true && rows.isNotEmpty;
       } while (more && !_disposed);
+      // Refresh additive server metadata without clearing visible cached rows.
+      if (_refreshCachedPage &&
+          !_disposed &&
+          generation == _historyGeneration) {
+        final latest = await repository.history(peer);
+        if (_disposed || generation != _historyGeneration) return;
+        if (!await _acceptHistoryRevision(latest)) return;
+        await _merge(latest, generation);
+        if (_disposed || generation != _historyGeneration) return;
+        _refreshCachedPage = false;
+      }
       error = null;
       _changed();
     } catch (e) {

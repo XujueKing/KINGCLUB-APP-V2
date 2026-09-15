@@ -43,6 +43,38 @@ void main() {
     repository: MessagingRepository(account: 'me', call: call),
   );
 
+  test('cached call metadata refresh preserves cursor and runs once', () async {
+    await store.commit(
+      'direct:peer',
+      [message(1)],
+      expectedEpoch: 0,
+      cursor: 1,
+    );
+    final metadata = {
+      'callId': '00000000-0000-4000-8000-000000000001',
+      'mediaKind': 'audio',
+      'endReason': 'hangup',
+      'durationMs': 15000,
+    };
+    var latestRequests = 0;
+    final chat = controller((_, params) async {
+      if (params.containsKey('after')) return response([]);
+      latestRequests++;
+      return response([
+        {...message(1), 'call': metadata},
+      ]);
+    });
+    await chat.initialize();
+    expect(chat.error, isNull);
+    expect(chat.messages.single['call'], metadata);
+    final saved = await store.read('direct:peer');
+    expect(saved.cursor, 1);
+    expect(saved.messages.single['call'], metadata);
+    await chat.synchronize();
+    expect(latestRequests, 1);
+    chat.dispose();
+  });
+
   test('transient cache opening failure can recover on next sync', () async {
     var opens = 0, requests = 0;
     final queue = MemoryOutbox();
