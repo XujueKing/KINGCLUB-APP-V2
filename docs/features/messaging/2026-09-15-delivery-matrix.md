@@ -1,5 +1,14 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 2026-09-15 14:25 A/B installation update
+
+This entry supersedes earlier installation records. User designated the original PCLM50 as A and new PKL110 as B. Built the 55c57f4 worktree (including the three preserved, uncommitted onboarding edits) in profile/preview ARM64 mode with the real test API. Gradle took 69.1 seconds; APK size 157003848 bytes; SHA256 f4f5cdca82e75480ef365bcfd32e94633369e4954307afd8f20a171f0aea7d47. Native ARM64 packaging verification passed.
+
+Explicit-serial ADB install -r returned Success on both devices. Package timestamps: A 14:24:54; B 14:25:24. Both start commands returned ok and both package processes were present. Startup error-pattern counts were zero for each current process. A data was preserved; B was a new preview installation. This is installation/startup evidence, not chat acceptance. B must log in with a separate test member before actual dual-account chat verification.
+
+Both phones independently reached the actual local SUPERVM signed NAT observer and punch responder over Wi-Fi (responses verified on the computer). The App relay carrier also passed the actual WSS daemon test on the computer. Automatic App route selection, two-phone encrypted peer chat and media acceptance are still pending; new standalone transport classes are not claimed as active App routes.
+
+
 ## 2026-09-15 12:29 当前手机安装版本
 
 本记录优先于下文历史安装状态。ec26f6c 工作区已构建并覆盖安装到测试安卓，保留 onboarding 三文件未提交修改。Profile/preview ARM64、真实测试 API；Gradle 65.7 秒，APK 157003848 字节，SHA256 3cbc23a7ac59c2cd1d4765b7dfe3a06636e64b3d2489241e3b81d16e9c9ce9d6，NovoRUDP ARM64 ELF 检查通过。
