@@ -20,14 +20,23 @@ class MessagingRepository {
     required this.call,
     this.persistHistory = false,
     ChatReadOutbox? readOutbox,
+    ChatReadOutbox? groupReadOutbox,
   }) : readOutbox =
-           readOutbox ?? (persistHistory ? ChatReadOutbox(account) : null) {
-    if (this.readOutbox != null && this.readOutbox!.account != account) {
+           readOutbox ?? (persistHistory ? ChatReadOutbox(account) : null),
+       groupReadOutbox =
+           groupReadOutbox ??
+           (persistHistory ? ChatReadOutbox(account, group: true) : null) {
+    if (this.readOutbox != null &&
+            (this.readOutbox!.account != account || this.readOutbox!.group) ||
+        this.groupReadOutbox != null &&
+            (this.groupReadOutbox!.account != account ||
+                !this.groupReadOutbox!.group)) {
       throw ArgumentError('Read outbox belongs to another account');
     }
   }
 
   final ChatReadOutbox? readOutbox;
+  final ChatReadOutbox? groupReadOutbox;
 
   final bool persistHistory;
 
@@ -196,29 +205,47 @@ class MessagingRepository {
   }
 
   Future<void> retryPendingReads({required bool Function() isActive}) async {
-    final queue = readOutbox;
-    if (queue == null || !isActive()) return;
-    final values = await queue.read();
-    for (final entry in values.entries) {
+    for (final queue in [readOutbox, groupReadOutbox]) {
       if (!isActive()) return;
-      try {
-        await call('K260913000605', {
-          'peer': entry.key,
-          'sequence': entry.value,
-        });
+      if (queue == null) continue;
+      final values = await queue.read();
+      for (final entry in values.entries) {
         if (!isActive()) return;
-        await queue.acknowledge(entry.key, entry.value);
-      } on AuthFailure catch (error) {
-        if (error.code == 'NETWORK_ERROR' ||
-            error.code == 'SESSION_CHANGED' ||
-            error.code == 'SESSION_EXPIRED') {
+        try {
+          await call(queue.group ? 'K260913000622' : 'K260913000605', {
+            queue.group ? 'groupId' : 'peer': entry.key,
+            'sequence': entry.value,
+          });
+          if (!isActive()) return;
+          await queue.acknowledge(entry.key, entry.value);
+        } on AuthFailure catch (error) {
+          if (error.code == 'NETWORK_ERROR' ||
+              error.code == 'SESSION_CHANGED' ||
+              error.code == 'SESSION_EXPIRED') {
+            return;
+          }
+          // Permissions can change; keep the intent without blocking other peers.
+        } catch (_) {
           return;
         }
-        // Permissions can change; keep the intent without blocking other peers.
-      } catch (_) {
-        return;
       }
     }
+  }
+
+  Future<Map<String, dynamic>> markGroupRead(
+    String groupId,
+    int sequence,
+  ) async {
+    final queue = groupReadOutbox;
+    if (queue != null && sequence > 0) await queue.put(groupId, sequence);
+    final result = await call('K260913000622', {
+      'groupId': groupId,
+      'sequence': sequence,
+    });
+    try {
+      await queue?.acknowledge(groupId, sequence);
+    } catch (_) {}
+    return result;
   }
 
   Future<Map<String, dynamic>> settings(

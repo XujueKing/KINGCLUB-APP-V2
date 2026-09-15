@@ -373,8 +373,5 @@ class GroupChatRepository {
   }
 
   Future<Map<String, dynamic>> markRead(String groupId, int sequence) =>
-      messaging.call('K260913000622', {
-        'groupId': groupId,
-        'sequence': sequence,
-      });
+      messaging.markGroupRead(groupId, sequence);
 }

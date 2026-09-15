@@ -2,15 +2,21 @@ import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Per-account direct-chat read watermarks. Acknowledging an older request must
+/// Per-account read watermarks. Acknowledging an older request must
 /// never erase a newer watermark written by another page/recovery worker.
 class ChatReadOutbox {
-  ChatReadOutbox(this.account, {FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+  ChatReadOutbox(
+    this.account, {
+    this.group = false,
+    FlutterSecureStorage? storage,
+  }) : _storage = storage ?? const FlutterSecureStorage();
 
   final String account;
+  final bool group;
   final FlutterSecureStorage _storage;
-  String get _key => 'kingclub.chat.read-outbox.$account';
+  String get _key => group
+      ? 'kingclub.chat.group-read-outbox.$account'
+      : 'kingclub.chat.read-outbox.$account';
   static final _locks = <String, Future<void>>{};
 
   Future<T> _exclusive<T>(Future<T> Function() action) async {
