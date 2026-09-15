@@ -1,5 +1,8 @@
 import 'chat_member_avatar.dart';
 import '../data/group_chat_repository.dart';
+import '../data/chat_history_store.dart';
+import '../data/conversation_relay_unread.dart';
+import '../data/novorudp_binding_runtime.dart';
 
 import 'dart:async';
 
@@ -35,6 +38,8 @@ class ConversationsPage extends StatefulWidget {
     required this.active,
     this.realData = false,
     this.repository,
+    this.openRelayHistory,
+    this.relayChanges,
     this.pendingRequests = 0,
     this.friendMuted = false,
     this.networkUnavailable = false,
@@ -54,6 +59,8 @@ class ConversationsPage extends StatefulWidget {
   final bool realData;
   final int pendingRequests;
   final MessagingRepository? repository;
+  final Future<ChatHistoryStore> Function()? openRelayHistory;
+  final Stream<String>? relayChanges;
   final bool active;
   final bool friendMuted;
   final bool networkUnavailable;
@@ -81,6 +88,24 @@ class _ConversationsPageState extends State<ConversationsPage>
   final _slides = <String, double>{};
   StreamSubscription<Map<String, dynamic>>? _events;
   StreamSubscription<void>? _sessions;
+  StreamSubscription<String>? _relayEvents;
+  bool get _useRelayUnread =>
+      widget.openRelayHistory != null ||
+      (_repository?.persistHistory == true &&
+          NovoRudpBindingRuntime.relayConfigured);
+  Future<ChatHistoryStore> _openRelayHistory(
+    MessagingRepository repository,
+  ) async {
+    final store =
+        await (widget.openRelayHistory?.call() ??
+            ChatHistoryStore.open(repository.account));
+    if (store.account != repository.account ||
+        !identical(repository, _repository)) {
+      throw StateError('Chat account changed');
+    }
+    return store;
+  }
+
   int _realGeneration = 0;
   Future<void>? _refreshTask;
   bool _refreshAgain = false;
@@ -95,6 +120,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     _realGeneration++;
     _events?.cancel();
     _sessions?.cancel();
+    _relayEvents?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -123,11 +149,18 @@ class _ConversationsPageState extends State<ConversationsPage>
     final generation = ++_realGeneration;
     _events?.cancel();
     _sessions?.cancel();
+    _relayEvents?.cancel();
     try {
       final repository = widget.repository ?? await MessagingRepository.open();
       if (!mounted || generation != _realGeneration) return;
       _avatarProfiles.clear();
       _repository = repository;
+      if (_useRelayUnread) {
+        _relayEvents =
+            (widget.relayChanges ??
+                    NovoRudpBindingRuntime.textChanges(repository.account))
+                .listen((_) => _refreshReal());
+      }
       _events = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
         if (type == 'connection.ready' ||
@@ -144,6 +177,7 @@ class _ConversationsPageState extends State<ConversationsPage>
         _repository = null;
         _avatarProfiles.clear();
         _events?.cancel();
+        _relayEvents?.cancel();
         if (mounted) {
           setState(() {
             _realItems.clear();
@@ -187,9 +221,15 @@ class _ConversationsPageState extends State<ConversationsPage>
     if (repository == null) return;
     final generation = ++_realGeneration;
     try {
-      final result = await repository.conversations(
-        offset: more ? _realItems.length : 0,
-      );
+      final result = _useRelayUnread
+          ? await conversationsWithRelayUnread(
+              repository: repository,
+              history: await _openRelayHistory(repository),
+              offset: more ? _realItems.length : 0,
+            )
+          : await repository.conversations(
+              offset: more ? _realItems.length : 0,
+            );
       if (!mounted || generation != _realGeneration) return;
       setState(() {
         if (!more) _realItems.clear();
@@ -283,10 +323,25 @@ class _ConversationsPageState extends State<ConversationsPage>
             peer,
             (item['lastSequence'] as num).toInt(),
           );
+          if (_useRelayUnread) {
+            final store = await _openRelayHistory(repository);
+            String? cursor;
+            while (true) {
+              final ids = await store.nearbyUnreadIds(afterId: cursor);
+              if (ids.isEmpty) break;
+              await store.markNearbyMemberRead(peer, ids);
+              cursor = ids.last;
+              if (ids.length < 200) break;
+            }
+          }
         case 'pin':
           await repository.settings(peer, pinned: item['pinned'] != true);
         case 'hide':
           await repository.settings(peer, hide: true);
+          if (_useRelayUnread) {
+            await (await _openRelayHistory(repository))
+                .clear('direct:$peer', hideNearby: true);
+          }
         case 'block':
           await repository.setRelationship(peer, 'block');
       }

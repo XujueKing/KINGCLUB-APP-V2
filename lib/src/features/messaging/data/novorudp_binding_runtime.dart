@@ -17,6 +17,12 @@ import 'novorudp_device_identity_store.dart';
 /// Registers the device and optionally maintains an explicitly configured relay.
 /// Never changes message routes without a separate member-authorized channel.
 class NovoRudpBindingRuntime {
+  static const relayUrl = String.fromEnvironment('KINGCLUB_NOVORUDP_RELAY_URL');
+  static const relayPeer = String.fromEnvironment(
+    'KINGCLUB_NOVORUDP_RELAY_PEER',
+  );
+  static bool get relayConfigured =>
+      relayUrl.isNotEmpty && relayPeer.isNotEmpty;
   static const enabled = bool.fromEnvironment(
     'KINGCLUB_NOVORUDP_DEVICE_BINDING',
   );
@@ -188,8 +194,6 @@ class NovoRudpBindingRuntime {
         return;
       }
       debugPrint('NOVORUDP_DEVICE_BINDING_READY');
-      const relayUrl = String.fromEnvironment('KINGCLUB_NOVORUDP_RELAY_URL');
-      const relayPeer = String.fromEnvironment('KINGCLUB_NOVORUDP_RELAY_PEER');
       if (relayUrl.isNotEmpty && relayPeer.isNotEmpty) {
         final history = await ChatHistoryStore.open(messaging.account);
         if (generation != MemberQrMemory.generation ||
