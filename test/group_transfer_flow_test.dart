@@ -77,6 +77,12 @@ void main() {
       expect(calls[1]['target'], 'actual-member');
       expect(calls[1]['expectedVersion'], 7);
       expect(find.byKey(const ValueKey('group-transfer')), findsNothing);
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('group-depart')),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       expect(find.text('退出群聊'), findsOneWidget);
       expect(find.text('解散群聊'), findsNothing);
       expect(tester.takeException(), isNull);

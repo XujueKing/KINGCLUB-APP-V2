@@ -62,6 +62,12 @@ void main() {
         await tester.tap(find.text('打开群'));
         await tester.pumpAndSettle();
         final button = find.byKey(const ValueKey('group-depart'));
+        await tester.scrollUntilVisible(
+          button,
+          150,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
         expect(find.text(owner ? '解散群聊' : '退出群聊'), findsOneWidget);
         await tester.tap(button);
         await tester.pumpAndSettle();
