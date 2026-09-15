@@ -1,5 +1,14 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## Open exported chat files (implemented, native acceptance pending)
+
+Android file details now offers an explicit Open saved file action after a successful verified export. The native controller retains only its most recently completed document URI, addressed by the same random export operation ID; callers cannot pass an arbitrary URI or path to open. ACTION_VIEW uses the system chooser and temporary read permission, never write permission. Export MIME type is selected from the filename extension with binary fallback. Cancellation/disposal clears the saved-document handle without deleting an already completed export. Repeated open taps are suppressed. No files open automatically after download or save.
+
+Four exporter tests passed for successful save, cancellation, authorization revocation and disposal, including ensuring only a successful live export can dispatch openSaved and that disposed exporters cannot launch it. Changed Dart files pass static analysis. Final real-API Android profile/preview ARM64 build succeeded, APK SHA256 a8e5e38a63106ba0df711fd39853b17318c8b56004ef87b25145bea1229ee1ee, 157003848 bytes. Not installed on A/B in this node; external viewer availability, document-provider behavior and actual PDF/text rendering remain pending native acceptance. A availability clarification remains pending; no touch actions performed.
+
+Android URI permission reference: https://developer.android.com/training/secure-file-sharing/share-file
+
+
 ## Group cached-history revalidation and update package
 
 Group history pagination now displays its disk page immediately and revalidates the original page boundary with the server. A transient network failure preserves cached viewing; explicit CHAT_GROUP_ACCESS_DENIED follows the existing membership-revocation path to clear memory/disk and disable send access. Added delayed-response tests verify both outcomes after a local cache hit. Twenty-two group controller/history tests passed, changed-file static analysis and diff checks passed.

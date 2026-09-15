@@ -2,8 +2,10 @@ package com.lingmei.kingclub
 
 import android.app.Activity
 import android.content.Intent
+import android.content.ClipData
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.webkit.MimeTypeMap
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
@@ -23,6 +25,8 @@ class ChatFileExport(private val activity: Activity) {
     private var document: Uri? = null
     private var operationId: String? = null
     private var copying = false
+    private var savedDocument: Uri? = null
+    private var savedOperationId: String? = null
     private var cancelled = AtomicBoolean(false)
 
     fun handle(call: MethodCall, result: MethodChannel.Result) {
@@ -31,6 +35,23 @@ class ChatFileExport(private val activity: Activity) {
             result.error("INVALID", "Invalid export operation", null); return
         }
         when (call.method) {
+            "openSaved" -> {
+                val uri = savedDocument
+                if (uri == null || savedOperationId != requestId) {
+                    result.error("INVALID", "No saved document", null); return
+                }
+                try {
+                    val view = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, activity.contentResolver.getType(uri) ?: "application/octet-stream")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        clipData = ClipData.newRawUri("Saved file", uri)
+                    }
+                    activity.startActivity(Intent.createChooser(view, "打开文件"))
+                    result.success(true)
+                } catch (_: Exception) {
+                    result.error("UNAVAILABLE", "Unable to open saved file", null)
+                }
+            }
             "choose" -> {
                 if (picker != null || document != null || copying) {
                     result.error("BUSY", "Another export is active", null); return
@@ -45,7 +66,9 @@ class ChatFileExport(private val activity: Activity) {
                 try {
                     activity.startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "application/octet-stream"
+                        type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(
+                            name.substringAfterLast('.', "").lowercase(java.util.Locale.ROOT)
+                        ) ?: "application/octet-stream"
                         putExtra(Intent.EXTRA_TITLE, name)
                     }, REQUEST)
                 } catch (_: Exception) {
@@ -60,6 +83,10 @@ class ChatFileExport(private val activity: Activity) {
                 } else copy(call, result)
             }
             "cancel" -> {
+                if (savedOperationId == requestId) {
+                    savedDocument = null
+                    savedOperationId = null
+                }
                 if (operationId != requestId) { result.success(null); return }
                 cancelled.set(true)
                 if (!copying) { document?.let { remove(it) }; document = null }
@@ -126,7 +153,11 @@ class ChatFileExport(private val activity: Activity) {
                 if (!copied || cancellation.get()) {
                     remove(uri)
                     result.error("EXPORT_FAILED", "File export cancelled or failed", null)
-                } else result.success(true)
+                } else {
+                    savedDocument = uri
+                    savedOperationId = call.argument<String>("operationId")
+                    result.success(true)
+                }
             }
         }
     }
@@ -141,6 +172,8 @@ class ChatFileExport(private val activity: Activity) {
     }
 
     fun dispose() {
+        savedDocument = null
+        savedOperationId = null
         cancelled.set(true)
         picker?.success(false)
         picker = null

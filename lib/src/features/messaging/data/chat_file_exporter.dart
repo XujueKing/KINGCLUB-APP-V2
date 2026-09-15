@@ -14,6 +14,7 @@ class ChatFileExporter {
   static const channel = MethodChannel('kingclub/chat-file-export');
   late final StreamSubscription<void> _session;
   String? _operationId;
+  String? _savedOperationId;
   bool _disposed = false, _busy = false;
   Future<bool> save(
     File file,
@@ -43,6 +44,7 @@ class ChatFileExporter {
             'sha256': reference.sha256,
           }) ==
           true;
+      if (saved && !_disposed) _savedOperationId = operationId;
       return saved && !_disposed;
     } finally {
       try {
@@ -58,6 +60,20 @@ class ChatFileExporter {
     }
   }
 
+  Future<bool> openSaved() async {
+    final id = _savedOperationId;
+    if (_disposed || _busy || id == null) return false;
+    _busy = true;
+    try {
+      return await channel.invokeMethod<bool>('openSaved', {
+            'operationId': id,
+          }) ==
+          true;
+    } finally {
+      _busy = false;
+    }
+  }
+
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
@@ -66,6 +82,11 @@ class ChatFileExporter {
       final id = _operationId;
       if (id != null) {
         await channel.invokeMethod<void>('cancel', {'operationId': id});
+      }
+      final savedId = _savedOperationId;
+      _savedOperationId = null;
+      if (savedId != null) {
+        await channel.invokeMethod<void>('cancel', {'operationId': savedId});
       }
     } catch (_) {}
   }

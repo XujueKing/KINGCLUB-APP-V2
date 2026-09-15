@@ -61,6 +61,14 @@ void main() {
       }
       expect(calls.contains('copy'), scenario == 'success');
       if (scenario != 'success') expect(calls.contains('cancel'), true);
+      final beforeOpen = calls.length;
+      await exporter.openSaved();
+      expect(calls.length, beforeOpen + (scenario == 'success' ? 1 : 0));
+      if (scenario == 'success') expect(calls.last, 'openSaved');
+      await exporter.dispose();
+      final afterDispose = calls.length;
+      expect(await exporter.openSaved(), false);
+      expect(calls.length, afterDispose);
     });
   }
 }

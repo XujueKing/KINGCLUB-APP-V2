@@ -31,7 +31,20 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
   String? _error;
   File? _file;
   ChatFileExporter? _exporter;
-  bool _saving = false, _saved = false;
+  bool _saving = false, _saved = false, _opening = false;
+
+  Future<void> _openSaved() async {
+    if (_opening || _saving) return;
+    setState(() => _opening = true);
+    try {
+      final opened = await _exporter?.openSaved() ?? false;
+      if (!opened && mounted) setState(() => _error = '无法打开文件，请从保存位置查看');
+    } catch (_) {
+      if (mounted) setState(() => _error = '无法打开文件，请选择支持此格式的应用');
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
 
   Future<void> _save() async {
     final file = _file, downloader = _downloader;
@@ -156,6 +169,11 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
               FilledButton(
                 onPressed: _saving ? null : _save,
                 child: Text(_saving ? '正在保存…' : '保存到文件'),
+              ),
+            if (_saved && Platform.isAndroid)
+              TextButton(
+                onPressed: _saving || _opening ? null : _openSaved,
+                child: const Text('打开已保存文件'),
               ),
           ],
         ),
