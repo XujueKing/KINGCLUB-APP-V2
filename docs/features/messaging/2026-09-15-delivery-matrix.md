@@ -1,5 +1,11 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 21:18 原生 UDP / SUPERVM 中继回归
+
+在 `3dcacbe` 工作区执行 `nearby_text_channel_test.dart` 和 `member_relay_runtime_test.dart`，使用真实 Rust DLL、UDP 丢包代理、SQLite 和仍在运行的本机 SUPERVM WSS 中继（PID 4128，45172 端口），2 项全部通过、无跳过，约 9 秒。日志：`build/read-retry-native-regression.log`。
+
+覆盖握手/送达/已读/已读确认丢失后的重试、4000 字中文分片、重复发送不重复入库、16 个未知旧回执不阻塞后续回执、中继入站进入会话列表及未读数、读后归零、正式历史关联及控制器重建后仍显示已读，以及前后台连接释放/恢复。成员目录、正式历史与服务故障由测试注入；真实部分是传输、认证链路及持久化，不代表线上 API 全链路、Android 双机、跨公网或手机 NovoRUDP 自适应已验收。
+
 ## 21:15 Profile 测试包已构建，待安装
 
 `build/app/outputs/flutter-apk/app-preview-profile.apk` 于 2026-09-15 21:15:31 构建完成，Gradle 68.0 秒，157265992 字节；SHA256 `16B1CE49455770372B89429EBF83DBEED5683A6C548AA0F8C5707C1E6A4C80D4`。包含聊天代码截至 `2a11c4d` 的近期修复，构建脚本已核验原生 NovoRUDP ARM64 ELF。工作区原有三处 onboarding 修改保留并参与本机打包，未纳入聊天提交。
