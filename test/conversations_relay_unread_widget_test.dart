@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
+import 'package:kingclub/src/features/messaging/data/chat_read_outbox.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/conversations_page.dart';
@@ -45,12 +46,14 @@ void main() {
           var expectedCount = mode == 'localOnly' ? 1 : 2;
           var serverUnread = mode == 'localOnly' ? 0 : 1;
           var readCalls = 0;
+          var readOffline = mode == 'readOffline';
           final repository = MessagingRepository(
             account: 'me',
+            readOutbox: ChatReadOutbox('me'),
             call: (method, params) async {
               if (method == 'K260913000605') {
                 readCalls++;
-                if (mode == 'readOffline') {
+                if (readOffline) {
                   throw const AuthFailure('NETWORK_ERROR', 'offline');
                 }
                 serverUnread = 0;
@@ -145,6 +148,23 @@ void main() {
           expect(readCalls, mode == 'localOnly' ? 0 : 1);
           final receipts = await history.pendingNearbyReadReceipts(device);
           expect(receipts, hasLength(2));
+          if (mode == 'readOffline') {
+            expect(await repository.readOutbox!.read(), {'peer': 1});
+            // No websocket or relay event: the successful retry itself must
+            // refresh the list and its parent badge.
+            readOffline = false;
+            expectedCount = 0;
+            count = Completer<int>();
+            await repository.retryPendingReads(isActive: () => true);
+            expect(await count.future.timeout(const Duration(seconds: 5)), 0);
+            await tester.pumpAndSettle();
+            expect(
+              find.byKey(const ValueKey('conversation-unread-badge')),
+              findsNothing,
+            );
+            expect(await repository.readOutbox!.read(), isEmpty);
+            expect(readCalls, 2);
+          }
           await tester.pumpWidget(const SizedBox.shrink());
           await events.close();
           await real(() async {

@@ -22,6 +22,34 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
+  test('only successful read recovery notifies the matching account', () async {
+    final matching = <String>[];
+    final other = <String>[];
+    final first = MessagingRepository.readChanges('me').listen(matching.add);
+    final second = MessagingRepository.readChanges('other').listen(other.add);
+    addTearDown(first.cancel);
+    addTearDown(second.cancel);
+    final queue = ChatReadOutbox('me');
+    await queue.put('peer', 1);
+    var offline = true;
+    final repo = MessagingRepository(
+      account: 'me',
+      readOutbox: queue,
+      call: (_, _) async {
+        if (offline) throw const AuthFailure('NETWORK_ERROR', 'offline');
+        return {};
+      },
+    );
+    await repo.retryPendingReads(isActive: () => true);
+    await Future<void>.delayed(Duration.zero);
+    expect(matching, isEmpty);
+    offline = false;
+    await repo.retryPendingReads(isActive: () => true);
+    await Future<void>.delayed(Duration.zero);
+    expect(matching, ['me']);
+    expect(other, isEmpty);
+  });
+
   test('slow read receipt does not delay the pending-message drain', () async {
     final queue = ChatReadOutbox('me');
     await queue.put('peer', 1);

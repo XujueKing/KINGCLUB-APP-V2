@@ -1,4 +1,7 @@
 import 'chat_video.dart';
+
+import 'dart:async';
+
 import 'chat_read_outbox.dart';
 import 'novorudp_binding_runtime.dart';
 import 'chat_location.dart';
@@ -15,6 +18,10 @@ typedef ChatApiCall = Future<Map<String, dynamic>> Function(
 
 /// All requests are bound to the account which opened this repository.
 class MessagingRepository {
+  static final _readChanges = StreamController<String>.broadcast();
+  static Stream<String> readChanges(String account) =>
+      _readChanges.stream.where((changedAccount) => changedAccount == account);
+
   MessagingRepository({
     required this.account,
     required this.call,
@@ -217,6 +224,7 @@ class MessagingRepository {
             'sequence': entry.value,
           });
           if (!isActive()) return;
+          _readChanges.add(account);
           await queue.acknowledge(entry.key, entry.value);
         } on AuthFailure catch (error) {
           if (error.code == 'NETWORK_ERROR' ||
