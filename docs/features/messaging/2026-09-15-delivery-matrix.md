@@ -1,5 +1,13 @@
 # 原生聊天交付矩阵（2026-09-15当前核查）
 
+## 23:46 近期修复整合包与原生回归
+
+基于 `3cf4573` 构建 Profile/preview/ARM64 APK，2026-09-15 23:46:27 完成，Gradle 65.0 秒，157265992 字节；SHA256 `0DD13767CA4D18EE4E515D13F8C6ADDFA4AA9AFD9B7A7FBF43D85A700BBC0E2D`。产物仍为 `build/app/outputs/flutter-apk/app-preview-profile.apk`，原生 NovoRUDP ARM64 ELF 检查通过。包含已读加密恢复、语音等待取消、文件分块重试及清理、头像主动刷新；本机原有三处 onboarding 修改随工作区打包但未纳入聊天提交。尚未安装 A/B。
+
+原生 UDP 丢包回归通过。首次中继测试超时后核实 PID 4128 已退出、45172 无监听，且电脑 WLAN 已变为 192.168.3.63，原 192.168.1.5 不再属于本机。启动脚本拒绝失效地址后改用回环 127.0.0.1，实际中继 PID 19752、`wss://127.0.0.1:45172/novovm`，原生中继/历史关联/控制器重建已读恢复测试通过。日志为 `build/integrated-media-receipts-native.log`（含首次失败和 UDP 通过）、`build/integrated-media-receipts-relay.log`（恢复后通过）及 `build/integrated-media-receipts-build.log`。
+
+API 仍为 test.wuyexin.cn/kingclub-v2；APK 未注入中继地址，不代表手机去中心化通道验收。当前中继只监听回环，不供手机连接，新局域网及跨公网尚待验证；正式历史和成员目录在本机测试中仍为注入数据。
+
 ## 聊天列表主动刷新重新获取头像资料
 
 切回聊天栏目、App 回前台、手动刷新时清除会话列表的资料 Future 缓存，重新获取授权头像信息。修复成功资料一直复用、好友换头像后列表仍使用旧 fileId 的问题。媒体文件缓存继续按 fileId 复用，普通父组件重建不额外刷新资料；通讯录原有主动刷新规则保持不变。
