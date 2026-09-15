@@ -394,17 +394,47 @@ void main() {
         ),
       );
       expect(denied.connect, throwsStateError);
+      // Deliberately let the higher identity initiate alone. The receiver
+      // creates its handshake only after the signed offer arrives.
+      final aStarts = a.peerId.compareTo(b.peerId) > 0;
+      final senderSocket = aStarts ? renewedLeft.socket : renewedRight.socket;
+      final receiverSocket = aStarts ? renewedRight.socket : renewedLeft.socket;
+      final incoming = receiverSocket.messages.firstWhere(
+        (event) => event['kind'] == 'peer_handshake_delivery',
+      );
+      final singleInitiator = MemberRelayHandshake(
+        binding: bound(aStarts ? 'member-a' : 'member-b', aStarts ? a : b),
+        relay: senderSocket,
+        peer: aStarts ? 'member-b' : 'member-a',
+        peerBindingId: aStarts ? bindingB : bindingA,
+        initiate: true,
+      );
+      final opening = singleInitiator.connect();
+      final singleResponder = MemberRelayHandshake(
+        binding: bound(aStarts ? 'member-b' : 'member-a', aStarts ? b : a),
+        relay: receiverSocket,
+        peer: aStarts ? 'member-a' : 'member-b',
+        peerBindingId: aStarts ? bindingA : bindingB,
+        initialOffer: await incoming.timeout(const Duration(seconds: 2)),
+      );
+      final singleLanes = await Future.wait([
+        opening,
+        singleResponder.connect(),
+      ]);
+      await Future.wait(singleLanes.map((lane) => lane.close()));
       final memberA = MemberRelayHandshake(
         binding: bound('member-a', a),
         relay: renewedLeft.socket,
         peer: 'member-b',
         peerBindingId: bindingB,
+        initiate: true,
       );
       final memberB = MemberRelayHandshake(
         binding: bound('member-b', b),
         relay: renewedRight.socket,
         peer: 'member-a',
         peerBindingId: bindingA,
+        initiate: true,
       );
       addTearDown(memberA.close);
       addTearDown(memberB.close);

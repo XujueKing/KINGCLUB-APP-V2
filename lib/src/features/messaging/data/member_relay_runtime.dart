@@ -23,6 +23,11 @@ class MemberRelayRuntime with WidgetsBindingObserver {
   final SecurityContext? securityContext;
   final int _generation = MemberQrMemory.generation;
   final _connections = StreamController<NovoRudpRelayConnection?>.broadcast();
+  final _offers = StreamController<Map<String, dynamic>>.broadcast();
+
+  /// Consumers must resolve the source to a member and invoke the bound
+  /// handshake; receipt here is not permission to exchange chat messages.
+  Stream<Map<String, dynamic>> get incomingHandshakes => _offers.stream;
   Stream<NovoRudpRelayConnection?> get connections => _connections.stream;
   NovoRudpRelayConnection? get connection {
     if (_generation != MemberQrMemory.generation) close();
@@ -77,7 +82,16 @@ class MemberRelayRuntime with WidgetsBindingObserver {
       );
       _opening = socket;
       _receiver = socket.messages.listen(
-        (_) {},
+        (event) {
+          if (_current(attempt) && event['kind'] == 'peer_handshake_delivery') {
+            final body = event['body'];
+            if (body is Map &&
+                body['handshake'] is Map &&
+                body['handshake']['kind'] == 'offer') {
+              _offers.add(event);
+            }
+          }
+        },
         onDone: () => _lost(attempt),
         onError: (Object _) => _lost(attempt),
       );
@@ -133,5 +147,6 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     if (_started) WidgetsBinding.instance.removeObserver(this);
     unawaited(_session?.cancel());
     unawaited(_connections.close());
+    unawaited(_offers.close());
   }
 }

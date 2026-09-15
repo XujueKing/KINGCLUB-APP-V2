@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/member_relay_runtime.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_device_binding.dart';
+import 'package:kingclub/src/features/messaging/data/novorudp_relay_connection.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
 
 class _NetworkBinding extends AutomatedTestWidgetsFlutterBinding {
@@ -77,6 +78,32 @@ void main() {
       );
       first.heartbeat();
       await ack.timeout(const Duration(seconds: 2));
+      final callerIdentity = NovoRudpSecureSession.fromSeed(
+        library: DynamicLibrary.open(env['NOVORUDP_NATIVE_LIBRARY']!),
+        seed: Uint8List.fromList(List.generate(32, (_) => random.nextInt(256))),
+      );
+      addTearDown(callerIdentity.dispose);
+      final caller = NovoRudpRelayConnection(
+        identity: callerIdentity,
+        endpoint: runtime.endpoint,
+        expectedRelay: runtime.expectedRelay,
+        securityContext: runtime.securityContext,
+      );
+      addTearDown(caller.close);
+      final callerReceiver = caller.messages.listen((_) {});
+      addTearDown(callerReceiver.cancel);
+      await caller.connect();
+      final offered = runtime.incomingHandshakes.first;
+      final callerOffer = callerIdentity.start(identity.peerId);
+      caller.sendPeerHandshake(identity.peerId, {
+        'kind': 'offer',
+        'body': callerOffer.offer,
+      });
+      final incoming = await offered.timeout(const Duration(seconds: 2));
+      expect(incoming['body']['source_peer_id'], callerIdentity.peerId);
+      expect(incoming['body']['target_peer_id'], identity.peerId);
+      callerIdentity.cancel(callerOffer);
+      caller.close();
       final paused = runtime.connections.firstWhere((value) => value == null);
       runtime.didChangeAppLifecycleState(AppLifecycleState.paused);
       await paused;
@@ -100,7 +127,7 @@ void main() {
       addTearDown(subscription.cancel);
       final done = runtime.connections.drain<void>();
       runtime.close();
-    hold.complete();
+      hold.complete();
       await done;
       await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(lateConnections, isEmpty);

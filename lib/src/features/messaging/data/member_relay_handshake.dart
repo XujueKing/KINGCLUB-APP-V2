@@ -18,6 +18,8 @@ class MemberRelayHandshake {
     required this.relay,
     required this.peer,
     required this.peerBindingId,
+    this.initiate = false,
+    this.initialOffer,
   }) : _ownPeerId = binding.identity.peerId {
     if (!identical(binding.identity, relay.identity) ||
         peer == binding.messaging.account) {
@@ -27,6 +29,13 @@ class MemberRelayHandshake {
   final NovoRudpDeviceBinding binding;
   final NovoRudpRelayConnection relay;
   final String peer, peerBindingId;
+
+  /// Explicit initiation allows either peer to open a lane. The default
+  /// retains deterministic initiation when both peers prepare concurrently.
+  final bool initiate;
+
+  /// Original authenticated-relay event, still verified against member keys.
+  final Map<String, dynamic>? initialOffer;
   final String _ownPeerId;
   final int _generation = MemberQrMemory.generation;
   final _early = <Map<String, dynamic>>[];
@@ -36,12 +45,13 @@ class MemberRelayHandshake {
   Timer? _deadline;
   NetworkDeviceKey? _key;
   BoundNetworkHandshake? _offer;
-  bool _closed = false, _receiving = false;
+  bool _closed = false, _receiving = false, _responding = false;
 
   Future<NovoRudpRelayFrameLink> connect() {
     if (_closed) throw StateError('Member relay handshake closed');
     if (_result != null) return _result!.future;
     final result = _result = Completer<NovoRudpRelayFrameLink>();
+    if (initialOffer != null) _early.add(initialOffer!);
     _messages = relay.messages.listen(
       (event) {
         if (_closed || event['kind'] != 'peer_handshake_delivery') return;
@@ -82,9 +92,10 @@ class MemberRelayHandshake {
       }
       final key = matches.single;
       _key = key;
-      if (_ownPeerId.compareTo(key.peerId) < 0) {
+      if (initialOffer == null &&
+          (initiate || _ownPeerId.compareTo(key.peerId) < 0)) {
         final offer = await binding.startPeer(peer, peerBindingId);
-        if (_closed) {
+        if (_closed || _responding) {
           offer.cancel();
           return;
         }
@@ -125,26 +136,33 @@ class MemberRelayHandshake {
       return;
     }
     final payload = wire['body'] as Map<String, dynamic>;
+    if (wire['kind'] == 'offer' && _offer != null) {
+      // Simultaneous explicit opens converge on the lower identity's offer.
+      if (_ownPeerId.compareTo(_key!.peerId) < 0) return;
+      _offer!.cancel();
+      _offer = null;
+    }
     final offer = _offer;
-    final initiator = _ownPeerId.compareTo(_key!.peerId) < 0;
-    if (initiator && (wire['kind'] != 'response' || offer == null)) {
+    final initiator = offer != null;
+    if (initiator && wire['kind'] != 'response') {
       return;
     }
     if (initiator &&
         (payload['session_id'] is! List ||
             !listEquals(
               payload['session_id'] as List,
-              offer!.offer['session_id'] as List,
+              offer.offer['session_id'] as List,
             ))) {
       return;
     }
     if (!initiator && wire['kind'] != 'offer') return;
+    if (!initiator) _responding = true;
     _receiving = true;
     NovoRudpSecureChannel? channel;
     try {
       _check();
       if (initiator) {
-        channel = await offer!.complete(wire['body'] as Map<String, dynamic>);
+        channel = await offer.complete(wire['body'] as Map<String, dynamic>);
       } else {
         final answer = await binding.respondPeer(
           peer,
