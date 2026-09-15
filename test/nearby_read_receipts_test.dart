@@ -108,6 +108,22 @@ void main() {
       await store.close();
       store = await open();
       expect(await store.pendingNearbyReadReceipts(peer), isEmpty);
+      await store.persistNearbyText(
+        peerId: peer,
+        peerAccount: 'friend',
+        id: id,
+        text: 'text',
+        outgoing: false,
+      );
+      expect(await store.pendingNearbyReadReceipts(peer), [id]);
+      expect(await store.nearbyUnreadCount(peerAccount: 'friend'), 0);
+      await store.applyNearbyReadReceipt(
+        peerId: peer,
+        peerAccount: 'friend',
+        ids: [id],
+        acknowledgement: true,
+      );
+      expect(await store.pendingNearbyReadReceipts(peer), isEmpty);
       await expectLater(
         store.applyNearbyReadReceipt(
           peerId: peer,

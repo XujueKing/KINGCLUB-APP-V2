@@ -239,11 +239,14 @@ class NearbyTextChannel {
         acknowledgement: ack,
       );
       _check();
-      if (!ack && matched.isNotEmpty) {
+      if (!ack) {
+        // Acknowledge processing even if local cleanup removed the message.
+        // Unknown IDs never create messages or acquire a read state, and cannot
+        // pin the other device's durable receipt queue ahead of newer receipts.
         await _send({
           'v': 1,
           'op': 'read_ack',
-          'ids': matched,
+          'ids': ids.toSet().toList(),
         }, NovoRudpFrameKind.data);
         for (final id in matched) {
           _changes.add(id);

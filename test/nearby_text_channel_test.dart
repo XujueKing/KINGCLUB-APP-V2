@@ -181,6 +181,32 @@ void main() {
       await ta.resumePending();
       expect(await ha.nearbyMessages(b.peerId, pendingOnly: true), isEmpty);
       expect((await hb.nearbyMessages(a.peerId)).length, 2);
+      final cleanedIds = List.generate(
+        16,
+        (index) =>
+            '00000000-0000-4000-8000-${index.toString().padLeft(12, '0')}',
+      );
+      for (final id in cleanedIds) {
+        await hb.persistNearbyText(
+          peerId: a.peerId,
+          peerAccount: 'member-a',
+          id: id,
+          text: 'receiver copy after sender cleanup',
+          outgoing: false,
+        );
+      }
+      const laterId = '22222222-2222-4222-8222-222222222222';
+      await hb.markNearbyMemberRead('member-a', [...cleanedIds, laterId]);
+      expect(await hb.pendingNearbyReadReceipts(a.peerId), cleanedIds);
+      await tb.flushReadReceipts();
+      for (var attempt = 0; attempt < 60; attempt++) {
+        if ((await hb.pendingNearbyReadReceipts(a.peerId)).isEmpty) break;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      expect(await hb.pendingNearbyReadReceipts(a.peerId), isEmpty);
+      final sentRows = await ha.nearbyMemberMessages('member-b');
+      expect(sentRows, hasLength(2));
+      expect(sentRows.singleWhere((row) => row['id'] == laterId)['read'], true);
       authorized = false;
       await expectLater(ta.sendText('denied'), throwsStateError);
       final pending = NearbyPeerConnector(

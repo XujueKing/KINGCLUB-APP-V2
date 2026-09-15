@@ -128,6 +128,14 @@ extension NearbyMessageHistory on ChatHistoryStore {
             whereArgs: [peer, id, outgoing ? 1 : 0],
           );
         }
+        if (!outgoing && scope != null && rows.single['wasRead'] == 1) {
+          await tx.update(
+            'nearby_message',
+            {'readReported': 0},
+            where: 'peer=? AND id=? AND outgoing=0',
+            whereArgs: [peer, id],
+          );
+        }
         return;
       }
       final priorRead = member != null && !outgoing
