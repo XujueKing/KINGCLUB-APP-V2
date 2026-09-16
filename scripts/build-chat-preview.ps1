@@ -5,7 +5,8 @@ param(
   [string]$RelayPeer,
   [string]$RelayCertificatePath,
   [switch]$SkipNovoRudp,
-  [switch]$EnablePeerFiles
+  [switch]$EnablePeerFiles,
+  [switch]$EnableLan
 )
 $ErrorActionPreference = 'Stop'
 if ($ApiBaseUrl.Scheme -ne 'https' -or $ApiBaseUrl.UserInfo -or $ApiBaseUrl.Query -or $ApiBaseUrl.Fragment) {
@@ -15,6 +16,12 @@ Push-Location (Split-Path -Parent $PSScriptRoot)
 $previousJni = $env:KINGCLUB_NOVORUDP_JNI_DIR
 try {
   $relayArguments = @()
+  if ($EnableLan -and ($SkipNovoRudp -or !$RelayUrl -or !$RelayPeer)) {
+    throw 'LAN upgrade requires the configured authenticated NovoRUDP relay.'
+  }
+  if ($EnableLan) {
+    $relayArguments += '--dart-define=KINGCLUB_NOVORUDP_LAN=true'
+  }
   if ($EnablePeerFiles -and ($SkipNovoRudp -or !$RelayUrl -or !$RelayPeer)) {
     throw 'Peer files require the configured authenticated NovoRUDP relay.'
   }

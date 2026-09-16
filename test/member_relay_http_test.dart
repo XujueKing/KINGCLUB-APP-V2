@@ -164,6 +164,14 @@ void main() {
       final sender = await left.connectPeer(b.messaging.account, kb.bindingId);
       final receiver = await incoming.timeout(const Duration(seconds: 5));
       expect(receiver.peer, a.messaging.account);
+      if (const bool.fromEnvironment('KINGCLUB_NOVORUDP_LAN')) {
+        final probe = Stopwatch()..start();
+        while ((!sender.directLanReady || !receiver.link.directLanReady) &&
+            probe.elapsed < const Duration(seconds: 10)) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
+        expect(sender.directLanReady && receiver.link.directLanReady, isTrue);
+      }
       final frame = NovoRudpFrame(
         kind: NovoRudpFrameKind.data,
         sessionId: sender.channel.sessionId,
