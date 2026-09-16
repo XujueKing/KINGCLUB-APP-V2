@@ -23,6 +23,9 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_device_binding.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
+import 'package:kingclub/src/features/messaging/data/member_relay_files.dart';
+import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
+import 'package:kingclub/src/features/messaging/data/chat_sent_file_cache.dart';
 
 class _NetworkBinding extends AutomatedTestWidgetsFlutterBinding {
   @override
@@ -58,6 +61,31 @@ void main() {
     test(
       'real relay foreground reconnect and text route primary=$preferRelay',
       () async {
+        const fileMessage = '11111111-1111-4111-8111-111111111111';
+        const fileAsset = '22222222-2222-4222-8222-222222222222';
+        final fileBytes = Uint8List.fromList(
+          List.generate(4097, (i) => i % 251),
+        );
+        final fileHash = (await Sha256().hash(fileBytes)).bytes
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join();
+        Map<String, dynamic> fileAuthority(Map<String, dynamic> params) {
+          expect(params['messageId'], fileMessage);
+          return {
+            'messageId': fileMessage,
+            'sender': 'friend',
+            'recipient': 'runtime-member',
+            'assetId': fileAsset,
+            'fileName': 'runtime.bin',
+            'size': fileBytes.length,
+            'sha256': fileHash,
+            'expiresAt': DateTime.now()
+                .toUtc()
+                .add(const Duration(seconds: 15))
+                .toIso8601String(),
+          };
+        }
+
         final random = Random.secure();
         final identity = NovoRudpSecureSession.fromSeed(
           library: DynamicLibrary.open(env['NOVORUDP_NATIVE_LIBRARY']!),
@@ -80,6 +108,7 @@ void main() {
           messaging: MessagingRepository(
             account: 'runtime-member',
             call: (api, params) async {
+              if (api == 'K260916000686') return fileAuthority(params);
               expect(api, 'K260915000672');
               final resolving = params.containsKey('peerId');
               if (resolving) expect(params['peerId'], callerIdentity.peerId);
@@ -131,6 +160,7 @@ void main() {
             messaging: MessagingRepository(
               account: 'friend',
               call: (api, params) async {
+                if (api == 'K260916000686') return fileAuthority(params);
                 expect(api, 'K260915000672');
                 expect(params['peer'], anyOf('friend', 'runtime-member'));
                 final own = params['peer'] == 'friend';
@@ -181,6 +211,34 @@ void main() {
           runtime: caller,
           history: senderHistory,
         );
+        Future<ChatSentFileCache> fileCache(String name) async =>
+            ChatSentFileCache(
+              cache: ChatDownloadCache(
+                root: Directory('${directory.path}/$name'),
+                key: await AesGcm.with256bits().newSecretKey(),
+              ),
+              checkSession: () async {},
+              temporaryDirectory: () async => directory,
+            );
+        final sourceCache = await fileCache('sender-files');
+        final localFile = await File('${directory.path}/source.bin')
+            .writeAsBytes(fileBytes);
+        await sourceCache.retain(
+          localFile,
+          assetId: fileAsset,
+          size: fileBytes.length,
+          sha256: fileHash,
+        );
+        final receiveFiles = MemberRelayFiles(
+          runtime: runtime,
+          cache: await fileCache('receiver-files'),
+          privateDirectory: directory,
+        );
+        final sendFiles = MemberRelayFiles(
+          runtime: caller,
+          cache: sourceCache,
+          privateDirectory: directory,
+        );
         final conversation = DirectChatController(
           repository: runtime.binding.messaging,
           peer: 'friend',
@@ -199,6 +257,8 @@ void main() {
         });
         addTearDown(conversation.dispose);
         addTearDown(() async {
+          await receiveFiles.close();
+          await sendFiles.close();
           await receiveText.close();
           await sendText.close();
           await receiverHistory.close();
@@ -245,6 +305,23 @@ void main() {
           2,
           3,
         ]);
+        // The receiver reuses a lane originally opened by the sender's text
+        // path. File listeners must also attach to locally initiated lanes.
+        final download = await receiveFiles.receive(
+          peer: 'friend',
+          messageId: fileMessage,
+          assetId: fileAsset,
+          fileName: 'runtime.bin',
+          size: fileBytes.length,
+          sha256: fileHash,
+          stillActive: () => true,
+        );
+        expect(download, isNotNull);
+        try {
+          expect(await (await download!.completed).readAsBytes(), fileBytes);
+        } finally {
+          await download?.close();
+        }
         const textId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
         final textChanged = receiveText.changes.first;
         final fallbackOutbox = _UnusedOutbox();

@@ -29,6 +29,10 @@ class MemberRelayRuntime with WidgetsBindingObserver {
   final _connections = StreamController<NovoRudpRelayConnection?>.broadcast();
   final _offers = StreamController<Map<String, dynamic>>.broadcast();
   final _arrivals = StreamController<MemberRelayArrival>.broadcast();
+  final _channels = StreamController<MemberRelayArrival>.broadcast();
+
+  /// Both incoming and locally initiated authenticated lanes for multiplexing.
+  Stream<MemberRelayArrival> get channels => _channels.stream;
 
   /// Subscribe before connecting. The consumer takes ownership of the link;
   /// this runtime also closes it when its foreground relay is disconnected.
@@ -211,6 +215,7 @@ class MemberRelayRuntime with WidgetsBindingObserver {
         throw StateError('Relay peer changed');
       }
       _holdLink(key.peerId, link);
+      _channels.add((peer: peer, link: link));
       return link;
     } catch (_) {
       if (link != null) unawaited(link.close());
@@ -247,7 +252,10 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     Map<String, dynamic> event,
     int attempt,
   ) async {
-    if (!_current(attempt) || !_arrivals.hasListener) return;
+    if (!_current(attempt) ||
+        (!_arrivals.hasListener && !_channels.hasListener)) {
+      return;
+    }
     final source = (event['body'] as Map)['source_peer_id'] as String;
     if (_pendingPeers.contains(source) ||
         (!_peerLinks.containsKey(source) &&
@@ -276,13 +284,15 @@ class MemberRelayRuntime with WidgetsBindingObserver {
       );
       _handshakes[source] = handshake;
       link = await handshake.connect();
-      if (!_current(attempt) || !_arrivals.hasListener) {
+      if (!_current(attempt) ||
+          (!_arrivals.hasListener && !_channels.hasListener)) {
         await link.close();
         return;
       }
       final accepted = link;
       _holdLink(source, accepted);
       _arrivals.add((peer: resolved.peer, link: accepted));
+      _channels.add((peer: resolved.peer, link: accepted));
       link = null;
     } catch (_) {
       // An untrusted/expired request cannot interrupt the relay or UI.
@@ -334,5 +344,6 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     unawaited(_connections.close());
     unawaited(_offers.close());
     unawaited(_arrivals.close());
+    unawaited(_channels.close());
   }
 }

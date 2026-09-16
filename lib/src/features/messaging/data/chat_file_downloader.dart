@@ -14,6 +14,8 @@ import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
 import 'chat_download_cache.dart';
 import 'novorudp_file_download.dart';
+import 'novorudp_binding_runtime.dart';
+import 'peer_file_authority.dart';
 
 /// Metadata comes from the acknowledged message, never from a download URL.
 class ChatFileReference {
@@ -24,10 +26,12 @@ class ChatFileReference {
     required this.size,
     required this.sha256,
     this.group = false,
+    this.sender,
   });
   final String messageId, assetId, fileName, sha256;
   final int size;
   final bool group;
+  final String? sender;
 }
 
 /// Owns private temporary files until dispose. Export is an explicit UI action.
@@ -96,6 +100,26 @@ class ChatFileDownloader {
     return ChatFileDownloader(
       repository: repository,
       resumeCache: cache,
+      peerDownload: NovoRudpBindingRuntime.fileTransferEnabled
+          ? (reference, active) {
+              final sender = reference.sender;
+              if (reference.group ||
+                  sender == null ||
+                  sender == repository.account) {
+                return Future.value(null);
+              }
+              return NovoRudpBindingRuntime.receiveFile(
+                account: repository.account,
+                sender: sender,
+                messageId: reference.messageId,
+                assetId: reference.assetId,
+                fileName: reference.fileName,
+                size: reference.size,
+                sha256: reference.sha256,
+                stillActive: active,
+              );
+            }
+          : null,
       checkSession: () async {
         final current = await store.readSession();
         if (generation != MemberQrMemory.generation ||
@@ -174,6 +198,20 @@ class ChatFileDownloader {
           .join();
       if (received != ref.size || hash != ref.sha256) {
         throw const FormatException('Peer file digest mismatch');
+      }
+      if (ref.sender != null) {
+        final authority = await PeerFileAuthority.read(
+          repository,
+          ref.sender!,
+          ref.messageId,
+          sending: false,
+        );
+        if (authority.assetId != ref.assetId ||
+            authority.fileName != ref.fileName ||
+            authority.size != ref.size ||
+            authority.sha256 != ref.sha256) {
+          throw const FormatException('Peer file authority changed');
+        }
       }
       await _check();
       return true;

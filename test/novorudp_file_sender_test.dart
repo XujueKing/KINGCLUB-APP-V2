@@ -369,19 +369,38 @@ void main() {
       },
     );
 
-    for (final revoked in [false, true]) {
+    for (final revocation in ['none', 'media', 'peer']) {
       test(
-        'chat downloader uses verified peer file; final revocation=$revoked',
+        'chat downloader uses verified peer file; final revocation=$revocation',
         () async {
+          final revoked = revocation != 'none';
           final bytes = List.generate(70000, (i) => i % 251);
           final input = await source(bytes);
           const id = '12345678-1234-4234-8234-123456789012';
           const asset = '22345678-1234-4234-8234-123456789012';
-          var grants = 0, httpRequests = 0;
+          var grants = 0, httpRequests = 0, authorities = 0;
           Future<void>? sending;
           final repository = MessagingRepository(
             account: 'a',
-            call: (_, _) async {
+            call: (api, params) async {
+              if (api == 'K260916000686') {
+                authorities++;
+                expect(params, {'messageId': id, 'peer': 'b'});
+                if (revocation == 'peer') throw StateError('peer revoked');
+                return {
+                  'messageId': id,
+                  'sender': 'b',
+                  'recipient': 'a',
+                  'assetId': asset,
+                  'fileName': 'sample.bin',
+                  'size': bytes.length,
+                  'sha256': input.hash,
+                  'expiresAt': DateTime.now()
+                      .toUtc()
+                      .add(const Duration(seconds: 15))
+                      .toIso8601String(),
+                };
+              }
               if (++grants == 2 && revoked) throw StateError('revoked');
               return {
                 'messageId': id,
@@ -442,6 +461,7 @@ void main() {
               fileName: 'sample.bin',
               size: bytes.length,
               sha256: input.hash,
+              sender: 'b',
             ),
           );
           if (revoked) {
@@ -453,6 +473,7 @@ void main() {
           }
           await sending;
           expect(grants, 2);
+          expect(authorities, 1);
           expect(httpRequests, 0);
           await downloader.dispose();
           expect(

@@ -15,9 +15,52 @@ import 'novorudp_device_binding.dart';
 import 'novorudp_device_identity_store.dart';
 import 'relay_security_context.dart';
 
+import 'package:path_provider/path_provider.dart';
+
+import 'chat_download_cache.dart';
+import 'chat_sent_file_cache.dart';
+import 'member_relay_files.dart';
+import 'novorudp_file_download.dart';
+
 /// Registers the device and optionally maintains an explicitly configured relay.
 /// Never changes message routes without a separate member-authorized channel.
 class NovoRudpBindingRuntime {
+  static const fileTransferEnabled = bool.fromEnvironment(
+    'KINGCLUB_NOVORUDP_FILE_TRANSFER',
+  );
+  static MemberRelayFiles? _files;
+
+  static Future<NovoRudpFileDownload?> receiveFile({
+    required String account,
+    required String sender,
+    required String messageId,
+    required String assetId,
+    required String fileName,
+    required int size,
+    required String sha256,
+    required bool Function() stillActive,
+  }) async {
+    final files = _files;
+    if (!fileTransferEnabled ||
+        files == null ||
+        files.runtime.binding.messaging.account != account) {
+      return null;
+    }
+    final generation = MemberQrMemory.generation;
+    return files.receive(
+      peer: sender,
+      messageId: messageId,
+      assetId: assetId,
+      fileName: fileName,
+      size: size,
+      sha256: sha256,
+      stillActive: () =>
+          stillActive() &&
+          generation == MemberQrMemory.generation &&
+          identical(_files, files),
+    );
+  }
+
   static const relayUrl = String.fromEnvironment('KINGCLUB_NOVORUDP_RELAY_URL');
   static const relayPeer = String.fromEnvironment(
     'KINGCLUB_NOVORUDP_RELAY_PEER',
@@ -162,6 +205,8 @@ class NovoRudpBindingRuntime {
   }
 
   static void _clear() {
+    unawaited(_files?.close());
+    _files = null;
     unawaited(_textEvents?.cancel());
     _textEvents = null;
     unawaited(_text?.close());
@@ -182,6 +227,7 @@ class NovoRudpBindingRuntime {
     NovoRudpDeviceBinding? binding;
     MemberRelayRuntime? runtime;
     MemberRelayText? text;
+    MemberRelayFiles? files;
     try {
       final library = DynamicLibrary.open('libkingclub_novorudp.so');
       final identity = await NovoRudpDeviceIdentityStore().open(
@@ -223,9 +269,51 @@ class NovoRudpBindingRuntime {
           }
         });
         _relay = runtime;
+        if (fileTransferEnabled) {
+          try {
+            final cache = await ChatDownloadCache.openSentFiles(
+              messaging.account,
+            );
+            final directory = await getTemporaryDirectory();
+            if (generation != MemberQrMemory.generation ||
+                !identical(_binding, binding)) {
+              await text.close();
+              runtime.close();
+              return;
+            }
+            final activeRuntime = runtime;
+            files = MemberRelayFiles(
+              runtime: runtime,
+              privateDirectory: directory,
+              cache: ChatSentFileCache(
+                cache: cache,
+                checkSession: () async {
+                  if (generation != MemberQrMemory.generation ||
+                      !identical(_relay, activeRuntime) ||
+                      activeRuntime.connection == null) {
+                    throw StateError('Peer file session unavailable');
+                  }
+                },
+              ),
+            );
+            _files = files;
+          } catch (_) {
+            // Optional file caching must never disable the working text lane.
+            debugPrint('NOVORUDP_FILE_CACHE_UNAVAILABLE');
+          }
+        }
+        if (generation != MemberQrMemory.generation ||
+            !identical(_binding, binding)) {
+          await files?.close();
+          await text.close();
+          runtime.close();
+          return;
+        }
         runtime.start();
       }
     } catch (error) {
+      unawaited(files?.close());
+      if (identical(_files, files)) _files = null;
       unawaited(text?.close());
       runtime?.close();
       if (text != null && identical(_text, text)) {

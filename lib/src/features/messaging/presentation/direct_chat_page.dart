@@ -1130,6 +1130,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                                                 size: message.fileSize!,
                                                 sha256: message.fileSha256!,
                                                 group: widget.groupId != null,
+                                                sender: message.mine
+                                                    ? _chat!.messaging.account
+                                                    : widget.peerAccount,
                                               ),
                                             ),
                                           ),
@@ -2775,6 +2778,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                     size: message.fileSize!,
                     sha256: message.fileSha256!,
                     group: widget.groupId != null,
+                    sender: message.mine
+                        ? _chat!.messaging.account
+                        : widget.peerAccount,
                   ),
             outbox: widget.chatOutbox,
           ),

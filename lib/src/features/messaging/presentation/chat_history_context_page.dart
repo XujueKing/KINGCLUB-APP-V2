@@ -200,6 +200,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
                     size: message['fileSize'] as int,
                     sha256: message['fileSha256'] as String,
                     group: group,
+                    sender: message['sender'] as String?,
                   ),
                 ),
               ),
