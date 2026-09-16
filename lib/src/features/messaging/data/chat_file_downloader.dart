@@ -13,6 +13,7 @@ import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
 import 'chat_download_cache.dart';
+import 'chat_sent_file_cache.dart';
 import 'novorudp_file_download.dart';
 import 'novorudp_binding_runtime.dart';
 import 'peer_file_authority.dart';
@@ -43,6 +44,7 @@ class ChatFileDownloader {
     Dio? dio,
     Future<Directory> Function()? temporaryDirectory,
     this.resumeCache,
+    this.sentCache,
     this.peerDownload,
   }) : _dio =
            dio ??
@@ -75,6 +77,7 @@ class ChatFileDownloader {
   static const chunkBytes = 1024 * 1024, maxBytes = 256 * 1024 * 1024;
   final MessagingRepository repository;
   final ChatDownloadCache? resumeCache;
+  final ChatDownloadCache? sentCache;
 
   /// Only a runtime with an authenticated peer/message binding may supply this.
   /// Service authorization is checked before connecting and after receiving.
@@ -108,15 +111,19 @@ class ChatFileDownloader {
         (initial['account'] as Map?)?['userAccount'] != repository.account) {
       throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
     }
-    ChatDownloadCache? cache;
+    ChatDownloadCache? cache, sent;
     try {
       cache = await ChatDownloadCache.open(repository.account);
     } catch (_) {
       // Unavailable cache must not prevent an authorized fresh download.
     }
+    try {
+      sent = await ChatDownloadCache.openSentFiles(repository.account);
+    } catch (_) {}
     return ChatFileDownloader(
       repository: repository,
       resumeCache: cache,
+      sentCache: sent,
       peerDownload: NovoRudpBindingRuntime.fileTransferEnabled
           ? (reference, active) {
               final sender = reference.sender;
@@ -157,7 +164,7 @@ class ChatFileDownloader {
       if (_deleted.contains((reference.group, reference.messageId))) {
         throw StateError('文件所属聊天记录已删除');
       }
-      await resumeCache!.ensureNotDeleted(identity);
+      await resumeCache?.ensureNotDeleted(identity);
       return;
     }
     await _grant(reference);
@@ -408,6 +415,41 @@ class ChatFileDownloader {
         working = await parent.createTemp('kingclub-chat-download-');
         final local = File('${working.path}/content.bin');
         if (await _restoreLocal(ref, identity, local)) {
+          _completed.add(working);
+          _completedMessages[working] = (ref.group, ref.messageId);
+          completed = true;
+          onProgress?.call(ref.size, ref.size);
+          return local;
+        }
+        await working.delete(recursive: true);
+        working = null;
+      }
+      if (sentCache != null && ref.sender == repository.account) {
+        final parent = await _temporaryDirectory();
+        await _check();
+        working = await parent.createTemp('kingclub-chat-download-');
+        final local = File('${working.path}/content.bin');
+        final restored =
+            await ChatSentFileCache(
+              cache: sentCache!,
+              checkSession: _check,
+              temporaryDirectory: _temporaryDirectory,
+            ).use<bool>(
+              assetId: ref.assetId,
+              size: ref.size,
+              sha256: ref.sha256,
+              send: (source) async {
+                await source.copy(local.path);
+                return true;
+              },
+            );
+        await _check();
+        await resumeCache?.ensureNotDeleted(identity);
+        if (_deleted.contains((ref.group, ref.messageId))) {
+          throw StateError('文件所属聊天记录已删除');
+        }
+        if (restored == true) {
+          _verifiedLocal.add(identity);
           _completed.add(working);
           _completedMessages[working] = (ref.group, ref.messageId);
           completed = true;

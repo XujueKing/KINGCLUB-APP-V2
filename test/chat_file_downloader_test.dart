@@ -34,65 +34,80 @@ class RealHttpOverrides extends HttpOverrides {}
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   for (final group in [false, true]) {
-    test(
-      'retained file opens and exports offline after cache reopen group=$group',
-      () async {
-        final root = await Directory.systemTemp.createTemp('offline-file-');
-        addTearDown(() => root.delete(recursive: true));
-        final key = await AesGcm.with256bits().newSecretKey();
-        final cacheRoot = Directory('${root.path}/blocks');
-        final cache = ChatDownloadCache(root: cacheRoot, key: key);
-        final bytes = Uint8List.fromList([1, 2, 3]);
-        final hash = (await Sha256().hash(bytes)).bytes
-            .map((b) => b.toRadixString(16).padLeft(2, '0'))
-            .join();
-        final identity = jsonEncode([
-          'me',
-          group,
-          messageId,
-          assetId,
-          3,
-          hash,
-          'file.bin',
-        ]);
-        await cache.write(identity, 0, bytes);
-        await cache.retainCompleted(identity);
-        var grants = 0;
-        final downloader = ChatFileDownloader(
-          repository: MessagingRepository(
-            account: 'me',
-            call: (_, _) async {
-              grants++;
-              throw const SocketException('offline');
-            },
-          ),
-          checkSession: () async {},
-          temporaryDirectory: () async => root,
-          resumeCache: ChatDownloadCache(root: cacheRoot, key: key),
-        );
-        final ref = ChatFileReference(
-          messageId: messageId,
-          assetId: assetId,
-          fileName: 'file.bin',
-          size: 3,
-          sha256: hash,
-          group: group,
-        );
-        try {
-          final local = await downloader.download(ref);
-          expect(await local.readAsBytes(), bytes);
-          await downloader.authorizeExport(ref);
-          expect(grants, 0);
-          await ChatMediaDeletion('me', group, messageId).dispatch();
-          expect(await local.exists(), false);
-          await expectLater(downloader.authorizeExport(ref), throwsStateError);
-          await expectLater(downloader.download(ref), throwsStateError);
-          expect(grants, 0);
-        } finally {
-          await downloader.dispose();
-        }
-      },
-    );
+    for (final sent in [false, true]) {
+      test(
+        'retained file opens and exports offline after cache reopen group=$group sent=$sent',
+        () async {
+          final root = await Directory.systemTemp.createTemp('offline-file-');
+          addTearDown(() => root.delete(recursive: true));
+          final key = await AesGcm.with256bits().newSecretKey();
+          final cacheRoot = Directory('${root.path}/blocks');
+          final cache = ChatDownloadCache(root: cacheRoot, key: key);
+          final bytes = Uint8List.fromList([1, 2, 3]);
+          final hash = (await Sha256().hash(bytes)).bytes
+              .map((b) => b.toRadixString(16).padLeft(2, '0'))
+              .join();
+          final identity = jsonEncode([
+            'me',
+            group,
+            messageId,
+            assetId,
+            3,
+            hash,
+            'file.bin',
+          ]);
+          final retainedIdentity = sent
+              ? jsonEncode(['sent-file-v1', assetId, 3, hash])
+              : identity;
+          await cache.write(retainedIdentity, 0, bytes);
+          await cache.retainCompleted(retainedIdentity);
+          var grants = 0;
+          final downloader = ChatFileDownloader(
+            repository: MessagingRepository(
+              account: 'me',
+              call: (_, _) async {
+                grants++;
+                throw const SocketException('offline');
+              },
+            ),
+            checkSession: () async {},
+            temporaryDirectory: () async => root,
+            resumeCache: ChatDownloadCache(
+              root: sent ? Directory('${root.path}/downloads') : cacheRoot,
+              key: key,
+            ),
+            sentCache: sent
+                ? ChatDownloadCache(root: cacheRoot, key: key)
+                : null,
+          );
+          final ref = ChatFileReference(
+            messageId: messageId,
+            assetId: assetId,
+            fileName: 'file.bin',
+            size: 3,
+            sha256: hash,
+            group: group,
+            sender: sent ? 'me' : 'peer',
+          );
+          try {
+            final local = await downloader.download(ref);
+            expect(await local.readAsBytes(), bytes);
+            await downloader.authorizeExport(ref);
+            expect(grants, 0);
+            await ChatMediaDeletion('me', group, messageId).dispatch();
+            expect(await local.exists(), false);
+            await expectLater(
+              downloader.authorizeExport(ref),
+              throwsStateError,
+            );
+            await expectLater(downloader.download(ref), throwsStateError);
+            expect(grants, 0);
+          } finally {
+            await downloader.dispose();
+          }
+        },
+      );
+    }
   }
   test(
     'deleted file message cannot restart a download or request a grant',
