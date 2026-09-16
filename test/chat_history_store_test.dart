@@ -7,6 +7,19 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_media_cleanup.dart';
 import 'package:kingclub/src/core/media/media_cache.dart';
+import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
+
+class PendingOutbox implements ChatOutbox {
+  PendingOutbox(this.items);
+  final List<Map<String, dynamic>> items;
+  @override
+  Future<List<Map<String, dynamic>>> read() async => List.of(items);
+  @override
+  Future<void> put(Map<String, dynamic> message) async => items.add(message);
+  @override
+  Future<void> remove(String id) async =>
+      items.removeWhere((row) => row['clientMessageId'] == id);
+}
 
 Map<String, dynamic> message(int sequence) => {
   'sequence': sequence,
@@ -23,13 +36,17 @@ void main() {
   late Directory dir;
   late SecretKey key;
   late ChatHistoryStore store;
-  Future<ChatHistoryStore> open({String account = 'me', SecretKey? otherKey}) =>
-      ChatHistoryStore.openDatabaseWithKey(
-        factory: databaseFactoryFfi,
-        file: '${dir.path}/history.db',
-        key: otherKey ?? key,
-        account: account,
-      );
+  Future<ChatHistoryStore> open({
+    String account = 'me',
+    SecretKey? otherKey,
+    ChatOutbox? outbox,
+  }) => ChatHistoryStore.openDatabaseWithKey(
+    factory: databaseFactoryFfi,
+    file: '${dir.path}/history.db',
+    key: otherKey ?? key,
+    account: account,
+    outbox: outbox,
+  );
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('chat-history-');
     key = await AesGcm.with256bits().newSecretKey();
@@ -39,6 +56,65 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  test(
+    'clear preserves media still owned by pending outgoing messages',
+    () async {
+      const asset = '12345678-1234-1234-1234-123456789012';
+      final voice = {
+        ...message(1),
+        'sender': 'me',
+        'messageType': 'voice',
+        'voiceAssetId': asset,
+      };
+      final image = {...message(2), 'sender': 'me', 'messageType': 'image'};
+      final outbox = PendingOutbox([voice, image]);
+      await store.close();
+      store = await open(outbox: outbox);
+      final media = MediaCache(
+        directory: () async => Directory('${dir.path}/media'),
+      );
+      await media.importBytes(
+        Uint8List.fromList([1]),
+        scope: 'member:me',
+        contentKey: 'chat-voice-asset:$asset',
+        kind: MediaKind.audio,
+      );
+      await media.importBytes(
+        Uint8List.fromList([2]),
+        scope: 'member:me',
+        contentKey: 'chat-image-sent:c-2',
+        kind: MediaKind.image,
+      );
+      await store.commit(
+        'direct:peer',
+        [voice, image],
+        expectedEpoch: 0,
+        cursor: 2,
+      );
+      await store.clear(
+        'direct:peer',
+        mediaCleanup: ChatMediaCleanup(media: media),
+      );
+      expect((await store.read('direct:peer')).messages, isEmpty);
+      expect(await outbox.read(), [voice, image]);
+      expect(
+        await media.cached(
+          scope: 'member:me',
+          contentKey: 'chat-voice-asset:$asset',
+          kind: MediaKind.audio,
+        ),
+        isNotNull,
+      );
+      expect(
+        await media.cached(
+          scope: 'member:me',
+          contentKey: 'chat-image-sent:c-2',
+          kind: MediaKind.image,
+        ),
+        isNotNull,
+      );
+    },
+  );
   test(
     'clear preserves shared voice until last persisted reference is removed',
     () async {

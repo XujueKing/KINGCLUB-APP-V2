@@ -21,6 +21,7 @@ class ChatMediaCleanup {
     required Map<String, dynamic> message,
     Set<String> retainedVoiceAssets = const {},
     Set<String> retainedFileAssets = const {},
+    Set<String> retainedSentClients = const {},
   }) async {
     final messageId = message['messageId'];
     if (messageId is String && messageId.isNotEmpty) {
@@ -82,7 +83,10 @@ class ChatMediaCleanup {
       keys['chat-video-message:$group:$id:video'] = MediaKind.video;
       keys['chat-video-message:$group:$id:poster'] = MediaKind.image;
     }
-    if (message['sender'] == account && client is String && client.isNotEmpty) {
+    if (message['sender'] == account &&
+        client is String &&
+        client.isNotEmpty &&
+        !retainedSentClients.contains(client)) {
       keys['chat-image-sent:$client'] = MediaKind.image;
       keys['chat-video-sent:$client'] = MediaKind.video;
     }

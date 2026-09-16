@@ -1,6 +1,7 @@
 import 'chat_call_history.dart';
 import 'chat_reply.dart';
 import 'chat_media_cleanup.dart';
+import 'chat_outbox.dart';
 
 import 'dart:convert';
 import 'dart:io';
@@ -35,7 +36,8 @@ class ChatHistoryPage {
 /// Message payloads are AES-256-GCM encrypted. Sequence/index metadata is not.
 /// No media grants, transport headers or authentication tokens are persisted.
 class ChatHistoryStore {
-  ChatHistoryStore._(this._db, this._key, this.account);
+  ChatHistoryStore._(this._db, this._key, this.account, this._outbox);
+  final ChatOutbox? _outbox;
   final Database _db;
   final SecretKey _key;
   final String account;
@@ -70,6 +72,7 @@ class ChatHistoryStore {
           file: file,
           key: key,
           account: account,
+          outbox: SecureChatOutbox(account),
         );
       } catch (_) {
         _opens.remove(account);
@@ -84,6 +87,7 @@ class ChatHistoryStore {
     required String file,
     required SecretKey key,
     required String account,
+    ChatOutbox? outbox,
   }) async {
     if ((await key.extractBytes()).length != 32 || account.isEmpty) {
       throw ArgumentError('256-bit account key required');
@@ -160,7 +164,7 @@ class ChatHistoryStore {
         },
       ),
     );
-    return ChatHistoryStore._(db, key, account);
+    return ChatHistoryStore._(db, key, account, outbox);
   }
 
   static Future<void> _createContactSnapshot(Database db) => db.execute(
@@ -581,6 +585,9 @@ class ChatHistoryStore {
     if (hideNearby && !conversation.startsWith('direct:')) {
       throw ArgumentError('Nearby history requires a direct conversation');
     }
+    final pending = deleteMedia
+        ? await _outbox?.read() ?? <Map<String, dynamic>>[]
+        : <Map<String, dynamic>>[];
     final id = await _conversation(conversation);
     return _db.transaction((tx) async {
       await tx.insert('conversation', {
@@ -599,6 +606,16 @@ class ChatHistoryStore {
         final cleanup = mediaCleanup ?? ChatMediaCleanup();
         final retainedVoiceAssets = <String>{};
         final retainedFileAssets = <String>{};
+        final retainedSentClients = <String>{};
+        for (final message in pending) {
+          if (message['sender'] != account) continue;
+          final voice = message['voiceAssetId'],
+              file = message['fileAssetId'],
+              client = message['clientMessageId'];
+          if (voice is String) retainedVoiceAssets.add(voice);
+          if (file is String) retainedFileAssets.add(file);
+          if (client is String) retainedSentClients.add(client);
+        }
         // Payloads are encrypted; inspect remaining conversations in bounded
         // batches before discarding any shared asset. The transaction prevents
         // a concurrent history write from changing this reference snapshot.
@@ -670,6 +687,7 @@ class ChatHistoryStore {
               group: conversation.startsWith('group:'),
               retainedVoiceAssets: retainedVoiceAssets,
               retainedFileAssets: retainedFileAssets,
+              retainedSentClients: retainedSentClients,
               message: message,
             );
           }
