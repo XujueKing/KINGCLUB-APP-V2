@@ -15,6 +15,7 @@ import 'package:sqflite/sqflite.dart';
 
 part 'nearby_message_history.dart';
 part 'conversation_list_cache.dart';
+part 'chat_history_media_cleanup.dart';
 
 class ChatHistoryPage {
   const ChatHistoryPage(
@@ -369,6 +370,7 @@ class ChatHistoryStore {
     int? historyVersion,
     int? peerReadSequence,
     String? serverConversationId,
+    ChatMediaCleanup? mediaCleanup,
   }) async {
     if ((peerReadSequence == null) != (serverConversationId == null) ||
         (peerReadSequence != null &&
@@ -420,6 +422,14 @@ class ChatHistoryStore {
       }
       final savedHidden = state['hiddenThrough'] as int;
       final floor = hiddenThrough > savedHidden ? hiddenThrough : savedHidden;
+      await _cleanupSupersededMedia(
+        tx,
+        conversation,
+        id,
+        messages,
+        floor,
+        mediaCleanup ?? ChatMediaCleanup(),
+      );
       final batch = tx.batch();
       if (peerReadSequence != null) {
         var readSequence = peerReadSequence;

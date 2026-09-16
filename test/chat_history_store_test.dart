@@ -56,6 +56,118 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  test(
+    'remote tombstones preserve shared voice until final reference',
+    () async {
+      final media = MediaCache(
+        directory: () async => Directory('${dir.path}/media'),
+      );
+      final cleanup = ChatMediaCleanup(media: media);
+      final file = await media.importBytes(
+        Uint8List.fromList([1]),
+        scope: 'member:me',
+        contentKey: 'chat-voice-asset:shared',
+        kind: MediaKind.audio,
+      );
+      await store.commit('direct:peer', [
+        for (var i = 1; i <= 2; i++)
+          {...message(i), 'messageType': 'voice', 'voiceAssetId': 'shared'},
+      ], expectedEpoch: 0);
+      await store.commit(
+        'direct:peer',
+        [
+          {...message(1), 'messageType': 'recalled'},
+        ],
+        expectedEpoch: 0,
+        mediaCleanup: cleanup,
+      );
+      expect(await file.exists(), true);
+      await store.commit(
+        'direct:peer',
+        [
+          {...message(2), 'messageType': 'hidden'},
+        ],
+        expectedEpoch: 0,
+        mediaCleanup: cleanup,
+      );
+      expect(await file.exists(), false);
+    },
+  );
+  for (final group in [false, true]) {
+    for (final action in ['recalled', 'hidden', 'clear']) {
+      test(
+        'remote $action cleans media after invalidation group=$group',
+        () async {
+          final media = MediaCache(
+            directory: () async => Directory('${dir.path}/media'),
+          );
+          final cleanup = ChatMediaCleanup(media: media);
+          final conversation = '${group ? 'group' : 'direct'}:peer';
+          final files = <File>[];
+          for (var i = 1; i <= 2; i++) {
+            files.add(
+              await media.importBytes(
+                Uint8List.fromList([i]),
+                scope: 'member:me',
+                contentKey: 'chat-image-message:$group:m-$i:image',
+                kind: MediaKind.image,
+              ),
+            );
+          }
+          await store.commit(
+            conversation,
+            [
+              for (var i = 1; i <= 2; i++)
+                {...message(i), 'messageType': 'image'},
+            ],
+            expectedEpoch: 0,
+            cursor: 2,
+          );
+          final epoch = (await store.adoptHistoryVersion(
+            conversation,
+            expectedEpoch: 0,
+            historyVersion: 1,
+          ))!;
+          // A late pre-revision response must not delete even local media.
+          expect(
+            await store.commit(
+              conversation,
+              [],
+              expectedEpoch: 0,
+              historyVersion: 1,
+              hiddenThrough: 2,
+              mediaCleanup: cleanup,
+            ),
+            false,
+          );
+          expect(await files.first.exists(), true);
+          await store.commit(
+            conversation,
+            [
+              if (action != 'clear')
+                {...message(1), 'messageType': action, 'text': ''},
+              {...message(2), 'messageType': 'image'},
+            ],
+            expectedEpoch: epoch,
+            historyVersion: 1,
+            hiddenThrough: action == 'clear' ? 1 : 0,
+            mediaCleanup: cleanup,
+          );
+          expect(await files.first.exists(), false);
+          expect(await files.last.exists(), true);
+          await expectLater(
+            media.importBytes(
+              Uint8List.fromList([1]),
+              scope: 'member:me',
+              contentKey: 'chat-image-message:$group:m-1:image',
+              kind: MediaKind.image,
+            ),
+            throwsStateError,
+          );
+        },
+      );
+    }
+  }
   for (final revision in [false, true]) {
     test(
       'invalidated history remains cleanable after restart revision=$revision',
