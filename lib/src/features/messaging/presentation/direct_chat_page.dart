@@ -853,12 +853,12 @@ class _DirectChatPageState extends State<DirectChatPage>
         rows
             .where(
               (message) =>
-                  message['sender'] == chat.messaging.account &&
                   (DateTime.tryParse(message['createdDate'] as String? ?? '')
                           ?.isAfter(_openedAt) ??
                       false) &&
                   (message['status'] == 'queued' ||
-                      message['status'] == 'sending'),
+                      message['status'] == 'sending' ||
+                      message['status'] == 'sent'),
             )
             .map((message) => message['clientMessageId'])
             .whereType<String>()
@@ -1014,16 +1014,30 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   @override
   Widget build(BuildContext context) {
+    final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
+    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
+    final panelHeight = _readOnly
+        ? 0.0
+        : switch (_composerPanel) {
+            _ComposerPanel.none => 0.0,
+            _ComposerPanel.attachments => 242.0,
+            _ComposerPanel.emoji => 300.0,
+            _ComposerPanel.gifts => 326.0,
+          };
+    final panelSpace = panelHeight + safeBottom;
+    final bottomSpace = keyboardHeight > panelSpace
+        ? keyboardHeight
+        : panelSpace;
     final messageIndices = <String, int>{
       for (var index = 0; index < _messages.length; index++)
         if (_messages[index].clientMessageId != null)
           _messages[index].clientMessageId!: _messages.length - 1 - index,
     };
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.black,
       body: SafeArea(
-        maintainBottomViewPadding: true,
+        bottom: false,
         child: Column(
           children: [
             LegacyMessagingHeader(
@@ -1116,8 +1130,13 @@ class _DirectChatPageState extends State<DirectChatPage>
                         onEnd: () =>
                             _animatedMessageIds.remove(message.clientMessageId),
                         curve: Curves.easeOutCubic,
-                        builder: (_, factor, child) =>
-                            Opacity(opacity: factor, child: child),
+                        builder: (_, factor, child) => ClipRect(
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            heightFactor: factor,
+                            child: child,
+                          ),
+                        ),
                         child: _MessageRow(
                           timestamp: chatTimestampLabel(
                             message.createdDate,
@@ -1311,14 +1330,23 @@ class _DirectChatPageState extends State<DirectChatPage>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _composer(),
-                    if (!_readOnly)
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 260),
-                        reverseDuration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutCubic,
-                        alignment: Alignment.bottomCenter,
-                        child: _activeComposerPanel(),
+                    AnimatedContainer(
+                      key: const ValueKey('direct-chat-bottom-space'),
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      height: bottomSpace,
+                      width: double.infinity,
+                      child: ClipRect(
+                        child: OverflowBox(
+                          alignment: Alignment.topCenter,
+                          minHeight: panelHeight,
+                          maxHeight: panelHeight,
+                          child: panelHeight == 0
+                              ? const SizedBox.shrink()
+                              : _activeComposerPanel(),
+                        ),
                       ),
+                    ),
                   ],
                 ),
               ),

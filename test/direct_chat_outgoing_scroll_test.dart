@@ -59,7 +59,17 @@ void main() {
     await tester.enterText(find.byType(TextField), 'New outgoing message');
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('direct-chat-send')));
+    await tester.pump();
+    for (
+      var frame = 0;
+      frame < 30 && find.text('New outgoing message').evaluate().isEmpty;
+      frame++
+    ) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    final enteringTextSize = tester.getSize(find.text('New outgoing message'));
     await tester.pumpAndSettle();
+    expect(tester.getSize(find.text('New outgoing message')), enteringTextSize);
     expect(find.text('New outgoing message').hitTestable(), findsOneWidget);
     expect(controller.position.extentBefore, lessThan(48));
     await tester.pumpWidget(const SizedBox());

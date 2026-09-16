@@ -208,6 +208,13 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      final panelListHeight = tester.getSize(list).height;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 240);
+      await tester.pumpAndSettle();
+      // IME and the 242px attachment surface replace one another; never add.
+      expect(tester.getSize(list).height, closeTo(panelListHeight, 1));
+      tester.view.viewInsets = const FakeViewPadding();
+      await tester.pumpAndSettle();
       await tester.tapAt(tester.getTopLeft(list) + const Offset(3, 20));
       await tester.pumpAndSettle();
       await tester.tap(input);
