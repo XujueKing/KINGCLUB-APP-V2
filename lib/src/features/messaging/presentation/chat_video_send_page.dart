@@ -1,4 +1,7 @@
 import 'package:video_player/video_player.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../../core/media/media_cache.dart';
 
 import '../data/chat_video.dart';
 import '../data/chat_video_optimizer.dart';
@@ -26,9 +29,11 @@ class ChatVideoSendPage extends StatefulWidget {
     this.drafts,
     this.createUploader,
     this.createPreview,
+    this.mediaStore,
   });
   final Future<ChatFileUploader> Function()? createUploader;
   final VideoPlayerController Function(File)? createPreview;
+  final MediaCache? mediaStore;
   final ChatFileDraft? draft;
   final ChatFileDraftStore? drafts;
   final File file;
@@ -48,6 +53,17 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
   VideoPlayerController? _preview;
   UploadedChatFile? _uploaded;
   ChatVideo? _prepared;
+  File? _uploadInput;
+  late final String _clientMessageId = widget.draft?.id ?? const Uuid().v4();
+  Future<void> _retainVideo(File file) async {
+    await (widget.mediaStore ?? MediaCache.shared).importFile(
+      file,
+      scope: 'member:${widget.chat.messaging.account}',
+      contentKey: 'chat-video-sent:$_clientMessageId',
+      kind: MediaKind.video,
+    );
+  }
+
   bool _processing = false;
   bool _foreground = true, _changingPlayback = false;
   @override
@@ -155,6 +171,8 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
     });
     try {
       if (_alreadyQueued) {
+        await _retainVideo(widget.file);
+        if (!_usable) return;
         try {
           await widget.drafts?.remove(widget.draft!.id);
         } catch (_) {}
@@ -170,7 +188,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
         return;
       }
       _uploader = uploader;
-      File uploadInput = widget.file;
+      File uploadInput = _uploadInput ?? widget.file;
       if (_uploaded == null) {
         await _preview?.pause();
         if (!_usable) return;
@@ -183,6 +201,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
           },
         );
         if (!_usable) return;
+        _uploadInput = uploadInput;
         final sourceBytes = await widget.file.length();
         final uploadBytes = await uploadInput.length();
         if (!_usable) return;
@@ -221,13 +240,15 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
           _prepared ?? await widget.chat.messaging.prepareVideo(file.assetId);
       if (!_usable) return;
       _prepared = video;
+      await _retainVideo(uploadInput);
+      if (!_usable) return;
       var queued = _alreadyQueued;
       trace('queueing');
       if (!queued) {
         await widget.chat.sendVideo(
           video,
           onQueued: () => queued = true,
-          clientMessageId: widget.draft?.id,
+          clientMessageId: _clientMessageId,
         );
       }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');

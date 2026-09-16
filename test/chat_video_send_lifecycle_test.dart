@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_player/video_player.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
+import 'package:kingclub/src/core/media/media_cache.dart';
+import 'package:kingclub/src/features/messaging/data/chat_video.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_uploader.dart';
 import 'package:kingclub/src/features/messaging/data/chat_session_controller.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
@@ -26,6 +28,35 @@ class _Chat extends ChangeNotifier implements ChatSessionController {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw StateError('Unexpected chat operation');
+}
+
+class _SendingChat extends _Chat {
+  _SendingChat(super.messaging);
+  String? queuedId;
+  @override
+  Future<void> sendVideo(
+    ChatVideo video, {
+    VoidCallback? onQueued,
+    String? clientMessageId,
+  }) async {
+    queuedId = clientMessageId;
+    onQueued?.call();
+  }
+}
+
+class _RetainStore extends MediaCache {
+  final keys = <String>[];
+  @override
+  Future<File> importFile(
+    File source, {
+    required String scope,
+    required String contentKey,
+    required MediaKind kind,
+  }) async {
+    keys.add(contentKey);
+    if (keys.length == 1) throw StateError('disk full');
+    return source;
+  }
 }
 
 class _Preview extends VideoPlayerController {
@@ -72,6 +103,8 @@ class _Uploader extends ChatFileUploader {
   final result = Completer<UploadedChatFile>();
   bool started = false;
   @override
+  Future<void> acknowledgeQueued(UploadedChatFile file) async {}
+  @override
   Future<UploadedChatFile> upload(
     File input, {
     required String fileName,
@@ -83,6 +116,68 @@ class _Uploader extends ChatFileUploader {
 }
 
 void main() {
+  testWidgets(
+    'retention failure blocks queue and retry keeps message identity',
+    (tester) async {
+      var prepares = 0;
+      final repo = MessagingRepository(
+        account: 'synthetic',
+        call: (_, _) async {
+          prepares++;
+          return {
+            'status': 'ready',
+            'assetId': '12345678-1234-1234-1234-123456789012',
+            'durationMs': 8000,
+            'width': 640,
+            'height': 480,
+            'hasAudio': true,
+          };
+        },
+      );
+      final chat = _SendingChat(repo);
+      final uploader = _Uploader(repo);
+      final store = _RetainStore();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatVideoSendPage(
+            file: _File(),
+            fileName: 'synthetic.mp4',
+            chat: chat,
+            mediaStore: store,
+            createUploader: () async => uploader,
+            createPreview: (_) => _Preview(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('发送'));
+      await tester.pump();
+      uploader.result.complete(
+        const UploadedChatFile(
+          'asset',
+          'synthetic.mp4',
+          3,
+          'hash',
+          'fingerprint',
+          'request',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(store.keys, hasLength(1));
+      expect(chat.queuedId, isNull);
+      await tester.tap(find.text('发送'));
+      await tester.pumpAndSettle();
+      expect(chat.queuedId, isNotNull);
+      expect(store.keys, [
+        'chat-video-sent:${chat.queuedId}',
+        'chat-video-sent:${chat.queuedId}',
+      ]);
+      expect(prepares, 1);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   testWidgets(
     'late preview play is paused in background and resume does not autoplay',
     (tester) async {
@@ -106,17 +201,13 @@ void main() {
       await tester.tap(find.byIcon(Icons.play_circle_outline));
       await tester.pump();
       expect(preview.plays, 1);
-      tester.binding.handleAppLifecycleStateChanged(
-        AppLifecycleState.paused,
-      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await tester.pump();
       playing.complete();
       await tester.pump();
       expect(preview.value.isPlaying, isFalse);
       expect(preview.pauses, greaterThanOrEqualTo(2));
-      tester.binding.handleAppLifecycleStateChanged(
-        AppLifecycleState.resumed,
-      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
       expect(preview.plays, 1);
       expect(preview.value.isPlaying, isFalse);

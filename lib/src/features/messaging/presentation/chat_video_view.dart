@@ -30,11 +30,13 @@ class ChatVideoView extends StatefulWidget {
     this.createPlayer,
     this.scopeId,
     this.mediaStore,
+    this.sentClientMessageId,
   });
   final MessagingRepository repository;
   final String messageId;
   final String? scopeId;
   final MediaCache? mediaStore;
+  final String? sentClientMessageId;
   final bool group, full;
   final int width, height, durationMs;
   final VoidCallback? onTap;
@@ -144,7 +146,9 @@ class _ChatVideoViewState extends State<ChatVideoView>
         old.repository != widget.repository ||
         old.full != widget.full ||
         old.group != widget.group ||
-        old.scopeId != widget.scopeId) {
+        old.scopeId != widget.scopeId ||
+        old.sentClientMessageId != widget.sentClientMessageId ||
+        old.mediaStore != widget.mediaStore) {
       _preferHevc = true;
       _load();
     }
@@ -178,6 +182,12 @@ class _ChatVideoViewState extends State<ChatVideoView>
     final scope = 'member:${widget.repository.account}';
     final prefix = 'chat-video-message:${widget.group}:${widget.messageId}';
     await Future.wait([
+      if (widget.sentClientMessageId != null)
+        store.evict(
+          scope: scope,
+          contentKey: 'chat-video-sent:${widget.sentClientMessageId}',
+          kind: MediaKind.video,
+        ),
       store.evict(
         scope: scope,
         contentKey: '$prefix:poster',
@@ -214,6 +224,19 @@ class _ChatVideoViewState extends State<ChatVideoView>
             kind: widget.full ? MediaKind.video : MediaKind.image,
           );
         } catch (_) {}
+        var usingSentCopy = false;
+        if (local == null &&
+            widget.full &&
+            widget.sentClientMessageId != null) {
+          try {
+            local = await _media.cached(
+              scope: 'member:${widget.repository.account}',
+              contentKey: 'chat-video-sent:${widget.sentClientMessageId}',
+              kind: MediaKind.video,
+            );
+            usingSentCopy = true;
+          } catch (_) {}
+        }
         if (!mounted || _invalid || generation != _generation) return;
         if (local != null) {
           if (widget.full) {
@@ -233,7 +256,15 @@ class _ChatVideoViewState extends State<ChatVideoView>
               await player.dispose();
               player = null;
               if (!mounted || _invalid || generation != _generation) return;
-              await _evictLocal();
+              if (usingSentCopy) {
+                await _media.evict(
+                  scope: 'member:${widget.repository.account}',
+                  contentKey: 'chat-video-sent:${widget.sentClientMessageId}',
+                  kind: MediaKind.video,
+                );
+              } else {
+                await _evictLocal();
+              }
             }
           } else {
             setState(() => _poster = local);
@@ -392,7 +423,11 @@ class _ChatVideoViewState extends State<ChatVideoView>
     }
     final ratio = (widget.width / widget.height).clamp(0.4, 2.5);
     return GestureDetector(
-      onTap: _poster == null ? (_failed ? _load : null) : widget.onTap,
+      onTap: widget.sentClientMessageId != null
+          ? widget.onTap
+          : _poster == null
+          ? (_failed ? _load : null)
+          : widget.onTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(5),
         child: SizedBox(

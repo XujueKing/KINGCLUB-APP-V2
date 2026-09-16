@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_video_view.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
+import 'package:kingclub/src/core/media/media_cache.dart';
 
 class _CachedFile implements File {
   @override
@@ -56,6 +57,62 @@ class _PlayingPlayer extends VideoPlayerController {
 
 void main() {
   const id = '12345678-1234-1234-1234-123456789012';
+  testWidgets('sent video survives source deletion and opens without a grant', (
+    tester,
+  ) async {
+    late Directory directory;
+    late MediaCache store;
+    await tester.runAsync(() async {
+      directory = await Directory.systemTemp.createTemp('kingclub-sent-video-');
+      final source = File('${directory.path}/source.mp4');
+      await source.writeAsBytes([1, 2, 3]);
+      final root = Directory('${directory.path}/retained');
+      await MediaCache(directory: () async => root).importFile(
+        source,
+        scope: 'member:synthetic',
+        contentKey: 'chat-video-sent:outgoing-id',
+        kind: MediaKind.video,
+      );
+      await source.delete();
+      // Reopen the disk store, without relying on the sender's memory.
+      store = MediaCache(directory: () async => root);
+    });
+    var calls = 0;
+    final player = _PlayingPlayer();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatVideoView(
+          repository: MessagingRepository(
+            account: 'synthetic',
+            call: (_, _) async {
+              calls++;
+              throw StateError('offline');
+            },
+          ),
+          messageId: id,
+          sentClientMessageId: 'outgoing-id',
+          full: true,
+          mediaStore: store,
+          events: const Stream.empty(),
+          createPlayer: (file) {
+            expect(file.readAsBytesSync(), [1, 2, 3]);
+            return player;
+          },
+        ),
+      ),
+    );
+    for (var i = 0; i < 50 && player.plays == 0; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    expect(player.plays, 1);
+    expect(calls, 0);
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() => directory.delete(recursive: true));
+  });
+
   for (final reason in ['denied', 'changed', 'late-denied']) {
     testWidgets('read receipt keeps player until $reason', (tester) async {
       final events = StreamController<Map<String, dynamic>>.broadcast();

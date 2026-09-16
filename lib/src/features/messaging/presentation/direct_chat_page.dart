@@ -1160,6 +1160,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                                   message.messageId != null &&
                                   _chat != null
                               ? ChatVideoView(
+                                  sentClientMessageId: message.mine
+                                      ? message.clientMessageId
+                                      : null,
                                   repository: _chat!.messaging,
                                   scopeId:
                                       widget.groupId ?? _chat!.conversationId,
@@ -1186,6 +1189,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                                           ),
                                           body: SafeArea(
                                             child: ChatVideoView(
+                                              sentClientMessageId: message.mine
+                                                  ? message.clientMessageId
+                                                  : null,
                                               repository: repository,
                                               scopeId:
                                                   widget.groupId ??
