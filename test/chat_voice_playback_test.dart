@@ -279,6 +279,63 @@ void main() {
       expect(evicted.length, 1);
     },
   );
+  test('download decoder failure removes retained copy before retry', () async {
+    final root = await Directory.systemTemp.createTemp('voice-retry-retained-');
+    addTearDown(() => root.delete(recursive: true));
+    final source = await File('${root.path}/download.m4a')
+        .writeAsBytes([1, 2, 3]);
+    final store = MediaCache(
+      directory: () async => Directory('${root.path}/cache'),
+    );
+    const asset = '12345678-1234-1234-1234-123456789012';
+    final output = Output()..failPlay = true;
+    var grants = 0, loads = 0;
+    final repo = MessagingRepository(
+      account: 'me',
+      call: (_, p) async {
+        grants++;
+        return grant(p['messageId'] as String);
+      },
+    );
+    final player = ChatVoicePlayback(
+      output: output,
+      mediaStore: store,
+      events: const Stream.empty(),
+      loadFile: (_, _, _, _) async {
+        loads++;
+        return source;
+      },
+      // A transport cleanup failure must not retain the offline bad copy.
+      evictFile: (_, _) async => throw StateError('transport eviction failed'),
+    );
+    addTearDown(player.dispose);
+    await player.toggle(repo, 'one', assetId: asset);
+    expect(player.error, isNotNull);
+    final reopened = MediaCache(
+      directory: () async => Directory('${root.path}/cache'),
+    );
+    await expectLater(
+      reopened.cached(
+        scope: 'member:me',
+        contentKey: 'chat-voice-asset:$asset',
+        kind: MediaKind.audio,
+      ),
+      throwsStateError,
+    );
+    output.failPlay = false;
+    await source.writeAsBytes([4, 5, 6]);
+    await player.toggle(repo, 'one', assetId: asset);
+    expect(grants, 2);
+    expect(loads, 2);
+    expect(player.error, isNull);
+    final retained = await reopened.cached(
+      scope: 'member:me',
+      contentKey: 'chat-voice-asset:$asset',
+      kind: MediaKind.audio,
+    );
+    expect(await retained.readAsBytes(), [4, 5, 6]);
+    await player.stop();
+  });
   test('old completion during download cannot clear the new clip', () async {
     final output = Output();
     final pending = Completer<File>();

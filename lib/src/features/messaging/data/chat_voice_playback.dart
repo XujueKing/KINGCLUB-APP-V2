@@ -318,6 +318,18 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
             try {
               await _output.stop();
             } catch (_) {}
+            // The downloaded file was also retained for offline playback.
+            // Forget that copy as well, otherwise retry selects the same
+            // undecodable bytes before it can authorize a new download.
+            if (localKey != null) {
+              try {
+                await _mediaStore.evict(
+                  scope: 'member:${repository.account}',
+                  contentKey: localKey,
+                  kind: MediaKind.audio,
+                );
+              } catch (_) {}
+            }
             try {
               await _evictFile(repository.account, fileId);
               if (_usesDefaultLoader) {
