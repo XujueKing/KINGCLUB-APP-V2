@@ -72,6 +72,7 @@ class NovoRudpLanRoute {
   late final StreamSubscription<RawSocketEvent> _events;
   late final Timer _timer;
   InternetAddress? _peer;
+  List<InternetAddress> _candidates = [];
   int? _port;
   Stopwatch? _confirmed;
   bool _closed = false, _reading = false, _ticking = false;
@@ -109,6 +110,7 @@ class NovoRudpLanRoute {
   Future<void> acceptControl(
     NovoRudpFrame frame, {
     bool datagram = false,
+    InternetAddress? source,
   }) async {
     if (_closed ||
         frame.streamId != controlStream ||
@@ -127,7 +129,7 @@ class NovoRudpLanRoute {
             port > 65535) {
           return;
         }
-        InternetAddress? candidate;
+        final candidates = <InternetAddress>[];
         for (final value in raw) {
           if (value is! String) continue;
           final ip = InternetAddress.tryParse(value);
@@ -139,19 +141,27 @@ class NovoRudpLanRoute {
           )) {
             continue;
           }
-          candidate = ip;
-          break;
+          if (!candidates.any((a) => a.address == ip.address)) {
+            candidates.add(ip);
+          }
         }
-        if (candidate?.address != _peer?.address || port != _port) {
+        final unchanged =
+            port == _port &&
+            candidates.map((a) => a.address).join(',') ==
+                _candidates.map((a) => a.address).join(',');
+        if (!unchanged) {
           _endpointEpoch++;
           _confirmed = null;
-          _peer = candidate;
-          _port = candidate == null ? null : port;
+          _peer = null;
+          _candidates = candidates;
+          _port = candidates.isEmpty ? null : port;
         }
-        if (_peer != null) await _send(_control({'op': 'ping'}));
-      } else if (datagram && body['op'] == 'ping') {
-        await _send(_control({'op': 'pong'}));
-      } else if (datagram && body['op'] == 'pong') {
+        await _probe();
+      } else if (datagram && source != null && body['op'] == 'ping') {
+        await _send(_control({'op': 'pong'}), target: source);
+      } else if (datagram && source != null && body['op'] == 'pong') {
+        if (ready && _peer?.address != source.address) return;
+        _peer = source;
         _confirmed = Stopwatch()..start();
       }
     } on FormatException {
@@ -173,13 +183,14 @@ class NovoRudpLanRoute {
             ..clear()
             ..addAll(current);
           _peer = null;
+          _candidates = [];
           _port = null;
           _confirmed = null;
         }
       }
       // Refresh after joining/changing Wi-Fi, including routes opened on cellular.
       if (tick < 4 || tick % 15 == 0) await advertise();
-      if (_peer != null) await _send(_control({'op': 'ping'}));
+      await _probe();
     } catch (_) {
       _confirmed = null;
     } finally {
@@ -187,13 +198,27 @@ class NovoRudpLanRoute {
     }
   }
 
-  Future<void> _send(NovoRudpFrame frame) async {
-    if (_closed || _peer == null) throw StateError('LAN route unavailable');
+  Future<void> _probe() async {
+    final candidates = ready ? [_peer!] : List.of(_candidates);
+    for (final candidate in candidates) {
+      try {
+        await _send(_control({'op': 'ping'}), target: candidate);
+      } on SocketException {
+        // One unavailable interface must not prevent probing the others.
+      }
+    }
+  }
+
+  Future<void> _send(NovoRudpFrame frame, {InternetAddress? target}) async {
+    final destination = target ?? _peer;
+    if (_closed || destination == null || _port == null) {
+      throw StateError('LAN route unavailable');
+    }
     final epoch = _endpointEpoch;
     final wire = NovoRudpSecurePacket.encode(await channel.seal(frame));
     if (_closed ||
         epoch != _endpointEpoch ||
-        _socket.send(wire, _peer!, _port!) != wire.length) {
+        _socket.send(wire, destination, _port!) != wire.length) {
       throw const SocketException('LAN send unavailable');
     }
   }
@@ -217,7 +242,8 @@ class NovoRudpLanRoute {
       for (var i = 0; i < 64 && !_closed; i++) {
         final packet = _socket.receive();
         if (packet == null) break;
-        if (packet.address.address != _peer?.address || packet.port != _port) {
+        if (!_candidates.any((a) => a.address == packet.address.address) ||
+            packet.port != _port) {
           continue;
         }
         try {
@@ -228,8 +254,8 @@ class NovoRudpLanRoute {
           if (_closed) return;
           if (epoch != _endpointEpoch) continue;
           if (frame.streamId == controlStream) {
-            await acceptControl(frame, datagram: true);
-          } else {
+            await acceptControl(frame, datagram: true, source: packet.address);
+          } else if (ready && packet.address.address == _peer?.address) {
             await deliver(frame);
           }
         } on FormatException {

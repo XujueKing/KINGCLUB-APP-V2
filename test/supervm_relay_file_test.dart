@@ -23,7 +23,7 @@ void main() {
     'SUPERVM_TEST_RELAY_CERT',
   ].every(env.containsKey);
   test(
-    'actual LAN route expires when peer UDP socket disappears',
+    'actual LAN skips unreachable first candidate and recovers a rebound socket',
     () async {
       final library = DynamicLibrary.open(env['NOVORUDP_NATIVE_LIBRARY']!);
       final a = NovoRudpSecureSession.fromSeed(
@@ -42,17 +42,38 @@ void main() {
       addTearDown(channel.close);
       addTearDown(answer.channel.close);
       NovoRudpLanRoute? left, right;
+      NovoRudpFrame withUnreachableFirst(NovoRudpFrame frame) {
+        final body = jsonDecode(utf8.decode(frame.payload)) as Map;
+        final addresses = body['addresses'] as List;
+        final first = addresses.first as String;
+        // The subnet network address has no peer socket. The valid advertised
+        // interface follows it and must still be probed using real UDP/native AEAD.
+        body['addresses'] = [
+          '${first.substring(0, first.lastIndexOf('.'))}.0',
+          ...addresses.take(3),
+        ];
+        return NovoRudpFrame(
+          kind: frame.kind,
+          sessionId: frame.sessionId,
+          streamId: frame.streamId,
+          objectId: frame.objectId,
+          sequence: frame.sequence,
+          ackEpoch: frame.ackEpoch,
+          payload: utf8.encode(jsonEncode(body)),
+        );
+      }
+
       left = await NovoRudpLanRoute.open(
         channel: channel,
         sendControl: (frame) async {
-          await right?.acceptControl(frame);
+          await right?.acceptControl(withUnreachableFirst(frame));
         },
         deliver: (_) async {},
       );
       right = await NovoRudpLanRoute.open(
         channel: answer.channel,
         sendControl: (frame) async {
-          await left?.acceptControl(frame);
+          await left?.acceptControl(withUnreachableFirst(frame));
         },
         deliver: (_) async {},
       );
@@ -104,7 +125,7 @@ void main() {
       right = await NovoRudpLanRoute.open(
         channel: answer.channel,
         sendControl: (frame) async {
-          await left?.acceptControl(frame);
+          await left?.acceptControl(withUnreachableFirst(frame));
         },
         deliver: (frame) async {
           delivered.add(frame);
