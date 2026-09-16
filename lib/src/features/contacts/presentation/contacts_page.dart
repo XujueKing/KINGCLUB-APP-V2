@@ -2,6 +2,7 @@ import '../../messaging/presentation/chat_member_avatar.dart';
 import '../../messaging/presentation/group_invitations_page.dart';
 import '../../messaging/data/group_chat_repository.dart';
 import '../data/contact_groups_repository.dart';
+import '../../messaging/data/chat_history_store.dart';
 import '../data/contacts_controller.dart';
 import '../data/contact_name_index.dart';
 import '../../messaging/data/messaging_repository.dart';
@@ -132,7 +133,10 @@ class _ContactsPageState extends State<ContactsPage>
               unawaited(controller.refresh(afterCurrent: true));
             }
           });
-      _groupRepository = ContactGroupsRepository(repository);
+      _groupRepository = ContactGroupsRepository(
+        repository,
+        openHistory: () => ChatHistoryStore.open(repository.account),
+      );
       unawaited(_loadGroups());
       controller.addListener(() {
         if (!mounted) return;
@@ -586,7 +590,13 @@ class _ContactsPageState extends State<ContactsPage>
   Future<void> _loadGroups() async {
     final generation = _connectionGeneration;
     try {
-      final groups = await _groupRepository?.load();
+      final groups = await _groupRepository?.load(
+        onCached: (groups) {
+          if (mounted && generation == _connectionGeneration) {
+            setState(() => _groups = groups);
+          }
+        },
+      );
       if (mounted && generation == _connectionGeneration && groups != null) {
         setState(() => _groups = groups);
       }
@@ -609,7 +619,10 @@ class _ContactsPageState extends State<ContactsPage>
           },
           groups: _groups,
           repository: widget.realData
-              ? ContactGroupsRepository(_groupRepository!.messaging)
+              ? ContactGroupsRepository(
+                  _groupRepository!.messaging,
+                  openHistory: _groupRepository!.openHistory,
+                )
               : null,
           onChanged: (groups) {
             if (mounted) setState(() => _groups = groups);

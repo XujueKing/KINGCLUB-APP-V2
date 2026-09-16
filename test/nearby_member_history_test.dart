@@ -33,6 +33,7 @@ void main() {
       var raw = await databaseFactoryFfi.openDatabase(file);
       final original = (await raw.query('nearby_message')).single['payload'];
       await raw.execute('UPDATE nearby_message SET hidden=1');
+      await raw.execute('DROP TABLE contact_group_snapshot');
       await raw.setVersion(17);
       await raw.close();
       store = await open();

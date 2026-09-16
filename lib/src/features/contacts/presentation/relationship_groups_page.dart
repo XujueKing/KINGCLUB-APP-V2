@@ -42,9 +42,7 @@ class RelationshipGroupsPage extends StatefulWidget {
 }
 
 class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
-  late List<ContactGroup> _groups = widget.repository == null
-      ? List.of(widget.groups)
-      : [];
+  late List<ContactGroup> _groups = List.of(widget.groups);
   bool _ready = false, _sessionInvalid = false, _cleaning = false;
   String? _loadError;
   int _generation = 0;
@@ -91,7 +89,12 @@ class _RelationshipGroupsPageState extends State<RelationshipGroupsPage> {
     if (_sessionInvalid) throw StateError('登录状态已变化');
     final generation = ++_generation;
     try {
-      final groups = await widget.repository!.load();
+      final groups = await widget.repository!.load(
+        onCached: (groups) {
+          if (!mounted || generation != _generation || _sessionInvalid) return;
+          setState(() => _groups = groups);
+        },
+      );
       if (!mounted || generation != _generation) return;
       setState(() {
         _groups = groups;

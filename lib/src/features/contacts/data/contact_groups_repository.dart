@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:uuid/uuid.dart';
 
 import '../../messaging/data/messaging_repository.dart';
+import '../../messaging/data/chat_history_store.dart';
 
 class ContactGroup {
   ContactGroup(this.id, this.name, this.icon, Set<String> members)
@@ -29,22 +31,58 @@ class ContactGroup {
 }
 
 class ContactGroupsRepository {
-  ContactGroupsRepository(this.messaging);
+  ContactGroupsRepository(this.messaging, {this.openHistory});
   final MessagingRepository messaging;
+  final Future<ChatHistoryStore> Function()? openHistory;
   int? _version;
   int _operation = 0;
   bool _saving = false;
   String? _pendingPayload, _pendingId;
-  Future<List<ContactGroup>> load() async {
+  Future<List<ContactGroup>> load({
+    void Function(List<ContactGroup>)? onCached,
+  }) async {
     if (_saving) throw StateError('正在保存关系分组');
     final operation = ++_operation;
+    var received = false;
+    if (onCached != null && openHistory != null) {
+      unawaited(() async {
+        try {
+          final history = await openHistory!();
+          if (history.account != messaging.account) return;
+          final snapshot = await history.contactGroupSnapshot();
+          if (!received && operation == _operation && snapshot != null) {
+            onCached(_parse(snapshot));
+          }
+        } catch (_) {
+          /* Network refresh remains authoritative. */
+        }
+      }());
+    }
     final response = await messaging.call('K260913000615', {});
+    received = true;
     if (operation != _operation) throw StateError('分组读取已被更新操作替代');
     final groups = _parse(response);
     _version = response['version'] as int;
     _pendingPayload = null;
     _pendingId = null;
+    await _persist(groups);
+    if (operation != _operation) throw StateError('分组读取已被更新操作替代');
     return groups;
+  }
+
+  Future<void> _persist(List<ContactGroup> groups) async {
+    if (openHistory == null) return;
+    final snapshot = {
+      'version': _version,
+      'groups': groups.map((g) => g.toJson()).toList(),
+    };
+    try {
+      final history = await openHistory!();
+      if (history.account != messaging.account) return;
+      await history.saveContactGroupSnapshot(snapshot);
+    } catch (_) {
+      /* A disk failure must not turn a server acknowledgement into a failed save. */
+    }
   }
 
   Future<List<ContactGroup>> save(List<ContactGroup> groups) async {
@@ -68,6 +106,7 @@ class ContactGroupsRepository {
       _version = response['version'] as int;
       _pendingPayload = null;
       _pendingId = null;
+      await _persist(saved);
       return saved;
     } finally {
       _saving = false;

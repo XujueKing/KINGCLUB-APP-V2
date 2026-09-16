@@ -44,6 +44,8 @@ void main() {
     await db.execute(
       "INSERT INTO conversation(id,cursor) VALUES('existing-chat',7)",
     );
+    await db.execute('DROP TABLE contact_group_snapshot');
+    await db.execute('ALTER TABLE message DROP COLUMN stale');
     await db.setVersion(14);
     await db.close();
     store = await open();
@@ -54,7 +56,7 @@ void main() {
     final checked = await databaseFactoryFfi.openDatabase(
       '${dir.path}/contacts.db',
     );
-    expect(await checked.getVersion(), 15);
+    expect(await checked.getVersion(), 19);
     expect((await checked.query('conversation')).single['cursor'], 7);
     await checked.close();
     store = await open();

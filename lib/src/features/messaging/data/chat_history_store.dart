@@ -106,8 +106,9 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 18,
+        version: 19,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 19) await _createContactGroupSnapshot(db);
           if (oldVersion < 16) {
             await db.execute(
               'ALTER TABLE message ADD COLUMN stale INTEGER NOT NULL DEFAULT 0',
@@ -174,6 +175,7 @@ class ChatHistoryStore {
           }
         },
         onCreate: (db, _) async {
+          await _createContactGroupSnapshot(db);
           await _createContactSnapshot(db);
           await _createConversationListCache(db);
           await _createNearbyMembers(db);
@@ -194,6 +196,42 @@ class ChatHistoryStore {
   static Future<void> _createContactSnapshot(Database db) => db.execute(
     'CREATE TABLE contact_snapshot (id INTEGER PRIMARY KEY CHECK(id=1), started INTEGER NOT NULL, payload BLOB NOT NULL)',
   );
+
+  static Future<void> _createContactGroupSnapshot(Database db) => db.execute(
+    'CREATE TABLE contact_group_snapshot (id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL, payload BLOB NOT NULL)',
+  );
+
+  Future<Map<String, dynamic>?> contactGroupSnapshot() async {
+    final rows = await _db.query('contact_group_snapshot');
+    if (rows.isEmpty) return null;
+    final row = rows.single;
+    final plain = await _cipher.decrypt(
+      SecretBox.fromConcatenation(
+        (row['payload'] as List).cast<int>(),
+        nonceLength: 12,
+        macLength: 16,
+      ),
+      secretKey: _key,
+      aad: utf8.encode('contact-groups:$account:${row['version']}'),
+    );
+    return {
+      'version': row['version'],
+      'groups': jsonDecode(utf8.decode(plain)),
+    };
+  }
+
+  Future<void> saveContactGroupSnapshot(Map<String, dynamic> snapshot) async {
+    final version = snapshot['version'] as int;
+    final box = await _cipher.encrypt(
+      utf8.encode(jsonEncode(snapshot['groups'])),
+      secretKey: _key,
+      aad: utf8.encode('contact-groups:$account:$version'),
+    );
+    await _db.rawInsert(
+      'INSERT INTO contact_group_snapshot(id,version,payload) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,payload=excluded.payload WHERE excluded.version>=contact_group_snapshot.version',
+      [version, box.concatenation()],
+    );
+  }
 
   Future<List<Map<String, dynamic>>?> contactSnapshot() async {
     final rows = await _db.query('contact_snapshot');

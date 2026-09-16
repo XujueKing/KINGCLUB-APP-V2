@@ -88,6 +88,7 @@ void main() {
     );
     damaged[damaged.length - 1] ^= 1;
     await raw.update('message', {'payload': damaged}, where: 'sequence=55');
+    await raw.execute('DROP TABLE contact_group_snapshot');
     await raw.setVersion(16);
     final before = await raw.query('message', orderBy: 'sequence');
     await raw.close();
@@ -139,6 +140,7 @@ void main() {
         whereArgs: [sequence],
       );
     }
+    await raw.execute('DROP TABLE contact_group_snapshot');
     await raw.setVersion(16);
     await raw.close();
     store = await open();
@@ -154,7 +156,7 @@ void main() {
     }
     await store.close();
     raw = await databaseFactoryFfi.openDatabase('${dir.path}/history.db');
-    expect(await raw.getVersion(), 18);
+    expect(await raw.getVersion(), 19);
     final after = await raw.query('message', orderBy: 'sequence');
     for (var i = 0; i < 60; i++) {
       if (i == 0 || i == 54) continue;
