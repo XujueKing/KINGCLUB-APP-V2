@@ -5,6 +5,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../../core/design_system/king_components.dart';
 import '../../../core/session/secure_session_store.dart';
+import '../../../core/networking/kingclub_realtime.dart';
 import '../data/call_media_session.dart';
 import '../data/call_repository.dart';
 import '../data/call_relay_configuration.dart';
@@ -33,6 +34,7 @@ class CallPage extends StatefulWidget {
         initial: initial,
         outgoingAttempt: outgoingAttempt,
         sessionChanges: SecureSessionStore.changes.stream,
+        events: KingclubRealtime.shared.events,
         sessionFactory: (call, onConnection) {
           relay.requireUsable(call.id);
           return CallMediaSession(

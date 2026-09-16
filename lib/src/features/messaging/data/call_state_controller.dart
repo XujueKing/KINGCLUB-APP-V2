@@ -23,6 +23,7 @@ class CallStateController extends ChangeNotifier {
     required this.sessionFactory,
     bool outgoingAttempt = false,
     required Stream<void> sessionChanges,
+    Stream<Map<String, dynamic>>? events,
     this.pollInterval = const Duration(seconds: 2),
     int Function()? nowMs,
     Stopwatch? durationClock,
@@ -47,6 +48,20 @@ class CallStateController extends ChangeNotifier {
         }),
       );
     });
+    _events = events?.listen((event) {
+      if (_closed ||
+          !{
+            'chat.call.changed',
+            'chat.relationship.changed',
+            'connection.ready',
+          }.contains(event['eventType'])) {
+        return;
+      }
+      // Notifications invalidate the snapshot; only the authenticated read
+      // decides whether this call ended. Preserve events arriving during HTTP.
+      _refreshQueued = true;
+      unawaited(refresh().catchError((Object _) {}));
+    });
   }
 
   final CallRepository repository;
@@ -60,6 +75,8 @@ class CallStateController extends ChangeNotifier {
   int? _recoverySinceMs;
   int _nextRestartAtMs = 0;
   late final StreamSubscription<void> _sessionChanges;
+  StreamSubscription<Map<String, dynamic>>? _events;
+  bool _refreshQueued = false;
   CallSnapshot _call;
   CallSnapshot get call => _call;
   Object? _error;
@@ -125,23 +142,30 @@ class CallStateController extends ChangeNotifier {
     unawaited(refresh().catchError((Object _) {}));
   }
 
-  Future<void> refresh() => _refreshing ??= _serialize(() async {
-    final next = await repository.read(callId: _call.id);
-    if (_closed) return;
-    await _adopt(next!);
-    if (_ending && _call.phase != CallPhase.ended) {
-      await _endOnServer();
-    } else if (!_ending && !_closed) {
-      await _ensureMedia();
-      if (_connected &&
-          !_connectionReported &&
-          _call.phase == CallPhase.connecting) {
-        await _act(CallAction.connected);
-        _connectionReported = true;
-      }
-      if (!_closed && !_ending && _media != null) await _syncMedia();
-    }
-  }).whenComplete(() => _refreshing = null);
+  Future<void> refresh() => _refreshing ??=
+      _serialize(() async {
+        _refreshQueued = false;
+        final next = await repository.read(callId: _call.id);
+        if (_closed) return;
+        await _adopt(next!);
+        if (_ending && _call.phase != CallPhase.ended) {
+          await _endOnServer();
+        } else if (!_ending && !_closed) {
+          await _ensureMedia();
+          if (_connected &&
+              !_connectionReported &&
+              _call.phase == CallPhase.connecting) {
+            await _act(CallAction.connected);
+            _connectionReported = true;
+          }
+          if (!_closed && !_ending && _media != null) await _syncMedia();
+        }
+      }).whenComplete(() {
+        _refreshing = null;
+        if (_refreshQueued && !_closed) {
+          unawaited(refresh().catchError((Object _) {}));
+        }
+      });
 
   Future<void> _adopt(CallSnapshot next) async {
     if (next.id != _call.id ||
@@ -344,6 +368,7 @@ class CallStateController extends ChangeNotifier {
 
   Future<void> _close() async {
     await _sessionChanges.cancel();
+    await _events?.cancel();
     await _media?.close();
     _notify();
   }

@@ -101,6 +101,61 @@ class DurationClock extends Stopwatch {
 
 void main() {
   test(
+    'relationship notification during read refreshes again and closes media',
+    () async {
+      final events = StreamController<Map<String, dynamic>>.broadcast(
+        sync: true,
+      );
+      final changes = StreamController<void>.broadcast();
+      var server = state('connecting', 1);
+      Completer<Map<String, dynamic>>? pending;
+      var reads = 0;
+      final repository = CallRepository(
+        MessagingRepository(
+          account: 'a',
+          call: (method, _) async {
+            reads++;
+            return pending?.future ?? Future.value({'call': server});
+          },
+        ),
+      );
+      late Session session;
+      final controller = CallStateController(
+        repository: repository,
+        initial: CallSnapshot.parse(server, 'a'),
+        outgoingAttempt: true,
+        sessionChanges: changes.stream,
+        events: events.stream,
+        sessionFactory: (call, _) => session = Session(repository, call),
+      );
+      await controller.refresh();
+      expect(session.starts, 1);
+      events.add({'eventType': 'chat.message.created'});
+      await Future<void>.delayed(Duration.zero);
+      expect(reads, 1);
+      pending = Completer<Map<String, dynamic>>();
+      final stale = pending;
+      final reading = controller.refresh();
+      await Future<void>.delayed(Duration.zero);
+      events.add({'eventType': 'chat.relationship.changed'});
+      server = {...state('ended', 2), 'endReason': 'revoked'};
+      pending = null;
+      stale.complete({'call': state('connecting', 1)});
+      await reading;
+      await Future<void>.delayed(Duration.zero);
+      expect(reads, 3);
+      expect(controller.isClosed, isTrue);
+      expect(session.closes, 1);
+      events.add({'eventType': 'chat.call.changed'});
+      await Future<void>.delayed(Duration.zero);
+      expect(reads, 3);
+      controller.dispose();
+      await events.close();
+      await changes.close();
+    },
+  );
+
+  test(
     'recovery timeout stops local capture while state HTTP is stuck',
     () async {
       final timers = <RecoveryTimer>[];
