@@ -1,5 +1,34 @@
 part of 'chat_history_store.dart';
 
+class ConversationHistoryRemoval {
+  ConversationHistoryRemoval(this.conversation, {Set<int>? sequences})
+    : sequences = sequences == null ? null : Set.unmodifiable(sequences);
+  final String conversation;
+  final Set<int>? sequences;
+
+  /// Preserve other messages' counts; the next server refresh supplies the
+  /// authoritative unread total and replacement preview after single deletion.
+  bool applyTo(List<Map<String, dynamic>> rows) {
+    var changed = false;
+    rows.removeWhere((row) {
+      final key = row['kind'] == 'group'
+          ? 'group:${row['groupId']}'
+          : 'direct:${row['peer']}';
+      if (key != conversation) return false;
+      if (sequences == null) {
+        changed = true;
+        return true;
+      }
+      if (sequences!.contains(row['lastSequence'])) {
+        row['preview'] = '';
+        changed = true;
+      }
+      return false;
+    });
+    return changed;
+  }
+}
+
 Future<void> _createConversationListCache(DatabaseExecutor db) => db.execute(
   'CREATE TABLE conversation_list_cache (id INTEGER PRIMARY KEY CHECK(id=1), payload BLOB NOT NULL)',
 );
@@ -72,18 +101,10 @@ extension ConversationListCache on ChatHistoryStore {
 
   Future<void> _removeConversationListEntry(
     Transaction tx,
-    String conversation,
+    ConversationHistoryRemoval removal,
   ) async {
     final rows = await _readConversationList(tx);
-    final previousLength = rows.length;
-    rows.removeWhere(
-      (row) =>
-          conversation ==
-          (row['kind'] == 'group'
-              ? 'group:${row['groupId']}'
-              : 'direct:${row['peer']}'),
-    );
-    if (rows.length != previousLength) {
+    if (removal.applyTo(rows)) {
       await _writeConversationList(tx, utf8.encode(jsonEncode(rows)));
     }
   }

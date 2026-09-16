@@ -58,6 +58,54 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  for (final group in [false, true]) {
+    test(
+      'deleting latest message removes persisted preview only: group=$group',
+      () async {
+        final conversation = group ? 'group:peer' : 'direct:peer';
+        await store.commit(conversation, [
+          message(1),
+          message(2),
+        ], expectedEpoch: 0);
+        final target = <String, dynamic>{
+          'kind': group ? 'group' : 'direct',
+          if (group) 'groupId': 'peer' else 'peer': 'peer',
+          'preview': 'Private payload 2',
+          'lastSequence': 2,
+          'unreadCount': 2,
+        };
+        final other = <String, dynamic>{
+          'kind': group ? 'direct' : 'group',
+          if (group) 'peer': 'peer' else 'groupId': 'peer',
+          'preview': 'Other conversation',
+          'lastSequence': 2,
+          'unreadCount': 5,
+        };
+        await store.saveConversationList([target, other]);
+        await store.clear(conversation, deletedMessageIds: {'m-1'});
+        expect(await store.readConversationList(), [target, other]);
+        final removed = store.clearedConversations.first;
+        final beforeDelete = store.conversationListRevision;
+        await store.clear(conversation, deletedMessageIds: {'m-2'});
+        final event = await removed;
+        final displayed = [
+          Map<String, dynamic>.of(target),
+          Map<String, dynamic>.of(other),
+        ];
+        event.applyTo(displayed);
+        expect(displayed.first['preview'], '');
+        expect(displayed.first['unreadCount'], 2);
+        expect(displayed.last, other);
+        await store.saveConversationList([
+          target,
+          other,
+        ], expectedRevision: beforeDelete);
+        await store.close();
+        store = await open();
+        expect(await store.readConversationList(), displayed);
+      },
+    );
+  }
   for (final remote in [false, true]) {
     test(
       'last received file reference releases sent source remote=$remote',

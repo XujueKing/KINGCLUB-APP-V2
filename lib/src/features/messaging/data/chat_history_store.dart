@@ -45,8 +45,10 @@ class ChatHistoryStore {
 
   /// Fences requests begun before a local conversation was cleared.
   int get conversationListRevision => _conversationListRevision;
-  final _clearedConversations = StreamController<String>.broadcast();
-  Stream<String> get clearedConversations => _clearedConversations.stream;
+  final _clearedConversations =
+      StreamController<ConversationHistoryRemoval>.broadcast();
+  Stream<ConversationHistoryRemoval> get clearedConversations =>
+      _clearedConversations.stream;
   final SecretKey _key;
   final String account;
   static final _cipher = AesGcm.with256bits();
@@ -619,6 +621,7 @@ class ChatHistoryStore {
         ? await _outbox?.read() ?? <Map<String, dynamic>>[]
         : <Map<String, dynamic>>[];
     final id = await _conversation(conversation);
+    ConversationHistoryRemoval? removal;
     final nextEpoch = await _db.transaction((tx) async {
       await tx.insert('conversation', {
         'id': id,
@@ -763,9 +766,16 @@ class ChatHistoryStore {
           whereArgs: [id],
         );
       }
-      if (deleteMedia && deletedMessageIds == null) {
+      if (deleteMedia &&
+          (deletedMessageIds == null || deletedSequences.isNotEmpty)) {
+        removal = ConversationHistoryRemoval(
+          conversation,
+          sequences: deletedMessageIds == null
+              ? null
+              : deletedSequences.toSet(),
+        );
         _conversationListRevision++;
-        await _removeConversationListEntry(tx, conversation);
+        await _removeConversationListEntry(tx, removal!);
       }
       await tx.update(
         'conversation',
@@ -775,8 +785,8 @@ class ChatHistoryStore {
       );
       return epoch + 1;
     });
-    if (deleteMedia && deletedMessageIds == null) {
-      _clearedConversations.add(conversation);
+    if (removal != null) {
+      _clearedConversations.add(removal!);
     }
     return nextEpoch;
   }

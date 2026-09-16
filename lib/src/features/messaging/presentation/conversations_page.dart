@@ -96,7 +96,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   StreamSubscription<void>? _sessions;
   StreamSubscription<String>? _relayEvents;
   StreamSubscription<String>? _readEvents;
-  StreamSubscription<String>? _clearEvents;
+  StreamSubscription<ConversationHistoryRemoval>? _clearEvents;
   ChatHistoryStore? _observedHistory;
   StreamSubscription<String>? _remarkEvents;
   int _localRead = 0;
@@ -118,17 +118,11 @@ class _ConversationsPageState extends State<ConversationsPage>
     if (!identical(_observedHistory, store)) {
       _clearEvents?.cancel();
       _observedHistory = store;
-      _clearEvents = store.clearedConversations.listen((conversation) {
+      _clearEvents = store.clearedConversations.listen((removal) {
         if (!mounted || !identical(repository, _repository)) return;
         _localRead++;
         setState(() {
-          _realItems.removeWhere(
-            (row) =>
-                conversation ==
-                (row['kind'] == 'group'
-                    ? 'group:${row['groupId']}'
-                    : 'direct:${row['peer']}'),
-          );
+          removal.applyTo(_realItems);
         });
         widget.onFriendUnreadChanged(
           _realItems.fold<int>(
