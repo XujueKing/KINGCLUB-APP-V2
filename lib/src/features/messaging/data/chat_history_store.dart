@@ -1,5 +1,6 @@
 import 'chat_call_history.dart';
 import 'chat_reply.dart';
+import 'chat_media_cleanup.dart';
 
 import 'dart:convert';
 import 'dart:io';
@@ -586,6 +587,40 @@ class ChatHistoryStore {
                 whereArgs: [id],
               )).single['epoch']
               as int;
+      // Delete owned media before discarding the encrypted metadata needed to
+      // locate it. A filesystem failure leaves history available for retry.
+      final cleanup = ChatMediaCleanup();
+      var offset = 0;
+      while (true) {
+        final rows = await tx.query(
+          'message',
+          where: 'conversation=?',
+          whereArgs: [id],
+          orderBy: 'sequence ASC',
+          limit: 50,
+          offset: offset,
+        );
+        for (final row in rows) {
+          final plain = await _cipher.decrypt(
+            SecretBox.fromConcatenation(
+              (row['payload'] as List).cast<int>(),
+              nonceLength: 12,
+              macLength: 16,
+            ),
+            secretKey: _key,
+            aad: _aad(id, row['sequence'] as int),
+          );
+          await cleanup.remove(
+            account: account,
+            group: conversation.startsWith('group:'),
+            message: Map<String, dynamic>.from(
+              jsonDecode(utf8.decode(plain)) as Map,
+            ),
+          );
+        }
+        if (rows.length < 50) break;
+        offset += rows.length;
+      }
       await tx.delete('message', where: 'conversation=?', whereArgs: [id]);
       if (hideNearby) {
         await tx.update(
