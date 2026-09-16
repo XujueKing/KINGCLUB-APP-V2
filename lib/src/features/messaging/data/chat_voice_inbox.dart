@@ -67,29 +67,49 @@ class ChatVoiceInbox {
         _pending.remove(entry.key);
         try {
           final item = entry.value;
-          final result = item.group
-              ? await GroupChatRepository(repository)
-                    .history(item.target, messageType: 'voice', limit: 50)
-              : await repository.history(
-                  item.target,
-                  messageType: 'voice',
-                  limit: 50,
-                );
-          if (_disposed) return;
-          final rows = (result['messages'] as List)
-              .map((row) => Map<String, dynamic>.from(row as Map))
-              .toList();
+          final forward = _completed.containsKey(entry.key);
+          int? cursor = _completed[entry.key];
           final worker = _worker = ChatVoicePrefetch(
             repository,
             group: item.group,
             media: media,
           );
-          worker.update(rows);
-          await worker.idle;
-          final failed = worker.hasFailures;
+          while (!_disposed) {
+            final result = item.group
+                ? await GroupChatRepository(repository).history(
+                    item.target,
+                    before: forward ? null : cursor,
+                    after: forward ? cursor : null,
+                    limit: 50,
+                  )
+                : await repository.history(
+                    item.target,
+                    before: forward ? null : cursor,
+                    after: forward ? cursor : null,
+                    limit: 50,
+                  );
+            if (_disposed) return;
+            final rows = (result['messages'] as List)
+                .map((row) => Map<String, dynamic>.from(row as Map))
+                .toList();
+            worker.update(rows);
+            await worker.idle;
+            if (worker.hasFailures)
+              throw StateError('Voice retention incomplete');
+            if (result['hasMore'] != true) break;
+            if (rows.isEmpty) throw StateError('History page did not advance');
+            final sequences =
+                rows.map((row) => (row['sequence'] as num).toInt()).toList()
+                  ..sort();
+            final next = forward ? sequences.last : sequences.first;
+            if (cursor != null && (forward ? next <= cursor : next >= cursor)) {
+              throw StateError('History page did not advance');
+            }
+            cursor = next;
+            if (forward && cursor >= item.sequence) break;
+          }
           worker.dispose();
           _worker = null;
-          if (failed) throw StateError('Voice retention incomplete');
           if (!_disposed) _completed[entry.key] = item.sequence;
           if (_pending[entry.key]?.sequence == item.sequence) {
             _pending.remove(entry.key);

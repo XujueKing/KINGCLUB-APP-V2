@@ -14,6 +14,50 @@ Map<String, dynamic> conversation(int sequence) => {
 };
 
 void main() {
+  test(
+    'initial backfill reaches older voice behind a text-only page',
+    () async {
+      final store = Store()..download.complete(File('voice.m4a'));
+      final requests = <Map<String, dynamic>>[];
+      final inbox = ChatVoiceInbox(
+        MessagingRepository(
+          account: 'me',
+          call: (id, params) async {
+            if (id == 'K260913000638') return grant();
+            expect(id, 'K260913000604');
+            expect(params.containsKey('messageType'), false);
+            requests.add(Map.of(params));
+            if (requests.length == 1)
+              return {
+                'messages': [
+                  for (var i = 51; i <= 100; i++)
+                    {'sequence': i, 'messageType': 'text'},
+                ],
+                'hasMore': true,
+              };
+            if (requests.length == 2)
+              return {
+                'messages': [
+                  {...rows.single, 'sequence': 1},
+                ],
+                'hasMore': false,
+              };
+            return {'messages': [], 'hasMore': false};
+          },
+        ),
+        media: store,
+      );
+      addTearDown(inbox.dispose);
+      inbox.update([conversation(100)]);
+      await inbox.idle;
+      expect(requests, hasLength(2));
+      expect(requests[1]['before'], 51);
+      expect(store.retained, hasLength(1));
+      inbox.update([conversation(101)]);
+      await inbox.idle;
+      expect(requests.last['after'], 100);
+    },
+  );
   test('unopened unread conversation retains voice, same sequence does not refetch', () async {
     final store = Store()..download.complete(File('downloaded.m4a'));
     var histories = 0, grants = 0;
@@ -23,7 +67,7 @@ void main() {
         call: (method, params) async {
           if (method == 'K260913000604') {
             histories++;
-            expect(params['messageType'], 'voice');
+            expect(params.containsKey('messageType'), false);
             expect(params['limit'], 50);
             expect(params['peer'], 'peer');
             return {'messages': rows};
