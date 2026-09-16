@@ -45,12 +45,12 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
   @override
   void initState() {
     super.initState();
-    _file = _load();
+    _file = _startLoad();
     _session = SecureSessionStore.changes.stream.listen((_) {
       if (!mounted || !widget.private) return;
       setState(() {
         _imageIdentity = Object();
-        _file = _load();
+        _file = _startLoad();
       });
     });
   }
@@ -77,8 +77,17 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
           old.cache != widget.cache) {
         _imageIdentity = Object();
       }
-      _file = _load();
+      _file = _startLoad();
     }
+  }
+
+  Future<File> _startLoad() {
+    final pending = _load();
+    // A session event can remove the widget before FutureBuilder subscribes
+    // to this replacement future. Observe errors immediately; FutureBuilder
+    // still receives the original result/error when the widget stays mounted.
+    unawaited(pending.then<void>((_) {}, onError: (Object _, StackTrace _) {}));
+    return pending;
   }
 
   Future<File> _load() async {

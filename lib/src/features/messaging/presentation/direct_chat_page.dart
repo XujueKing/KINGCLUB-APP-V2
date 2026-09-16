@@ -1276,6 +1276,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                                         child: Center(child: Text('[图片]')),
                                       )
                                     : ChatImageView(
+                                        sentClientMessageId: message.mine
+                                            ? message.clientMessageId
+                                            : null,
                                         repository: _chat!.messaging,
                                         scopeId:
                                             widget.groupId ??
@@ -3082,6 +3085,9 @@ class _DirectChatPageState extends State<DirectChatPage>
             ),
             body: Center(
               child: ChatImageView(
+                sentClientMessageId: message.mine
+                    ? message.clientMessageId
+                    : null,
                 repository: repository,
                 scopeId: widget.groupId ?? _chat?.conversationId,
                 messageId: message.messageId!,

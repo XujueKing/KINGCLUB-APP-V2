@@ -1,6 +1,11 @@
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../../core/media/media_cache.dart';
+import '../../../core/session/secure_session_store.dart';
 
 import '../../../core/design_system/king_components.dart';
 import '../data/chat_image_uploader.dart';
@@ -16,18 +21,45 @@ class ChatImageSendPage extends StatefulWidget {
     this.title = '发送照片',
     this.draft,
     this.drafts,
+    this.mediaStore,
+    this.createUploader,
   });
   final String title;
   final Uint8List bytes;
   final ChatSessionController chat;
   final ChatFileDraft? draft;
   final ChatFileDraftStore? drafts;
+  final MediaCache? mediaStore;
+  final Future<ChatImageUploader> Function()? createUploader;
   @override
   State<ChatImageSendPage> createState() => _ChatImageSendPageState();
 }
 
 class _ChatImageSendPageState extends State<ChatImageSendPage> {
   ChatImageUploader? _uploader;
+  UploadedChatImage? _uploaded;
+  late final String _clientMessageId = widget.draft?.id ?? const Uuid().v4();
+  StreamSubscription<void>? _session;
+  bool _invalid = false;
+  bool get _usable => mounted && !_invalid;
+
+  @override
+  void initState() {
+    super.initState();
+    _session = SecureSessionStore.changes.stream.listen((_) {
+      _invalid = true;
+      if (mounted) setState(() => _error = '登录状态已变化，请重新进入会话');
+    });
+  }
+
+  Future<void> _retainImage() => (widget.mediaStore ?? MediaCache.shared)
+      .importBytes(
+        widget.bytes,
+        scope: 'member:${widget.chat.messaging.account}',
+        contentKey: 'chat-image-sent:$_clientMessageId',
+        kind: MediaKind.image,
+      )
+      .then((_) {});
   bool _busy = false;
   String? _error;
   double? _progress;
@@ -43,12 +75,13 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
 
   @override
   void dispose() {
+    _session?.cancel();
     _uploader?.dispose();
     super.dispose();
   }
 
   Future<void> _send() async {
-    if (_busy) return;
+    if (_busy || !_usable) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -56,6 +89,8 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
     });
     try {
       if (_alreadyQueued) {
+        await _retainImage();
+        if (!_usable) return;
         try {
           await widget.drafts?.remove(widget.draft!.id);
         } catch (_) {}
@@ -63,25 +98,34 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
         return;
       }
       final uploader =
-          _uploader ?? await ChatImageUploader.open(widget.chat.messaging);
-      if (!mounted) {
+          _uploader ??
+          await (widget.createUploader?.call() ??
+              ChatImageUploader.open(widget.chat.messaging));
+      if (!_usable) {
         uploader.dispose();
         return;
       }
       _uploader = uploader;
-      final image = await uploader.upload(
-        widget.bytes,
-        onProgress: (sent, total) {
-          if (mounted && total > 0) setState(() => _progress = sent / total);
-        },
-      );
-      if (!mounted) return;
+      final image =
+          _uploaded ??
+          await uploader.upload(
+            widget.bytes,
+            onProgress: (sent, total) {
+              if (_usable && total > 0) {
+                setState(() => _progress = sent / total);
+              }
+            },
+          );
+      if (!_usable) return;
+      _uploaded = image;
+      await _retainImage();
+      if (!_usable) return;
       var queued = _alreadyQueued;
       if (!queued) {
         await widget.chat.sendImage(
           image.assetId,
           onQueued: () => queued = true,
-          clientMessageId: widget.draft?.id,
+          clientMessageId: _clientMessageId,
         );
       }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');

@@ -95,6 +95,37 @@ class MediaCache {
     required String scope,
     required String contentKey,
     required MediaKind kind,
+  }) => _importLocal(
+    (temp) async {
+      await source.copy(temp.path);
+    },
+    scope: scope,
+    contentKey: contentKey,
+    kind: kind,
+  );
+
+  Future<File> importBytes(
+    Uint8List bytes, {
+    required String scope,
+    required String contentKey,
+    required MediaKind kind,
+  }) {
+    final owned = Uint8List.fromList(bytes);
+    return _importLocal(
+      (temp) async {
+        await temp.writeAsBytes(owned, flush: true);
+      },
+      scope: scope,
+      contentKey: contentKey,
+      kind: kind,
+    );
+  }
+
+  Future<File> _importLocal(
+    Future<void> Function(File) write, {
+    required String scope,
+    required String contentKey,
+    required MediaKind kind,
   }) async {
     final generation = _generation;
     final key = await _hash('$scope|${kind.name}|$contentKey');
@@ -115,7 +146,7 @@ class MediaCache {
         if (await file.exists() && await file.length() > 0) return file;
         await file.parent.create(recursive: true);
         temp = File('${file.path}.part');
-        await source.copy(temp.path);
+        await write(temp);
         if (generation != _generation || await temp.length() == 0) {
           throw StateError('媒体保存未完成');
         }

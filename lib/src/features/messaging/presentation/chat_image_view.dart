@@ -24,6 +24,7 @@ class ChatImageView extends StatefulWidget {
     this.events,
     this.scopeId,
     this.mediaStore,
+    this.sentClientMessageId,
   });
   final MessagingRepository repository;
   final String messageId;
@@ -31,6 +32,7 @@ class ChatImageView extends StatefulWidget {
   final bool group;
   final String? scopeId;
   final MediaCache? mediaStore;
+  final String? sentClientMessageId;
   final Stream<Map<String, dynamic>>? events;
   @override
   State<ChatImageView> createState() => _ChatImageViewState();
@@ -94,7 +96,9 @@ class _ChatImageViewState extends State<ChatImageView>
         old.full != widget.full ||
         old.group != widget.group ||
         old.scopeId != widget.scopeId ||
-        old.repository != widget.repository) {
+        old.repository != widget.repository ||
+        old.sentClientMessageId != widget.sentClientMessageId ||
+        old.mediaStore != widget.mediaStore) {
       _load();
     }
   }
@@ -120,10 +124,19 @@ class _ChatImageViewState extends State<ChatImageView>
     try {
       if (!revalidate) {
         try {
-          final local = await _store.cachedImage(
-            scope: 'member:${widget.repository.account}',
-            contentKey: _localKey,
-          );
+          File local;
+          try {
+            local = await _store.cachedImage(
+              scope: 'member:${widget.repository.account}',
+              contentKey: _localKey,
+            );
+          } catch (_) {
+            if (widget.sentClientMessageId == null) rethrow;
+            local = await _store.cachedImage(
+              scope: 'member:${widget.repository.account}',
+              contentKey: 'chat-image-sent:${widget.sentClientMessageId}',
+            );
+          }
           final buffer = await ui.ImmutableBuffer.fromUint8List(
             await local.readAsBytes(),
           );
@@ -192,11 +205,16 @@ class _ChatImageViewState extends State<ChatImageView>
               'chat-image-message:${widget.group}:${widget.messageId}';
           final scope = 'member:${widget.repository.account}';
           final store = _store;
-          for (final slot in ['image', 'thumbnail']) {
+          for (final key in [
+            '$prefix:image',
+            '$prefix:thumbnail',
+            if (widget.sentClientMessageId != null)
+              'chat-image-sent:${widget.sentClientMessageId}',
+          ]) {
             try {
               await store.evict(
                 scope: scope,
-                contentKey: '$prefix:$slot',
+                contentKey: key,
                 kind: MediaKind.image,
               );
             } catch (_) {}
