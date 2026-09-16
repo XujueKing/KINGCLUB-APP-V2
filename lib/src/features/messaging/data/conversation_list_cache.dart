@@ -1,10 +1,14 @@
 part of 'chat_history_store.dart';
 
 class ConversationHistoryRemoval {
-  ConversationHistoryRemoval(this.conversation, {Set<int>? sequences})
-    : sequences = sequences == null ? null : Set.unmodifiable(sequences);
+  ConversationHistoryRemoval(
+    this.conversation, {
+    Set<int>? sequences,
+    this.hiddenThrough = 0,
+  }) : sequences = sequences == null ? null : Set.unmodifiable(sequences);
   final String conversation;
   final Set<int>? sequences;
+  final int hiddenThrough;
 
   /// Preserve other messages' counts; the next server refresh supplies the
   /// authoritative unread total and replacement preview after single deletion.
@@ -15,11 +19,14 @@ class ConversationHistoryRemoval {
           ? 'group:${row['groupId']}'
           : 'direct:${row['peer']}';
       if (key != conversation) return false;
-      if (sequences == null) {
+      if (sequences == null ||
+          (hiddenThrough > 0 &&
+              row['lastSequence'] is num &&
+              (row['lastSequence'] as num) <= hiddenThrough)) {
         changed = true;
         return true;
       }
-      if (sequences!.contains(row['lastSequence'])) {
+      if (sequences!.contains(row['lastSequence']) && row['preview'] != '') {
         row['preview'] = '';
         changed = true;
       }

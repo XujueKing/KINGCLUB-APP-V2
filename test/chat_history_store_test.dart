@@ -106,6 +106,60 @@ void main() {
       },
     );
   }
+  for (final kind in ['hidden', 'recalled', 'floor']) {
+    test(
+      'remote $kind cleans preview once and rejects stale list writes',
+      () async {
+        await store.commit('direct:peer', [message(1)], expectedEpoch: 0);
+        final row = <String, dynamic>{
+          'kind': 'direct',
+          'peer': 'peer',
+          'preview': 'Private payload 1',
+          'lastSequence': 1,
+          'unreadCount': 1,
+        };
+        await store.saveConversationList([row]);
+        final revision = store.conversationListRevision;
+        final events = <ConversationHistoryRemoval>[];
+        final subscription = store.clearedConversations.listen(events.add);
+        addTearDown(subscription.cancel);
+        final rows = kind == 'floor'
+            ? <Map<String, dynamic>>[]
+            : [
+                {...message(1), 'messageType': kind, 'text': ''},
+              ];
+        Future<bool> update(int epoch) => store.commit(
+          'direct:peer',
+          rows,
+          expectedEpoch: epoch,
+          hiddenThrough: kind == 'floor' ? 1 : 0,
+        );
+        expect(await update(99), false);
+        expect(await store.readConversationList(), [row]);
+        expect(await update(0), true);
+        await Future<void>.delayed(Duration.zero);
+        expect(events, hasLength(1));
+        final afterFirst = store.conversationListRevision;
+        expect(afterFirst, greaterThan(revision));
+        expect(await update(0), true);
+        await Future<void>.delayed(Duration.zero);
+        expect(events, hasLength(1));
+        expect(store.conversationListRevision, afterFirst);
+        await store.saveConversationList([row], expectedRevision: revision);
+        final snapshot = await store.readConversationList();
+        if (kind == 'floor') {
+          expect(snapshot, isEmpty);
+        } else {
+          expect(snapshot.single['preview'], '');
+          expect(snapshot.single['unreadCount'], 1);
+        }
+        await subscription.cancel();
+        await store.close();
+        store = await open();
+        expect(await store.readConversationList(), snapshot);
+      },
+    );
+  }
   for (final remote in [false, true]) {
     test(
       'last received file reference releases sent source remote=$remote',

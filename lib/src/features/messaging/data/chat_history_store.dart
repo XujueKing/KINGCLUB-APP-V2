@@ -413,7 +413,8 @@ class ChatHistoryStore {
         'payload': encrypted.concatenation(),
       });
     }
-    return _db.transaction((tx) async {
+    ConversationHistoryRemoval? removal;
+    final committed = await _db.transaction((tx) async {
       await tx.insert('conversation', {
         'id': id,
       }, conflictAlgorithm: ConflictAlgorithm.ignore);
@@ -431,7 +432,7 @@ class ChatHistoryStore {
       }
       final savedHidden = state['hiddenThrough'] as int;
       final floor = hiddenThrough > savedHidden ? hiddenThrough : savedHidden;
-      await _cleanupSupersededMedia(
+      final removedSequences = await _cleanupSupersededMedia(
         tx,
         conversation,
         id,
@@ -439,6 +440,15 @@ class ChatHistoryStore {
         floor,
         mediaCleanup ?? ChatMediaCleanup(),
       );
+      if (removedSequences.isNotEmpty || floor > savedHidden) {
+        removal = ConversationHistoryRemoval(
+          conversation,
+          sequences: removedSequences,
+          hiddenThrough: floor,
+        );
+        _conversationListRevision++;
+        await _removeConversationListEntry(tx, removal!);
+      }
       final batch = tx.batch();
       if (peerReadSequence != null) {
         var readSequence = peerReadSequence;
@@ -521,6 +531,8 @@ class ChatHistoryStore {
       }
       return true;
     });
+    if (committed && removal != null) _clearedConversations.add(removal!);
+    return committed;
   }
 
   /// A presentation snapshot has no authority to allow sending or media reads.

@@ -1,7 +1,7 @@
 part of 'chat_history_store.dart';
 
 extension _HistoryMediaCleanup on ChatHistoryStore {
-  Future<void> _cleanupSupersededMedia(
+  Future<Set<int>> _cleanupSupersededMedia(
     Transaction tx,
     String conversation,
     String id,
@@ -14,7 +14,7 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
         if (const {'hidden', 'recalled'}.contains(message['messageType']))
           message['sequence'] as int,
     };
-    if (floor == 0 && tombstones.isEmpty) return;
+    if (floor == 0 && tombstones.isEmpty) return {};
     final condition = tombstones.isEmpty
         ? 'sequence<=?'
         : '(sequence<=? OR sequence IN (${List.filled(tombstones.length, '?').join(',')}))';
@@ -25,10 +25,11 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
       whereArgs: [id, floor, ...tombstones],
       limit: 1,
     )).isEmpty) {
-      return;
+      return {};
     }
 
     final removed = <Map<String, dynamic>>[];
+    final removedContent = <int>{};
     final voices = <String>{}, files = <String>{}, clients = <String>{};
     void retain(Map message) {
       final voice = message['voiceAssetId'],
@@ -64,6 +65,9 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
         final target = row['conversation'] == id;
         final sequence = row['sequence'] as int;
         if (target && (sequence <= floor || tombstones.contains(sequence))) {
+          if (!const {'hidden', 'recalled'}.contains(message['messageType'])) {
+            removedContent.add(sequence);
+          }
           if (const {
             'image',
             'video',
@@ -79,7 +83,7 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
       if (rows.length < 50) break;
       offset += rows.length;
     }
-    if (removed.isEmpty) return;
+    if (removed.isEmpty) return removedContent;
     for (final message in incoming) {
       if ((message['sequence'] as int) > floor &&
           !const {'hidden', 'recalled'}.contains(message['messageType'])) {
@@ -99,5 +103,6 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
         retainedSentClients: clients,
       );
     }
+    return removedContent;
   }
 }
