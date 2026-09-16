@@ -108,6 +108,7 @@ class NovoRudpFileDownload {
   int _queued = 0;
 
   Future<File> get completed => _done.future;
+  int get receivedBytes => _receiver.receivedBytes;
 
   void _armIdle() {
     _idleTimer?.cancel();

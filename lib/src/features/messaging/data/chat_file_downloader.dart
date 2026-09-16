@@ -142,11 +142,16 @@ class ChatFileDownloader {
     unawaited(_peer?.close());
   }
 
-  Future<bool> _tryPeer(ChatFileReference ref, File destination) async {
+  Future<bool> _tryPeer(
+    ChatFileReference ref,
+    File destination,
+    void Function(int, int)? onProgress,
+  ) async {
     final connect = peerDownload;
     if (connect == null || ref.group) return false;
     final token = _cancel;
     var opening = true;
+    Timer? progressTimer;
     bool active() =>
         !_invalid &&
         token != null &&
@@ -168,6 +173,21 @@ class ChatFileDownloader {
       await _check();
       final peer = _peer;
       if (peer == null) return false;
+      var reported = -1;
+      void reportProgress() {
+        if (!active() || onProgress == null || ref.size == 0) return;
+        // Reserve completion for digest and final permission verification.
+        final received = peer.receivedBytes.clamp(0, ref.size - 1);
+        if (received == reported) return;
+        reported = received;
+        onProgress(received, ref.size);
+      }
+
+      reportProgress();
+      progressTimer = Timer.periodic(
+        const Duration(milliseconds: 250),
+        (_) => reportProgress(),
+      );
       final source = await peer.completed;
       await _check();
       // Independently validate and copy: callers never receive a peer-owned
@@ -220,6 +240,7 @@ class ChatFileDownloader {
       await _check();
       return false;
     } finally {
+      progressTimer?.cancel();
       opening = false;
       final peer = _peer;
       _peer = null;
@@ -306,7 +327,7 @@ class ChatFileDownloader {
       await _check();
       working = await parent.createTemp('kingclub-chat-download-');
       final file = File('${working.path}/content.bin');
-      if (await _tryPeer(ref, file)) {
+      if (await _tryPeer(ref, file, onProgress)) {
         await _grant(ref);
         await _check();
         _completed.add(working);
@@ -317,6 +338,7 @@ class ChatFileDownloader {
       if (peerDownload != null && !ref.group) {
         // The peer attempt may outlive a grant or a membership change.
         media = await _grant(ref);
+        onProgress?.call(0, ref.size);
       }
       output = await file.open(mode: FileMode.write);
       final digest = const DartSha256().newHashSink();

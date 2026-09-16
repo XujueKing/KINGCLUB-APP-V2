@@ -374,7 +374,7 @@ void main() {
         'chat downloader uses verified peer file; final revocation=$revocation',
         () async {
           final revoked = revocation != 'none';
-          final bytes = List.generate(70000, (i) => i % 251);
+          final bytes = List.generate(1024 * 1024 + 3, (i) => i % 251);
           final input = await source(bytes);
           const id = '12345678-1234-4234-8234-123456789012';
           const asset = '22345678-1234-4234-8234-123456789012';
@@ -410,7 +410,8 @@ void main() {
                   'size': bytes.length,
                   'sha256': input.hash,
                   'chunkBytes': 1024 * 1024,
-                  'chunkCount': 1,
+                  'chunkCount':
+                      (bytes.length + 1024 * 1024 - 1) ~/ (1024 * 1024),
                   'contentType': 'application/octet-stream',
                   'path': '/kingclub/chat-file/$id',
                   'headers': {'authorization': 'Bearer synthetic-only'},
@@ -454,6 +455,7 @@ void main() {
             },
           );
           addTearDown(downloader.dispose);
+          final progress = <int>[];
           final result = downloader.download(
             ChatFileReference(
               messageId: id,
@@ -463,13 +465,20 @@ void main() {
               sha256: input.hash,
               sender: 'b',
             ),
+            onProgress: (received, total) {
+              expect(total, bytes.length);
+              progress.add(received);
+            },
           );
           if (revoked) {
             await expectLater(result, throwsStateError);
+            expect(progress.every((n) => n < bytes.length), isTrue);
           } else {
             final file = await result;
             expect(await file.readAsBytes(), bytes);
             expect(file.path, contains('kingclub-chat-download-'));
+            expect(progress.last, bytes.length);
+            expect(progress.any((n) => n > 0 && n < bytes.length), isTrue);
           }
           await sending;
           expect(grants, 2);
@@ -530,6 +539,7 @@ void main() {
         await expectation.timeout(const Duration(seconds: 2));
       } finally {
         repeat.cancel();
+        expect(download.receivedBytes, NovoRudpFileReceiver.chunkSize);
         await download.close();
       }
     });

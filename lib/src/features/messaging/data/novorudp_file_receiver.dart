@@ -98,6 +98,8 @@ class NovoRudpFileReceiver {
 
   /// Unique fragments written to disk; duplicates and ACK polls are not progress.
   int get receivedFragments => _count;
+  int _receivedBytes = 0;
+  int get receivedBytes => _receivedBytes;
 
   void _check() {
     if (_closed || _failed || _generation != MemberQrMemory.generation) {
@@ -153,6 +155,7 @@ class NovoRudpFileReceiver {
     _check();
     _received[index] = 1;
     _count++;
+    _receivedBytes += frame.payload.length;
     if (_count == fragments) {
       await _output.flush();
       _check();
