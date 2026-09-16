@@ -97,12 +97,17 @@ void main() {
         ),
       );
       final refreshing = controller.refresh();
+      final displayed = <String>[];
+      controller.addListener(() {
+        displayed.addAll(controller.contacts.map((contact) => contact.account));
+      });
       controller.refresh(afterCurrent: true);
       controller.refresh(afterCurrent: true);
       old.complete(page([contact('old-friend')]));
       await refreshing;
       expect(reads, 2);
       expect(controller.contacts.single.account, 'new-friend');
+      expect(displayed, isNot(contains('old-friend')));
       controller.dispose();
     },
   );

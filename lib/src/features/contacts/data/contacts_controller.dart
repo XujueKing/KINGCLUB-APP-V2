@@ -143,7 +143,9 @@ class ContactsController extends ChangeNotifier {
     try {
       while (true) {
         final result = await repository.contacts(offset: offset);
-        if (_disposed || generation != _generation) return;
+        // A relationship/settings notification received during this read
+        // requires a new snapshot. Do not publish or persist the old pages.
+        if (_disposed || generation != _generation || _refreshAgain) return;
         final items = result['items'] as List;
         for (final raw in items) {
           final contact = MemberContact.fromJson(
@@ -163,7 +165,7 @@ class ContactsController extends ChangeNotifier {
       notifyListeners();
       unawaited(_save(_contacts, started, generation));
     } catch (e) {
-      if (_disposed || generation != _generation) return;
+      if (_disposed || generation != _generation || _refreshAgain) return;
       error = chatSyncFailureMessage(e);
       notifyListeners();
     }
