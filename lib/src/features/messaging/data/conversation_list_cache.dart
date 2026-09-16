@@ -44,8 +44,9 @@ extension ConversationListCache on ChatHistoryStore {
     // in progress must finish before clear removes the corresponding row.
     await _db.transaction((tx) async {
       if (expectedRevision != null &&
-          expectedRevision != _conversationListRevision)
+          expectedRevision != _conversationListRevision) {
         return;
+      }
       await _writeConversationList(tx, bytes);
     });
   }
