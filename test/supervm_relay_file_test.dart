@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_receiver.dart';
+import 'package:kingclub/src/features/messaging/data/novorudp_file_download.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_file_sender.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_relay_connection.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_relay_frame_link.dart';
@@ -163,11 +164,17 @@ void main() {
     skip: !enabled,
     timeout: const Timeout(Duration(seconds: 20)),
   );
-  for (final mode in ['relay', 'lan', 'lanInterrupted']) {
+  for (final mode in [
+    'relay',
+    'lan',
+    'lanInterrupted',
+    'lanDownloadInterrupted',
+  ]) {
     final lan = mode != 'relay';
-    final interruptLan = mode == 'lanInterrupted';
+    final interruptLan = mode.endsWith('Interrupted');
+    final appDownload = mode == 'lanDownloadInterrupted';
     test(
-      'actual SUPERVM encrypted file completes after lost final receipt $mode',
+      'actual SUPERVM encrypted file completes ${appDownload ? 'with application downloader' : 'after lost final receipt'} $mode',
       () async {
         final library = DynamicLibrary.open(env['NOVORUDP_NATIVE_LIBRARY']!);
         final random = Random.secure();
@@ -273,6 +280,18 @@ void main() {
           sha256: digest,
         );
         addTearDown(receiver.close);
+        final download = appDownload
+            ? await NovoRudpFileDownload.open(
+                link: right,
+                privateDirectory: directory,
+                streamId: BigInt.one,
+                objectId: BigInt.two,
+                size: bytes.length,
+                sha256: digest,
+                canReceive: () => true,
+              )
+            : null;
+        if (download != null) addTearDown(download.close);
         var doneReceipts = 0;
         var frames = 0;
         var interrupted = false;
@@ -281,6 +300,13 @@ void main() {
         final subscription = right.frames.listen((frame) async {
           frames++;
           try {
+            if (download != null) {
+              if (!interrupted && download.receivedBytes > 16384) {
+                interrupted = true;
+                await receiverRoute!.close();
+              }
+              return;
+            }
             final ack = await receiver.receiveAuthenticated(frame);
             if (interruptLan &&
                 !interrupted &&
@@ -323,8 +349,13 @@ void main() {
           rethrow;
         }
         expect(errors, isEmpty);
-        expect(doneReceipts, greaterThanOrEqualTo(2));
-        expect(await (await receiver.verifiedFile()).readAsBytes(), bytes);
+        if (download == null) {
+          expect(doneReceipts, greaterThanOrEqualTo(2));
+          expect(await (await receiver.verifiedFile()).readAsBytes(), bytes);
+        } else {
+          expect(await (await download.completed).readAsBytes(), bytes);
+          expect(download.receivedBytes, bytes.length);
+        }
         if (interruptLan) {
           expect(interrupted, isTrue);
           expect(left.directLanReady, isFalse);
