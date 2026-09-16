@@ -71,6 +71,16 @@ void main() {
       await tester.pumpAndSettle();
       expect(requests, 1);
       expect(output.plays, action == 'repeat' ? 1 : 0);
+      if (action == 'repeat') {
+        output.events.addError(StateError('decoder failed during preview'));
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('播放录音'), findsOneWidget);
+        expect(output.stops, greaterThan(0));
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.byTooltip('播放录音'));
+        await tester.pumpAndSettle();
+        expect(output.plays, 2);
+      }
       if (action == 'background') {
         expect(output.stops, greaterThan(0));
         tester.binding.handleAppLifecycleStateChanged(

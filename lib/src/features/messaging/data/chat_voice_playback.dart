@@ -84,14 +84,26 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
         stop();
       }
     });
-    _complete = _output.completed.listen((_) {
-      if (!_disposed && _playingGeneration == _generation) {
-        _playingGeneration = null;
-        activeId = null;
-        loading = false;
+    _complete = _output.completed.listen(
+      (_) {
+        if (!_disposed && _playingGeneration == _generation) {
+          _playingGeneration = null;
+          activeId = null;
+          loading = false;
+          notifyListeners();
+        }
+      },
+      onError: (Object _, StackTrace _) {
+        if (_disposed ||
+            _playingGeneration == null ||
+            _playingGeneration != _generation) {
+          return;
+        }
+        unawaited(stop());
+        error = '语音播放中断，请重试';
         notifyListeners();
-      }
-    });
+      },
+    );
   }
   static Future<File> _cached(
     String url,

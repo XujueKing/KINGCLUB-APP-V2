@@ -55,9 +55,18 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
         });
       }
     });
-    _completion = _player.completed.listen((_) {
-      if (mounted) setState(() => _playing = false);
-    });
+    _completion = _player.completed.listen(
+      (_) {
+        if (mounted) setState(() => _playing = false);
+      },
+      onError: (Object _, StackTrace _) {
+        if (!mounted || !_valid || !_foreground) return;
+        _playGeneration++;
+        _player.stop().catchError((Object _) {});
+        setState(() => _playing = false);
+        KingNotice.of(context).show('播放中断，录音已保留，请重试');
+      },
+    );
   }
 
   Future<void> _toggle() async {

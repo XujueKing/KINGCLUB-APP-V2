@@ -143,7 +143,7 @@ void main() {
       events: const Stream.empty(),
       loadFile: (_, _, _, _) async {
         if (++loads == 1) return File('/one.m4a');
-        downloading.complete();
+        if (!downloading.isCompleted) downloading.complete();
         return pending.future;
       },
     );
@@ -152,6 +152,7 @@ void main() {
     final next = player.toggle(repo, 'two');
     await downloading.future;
     output.done.add(null);
+    output.done.addError(StateError('previous clip failed during download'));
     await Future<void>.delayed(Duration.zero);
     expect(player.activeId, 'two');
     expect(player.loading, true);
@@ -160,6 +161,13 @@ void main() {
     expect(output.plays, ['/one.m4a', '/two.m4a']);
     expect(player.activeId, 'two');
     expect(player.loading, false);
+    output.done.addError(StateError('native decoder failed after play'));
+    await Future<void>.delayed(Duration.zero);
+    expect(player.activeId, isNull);
+    expect(player.error, '语音播放中断，请重试');
+    await player.toggle(repo, 'two');
+    expect(player.activeId, 'two');
+    expect(player.error, isNull);
     output.done.add(null);
     await Future<void>.delayed(Duration.zero);
     expect(player.activeId, isNull);
