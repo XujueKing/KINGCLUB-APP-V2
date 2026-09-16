@@ -265,7 +265,11 @@ class _ChatImageViewState extends State<ChatImageView>
     final media = _media;
     final fallback = Center(
       child: Text(
-        _failed ? '图片暂不可查看' : '[图片]',
+        _deleted
+            ? '内容已移除'
+            : _failed
+            ? '图片暂不可查看'
+            : '[图片]',
         style: const TextStyle(color: Colors.white54, fontSize: 12),
       ),
     );

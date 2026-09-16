@@ -69,7 +69,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(downloads, 0);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('视频暂不可播放，点击重试'));
+      expect(find.text('视频暂不可播放，点击重试'), findsNothing);
+      expect(find.byType(TextButton), findsNothing);
+      await tester.tap(find.text('内容已移除'));
       await tester.pumpAndSettle();
       expect(requests, 1);
       expect(downloads, 0);
@@ -105,6 +107,7 @@ void main() {
         );
       });
       var calls = 0;
+      var opens = 0;
       await tester.pumpWidget(
         MaterialApp(
           home: ChatVideoView(
@@ -117,6 +120,8 @@ void main() {
             ),
             messageId: '12345678-1234-1234-1234-123456789012',
             mediaStore: store,
+            sentClientMessageId: 'sent-fixture',
+            onTap: () => opens++,
             events: events.stream,
           ),
         ),
@@ -169,6 +174,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(Image), findsNothing);
       expect(calls, deleted ? 0 : 1);
+      if (deleted) {
+        await tester.tap(find.text('内容已移除'));
+        expect(opens, 0);
+      }
       await tester.pumpWidget(const SizedBox());
       await tester.runAsync(() async => directory.delete(recursive: true));
     });

@@ -422,7 +422,9 @@ class _ChatVideoViewState extends State<ChatVideoView>
       final player = _player;
       if (player == null) {
         return Center(
-          child: _failed
+          child: _deleted
+              ? const Text('内容已移除', style: TextStyle(color: Colors.white54))
+              : _failed
               ? TextButton(
                   onPressed: _invalid ? null : _load,
                   child: const Text('视频暂不可播放，点击重试'),
@@ -455,7 +457,9 @@ class _ChatVideoViewState extends State<ChatVideoView>
     }
     final ratio = (widget.width / widget.height).clamp(0.4, 2.5);
     return GestureDetector(
-      onTap: widget.sentClientMessageId != null
+      onTap: _deleted || _invalid
+          ? null
+          : widget.sentClientMessageId != null
           ? widget.onTap
           : _poster == null
           ? (_failed ? _load : null)
@@ -474,9 +478,12 @@ class _ChatVideoViewState extends State<ChatVideoView>
                 const ColoredBox(color: Color(0xFF202020)),
               Center(
                 child: _failed
-                    ? const Text(
-                        '视频暂不可查看',
-                        style: TextStyle(fontSize: 12, color: Colors.white54),
+                    ? Text(
+                        _deleted ? '内容已移除' : '视频暂不可查看',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white54,
+                        ),
                       )
                     : const Icon(
                         Icons.play_circle_outline,
