@@ -1014,7 +1014,6 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   @override
   Widget build(BuildContext context) {
-    final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
     final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
     final panelHeight = _readOnly
         ? 0.0
@@ -1340,14 +1339,20 @@ class _DirectChatPageState extends State<DirectChatPage>
                       tween: Tween<double>(begin: panelSpace, end: panelSpace),
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOutCubic,
-                      builder: (context, animatedPanelSpace, child) => SizedBox(
-                        key: const ValueKey('direct-chat-bottom-space'),
-                        height: keyboardHeight > animatedPanelSpace
-                            ? keyboardHeight
-                            : animatedPanelSpace,
-                        width: double.infinity,
-                        child: child,
-                      ),
+                      builder: (context, animatedPanelSpace, child) {
+                        // Subscribe here, not in the page: each IME frame needs
+                        // layout, but must not rebuild the history and avatars.
+                        final keyboardHeight = MediaQuery.viewInsetsOf(context)
+                            .bottom;
+                        return SizedBox(
+                          key: const ValueKey('direct-chat-bottom-space'),
+                          height: keyboardHeight > animatedPanelSpace
+                              ? keyboardHeight
+                              : animatedPanelSpace,
+                          width: double.infinity,
+                          child: child,
+                        );
+                      },
                       child: ClipRect(
                         child: OverflowBox(
                           alignment: Alignment.topCenter,
