@@ -38,7 +38,8 @@ class ChatVideoSendPage extends StatefulWidget {
   State<ChatVideoSendPage> createState() => _ChatVideoSendPageState();
 }
 
-class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
+class _ChatVideoSendPageState extends State<ChatVideoSendPage>
+    with WidgetsBindingObserver {
   ChatFileUploader? _uploader;
   late final ChatVideoOptimizer _optimizer;
   bool _optimizing = false, _invalid = false;
@@ -48,15 +49,17 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
   UploadedChatFile? _uploaded;
   ChatVideo? _prepared;
   bool _processing = false;
+  bool _foreground = true, _changingPlayback = false;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _optimizer = ChatVideoOptimizer(account: widget.chat.messaging.account);
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
       _optimizer.dispose();
       _uploader?.dispose();
-      _preview?.pause();
+      unawaited(_pausePreview());
       if (mounted) setState(() => _error = '登录状态已变化，请重新进入会话');
     });
     final player =
@@ -80,11 +83,48 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _session?.cancel();
     _optimizer.dispose();
     _preview?.dispose();
     _uploader?.dispose();
     super.dispose();
+  }
+
+  Future<void> _pausePreview() async {
+    try {
+      await _preview?.pause();
+    } catch (_) {
+      // Pausing can race native player teardown; never leak an async error.
+    }
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground) unawaited(_pausePreview());
+  }
+
+  Future<void> _togglePreview() async {
+    if (!_usable || !_foreground || _busy || _changingPlayback) return;
+    final player = _preview;
+    if (player == null || !player.value.isInitialized) return;
+    _changingPlayback = true;
+    try {
+      if (player.value.isPlaying) {
+        await player.pause();
+      } else {
+        await player.play();
+        // A native play completion may arrive after backgrounding or sending.
+        if (!_usable || !_foreground || _busy) await player.pause();
+      }
+    } catch (_) {
+      if (_usable) setState(() => _error = '视频预览中断，请重试');
+    } finally {
+      _changingPlayback = false;
+      if (mounted) setState(() {});
+    }
   }
 
   bool get _alreadyQueued =>
@@ -258,13 +298,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage> {
                         child: AspectRatio(
                           aspectRatio: _preview!.value.aspectRatio,
                           child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _preview!.value.isPlaying
-                                    ? _preview!.pause()
-                                    : _preview!.play();
-                              });
-                            },
+                            onTap: _busy || _invalid ? null : _togglePreview,
                             child: Stack(
                               alignment: Alignment.center,
                               children: [

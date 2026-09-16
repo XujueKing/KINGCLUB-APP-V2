@@ -29,12 +29,36 @@ class _Chat extends ChangeNotifier implements ChatSessionController {
 }
 
 class _Preview extends VideoPlayerController {
-  _Preview({this.paused}) : super.file(File('synthetic.mp4'));
+  _Preview({this.paused, this.playing, this.ready = false})
+    : super.file(File('synthetic.mp4'));
   final Completer<void>? paused;
+  final Completer<void>? playing;
+  final bool ready;
+  int plays = 0, pauses = 0;
   @override
-  Future<void> initialize() async {}
+  Future<void> initialize() async {
+    if (ready)
+      value = const VideoPlayerValue(
+        duration: Duration(seconds: 8),
+        size: Size(1280, 720),
+        isInitialized: true,
+      );
+  }
+
   @override
-  Future<void> pause() async => paused?.future;
+  Future<void> pause() async {
+    pauses++;
+    await paused?.future;
+    value = value.copyWith(isPlaying: false);
+  }
+
+  @override
+  Future<void> play() async {
+    plays++;
+    await playing?.future;
+    value = value.copyWith(isPlaying: true);
+  }
+
   // This double never creates a platform player.
   @override
   // ignore: must_call_super
@@ -58,6 +82,81 @@ class _Uploader extends ChatFileUploader {
 }
 
 void main() {
+  testWidgets(
+    'late preview play is paused in background and resume does not autoplay',
+    (tester) async {
+      final playing = Completer<void>();
+      final preview = _Preview(ready: true, playing: playing);
+      final repo = MessagingRepository(
+        account: 'synthetic',
+        call: (_, _) async => {},
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatVideoSendPage(
+            file: _File(),
+            fileName: 'synthetic.mp4',
+            chat: _Chat(repo),
+            createPreview: (_) => preview,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.byIcon(Icons.play_circle_outline));
+      await tester.pump();
+      expect(preview.plays, 1);
+      tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.paused,
+      );
+      await tester.pump();
+      playing.complete();
+      await tester.pump();
+      expect(preview.value.isPlaying, isFalse);
+      expect(preview.pauses, greaterThanOrEqualTo(2));
+      tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      );
+      await tester.pump();
+      expect(preview.plays, 1);
+      expect(preview.value.isPlaying, isFalse);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('uploading prevents preview playback from restarting', (
+    tester,
+  ) async {
+    final preview = _Preview(ready: true);
+    final repo = MessagingRepository(
+      account: 'synthetic',
+      call: (_, _) async => {},
+    );
+    final uploader = _Uploader(repo);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatVideoSendPage(
+          file: _File(),
+          fileName: 'synthetic.mp4',
+          chat: _Chat(repo),
+          createPreview: (_) => preview,
+          createUploader: () async => uploader,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('发送'));
+    await tester.pump();
+    expect(uploader.started, isTrue);
+    await tester.tap(find.byIcon(Icons.play_circle_outline));
+    await tester.pump();
+    expect(preview.plays, 0);
+    await tester.pumpWidget(const SizedBox());
+    uploader.result.completeError(StateError('cancelled after leaving'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'session change blocks late upload from processing or sending video',
     (tester) async {
