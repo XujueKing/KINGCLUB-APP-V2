@@ -277,6 +277,23 @@ class ChatHistoryStore {
         (value['text'] as String).length > 4000) {
       throw const FormatException('Invalid confirmed history message');
     }
+    if (const {'hidden', 'recalled'}.contains(value['messageType'])) {
+      // Tombstones need identity and ordering, never the removed content or
+      // its attachment metadata, even if an older server echoes those fields.
+      const identityFields = {
+        'messageId',
+        'conversationId',
+        'groupId',
+        'clientMessageId',
+        'sender',
+        'recipient',
+        'sequence',
+        'createdDate',
+        'messageType',
+      };
+      value.removeWhere((key, _) => !identityFields.contains(key));
+      value['text'] = value['messageType'] == 'recalled' ? '消息已撤回' : '';
+    }
     // Locations are reduced separately so nested headers/URLs cannot enter disk.
     if (value['messageType'] == 'location') {
       final location = ChatLocation.tryParse(value['location']);

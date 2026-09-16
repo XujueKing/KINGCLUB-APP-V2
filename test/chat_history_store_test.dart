@@ -58,6 +58,47 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  for (final kind in ['hidden', 'recalled']) {
+    test(
+      '$kind persists identity without deleted content or asset metadata',
+      () async {
+        await store.commit('direct:peer', [
+          {
+            ...message(1),
+            'messageType': kind,
+            'imageAssetId': 'private-image',
+            'voiceAssetId': 'private-voice',
+            'voiceDurationMs': 1500,
+            'videoAssetId': 'private-video',
+            'videoDurationMs': 2000,
+            'videoWidth': 100,
+            'videoHeight': 100,
+            'videoHasAudio': true,
+            'fileAssetId': 'private-file',
+            'fileName': 'private-name.pdf',
+            'fileSize': 200,
+            'fileSha256': 'private-hash',
+            'location': {'label': 'private-place'},
+            'reply': {'text': 'private-reply'},
+            'call': {'private': true},
+          },
+        ], expectedEpoch: 0);
+        await store.close();
+        store = await open();
+        final row = (await store.read('direct:peer')).messages.single;
+        expect(row, {
+          'messageId': 'm-1',
+          'clientMessageId': 'c-1',
+          'sender': 'peer',
+          'recipient': 'me',
+          'sequence': 1,
+          'messageType': kind,
+          'text': kind == 'recalled' ? '消息已撤回' : '',
+          'status': 'sent',
+        });
+      },
+    );
+  }
   for (final group in [false, true]) {
     test(
       'deleting latest message removes persisted preview only: group=$group',
