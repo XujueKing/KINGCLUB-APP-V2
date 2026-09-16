@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/painting.dart';
 
 enum MediaKind { image, video, audio }
 
@@ -18,6 +19,7 @@ class MediaCache {
     this.videoBudget = 800 * 1024 * 1024,
     this.audioBudget = 100 * 1024 * 1024,
     this.retainMedia = true,
+    this.onImageEvicted,
   }) : _directory = directory ?? _persistentDirectory,
        _dio =
            dio ??
@@ -27,7 +29,11 @@ class MediaCache {
                receiveTimeout: const Duration(seconds: 60),
              ),
            );
-  static final shared = MediaCache();
+  static final shared = MediaCache(
+    onImageEvicted: (file) async {
+      await FileImage(file).evict();
+    },
+  );
   static Future<Directory>? _openingDirectory;
   static Future<Directory> _persistentDirectory() =>
       _openingDirectory ??= (() async {
@@ -52,6 +58,7 @@ class MediaCache {
   final Dio _dio;
   final int imageBudget, videoBudget, audioBudget;
   final bool retainMedia;
+  final Future<void> Function(File file)? onImageEvicted;
   final Map<String, Future<File>> _pending = {};
   final Set<CancelToken> _downloads = {};
   int _generation = 0;
@@ -253,6 +260,7 @@ class MediaCache {
       '${root.path}/${scope == 'public' ? 'public' : 'private'}/${await _hash(scope)}/${kind.name}/$key$extension',
     );
     if (generation != _generation) return;
+    if (kind == MediaKind.image) await onImageEvicted?.call(file);
     if (await file.exists()) await file.delete();
   }
 
