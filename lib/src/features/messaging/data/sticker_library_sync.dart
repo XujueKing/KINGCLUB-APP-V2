@@ -36,7 +36,7 @@ class StickerLibrarySync {
     final signature = jsonEncode(local);
     final remote = await cloud.read();
     _check();
-    final dirty = state['local'] != signature;
+    var dirty = state['local'] != signature;
     if (!dirty && state['revision'] == remote.revision) {
       var intact = true;
       for (final pack in local) {
@@ -56,6 +56,30 @@ class StickerLibrarySync {
 
     final hasLocal = local.any((pack) => (pack['images'] as List).isNotEmpty);
     final hasRemote = remote.packs.any((pack) => pack.assets.isNotEmpty);
+    // A committed write can lose its response. When every local image already
+    // has a known asset ID, an identical remote snapshot proves convergence;
+    // adopting its revision is safe even if the local baseline is older.
+    final mapped = <Map<String, dynamic>>[];
+    var fullyMapped = true;
+    for (final pack in local) {
+      final assets = <String>[];
+      for (final path in (pack['images'] as List).cast<String>()) {
+        final asset = mapping[path];
+        if (asset is! String) {
+          fullyMapped = false;
+          break;
+        }
+        assets.add(asset);
+      }
+      if (!fullyMapped) break;
+      mapped.add({'name': pack['name'], 'images': assets});
+    }
+    if (dirty &&
+        fullyMapped &&
+        jsonEncode(mapped) ==
+            jsonEncode(remote.packs.map((pack) => pack.toJson()).toList())) {
+      dirty = false;
+    }
     if (!combine &&
         dirty &&
         ((state.containsKey('revision') &&

@@ -14,6 +14,7 @@ class Cloud extends StickerLibraryRepository {
     : super(MessagingRepository(account: 'fixture', call: (_, _) async => {}));
   StickerLibrarySnapshot snapshot;
   int writes = 0;
+  bool loseNextWriteResponse = false;
   @override
   Future<StickerLibrarySnapshot> read() async => snapshot;
   @override
@@ -26,7 +27,12 @@ class Cloud extends StickerLibraryRepository {
   ) async {
     writes++;
     expect(revision, snapshot.revision);
-    return snapshot = StickerLibrarySnapshot(revision + 1, packs);
+    snapshot = StickerLibrarySnapshot(revision + 1, packs);
+    if (loseNextWriteResponse) {
+      loseNextWriteResponse = false;
+      throw StateError('write committed but response lost');
+    }
+    return snapshot;
   }
 }
 
@@ -38,6 +44,59 @@ void main() {
   tearDown(() async {
     await dir.delete(recursive: true);
   });
+  for (final deleting in [false, true]) {
+    test(
+      'lost committed response converges without rewriting; delete=$deleting',
+      () async {
+        final file = await File('${dir.path}/local.image')
+            .writeAsBytes([1, 2, 3]);
+        final before = [
+          {
+            'name': 'favorites',
+            'images': [file.path],
+          },
+        ];
+        final local = [
+          {
+            'name': deleting ? 'favorites' : 'renamed',
+            'images': deleting ? <String>[] : [file.path],
+          },
+        ];
+        final journal = File('${dir.path}/cloud.json');
+        await journal.writeAsString(
+          jsonEncode({
+            'revision': 2,
+            'local': jsonEncode(before),
+            'mapping': {file.path: asset},
+          }),
+        );
+        final cloud = Cloud(
+          StickerLibrarySnapshot(2, [
+            StickerPack('favorites', [asset]),
+          ]),
+        )..loseNextWriteResponse = true;
+        final sync = StickerLibrarySync(cloud, dir);
+        addTearDown(sync.dispose);
+        var applied = 0;
+        Future<bool> apply(List<Map<String, dynamic>> next) async {
+          applied++;
+          expect(next, local);
+          return true;
+        }
+
+        await expectLater(sync.synchronize(local, apply), throwsStateError);
+        expect(cloud.snapshot.revision, 3);
+        expect(applied, 0);
+        await sync.synchronize(local, apply);
+        expect(cloud.writes, 1);
+        expect(applied, 1);
+        expect(jsonDecode(await journal.readAsString())['revision'], 3);
+        await sync.synchronize(local, apply);
+        expect(cloud.writes, 1);
+        expect(applied, 1);
+      },
+    );
+  }
   for (final damaged in [
     '{"revision":',
     '{"revision":"two"}',
