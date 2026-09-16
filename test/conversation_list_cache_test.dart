@@ -14,6 +14,56 @@ import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 
 void main() {
   sqfliteFfiInit();
+  for (final group in [false, true]) {
+    test(
+      'clear removes only its persisted list row after reopen: group=$group',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('clear-list-');
+        final key = await AesGcm.with256bits().newSecretKey();
+        Future<ChatHistoryStore> open() => ChatHistoryStore.openDatabaseWithKey(
+          factory: databaseFactoryFfi,
+          file: '${dir.path}/history.db',
+          key: key,
+          account: 'me',
+        );
+        var store = await open();
+        addTearDown(() async {
+          await store.close();
+          await dir.delete(recursive: true);
+        });
+        final conversation = group ? 'group:target' : 'direct:target';
+        final rows = [
+          {
+            'kind': group ? 'group' : 'direct',
+            if (group) 'groupId': 'target' else 'peer': 'target',
+            'preview': 'delete this',
+            'unreadCount': 3,
+          },
+          {
+            'kind': group ? 'direct' : 'group',
+            if (group) 'peer': 'target' else 'groupId': 'target',
+            'preview': 'keep this',
+            'unreadCount': 7,
+          },
+        ];
+        await store.saveConversationList(rows);
+        await store.clear(conversation, deleteMedia: false);
+        expect(await store.readConversationList(), rows);
+        await store.clear(
+          conversation,
+          deletedMessageIds: {'unrelated-message'},
+        );
+        expect(await store.readConversationList(), rows);
+        // Queue a save before clearing without waiting for encryption/write.
+        final saving = store.saveConversationList(rows);
+        final clearing = store.clear(conversation);
+        await Future.wait([saving, clearing]);
+        await store.close();
+        store = await open();
+        expect(await store.readConversationList(), [rows.last]);
+      },
+    );
+  }
   testWidgets(
     'offline cold entry renders cached conversation without demo data',
     (tester) async {

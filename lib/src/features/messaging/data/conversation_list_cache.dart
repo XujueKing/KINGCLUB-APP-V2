@@ -37,19 +37,52 @@ extension ConversationListCache on ChatHistoryStore {
     if (bytes.length > 2097152) {
       throw const FormatException('Conversation snapshot too large');
     }
+    // Serialize encryption and the write with history cleanup. A save already
+    // in progress must finish before clear removes the corresponding row.
+    await _db.transaction((tx) => _writeConversationList(tx, bytes));
+  }
+
+  Future<List<Map<String, dynamic>>> readConversationList() async {
+    return _readConversationList(_db);
+  }
+
+  Future<void> _writeConversationList(
+    DatabaseExecutor db,
+    List<int> bytes,
+  ) async {
     final box = await ChatHistoryStore._cipher.encrypt(
       bytes,
       secretKey: _key,
       aad: _listAad,
     );
-    await _db.insert('conversation_list_cache', {
+    await db.insert('conversation_list_cache', {
       'id': 1,
       'payload': box.concatenation(),
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<List<Map<String, dynamic>>> readConversationList() async {
-    final rows = await _db.query('conversation_list_cache', where: 'id=1');
+  Future<void> _removeConversationListEntry(
+    Transaction tx,
+    String conversation,
+  ) async {
+    final rows = await _readConversationList(tx);
+    final previousLength = rows.length;
+    rows.removeWhere(
+      (row) =>
+          conversation ==
+          (row['kind'] == 'group'
+              ? 'group:${row['groupId']}'
+              : 'direct:${row['peer']}'),
+    );
+    if (rows.length != previousLength) {
+      await _writeConversationList(tx, utf8.encode(jsonEncode(rows)));
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _readConversationList(
+    DatabaseExecutor db,
+  ) async {
+    final rows = await db.query('conversation_list_cache', where: 'id=1');
     if (rows.isEmpty) return [];
     final bytes = await ChatHistoryStore._cipher.decrypt(
       SecretBox.fromConcatenation(

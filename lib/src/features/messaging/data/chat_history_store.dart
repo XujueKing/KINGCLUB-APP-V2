@@ -756,6 +756,9 @@ class ChatHistoryStore {
           whereArgs: [id],
         );
       }
+      if (deleteMedia && deletedMessageIds == null) {
+        await _removeConversationListEntry(tx, conversation);
+      }
       await tx.update(
         'conversation',
         {'cursor': 0, 'epoch': epoch + 1, 'presentation': null},
