@@ -105,6 +105,7 @@ class SecureSessionStore {
     final changed = !_sameBinding(previous, value);
     if (changed) {
       MemberQrMemory.clear();
+      await MediaCache.shared.cancelPending();
     } else {
       MemberQrMemory.clearPresentation();
     }
@@ -150,7 +151,7 @@ class SecureSessionStore {
     await _storage.delete(key: _sessionKey);
     changes.add(null);
     try {
-      await MediaCache.shared.clear(privateOnly: true);
+      await MediaCache.shared.cancelPending();
     } catch (_) {
       /* Credentials are already revoked locally. */
     }

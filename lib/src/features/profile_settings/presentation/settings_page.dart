@@ -373,7 +373,7 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('清理缓存'),
-        content: Text('将清理 $_cache 本地缓存，不影响账号资料。'),
+        content: Text('将清理 $_cache 已保存在本机的图片、视频和语音。清理后需联网重新下载，不影响账号资料。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),

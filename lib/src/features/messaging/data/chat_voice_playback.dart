@@ -38,7 +38,7 @@ typedef VoiceFileLoader = Future<File> Function(
   Map<String, String> headers,
 );
 
-/// One output per conversation; every tap authorizes before touching cached audio.
+/// One output per conversation. Saved files play locally; downloads authorize.
 class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
   ChatVoicePlayback({
     ChatVoiceOutput? output,

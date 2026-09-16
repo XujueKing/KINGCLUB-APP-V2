@@ -89,7 +89,7 @@ class MediaCache {
     required String contentKey,
   }) => cached(scope: scope, contentKey: contentKey, kind: MediaKind.image);
 
-  /// Local-only read; never fetches a URL or stores an authorization token.
+  /// Retain a local source atomically without deleting the source file.
   Future<File> importFile(
     File source, {
     required String scope,
@@ -352,10 +352,11 @@ class MediaCache {
     return total;
   }
 
-  Future<void> clear({bool privateOnly = false}) async {
+  /// End work bound to an old session without deleting that account's media.
+  Future<void> cancelPending() async {
     _generation++;
     for (final cancel in _downloads.toList()) {
-      cancel.cancel('清理缓存');
+      cancel.cancel('媒体请求已取消');
     }
     await Future.wait(
       _pending.values.toList().map((future) async {
@@ -364,6 +365,10 @@ class MediaCache {
         } catch (_) {}
       }),
     );
+  }
+
+  Future<void> clear({bool privateOnly = false}) async {
+    await cancelPending();
     final root = await _directory();
     final target = privateOnly ? Directory('${root.path}/private') : root;
     if (await target.exists()) await target.delete(recursive: true);

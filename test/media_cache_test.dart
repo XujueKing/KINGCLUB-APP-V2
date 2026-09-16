@@ -159,6 +159,53 @@ void main() {
     expect(await cached.exists(), false);
     expect(transport.calls, 1);
   });
+  test(
+    'session cancellation retains files but rejects in-flight local reads',
+    () async {
+      final file = await cache.get(
+        'https://media.example.test/voice',
+        scope: 'member:a',
+        contentKey: 'voice',
+        kind: MediaKind.audio,
+      );
+      final entered = Completer<void>(), release = Completer<void>();
+      final waiting = MediaCache(
+        directory: () async {
+          if (!entered.isCompleted) entered.complete();
+          await release.future;
+          return dir;
+        },
+      );
+      final read = waiting.cached(
+        scope: 'member:a',
+        contentKey: 'voice',
+        kind: MediaKind.audio,
+      );
+      final rejected = expectLater(read, throwsStateError);
+      await entered.future;
+      await waiting.cancelPending();
+      release.complete();
+      await rejected;
+      expect(await file.exists(), isTrue);
+      final reopened = MediaCache(directory: () async => dir);
+      expect(
+        (await reopened.cached(
+          scope: 'member:a',
+          contentKey: 'voice',
+          kind: MediaKind.audio,
+        )).path,
+        file.path,
+      );
+      await expectLater(
+        reopened.cached(
+          scope: 'member:b',
+          contentKey: 'voice',
+          kind: MediaKind.audio,
+        ),
+        throwsStateError,
+      );
+    },
+  );
   test('clear immediately after get cancels before network starts', () async {
     final pending = cache.get(
       'https://media.example.test/voice',
