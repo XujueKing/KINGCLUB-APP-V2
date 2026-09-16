@@ -30,7 +30,7 @@ class _MessageVoiceTranscriptionPageState
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
   String? _text, _error;
-  bool _busy = false, _invalid = false;
+  bool _busy = false, _invalid = false, _foreground = true;
   int _generation = 0, _revision = 0;
   Future<void>? _checking;
   @override
@@ -42,6 +42,7 @@ class _MessageVoiceTranscriptionPageState
       _clear('登录状态已变化');
     });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
+      if (_invalid || !_foreground) return;
       final type = event['eventType'];
       if (type == 'connection.ready' ||
           (type is String && type.startsWith('chat.'))) {
@@ -77,7 +78,7 @@ class _MessageVoiceTranscriptionPageState
   }
 
   Future<void> _checkCurrent() async {
-    while (mounted && !_invalid) {
+    while (mounted && !_invalid && _foreground) {
       final revision = _revision;
       final value = await widget.repository.voiceMedia(
         widget.messageId,
@@ -92,7 +93,7 @@ class _MessageVoiceTranscriptionPageState
   }
 
   Future<void> _load() async {
-    if (_busy || _invalid) return;
+    if (_busy || _invalid || !_foreground) return;
     final generation = ++_generation;
     setState(() {
       _busy = true;
@@ -112,6 +113,9 @@ class _MessageVoiceTranscriptionPageState
           !['recognized', 'no-speech'].contains(result['status'])) {
         throw const FormatException('Invalid transcription');
       }
+      if (!mounted || _invalid || !_foreground || generation != _generation) {
+        return;
+      }
       await _check();
       if (mounted && !_invalid && generation == _generation) {
         setState(() => _text = text.trim().isEmpty ? '未识别到清晰语音' : text.trim());
@@ -127,7 +131,8 @@ class _MessageVoiceTranscriptionPageState
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground) {
       _clear('返回后请重新识别');
     }
   }
