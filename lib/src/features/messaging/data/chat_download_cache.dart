@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
@@ -16,6 +17,27 @@ class ChatDownloadCache {
   final SecretKey key;
   static final _cipher = AesGcm.with256bits();
   static final _opens = <String, Future<ChatDownloadCache>>{};
+  static const _backgroundThreshold = 64 * 1024;
+
+  static Future<Uint8List> _encryptBlock(
+    Uint8List bytes,
+    List<int> keyBytes,
+    List<int> aad,
+  ) async => (await AesGcm.with256bits().encrypt(
+    bytes,
+    secretKey: SecretKey(keyBytes),
+    aad: aad,
+  )).concatenation();
+
+  static Future<List<int>> _decryptBlock(
+    Uint8List bytes,
+    List<int> keyBytes,
+    List<int> aad,
+  ) => AesGcm.with256bits().decrypt(
+    SecretBox.fromConcatenation(bytes, nonceLength: 12, macLength: 16),
+    secretKey: SecretKey(keyBytes),
+    aad: aad,
+  );
 
   static Future<String> _hash(String value) async =>
       (await Sha256().hash(utf8.encode(value))).bytes
@@ -112,15 +134,12 @@ class ChatDownloadCache {
               !await File('${file.parent.path}/retained').exists())) {
         return null;
       }
-      final bytes = await _cipher.decrypt(
-        SecretBox.fromConcatenation(
-          await file.readAsBytes(),
-          nonceLength: 12,
-          macLength: 16,
-        ),
-        secretKey: key,
-        aad: utf8.encode('$identity:$index'),
-      );
+      final encrypted = await file.readAsBytes();
+      final keyBytes = await key.extractBytes();
+      final aad = utf8.encode('$identity:$index');
+      final bytes = encrypted.length >= _backgroundThreshold
+          ? await Isolate.run(() => _decryptBlock(encrypted, keyBytes, aad))
+          : await _decryptBlock(encrypted, keyBytes, aad);
       await ensureNotDeleted(identity);
       return bytes.length == length ? Uint8List.fromList(bytes) : null;
     } catch (_) {
@@ -132,14 +151,14 @@ class ChatDownloadCache {
     await ensureNotDeleted(identity);
     final directory = await _directory(identity);
     await directory.create(recursive: true);
-    final box = await _cipher.encrypt(
-      bytes,
-      secretKey: key,
-      aad: utf8.encode('$identity:$index'),
-    );
+    final keyBytes = await key.extractBytes();
+    final aad = utf8.encode('$identity:$index');
+    final encrypted = bytes.length >= _backgroundThreshold
+        ? await Isolate.run(() => _encryptBlock(bytes, keyBytes, aad))
+        : await _encryptBlock(bytes, keyBytes, aad);
     final temp = File('${directory.path}/${const Uuid().v4()}.tmp');
     try {
-      await temp.writeAsBytes(box.concatenation(), flush: true);
+      await temp.writeAsBytes(encrypted, flush: true);
       await ensureNotDeleted(identity);
       await temp.rename('${directory.path}/$index.block');
       await ensureNotDeleted(identity);

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
@@ -6,6 +7,47 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
 
 void main() {
+  test(
+    'background crypto remains compatible with existing AES-GCM blocks',
+    () async {
+      final root = await Directory.systemTemp.createTemp('file-crypto-compat-');
+      addTearDown(() => root.delete(recursive: true));
+      final cipher = AesGcm.with256bits();
+      final key = await cipher.newSecretKey();
+      final cache = ChatDownloadCache(root: root, key: key);
+      final bytes = Uint8List.fromList(
+        List.generate(128 * 1024, (i) => i % 251),
+      );
+      await cache.write('message', 0, bytes);
+      final block =
+          (await root
+                  .list(recursive: true)
+                  .where((e) => e is File && e.path.endsWith('.block'))
+                  .cast<File>()
+                  .toList())
+              .single;
+      final aad = utf8.encode('message:0');
+      expect(
+        await cipher.decrypt(
+          SecretBox.fromConcatenation(
+            await block.readAsBytes(),
+            nonceLength: 12,
+            macLength: 16,
+          ),
+          secretKey: key,
+          aad: aad,
+        ),
+        bytes,
+      );
+      final legacy = await cipher.encrypt(bytes, secretKey: key, aad: aad);
+      await block.writeAsBytes(legacy.concatenation());
+      expect(await cache.read('message', 0, bytes.length), bytes);
+      final corrupt = await block.readAsBytes();
+      corrupt[20] ^= 1;
+      await block.writeAsBytes(corrupt);
+      expect(await cache.read('message', 0, bytes.length), isNull);
+    },
+  );
   test(
     'completed files survive expiry, pruning and reopen until deleted',
     () async {
