@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_file_details_page.dart';
 
@@ -39,6 +40,53 @@ class PendingDownload extends ChatFileDownloader {
 }
 
 void main() {
+  for (final completed in [false, true]) {
+    testWidgets('deletion removes file actions, completed=$completed', (
+      tester,
+    ) async {
+      final repo = MessagingRepository(
+        account: 'synthetic',
+        call: (_, _) async => {},
+      );
+      final download = PendingDownload(repo);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatFileDetailsPage(
+            repository: repo,
+            openDownloader: (_) async => download,
+            reference: const ChatFileReference(
+              messageId: 'id',
+              assetId: 'asset',
+              fileName: 'test.txt',
+              size: 2,
+              sha256: 'test',
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('下载文件'));
+      await tester.pump();
+      if (completed) {
+        download.pending!.complete(File('synthetic-file'));
+        await tester.pump();
+        expect(find.text('下载完成，文件校验通过'), findsOneWidget);
+      }
+      await const ChatMediaDeletion('other-account', false, 'id').dispatch();
+      await const ChatMediaDeletion('synthetic', true, 'id').dispatch();
+      await tester.pump();
+      expect(find.text('内容已移除'), findsNothing);
+      await const ChatMediaDeletion('synthetic', false, 'id').dispatch();
+      await tester.pump();
+      expect(find.text('内容已移除'), findsOneWidget);
+      expect(find.text('下载完成，文件校验通过'), findsNothing);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(download.downloads, 1);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
   testWidgets(
     'download cancellation permits retry and page disposal releases download',
     (tester) async {

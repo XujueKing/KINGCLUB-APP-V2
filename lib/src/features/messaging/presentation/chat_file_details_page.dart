@@ -1,4 +1,5 @@
 import '../data/chat_file_exporter.dart';
+import '../data/chat_media_deletion.dart';
 
 import 'dart:io';
 
@@ -32,9 +33,31 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
   File? _file;
   ChatFileExporter? _exporter;
   bool _saving = false, _saved = false, _opening = false;
+  bool _removed = false;
+  late final void Function() _removeDeletionListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _removeDeletionListener = ChatMediaDeletion.listen((event) {
+      if (!mounted ||
+          event.account != widget.repository.account ||
+          event.group != widget.reference.group ||
+          event.messageId != widget.reference.messageId) {
+        return;
+      }
+      _cancel();
+      setState(() {
+        _removed = true;
+        _file = null;
+        _saved = false;
+        _error = null;
+      });
+    });
+  }
 
   Future<void> _openSaved() async {
-    if (_opening || _saving) return;
+    if (_removed || _opening || _saving) return;
     setState(() => _opening = true);
     try {
       final opened = await _exporter?.openSaved() ?? false;
@@ -48,7 +71,7 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
 
   Future<void> _save() async {
     final file = _file, downloader = _downloader;
-    if (file == null || downloader == null || _saving) return;
+    if (_removed || file == null || downloader == null || _saving) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -59,7 +82,7 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
         widget.reference,
         () => downloader.authorizeExport(widget.reference),
       );
-      if (mounted) setState(() => _saved = saved);
+      if (mounted && !_removed) setState(() => _saved = saved);
     } catch (_) {
       if (mounted) setState(() => _error = '保存未完成，请重试');
     } finally {
@@ -68,7 +91,7 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
   }
 
   Future<void> _download() async {
-    if (_busy) return;
+    if (_removed || _busy) return;
     setState(() {
       _busy = true;
       _cancelled = false;
@@ -110,6 +133,7 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
 
   @override
   void dispose() {
+    _removeDeletionListener();
     _exporter?.dispose();
     _downloader?.dispose();
     super.dispose();
@@ -148,7 +172,12 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
                         '已保存到所选位置',
                         style: TextStyle(color: Colors.white70),
                       ),
-                    if (_error != null)
+                    if (_removed)
+                      const Text(
+                        '内容已移除',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    if (_error != null && !_removed)
                       Text(
                         _error!,
                         style: const TextStyle(color: Colors.white70),
@@ -157,7 +186,9 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
                 ),
               ),
             ),
-            if (_busy) ...[
+            if (_removed)
+              const SizedBox.shrink()
+            else if (_busy) ...[
               LinearProgressIndicator(value: _progress),
               TextButton(onPressed: _cancel, child: const Text('取消下载')),
             ] else if (_file == null)
