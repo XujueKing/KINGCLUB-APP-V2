@@ -37,9 +37,13 @@ void main() {
     await tester.pumpAndSettle();
     final list = find.byType(ListView).first;
     final controller = tester.widget<ListView>(list).controller!;
+    expect(tester.widget<ListView>(list).reverse, isTrue);
+    expect(controller.position.pixels, 0);
+    expect(find.text('History 29').hitTestable(), findsOneWidget);
+    expect(find.text('History 0').hitTestable(), findsNothing);
     controller.jumpTo(controller.position.maxScrollExtent / 2);
     await tester.pumpAndSettle();
-    expect(controller.position.extentAfter, greaterThan(100));
+    expect(controller.position.extentBefore, greaterThan(100));
     final readingOffset = controller.position.pixels;
     rows.add({
       ...ack({
@@ -57,7 +61,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('direct-chat-send')));
     await tester.pumpAndSettle();
     expect(find.text('New outgoing message').hitTestable(), findsOneWidget);
-    expect(controller.position.extentAfter, lessThan(48));
+    expect(controller.position.extentBefore, lessThan(48));
     await tester.pumpWidget(const SizedBox());
   });
 }

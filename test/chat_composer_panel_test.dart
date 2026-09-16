@@ -198,7 +198,7 @@ void main() {
       final initialHeight = tester.getSize(list).height;
       await tester.pump(const Duration(milliseconds: 90));
       expect(tester.getSize(list).height, lessThan(initialHeight));
-      expect(controller.position.extentAfter, lessThan(1));
+      expect(controller.position.extentBefore, lessThan(1));
       expect(
         tester.getBottomLeft(list).dy,
         lessThanOrEqualTo(
@@ -215,7 +215,7 @@ void main() {
       for (final inset in [80.0, 160.0, 240.0]) {
         tester.view.viewInsets = FakeViewPadding(bottom: inset);
         await tester.pump();
-        expect(controller.position.extentAfter, lessThan(1));
+        expect(controller.position.extentBefore, lessThan(1));
       }
       expect(tester.takeException(), isNull);
     },

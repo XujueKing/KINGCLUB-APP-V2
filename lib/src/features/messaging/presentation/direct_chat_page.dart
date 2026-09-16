@@ -239,6 +239,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   final _scrollController = ScrollController();
   final _inputFocusNode = FocusNode();
   bool _scrollScheduled = false;
+  final _animatedMessageIds = <String>{};
   _ComposerPanel _composerPanel = _ComposerPanel.none;
   bool _voiceMode = false;
   bool _voiceInputToText = false;
@@ -825,7 +826,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     if (!mounted || chat == null) return;
     final nearBottom =
         !_scrollController.hasClients ||
-        _scrollController.position.extentAfter < 48;
+        _scrollController.position.extentBefore < 48;
     final displayedIds = _messages
         .map((message) => message.clientMessageId)
         .toSet();
@@ -835,6 +836,16 @@ class _DirectChatPageState extends State<DirectChatPage>
           (message['status'] == 'queued' || message['status'] == 'sending') &&
           !displayedIds.contains(message['clientMessageId']),
     );
+    if (_messages.isNotEmpty &&
+        !_loadingOlder &&
+        (nearBottom || hasNewOutgoing)) {
+      _animatedMessageIds.addAll(
+        chat.messages
+            .map((message) => message['clientMessageId'])
+            .whereType<String>()
+            .where((id) => !displayedIds.contains(id)),
+      );
+    }
     final activeVoice = _voicePlayback?.activeId;
     if (activeVoice != null &&
         !chat.messages.any(
@@ -920,7 +931,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         ModalRoute.of(context)?.isCurrent != true ||
         WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed ||
         !_scrollController.hasClients ||
-        _scrollController.position.extentAfter > 24) {
+        _scrollController.position.extentBefore > 24) {
       return;
     }
     final confirmed = chat.messages.where(
@@ -938,7 +949,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     if (chat == null ||
         _loadingOlder ||
         !chat.hasOlder ||
-        _scrollController.position.pixels > 32) {
+        _scrollController.position.extentAfter > 32) {
       return;
     }
     _loadingOlder = true;
@@ -1032,14 +1043,22 @@ class _DirectChatPageState extends State<DirectChatPage>
                 child: ListView.builder(
                   key: const ValueKey('direct-chat-message-list'),
                   controller: _scrollController,
+                  reverse: true,
                   physics: const _ChatViewportPhysics(),
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   scrollCacheExtent: const ScrollCacheExtent.pixels(640),
                   padding: const EdgeInsets.fromLTRB(14, 16, 14, 20),
                   itemCount: _messages.length + 1,
+                  findChildIndexCallback: (key) {
+                    if (key is! ValueKey<String>) return null;
+                    final index = _messages.indexWhere(
+                      (message) => message.clientMessageId == key.value,
+                    );
+                    return index < 0 ? null : _messages.length - 1 - index;
+                  },
                   itemBuilder: (context, index) {
-                    if (index == 0) {
+                    if (index == _messages.length) {
                       if (_realTarget != null) {
                         return const SizedBox.shrink();
                       }
@@ -1055,175 +1074,207 @@ class _DirectChatPageState extends State<DirectChatPage>
                         ),
                       );
                     }
-                    final messageIndex = index - 1;
+                    final messageIndex = _messages.length - 1 - index;
                     final message = _messages[messageIndex];
                     return RepaintBoundary(
                       key: message.clientMessageId == null
                           ? ObjectKey(message)
                           : ValueKey(message.clientMessageId),
-                      child: _MessageRow(
-                        timestamp: chatTimestampLabel(
-                          message.createdDate,
-                          messageIndex == 0
-                              ? null
-                              : _messages[messageIndex - 1].createdDate,
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(
+                          begin:
+                              _animatedMessageIds.contains(
+                                message.clientMessageId,
+                              )
+                              ? 0.0
+                              : 1.0,
+                          end: 1.0,
                         ),
-                        avatar: _chat == null || message.senderAccount == null
-                            ? null
-                            : ChatMemberAvatar(
-                                account: message.senderAccount!,
-                                own: message.mine,
-                                profile: cachedChatAvatarProfile(
-                                  _avatarProfiles,
-                                  message.senderAccount!,
-                                  () => _chat!.messaging.avatarProfile(
+                        duration: const Duration(milliseconds: 220),
+                        onEnd: () =>
+                            _animatedMessageIds.remove(message.clientMessageId),
+                        curve: Curves.easeOutCubic,
+                        builder: (_, factor, child) => ClipRect(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            heightFactor: factor,
+                            child: child,
+                          ),
+                        ),
+                        child: _MessageRow(
+                          timestamp: chatTimestampLabel(
+                            message.createdDate,
+                            messageIndex == 0
+                                ? null
+                                : _messages[messageIndex - 1].createdDate,
+                          ),
+                          avatar: _chat == null || message.senderAccount == null
+                              ? null
+                              : ChatMemberAvatar(
+                                  account: message.senderAccount!,
+                                  own: message.mine,
+                                  profile: cachedChatAvatarProfile(
+                                    _avatarProfiles,
                                     message.senderAccount!,
+                                    () => _chat!.messaging.avatarProfile(
+                                      message.senderAccount!,
+                                    ),
                                   ),
                                 ),
-                              ),
-                        message: message,
-                        imageContent:
-                            message.videoDurationMs != null &&
-                                message.messageId != null &&
-                                _chat != null
-                            ? ChatVideoView(
-                                repository: _chat!.messaging,
-                                scopeId:
-                                    widget.groupId ?? _chat!.conversationId,
-                                messageId: message.messageId!,
-                                group: widget.groupId != null,
-                                width: message.videoWidth ?? 320,
-                                height: message.videoHeight ?? 240,
-                                durationMs: message.videoDurationMs!,
-                                onTap: () {
-                                  final repository = _chat!.messaging;
-                                  _voicePlayback?.stop();
-                                  _inputFocusNode.unfocus();
-                                  Navigator.of(context).push<void>(
-                                    MaterialPageRoute(
-                                      builder: (_) => Scaffold(
-                                        backgroundColor: Colors.black,
-                                        appBar: AppBar(
+                          message: message,
+                          imageContent:
+                              message.videoDurationMs != null &&
+                                  message.messageId != null &&
+                                  _chat != null
+                              ? ChatVideoView(
+                                  repository: _chat!.messaging,
+                                  scopeId:
+                                      widget.groupId ?? _chat!.conversationId,
+                                  messageId: message.messageId!,
+                                  group: widget.groupId != null,
+                                  width: message.videoWidth ?? 320,
+                                  height: message.videoHeight ?? 240,
+                                  durationMs: message.videoDurationMs!,
+                                  onTap: () {
+                                    final repository = _chat!.messaging;
+                                    _voicePlayback?.stop();
+                                    _inputFocusNode.unfocus();
+                                    Navigator.of(context).push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => Scaffold(
                                           backgroundColor: Colors.black,
-                                          leading: KingBackButton(
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(),
+                                          appBar: AppBar(
+                                            backgroundColor: Colors.black,
+                                            leading: KingBackButton(
+                                              onPressed: () =>
+                                                  Navigator.of(context).pop(),
+                                            ),
+                                            title: const Text('视频'),
                                           ),
-                                          title: const Text('视频'),
-                                        ),
-                                        body: SafeArea(
-                                          child: ChatVideoView(
-                                            repository: repository,
-                                            scopeId:
-                                                widget.groupId ??
-                                                _chat?.conversationId,
-                                            messageId: message.messageId!,
-                                            group: widget.groupId != null,
-                                            full: true,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              )
-                            : message.fileName != null &&
-                                  message.fileSize != null
-                            ? ChatFileCard(
-                                fileName: message.fileName!,
-                                size: message.fileSize!,
-                                onTap:
-                                    message.messageId == null ||
-                                        message.fileAssetId == null ||
-                                        message.fileSha256 == null ||
-                                        _chat == null
-                                    ? null
-                                    : () {
-                                        _voicePlayback?.stop();
-                                        _inputFocusNode.unfocus();
-                                        Navigator.of(context).push<void>(
-                                          MaterialPageRoute(
-                                            builder: (_) => ChatFileDetailsPage(
-                                              repository: _chat!.messaging,
-                                              reference: ChatFileReference(
-                                                messageId: message.messageId!,
-                                                assetId: message.fileAssetId!,
-                                                fileName: message.fileName!,
-                                                size: message.fileSize!,
-                                                sha256: message.fileSha256!,
-                                                group: widget.groupId != null,
-                                                sender: message.mine
-                                                    ? _chat!.messaging.account
-                                                    : widget.peerAccount,
-                                              ),
+                                          body: SafeArea(
+                                            child: ChatVideoView(
+                                              repository: repository,
+                                              scopeId:
+                                                  widget.groupId ??
+                                                  _chat?.conversationId,
+                                              messageId: message.messageId!,
+                                              group: widget.groupId != null,
+                                              full: true,
                                             ),
                                           ),
-                                        );
-                                      },
-                              )
-                            : message.location != null
-                            ? ChatLocationMessage(
-                                location: message.location!,
-                                mine: message.mine,
-                                onTap: () {
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                )
+                              : message.fileName != null &&
+                                    message.fileSize != null
+                              ? ChatFileCard(
+                                  fileName: message.fileName!,
+                                  size: message.fileSize!,
+                                  onTap:
+                                      message.messageId == null ||
+                                          message.fileAssetId == null ||
+                                          message.fileSha256 == null ||
+                                          _chat == null
+                                      ? null
+                                      : () {
+                                          _voicePlayback?.stop();
+                                          _inputFocusNode.unfocus();
+                                          Navigator.of(context).push<void>(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  ChatFileDetailsPage(
+                                                    repository:
+                                                        _chat!.messaging,
+                                                    reference: ChatFileReference(
+                                                      messageId:
+                                                          message.messageId!,
+                                                      assetId:
+                                                          message.fileAssetId!,
+                                                      fileName:
+                                                          message.fileName!,
+                                                      size: message.fileSize!,
+                                                      sha256:
+                                                          message.fileSha256!,
+                                                      group:
+                                                          widget.groupId !=
+                                                          null,
+                                                      sender: message.mine
+                                                          ? _chat!
+                                                                .messaging
+                                                                .account
+                                                          : widget.peerAccount,
+                                                    ),
+                                                  ),
+                                            ),
+                                          );
+                                        },
+                                )
+                              : message.location != null
+                              ? ChatLocationMessage(
+                                  location: message.location!,
+                                  mine: message.mine,
+                                  onTap: () {
+                                    _voicePlayback?.stop();
+                                    _inputFocusNode.unfocus();
+                                    Navigator.of(context).push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => ChatLocationDetailsPage(
+                                          location: message.location!,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                )
+                              : message.voiceDurationMs != null
+                              ? _voiceBubble(message)
+                              : _realTarget != null &&
+                                    message.kind == _FakeMessageKind.image
+                              ? message.messageId == null || _chat == null
+                                    ? const SizedBox(
+                                        width: 142,
+                                        height: 100,
+                                        child: Center(child: Text('[图片]')),
+                                      )
+                                    : ChatImageView(
+                                        repository: _chat!.messaging,
+                                        scopeId:
+                                            widget.groupId ??
+                                            _chat!.conversationId,
+                                        messageId: message.messageId!,
+                                        group: widget.groupId != null,
+                                      )
+                              : null,
+                          onAvatarTap: _realTarget == null
+                              ? null
+                              : () {
                                   _voicePlayback?.stop();
-                                  _inputFocusNode.unfocus();
                                   Navigator.of(context).push<void>(
                                     MaterialPageRoute(
-                                      builder: (_) => ChatLocationDetailsPage(
-                                        location: message.location!,
+                                      builder: (_) => PublicMemberPage(
+                                        account:
+                                            message.senderAccount ??
+                                            widget.peerAccount!,
+                                        repository: _chat?.messaging,
                                       ),
                                     ),
                                   );
                                 },
-                              )
-                            : message.voiceDurationMs != null
-                            ? _voiceBubble(message)
-                            : _realTarget != null &&
-                                  message.kind == _FakeMessageKind.image
-                            ? message.messageId == null || _chat == null
-                                  ? const SizedBox(
-                                      width: 142,
-                                      height: 100,
-                                      child: Center(child: Text('[图片]')),
-                                    )
-                                  : ChatImageView(
-                                      repository: _chat!.messaging,
-                                      scopeId:
-                                          widget.groupId ??
-                                          _chat!.conversationId,
-                                      messageId: message.messageId!,
-                                      group: widget.groupId != null,
-                                    )
-                            : null,
-                        onAvatarTap: _realTarget == null
-                            ? null
-                            : () {
-                                _voicePlayback?.stop();
-                                Navigator.of(context).push<void>(
-                                  MaterialPageRoute(
-                                    builder: (_) => PublicMemberPage(
-                                      account:
-                                          message.senderAccount ??
-                                          widget.peerAccount!,
-                                      repository: _chat?.messaging,
-                                    ),
-                                  ),
-                                );
-                              },
-                        onRetry: () => _realTarget != null
-                            ? _chat?.retry(message.clientMessageId!)
-                            : setState(
-                                () => _messages[messageIndex] =
-                                    _messages[messageIndex].copyWith(
-                                      status: _FakeMessageStatus.sent,
-                                    ),
-                              ),
-                        onLongPress: () => _showMessageMenu(messageIndex),
-                        onQuoteTap: message.reply?.available == true
-                            ? () => _openReply(message.reply!)
-                            : null,
-                        onTap: () => _openMediaPreview(message),
+                          onRetry: () => _realTarget != null
+                              ? _chat?.retry(message.clientMessageId!)
+                              : setState(
+                                  () => _messages[messageIndex] =
+                                      _messages[messageIndex].copyWith(
+                                        status: _FakeMessageStatus.sent,
+                                      ),
+                                ),
+                          onLongPress: () => _showMessageMenu(messageIndex),
+                          onQuoteTap: message.reply?.available == true
+                              ? () => _openReply(message.reply!)
+                              : null,
+                          onTap: () => _openMediaPreview(message),
+                        ),
                       ),
                     );
                   },
@@ -2560,24 +2611,13 @@ class _DirectChatPageState extends State<DirectChatPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollScheduled = false;
       if (!_scrollController.hasClients) return;
-      final target = _scrollController.position.maxScrollExtent;
+      final target = _scrollController.position.minScrollExtent;
       if ((_scrollController.position.pixels - target).abs() < 1) return;
-      _scrollController
-          .animateTo(
-            target,
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-          )
-          .then((_) {
-            if (!mounted || !_scrollController.hasClients) return;
-            final position = _scrollController.position;
-            // Lazy rows can change the estimated end while animating. Correct
-            // only an animation that reached its target, not a user interruption.
-            if ((position.pixels - target).abs() < 1 &&
-                position.extentAfter > 1) {
-              _scrollController.jumpTo(position.maxScrollExtent);
-            }
-          });
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      );
     });
   }
 
@@ -3073,7 +3113,7 @@ class _MessageRow extends StatelessWidget {
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0x998A8178), fontSize: 12),
+            style: const TextStyle(color: Color(0xFF8A8178), fontSize: 12),
           ),
         ),
         _buildContent(context),
@@ -3648,8 +3688,8 @@ class _ChatViewportPhysics extends ClampingScrollPhysics {
     required double velocity,
   }) {
     if (oldPosition.viewportDimension != newPosition.viewportDimension &&
-        oldPosition.extentAfter < 24) {
-      return newPosition.maxScrollExtent;
+        oldPosition.extentBefore < 24) {
+      return newPosition.minScrollExtent;
     }
     return super.adjustPositionForNewDimensions(
       oldPosition: oldPosition,
