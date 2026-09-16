@@ -32,3 +32,21 @@ not selected or sent. The composer contained unsent text different from the
 pre-install snapshot; it was left untouched rather than overwritten. Phone
 photo sending/offline viewing, animation smoothness, and video offline playback
 remain pending. B was not operated or updated.
+
+## A real-device follow-up
+
+Sent the project-owned wine_flip.png (4,358 bytes, copied to the Download test
+filename) through the photo picker in the authorized A/B direct conversation.
+After Android reported `Active default network: none`, force-stopped and
+restarted the app, opened the same conversation and then the full image. Both
+the thumbnail and full viewer displayed the test asset. Connectivity still
+reported no default network after the full viewer capture. Wi-Fi/mobile data
+were restored in a finally block; a subsequent read confirmed default network
+132. Returned to the conversation without altering other messages.
+
+Local captures: preview build/offline-confirmed-image-a.png and
+build/offline-confirmed-full-a.png (not committed because they include chat
+content). Earlier captures where disconnection had not settled are not the
+acceptance evidence. This proves sender image persistence across process
+restart while offline; it does not establish B receipt/offline viewing or voice
+automatic prefetch. B was not operated.
