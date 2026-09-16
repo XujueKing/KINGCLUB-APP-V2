@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import '../../../core/session/secure_session_store.dart';
+import '../../../core/media/media_cache.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import 'chat_image_uploader.dart';
 import 'messaging_repository.dart';
@@ -17,6 +18,7 @@ class ChatImageForwarder {
     this.group = false,
     Dio? dio,
     this.upload,
+    this.mediaStore,
   }) : _dio =
            dio ??
            Dio(
@@ -33,6 +35,8 @@ class ChatImageForwarder {
   final bool group;
   final Dio _dio;
   final Future<UploadedChatImage> Function(Uint8List)? upload;
+  final MediaCache? mediaStore;
+  Uint8List? _sourceBytes;
   StreamSubscription<void>? _session;
   ChatImageUploader? _uploader;
   final _cancel = CancelToken();
@@ -109,13 +113,33 @@ class ChatImageForwarder {
         _prepared = await uploader.upload(data);
       }
       _check();
+      _sourceBytes = data;
       return _prepared!;
     } finally {
       _busy = false;
     }
   }
 
-  Future<void> acknowledgeQueued() async {
+  Future<void> acknowledgeQueued({String? clientMessageId}) async {
+    _check();
+    final bytes = _sourceBytes;
+    if (clientMessageId != null && bytes != null) {
+      await (mediaStore ?? MediaCache.shared).importBytes(
+        bytes,
+        scope: 'member:${repository.account}',
+        contentKey: 'chat-image-sent:$clientMessageId',
+        kind: MediaKind.image,
+      );
+      if (_closed) {
+        await (mediaStore ?? MediaCache.shared).evict(
+          scope: 'member:${repository.account}',
+          contentKey: 'chat-image-sent:$clientMessageId',
+          kind: MediaKind.image,
+        );
+      }
+      _check();
+    }
+    _sourceBytes = null;
     final image = _prepared;
     if (image != null) await _uploader?.acknowledgeQueued(image);
   }
@@ -124,6 +148,7 @@ class ChatImageForwarder {
     if (_closed) return;
     _closed = true;
     _prepared = null;
+    _sourceBytes = null;
     _cancel.cancel('image forwarding closed');
     _session?.cancel();
     _uploader?.dispose();

@@ -321,9 +321,13 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
       setState(() => _preparing = false);
       await _outbox.put(_attempt!);
       try {
-        await _imageForwarder?.acknowledgeQueued();
+        await _imageForwarder?.acknowledgeQueued(
+          clientMessageId: _attempt!['clientMessageId'] as String,
+        );
         await _fileForwarder?.acknowledgeQueued();
-        await _videoForwarder?.acknowledgeQueued();
+        await _videoForwarder?.acknowledgeQueued(
+          clientMessageId: _attempt!['clientMessageId'] as String,
+        );
         await _voiceForwarder?.acknowledgeQueued();
       } catch (_) {}
       if (!mounted || _invalid || generation != _forwardGeneration) return;

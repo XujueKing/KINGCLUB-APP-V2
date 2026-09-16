@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -7,6 +8,8 @@ import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_image_forwarder.dart';
 import 'package:kingclub/src/features/messaging/data/chat_image_uploader.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/core/media/media_cache.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_cleanup.dart';
 
 class Download implements HttpClientAdapter {
   Download(this.handle);
@@ -25,6 +28,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   for (final group in [false, true]) {
     test('authorized image copied once for retries group=$group', () async {
+      final dir = await Directory.systemTemp.createTemp('forward-image-');
+      addTearDown(() => dir.delete(recursive: true));
+      final media = MediaCache(directory: () async => dir);
       var reads = 0, uploads = 0;
       final path =
           '/kingclub/${group ? 'group-chat-image' : 'chat-image'}/source/image';
@@ -61,6 +67,7 @@ void main() {
         messageId: 'source',
         group: group,
         dio: dio,
+        mediaStore: media,
         upload: (bytes) async {
           uploads++;
           expect(bytes, [1, 2, 3]);
@@ -77,6 +84,26 @@ void main() {
       expect((await forwarder.prepare()).assetId, 'owned-copy');
       expect(reads, 1);
       expect(uploads, 1);
+      expect(await dir.list().toList(), isEmpty);
+      await forwarder.acknowledgeQueued(clientMessageId: 'new-client');
+      final reopened = MediaCache(directory: () async => dir);
+      final local = await reopened.cached(
+        scope: 'member:me',
+        contentKey: 'chat-image-sent:new-client',
+        kind: MediaKind.image,
+      );
+      expect(await local.readAsBytes(), [1, 2, 3]);
+      await ChatMediaCleanup(media: reopened).remove(
+        account: 'me',
+        group: group,
+        message: {
+          'sender': 'me',
+          'messageType': 'image',
+          'messageId': 'new-message',
+          'clientMessageId': 'new-client',
+        },
+      );
+      expect(await local.exists(), false);
       forwarder.dispose();
     });
   }

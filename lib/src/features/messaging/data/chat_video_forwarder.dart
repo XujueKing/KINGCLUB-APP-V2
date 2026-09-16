@@ -18,6 +18,7 @@ class ChatVideoForwarder {
     this.group = false,
     this.loadFile,
     this.openUploader,
+    this.mediaStore,
   }) {
     _session = SecureSessionStore.changes.stream.listen((_) => dispose());
   }
@@ -26,6 +27,8 @@ class ChatVideoForwarder {
   final bool group;
   final Future<File> Function(ChatVideoGrant)? loadFile;
   final Future<ChatFileUploader> Function()? openUploader;
+  final MediaCache? mediaStore;
+  File? _sourceFile;
   StreamSubscription<void>? _session;
   ChatFileUploader? _uploader;
   UploadedChatFile? _uploaded;
@@ -65,11 +68,10 @@ class ChatVideoForwarder {
       if (_uploaded == null) {
         final file =
             await (loadFile?.call(grant) ??
-                MediaCache.shared.get(
+                (mediaStore ?? MediaCache.shared).get(
                   '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}${grant.path}',
                   scope: 'member:${repository.account}',
-                  contentKey:
-                      'chat-video:${repository.account}:${grant.fileId}:${grant.sha256}',
+                  contentKey: 'chat-video-forward:$group:$messageId:video',
                   kind: MediaKind.video,
                   headers: {'authorization': grant.authorization},
                 ));
@@ -105,6 +107,7 @@ class ChatVideoForwarder {
           throw StateError('上传视频校验失败');
         }
         _uploaded = uploaded;
+        _sourceFile = file;
       }
       final video = await repository.prepareVideo(_uploaded!.assetId);
       _check();
@@ -116,7 +119,26 @@ class ChatVideoForwarder {
     }
   }
 
-  Future<void> acknowledgeQueued() async {
+  Future<void> acknowledgeQueued({String? clientMessageId}) async {
+    _check();
+    final source = _sourceFile;
+    if (clientMessageId != null && source != null) {
+      await (mediaStore ?? MediaCache.shared).importFile(
+        source,
+        scope: 'member:${repository.account}',
+        contentKey: 'chat-video-sent:$clientMessageId',
+        kind: MediaKind.video,
+      );
+      if (_closed) {
+        await (mediaStore ?? MediaCache.shared).evict(
+          scope: 'member:${repository.account}',
+          contentKey: 'chat-video-sent:$clientMessageId',
+          kind: MediaKind.video,
+        );
+      }
+      _check();
+    }
+    _sourceFile = null;
     final file = _uploaded;
     if (file != null) await _uploader?.acknowledgeQueued(file);
   }
@@ -128,5 +150,6 @@ class ChatVideoForwarder {
     _uploader?.dispose();
     _uploaded = null;
     _prepared = null;
+    _sourceFile = null;
   }
 }

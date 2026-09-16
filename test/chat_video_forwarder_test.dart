@@ -6,6 +6,8 @@ import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_uploader.dart';
 import 'package:kingclub/src/features/messaging/data/chat_video_forwarder.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/core/media/media_cache.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_cleanup.dart';
 
 const id = '11111111-1111-4111-8111-111111111111';
 const hash = '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81';
@@ -48,6 +50,12 @@ void main() {
     test(
       'video source ${group ? 'group' : 'direct'} rechecks access and retries processing without reupload',
       () async {
+        final dir = await Directory.systemTemp.createTemp('forward-video-');
+        addTearDown(() => dir.delete(recursive: true));
+        final source = await File('${dir.path}/source.mp4')
+            .writeAsBytes([1, 2, 3]);
+        final mediaRoot = Directory('${dir.path}/media');
+        final media = MediaCache(directory: () async => mediaRoot);
         var grants = 0, processes = 0, deny = false;
         final repo = MessagingRepository(
           account: 'me',
@@ -87,7 +95,8 @@ void main() {
           repository: repo,
           messageId: id,
           group: group,
-          loadFile: (_) async => _File(),
+          loadFile: (_) async => source,
+          mediaStore: media,
           openUploader: () async => uploader,
         );
         addTearDown(forwarder.dispose);
@@ -99,7 +108,27 @@ void main() {
         expect(uploader.uploads, 1);
         expect(processes, 2);
         expect(grants, 4);
-        await forwarder.acknowledgeQueued();
+        expect(await mediaRoot.exists(), false);
+        await forwarder.acknowledgeQueued(clientMessageId: 'new-client');
+        await source.delete();
+        final reopened = MediaCache(directory: () async => mediaRoot);
+        final local = await reopened.cached(
+          scope: 'member:me',
+          contentKey: 'chat-video-sent:new-client',
+          kind: MediaKind.video,
+        );
+        expect(await local.readAsBytes(), [1, 2, 3]);
+        await ChatMediaCleanup(media: reopened).remove(
+          account: 'me',
+          group: group,
+          message: {
+            'sender': 'me',
+            'messageType': 'video',
+            'messageId': 'new-message',
+            'clientMessageId': 'new-client',
+          },
+        );
+        expect(await local.exists(), false);
         expect(uploader.acks, 1);
         deny = true;
         await expectLater(forwarder.prepare(), throwsStateError);

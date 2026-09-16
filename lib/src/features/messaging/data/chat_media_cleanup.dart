@@ -92,6 +92,7 @@ class ChatMediaCleanup {
       keys['chat-video-message:$group:$id:poster'] = MediaKind.image;
       keys['chat-video-transfer:$group:$id:video'] = MediaKind.video;
       keys['chat-video-transfer:$group:$id:poster'] = MediaKind.image;
+      keys['chat-video-forward:$group:$id:video'] = MediaKind.video;
     }
     if (message['sender'] == account &&
         client is String &&

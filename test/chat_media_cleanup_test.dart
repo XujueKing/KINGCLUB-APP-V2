@@ -31,7 +31,7 @@ class DelayedDownload implements HttpClientAdapter {
 }
 
 void main() {
-  for (final type in ['voice', 'video']) {
+  for (final type in ['voice', 'video', 'video-forward']) {
     test('$type transfer copy is removed with its message', () async {
       final root = await Directory.systemTemp.createTemp(
         'chat-transfer-cleanup-',
@@ -41,6 +41,8 @@ void main() {
       final kind = type == 'voice' ? MediaKind.audio : MediaKind.video;
       final key = type == 'voice'
           ? 'chat-voice-transfer:false:m'
+          : type == 'video-forward'
+          ? 'chat-video-forward:false:m:video'
           : 'chat-video-transfer:false:m:video';
       await media.importBytes(
         Uint8List.fromList([1, 2, 3]),
@@ -51,7 +53,10 @@ void main() {
       await ChatMediaCleanup(media: media).remove(
         account: 'a',
         group: false,
-        message: {'messageType': type, 'messageId': 'm'},
+        message: {
+          'messageType': type == 'video-forward' ? 'video' : type,
+          'messageId': 'm',
+        },
       );
       final reopened = MediaCache(directory: () async => root);
       await expectLater(
