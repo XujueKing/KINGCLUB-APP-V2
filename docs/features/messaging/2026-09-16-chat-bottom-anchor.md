@@ -8,4 +8,6 @@
 
 参考：https://docs.flutter.dev/cookbook/lists/long-lists 及 https://pub.dev/documentation/flutter_chat_ui/latest/flutter_chat_ui/ChatAnimatedList-class.html 。参考滚动与插入职责，不引入整套UI库或覆盖已确认样式。
 
-尚未安装本次滚动改动到手机，不能把组件验证当成真机帧率、键盘动画同步已验收。持续上翻后的内存窗口裁剪尚未新增，不宣称内存无限恒定。
+验证：9项相关测试通过，3个修改代码/测试文件静态分析无问题。已将 aba66af 同步到预览工作树 86225a3，构建 Profile 包并覆盖安装 A，应用稳定启动。进入 A/B 好友会话，UI 实际读到“今天 12:52”“今天 13:04”“今天 13:59”，列表底部为最新消息“大伯”。没有向第三方发送消息。
+
+上述静态真机检查不等于真机帧率、键盘动画同步已验收。持续上翻后的内存窗口裁剪尚未新增，不宣称内存无限恒定。
