@@ -55,6 +55,42 @@ class MediaCache {
   final Map<String, Future<File>> _pending = {};
   final Set<CancelToken> _downloads = {};
   int _generation = 0;
+  final Set<String> _deleted = {};
+
+  Future<File> _deletionMarker(String key) async =>
+      File('${(await _directory()).path}/deleted/$key');
+
+  Future<void> _checkDeleted(String key) async {
+    if (_deleted.contains(key) || await (await _deletionMarker(key)).exists()) {
+      _deleted.add(key);
+      throw StateError('媒体所属聊天记录已删除');
+    }
+  }
+
+  Future<void> _checkPublishedFile(String key, File file) async {
+    try {
+      await _checkDeleted(key);
+    } catch (_) {
+      if (await file.exists()) await file.delete();
+      rethrow;
+    }
+  }
+
+  /// A durable tombstone prevents late downloads/imports from restoring a
+  /// deleted immutable message copy, including after process restart.
+  Future<void> removePermanently({
+    required String scope,
+    required String contentKey,
+    required MediaKind kind,
+  }) async {
+    final key = await _hash('$scope|${kind.name}|$contentKey');
+    _deleted.add(key);
+    final marker = await _deletionMarker(key);
+    await marker.parent.create(recursive: true);
+    await marker.writeAsBytes([1], flush: true);
+    await evict(scope: scope, contentKey: contentKey, kind: kind);
+  }
+
   Future<String> _hash(String value) async =>
       (await Sha256().hash(utf8.encode(value))).bytes
           .map((b) => b.toRadixString(16).padLeft(2, '0'))
@@ -71,6 +107,7 @@ class MediaCache {
     final uri = Uri.parse(url);
     if (uri.scheme != 'https') throw const FormatException('媒体地址必须使用HTTPS');
     final key = await _hash('$scope|${kind.name}|${contentKey ?? url}');
+    await _checkDeleted(key);
     if (generation != _generation) throw StateError('Cache request cancelled');
     final result = await _pending.putIfAbsent(key, () async {
       try {
@@ -80,6 +117,7 @@ class MediaCache {
       }
     });
     if (generation != _generation) throw StateError('Cache request cancelled');
+    await _checkDeleted(key);
     return result;
   }
 
@@ -129,6 +167,7 @@ class MediaCache {
   }) async {
     final generation = _generation;
     final key = await _hash('$scope|${kind.name}|$contentKey');
+    await _checkDeleted(key);
     if (generation != _generation) throw StateError('媒体保存已取消');
     final result = await _pending.putIfAbsent(key, () async {
       File? temp;
@@ -147,10 +186,12 @@ class MediaCache {
         await file.parent.create(recursive: true);
         temp = File('${file.path}.part');
         await write(temp);
+        await _checkDeleted(key);
         if (generation != _generation || await temp.length() == 0) {
           throw StateError('媒体保存未完成');
         }
         await temp.rename(file.path);
+        await _checkPublishedFile(key, file);
         if (!retainMedia) await _trim(root, kind, except: file.path);
         return file;
       } finally {
@@ -159,6 +200,7 @@ class MediaCache {
       }
     });
     if (generation != _generation) throw StateError('媒体保存已取消');
+    await _checkDeleted(key);
     return result;
   }
 
@@ -170,6 +212,7 @@ class MediaCache {
   }) async {
     final generation = _generation;
     final key = await _hash('$scope|${kind.name}|$contentKey');
+    await _checkDeleted(key);
     final root = await _directory();
     final extension = switch (kind) {
       MediaKind.image => '.media',
@@ -317,6 +360,7 @@ class MediaCache {
           if (received > limit || total > limit) cancel.cancel('媒体超出缓存单文件上限');
         },
       );
+      await _checkDeleted(key);
       if (generation != _generation ||
           !await temp.exists() ||
           await temp.length() == 0) {
@@ -326,6 +370,7 @@ class MediaCache {
         throw StateError('媒体超出缓存单文件上限');
       }
       await temp.rename(file.path);
+      await _checkPublishedFile(key, file);
       if (!retainMedia) await _trim(root, kind, except: file.path);
       return file;
     } finally {

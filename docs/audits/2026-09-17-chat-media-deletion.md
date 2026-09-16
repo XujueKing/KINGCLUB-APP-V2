@@ -15,3 +15,17 @@ in persisted history; durable cleanup retry; prevention of late media writes;
 server revision/individual deletion paths and all UI entry points. This change
 does not satisfy complete attachment deletion until these are implemented and
 verified. User-exported gallery/download originals must remain separate.
+
+## Late-write fencing
+
+Message image/video deletion now uses a durable hashed tombstone, distinct from
+ordinary decoder-failure eviction. Reads, downloads and imports reject deleted
+keys, including after reopening the store. Pending writes are checked before
+and after publication, and deletion waits for the existing pending operation
+before removing its file. Other media keys remain usable.
+
+27 history/media/cleanup tests passed, including a held HTTP response released
+after deletion begins, absence of final/partial files, and rejection of a new
+import by a reopened store. Analyzer passed. This addresses late writes only
+for the message-owned keys already wired here; voice, file and transport aliases
+still need ownership-aware cleanup. No phone installation in this step.

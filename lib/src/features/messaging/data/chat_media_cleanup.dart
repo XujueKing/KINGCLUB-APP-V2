@@ -26,7 +26,7 @@ class ChatMediaCleanup {
       keys['chat-video-sent:$client'] = MediaKind.video;
     }
     for (final entry in keys.entries) {
-      await media.evict(
+      await media.removePermanently(
         scope: 'member:$account',
         contentKey: entry.key,
         kind: entry.value,
