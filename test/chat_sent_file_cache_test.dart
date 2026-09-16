@@ -2,10 +2,12 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:cryptography/dart.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
 import 'package:kingclub/src/features/messaging/data/chat_sent_file_cache.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_uploader.dart';
+import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/chat_media_cleanup.dart';
 
@@ -46,6 +48,57 @@ void main() {
       isEmpty,
     );
   }
+
+  test(
+    'file above 64 MiB survives source removal and encrypted store reopen',
+    () async {
+      expect(ChatSentFileCache.maxBytes, ChatFileUploader.maxBytes);
+      expect(ChatSentFileCache.maxBytes, ChatFileDownloader.maxBytes);
+      const size = 65 * 1024 * 1024 + 7;
+      final original = File('${root.path}/large.bin');
+      final writer = await original.open(mode: FileMode.write);
+      await writer.truncate(size);
+      await writer.close();
+      Future<String> digest(File file) async {
+        final sink = const DartSha256().newHashSink();
+        await for (final bytes in file.openRead()) {
+          sink.add(bytes);
+        }
+        sink.close();
+        return (await sink.hash()).bytes
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join();
+      }
+
+      final hash = await digest(original);
+      expect(
+        await cache.retain(original, assetId: asset, size: size, sha256: hash),
+        true,
+      );
+      await original.delete();
+      final reopened = ChatSentFileCache(
+        cache: ChatDownloadCache(root: blocks.root, key: blocks.key),
+        checkSession: () async {},
+        temporaryDirectory: () async => root,
+      );
+      expect(
+        await reopened.use<bool>(
+          assetId: asset,
+          size: size,
+          sha256: hash,
+          send: (file) async {
+            expect(await file.length(), size);
+            expect(await digest(file), hash);
+            return true;
+          },
+        ),
+        true,
+      );
+      await noPlaintext();
+      await reopened.remove(assetId: asset, size: size, sha256: hash);
+      expect(await blocks.root.list().toList(), isEmpty);
+    },
+  );
 
   test(
     'cleanup preserves shared sent file then releases final reference',

@@ -18,7 +18,7 @@ class ChatSentFileCache {
   final ChatDownloadCache cache;
   final Future<void> Function() checkSession;
   final Future<Directory> Function() _temporaryDirectory;
-  static const maxBytes = 64 * 1024 * 1024;
+  static const maxBytes = 256 * 1024 * 1024;
   static const chunkBytes = 1024 * 1024;
   static final _locks = <String, Future<void>>{};
 
