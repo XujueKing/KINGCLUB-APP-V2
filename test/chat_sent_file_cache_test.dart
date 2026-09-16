@@ -7,6 +7,7 @@ import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
 import 'package:kingclub/src/features/messaging/data/chat_sent_file_cache.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_uploader.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_cleanup.dart';
 
 void main() {
   late Directory root;
@@ -45,6 +46,78 @@ void main() {
       isEmpty,
     );
   }
+
+  test(
+    'cleanup preserves shared sent file then releases final reference',
+    () async {
+      final input = await source([1, 2, 3]);
+      await cache.retain(
+        input.file,
+        assetId: asset,
+        size: 3,
+        sha256: input.hash,
+      );
+      final downloads = ChatDownloadCache(
+        root: Directory('${root.path}/downloads'),
+        key: blocks.key,
+      );
+      final cleanup = ChatMediaCleanup(
+        downloadCache: (_) async => downloads,
+        sentFileCache: (_) async => blocks,
+      );
+      final message = <String, dynamic>{
+        'messageType': 'file',
+        'messageId': 'message',
+        'sender': 'me',
+        'fileAssetId': asset,
+        'fileSize': 3,
+        'fileSha256': input.hash,
+        'fileName': 'source.bin',
+      };
+      await cleanup.remove(
+        account: 'me',
+        group: false,
+        message: message,
+        retainedFileAssets: {asset},
+      );
+      expect(
+        await cache.use<bool>(
+          assetId: asset,
+          size: 3,
+          sha256: input.hash,
+          send: (file) async => await file.exists(),
+        ),
+        true,
+      );
+      await cleanup.remove(account: 'me', group: false, message: message);
+      expect(
+        await cache.use<bool>(
+          assetId: asset,
+          size: 3,
+          sha256: input.hash,
+          send: (_) async => fail('Deleted source must not be supplied'),
+        ),
+        isNull,
+      );
+      expect(await input.file.readAsBytes(), [1, 2, 3]);
+      await cache.retain(
+        input.file,
+        assetId: asset,
+        size: 3,
+        sha256: input.hash,
+      );
+      expect(
+        await cache.use<bool>(
+          assetId: asset,
+          size: 3,
+          sha256: input.hash,
+          send: (file) async => await file.exists(),
+        ),
+        true,
+      );
+      await noPlaintext();
+    },
+  );
 
   test(
     'queued uploader retains source; cache failure does not resend',

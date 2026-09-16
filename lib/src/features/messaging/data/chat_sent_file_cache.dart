@@ -50,6 +50,17 @@ class ChatSentFileCache {
   String _hex(List<int> bytes) =>
       bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
 
+  /// Release the final local history reference after any active retain/use.
+  /// A later new authorized message may retain the same asset again.
+  Future<void> remove({
+    required String assetId,
+    required int size,
+    required String sha256,
+  }) => _exclusive(() async {
+    if (size > maxBytes) return;
+    await cache.remove(_identity(assetId, size, sha256));
+  });
+
   Future<bool> retain(
     File source, {
     required String assetId,

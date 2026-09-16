@@ -4,20 +4,23 @@ import 'dart:convert';
 
 import 'chat_download_cache.dart';
 import 'chat_media_deletion.dart';
+import 'chat_sent_file_cache.dart';
 
 /// Deletes message-owned copies without clearing avatars or another account.
 /// Transport cache aliases and exported files are handled separately.
 class ChatMediaCleanup {
-  ChatMediaCleanup({MediaCache? media, this.downloadCache})
+  ChatMediaCleanup({MediaCache? media, this.downloadCache, this.sentFileCache})
     : media = media ?? MediaCache.shared;
   final MediaCache media;
   final Future<ChatDownloadCache> Function(String account)? downloadCache;
+  final Future<ChatDownloadCache> Function(String account)? sentFileCache;
 
   Future<void> remove({
     required String account,
     required bool group,
     required Map<String, dynamic> message,
     Set<String> retainedVoiceAssets = const {},
+    Set<String> retainedFileAssets = const {},
   }) async {
     final messageId = message['messageId'];
     if (messageId is String && messageId.isNotEmpty) {
@@ -51,6 +54,22 @@ class ChatMediaCleanup {
           message['fileName'],
         ]),
       );
+      final asset = message['fileAssetId'],
+          size = message['fileSize'],
+          hash = message['fileSha256'];
+      if (message['sender'] == account &&
+          asset is String &&
+          size is int &&
+          hash is String &&
+          !retainedFileAssets.contains(asset)) {
+        final sent = await (sentFileCache ?? ChatDownloadCache.openSentFiles)(
+          account,
+        );
+        await ChatSentFileCache(
+          cache: sent,
+          checkSession: () async {},
+        ).remove(assetId: asset, size: size, sha256: hash);
+      }
       return;
     }
     if (!const {'image', 'video'}.contains(message['messageType'])) return;

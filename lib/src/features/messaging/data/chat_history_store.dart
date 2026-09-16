@@ -598,6 +598,7 @@ class ChatHistoryStore {
       if (deleteMedia) {
         final cleanup = mediaCleanup ?? ChatMediaCleanup();
         final retainedVoiceAssets = <String>{};
+        final retainedFileAssets = <String>{};
         // Payloads are encrypted; inspect remaining conversations in bounded
         // batches before discarding any shared asset. The transaction prevents
         // a concurrent history write from changing this reference snapshot.
@@ -628,6 +629,10 @@ class ChatHistoryStore {
             final asset = message['voiceAssetId'];
             if (asset is String && message['messageType'] == 'voice') {
               retainedVoiceAssets.add(asset);
+            }
+            final fileAsset = message['fileAssetId'];
+            if (fileAsset is String && message['messageType'] == 'file') {
+              retainedFileAssets.add(fileAsset);
             }
           }
           if (references.length < 50) break;
@@ -664,6 +669,7 @@ class ChatHistoryStore {
               account: account,
               group: conversation.startsWith('group:'),
               retainedVoiceAssets: retainedVoiceAssets,
+              retainedFileAssets: retainedFileAssets,
               message: message,
             );
           }
