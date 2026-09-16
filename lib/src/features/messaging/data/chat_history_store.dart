@@ -95,8 +95,13 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 15,
+        version: 16,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 16) {
+            await db.execute(
+              'ALTER TABLE message ADD COLUMN stale INTEGER NOT NULL DEFAULT 0',
+            );
+          }
           if (oldVersion < 15) await _createContactSnapshot(db);
           if (oldVersion >= 6 && oldVersion < 14) {
             await db.execute(
@@ -159,7 +164,7 @@ class ChatHistoryStore {
             'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER, presentation BLOB, historyVersion INTEGER)',
           );
           await db.execute(
-            'CREATE TABLE message (conversation TEXT NOT NULL, sequence INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(conversation, sequence))',
+            'CREATE TABLE message (conversation TEXT NOT NULL, sequence INTEGER NOT NULL, payload BLOB NOT NULL, stale INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(conversation, sequence))',
           );
         },
       ),
@@ -303,8 +308,8 @@ class ChatHistoryStore {
       final rows = await tx.query(
         'message',
         where: before == null
-            ? 'conversation=?'
-            : 'conversation=? AND sequence<?',
+            ? 'conversation=? AND stale=0'
+            : 'conversation=? AND stale=0 AND sequence<?',
         whereArgs: [id, ?before],
         orderBy: 'sequence DESC',
         limit: limit,
@@ -563,7 +568,12 @@ class ChatHistoryStore {
       final saved = state['historyVersion'] as int?;
       if (saved != null && historyVersion < saved) return null;
       if (saved == historyVersion) return expectedEpoch;
-      await tx.delete('message', where: 'conversation=?', whereArgs: [id]);
+      await tx.update(
+        'message',
+        {'stale': 1},
+        where: 'conversation=?',
+        whereArgs: [id],
+      );
       final epoch = expectedEpoch + 1;
       await tx.update(
         'conversation',
@@ -707,7 +717,16 @@ class ChatHistoryStore {
         }
       }
       if (deletedMessageIds == null) {
-        await tx.delete('message', where: 'conversation=?', whereArgs: [id]);
+        if (deleteMedia) {
+          await tx.delete('message', where: 'conversation=?', whereArgs: [id]);
+        } else {
+          await tx.update(
+            'message',
+            {'stale': 1},
+            where: 'conversation=?',
+            whereArgs: [id],
+          );
+        }
       } else {
         final batch = tx.batch();
         for (final sequence in deletedSequences) {

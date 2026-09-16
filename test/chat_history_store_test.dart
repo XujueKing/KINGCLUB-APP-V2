@@ -56,6 +56,48 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  for (final revision in [false, true]) {
+    test(
+      'invalidated history remains cleanable after restart revision=$revision',
+      () async {
+        final media = MediaCache(
+          directory: () async => Directory('${dir.path}/media'),
+        );
+        final file = await media.importBytes(
+          Uint8List.fromList([1, 2, 3]),
+          scope: 'member:me',
+          contentKey: 'chat-image-message:false:m-1:image',
+          kind: MediaKind.image,
+        );
+        await store.commit(
+          'direct:peer',
+          [
+            {...message(1), 'messageType': 'image'},
+          ],
+          expectedEpoch: 0,
+          cursor: 1,
+        );
+        if (revision) {
+          await store.adoptHistoryVersion(
+            'direct:peer',
+            expectedEpoch: 0,
+            historyVersion: 1,
+          );
+        } else {
+          await store.clear('direct:peer', deleteMedia: false);
+        }
+        await store.close();
+        store = await open();
+        expect((await store.read('direct:peer')).messages, isEmpty);
+        expect(await file.exists(), true);
+        await store.clear(
+          'direct:peer',
+          mediaCleanup: ChatMediaCleanup(media: media),
+        );
+        expect(await file.exists(), false);
+      },
+    );
+  }
   test(
     'clear preserves media still owned by pending outgoing messages',
     () async {
