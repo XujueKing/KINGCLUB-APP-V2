@@ -11,6 +11,7 @@ import 'package:mediasfu_mediasoup_client/src/handlers/handler_interface.dart'
 import 'call_repository.dart' show CallMedia;
 import '../../auth/domain/auth_repository.dart';
 import 'call_relay_configuration.dart';
+import 'call_foreground_lease.dart';
 import 'group_call_media_repository.dart';
 
 class NativeGroupRemote {
@@ -29,16 +30,19 @@ class NativeGroupCallMedia {
     Future<rtc.MediaStream> Function(Map<String, dynamic>)? capture,
     Future<bool> Function(rtc.MediaStreamTrack)? switchCamera,
     Future<void> Function(bool)? setSpeakerphone,
+    CallForegroundLease? foregroundLease,
     this.onLocal,
     this.onRemote,
     this.onConnection,
     this.onError,
-  }) : _device = device ?? rtc.Device(),
+  }) : _foregroundLease = foregroundLease ?? CallForegroundLease(),
+       _device = device ?? rtc.Device(),
        _capture = capture ?? rtc.navigator.mediaDevices.getUserMedia,
        _switchCamera =
            switchCamera ?? ((track) => rtc.Helper.switchCamera(track)),
        _setSpeakerphone = setSpeakerphone ?? rtc.Helper.setSpeakerphoneOn;
   final GroupCallMediaRepository repository;
+  final CallForegroundLease _foregroundLease;
   final CallRelayConfiguration? relay;
   final rtc.Device _device;
   final Future<rtc.MediaStream> Function(Map<String, dynamic>) _capture;
@@ -160,6 +164,10 @@ class NativeGroupCallMedia {
       if (stream.getAudioTracks().isEmpty) {
         throw StateError('Microphone track missing');
       }
+      await _foregroundLease.start(
+        video: repository.call.media == CallMedia.video,
+      );
+      _check();
       for (final track in stream.getTracks()) {
         _check();
         if (track.kind != 'audio' && track.kind != 'video') {
@@ -556,6 +564,13 @@ class NativeGroupCallMedia {
     if (local != null) {
       await _disposeStream(local);
     }
+    // Cancel a pending service start before waiting for SFU transport teardown.
+    Object? foregroundFailure;
+    try {
+      await _foregroundLease.close();
+    } catch (error) {
+      foregroundFailure = error;
+    }
     for (final producer in _producers.values) {
       try {
         producer.close();
@@ -584,5 +599,6 @@ class NativeGroupCallMedia {
         onError?.call(error);
       }
     }
+    if (foregroundFailure != null) onError?.call(foregroundFailure);
   }
 }

@@ -9,6 +9,7 @@ import 'package:kingclub/src/features/messaging/data/group_call_media_repository
 import 'package:kingclub/src/features/messaging/data/group_call_repository.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/native_group_call_media.dart';
+import 'package:kingclub/src/features/messaging/data/call_foreground_lease.dart';
 
 const callId = '00000000-0000-4000-8000-000000000001';
 
@@ -272,6 +273,65 @@ class Repo extends GroupCallMediaRepository {
 }
 
 void main() {
+  test(
+    'leaving during foreground startup cancels capture and SFU transports',
+    () async {
+      final device = DeviceFixture(), stream = StreamFixture();
+      final pending = Completer<void>(), starting = Completer<void>();
+      final media = NativeGroupCallMedia(
+        repository: Repo(),
+        device: device,
+        capture: (_) async => stream,
+        foregroundLease: CallForegroundLease(
+          supported: true,
+          invoke: (method, _) async {
+            if (method == 'start') {
+              starting.complete();
+              await pending.future;
+            } else if (!pending.isCompleted) {
+              pending.completeError(StateError('cancelled'));
+            }
+          },
+        ),
+      );
+      final opening = media.open();
+      final rejected = expectLater(opening, throwsStateError);
+      await starting.future;
+      await media.close().timeout(const Duration(seconds: 1));
+      await rejected;
+      expect(stream.track.stops, 1);
+      expect(stream.disposed, 1);
+      expect(device.send.closes, 1);
+      expect(device.receive.closes, 1);
+      expect(device.send.producer, isNull);
+    },
+  );
+
+  test(
+    'foreground denial releases group capture and created transports',
+    () async {
+      final device = DeviceFixture(), stream = StreamFixture();
+      final media = NativeGroupCallMedia(
+        repository: Repo(),
+        device: device,
+        capture: (_) async => stream,
+        foregroundLease: CallForegroundLease(
+          supported: true,
+          invoke: (method, _) async {
+            if (method == 'start') {
+              throw StateError('denied');
+            }
+          },
+        ),
+      );
+      await expectLater(media.open(), throwsStateError);
+      expect(stream.track.stops, 1);
+      expect(stream.disposed, 1);
+      expect(device.send.closes, 1);
+      expect(device.receive.closes, 1);
+      expect(device.send.producer, isNull);
+    },
+  );
   for (final mode in ['recover', 'timeout', 'denied']) {
     testWidgets('source polling $mode', (tester) async {
       final repo = Repo(), stream = StreamFixture();
