@@ -3,17 +3,19 @@ import 'dart:async';
 import '../../../core/media/media_cache.dart';
 import '../../../core/session/secure_session_store.dart';
 import 'chat_voice_prefetch.dart';
+import 'chat_history_store.dart';
 import 'group_chat_repository.dart';
 import 'messaging_repository.dart';
 
 /// Prefetch voice for changed unread conversations without opening their pages.
 /// History queries and media transfers are serialized and never mark as read.
 class ChatVoiceInbox {
-  ChatVoiceInbox(this.repository, {this.media}) {
+  ChatVoiceInbox(this.repository, {this.media, this.openHistory}) {
     _session = SecureSessionStore.changes.stream.listen((_) => dispose());
   }
   final MessagingRepository repository;
   final MediaCache? media;
+  final Future<ChatHistoryStore> Function()? openHistory;
   StreamSubscription<void>? _session;
   final _pending = <String, ({String target, bool group, int sequence})>{};
   final _completed = <String, int>{};
@@ -67,6 +69,22 @@ class ChatVoiceInbox {
         _pending.remove(entry.key);
         try {
           final item = entry.value;
+          final history = openHistory != null
+              ? await openHistory!()
+              : repository.persistHistory
+              ? await ChatHistoryStore.open(repository.account)
+              : null;
+          if (_disposed) return;
+          if (history != null && history.account != repository.account) {
+            throw StateError('Wrong history account');
+          }
+          final historyKey =
+              '${item.group ? 'group' : 'direct'}:${item.target}';
+          final saved = history == null
+              ? null
+              : await history.read(historyKey, limit: 1);
+          var epoch = saved?.epoch ?? 0;
+          var revision = saved?.historyVersion;
           final forward = _completed.containsKey(entry.key);
           int? cursor = _completed[entry.key];
           final worker = _worker = ChatVoicePrefetch(
@@ -92,7 +110,65 @@ class ChatVoiceInbox {
             final rows = (result['messages'] as List)
                 .map((row) => Map<String, dynamic>.from(row as Map))
                 .toList();
-            worker.update(rows);
+            var floor = 0;
+            if (history != null) {
+              final nextRevision = result['historyVersion'];
+              if (nextRevision != revision) {
+                if (nextRevision is! int ||
+                    (revision != null && nextRevision < revision)) {
+                  throw StateError('History revision changed');
+                }
+                final adopted = await history.adoptHistoryVersion(
+                  historyKey,
+                  expectedEpoch: epoch,
+                  historyVersion: nextRevision,
+                );
+                if (adopted == null) throw StateError('History was cleared');
+                epoch = adopted;
+                revision = nextRevision;
+              }
+              if (_disposed) return;
+              final hidden = (result['settings'] as Map?)?['hiddenThrough'];
+              if (hidden is! int || hidden < 0) {
+                throw StateError('Missing history boundary');
+              }
+              floor = hidden > (saved?.hiddenThrough ?? 0)
+                  ? hidden
+                  : saved!.hiddenThrough;
+              final membership = result['membershipVersion'];
+              if (item.group) {
+                final joined = result['joinedSequence'];
+                if (membership is! int ||
+                    membership < 0 ||
+                    joined is! int ||
+                    joined < 0 ||
+                    rows.any((row) => row['groupId'] != item.target)) {
+                  throw StateError('Invalid group history boundary');
+                }
+                if (joined > floor) floor = joined;
+              }
+              // Persist ownership before downloading. Do not advance the
+              // foreground sync cursor: these pages are fetched backwards.
+              if (!await history.commit(
+                historyKey,
+                rows,
+                expectedEpoch: epoch,
+                historyVersion: revision,
+                membershipVersion: item.group ? membership as int : null,
+                hiddenThrough: floor,
+              )) {
+                throw StateError('History changed during retention');
+              }
+              if (_disposed) return;
+            }
+            worker.update(
+              rows
+                  .where(
+                    (row) =>
+                        history == null || (row['sequence'] as int) > floor,
+                  )
+                  .toList(),
+            );
             await worker.idle;
             if (worker.hasFailures) {
               throw StateError('Voice retention incomplete');
