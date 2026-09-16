@@ -4,6 +4,7 @@ param(
   [uri]$RelayUrl,
   [string]$RelayPeer,
   [string]$RelayCertificatePath,
+  [string]$NovoRudpSourceRoot,
   [switch]$SkipNovoRudp,
   [switch]$EnablePeerFiles,
   [switch]$EnableLan
@@ -48,7 +49,9 @@ try {
   }
   $env:KINGCLUB_NOVORUDP_JNI_DIR = $null
   if (!$SkipNovoRudp) {
-    & (Join-Path $PSScriptRoot 'build-novorudp-android.ps1') | Out-Host
+    $sourceArguments = @{}
+    if ($NovoRudpSourceRoot) { $sourceArguments.SourceRoot = $NovoRudpSourceRoot }
+    & (Join-Path $PSScriptRoot 'build-novorudp-android.ps1') @sourceArguments | Out-Host
     $env:KINGCLUB_NOVORUDP_JNI_DIR = Join-Path (Get-Location).Path 'build/novorudp-jni'
   }
   # Windows PowerShell treats native stderr warnings as errors when redirected.
