@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import '../../../core/session/secure_session_store.dart';
+import '../../../core/media/media_cache.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import 'chat_voice_uploader.dart';
 import 'messaging_repository.dart';
@@ -17,6 +18,7 @@ class ChatVoiceForwarder {
     this.group = false,
     Dio? dio,
     this.upload,
+    this.mediaStore,
   }) : _dio =
            dio ??
            Dio(
@@ -33,6 +35,8 @@ class ChatVoiceForwarder {
   final bool group;
   final Dio _dio;
   final Future<UploadedChatVoice> Function(Uint8List)? upload;
+  final MediaCache? mediaStore;
+  Uint8List? _sourceBytes;
   StreamSubscription<void>? _session;
   ChatVoiceUploader? _uploader;
   final _cancel = CancelToken();
@@ -113,6 +117,7 @@ class ChatVoiceForwarder {
         _prepared = await uploader.upload(data);
       }
       _check();
+      _sourceBytes = data;
       return _prepared!;
     } finally {
       _busy = false;
@@ -120,7 +125,19 @@ class ChatVoiceForwarder {
   }
 
   Future<void> acknowledgeQueued() async {
+    _check();
     final voice = _prepared;
+    final bytes = _sourceBytes;
+    if (voice != null && bytes != null) {
+      await (mediaStore ?? MediaCache.shared).importBytes(
+        bytes,
+        scope: 'member:${repository.account}',
+        contentKey: 'chat-voice-asset:${voice.assetId}',
+        kind: MediaKind.audio,
+      );
+      _check();
+    }
+    _sourceBytes = null;
     if (voice != null) await _uploader?.acknowledgeQueued(voice);
   }
 
@@ -128,6 +145,7 @@ class ChatVoiceForwarder {
     if (_closed) return;
     _closed = true;
     _prepared = null;
+    _sourceBytes = null;
     _cancel.cancel('voice forwarding closed');
     _session?.cancel();
     _uploader?.dispose();
