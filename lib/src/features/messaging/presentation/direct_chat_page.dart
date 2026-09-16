@@ -307,6 +307,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                     group: widget.groupId != null,
                     groupId: widget.groupId,
                     conversationId: _chat!.conversationId,
+                    assetId: message.voiceAssetId,
                   );
                   if (context.mounted && playback.error != null) {
                     KingNotice.of(context).show(playback.error!);
@@ -874,6 +875,7 @@ class _DirectChatPageState extends State<DirectChatPage>
               voiceDurationMs: message['messageType'] == 'voice'
                   ? message['voiceDurationMs'] as int?
                   : null,
+              voiceAssetId: message['voiceAssetId'] as String?,
               location: message['messageType'] == 'location'
                   ? ChatLocation.tryParse(message['location'])
                   : null,
@@ -3564,6 +3566,7 @@ class _FakeMessage {
     this.videoWidth,
     this.videoHeight,
     this.voiceDurationMs,
+    this.voiceAssetId,
     this.location,
     this.senderAccount,
     this.senderName,
@@ -3582,6 +3585,7 @@ class _FakeMessage {
   final int? fileSize;
   final int? videoDurationMs, videoWidth, videoHeight;
   final int? voiceDurationMs;
+  final String? voiceAssetId;
   final ChatLocation? location;
   final String? senderAccount;
   final String? senderName;
@@ -3612,6 +3616,7 @@ class _FakeMessage {
     videoWidth: videoWidth,
     videoHeight: videoHeight,
     voiceDurationMs: voiceDurationMs,
+    voiceAssetId: voiceAssetId,
     location: location,
     senderAccount: senderAccount,
     senderName: senderName,

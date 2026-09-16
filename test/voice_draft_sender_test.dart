@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:kingclub/src/core/media/media_cache.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/voice_draft_sender.dart';
@@ -83,6 +85,9 @@ void main() {
         );
         expect(chat.messages, hasLength(1));
         final sender = VoiceDraftSender(
+          mediaStore: MediaCache(
+            directory: () async => Directory('${root.path}/retained'),
+          ),
           currentStore: () async => store,
           openUploader: (_) async => throw StateError('duplicate upload'),
         );
@@ -92,6 +97,16 @@ void main() {
         expect(chat.messages, hasLength(1));
         expect(queue.items, confirmed ? isEmpty : hasLength(1));
         expect(await File(path).exists(), false);
+        final retained =
+            await MediaCache(
+              directory: () async => Directory('${root.path}/retained'),
+            ).cached(
+              scope: 'member:me',
+              contentKey:
+                  'chat-voice-asset:12345678-1234-1234-1234-123456789012',
+              kind: MediaKind.audio,
+            );
+        expect(await retained.readAsBytes(), [1, 2, 3]);
       },
     );
   }
@@ -117,6 +132,9 @@ void main() {
           outbox: queue,
         );
         final sender = VoiceDraftSender(
+          mediaStore: MediaCache(
+            directory: () async => Directory('${root.path}/retained'),
+          ),
           currentStore: () async => store,
           openUploader: (_) async => upload,
         );
@@ -133,6 +151,16 @@ void main() {
           expect(queue.items.length, 1);
           expect(queue.items.keys.single, store.messageId(path));
           expect(chat.messages.single['status'], 'queued');
+          final retained =
+              await MediaCache(
+                directory: () async => Directory('${root.path}/retained'),
+              ).cached(
+                scope: 'member:me',
+                contentKey:
+                    'chat-voice-asset:12345678-1234-1234-1234-123456789012',
+                kind: MediaKind.audio,
+              );
+          expect(await retained.readAsBytes(), [1, 2, 3]);
         } else {
           await expectLater(future, throwsStateError);
           expect(await File(path).exists(), true);
@@ -162,6 +190,9 @@ void main() {
       outbox: queue,
     );
     final sender = VoiceDraftSender(
+      mediaStore: MediaCache(
+        directory: () async => Directory('${root.path}/retained'),
+      ),
       currentStore: () async => store,
       openUploader: (_) async => upload,
     );
@@ -188,6 +219,9 @@ void main() {
     await File(path).writeAsBytes([1]);
     var opened = false;
     final sender = VoiceDraftSender(
+      mediaStore: MediaCache(
+        directory: () async => Directory('${root.path}/retained'),
+      ),
       currentStore: () async => own,
       openUploader: (_) async {
         opened = true;

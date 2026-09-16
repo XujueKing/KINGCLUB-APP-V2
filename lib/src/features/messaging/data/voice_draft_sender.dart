@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../../core/session/member_qr_memory.dart';
+import '../../../core/media/media_cache.dart';
 import 'chat_session_controller.dart';
 import 'messaging_repository.dart';
 import 'chat_voice_uploader.dart';
@@ -12,10 +13,13 @@ class VoiceDraftSender {
   VoiceDraftSender({
     Future<VoiceDraftStore> Function()? currentStore,
     Future<ChatVoiceUploader> Function(MessagingRepository)? openUploader,
+    MediaCache? mediaStore,
   }) : _currentStore = currentStore ?? VoiceDraftStore.current,
+       _mediaStore = mediaStore ?? MediaCache.shared,
        _openUploader = openUploader ?? ChatVoiceUploader.open;
   final Future<VoiceDraftStore> Function() _currentStore;
   final Future<ChatVoiceUploader> Function(MessagingRepository) _openUploader;
+  final MediaCache _mediaStore;
   final Set<String> _sending = {};
   final Set<ChatVoiceUploader> _uploads = {};
   bool _disposed = false;
@@ -46,7 +50,17 @@ class VoiceDraftSender {
         // owns this draft. Never replace its asset or issue another upload.
         queued = true;
         try {
-          if (await file.exists()) await file.delete();
+          final message = chat.messages.firstWhere(
+            (message) =>
+                message['clientMessageId'] == messageId &&
+                message['sender'] == chat.messaging.account &&
+                message['messageType'] == 'voice',
+          );
+          final asset = message['voiceAssetId'];
+          if (asset is String && await file.exists()) {
+            await _retain(file, store.account, asset);
+            await file.delete();
+          }
         } catch (_) {}
         return;
       }
@@ -57,6 +71,10 @@ class VoiceDraftSender {
         throw StateError('登录状态已变化');
       }
       final voice = await uploader.upload(await file.readAsBytes());
+      if (_disposed || generation != MemberQrMemory.generation) {
+        throw StateError('登录状态已变化');
+      }
+      await _retain(file, store.account, voice.assetId);
       if (_disposed || generation != MemberQrMemory.generation) {
         throw StateError('登录状态已变化');
       }
@@ -102,4 +120,12 @@ class VoiceDraftSender {
     }
     _uploads.clear();
   }
+
+  Future<File> _retain(File file, String account, String asset) =>
+      _mediaStore.importFile(
+        file,
+        scope: 'member:$account',
+        contentKey: 'chat-voice-asset:$asset',
+        kind: MediaKind.audio,
+      );
 }

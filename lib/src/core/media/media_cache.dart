@@ -90,6 +90,48 @@ class MediaCache {
   }) => cached(scope: scope, contentKey: contentKey, kind: MediaKind.image);
 
   /// Local-only read; never fetches a URL or stores an authorization token.
+  Future<File> importFile(
+    File source, {
+    required String scope,
+    required String contentKey,
+    required MediaKind kind,
+  }) async {
+    final generation = _generation;
+    final key = await _hash('$scope|${kind.name}|$contentKey');
+    if (generation != _generation) throw StateError('媒体保存已取消');
+    final result = await _pending.putIfAbsent(key, () async {
+      File? temp;
+      try {
+        final root = await _directory();
+        final extension = switch (kind) {
+          MediaKind.image => '.media',
+          MediaKind.audio => '.m4a',
+          MediaKind.video => '.mp4',
+        };
+        final file = File(
+          '${root.path}/${scope == 'public' ? 'public' : 'private'}/${await _hash(scope)}/${kind.name}/$key$extension',
+        );
+        if (generation != _generation) throw StateError('媒体保存已取消');
+        if (await file.exists() && await file.length() > 0) return file;
+        await file.parent.create(recursive: true);
+        temp = File('${file.path}.part');
+        await source.copy(temp.path);
+        if (generation != _generation || await temp.length() == 0) {
+          throw StateError('媒体保存未完成');
+        }
+        await temp.rename(file.path);
+        if (!retainMedia) await _trim(root, kind, except: file.path);
+        return file;
+      } finally {
+        if (temp != null && await temp.exists()) await temp.delete();
+        _pending.remove(key);
+      }
+    });
+    if (generation != _generation) throw StateError('媒体保存已取消');
+    return result;
+  }
+
+  /// Local-only read; never fetches a URL or stores an authorization token.
   Future<File> cached({
     required String scope,
     required String contentKey,

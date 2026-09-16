@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
+import 'package:kingclub/src/core/media/media_cache.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/chat_voice_playback.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
@@ -50,6 +51,54 @@ Map<String, dynamic> grant(String message, {bool group = false}) => {
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'saved voice plays after store reopen without contacting server',
+    () async {
+      final root = await Directory.systemTemp.createTemp('voice-local-');
+      final source = File('${root.path}/recording.m4a');
+      await source.writeAsBytes([1, 2, 3]);
+      const asset = '12345678-1234-1234-1234-123456789012';
+      final store = MediaCache(
+        directory: () async => Directory('${root.path}/store'),
+      );
+      await store.importFile(
+        source,
+        scope: 'member:me',
+        contentKey: 'chat-voice-asset:$asset',
+        kind: MediaKind.audio,
+      );
+      await source.delete();
+      var requests = 0;
+      final repo = MessagingRepository(
+        account: 'me',
+        call: (_, _) async {
+          requests++;
+          throw const AuthFailure('NETWORK_ERROR', 'offline');
+        },
+      );
+      final output = Output();
+      final reopened = MediaCache(
+        directory: () async => Directory('${root.path}/store'),
+      );
+      final player = ChatVoicePlayback(
+        output: output,
+        events: const Stream.empty(),
+        mediaStore: reopened,
+      );
+      await player.toggle(repo, 'one', assetId: asset, group: true);
+      expect(requests, 0);
+      expect(player.error, isNull);
+      expect(await File(output.plays.single).readAsBytes(), [1, 2, 3]);
+      await player.stop();
+      await reopened.clear();
+      await player.toggle(repo, 'one', assetId: asset, group: true);
+      expect(requests, 1);
+      expect(player.error, '网络连接失败，请联网后点击语音重试');
+      expect(output.plays, hasLength(1));
+      player.dispose();
+      if (await root.exists()) await root.delete(recursive: true);
+    },
+  );
   for (final downloadFailure in [false, true]) {
     test(
       'network failure can retry after reconnect: download=$downloadFailure',

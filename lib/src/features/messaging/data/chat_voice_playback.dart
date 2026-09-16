@@ -45,7 +45,9 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
     VoiceFileLoader? loadFile,
     Future<void> Function(String account, String fileId)? evictFile,
     Stream<Map<String, dynamic>>? events,
+    MediaCache? mediaStore,
   }) : _output = output ?? NativeChatVoiceOutput(),
+       _mediaStore = mediaStore ?? MediaCache.shared,
        _loadFile = loadFile ?? _cached,
        _evictFile = evictFile ?? _evictCached {
     WidgetsBinding.instance.addObserver(this);
@@ -127,6 +129,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
       );
   final Future<void> Function(String, String) _evictFile;
   final ChatVoiceOutput _output;
+  final MediaCache _mediaStore;
   final VoiceFileLoader _loadFile;
   StreamSubscription<void>? _session, _complete;
   StreamSubscription<Map<String, dynamic>>? _events;
@@ -195,6 +198,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
     bool group = false,
     String? groupId,
     String? conversationId,
+    String? assetId,
   }) async {
     if (_disposed || _invalid) return;
     if (activeId == messageId) {
@@ -215,6 +219,49 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
     bool current() => !_disposed && !_invalid && generation == _generation;
     try {
+      final localKey =
+          assetId != null && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(assetId)
+          ? 'chat-voice-asset:$assetId'
+          : null;
+      if (localKey != null) {
+        File? local;
+        try {
+          local = await _mediaStore.cached(
+            scope: 'member:${repository.account}',
+            contentKey: localKey,
+            kind: MediaKind.audio,
+          );
+        } on StateError {
+          // Not downloaded on this device yet.
+        } on FileSystemException {
+          // A concurrent explicit cleanup can remove a saved file.
+        }
+        if (!current()) return;
+        if (local != null) {
+          final path = local.path;
+          await _serialize(() async {
+            if (!current()) return;
+            _playingGeneration = generation;
+            try {
+              await _output.play(path);
+            } catch (_) {
+              try {
+                await _output.stop();
+              } catch (_) {}
+              await _mediaStore.evict(
+                scope: 'member:${repository.account}',
+                contentKey: localKey,
+                kind: MediaKind.audio,
+              );
+              rethrow;
+            }
+          });
+          if (!current()) return;
+          loading = false;
+          notifyListeners();
+          return;
+        }
+      }
       final result = await repository.voiceMedia(messageId, group: group);
       if (!current()) return;
       final media = Map<String, dynamic>.from(result['voice'] as Map);
@@ -240,6 +287,15 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
         {'authorization': token},
       );
       if (!current()) return;
+      if (localKey != null) {
+        await _mediaStore.importFile(
+          file,
+          scope: 'member:${repository.account}',
+          contentKey: localKey,
+          kind: MediaKind.audio,
+        );
+        if (!current()) return;
+      }
       await _serialize(() async {
         if (current()) {
           _playingGeneration = generation;
