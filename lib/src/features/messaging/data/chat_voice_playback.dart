@@ -3,11 +3,13 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:dio/dio.dart';
 
 import '../../../core/media/media_cache.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
+import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
 
 abstract class ChatVoiceOutput {
@@ -258,15 +260,32 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
       if (!current()) return;
       loading = false;
       notifyListeners();
-    } catch (_) {
+    } catch (failure) {
       if (current()) {
         _playingGeneration = null;
         activeId = null;
         loading = false;
-        error = '语音暂不可播放，请重试';
+        error = _isNetworkFailure(failure)
+            ? '网络连接失败，请联网后点击语音重试'
+            : '语音暂不可播放，请重试';
         notifyListeners();
       }
     }
+  }
+
+  static bool _isNetworkFailure(Object failure) {
+    if (failure is SocketException || failure is TimeoutException) return true;
+    if (failure is AuthFailure) return failure.code == 'NETWORK_ERROR';
+    if (failure is DioException) {
+      return switch (failure.type) {
+        DioExceptionType.connectionError ||
+        DioExceptionType.connectionTimeout ||
+        DioExceptionType.sendTimeout ||
+        DioExceptionType.receiveTimeout => true,
+        _ => false,
+      };
+    }
+    return false;
   }
 
   @override

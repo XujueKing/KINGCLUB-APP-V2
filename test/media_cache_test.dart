@@ -41,11 +41,59 @@ void main() {
       directory: () async => dir,
       dio: Dio()..httpClientAdapter = transport,
       imageBudget: 16,
+      retainMedia: false,
     );
   });
   tearDown(() async {
     if (await dir.exists()) await dir.delete(recursive: true);
   });
+  test(
+    'persistent media survives reopen and budget without network reads',
+    () async {
+      final store = MediaCache(
+        directory: () async => dir,
+        dio: Dio()..httpClientAdapter = transport,
+        imageBudget: 1,
+        audioBudget: 1,
+        videoBudget: 1,
+      );
+      for (final kind in MediaKind.values) {
+        for (final id in ['first', 'second']) {
+          await store.get(
+            'https://media.example.test/${kind.name}/$id',
+            scope: 'member:a',
+            contentKey: id,
+            kind: kind,
+          );
+        }
+      }
+      expect(transport.calls, 6);
+      final reopened = MediaCache(directory: () async => dir);
+      for (final kind in MediaKind.values) {
+        for (final id in ['first', 'second']) {
+          final file = await reopened.cached(
+            scope: 'member:a',
+            contentKey: id,
+            kind: kind,
+          );
+          expect(await file.readAsBytes(), List.filled(8, 7));
+          await expectLater(
+            reopened.cached(scope: 'member:b', contentKey: id, kind: kind),
+            throwsStateError,
+          );
+        }
+      }
+      await reopened.clear();
+      await expectLater(
+        reopened.cached(
+          scope: 'member:a',
+          contentKey: 'first',
+          kind: MediaKind.audio,
+        ),
+        throwsStateError,
+      );
+    },
+  );
   test(
     'offline image lookup never downloads and respects account isolation',
     () async {

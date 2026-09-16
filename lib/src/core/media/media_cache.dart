@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 enum MediaKind { image, video, audio }
 
-/// Persistent, bounded media cache. URLs (including signed query strings) are
+/// Persistent media store. URLs (including signed query strings) are
 /// never written to disk. Private media must use an account-specific scope.
 class MediaCache {
   MediaCache({
@@ -17,11 +17,8 @@ class MediaCache {
     this.imageBudget = 200 * 1024 * 1024,
     this.videoBudget = 800 * 1024 * 1024,
     this.audioBudget = 100 * 1024 * 1024,
-  }) : _directory =
-           directory ??
-           (() async => Directory(
-             '${(await getApplicationCacheDirectory()).path}/media-cache-v1',
-           )),
+    this.retainMedia = true,
+  }) : _directory = directory ?? _persistentDirectory,
        _dio =
            dio ??
            Dio(
@@ -31,9 +28,30 @@ class MediaCache {
              ),
            );
   static final shared = MediaCache();
+  static Future<Directory>? _openingDirectory;
+  static Future<Directory> _persistentDirectory() =>
+      _openingDirectory ??= (() async {
+        try {
+          final root = Directory(
+            '${(await getApplicationSupportDirectory()).path}/media-store-v1',
+          );
+          final legacy = Directory(
+            '${(await getApplicationCacheDirectory()).path}/media-cache-v1',
+          );
+          if (!await root.exists() && await legacy.exists()) {
+            await root.parent.create(recursive: true);
+            await legacy.rename(root.path);
+          }
+          return root;
+        } catch (_) {
+          _openingDirectory = null;
+          rethrow;
+        }
+      })();
   final Future<Directory> Function() _directory;
   final Dio _dio;
   final int imageBudget, videoBudget, audioBudget;
+  final bool retainMedia;
   final Map<String, Future<File>> _pending = {};
   final Set<CancelToken> _downloads = {};
   int _generation = 0;
@@ -69,17 +87,29 @@ class MediaCache {
   Future<File> cachedImage({
     required String scope,
     required String contentKey,
+  }) => cached(scope: scope, contentKey: contentKey, kind: MediaKind.image);
+
+  /// Local-only read; never fetches a URL or stores an authorization token.
+  Future<File> cached({
+    required String scope,
+    required String contentKey,
+    required MediaKind kind,
   }) async {
     final generation = _generation;
-    final key = await _hash('$scope|image|$contentKey');
+    final key = await _hash('$scope|${kind.name}|$contentKey');
     final root = await _directory();
+    final extension = switch (kind) {
+      MediaKind.image => '.media',
+      MediaKind.audio => '.m4a',
+      MediaKind.video => '.mp4',
+    };
     final file = File(
-      '${root.path}/${scope == 'public' ? 'public' : 'private'}/${await _hash(scope)}/image/$key.media',
+      '${root.path}/${scope == 'public' ? 'public' : 'private'}/${await _hash(scope)}/${kind.name}/$key$extension',
     );
     if (!await file.exists() ||
         await file.length() == 0 ||
         generation != _generation) {
-      throw StateError('图片尚未缓存');
+      throw StateError('媒体尚未保存在本机');
     }
     return file;
   }
@@ -218,7 +248,7 @@ class MediaCache {
         throw StateError('缓存请求已取消');
       }
       await temp.rename(file.path);
-      await _trim(root, kind, except: file.path);
+      if (!retainMedia) await _trim(root, kind, except: file.path);
       return file;
     } finally {
       _downloads.remove(cancel);

@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dio/dio.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/chat_voice_playback.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
@@ -48,6 +50,68 @@ Map<String, dynamic> grant(String message, {bool group = false}) => {
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  for (final downloadFailure in [false, true]) {
+    test(
+      'network failure can retry after reconnect: download=$downloadFailure',
+      () async {
+        final output = Output();
+        var offline = true, requests = 0;
+        final repo = MessagingRepository(
+          account: 'me',
+          call: (_, p) async {
+            requests++;
+            if (offline && !downloadFailure) {
+              throw const AuthFailure('NETWORK_ERROR', 'network failed');
+            }
+            return grant(p['messageId'] as String, group: true);
+          },
+        );
+        final player = ChatVoicePlayback(
+          output: output,
+          events: const Stream.empty(),
+          loadFile: (_, _, _, _) async {
+            if (offline) {
+              throw DioException(
+                requestOptions: RequestOptions(path: '/voice'),
+                type: DioExceptionType.connectionError,
+              );
+            }
+            return File('/voice.m4a');
+          },
+        );
+        addTearDown(player.dispose);
+        await player.toggle(repo, 'one', group: true);
+        expect(player.error, '网络连接失败，请联网后点击语音重试');
+        expect(player.loading, isFalse);
+        expect(player.activeId, isNull);
+        expect(output.plays, isEmpty);
+        offline = false;
+        await player.toggle(repo, 'one', group: true);
+        expect(requests, 2);
+        expect(player.error, isNull);
+        expect(output.plays, ['/voice.m4a']);
+      },
+    );
+  }
+  test('permission rejection is not reported as a network failure', () async {
+    final output = Output();
+    final player = ChatVoicePlayback(
+      output: output,
+      events: const Stream.empty(),
+    );
+    addTearDown(player.dispose);
+    await player.toggle(
+      MessagingRepository(
+        account: 'me',
+        call: (_, _) async {
+          throw const AuthFailure('CHAT_ACCESS_DENIED', 'forbidden');
+        },
+      ),
+      'one',
+    );
+    expect(player.error, '语音暂不可播放，请重试');
+    expect(output.plays, isEmpty);
+  });
   for (final action in ['stop', 'pause', 'replace']) {
     test(
       'waiting native stop cannot revive superseded audio: $action',
