@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../data/chat_media_event_scope.dart';
 
 import 'package:flutter/material.dart';
 
@@ -264,23 +265,11 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
     });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
       final type = event['eventType'];
-      if (type == 'chat.group.read' || type == 'chat.group.changed') {
-        final data = event['data'];
-        final groupId = data is Map ? data['groupId'] : null;
-        if (widget.groupId == null ||
-            (groupId is String &&
-                groupId.isNotEmpty &&
-                groupId != widget.groupId)) {
-          return;
-        }
-      }
-      if ([
-        'connection.ready',
-        'chat.relationship.changed',
-        'chat.settings.changed',
-        'chat.group.changed',
-        'chat.group.read',
-      ].contains(event['eventType'])) {
+      if (affectsChatMedia(
+        event,
+        group: widget.groupId != null,
+        scopeId: widget.groupId,
+      )) {
         _load(background: type == 'chat.group.read');
       }
     });

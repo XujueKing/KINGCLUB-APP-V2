@@ -95,8 +95,19 @@ void main() {
           'data': {'groupId': group},
         });
         receipt('other');
+        for (final type in [
+          'chat.settings.changed',
+          'chat.relationship.changed',
+        ]) {
+          events.add({
+            'eventType': type,
+            'data': {'conversationId': 'unrelated-direct'},
+          });
+        }
         await tester.pumpAndSettle();
         expect(reads, 2);
+        expect(player.activeId, 'voice');
+        expect(output.stops, stops);
         receipt('current');
         await tester.pumpAndSettle();
         expect(reads, 4);
