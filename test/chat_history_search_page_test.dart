@@ -13,6 +13,69 @@ Map<String, dynamic> row(int sequence, String text) => {
   'createdDate': DateTime(2020, 1, 2, 10).toUtc().toIso8601String(),
 };
 void main() {
+  testWidgets('media type switches reset cursor and reject previous results', (
+    tester,
+  ) async {
+    final voice = Completer<Map<String, dynamic>>();
+    final requests = <(String, int?)>[];
+    Map<String, dynamic>? selected;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatHistorySearchPage(
+          events: const Stream.empty(),
+          onSelected: (message) => selected = message,
+          search: (query, before) async => {
+            'messages': [row(20, query)],
+            'hasMore': false,
+          },
+          mediaSearch: (type, before) async {
+            requests.add((type, before));
+            if (type == 'voice') return voice.future;
+            return {
+              'messages': [
+                {
+                  ...row(
+                    before == null ? 10 : 2,
+                    before == null ? 'image-new' : 'image-old',
+                  ),
+                  'messageType': type,
+                },
+              ],
+              'hasMore': before == null,
+            };
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('history-type-voice')));
+    await tester.pump(const Duration(milliseconds: 301));
+    await tester.tap(find.byKey(const ValueKey('history-type-image')));
+    await tester.pump(const Duration(milliseconds: 301));
+    await tester.pumpAndSettle();
+    expect(find.text('image-new'), findsOneWidget);
+    voice.complete({
+      'messages': [
+        {...row(15, 'late-voice'), 'messageType': 'voice'},
+      ],
+      'hasMore': false,
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('late-voice'), findsNothing);
+    await tester.tap(find.text('加载更早结果'));
+    await tester.pumpAndSettle();
+    expect(requests, [('voice', null), ('image', null), ('image', 10)]);
+    await tester.tap(find.text('image-old'));
+    expect(selected?['sequence'], 2);
+    await tester.enterText(
+      find.byKey(const ValueKey('chat-history-search-input')),
+      'keyword',
+    );
+    await tester.pump(const Duration(milliseconds: 301));
+    await tester.pumpAndSettle();
+    expect(find.text('image-new'), findsNothing);
+    expect(find.text('keyword'), findsNWidgets(2));
+    await tester.pumpWidget(const SizedBox());
+  });
   for (final group in [false, true]) {
     testWidgets('unrelated group events preserve search; group=$group', (
       tester,

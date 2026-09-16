@@ -617,6 +617,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                         : () => Navigator.of(context).push<void>(
                             MaterialPageRoute(
                               builder: (_) => ChatHistorySearchPage(
+                                mediaSearch: (type, before) =>
+                                    widget.repository.history(
+                                      widget.groupId,
+                                      messageType: type,
+                                      before: before,
+                                      limit: 30,
+                                    ),
                                 groupId: widget.groupId,
                                 senderLabel: _senderLabel,
                                 onSelected: (message) => Navigator.of(context)

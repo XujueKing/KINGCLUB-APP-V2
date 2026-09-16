@@ -22,8 +22,10 @@ class ChatHistorySearchPage extends StatefulWidget {
     this.onSelected,
     this.senderLabel,
     this.groupId,
+    this.mediaSearch,
   });
   final HistorySearch search;
+  final HistorySearch? mediaSearch;
   final String? groupId;
   final String Function(String account)? senderLabel;
   final ValueChanged<Map<String, dynamic>>? onSelected;
@@ -43,6 +45,9 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
   int? _before;
   bool _busy = false, _invalid = false, _foreground = true;
   String? _error;
+  String? _messageType;
+  bool get _hasCriteria =>
+      _messageType != null || _input.text.trim().isNotEmpty;
 
   @override
   void initState() {
@@ -81,17 +86,18 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
     if (mounted) {
       setState(() {});
     }
-    if (!_invalid && _foreground && _input.text.trim().isNotEmpty) {
+    if (!_invalid && _foreground && _hasCriteria) {
       _debounce = Timer(const Duration(milliseconds: 300), () => _load());
     }
   }
 
   Future<void> _load({bool more = false}) async {
     final query = _input.text.trim();
+    final messageType = _messageType;
     if (_invalid ||
         !_foreground ||
         _busy ||
-        query.isEmpty ||
+        !_hasCriteria ||
         (more && _before == null)) {
       return;
     }
@@ -102,7 +108,9 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
       _error = null;
     });
     try {
-      final result = await widget.search(query, before);
+      final result = messageType == null
+          ? await widget.search(query, before)
+          : await widget.mediaSearch!(messageType, before);
       if (!mounted || generation != _generation) {
         return;
       }
@@ -123,6 +131,9 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
             row['text'] is! String ||
             row['sender'] is! String) {
           throw const FormatException('Invalid search message');
+        }
+        if (messageType != null && row['messageType'] != messageType) {
+          throw const FormatException('Unexpected media search result');
         }
         previous = sequence;
       }
@@ -187,7 +198,10 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
               autofocus: true,
               maxLength: 100,
               style: const TextStyle(color: Colors.white),
-              onChanged: (_) => _changed(),
+              onChanged: (_) {
+                _messageType = null;
+                _changed();
+              },
               onSubmitted: (_) {
                 _debounce?.cancel();
                 _load();
@@ -199,6 +213,39 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
               ),
             ),
           ),
+          if (widget.mediaSearch != null)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  for (final entry in const {
+                    'image': '图片',
+                    'voice': '语音',
+                    'video': '视频',
+                    'file': '文件',
+                    'location': '位置',
+                  }.entries)
+                    TextButton(
+                      key: ValueKey('history-type-${entry.key}'),
+                      onPressed: _invalid
+                          ? null
+                          : () {
+                              FocusScope.of(context).unfocus();
+                              _input.clear();
+                              _messageType = entry.key;
+                              _changed();
+                            },
+                      style: TextButton.styleFrom(
+                        foregroundColor: _messageType == entry.key
+                            ? legacyMessageGold
+                            : const Color(0x88FFFFFF),
+                      ),
+                      child: Text(entry.value),
+                    ),
+                ],
+              ),
+            ),
           Expanded(
             child: !_foreground
                 ? const SizedBox.shrink()
@@ -214,7 +261,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
                     child: Text(
                       _busy
                           ? '正在搜索…'
-                          : _input.text.trim().isEmpty
+                          : !_hasCriteria
                           ? '输入关键词查找聊天记录'
                           : '未找到相关聊天内容',
                       style: const TextStyle(color: Color(0x88FFFFFF)),

@@ -264,6 +264,7 @@ class GroupChatRepository {
   Future<Map<String, dynamic>> history(
     String groupId, {
     String? query,
+    String? messageType,
     int? before,
     int? after,
     int limit = 50,
@@ -274,6 +275,7 @@ class GroupChatRepository {
     return messaging.call('K260913000621', {
       'groupId': groupId,
       'query': ?query,
+      'messageType': ?messageType,
       'before': ?before,
       'after': ?after,
       'limit': limit,

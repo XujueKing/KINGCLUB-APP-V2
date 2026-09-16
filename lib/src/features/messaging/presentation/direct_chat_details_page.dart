@@ -154,6 +154,13 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                   Navigator.of(context).push<void>(
                     MaterialPageRoute(
                       builder: (_) => ChatHistorySearchPage(
+                        mediaSearch: (type, before) =>
+                            widget.repository!.history(
+                              widget.peerAccount!,
+                              messageType: type,
+                              before: before,
+                              limit: 30,
+                            ),
                         senderLabel: _senderLabel,
                         onSelected: (message) =>
                             Navigator.of(context).push<void>(

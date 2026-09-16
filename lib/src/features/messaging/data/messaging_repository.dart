@@ -188,6 +188,7 @@ class MessagingRepository {
   Future<Map<String, dynamic>> history(
     String peer, {
     String? query,
+    String? messageType,
     int? before,
     int? after,
     int limit = 50,
@@ -198,6 +199,7 @@ class MessagingRepository {
     return call('K260913000604', {
       'peer': peer,
       'query': ?query,
+      'messageType': ?messageType,
       'before': ?before,
       'after': ?after,
       'limit': limit,
