@@ -92,6 +92,42 @@ void main() {
   );
   for (final removed in [false, true]) {
     test(
+      'late local read cannot restore ${removed ? "removed" : "denied"} avatar',
+      () async {
+        await cache.load('a', 'peer', () async => profile);
+        final readReady = Completer<void>();
+        final releaseRead = Completer<void>();
+        var checks = 0;
+        final reader = ChatAvatarSnapshot(
+          session: () async {
+            if (++checks == 2) {
+              readReady.complete();
+              await releaseRead.future;
+            }
+            return session;
+          },
+        );
+        final pending = reader.readCached('peer');
+        await readReady.future;
+        if (removed) {
+          await cache.load('a', 'peer', () async => {});
+        } else {
+          await expectLater(
+            cache.load(
+              'a',
+              'peer',
+              () async => throw const AuthFailure('ACCESS_DENIED', 'denied'),
+            ),
+            throwsA(isA<AuthFailure>()),
+          );
+        }
+        releaseRead.complete();
+        expect(await pending, isNull);
+        expect(reader.peekCached('peer'), isNull);
+        expect(await reader.readCached('peer'), isNull);
+      },
+    );
+    test(
       '${removed ? "removed" : "denied"} avatar cannot reappear offline',
       () async {
         await cache.load('a', 'peer', () async => profile);

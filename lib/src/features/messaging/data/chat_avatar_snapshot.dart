@@ -48,10 +48,14 @@ class ChatAvatarSnapshot {
       final viewer = (initial?['account'] as Map?)?['userAccount'];
       if (viewer is! String || initial?['sessionId'] == null) return null;
       final key = 'kingclub.avatar-id.${jsonEncode([viewer, peer])}';
+      final settled = _settled[key];
       await _writes[key];
       final id = await _storage.read(key: key);
       final current = await _session();
-      if (current?['sessionId'] != initial?['sessionId'] ||
+      // A permission decision may settle while secure storage or the session
+      // check is pending. Never re-publish its superseded local descriptor.
+      if (_settled[key] != settled ||
+          current?['sessionId'] != initial?['sessionId'] ||
           (current?['account'] as Map?)?['userAccount'] != viewer ||
           id == null ||
           !RegExp(r'^[A-Za-z0-9_-]{1,200}$').hasMatch(id)) {
