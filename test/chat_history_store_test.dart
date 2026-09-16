@@ -224,6 +224,23 @@ void main() {
       ),
       isNotNull,
     );
+    await store.close();
+    store = await open();
+    expect(
+      (await store.read('direct:peer')).messages.map((row) => row['messageId']),
+      ['m-2'],
+    );
+    // No network resync between these deletions: the second attachment must
+    // still have its ownership metadata and be cleaned by a subsequent clear.
+    await store.clear('direct:peer', mediaCleanup: cleanup);
+    await expectLater(
+      media.cached(
+        scope: 'member:me',
+        contentKey: 'chat-image-message:false:m-2:image',
+        kind: MediaKind.image,
+      ),
+      throwsStateError,
+    );
   });
   test('call metadata survives reopen but hidden records lose it', () async {
     final call = {

@@ -585,6 +585,9 @@ class ChatHistoryStore {
     if (hideNearby && !conversation.startsWith('direct:')) {
       throw ArgumentError('Nearby history requires a direct conversation');
     }
+    if (deletedMessageIds != null && !deleteMedia) {
+      throw ArgumentError('Targeted deletion requires media cleanup');
+    }
     final pending = deleteMedia
         ? await _outbox?.read() ?? <Map<String, dynamic>>[]
         : <Map<String, dynamic>>[];
@@ -602,6 +605,7 @@ class ChatHistoryStore {
               as int;
       // Delete owned media before discarding the encrypted metadata needed to
       // locate it. A filesystem failure leaves history available for retry.
+      final deletedSequences = <int>[];
       if (deleteMedia) {
         final cleanup = mediaCleanup ?? ChatMediaCleanup();
         final retainedVoiceAssets = <String>{};
@@ -651,6 +655,10 @@ class ChatHistoryStore {
             if (fileAsset is String && message['messageType'] == 'file') {
               retainedFileAssets.add(fileAsset);
             }
+            final client = message['clientMessageId'];
+            if (message['sender'] == account && client is String) {
+              retainedSentClients.add(client);
+            }
           }
           if (references.length < 50) break;
           referenceOffset += references.length;
@@ -690,12 +698,27 @@ class ChatHistoryStore {
               retainedSentClients: retainedSentClients,
               message: message,
             );
+            if (deletedMessageIds != null) {
+              deletedSequences.add(row['sequence'] as int);
+            }
           }
           if (rows.length < 50) break;
           offset += rows.length;
         }
       }
-      await tx.delete('message', where: 'conversation=?', whereArgs: [id]);
+      if (deletedMessageIds == null) {
+        await tx.delete('message', where: 'conversation=?', whereArgs: [id]);
+      } else {
+        final batch = tx.batch();
+        for (final sequence in deletedSequences) {
+          batch.delete(
+            'message',
+            where: 'conversation=? AND sequence=?',
+            whereArgs: [id, sequence],
+          );
+        }
+        await batch.commit(noResult: true);
+      }
       if (hideNearby) {
         await tx.update(
           'nearby_message',
