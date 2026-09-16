@@ -23,6 +23,9 @@ class StickerPack {
 }
 
 class StickerLibrarySnapshot {
+  static const maxPacks = 20;
+  static const maxImagesPerPack = 200;
+  static const maxImages = 500;
   StickerLibrarySnapshot(this.revision, List<StickerPack> packs)
     : packs = List.unmodifiable(packs);
   final int revision;
@@ -34,7 +37,7 @@ class StickerLibrarySnapshot {
         revision > 2147483647 ||
         raw is! List ||
         raw.isEmpty ||
-        raw.length > 20) {
+        raw.length > maxPacks) {
       throw const FormatException('表情库数据无效');
     }
     var count = 0;
@@ -46,7 +49,7 @@ class StickerLibrarySnapshot {
           name.trim().isEmpty ||
           name.length > 20 ||
           images is! List ||
-          images.length > 200) {
+          images.length > maxImagesPerPack) {
         throw const FormatException('表情分类无效');
       }
       final assets = <String>[];
@@ -57,7 +60,7 @@ class StickerLibrarySnapshot {
         assets.add(asset);
       }
       count += assets.length;
-      if (count > 500) throw const FormatException('表情数量过多');
+      if (count > maxImages) throw const FormatException('表情数量过多');
       packs.add(StickerPack(name, assets));
     }
     return StickerLibrarySnapshot(revision, packs);

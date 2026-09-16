@@ -317,6 +317,24 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
       }
       await (_load ??= _restore());
       if (!_current(epoch)) return;
+      String? limit;
+      if (pack && _names.length >= StickerLibrarySnapshot.maxPacks) {
+        limit = '最多添加20个表情分类，请先删除不用的表情包';
+      } else if ((pack ? 0 : _images.first.length) + selected.length >
+          StickerLibrarySnapshot.maxImagesPerPack) {
+        limit = '每个表情分类最多200张，请减少选择或新建表情包';
+      } else if (_images.fold<int>(
+                0,
+                (total, images) => total + images.length,
+              ) +
+              selected.length >
+          StickerLibrarySnapshot.maxImages) {
+        limit = '最多收藏500张表情，请先删除不用的表情';
+      }
+      if (limit != null) {
+        if (mounted) KingNotice.of(context).show(limit);
+        return;
+      }
       final directory = await _directory();
       if (!_current(epoch)) return;
       final paths = <String>[];
