@@ -112,6 +112,7 @@ void main() {
         'fileSha256': 'hash',
         'fileName': 'test.bin',
       },
+      retainedFileAssets: {'asset'},
     );
     expect(await cache.read(identity, 0, 3), isNull);
     await expectLater(

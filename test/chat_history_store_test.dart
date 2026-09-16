@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cryptography/cryptography.dart';
@@ -8,6 +9,7 @@ import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_media_cleanup.dart';
 import 'package:kingclub/src/core/media/media_cache.dart';
 import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
+import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
 
 class PendingOutbox implements ChatOutbox {
   PendingOutbox(this.items);
@@ -56,6 +58,63 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  for (final remote in [false, true]) {
+    test(
+      'last received file reference releases sent source remote=$remote',
+      () async {
+        const asset = '12345678-1234-1234-1234-123456789012';
+        final bytes = Uint8List.fromList([1, 2, 3]);
+        final hash = (await Sha256().hash(bytes)).bytes
+            .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+            .join();
+        final sent = ChatDownloadCache(
+          root: Directory('${dir.path}/sent'),
+          key: key,
+        );
+        final downloads = ChatDownloadCache(
+          root: Directory('${dir.path}/downloads'),
+          key: key,
+        );
+        final identity = jsonEncode(['sent-file-v1', asset, 3, hash]);
+        await sent.write(identity, 0, bytes);
+        await sent.retainCompleted(identity);
+        final cleanup = ChatMediaCleanup(
+          downloadCache: (_) async => downloads,
+          sentFileCache: (_) async => sent,
+        );
+        Map<String, dynamic> file(String sender) => {
+          ...message(1),
+          'messageType': 'file',
+          'sender': sender,
+          'fileAssetId': asset,
+          'fileSize': 3,
+          'fileSha256': hash,
+          'fileName': 'shared.bin',
+        };
+        await store.commit('direct:peer', [file('me')], expectedEpoch: 0);
+        await store.commit('group:other', [file('peer')], expectedEpoch: 0);
+        await store.clear('direct:peer', mediaCleanup: cleanup);
+        expect(await sent.read(identity, 0, 3), bytes);
+        await store.close();
+        store = await open();
+        if (remote) {
+          await store.commit(
+            'group:other',
+            [
+              {...message(1), 'messageType': 'recalled'},
+            ],
+            expectedEpoch: 0,
+            mediaCleanup: cleanup,
+          );
+        } else {
+          await store.clear('group:other', mediaCleanup: cleanup);
+        }
+        final reopened = ChatDownloadCache(root: sent.root, key: key);
+        expect(await reopened.read(identity, 0, 3), isNull);
+        expect(await reopened.isRetained(identity), false);
+      },
+    );
+  }
   test(
     'remote tombstones preserve shared voice until final reference',
     () async {

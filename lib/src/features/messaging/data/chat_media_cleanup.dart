@@ -65,8 +65,9 @@ class ChatMediaCleanup {
       final asset = message['fileAssetId'],
           size = message['fileSize'],
           hash = message['fileSha256'];
-      if (message['sender'] == account &&
-          asset is String &&
+      // A retained source belongs to this account, not to the sender of the
+      // final reference (which may be a received copy of the same asset).
+      if (asset is String &&
           size is int &&
           hash is String &&
           !retainedFileAssets.contains(asset)) {
