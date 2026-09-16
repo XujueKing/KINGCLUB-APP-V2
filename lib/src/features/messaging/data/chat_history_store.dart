@@ -40,6 +40,9 @@ class ChatHistoryStore {
   ChatHistoryStore._(this._db, this._key, this.account, this._outbox);
   final ChatOutbox? _outbox;
   final Database _db;
+  int _conversationListRevision = 0;
+  /// Fences requests begun before a local conversation was cleared.
+  int get conversationListRevision => _conversationListRevision;
   final SecretKey _key;
   final String account;
   static final _cipher = AesGcm.with256bits();
@@ -757,6 +760,7 @@ class ChatHistoryStore {
         );
       }
       if (deleteMedia && deletedMessageIds == null) {
+        _conversationListRevision++;
         await _removeConversationListEntry(tx, conversation);
       }
       await tx.update(

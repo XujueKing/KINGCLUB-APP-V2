@@ -9,7 +9,10 @@ extension ConversationListCache on ChatHistoryStore {
       utf8.encode(jsonEncode(['conversation-list-v1', account]));
 
   /// Display-only snapshot. Never grants send, membership or media permissions.
-  Future<void> saveConversationList(List<Map<String, dynamic>> items) async {
+  Future<void> saveConversationList(
+    List<Map<String, dynamic>> items, {
+    int? expectedRevision,
+  }) async {
     const fields = {
       'kind',
       'peer',
@@ -39,7 +42,12 @@ extension ConversationListCache on ChatHistoryStore {
     }
     // Serialize encryption and the write with history cleanup. A save already
     // in progress must finish before clear removes the corresponding row.
-    await _db.transaction((tx) => _writeConversationList(tx, bytes));
+    await _db.transaction((tx) async {
+      if (expectedRevision != null &&
+          expectedRevision != _conversationListRevision)
+        return;
+      await _writeConversationList(tx, bytes);
+    });
   }
 
   Future<List<Map<String, dynamic>>> readConversationList() async {

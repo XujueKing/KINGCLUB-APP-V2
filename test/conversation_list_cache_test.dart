@@ -14,6 +14,91 @@ import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 
 void main() {
   sqfliteFfiInit();
+  testWidgets(
+    'clear rejects a delayed server list before rendering or saving',
+    (tester) async {
+      await tester.runAsync(() async {
+        FlutterSecureStorage.setMockInitialValues({});
+        final dir = await Directory.systemTemp.createTemp('late-list-clear-');
+        final store = await ChatHistoryStore.openDatabaseWithKey(
+          factory: databaseFactoryFfi,
+          file: '${dir.path}/history.db',
+          key: await AesGcm.with256bits().newSecretKey(),
+          account: 'me',
+        );
+        final replies = <Completer<Map<String, dynamic>>>[];
+        final repo = MessagingRepository(
+          account: 'me',
+          call: (id, _) {
+            expect(id, 'K260913000607');
+            final reply = Completer<Map<String, dynamic>>();
+            replies.add(reply);
+            return reply.future;
+          },
+        );
+        final reportedUnread = <int>[];
+        try {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: ConversationsPage(
+                  active: true,
+                  realData: true,
+                  repository: repo,
+                  openRelayHistory: () async => store,
+                  systemUnreadCount: 0,
+                  initialFriendUnreadCount: 0,
+                  onFriendUnreadChanged: reportedUnread.add,
+                  onOpenContacts: () {},
+                  onAddFriend: () {},
+                  onOpenSystemNotifications: () {},
+                  onOpenDirectChat: () {},
+                ),
+              ),
+            ),
+          );
+          Future<void> waitForRequests(int count) async {
+            for (var i = 0; i < 100 && replies.length < count; i++) {
+              await Future<void>.delayed(const Duration(milliseconds: 10));
+              await tester.pump();
+            }
+            expect(replies.length, count);
+          }
+
+          await waitForRequests(1);
+          await store.clear('group:target');
+          replies.first.complete({
+            'items': [
+              {
+                'kind': 'group',
+                'groupId': 'target',
+                'nickname': 'Deleted group',
+                'preview': 'Stale secret preview',
+                'unreadCount': 9,
+                'lastSequence': 1,
+                'muted': false,
+                'pinned': false,
+              },
+            ],
+            'hasMore': false,
+          });
+          await waitForRequests(2);
+          expect(find.text('Stale secret preview'), findsNothing);
+          expect(reportedUnread, isNot(contains(9)));
+          expect(await store.readConversationList(), isEmpty);
+          replies.last.complete({'items': [], 'hasMore': false});
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await tester.pumpAndSettle();
+          expect(await store.readConversationList(), isEmpty);
+          expect(reportedUnread.last, 0);
+        } finally {
+          await tester.pumpWidget(const SizedBox());
+          await store.close();
+          await dir.delete(recursive: true);
+        }
+      });
+    },
+  );
   for (final group in [false, true]) {
     test(
       'clear removes only its persisted list row after reopen: group=$group',
@@ -47,6 +132,7 @@ void main() {
           },
         ];
         await store.saveConversationList(rows);
+        final oldRevision = store.conversationListRevision;
         await store.clear(conversation, deleteMedia: false);
         expect(await store.readConversationList(), rows);
         await store.clear(
@@ -58,6 +144,7 @@ void main() {
         final saving = store.saveConversationList(rows);
         final clearing = store.clear(conversation);
         await Future.wait([saving, clearing]);
+        await store.saveConversationList(rows, expectedRevision: oldRevision);
         await store.close();
         store = await open();
         expect(await store.readConversationList(), [rows.last]);

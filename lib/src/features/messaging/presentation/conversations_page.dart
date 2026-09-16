@@ -291,6 +291,11 @@ class _ConversationsPageState extends State<ConversationsPage>
     if (repository == null) return;
     final generation = ++_realGeneration;
     try {
+      final history =
+          repository.persistHistory || widget.openRelayHistory != null
+          ? await _openRelayHistory(repository)
+          : null;
+      final listRevision = history?.conversationListRevision;
       final result = _useRelayUnread
           ? await conversationsWithRelayUnread(
               repository: repository,
@@ -320,6 +325,12 @@ class _ConversationsPageState extends State<ConversationsPage>
         );
       }
       if (!mounted || generation != _realGeneration) return;
+      if (history != null && listRevision != history.conversationListRevision) {
+        // A clear committed while this request was in flight. Fetch a new
+        // server snapshot rather than restoring the old preview/unread count.
+        _refreshAgain = true;
+        return;
+      }
       _localRead++;
       setState(() {
         if (!more) _realItems.clear();
@@ -352,8 +363,10 @@ class _ConversationsPageState extends State<ConversationsPage>
       );
       if (repository.persistHistory || widget.openRelayHistory != null) {
         try {
-          await (await _openRelayHistory(repository))
-              .saveConversationList(_realItems);
+          await history!.saveConversationList(
+            _realItems,
+            expectedRevision: listRevision,
+          );
         } catch (_) {
           // Cache availability must not turn a successful refresh into an error.
         }
