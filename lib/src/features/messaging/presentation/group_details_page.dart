@@ -59,6 +59,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   int? _editingVersion;
   Map<String, dynamic> _settings = {};
   int _generation = 0;
+  Future<void>? _loading;
+  bool _reloadAgain = false;
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
@@ -100,8 +102,27 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     unawaited(_load());
   }
 
-  Future<void> _load() async {
-    if (_invalid) return;
+  Future<void> _load() {
+    if (_invalid || !mounted) return Future<void>.value();
+    final active = _loading;
+    if (active != null) {
+      // Invalidate the in-flight snapshot, but fold notification bursts into
+      // one follow-up request instead of refetching every member repeatedly.
+      _generation++;
+      _reloadAgain = true;
+      return active;
+    }
+    return _loading = _drainLoads().whenComplete(() => _loading = null);
+  }
+
+  Future<void> _drainLoads() async {
+    do {
+      _reloadAgain = false;
+      await _loadOnce();
+    } while (_reloadAgain && mounted && !_invalid);
+  }
+
+  Future<void> _loadOnce() async {
     final generation = ++_generation;
     try {
       final results = await Future.wait([

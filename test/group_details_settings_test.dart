@@ -11,6 +11,70 @@ import 'package:kingclub/src/features/messaging/presentation/group_details_page.
 
 void main() {
   testWidgets(
+    'notification bursts coalesce and stale details never replace current data',
+    (tester) async {
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      addTearDown(events.close);
+      final stale = Completer<Map<String, dynamic>>();
+      final latest = Completer<Map<String, dynamic>>();
+      var detailReads = 0, historyReads = 0;
+      Map<String, dynamic> details(String name) => {
+        'groupName': name,
+        'ownerAccount': 'me',
+        'metadataVersion': 1,
+        'members': [],
+      };
+      final repo = GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (id, _) async {
+            if (id == 'K260913000619') {
+              detailReads++;
+              if (detailReads == 2) return stale.future;
+              if (detailReads == 3) return latest.future;
+              return details('Initial group');
+            }
+            if (id == 'K260913000621') {
+              historyReads++;
+              return {
+                'settings': {'muted': false, 'pinned': false},
+              };
+            }
+            return {};
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GroupDetailsPage(
+            groupId: 'group-real',
+            repository: repo,
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      events.add({'eventType': 'chat.group.changed'});
+      await tester.pump();
+      for (var i = 0; i < 20; i++) {
+        events.add({'eventType': 'chat.group.changed'});
+      }
+      await tester.pump();
+      expect(detailReads, 2);
+      expect(historyReads, 2);
+      stale.complete(details('Stale group'));
+      await tester.pump();
+      expect(detailReads, 3);
+      expect(find.text('Stale group'), findsNothing);
+      latest.complete(details('Latest group'));
+      await tester.pumpAndSettle();
+      expect(find.text('Latest group'), findsOneWidget);
+      expect(historyReads, 3);
+      await tester.pumpWidget(const SizedBox());
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
     'metadata refresh retains scroll while denied access removes details',
     (tester) async {
       FlutterSecureStorage.setMockInitialValues({});
@@ -34,12 +98,14 @@ void main() {
         MessagingRepository(
           account: 'me',
           call: (id, _) async {
-            if (id == 'K260913000619')
+            if (id == 'K260913000619') {
               return pending?.future ?? Future.value(details('Before'));
-            if (id == 'K260913000621')
+            }
+            if (id == 'K260913000621') {
               return {
                 'settings': {'muted': false, 'pinned': false},
               };
+            }
             return {};
           },
         ),
@@ -98,17 +164,19 @@ void main() {
         MessagingRepository(
           account: 'me',
           call: (id, params) async {
-            if (id == 'K260913000619')
+            if (id == 'K260913000619') {
               return {
                 'groupName': name,
                 'ownerAccount': 'me',
                 'metadataVersion': 2,
                 'members': [],
               };
-            if (id == 'K260913000621')
+            }
+            if (id == 'K260913000621') {
               return {
                 'settings': {'muted': false, 'pinned': false},
               };
+            }
             if (id == 'K260913000624') {
               request = params;
               if (fail) throw StateError('保存失败');
