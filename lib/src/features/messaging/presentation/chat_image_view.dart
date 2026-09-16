@@ -17,11 +17,13 @@ class ChatImageView extends StatefulWidget {
     this.full = false,
     this.group = false,
     this.events,
+    this.scopeId,
   });
   final MessagingRepository repository;
   final String messageId;
   final bool full;
   final bool group;
+  final String? scopeId;
   final Stream<Map<String, dynamic>>? events;
   @override
   State<ChatImageView> createState() => _ChatImageViewState();
@@ -49,10 +51,30 @@ class _ChatImageViewState extends State<ChatImageView>
       }
     });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
+      final type = event['eventType'];
+      final data = event['data'];
+      final groupEvent =
+          type == 'chat.group.changed' || type == 'chat.group.read';
+      if (groupEvent && !widget.group) return;
+      if (data is Map) {
+        final scope = data[groupEvent ? 'groupId' : 'conversationId'];
+        if (scope is String &&
+            scope.isNotEmpty &&
+            (groupEvent ||
+                type == 'chat.settings.changed' ||
+                type == 'chat.relationship.changed') &&
+            ((widget.group && !groupEvent) ||
+                (widget.scopeId != null && scope != widget.scopeId))) {
+          return;
+        }
+      }
+      if (type == 'chat.group.read') {
+        _load(keepVisible: true);
+        return;
+      }
       if ([
         'chat.settings.changed',
         'chat.group.changed',
-        'chat.group.read',
         'chat.relationship.changed',
         'connection.ready',
       ].contains(event['eventType'])) {
@@ -68,6 +90,7 @@ class _ChatImageViewState extends State<ChatImageView>
     if (old.messageId != widget.messageId ||
         old.full != widget.full ||
         old.group != widget.group ||
+        old.scopeId != widget.scopeId ||
         old.repository != widget.repository) {
       _load();
     }
@@ -78,11 +101,11 @@ class _ChatImageViewState extends State<ChatImageView>
     if (state == AppLifecycleState.resumed) _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool keepVisible = false}) async {
     if (_invalid || !mounted) return;
     final generation = ++_generation;
     setState(() {
-      _media = null;
+      if (!keepVisible) _media = null;
       _failed = false;
     });
     try {
@@ -108,7 +131,12 @@ class _ChatImageViewState extends State<ChatImageView>
       }
       setState(() => _media = media);
     } catch (_) {
-      if (mounted && generation == _generation) setState(() => _failed = true);
+      if (mounted && generation == _generation) {
+        setState(() {
+          _media = null;
+          _failed = true;
+        });
+      }
     }
   }
 

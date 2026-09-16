@@ -22,6 +22,87 @@ Map<String, dynamic> grant({
 };
 void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  for (final group in [false, true]) {
+    testWidgets('image ignores unrelated scopes; group=$group', (tester) async {
+      final events = StreamController<Map<String, dynamic>>();
+      var calls = 0;
+      final repository = MessagingRepository(
+        account: 'me',
+        call: (_, _) async {
+          calls++;
+          return grant(
+            path:
+                '/kingclub/${group ? 'group-chat-image' : 'chat-image'}/m/thumbnail',
+          );
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatImageView(
+            repository: repository,
+            messageId: 'm',
+            group: group,
+            scopeId: 'current',
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.pump();
+      for (final type in ['chat.group.read', 'chat.group.changed']) {
+        events.add({
+          'eventType': type,
+          'data': {'groupId': 'other'},
+        });
+      }
+      events.add({
+        'eventType': 'chat.settings.changed',
+        'data': {'conversationId': 'other'},
+      });
+      await tester.pump();
+      expect(calls, 1);
+      expect(find.byType(CachedMediaImage), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      unawaited(events.close());
+    });
+  }
+  testWidgets('group read rechecks without flashing; denial removes image', (
+    tester,
+  ) async {
+    final events = StreamController<Map<String, dynamic>>();
+    final pending = Completer<Map<String, dynamic>>();
+    var calls = 0;
+    final repository = MessagingRepository(
+      account: 'me',
+      call: (_, _) async {
+        if (++calls > 1) return pending.future;
+        return grant(path: '/kingclub/group-chat-image/m/thumbnail');
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatImageView(
+          repository: repository,
+          messageId: 'm',
+          group: true,
+          scopeId: 'current',
+          events: events.stream,
+        ),
+      ),
+    );
+    await tester.pump();
+    events.add({
+      'eventType': 'chat.group.read',
+      'data': {'groupId': 'current'},
+    });
+    await tester.pump();
+    expect(calls, 2);
+    expect(find.byType(CachedMediaImage), findsOneWidget);
+    pending.completeError(StateError('removed'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CachedMediaImage), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    unawaited(events.close());
+  });
   testWidgets('external media path never constructs a credentialed image', (
     tester,
   ) async {

@@ -148,6 +148,8 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
               _preview(
                 ChatImageView(
                   repository: repository,
+                  scopeId:
+                      widget.groupId ?? message['conversationId'] as String?,
                   messageId: id,
                   group: group,
                   full: true,
@@ -157,6 +159,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
             ),
             child: ChatImageView(
               repository: repository,
+              scopeId: widget.groupId ?? message['conversationId'] as String?,
               messageId: id,
               group: group,
             ),
