@@ -56,3 +56,5 @@ Passed against the actual isolated CCSOP MySQL/API fixture and running SUPERVM T
 
 LAN测试构建接线：新增显式EnableLan参数，缺少已认证中继或禁用原生库时提前拒绝；默认关闭。真实HTTP联合用例启用LAN编译开关时，必须先看到两端加密UDP探测就绪，再完成文字持久回执、服务端幂等对账、真实附件及HTTP回退和设备撤销，不以构建开关代替直连证据。
 真实隔离MySQL/加密HTTP+原生DLL+SUPERVM联合测试通过（LAN开关开启），断言两端UDP就绪后，原文字持久回执/服务对账/幂等、附件零HTTP下载与缓存失效HTTP回退、设备撤销均通过。测试容器、SSH隧道及私有会话文件已清理；静态分析、diff检查、缺少中继配置提前拒绝均通过。
+
+LAN预览已覆盖安装A：Profile ARM64构建66.1秒、150.7MB，SHA256 55C37F2F1E3AE38F9F09A83E51CF5059A094A17D2123204066B491F3137E9C42；启用PeerFiles与LAN，启动助手第二次确认前台，实际UI为已登录首页。此次同时带入063419f下载进度。B未更新，未产生测试消息；A/B真实直连、移动网络切换仍未验收。
