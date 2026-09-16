@@ -58,6 +58,57 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  test('v17 upgrade rolls back earlier rewrites when a later encrypted row is corrupt', () async {
+    await store.commit('direct:peer', [
+      for (var i = 1; i <= 55; i++) message(i),
+    ], expectedEpoch: 0);
+    await store.close();
+    final path = '${dir.path}/history.db';
+    var raw = await databaseFactoryFfi.openDatabase(path);
+    final original = await raw.query('message', orderBy: 'sequence');
+    final old = await AesGcm.with256bits().encrypt(
+      utf8.encode(
+        jsonEncode({
+          ...message(1),
+          'messageType': 'hidden',
+          'fileName': 'old-private.pdf',
+        }),
+      ),
+      secretKey: key,
+      aad: utf8.encode(
+        'chat-history-v1|me|${original.first['conversation']}|1',
+      ),
+    );
+    await raw.update('message', {
+      'payload': old.concatenation(),
+    }, where: 'sequence=1');
+    // Authentication failure in the second batch, after row 1 was rewritten.
+    final damaged = Uint8List.fromList(
+      (original.last['payload'] as List).cast<int>(),
+    );
+    damaged[damaged.length - 1] ^= 1;
+    await raw.update('message', {'payload': damaged}, where: 'sequence=55');
+    await raw.setVersion(16);
+    final before = await raw.query('message', orderBy: 'sequence');
+    await raw.close();
+    await expectLater(open(), throwsA(isA<SecretBoxAuthenticationError>()));
+    raw = await databaseFactoryFfi.openDatabase(path);
+    expect(await raw.getVersion(), 16);
+    expect(await raw.query('message', orderBy: 'sequence'), before);
+    // Restore only this deliberately damaged test fixture and retry normally.
+    await raw.update('message', {
+      'payload': original.last['payload'],
+    }, where: 'sequence=55');
+    await raw.close();
+    store = await open();
+    final page = await store.read('direct:peer', limit: 100);
+    expect(page.messages, hasLength(55));
+    expect(page.messages.singleWhere((m) => m['sequence'] == 1)['text'], '');
+    expect(
+      page.messages.singleWhere((m) => m['sequence'] == 55)['text'],
+      'Private payload 55',
+    );
+  });
   test('v16 tombstones are sanitized across batches without rewriting live messages', () async {
     await store.commit(
       'direct:peer',
