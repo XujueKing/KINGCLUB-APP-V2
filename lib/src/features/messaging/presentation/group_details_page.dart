@@ -61,6 +61,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   int _generation = 0;
   Future<void>? _loading;
   bool _reloadAgain = false;
+  bool _refreshAvatars = false;
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
@@ -89,7 +90,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           event['eventType'] == 'chat.group.read' &&
           data is Map &&
           data['groupId'] == widget.groupId) {
-        unawaited(_load());
+        unawaited(_load(refreshAvatars: false));
         return;
       }
       if (!_invalid &&
@@ -102,8 +103,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     unawaited(_load());
   }
 
-  Future<void> _load() {
+  Future<void> _load({bool refreshAvatars = true}) {
     if (_invalid || !mounted) return Future<void>.value();
+    _refreshAvatars = _refreshAvatars || refreshAvatars;
     final active = _loading;
     if (active != null) {
       // Invalidate the in-flight snapshot, but fold notification bursts into
@@ -133,7 +135,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       final settings = Map<String, dynamic>.from(results[1]['settings'] as Map);
       if (mounted && generation == _generation) {
         setState(() {
-          _avatarProfiles.clear();
+          if (_refreshAvatars) _avatarProfiles.clear();
+          _refreshAvatars = false;
+          final members = (result['members'] as List).cast<Map>();
+          final accounts = members.map((member) => member['account']).toSet();
+          _avatarProfiles.removeWhere(
+            (account, _) => !accounts.contains(account),
+          );
           _details = result;
           _settings = settings;
           _error = null;
@@ -142,6 +150,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     } catch (error) {
       if (mounted && generation == _generation) {
         setState(() {
+          _avatarProfiles.clear();
           _details = null;
           _error = error.toString();
         });
@@ -168,7 +177,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-    if (mounted && !_invalid) await _load();
+    if (mounted && !_invalid) await _load(refreshAvatars: false);
   }
 
   List<String> _memberActions(Map member) {
@@ -826,7 +835,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                           return ChatMemberAvatar(
                             account: account,
                             own: own,
-                            profile: _avatarProfiles.putIfAbsent(
+                            profile: cachedChatAvatarProfile(
+                              _avatarProfiles,
                               account,
                               () => widget.repository.messaging.avatarProfile(
                                 account,

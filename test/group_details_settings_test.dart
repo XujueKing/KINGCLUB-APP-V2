@@ -10,6 +10,76 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/group_details_page.dart';
 
 void main() {
+  testWidgets('read updates reuse avatars, membership updates refresh them', (
+    tester,
+  ) async {
+    final events = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(events.close);
+    var profiles = 0, reads = 0;
+    final repo = GroupChatRepository(
+      MessagingRepository(
+        account: 'me',
+        call: (id, _) async {
+          if (id == 'K260913000612') {
+            profiles++;
+            return {'nickname': 'Peer'};
+          }
+          if (id == 'K260913000619') {
+            reads++;
+            return {
+              'groupName': 'Test group',
+              'ownerAccount': 'me',
+              'metadataVersion': 1,
+              'members': [
+                {
+                  'account': 'peer',
+                  'nickname': 'Peer',
+                  'role': 'member',
+                  'membershipVersion': 0,
+                },
+              ],
+            };
+          }
+          if (id == 'K260913000621') {
+            return {
+              'settings': {'muted': false, 'pinned': false},
+            };
+          }
+          return {};
+        },
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GroupDetailsPage(
+          groupId: 'group-real',
+          repository: repo,
+          events: events.stream,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(profiles, 1);
+    events.add({
+      'eventType': 'chat.group.read',
+      'data': {'groupId': 'another'},
+    });
+    await tester.pumpAndSettle();
+    expect(reads, 1);
+    for (var i = 0; i < 3; i++) {
+      events.add({
+        'eventType': 'chat.group.read',
+        'data': {'groupId': 'group-real'},
+      });
+      await tester.pumpAndSettle();
+    }
+    expect(reads, 4);
+    expect(profiles, 1);
+    events.add({'eventType': 'chat.group.changed'});
+    await tester.pumpAndSettle();
+    expect(profiles, 2);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets(
     'notification bursts coalesce and stale details never replace current data',
     (tester) async {
