@@ -1104,12 +1104,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                         onEnd: () =>
                             _animatedMessageIds.remove(message.clientMessageId),
                         curve: Curves.easeOutCubic,
-                        builder: (_, factor, child) => ClipRect(
-                          child: Align(
-                            alignment: Alignment.bottomCenter,
-                            heightFactor: factor,
-                            child: child,
-                          ),
+                        builder: (_, factor, child) => Opacity(
+                          opacity: factor,
+                          child: child,
                         ),
                         child: _MessageRow(
                           timestamp: chatTimestampLabel(

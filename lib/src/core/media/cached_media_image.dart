@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -20,6 +21,7 @@ class CachedMediaImage extends StatefulWidget {
     this.errorBuilder,
     this.cache,
     this.cacheOnly = false,
+    this.keepSameImageOnRefresh = false,
   });
   final String url;
   final String? contentKey;
@@ -31,16 +33,32 @@ class CachedMediaImage extends StatefulWidget {
   final ImageErrorWidgetBuilder? errorBuilder;
   final MediaCache? cache;
   final bool cacheOnly;
+  final bool keepSameImageOnRefresh;
   @override
   State<CachedMediaImage> createState() => _CachedMediaImageState();
 }
 
 class _CachedMediaImageState extends State<CachedMediaImage> {
   late Future<File> _file;
+  Object _imageIdentity = Object();
+  StreamSubscription<void>? _session;
   @override
   void initState() {
     super.initState();
     _file = _load();
+    _session = SecureSessionStore.changes.stream.listen((_) {
+      if (!mounted || !widget.private) return;
+      setState(() {
+        _imageIdentity = Object();
+        _file = _load();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _session?.cancel();
+    super.dispose();
   }
 
   @override
@@ -52,6 +70,13 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
         old.cache != widget.cache ||
         old.cacheOnly != widget.cacheOnly ||
         !mapEquals(old.headers, widget.headers)) {
+      if (!widget.keepSameImageOnRefresh ||
+          widget.contentKey == null ||
+          old.contentKey != widget.contentKey ||
+          old.private != widget.private ||
+          old.cache != widget.cache) {
+        _imageIdentity = Object();
+      }
       _file = _load();
     }
   }
@@ -81,8 +106,8 @@ class _CachedMediaImageState extends State<CachedMediaImage> {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<File>(
-    // A new request must not retain the previous image while it is waiting.
-    key: ObjectKey(_file),
+    // Only an explicitly retained, identical content ID may keep its pixels.
+    key: ObjectKey(_imageIdentity),
     future: _file,
     builder: (context, snapshot) {
       if (snapshot.hasData) {

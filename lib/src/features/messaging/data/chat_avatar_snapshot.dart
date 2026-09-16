@@ -11,13 +11,35 @@ class ChatAvatarSnapshot {
     FlutterSecureStorage? storage,
     Future<Map<String, dynamic>?> Function()? session,
   }) : _storage = storage ?? const FlutterSecureStorage(),
-       _session = session ?? SecureSessionStore().readSession;
+       _session = session ?? SecureSessionStore().readSession {
+    if (!_memoryBound) {
+      _memoryBound = true;
+      SecureSessionStore.changes.stream.listen((_) {
+        _memory.clear();
+        _memoryViewer = null;
+      });
+    }
+  }
 
   final FlutterSecureStorage _storage;
   final Future<Map<String, dynamic>?> Function() _session;
   static final _revisions = <String, int>{};
   static final _settled = <String, int>{};
   static final _writes = <String, Future<void>>{};
+  static final _memory = <String, String>{};
+  static String? _memoryViewer;
+  static bool _memoryBound = false;
+
+  Map<String, dynamic>? peekCached(String peer) {
+    final viewer = _memoryViewer;
+    if (viewer == null) return null;
+    final id = _memory['kingclub.avatar-id.${jsonEncode([viewer, peer])}'];
+    return id == null
+        ? null
+        : {
+            'avatar': {'fileId': id, 'cacheOnly': true},
+          };
+  }
 
   /// Local-only descriptor for immediate display while the profile refreshes.
   Future<Map<String, dynamic>?> readCached(String peer) async {
@@ -35,6 +57,8 @@ class ChatAvatarSnapshot {
           !RegExp(r'^[A-Za-z0-9_-]{1,200}$').hasMatch(id)) {
         return null;
       }
+      _memoryViewer = viewer;
+      _memory[key] = id;
       return {
         'avatar': {'fileId': id, 'cacheOnly': true},
       };
@@ -67,9 +91,14 @@ class ChatAvatarSnapshot {
       final write = (_writes[key] ?? Future<void>.value()).then((_) async {
         if (!await active()) return;
         if (id == null) {
+          _memory.remove(key);
           await _storage.delete(key: key);
         } else {
           await _storage.write(key: key, value: id);
+          if (await active()) {
+            _memoryViewer = viewer;
+            _memory[key] = id;
+          }
         }
       });
       final tail = write.catchError((Object _) {});

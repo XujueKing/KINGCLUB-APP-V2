@@ -39,10 +39,11 @@ void main() {
         ),
       );
       final cache = PendingImages();
-      Widget view(String id) => MaterialApp(
+      Widget view(String id, {String token = 'a'}) => MaterialApp(
         home: CachedMediaImage(
-          'https://example.test/$id',
+          'https://example.test/$id?token=$token',
           contentKey: id,
+          keepSameImageOnRefresh: true,
           cache: cache,
           placeholder: const Text('pending'),
           errorBuilder: (_, _, _) => const SizedBox(),
@@ -52,8 +53,13 @@ void main() {
       cache.requests.single.complete(file);
       await tester.pump();
       expect(find.byType(Image), findsOneWidget);
+      await tester.pumpWidget(view('first', token: 'b'));
+      expect(find.byType(Image), findsOneWidget);
+      expect(find.text('pending'), findsNothing);
+      cache.requests.last.complete(file);
+      await tester.pump();
       await tester.pumpWidget(view('second'));
-      expect(cache.requests.length, 2);
+      expect(cache.requests.length, 3);
       expect(find.byType(Image), findsNothing);
       expect(find.text('pending'), findsOneWidget);
       // A response arriving after this page is closed cannot restore its image.

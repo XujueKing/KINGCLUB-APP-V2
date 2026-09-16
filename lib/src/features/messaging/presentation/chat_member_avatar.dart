@@ -70,6 +70,8 @@ class _ChatMemberAvatarState extends State<ChatMemberAvatar> {
             return FutureBuilder<Map<String, dynamic>?>(
               key: ValueKey(account),
               future: _cached,
+              initialData: (widget.snapshots ?? ChatAvatarSnapshot())
+                  .peekCached(account),
               builder: (context, local) {
                 final avatar = snapshot.connectionState == ConnectionState.done
                     ? (snapshot.data?['avatar'])
@@ -95,6 +97,7 @@ class _ChatMemberAvatarState extends State<ChatMemberAvatar> {
                   return fallback;
                 }
                 return CachedMediaImage(
+                  keepSameImageOnRefresh: true,
                   '${baseUrl.replaceFirst(RegExp(r'/+$'), '')}$path',
                   private: true,
                   cacheOnly: cacheOnly,
