@@ -10,7 +10,7 @@ $linker = Join-Path $NdkRoot 'toolchains/llvm/prebuilt/windows-x86_64/bin/aarch6
 if (!(Test-Path -LiteralPath $linker)) { throw 'Android API 24 ARM64 linker is missing.' }
 # Compile the reviewed upstream sources, not an arbitrary local branch revision.
 $upstreamHead = & git -C $source rev-parse HEAD
-if ($LASTEXITCODE -ne 0 -or $upstreamHead.Trim() -ne '6939dc96c4d0c93c1162307c5481b9145faee32f') { throw 'Unreviewed SUPERVM source revision.' }
+if ($LASTEXITCODE -ne 0 -or $upstreamHead.Trim() -ne '579008d18db917bd2e12610a8d1f93bebbef3f51') { throw 'Unreviewed SUPERVM source revision.' }
 & git -C $source diff --quiet HEAD -- crates/novovm-network/src/novorudp.rs crates/novovm-network/src/product_overlay.rs crates/novovm-network/src/product_nat.rs crates/novovm-network/src/product_directory.rs
 if ($LASTEXITCODE -ne 0) { throw 'Upstream protocol source has unreviewed changes.' }
 $names = @('NOVORUDP_SOURCE_ROOT','CARGO_TARGET_DIR','CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER')
