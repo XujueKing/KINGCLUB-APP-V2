@@ -8,6 +8,7 @@ import 'package:kingclub/src/core/media/media_cache.dart';
 
 class _Transport implements HttpClientAdapter {
   int calls = 0;
+  int size = 8;
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -17,10 +18,10 @@ class _Transport implements HttpClientAdapter {
     calls++;
     await Future<void>.delayed(const Duration(milliseconds: 10));
     return ResponseBody.fromBytes(
-      List.filled(8, 7),
+      List.filled(size, 7),
       200,
       headers: {
-        'content-length': ['8'],
+        'content-length': ['$size'],
         'content-type': ['image/png'],
       },
     );
@@ -46,6 +47,40 @@ void main() {
   });
   tearDown(() async {
     if (await dir.exists()) await dir.delete(recursive: true);
+  });
+  test('maximum upload-sized voice remains readable after reopening', () async {
+    transport.size = 2 * 1024 * 1024;
+    final file = await cache.get(
+      'https://media.example.test/voice',
+      scope: 'member:a',
+      contentKey: 'large-voice',
+      kind: MediaKind.audio,
+    );
+    expect(await file.length(), transport.size);
+    final reopened = MediaCache(directory: () async => dir);
+    final offline = await reopened.cached(
+      scope: 'member:a',
+      contentKey: 'large-voice',
+      kind: MediaKind.audio,
+    );
+    expect(await offline.readAsBytes(), List.filled(transport.size, 7));
+    expect(transport.calls, 1);
+  });
+  test('oversized voice leaves no published or partial cache', () async {
+    transport.size = 2 * 1024 * 1024 + 1;
+    await expectLater(
+      cache.get(
+        'https://media.example.test/voice',
+        scope: 'member:a',
+        contentKey: 'oversized-voice',
+        kind: MediaKind.audio,
+      ),
+      throwsA(anything),
+    );
+    expect(
+      await dir.list(recursive: true).where((e) => e is File).toList(),
+      isEmpty,
+    );
   });
   test(
     'persistent media survives reopen and budget without network reads',
@@ -267,6 +302,28 @@ void main() {
       await cache.clear(privateOnly: true);
       expect(await files[0].exists(), false);
       expect(await second.exists(), false);
+    },
+  );
+  test(
+    'persistent poster generation retains previously downloaded images',
+    () async {
+      final store = MediaCache(
+        directory: () async => dir,
+        dio: Dio()..httpClientAdapter = transport,
+        imageBudget: 1,
+      );
+      final photo = await store.get(
+        'https://media.example.test/photo',
+        scope: 'member:a',
+        contentKey: 'photo',
+      );
+      await store.videoPoster(
+        'https://media.example.test/video',
+        scope: 'member:a',
+        contentKey: 'video',
+        decode: (_) async => Uint8List.fromList([1, 2, 3]),
+      );
+      expect(await photo.readAsBytes(), List.filled(8, 7));
     },
   );
   test(

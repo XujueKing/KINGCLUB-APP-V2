@@ -228,7 +228,9 @@ class MediaCache {
         await temp.writeAsBytes(bytes, flush: true);
         if (generation != _generation) throw StateError('缓存请求已取消');
         await temp.rename(poster.path);
-        await _trim(root, MediaKind.image, except: poster.path);
+        if (!retainMedia) {
+          await _trim(root, MediaKind.image, except: poster.path);
+        }
         return poster;
       } finally {
         _pending.remove(key);
@@ -270,7 +272,7 @@ class MediaCache {
     final cancel = CancelToken();
     _downloads.add(cancel);
     final limit = kind == MediaKind.audio
-        ? 512 * 1024
+        ? 2 * 1024 * 1024
         : kind == MediaKind.image
         ? 20 * 1024 * 1024
         : 200 * 1024 * 1024;
@@ -288,6 +290,9 @@ class MediaCache {
           !await temp.exists() ||
           await temp.length() == 0) {
         throw StateError('缓存请求已取消');
+      }
+      if (await temp.length() > limit) {
+        throw StateError('媒体超出缓存单文件上限');
       }
       await temp.rename(file.path);
       if (!retainMedia) await _trim(root, kind, except: file.path);
