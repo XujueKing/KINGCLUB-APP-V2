@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_video_view.dart';
 import 'package:kingclub/src/core/media/media_cache.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 
 class _NoLocalMedia extends MediaCache {
   @override
@@ -23,6 +24,9 @@ void main() {
     late Directory directory;
     late MediaCache store;
     late File poster;
+    late File video;
+    final events = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(events.close);
     await tester.runAsync(() async {
       directory = await Directory.systemTemp.createTemp(
         'kingclub-video-local-',
@@ -31,8 +35,14 @@ void main() {
       poster = await store.importFile(
         File('assets/legacy/storage/wine_flip.png'),
         scope: 'member:synthetic',
-        contentKey: 'chat-video-message:false:message:poster',
+        contentKey: 'chat-video-message:false:12345678-1234-1234-1234-123456789012:poster',
         kind: MediaKind.image,
+      );
+      video = await store.importFile(
+        File('assets/legacy/storage/wine_flip.png'),
+        scope: 'member:synthetic',
+        contentKey: 'chat-video-message:false:12345678-1234-1234-1234-123456789012:video',
+        kind: MediaKind.video,
       );
     });
     var calls = 0;
@@ -43,12 +53,12 @@ void main() {
             account: 'synthetic',
             call: (_, _) async {
               calls++;
-              throw StateError('offline');
+              throw const AuthFailure('ACCESS_DENIED', 'denied');
             },
           ),
-          messageId: 'message',
+          messageId: '12345678-1234-1234-1234-123456789012',
           mediaStore: store,
-          events: const Stream.empty(),
+          events: events.stream,
         ),
       ),
     );
@@ -70,6 +80,23 @@ void main() {
     }
     expect(find.byType(Image), findsOneWidget);
     expect(calls, 0);
+    events.add({'eventType': 'chat.relationship.changed'});
+    await tester.pump();
+    for (var attempt = 0; attempt < 100; attempt++) {
+      final remains = await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        return await poster.exists() || await video.exists();
+      });
+      await tester.pump();
+      if (remains == false) break;
+    }
+    await tester.runAsync(() async {
+      expect(await poster.exists(), isFalse);
+      expect(await video.exists(), isFalse);
+    });
+    await tester.pumpAndSettle();
+    expect(find.byType(Image), findsNothing);
+    expect(calls, 1);
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async => directory.delete(recursive: true));
   });

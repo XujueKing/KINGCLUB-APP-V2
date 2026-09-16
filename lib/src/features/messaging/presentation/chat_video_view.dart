@@ -124,8 +124,13 @@ class _ChatVideoViewState extends State<ChatVideoView>
       _clear();
       if (error is AuthFailure && error.code == 'NETWORK_ERROR') {
         await _load();
-      } else if (error is AuthFailure) {
-        await _evictLocal();
+      } else if (error is AuthFailure &&
+          ![
+            'SESSION_CHANGED',
+            'SESSION_EXPIRED',
+            'SECURE_REQUEST_FAILED',
+          ].contains(error.code)) {
+        await _evictMessageMedia();
       }
     } finally {
       if (_checkingGeneration == generation) _checkingGeneration = null;
@@ -168,6 +173,24 @@ class _ChatVideoViewState extends State<ChatVideoView>
   String get _localKey =>
       'chat-video-message:${widget.group}:${widget.messageId}:${widget.full ? 'video' : 'poster'}';
   MediaCache get _media => widget.mediaStore ?? MediaCache.shared;
+  Future<void> _evictMessageMedia() async {
+    final store = _media;
+    final scope = 'member:${widget.repository.account}';
+    final prefix = 'chat-video-message:${widget.group}:${widget.messageId}';
+    await Future.wait([
+      store.evict(
+        scope: scope,
+        contentKey: '$prefix:poster',
+        kind: MediaKind.image,
+      ),
+      store.evict(
+        scope: scope,
+        contentKey: '$prefix:video',
+        kind: MediaKind.video,
+      ),
+    ]);
+  }
+
   Future<void> _evictLocal() => _media.evict(
     scope: 'member:${widget.repository.account}',
     contentKey: _localKey,
@@ -297,7 +320,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
           'SESSION_EXPIRED',
           'SECURE_REQUEST_FAILED',
         ].contains(error.code)) {
-          await _evictLocal();
+          await _evictMessageMedia();
         }
       }
       if (mounted &&

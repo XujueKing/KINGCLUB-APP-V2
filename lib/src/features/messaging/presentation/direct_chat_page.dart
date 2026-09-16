@@ -930,7 +930,9 @@ class _DirectChatPageState extends State<DirectChatPage>
         );
       _muted = chat.settings['muted'] == true;
     });
-    if (nearBottom || hasNewOutgoing) _scrollToLatest();
+    // Reverse layout already anchors the latest end. Read receipts and sync
+    // refreshes must not start a competing scroll during keyboard movement.
+    if (hasNewOutgoing && !nearBottom) _scrollToLatest();
     WidgetsBinding.instance.addPostFrameCallback((_) => _markRealRead());
   }
 
@@ -1009,6 +1011,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.black,
       body: SafeArea(
+        maintainBottomViewPadding: true,
         child: Column(
           children: [
             LegacyMessagingHeader(
@@ -1104,10 +1107,8 @@ class _DirectChatPageState extends State<DirectChatPage>
                         onEnd: () =>
                             _animatedMessageIds.remove(message.clientMessageId),
                         curve: Curves.easeOutCubic,
-                        builder: (_, factor, child) => Opacity(
-                          opacity: factor,
-                          child: child,
-                        ),
+                        builder: (_, factor, child) =>
+                            Opacity(opacity: factor, child: child),
                         child: _MessageRow(
                           timestamp: chatTimestampLabel(
                             message.createdDate,
@@ -3268,6 +3269,14 @@ class _MessageRow extends StatelessWidget {
                 key: ValueKey('message-receipt-${message.clientMessageId}'),
                 style: const TextStyle(color: Color(0x66777777), fontSize: 11),
               ),
+            )
+          else if (message.mine)
+            const Padding(
+              padding: EdgeInsets.only(top: 4, right: 52),
+              child: Text(
+                '',
+                style: TextStyle(color: Color(0x66777777), fontSize: 11),
+              ),
             ),
         ],
       ),
@@ -3695,7 +3704,8 @@ class _ChatViewportPhysics extends ClampingScrollPhysics {
     required double velocity,
   }) {
     if (oldPosition.viewportDimension != newPosition.viewportDimension &&
-        oldPosition.extentBefore < 24) {
+        !isScrolling &&
+        oldPosition.extentBefore < 1) {
       return newPosition.minScrollExtent;
     }
     return super.adjustPositionForNewDimensions(
