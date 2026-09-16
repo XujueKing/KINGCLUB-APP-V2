@@ -90,6 +90,7 @@ class ChatFileDownloader {
   final List<Directory> _completed = [];
   final _completedMessages = <Directory, (bool, String)>{};
   final _deleted = <(bool, String)>{};
+  final _verifiedLocal = <String>{};
   (bool, String)? _activeMessage;
   late final void Function() _removeDeletionListener;
   Future<void> _cleanup = Future<void>.value();
@@ -150,7 +151,70 @@ class ChatFileDownloader {
   }
 
   Future<void> authorizeExport(ChatFileReference reference) async {
+    final identity = _identity(reference);
+    if (_verifiedLocal.contains(identity)) {
+      await _check();
+      if (_deleted.contains((reference.group, reference.messageId))) {
+        throw StateError('文件所属聊天记录已删除');
+      }
+      await resumeCache!.ensureNotDeleted(identity);
+      return;
+    }
     await _grant(reference);
+  }
+
+  String _identity(ChatFileReference ref) => jsonEncode([
+    repository.account,
+    ref.group,
+    ref.messageId,
+    ref.assetId,
+    ref.size,
+    ref.sha256,
+    ref.fileName,
+  ]);
+
+  Future<bool> _restoreLocal(
+    ChatFileReference ref,
+    String identity,
+    File file,
+  ) async {
+    final cache = resumeCache;
+    if (cache == null || !await cache.isRetained(identity)) return false;
+    final output = await file.open(mode: FileMode.write);
+    final digest = const DartSha256().newHashSink();
+    var valid = true;
+    try {
+      final count = ref.size == 0
+          ? 1
+          : (ref.size + chunkBytes - 1) ~/ chunkBytes;
+      for (var index = 0; index < count; index++) {
+        await _check();
+        final length = (ref.size - index * chunkBytes).clamp(0, chunkBytes);
+        final bytes = await cache.read(identity, index, length);
+        if (bytes == null) {
+          valid = false;
+          break;
+        }
+        digest.add(bytes);
+        await output.writeFrom(bytes);
+      }
+      digest.close();
+      final hash = (await digest.hash()).bytes
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join();
+      valid = valid && hash == ref.sha256;
+      await output.flush();
+    } finally {
+      await output.close();
+    }
+    await _check();
+    await cache.ensureNotDeleted(identity);
+    if (!valid) {
+      await cache.remove(identity);
+      return false;
+    }
+    _verifiedLocal.add(identity);
+    return true;
   }
 
   void cancel() {
@@ -324,15 +388,7 @@ class ChatFileDownloader {
     RandomAccessFile? output;
     var completed = false;
     var keepResume = false;
-    final identity = jsonEncode([
-      repository.account,
-      ref.group,
-      ref.messageId,
-      ref.assetId,
-      ref.size,
-      ref.sha256,
-      ref.fileName,
-    ]);
+    final identity = _identity(ref);
     try {
       final uuid = RegExp(
         r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -346,6 +402,21 @@ class ChatFileDownloader {
         throw const FormatException('文件消息无效');
       }
       await resumeCache?.ensureNotDeleted(identity);
+      if (await resumeCache?.isRetained(identity) == true) {
+        final parent = await _temporaryDirectory();
+        await _check();
+        working = await parent.createTemp('kingclub-chat-download-');
+        final local = File('${working.path}/content.bin');
+        if (await _restoreLocal(ref, identity, local)) {
+          _completed.add(working);
+          _completedMessages[working] = (ref.group, ref.messageId);
+          completed = true;
+          onProgress?.call(ref.size, ref.size);
+          return local;
+        }
+        await working.delete(recursive: true);
+        working = null;
+      }
       var media = await _grant(ref);
       try {
         await resumeCache?.prune(identity);

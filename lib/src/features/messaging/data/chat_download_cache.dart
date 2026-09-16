@@ -96,6 +96,11 @@ class ChatDownloadCache {
     }
   }
 
+  Future<bool> isRetained(String identity) async {
+    await ensureNotDeleted(identity);
+    return File('${(await _directory(identity)).path}/retained').exists();
+  }
+
   Future<Uint8List?> read(String identity, int index, int length) async {
     try {
       await ensureNotDeleted(identity);
