@@ -6,6 +6,7 @@ import 'chat_outbox.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'chat_location.dart';
 
@@ -105,7 +106,7 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 17,
+        version: 18,
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 16) {
             await db.execute(
@@ -165,6 +166,11 @@ class ChatHistoryStore {
           }
           if (oldVersion < 17) {
             await _sanitizeStoredTombstones(db, key, account);
+          }
+          if (oldVersion < 18) {
+            await db.execute(
+              "UPDATE nearby_message SET payload=X'' WHERE hidden=1",
+            );
           }
         },
         onCreate: (db, _) async {
@@ -846,11 +852,9 @@ class ChatHistoryStore {
         await batch.commit(noResult: true);
       }
       if (hideNearby) {
-        await tx.update(
-          'nearby_message',
-          {'hidden': 1},
-          where: 'member=?',
-          whereArgs: [id],
+        await tx.rawUpdate(
+          "UPDATE nearby_message SET hidden=1, payload=X'' WHERE member=?",
+          [id],
         );
       }
       if (deleteMedia &&

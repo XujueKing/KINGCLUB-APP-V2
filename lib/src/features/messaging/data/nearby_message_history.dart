@@ -108,12 +108,14 @@ extension NearbyMessageHistory on ChatHistoryStore {
           whereArgs: [scope, id, outgoing ? 1 : 0],
         );
         for (final copy in copies) {
+          if (copy['hidden'] == 1) return;
           if (await _nearbyText(copy) != text) {
             throw StateError('Member message identity conflict');
           }
         }
       }
       if (rows.isNotEmpty) {
+        if (rows.single['hidden'] == 1) return;
         if (await _nearbyText(rows.single) != text ||
             (member != null &&
                 rows.single['member'] != null &&
@@ -233,8 +235,8 @@ extension NearbyMessageHistory on ChatHistoryStore {
     final rows = await _db.query(
       'nearby_message',
       where: pendingOnly
-          ? 'peer=? AND outgoing=1 AND delivered=0 AND serverId IS NULL'
-          : 'peer=?',
+          ? 'peer=? AND hidden=0 AND outgoing=1 AND delivered=0 AND serverId IS NULL'
+          : 'peer=? AND hidden=0',
       whereArgs: [peer],
       orderBy: pendingOnly ? 'created ASC, id ASC' : 'created DESC, id DESC',
       limit: limit,
@@ -534,6 +536,7 @@ extension NearbyMessageHistory on ChatHistoryStore {
       );
       if (rows.isEmpty) continue;
       for (final row in rows) {
+        if (row['hidden'] == 1) continue;
         final tombstone = [
           'hidden',
           'recalled',
@@ -543,10 +546,14 @@ extension NearbyMessageHistory on ChatHistoryStore {
                 row['serverId'] != message['messageId'])) {
           throw StateError('Peer/server message identity conflict');
         }
-        if (row['serverId'] == null) {
+        if (row['serverId'] == null || tombstone) {
           changed += await tx.update(
             'nearby_message',
-            {'serverId': message['messageId']},
+            {
+              'serverId': message['messageId'],
+              if (tombstone) 'hidden': 1,
+              if (tombstone) 'payload': Uint8List(0),
+            },
             where: 'peer=? AND id=? AND outgoing=?',
             whereArgs: [
               row['peer'],

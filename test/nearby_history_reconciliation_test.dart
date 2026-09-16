@@ -93,6 +93,9 @@ void main() {
         version: 6,
         onCreate: (db, _) async {
           await db.execute(
+            'CREATE TABLE message (conversation TEXT NOT NULL, sequence INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(conversation,sequence))',
+          );
+          await db.execute(
             'CREATE TABLE nearby_message (peer TEXT NOT NULL, id TEXT NOT NULL, outgoing INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(peer,id,outgoing))',
           );
         },
@@ -168,7 +171,7 @@ void main() {
     expect(await store.nearbyMessages(peer, pendingOnly: true), isEmpty);
     await store.close();
     store = await open();
-    expect((await store.nearbyMessages(peer)).length, 3);
+    expect((await store.nearbyMessages(peer)).length, 2);
     expect(await store.nearbyMessages(peer, pendingOnly: true), isEmpty);
     expect(await store.confirmNearbyReceipt(peerId: peer, id: id), true);
     expect(

@@ -8,6 +8,62 @@ import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 void main() {
   sqfliteFfiInit();
   test(
+    'clear and v18 migration erase nearby payloads but retain replay markers',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('nearby-erasure-');
+      final file = '${dir.path}/history.db';
+      final key = await AesGcm.with256bits().newSecretKey();
+      Future<ChatHistoryStore> open() => ChatHistoryStore.openDatabaseWithKey(
+        factory: databaseFactoryFfi,
+        file: file,
+        key: key,
+        account: 'me',
+      );
+      var store = await open();
+      final peer = 'novovm-ed25519:${'a' * 64}';
+      const id = '00000000-0000-4000-8000-000000000001';
+      await store.persistNearbyText(
+        peerId: peer,
+        peerAccount: 'friend',
+        id: id,
+        text: 'private body',
+        outgoing: false,
+      );
+      await store.close();
+      var raw = await databaseFactoryFfi.openDatabase(file);
+      final original = (await raw.query('nearby_message')).single['payload'];
+      await raw.execute('UPDATE nearby_message SET hidden=1');
+      await raw.setVersion(17);
+      await raw.close();
+      store = await open();
+      expect(await store.nearbyMessages(peer), isEmpty);
+      await store.persistNearbyText(
+        peerId: peer,
+        peerAccount: 'friend',
+        id: id,
+        text: 'private body',
+        outgoing: false,
+      );
+      expect(await store.nearbyMemberMessages('friend'), isEmpty);
+      await store.close();
+      raw = await databaseFactoryFfi.openDatabase(file);
+      expect((await raw.query('nearby_message')).single['payload'], isEmpty);
+      // Restore a visible fixture to exercise the explicit clear path as well.
+      await raw.update('nearby_message', {'hidden': 0, 'payload': original});
+      await raw.close();
+      store = await open();
+      await store.clear('direct:friend', hideNearby: true);
+      await store.close();
+      raw = await databaseFactoryFfi.openDatabase(file);
+      final marker = (await raw.query('nearby_message')).single;
+      expect(marker['hidden'], 1);
+      expect(marker['payload'], isEmpty);
+      expect(marker['id'], id);
+      await raw.close();
+      await dir.delete(recursive: true);
+    },
+  );
+  test(
     'explicit clear hides replay and new device copies across reopen',
     () async {
       final dir = await Directory.systemTemp.createTemp('member-clear-');
@@ -61,7 +117,7 @@ void main() {
       await store.close();
       store = await open();
       expect((await store.nearbyMemberMessages('friend')).single['id'], fresh);
-      expect(await store.nearbyMessages(a), hasLength(2));
+      expect(await store.nearbyMessages(a), hasLength(1));
       expect(await store.nearbyUnreadCount(), 2);
       expect(await store.nearbyUnreadIds(), [id, fresh]);
       await store.markNearbyMemberRead('other', [id]);
