@@ -105,7 +105,7 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 16,
+        version: 17,
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 16) {
             await db.execute(
@@ -162,6 +162,9 @@ class ChatHistoryStore {
             await db.execute(
               'ALTER TABLE conversation ADD COLUMN historyVersion INTEGER',
             );
+          }
+          if (oldVersion < 17) {
+            await _sanitizeStoredTombstones(db, key, account);
           }
         },
         onCreate: (db, _) async {
@@ -237,6 +240,73 @@ class ChatHistoryStore {
   List<int> _aad(String conversation, int sequence) =>
       utf8.encode('chat-history-v1|$account|$conversation|$sequence');
 
+  static void _stripTombstoneContent(Map<String, dynamic> value) {
+    if (!const {'hidden', 'recalled'}.contains(value['messageType'])) return;
+    const identityFields = {
+      'messageId',
+      'conversationId',
+      'groupId',
+      'clientMessageId',
+      'sender',
+      'recipient',
+      'sequence',
+      'createdDate',
+      'messageType',
+    };
+    value.removeWhere((key, _) => !identityFields.contains(key));
+    value['text'] = value['messageType'] == 'recalled' ? '消息已撤回' : '';
+  }
+
+  static Future<void> _sanitizeStoredTombstones(
+    DatabaseExecutor db,
+    SecretKey key,
+    String account,
+  ) async {
+    var offset = 0;
+    while (true) {
+      final rows = await db.query(
+        'message',
+        orderBy: 'conversation, sequence',
+        limit: 50,
+        offset: offset,
+      );
+      for (final row in rows) {
+        final aad = utf8.encode(
+          'chat-history-v1|$account|${row['conversation']}|${row['sequence']}',
+        );
+        final bytes = await _cipher.decrypt(
+          SecretBox.fromConcatenation(
+            (row['payload'] as List).cast<int>(),
+            nonceLength: 12,
+            macLength: 16,
+          ),
+          secretKey: key,
+          aad: aad,
+        );
+        final value = Map<String, dynamic>.from(
+          jsonDecode(utf8.decode(bytes)) as Map,
+        );
+        if (!const {'hidden', 'recalled'}.contains(value['messageType'])) {
+          continue;
+        }
+        _stripTombstoneContent(value);
+        final box = await _cipher.encrypt(
+          utf8.encode(jsonEncode(value)),
+          secretKey: key,
+          aad: aad,
+        );
+        await db.update(
+          'message',
+          {'payload': box.concatenation()},
+          where: 'conversation=? AND sequence=?',
+          whereArgs: [row['conversation'], row['sequence']],
+        );
+      }
+      if (rows.length < 50) return;
+      offset += rows.length;
+    }
+  }
+
   Map<String, dynamic> _payload(Map<String, dynamic> message) {
     const fields = {
       'messageId',
@@ -280,19 +350,7 @@ class ChatHistoryStore {
     if (const {'hidden', 'recalled'}.contains(value['messageType'])) {
       // Tombstones need identity and ordering, never the removed content or
       // its attachment metadata, even if an older server echoes those fields.
-      const identityFields = {
-        'messageId',
-        'conversationId',
-        'groupId',
-        'clientMessageId',
-        'sender',
-        'recipient',
-        'sequence',
-        'createdDate',
-        'messageType',
-      };
-      value.removeWhere((key, _) => !identityFields.contains(key));
-      value['text'] = value['messageType'] == 'recalled' ? '消息已撤回' : '';
+      _stripTombstoneContent(value);
     }
     // Locations are reduced separately so nested headers/URLs cannot enter disk.
     if (value['messageType'] == 'location') {

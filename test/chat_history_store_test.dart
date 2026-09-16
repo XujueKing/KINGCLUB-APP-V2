@@ -58,6 +58,64 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  test('v16 tombstones are sanitized across batches without rewriting live messages', () async {
+    await store.commit(
+      'direct:peer',
+      [for (var i = 1; i <= 60; i++) message(i)],
+      expectedEpoch: 0,
+      cursor: 60,
+    );
+    await store.close();
+    var raw = await databaseFactoryFfi.openDatabase('${dir.path}/history.db');
+    final before = await raw.query('message', orderBy: 'sequence');
+    for (final sequence in [1, 55]) {
+      final row = before[sequence - 1];
+      final oldPayload = {
+        ...message(sequence),
+        'messageType': sequence == 1 ? 'hidden' : 'recalled',
+        'fileName': 'removed-private.pdf',
+        'voiceAssetId': 'removed-asset',
+      };
+      final encrypted = await AesGcm.with256bits().encrypt(
+        utf8.encode(jsonEncode(oldPayload)),
+        secretKey: key,
+        aad: utf8.encode('chat-history-v1|me|${row['conversation']}|$sequence'),
+      );
+      await raw.update(
+        'message',
+        {'payload': encrypted.concatenation()},
+        where: 'sequence=?',
+        whereArgs: [sequence],
+      );
+    }
+    await raw.setVersion(16);
+    await raw.close();
+    store = await open();
+    final page = await store.read('direct:peer', limit: 100);
+    expect(page.cursor, 60);
+    expect(page.messages, hasLength(60));
+    for (final sequence in [1, 55]) {
+      final row = page.messages.singleWhere((m) => m['sequence'] == sequence);
+      expect(row['text'], sequence == 1 ? '' : '消息已撤回');
+      expect(row.containsKey('fileName'), false);
+      expect(row.containsKey('voiceAssetId'), false);
+      expect(row.containsKey('headers'), false);
+    }
+    await store.close();
+    raw = await databaseFactoryFfi.openDatabase('${dir.path}/history.db');
+    expect(await raw.getVersion(), 17);
+    final after = await raw.query('message', orderBy: 'sequence');
+    for (var i = 0; i < 60; i++) {
+      if (i == 0 || i == 54) continue;
+      expect(after[i], before[i]);
+    }
+    await raw.close();
+    store = await open();
+    expect(
+      (await store.read('direct:peer', limit: 100)).messages,
+      page.messages,
+    );
+  });
   for (final kind in ['hidden', 'recalled']) {
     test(
       '$kind persists identity without deleted content or asset metadata',
