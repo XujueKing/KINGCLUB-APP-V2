@@ -51,6 +51,24 @@ public class ChatFileCopyTest {
         fails(()->ChatFileCopy.copy(new Generated(1),new OutputStream(){
             public void write(int b) throws IOException { throw new IOException("Disk full"); }
         },1,hash(1),()->false));
+        AtomicBoolean cancelledDuringRead = new AtomicBoolean();
+        final long[] afterCancelWrites = {0};
+        fails(()->ChatFileCopy.copy(new Generated(3) {
+            public int read(byte[] b, int off, int len) {
+                int count = super.read(b, off, len);
+                cancelledDuringRead.set(true);
+                return count;
+            }
+        }, new OutputStream() {
+            public void write(int b) { afterCancelWrites[0]++; }
+            public void write(byte[] b, int off, int len) { afterCancelWrites[0] += len; }
+        }, 3, hash(3), cancelledDuringRead::get));
+        if (afterCancelWrites[0] != 0) throw new AssertionError("Write after cancelled read");
+        AtomicBoolean cancelledDuringFlush = new AtomicBoolean();
+        fails(()->ChatFileCopy.copy(new Generated(0), new OutputStream() {
+            public void write(int b) { throw new AssertionError(); }
+            public void flush() { cancelledDuringFlush.set(true); }
+        }, 0, hash(0), cancelledDuringFlush::get));
         System.out.println("CHAT_FILE_NATIVE_COPY_EMPTY_LARGE_DIGEST_BOUNDS_CANCEL_IO_PASSED");
     }
 }

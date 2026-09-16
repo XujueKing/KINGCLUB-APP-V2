@@ -22,6 +22,7 @@ public final class ChatFileCopy {
         while (true) {
             if (cancelled.getAsBoolean()) throw new IOException("Cancelled");
             int count = input.read(buffer);
+            if (cancelled.getAsBoolean()) throw new IOException("Cancelled");
             if (count < 0) break;
             if (count == 0) throw new IOException("Stream did not advance");
             total += count;
@@ -35,5 +36,6 @@ public final class ChatFileCopy {
         if (!actual.toString().equals(expectedHash)) throw new IOException("Digest mismatch");
         if (cancelled.getAsBoolean()) throw new IOException("Cancelled");
         output.flush();
+        if (cancelled.getAsBoolean()) throw new IOException("Cancelled");
     }
 }
