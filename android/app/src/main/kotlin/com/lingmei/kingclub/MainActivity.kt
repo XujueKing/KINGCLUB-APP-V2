@@ -3,6 +3,8 @@ package com.lingmei.kingclub
 import android.Manifest
 import androidx.core.content.PermissionChecker
 import android.content.Intent
+import android.os.Build
+import android.content.pm.PackageManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -25,7 +27,17 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 } else if (call.method == "start") {
                     if (!foreground) result.error("CALL_SERVICE_BACKGROUND", "Open the call in foreground", null)
-                    else CallForegroundService.start(this, id, call.argument<Boolean>("video") == true, result)
+                    else CallForegroundService.start(this, id, call.argument<Boolean>("video") == true,
+                        object : MethodChannel.Result {
+                            override fun success(value: Any?) {
+                                result.success(value)
+                                requestCallNotificationPermission()
+                            }
+                            override fun error(code: String, message: String?, details: Any?) {
+                                result.error(code, message, details)
+                            }
+                            override fun notImplemented() { result.notImplemented() }
+                        })
                 } else result.notImplemented()
             }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/chat-map")
@@ -62,6 +74,20 @@ class MainActivity : FlutterActivity() {
     override fun onStop() {
         nearby?.stop()
         super.onStop()
+    }
+    private fun requestCallNotificationPermission() {
+        // Start capture's foreground service first. Notification permission is
+        // optional for FGS and its dialog must not invalidate service startup.
+        if (!foreground || Build.VERSION.SDK_INT < 33 ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        val preferences = getSharedPreferences("call-notification-permission", MODE_PRIVATE)
+        if (preferences.getBoolean("asked", false)) return
+        preferences.edit().putBoolean("asked", true).apply()
+        try {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4202)
+        } catch (_: Exception) {
+            // The ongoing call remains valid even if the optional prompt fails.
+        }
     }
     override fun onResume() {
         super.onResume()
