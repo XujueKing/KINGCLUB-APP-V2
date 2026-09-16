@@ -4,8 +4,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_member_avatar.dart';
 import 'package:kingclub/src/core/media/cached_media_image.dart';
+import 'package:kingclub/src/features/messaging/data/chat_avatar_snapshot.dart';
+
+class _LocalAvatar extends ChatAvatarSnapshot {
+  @override
+  Future<Map<String, dynamic>?> readCached(String peer) async => {
+    'avatar': {'fileId': 'saved-avatar', 'cacheOnly': true},
+  };
+}
 
 void main() {
+  testWidgets(
+    'saved avatar displays before slow profile and is removed on denial',
+    (tester) async {
+      final pending = Completer<Map<String, dynamic>>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatMemberAvatar(
+            account: 'peer',
+            profile: pending.future,
+            snapshots: _LocalAvatar(),
+            baseUrl: 'https://test.wuyexin.cn/kingclub-v2',
+          ),
+        ),
+      );
+      await tester.pump();
+      final image = tester.widget<CachedMediaImage>(
+        find.byType(CachedMediaImage),
+      );
+      expect(image.cacheOnly, isTrue);
+      expect(image.contentKey, 'profile:peer:saved-avatar');
+      pending.completeError(StateError('denied'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CachedMediaImage), findsNothing);
+    },
+  );
   Widget view(Future<Map<String, dynamic>> profile) => MaterialApp(
     home: Scaffold(
       body: ChatMemberAvatar(profile: profile, account: 'peer'),

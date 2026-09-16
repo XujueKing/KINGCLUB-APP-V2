@@ -19,6 +19,30 @@ class ChatAvatarSnapshot {
   static final _settled = <String, int>{};
   static final _writes = <String, Future<void>>{};
 
+  /// Local-only descriptor for immediate display while the profile refreshes.
+  Future<Map<String, dynamic>?> readCached(String peer) async {
+    try {
+      final initial = await _session();
+      final viewer = (initial?['account'] as Map?)?['userAccount'];
+      if (viewer is! String || initial?['sessionId'] == null) return null;
+      final key = 'kingclub.avatar-id.${jsonEncode([viewer, peer])}';
+      await _writes[key];
+      final id = await _storage.read(key: key);
+      final current = await _session();
+      if (current?['sessionId'] != initial?['sessionId'] ||
+          (current?['account'] as Map?)?['userAccount'] != viewer ||
+          id == null ||
+          !RegExp(r'^[A-Za-z0-9_-]{1,200}$').hasMatch(id)) {
+        return null;
+      }
+      return {
+        'avatar': {'fileId': id, 'cacheOnly': true},
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>> load(
     String viewer,
     String peer,

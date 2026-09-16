@@ -56,6 +56,21 @@ void main() {
     expect(calls, ['K260912000501', 'K260913000612']);
   });
   test(
+    'local descriptor reads without network and is isolated by viewer',
+    () async {
+      expect(await cache.readCached('peer'), isNull);
+      await cache.load('a', 'peer', () async => profile);
+      expect(await cache.readCached('peer'), {
+        'avatar': {'fileId': 'image-1', 'cacheOnly': true},
+      });
+      session = {
+        'sessionId': 'session-b',
+        'account': {'userAccount': 'b'},
+      };
+      expect(await cache.readCached('peer'), isNull);
+    },
+  );
+  test(
     'restart restores only image ID after network error, scoped to viewer',
     () async {
       await cache.load('a', 'peer', () async => profile);
