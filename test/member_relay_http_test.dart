@@ -9,6 +9,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:uuid/uuid.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
+import 'package:kingclub/src/features/messaging/data/chat_sent_file_cache.dart';
+import 'package:kingclub/src/features/messaging/data/chat_file_uploader.dart';
+import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
+import 'package:kingclub/src/features/messaging/data/member_relay_files.dart';
 import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
 import 'package:kingclub/src/features/messaging/data/direct_chat_controller.dart';
@@ -114,7 +121,30 @@ void main() {
       final bh = await history(b.messaging.account, 'b');
       final at = MemberRelayText(runtime: left, history: ah);
       final bt = MemberRelayText(runtime: right, history: bh);
+      FlutterSecureStorage.setMockInitialValues({});
+      Future<ChatSentFileCache> fileCache(String name) async =>
+          ChatSentFileCache(
+            cache: ChatDownloadCache(
+              root: Directory('${directory.path}/$name'),
+              key: await AesGcm.with256bits().newSecretKey(),
+            ),
+            checkSession: () async {},
+            temporaryDirectory: () async => directory,
+          );
+      final sourceCache = await fileCache('sent');
+      final af = MemberRelayFiles(
+        runtime: left,
+        cache: sourceCache,
+        privateDirectory: directory,
+      );
+      final bf = MemberRelayFiles(
+        runtime: right,
+        cache: await fileCache('received'),
+        privateDirectory: directory,
+      );
       addTearDown(() async {
+        await af.close();
+        await bf.close();
         await at.close();
         await bt.close();
         await ah.close();
@@ -206,6 +236,83 @@ void main() {
         ),
         hasLength(1),
       );
+      // One real HTTP upload/message, then the same attachment through the
+      // native encrypted relay and, after cache eviction, ordinary HTTP.
+      final bytes = List<int>.generate(4097, (i) => i % 251);
+      final source = await File('${directory.path}/source.bin')
+          .writeAsBytes(bytes);
+      final uploader = ChatFileUploader(
+        repository: a.messaging,
+        checkSession: () async {},
+        dio: Dio(BaseOptions(baseUrl: 'http://127.0.0.1:39184')),
+      );
+      addTearDown(uploader.dispose);
+      final uploaded = await uploader.upload(
+        source,
+        fileName: 'synthetic-relay.bin',
+      );
+      final sent = await a.messaging.sendFile(
+        peer: b.messaging.account,
+        clientMessageId: const Uuid().v4(),
+        assetId: uploaded.assetId,
+      );
+      final ref = ChatFileReference(
+        messageId: (sent['message'] as Map)['messageId'] as String,
+        assetId: uploaded.assetId,
+        fileName: uploaded.fileName,
+        size: uploaded.size,
+        sha256: uploaded.sha256,
+        sender: a.messaging.account,
+      );
+      expect(
+        await sourceCache.retain(
+          source,
+          assetId: ref.assetId,
+          size: ref.size,
+          sha256: ref.sha256,
+        ),
+        isTrue,
+      );
+      var httpChunks = 0, peerTransfers = 0;
+      final downloadHttp = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:39184'));
+      downloadHttp.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            httpChunks++;
+            handler.next(options);
+          },
+        ),
+      );
+      final downloader = ChatFileDownloader(
+        repository: b.messaging,
+        checkSession: () async {},
+        dio: downloadHttp,
+        temporaryDirectory: () async => directory,
+        peerDownload: (reference, active) async {
+          final result = await bf.receive(
+            peer: a.messaging.account,
+            messageId: reference.messageId,
+            assetId: reference.assetId,
+            fileName: reference.fileName,
+            size: reference.size,
+            sha256: reference.sha256,
+            stillActive: active,
+          );
+          if (result != null) peerTransfers++;
+          return result;
+        },
+      );
+      try {
+        expect(await (await downloader.download(ref)).readAsBytes(), bytes);
+        expect(peerTransfers, 1);
+        expect(httpChunks, 0);
+        await sourceCache.cache.root.delete(recursive: true);
+        expect(await (await downloader.download(ref)).readAsBytes(), bytes);
+        expect(peerTransfers, 1);
+        expect(httpChunks, greaterThan(0));
+      } finally {
+        await downloader.dispose();
+      }
       await b.revoke(kb);
       await expectLater(sender.revalidate(), throwsA(anything));
       await expectLater(sender.send(frame), throwsStateError);
