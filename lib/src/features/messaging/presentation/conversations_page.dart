@@ -221,8 +221,10 @@ class _ConversationsPageState extends State<ConversationsPage>
           if (_useRelayUnread) {
             cached = await offlineRelayConversations(store, cached);
           }
-          if (!mounted || generation != _realGeneration) return;
-          if (cached.isNotEmpty) {
+          if (!mounted || !identical(repository, _repository)) return;
+          // A realtime refresh may already be in flight; it must not suppress
+          // disk restoration, or overwrite a newer server result with disk data.
+          if (cached.isNotEmpty && !_realReady) {
             setState(() {
               _realItems
                 ..clear()
@@ -391,7 +393,6 @@ class _ConversationsPageState extends State<ConversationsPage>
     if (widget.realData && !oldWidget.realData) {
       _connectReal();
     } else if (widget.realData && widget.active && !oldWidget.active) {
-      _avatarProfiles.clear();
       if (_repository == null) {
         _rebindIfSignedIn();
       } else {
@@ -415,7 +416,6 @@ class _ConversationsPageState extends State<ConversationsPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed || !widget.realData) return;
-    _avatarProfiles.clear();
     if (_repository == null) {
       _rebindIfSignedIn();
     } else {

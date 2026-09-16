@@ -257,7 +257,6 @@ class _ContactsPageState extends State<ContactsPage>
       return;
     }
     if (widget.realData && widget.active && !oldWidget.active) {
-      _avatarProfiles.clear();
       if (_real == null) {
         unawaited(_rebindIfSignedIn());
         return;
