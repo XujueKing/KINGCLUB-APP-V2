@@ -16,6 +16,8 @@
 
 ### 保存回执丢失后恢复
 
+新增图片上传完成后，先原子保存账号目录内 `cloud-uploads.json` 的路径/资产映射，再确认上传队列并写云目录。重启加载该检查点可复用已上传资产；云目录与本地一致则采纳，不同则继续冲突保护。仅接受本账号目录内路径和合法资产编号；损坏记录不作为上传成功证据。成功提交本地基线后移除检查点。图片内容仍保存在原文件，未在检查点保存凭证。
+
 已知图片资产映射齐全时，先把本地目录转换成资产目录，与云端最新目录精确比较（含顺序、名称和图片）。内容相同直接采纳云端版本，不重复提交、不弹冲突。内容不同或新图片尚无持久映射时继续原有冲突保护，不能据此覆盖他端修改。覆盖改名、删除已提交但响应丢失的重试；新上传的映射恢复仍是独立待完善项。
 
 验证：14项同步测试通过，两个文件静态分析无问题。新增用例先模拟云写入已生效而回执抛错，再验证重试只采纳版本、总写入次数仍为一次；再次重连不重新应用面板。现有双端不同内容冲突保护测试继续通过。本节点未重新安装，服务器及真机丢包场景未验收。
@@ -40,3 +42,7 @@ ChatEmojiPanel 由真实会话传入 repository，本地恢复后后台调用同
 A malformed or structurally invalid cloud.json now becomes an unknown baseline instead of permanently preventing synchronization. The existing first-sync rules restore remote files when the local library is empty and require explicit keep-both resolution when both sides contain images. Invalid mappings are not reused. Disk read failures still propagate; they are not silently interpreted as a cleared library.
 
 Validation: analyze passed; all 12 sync tests passed, including truncated/invalid records, cloud restore without writes, both-sided conflict protection, unchanged reconnect, missing-file recovery and deliberate local deletion. Earlier tests used the placeholder baseline string old; these fixtures now contain a real serialized local snapshot. This is local controlled recovery coverage, not online deployment or dual-phone acceptance. Not included in the 08:29 installed APK.
+
+## ???????
+
+16????????????????????????????????????????????????????????????????????????????????????????????????????????????????????

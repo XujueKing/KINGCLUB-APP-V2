@@ -6,8 +6,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/sticker_library_sync.dart';
 import 'package:kingclub/src/features/messaging/data/sticker_library_repository.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/messaging/data/chat_image_uploader.dart';
 
 const asset = '12345678-1234-4234-8234-123456789012';
+
+class Uploads extends ChatImageUploader {
+  Uploads(MessagingRepository repository)
+    : super(repository: repository, checkSession: () async {});
+  int count = 0, acknowledged = 0;
+  @override
+  Future<UploadedChatImage> upload(
+    Uint8List input, {
+    void Function(int, int)? onProgress,
+  }) async {
+    count++;
+    return const UploadedChatImage(asset, 1, 1, 'synthetic', 'synthetic');
+  }
+
+  @override
+  Future<void> acknowledgeQueued(UploadedChatImage image) async {
+    acknowledged++;
+  }
+}
 
 class Cloud extends StickerLibraryRepository {
   Cloud(this.snapshot)
@@ -15,6 +35,7 @@ class Cloud extends StickerLibraryRepository {
   StickerLibrarySnapshot snapshot;
   int writes = 0;
   bool loseNextWriteResponse = false;
+  bool rejectNextWrite = false;
   @override
   Future<StickerLibrarySnapshot> read() async => snapshot;
   @override
@@ -27,6 +48,10 @@ class Cloud extends StickerLibraryRepository {
   ) async {
     writes++;
     expect(revision, snapshot.revision);
+    if (rejectNextWrite) {
+      rejectNextWrite = false;
+      throw StateError('directory write unavailable');
+    }
     snapshot = StickerLibrarySnapshot(revision + 1, packs);
     if (loseNextWriteResponse) {
       loseNextWriteResponse = false;
@@ -44,6 +69,61 @@ void main() {
   tearDown(() async {
     await dir.delete(recursive: true);
   });
+  for (final committed in [false, true]) {
+    test(
+      'new upload survives directory failure and restart; committed=$committed',
+      () async {
+        final file = await File('${dir.path}/new.image')
+            .writeAsBytes([1, 2, 3]);
+        final local = [
+          {
+            'name': 'favorites',
+            'images': [file.path],
+          },
+        ];
+        final cloud =
+            Cloud(StickerLibrarySnapshot(0, [StickerPack('favorites', [])]))
+              ..loseNextWriteResponse = committed
+              ..rejectNextWrite = !committed;
+        final uploads = Uploads(cloud.messaging);
+        final first = StickerLibrarySync(
+          cloud,
+          dir,
+          openUploader: () async => uploads,
+        );
+        await expectLater(
+          first.synchronize(local, (_) async => true),
+          throwsStateError,
+        );
+        expect(uploads.count, 1);
+        expect(uploads.acknowledged, 1);
+        expect(await File('${dir.path}/cloud.json').exists(), false);
+        final pending = File('${dir.path}/cloud-uploads.json');
+        expect(jsonDecode(await pending.readAsString())[file.path], asset);
+        first.dispose();
+        final resumedCloud = Cloud(cloud.snapshot);
+        final resumed = StickerLibrarySync(
+          resumedCloud,
+          dir,
+          openUploader: () async =>
+              throw StateError('must reuse uploaded asset'),
+        );
+        addTearDown(resumed.dispose);
+        await resumed.synchronize(local, (next) async {
+          expect(next, local);
+          return true;
+        });
+        expect(resumedCloud.writes, committed ? 0 : 1);
+        expect(await pending.exists(), false);
+        expect(
+          jsonDecode(
+            await File('${dir.path}/cloud.json').readAsString(),
+          )['revision'],
+          1,
+        );
+      },
+    );
+  }
   for (final deleting in [false, true]) {
     test(
       'lost committed response converges without rewriting; delete=$deleting',

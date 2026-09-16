@@ -33,6 +33,25 @@ class StickerLibrarySync {
     }
     _check();
     final mapping = Map<String, dynamic>.from(state['mapping'] as Map? ?? {});
+    final uploadsJournal = File('${directory.path}/cloud-uploads.json');
+    if (await uploadsJournal.exists()) {
+      try {
+        final pending = jsonDecode(await uploadsJournal.readAsString());
+        if (pending is Map<String, dynamic>) {
+          for (final entry in pending.entries) {
+            if (File(entry.key).parent.absolute.path ==
+                    directory.absolute.path &&
+                entry.value is String &&
+                _assetId.hasMatch(entry.value as String)) {
+              mapping.putIfAbsent(entry.key, () => entry.value);
+            }
+          }
+        }
+      } on FormatException {
+        // A damaged upload checkpoint is not proof of a completed upload.
+      }
+    }
+    _check();
     final signature = jsonEncode(local);
     final remote = await cloud.read();
     _check();
@@ -88,7 +107,6 @@ class StickerLibrarySync {
       throw StickerLibraryConflict();
     }
     var saved = remote;
-    final uploaded = <UploadedChatImage>[];
     if (dirty && (state.containsKey('revision') || hasLocal)) {
       final packs = <StickerPack>[];
       for (final pack in local) {
@@ -111,8 +129,16 @@ class StickerLibrarySync {
             final image = await _uploader!.upload(await file.readAsBytes());
             _check();
             asset = image.assetId;
-            uploaded.add(image);
             mapping[path] = asset;
+            // Save upload identity before committing the cloud directory. A
+            // lost directory response or process restart must not re-upload.
+            final temp = File('${uploadsJournal.path}.tmp');
+            await temp.writeAsString(jsonEncode(mapping), flush: true);
+            _check();
+            await temp.rename(uploadsJournal.path);
+            _check();
+            await _uploader!.acknowledgeQueued(image);
+            _check();
           }
           assets.add(asset);
         }
@@ -165,9 +191,7 @@ class StickerLibrarySync {
     );
     _check();
     await temp.rename(journal.path);
-    for (final image in uploaded) {
-      await _uploader?.acknowledgeQueued(image);
-    }
+    if (await uploadsJournal.exists()) await uploadsJournal.delete();
   }
 
   void dispose() {
@@ -231,11 +255,8 @@ Map<String, dynamic> _decodeJournal(String source) {
         )) {
       return {};
     }
-    final uuid = RegExp(
-      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-    );
     if ((raw['mapping'] as Map).values.any(
-      (asset) => asset is! String || !uuid.hasMatch(asset),
+      (asset) => asset is! String || !_assetId.hasMatch(asset),
     )) {
       return {};
     }
@@ -244,3 +265,7 @@ Map<String, dynamic> _decodeJournal(String source) {
     return {};
   }
 }
+
+final _assetId = RegExp(
+  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+);
