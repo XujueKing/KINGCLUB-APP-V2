@@ -7,6 +7,7 @@ import 'novorudp_frame_link.dart';
 import 'novorudp_relay_connection.dart';
 import 'novorudp_secure_packet.dart';
 import 'novorudp_secure_session.dart';
+import 'novorudp_lan_route.dart';
 
 /// Owns one authenticated peer channel, not the shared relay connection.
 /// Relay acceptance never substitutes for the upper layer's durable receipt.
@@ -16,6 +17,7 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
     required this.channel,
     required this.expectedPeer,
     this.authorize,
+    bool enableLan = const bool.fromEnvironment('KINGCLUB_NOVORUDP_LAN'),
   }) : _localPeer = relay.identity.peerId {
     if (!RegExp(r'^novovm-ed25519:[0-9a-f]{64}$').hasMatch(expectedPeer) ||
         expectedPeer == _localPeer) {
@@ -43,7 +45,11 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
                 _check();
                 if (frame.payload.length <=
                     NovoRudpSecurePacket.maxFramePayload) {
-                  _frames.add(frame);
+                  if (frame.streamId == NovoRudpLanRoute.controlStream) {
+                    await _lan?.acceptControl(frame);
+                  } else {
+                    _frames.add(frame);
+                  }
                 }
               } on StateError {
                 // Bad authentication/replays are discarded, never delivered.
@@ -64,6 +70,7 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
     _session = SecureSessionStore.changes.stream.listen(
       (_) => unawaited(close()),
     );
+    if (enableLan) unawaited(_openLan());
     if (authorize != null) {
       _authorizationTimer = Timer.periodic(const Duration(seconds: 15), (_) {
         unawaited(Future<void>.sync(revalidate).catchError((Object _) {}));
@@ -74,6 +81,35 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
   final String _localPeer;
   final String expectedPeer;
   final Future<void> Function()? authorize;
+  NovoRudpLanRoute? _lan;
+  bool get directLanReady => _lan?.ready ?? false;
+
+  Future<void> _openLan() async {
+    try {
+      final route = await NovoRudpLanRoute.open(
+        channel: channel,
+        sendControl: send,
+        deliver: (frame) async {
+          await _authorization;
+          _check();
+          _frames.add(frame);
+        },
+      );
+      if (_closed) {
+        await route?.close();
+        return;
+      }
+      _lan = route;
+      // The parent relay may still be connecting; periodic offers retry it.
+      try {
+        await route?.advertise();
+      } catch (_) {}
+    } catch (_) {
+      await _lan?.close();
+      _lan = null;
+    }
+  }
+
   Timer? _authorizationTimer;
   Future<void>? _authorization;
   @override
@@ -123,6 +159,11 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
     if (frame.payload.length > NovoRudpSecurePacket.maxFramePayload) {
       throw ArgumentError('Split payload before relay transmission');
     }
+    if (frame.streamId != NovoRudpLanRoute.controlStream &&
+        await _lan?.trySend(frame) == true) {
+      return;
+    }
+    _check();
     final envelope = await channel.seal(frame);
     await _authorization;
     _check();
@@ -140,6 +181,7 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
   }
 
   Future<void> _close() async {
+    await _lan?.close();
     channel.close();
     await _incoming.cancel();
     await _session.cancel();
