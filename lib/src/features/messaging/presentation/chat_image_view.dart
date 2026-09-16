@@ -1,15 +1,19 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 import '../../../core/media/cached_media_image.dart';
+import '../../../core/media/media_cache.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
+import '../../auth/domain/auth_repository.dart';
 import '../data/messaging_repository.dart';
 import '../data/chat_media_event_scope.dart';
 
-/// Cached bytes may be displayed only after a current message authorization.
+/// Saved message images display locally; fetching missing bytes authorizes.
 class ChatImageView extends StatefulWidget {
   const ChatImageView({
     super.key,
@@ -19,12 +23,14 @@ class ChatImageView extends StatefulWidget {
     this.group = false,
     this.events,
     this.scopeId,
+    this.mediaStore,
   });
   final MessagingRepository repository;
   final String messageId;
   final bool full;
   final bool group;
   final String? scopeId;
+  final MediaCache? mediaStore;
   final Stream<Map<String, dynamic>>? events;
   @override
   State<ChatImageView> createState() => _ChatImageViewState();
@@ -35,6 +41,10 @@ class _ChatImageViewState extends State<ChatImageView>
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
   Map<String, dynamic>? _media;
+  File? _local;
+  MediaCache get _store => widget.mediaStore ?? MediaCache.shared;
+  String get _localKey =>
+      'chat-image-message:${widget.group}:${widget.messageId}:${widget.full ? 'image' : 'thumbnail'}';
   bool _invalid = false, _failed = false;
   int _generation = 0;
   @override
@@ -47,6 +57,7 @@ class _ChatImageViewState extends State<ChatImageView>
       if (mounted) {
         setState(() {
           _media = null;
+          _local = null;
           _failed = true;
         });
       }
@@ -61,7 +72,7 @@ class _ChatImageViewState extends State<ChatImageView>
         return;
       }
       if (type == 'chat.group.read') {
-        _load(keepVisible: true);
+        _load(keepVisible: true, revalidate: true);
         return;
       }
       if ([
@@ -70,7 +81,7 @@ class _ChatImageViewState extends State<ChatImageView>
         'chat.relationship.changed',
         'connection.ready',
       ].contains(event['eventType'])) {
-        _load();
+        _load(revalidate: true);
       }
     });
     _load();
@@ -93,14 +104,48 @@ class _ChatImageViewState extends State<ChatImageView>
     if (state == AppLifecycleState.resumed) _load();
   }
 
-  Future<void> _load({bool keepVisible = false}) async {
+  Future<void> _load({
+    bool keepVisible = false,
+    bool revalidate = false,
+  }) async {
     if (_invalid || !mounted) return;
     final generation = ++_generation;
     setState(() {
-      if (!keepVisible) _media = null;
+      if (!keepVisible) {
+        _media = null;
+        _local = null;
+      }
       _failed = false;
     });
     try {
+      if (!revalidate) {
+        try {
+          final local = await _store.cachedImage(
+            scope: 'member:${widget.repository.account}',
+            contentKey: _localKey,
+          );
+          final buffer = await ui.ImmutableBuffer.fromUint8List(
+            await local.readAsBytes(),
+          );
+          ui.ImageDescriptor? descriptor;
+          try {
+            descriptor = await ui.ImageDescriptor.encoded(buffer);
+            final width = descriptor.width, height = descriptor.height;
+            if (!mounted || _invalid || generation != _generation) return;
+            setState(() {
+              _local = local;
+              _media = {'width': width, 'height': height};
+            });
+            return;
+          } finally {
+            descriptor?.dispose();
+            buffer.dispose();
+          }
+        } catch (_) {
+          // Missing local file (including pre-migration installs): authorize download.
+        }
+      }
+      if (!mounted || _invalid || generation != _generation) return;
       final result = await widget.repository.imageMedia(
         widget.messageId,
         group: widget.group,
@@ -121,13 +166,42 @@ class _ChatImageViewState extends State<ChatImageView>
           (media['headers'] as Map?)?['authorization'] is! String) {
         throw const FormatException('图片授权无效');
       }
-      setState(() => _media = media);
-    } catch (_) {
+      setState(() {
+        _local = null;
+        _media = media;
+      });
+    } catch (failure) {
       if (mounted && generation == _generation) {
         setState(() {
           _media = null;
+          _local = null;
           _failed = true;
         });
+        if (revalidate &&
+            failure is AuthFailure &&
+            failure.code == 'NETWORK_ERROR') {
+          await _load();
+        } else if (failure is AuthFailure &&
+            ![
+              'NETWORK_ERROR',
+              'SECURE_REQUEST_FAILED',
+              'SESSION_CHANGED',
+              'SESSION_EXPIRED',
+            ].contains(failure.code)) {
+          final prefix =
+              'chat-image-message:${widget.group}:${widget.messageId}';
+          final scope = 'member:${widget.repository.account}';
+          final store = _store;
+          for (final slot in ['image', 'thumbnail']) {
+            try {
+              await store.evict(
+                scope: scope,
+                contentKey: '$prefix:$slot',
+                kind: MediaKind.image,
+              );
+            } catch (_) {}
+          }
+        }
       }
     }
   }
@@ -152,11 +226,17 @@ class _ChatImageViewState extends State<ChatImageView>
     );
     final image = media == null
         ? fallback
+        : _local != null
+        ? Image.file(
+            _local!,
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => const Center(child: Text('图片加载失败')),
+          )
         : CachedMediaImage(
             "${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}${media['path']}",
             private: true,
-            contentKey:
-                'chat-image:${widget.repository.account}:${media['fileId']}',
+            contentKey: _localKey,
+            cache: widget.mediaStore,
             headers: {
               'authorization':
                   (media['headers'] as Map)['authorization'] as String,

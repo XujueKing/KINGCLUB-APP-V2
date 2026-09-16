@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:kingclub/src/core/media/media_cache.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,7 +23,71 @@ Map<String, dynamic> grant({
     'headers': {'authorization': 'Bearer fixture'},
   },
 };
+
+class EmptyMedia extends MediaCache {
+  @override
+  Future<File> cachedImage({
+    required String scope,
+    required String contentKey,
+  }) async => throw StateError('not downloaded');
+}
+
 void main() {
+  testWidgets('downloaded image reopens offline from real local storage', (
+    tester,
+  ) async {
+    late Directory root;
+    late MediaCache media;
+    await tester.runAsync(() async {
+      root = await Directory.systemTemp.createTemp('chat-image-local-');
+      final source = File('assets/legacy/storage/wine_flip.png');
+      media = MediaCache(
+        directory: () async => Directory('${root.path}/media'),
+      );
+      await media.importFile(
+        source,
+        scope: 'member:me',
+        contentKey: 'chat-image-message:false:m:thumbnail',
+        kind: MediaKind.image,
+      );
+    });
+    var requests = 0;
+    final repo = MessagingRepository(
+      account: 'me',
+      call: (_, _) async {
+        requests++;
+        throw StateError('offline');
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatImageView(
+          repository: repo,
+          messageId: 'm',
+          mediaStore: media,
+          events: const Stream.empty(),
+        ),
+      ),
+    );
+    await tester.runAsync(() async {
+      for (var i = 0; i < 50 && find.byType(Image).evaluate().isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await tester.pump();
+      }
+    });
+    await tester.pump();
+    expect(requests, 0);
+    expect(find.byType(Image), findsOneWidget);
+    expect(tester.widget<Image>(find.byType(Image)).image, isA<FileImage>());
+    await tester.runAsync(
+      () => precacheImage(
+        tester.widget<Image>(find.byType(Image)).image,
+        tester.element(find.byType(Image)),
+      ),
+    );
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() => root.delete(recursive: true));
+  });
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   for (final group in [false, true]) {
     testWidgets('image ignores unrelated scopes; group=$group', (tester) async {
@@ -39,6 +106,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: ChatImageView(
+            mediaStore: EmptyMedia(),
             repository: repository,
             messageId: 'm',
             group: group,
@@ -81,6 +149,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: ChatImageView(
+          mediaStore: EmptyMedia(),
           repository: repository,
           messageId: 'm',
           group: true,
@@ -117,6 +186,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: ChatImageView(
+          mediaStore: EmptyMedia(),
           repository: repository,
           messageId: 'm',
           events: const Stream.empty(),
@@ -138,6 +208,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: ChatImageView(
+          mediaStore: EmptyMedia(),
           repository: repository,
           messageId: 'm',
           events: const Stream.empty(),
@@ -165,6 +236,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: ChatImageView(
+            mediaStore: EmptyMedia(),
             repository: repository,
             messageId: 'm',
             events: events.stream,
@@ -194,6 +266,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: ChatImageView(
+            mediaStore: EmptyMedia(),
             repository: repository,
             messageId: 'm',
             events: const Stream.empty(),
@@ -205,7 +278,7 @@ void main() {
         find.byType(CachedMediaImage),
       );
       expect(view.private, true);
-      expect(view.contentKey, 'chat-image:me:file');
+      expect(view.contentKey, 'chat-image-message:false:m:thumbnail');
       expect(view.headers, {'authorization': 'Bearer fixture'});
       SecureSessionStore.changes.add(null);
       await tester.pumpAndSettle();
@@ -228,6 +301,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: ChatImageView(
+            mediaStore: EmptyMedia(),
             repository: repository,
             messageId: 'm',
             group: true,
