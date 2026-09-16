@@ -7,6 +7,81 @@ import 'package:kingclub/src/features/messaging/presentation/group_details_page.
 import 'package:kingclub/src/features/messaging/presentation/chat_member_avatar.dart';
 
 void main() {
+  for (final role in ['owner', 'admin', 'member']) {
+    testWidgets('silence menu follows role and acknowledged state: $role', (
+      tester,
+    ) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      var muted = false;
+      final actions = <String>[];
+      final repo = GroupChatRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (id, params) async {
+            if (id == 'K260913000619') {
+              return {
+                'groupName': '测试群',
+                'ownerAccount': role == 'owner' ? 'me' : 'leader',
+                'metadataVersion': actions.length,
+                'membershipVersion': 0,
+                'members': [
+                  {
+                    'account': 'me',
+                    'nickname': '本人',
+                    'role': role,
+                    'membershipVersion': 0,
+                  },
+                  {
+                    'account': 'peer',
+                    'nickname': '测试成员',
+                    'role': 'member',
+                    'membershipVersion': 0,
+                    'sendMuted': muted,
+                  },
+                ],
+              };
+            }
+            if (id == 'K260913000627') {
+              expect(params['expectedVersion'], actions.length);
+              expect(params['membershipVersion'], 0);
+              actions.add(params['action'] as String);
+              muted = params['action'] == 'mute';
+              return {'changed': true};
+            }
+            if (id == 'K260913000621') return {'settings': <String, dynamic>{}};
+            return <String, dynamic>{};
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GroupDetailsPage(groupId: 'group', repository: repo),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final menu = find.byKey(const ValueKey('group-member-actions-peer'));
+      if (role == 'member') {
+        expect(menu, findsNothing);
+      } else {
+        for (final label in ['禁言', '解除禁言']) {
+          await tester.scrollUntilVisible(
+            menu,
+            150,
+            scrollable: find.byType(Scrollable).first,
+          );
+          await tester.tap(menu);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text(label));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const ValueKey('group-member-confirm')));
+          await tester.pumpAndSettle();
+          expect(find.text('已禁言'), muted ? findsOneWidget : findsNothing);
+        }
+        expect(actions, ['mute', 'unmute']);
+      }
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
   for (final owner in [true, false]) {
     testWidgets(
       'member management role boundary and confirmed removal owner=$owner',

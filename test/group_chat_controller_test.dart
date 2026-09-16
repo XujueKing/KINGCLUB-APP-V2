@@ -42,6 +42,54 @@ Map<String, dynamic> message(String id) => {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   FlutterSecureStorage.setMockInitialValues({});
+  test(
+    'silence keeps history and blocks queueing until authoritative unmute',
+    () async {
+      var muted = true;
+      var sends = 0;
+      final outbox = Queue();
+      final controller = GroupChatController(
+        groupId: 'group',
+        outbox: outbox,
+        repository: GroupChatRepository(
+          MessagingRepository(
+            account: 'me',
+            call: (id, params) async {
+              if (id == 'K260913000621') {
+                return {
+                  ...history([message('old')]),
+                  'sendPermission': {'allowed': !muted},
+                };
+              }
+              if (id == 'K260913000620') {
+                sends++;
+                return {
+                  'message': {
+                    ...message(params['clientMessageId'] as String),
+                    'sequence': 2,
+                  },
+                };
+              }
+              return {};
+            },
+          ),
+        ),
+      );
+      await controller.initialize();
+      expect(controller.hasAccess, true);
+      expect(controller.messages, hasLength(1));
+      await expectLater(controller.send('hello'), throwsStateError);
+      expect(outbox.rows, isEmpty);
+      expect(sends, 0);
+      muted = false;
+      await controller.synchronize();
+      expect(controller.sendMuted, false);
+      await controller.send('hello');
+      expect(sends, 1);
+      expect(outbox.rows, isEmpty);
+      controller.dispose();
+    },
+  );
   test('restored failed group text stays before newer group history', () async {
     final outbox = Queue();
     await outbox.put({
@@ -218,7 +266,7 @@ void main() {
           account: 'me',
           call: (id, _) async {
             if (id == 'K260913000619') {
-              if (pending != null) return pending!.future;
+              if (pending != null) return pending.future;
               return {
                 'members': [
                   {'account': 'friend', 'nickname': name},
@@ -245,7 +293,7 @@ void main() {
     final sync = chat.synchronize();
     await Future<void>.delayed(Duration.zero);
     chat.clearVisibleHistory();
-    pending!.complete({
+    pending.complete({
       'members': [
         {'account': 'friend', 'nickname': '迟到昵称'},
       ],
@@ -291,8 +339,9 @@ void main() {
           call: (id, params) async {
             expect(id, 'K260913000617');
             requests.add(params);
-            if (requests.length == 1)
+            if (requests.length == 1) {
               throw const AuthFailure('NETWORK_ERROR', 'lost acknowledgement');
+            }
             return {'groupId': 'created'};
           },
         ),
@@ -320,8 +369,9 @@ void main() {
       MessagingRepository(
         account: 'me',
         call: (id, params) async {
-          if (id == 'K260913000621')
+          if (id == 'K260913000621') {
             return history(committed == null ? [] : [committed!]);
+          }
           expect(id, 'K260913000620');
           sends++;
           expect(params['groupId'], 'group');
@@ -363,8 +413,9 @@ void main() {
           account: 'me',
           call: (id, params) async {
             expect(id, 'K260913000621');
-            if (revoked)
+            if (revoked) {
               throw const AuthFailure('CHAT_GROUP_ACCESS_DENIED', 'removed');
+            }
             return history([message('old')]);
           },
         ),

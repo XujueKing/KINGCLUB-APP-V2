@@ -158,24 +158,35 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         member['role'] == 'owner') {
       return [];
     }
+    final silence = member['role'] == 'member' && member['sendMuted'] is bool
+        ? [member['sendMuted'] == true ? 'unmute' : 'mute']
+        : <String>[];
     if (_details!['ownerAccount'] == widget.repository.account) {
-      return [member['role'] == 'admin' ? 'member' : 'admin', 'remove'];
+      return [
+        member['role'] == 'admin' ? 'member' : 'admin',
+        ...silence,
+        'remove',
+      ];
     }
     final admin = (_details!['members'] as List).cast<Map>().any(
       (m) => m['account'] == widget.repository.account && m['role'] == 'admin',
     );
-    return admin && member['role'] == 'member' ? ['remove'] : [];
+    return admin && member['role'] == 'member' ? [...silence, 'remove'] : [];
   }
 
   String _actionLabel(String action) => switch (action) {
     'admin' => '设为管理员',
     'member' => '取消管理员',
+    'mute' => '禁言',
+    'unmute' => '解除禁言',
     _ => '移出群聊',
   };
 
   Widget _memberTrailing(Map member) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
+      if (member['sendMuted'] == true)
+        const Text('已禁言', style: TextStyle(color: Colors.grey, fontSize: 12)),
       if (member['role'] != 'member')
         Text(
           member['role'] == 'owner' ? '群主' : '管理员',

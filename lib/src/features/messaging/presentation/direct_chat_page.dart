@@ -510,7 +510,10 @@ class _DirectChatPageState extends State<DirectChatPage>
     }
   }
 
-  bool get _readOnly => _realTarget != null && _chat == null;
+  bool get _readOnly =>
+      (_realTarget != null && _chat == null) ||
+      (_chat is GroupChatController &&
+          (_chat as GroupChatController).sendMuted);
   late final List<_FakeMessage> _messages = _realTarget != null
       ? []
       : [
@@ -1011,7 +1014,10 @@ class _DirectChatPageState extends State<DirectChatPage>
                 padding: const EdgeInsets.all(9),
                 color: const Color(0x221F1B17),
                 child: Text(
-                  _connectionNotice,
+                  _chat is GroupChatController &&
+                          (_chat as GroupChatController).sendMuted
+                      ? (_chat as GroupChatController).sendDisabledReason
+                      : _connectionNotice,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Color(0x99FFFFFF), fontSize: 12),
                 ),

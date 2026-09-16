@@ -103,6 +103,8 @@ class GroupChatController extends ChatSessionController {
   @override
   bool hasOlder = false;
   bool hasAccess = false;
+  bool sendMuted = false;
+  String get sendDisabledReason => '你已被禁言，请联系群主或管理员';
   bool _syncAgain = false;
   @override
   String? error;
@@ -396,6 +398,10 @@ class GroupChatController extends ChatSessionController {
     readSequence = (result['readSequence'] as num).toInt();
     _canHideMessage = result['canHideMessage'] == true;
     _canReply = result['canReply'] == true;
+    if (advanceCursor) {
+      final permission = result['sendPermission'];
+      sendMuted = permission is Map && permission['allowed'] == false;
+    }
     _settings
       ..clear()
       ..addAll(
@@ -504,6 +510,7 @@ class GroupChatController extends ChatSessionController {
     text = text.trim();
     if (text.isEmpty || _disposed) return;
     if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (sendMuted) throw StateError(sendDisabledReason);
     if (text.length > 4000) throw StateError('文字最多4000字');
     final id = clientMessageId ?? const Uuid().v4();
     if (!RegExp(
@@ -537,6 +544,7 @@ class GroupChatController extends ChatSessionController {
   }) async {
     if (_disposed) return;
     if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (sendMuted) throw StateError(sendDisabledReason);
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
     ).hasMatch(assetId)) {
@@ -574,6 +582,7 @@ class GroupChatController extends ChatSessionController {
   }) async {
     if (_disposed) return;
     if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (sendMuted) throw StateError(sendDisabledReason);
     final id = const Uuid().v4();
     final message = <String, dynamic>{
       'clientMessageId': id,
@@ -605,6 +614,7 @@ class GroupChatController extends ChatSessionController {
   }) async {
     if (_disposed) return;
     if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (sendMuted) throw StateError(sendDisabledReason);
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
     ).hasMatch(assetId)) {
@@ -654,6 +664,7 @@ class GroupChatController extends ChatSessionController {
   }) async {
     if (_disposed) return;
     if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (sendMuted) throw StateError(sendDisabledReason);
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
     ).hasMatch(assetId)) {
@@ -694,6 +705,7 @@ class GroupChatController extends ChatSessionController {
   }) async {
     if (_disposed) return;
     if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (sendMuted) throw StateError(sendDisabledReason);
     final id = clientMessageId ?? const Uuid().v4();
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -721,7 +733,7 @@ class GroupChatController extends ChatSessionController {
 
   @override
   Future<void> retryQueued() async {
-    if (!hasAccess) return;
+    if (!hasAccess || sendMuted) return;
     for (final message in _pending.values.toList()) {
       if (_disposed) return;
       if (message['status'] == 'queued') {
@@ -732,6 +744,11 @@ class GroupChatController extends ChatSessionController {
 
   @override
   Future<void> retry(String id) async {
+    if (sendMuted) {
+      error = sendDisabledReason;
+      _changed();
+      return;
+    }
     final historyGeneration = _historyGeneration;
     final pending = _pending[id];
     if (pending == null || _disposed || !_sending.add(id)) return;
@@ -862,6 +879,7 @@ class GroupChatController extends ChatSessionController {
     } catch (e) {
       if (_disposed || !_pending.containsKey(id)) return;
       final transient = e is AuthFailure && e.code == 'NETWORK_ERROR';
+      if (e is AuthFailure && e.code == 'CHAT_GROUP_MUTED') sendMuted = true;
       final failed = {
         ...pending,
         'status': transient ? 'queued' : 'failed',
