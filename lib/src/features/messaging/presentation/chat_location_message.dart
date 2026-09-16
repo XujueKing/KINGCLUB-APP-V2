@@ -25,6 +25,7 @@ class ChatLocationMessage extends StatelessWidget {
       button: true,
       label: '查看位置：${location.name}',
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: SizedBox(
           width: 210,

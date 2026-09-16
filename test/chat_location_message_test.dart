@@ -147,7 +147,11 @@ void main() {
         ),
       );
       expect(find.text('测试地址'), findsOneWidget);
-      await tester.tap(find.text('测试地点'));
+      // The empty trailing area belongs to the same tappable card.
+      await tester.tapAt(
+        tester.getBottomRight(find.byType(ChatLocationMessage)) -
+            const Offset(2, 2),
+      );
       await tester.pumpAndSettle();
       expect(find.text('经纬度：28.000001, 113.000001'), findsOneWidget);
       expect(find.text('坐标系：GCJ-02'), findsOneWidget);
