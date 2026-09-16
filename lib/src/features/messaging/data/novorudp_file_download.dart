@@ -18,8 +18,12 @@ class NovoRudpFileDownload {
     required String sha256,
     required bool Function() canReceive,
     Duration deadline = const Duration(minutes: 5),
+    Duration idleTimeout = const Duration(seconds: 8),
   }) async {
     if (deadline <= Duration.zero) throw ArgumentError('Invalid deadline');
+    if (idleTimeout <= Duration.zero) {
+      throw ArgumentError('Invalid idle timeout');
+    }
     if (!canReceive()) throw StateError('File access unavailable');
     final receiver = await NovoRudpFileReceiver.create(
       privateDirectory: privateDirectory,
@@ -38,6 +42,7 @@ class NovoRudpFileDownload {
         objectId,
         canReceive,
         deadline,
+        idleTimeout,
       );
     } catch (_) {
       await receiver.close();
@@ -52,6 +57,7 @@ class NovoRudpFileDownload {
     this._objectId,
     this._canReceive,
     Duration deadline,
+    this._idleTimeout,
   ) {
     _subscription = _link.frames.listen(
       (frame) {
@@ -81,6 +87,7 @@ class NovoRudpFileDownload {
       deadline,
       () => _fail(TimeoutException('File receive deadline')),
     );
+    _armIdle();
     // Failure may arrive before the consumer starts awaiting completion.
     unawaited(_done.future.then<void>((_) {}, onError: (Object _) {}));
   }
@@ -93,11 +100,22 @@ class NovoRudpFileDownload {
   late final StreamSubscription<NovoRudpFrame> _subscription;
   late final StreamSubscription<void> _session;
   late final Timer _timer;
+  final Duration _idleTimeout;
+  Timer? _idleTimer;
+  int _progress = 0;
   Future<void>? _closing;
   bool _closed = false;
   int _queued = 0;
 
   Future<File> get completed => _done.future;
+
+  void _armIdle() {
+    _idleTimer?.cancel();
+    _idleTimer = Timer(
+      _idleTimeout,
+      () => _fail(TimeoutException('File receive stalled')),
+    );
+  }
 
   void _check() {
     if (_closed || !_canReceive()) throw StateError('File access unavailable');
@@ -108,6 +126,10 @@ class NovoRudpFileDownload {
       _check();
       final ack = await _receiver.receiveAuthenticated(frame);
       _check();
+      if (!_done.isCompleted && _receiver.receivedFragments > _progress) {
+        _progress = _receiver.receivedFragments;
+        _armIdle();
+      }
       if (ack == null) return;
       // A verified file is useful only after the current permission recheck.
       File? file;
@@ -125,6 +147,7 @@ class NovoRudpFileDownload {
       _check();
       if (file != null && !_done.isCompleted) {
         _timer.cancel();
+        _idleTimer?.cancel();
         _done.complete(file);
       }
     } catch (error) {
@@ -147,6 +170,7 @@ class NovoRudpFileDownload {
 
   Future<void> _close() async {
     _timer.cancel();
+    _idleTimer?.cancel();
     await _subscription.cancel();
     await _session.cancel();
     await _receiver.close();

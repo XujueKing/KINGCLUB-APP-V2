@@ -487,6 +487,101 @@ void main() {
       );
     }
 
+    test('idle download ignores duplicate fragments and ACK polls', () async {
+      final bytes = List<int>.filled(NovoRudpFileReceiver.chunkSize + 1, 7);
+      final input = await source(bytes);
+      final download = await NovoRudpFileDownload.open(
+        link: right,
+        privateDirectory: directory,
+        streamId: BigInt.from(71),
+        objectId: BigInt.from(92),
+        size: bytes.length,
+        sha256: input.hash,
+        canReceive: () => true,
+        idleTimeout: const Duration(milliseconds: 300),
+      );
+      final expectation = expectLater(
+        download.completed,
+        throwsA(
+          isA<TimeoutException>().having(
+            (e) => e.message,
+            'reason',
+            'File receive stalled',
+          ),
+        ),
+      );
+      NovoRudpFrame frame(NovoRudpFrameKind kind) => NovoRudpFrame(
+        kind: kind,
+        sessionId: left.channel.sessionId,
+        streamId: BigInt.from(71),
+        objectId: BigInt.from(92),
+        sequence: BigInt.zero,
+        ackEpoch: BigInt.zero,
+        payload: kind == NovoRudpFrameKind.data
+            ? bytes.sublist(0, NovoRudpFileReceiver.chunkSize)
+            : [],
+      );
+      await left.send(frame(NovoRudpFrameKind.data));
+      final repeat = Timer.periodic(const Duration(milliseconds: 50), (_) {
+        unawaited(left.send(frame(NovoRudpFrameKind.data)));
+        unawaited(left.send(frame(NovoRudpFrameKind.done)));
+      });
+      try {
+        await expectation.timeout(const Duration(seconds: 2));
+      } finally {
+        repeat.cancel();
+        await download.close();
+      }
+    });
+
+    test('idle download extends only while new fragments arrive', () async {
+      final bytes = List<int>.filled(NovoRudpFileReceiver.chunkSize * 3, 9);
+      final input = await source(bytes);
+      final download = await NovoRudpFileDownload.open(
+        link: right,
+        privateDirectory: directory,
+        streamId: BigInt.from(71),
+        objectId: BigInt.from(92),
+        size: bytes.length,
+        sha256: input.hash,
+        canReceive: () => true,
+        idleTimeout: const Duration(milliseconds: 500),
+      );
+      try {
+        for (var index = 0; index < 3; index++) {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+          await left.send(
+            NovoRudpFrame(
+              kind: NovoRudpFrameKind.data,
+              sessionId: left.channel.sessionId,
+              streamId: BigInt.from(71),
+              objectId: BigInt.from(92),
+              sequence: BigInt.from(index),
+              ackEpoch: BigInt.zero,
+              payload: bytes.sublist(
+                index * NovoRudpFileReceiver.chunkSize,
+                (index + 1) * NovoRudpFileReceiver.chunkSize,
+              ),
+            ),
+          );
+        }
+        await left.send(
+          NovoRudpFrame(
+            kind: NovoRudpFrameKind.done,
+            sessionId: left.channel.sessionId,
+            streamId: BigInt.from(71),
+            objectId: BigInt.from(92),
+            sequence: BigInt.zero,
+            ackEpoch: BigInt.zero,
+            payload: [],
+          ),
+        );
+        expect(await (await download.completed).readAsBytes(), bytes);
+      } finally {
+        await download.close();
+      }
+    });
+
     for (final revoke in [false, true]) {
       test(
         'download coordinator cleans ${revoke ? 'revoked' : 'timed out'} transfer',

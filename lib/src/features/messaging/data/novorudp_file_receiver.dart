@@ -96,6 +96,9 @@ class NovoRudpFileReceiver {
   bool _closed = false, _verified = false, _failed = false;
   int _count = 0, _epoch = 0, _queuedFragments = 0;
 
+  /// Unique fragments written to disk; duplicates and ACK polls are not progress.
+  int get receivedFragments => _count;
+
   void _check() {
     if (_closed || _failed || _generation != MemberQrMemory.generation) {
       throw StateError('Transfer unavailable');
