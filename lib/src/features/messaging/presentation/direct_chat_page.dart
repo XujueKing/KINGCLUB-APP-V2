@@ -822,6 +822,15 @@ class _DirectChatPageState extends State<DirectChatPage>
     final nearBottom =
         !_scrollController.hasClients ||
         _scrollController.position.extentAfter < 48;
+    final displayedIds = _messages
+        .map((message) => message.clientMessageId)
+        .toSet();
+    final hasNewOutgoing = chat.messages.any(
+      (message) =>
+          message['sender'] == chat.messaging.account &&
+          (message['status'] == 'queued' || message['status'] == 'sending') &&
+          !displayedIds.contains(message['clientMessageId']),
+    );
     final activeVoice = _voicePlayback?.activeId;
     if (activeVoice != null &&
         !chat.messages.any(
@@ -895,7 +904,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         );
       _muted = chat.settings['muted'] == true;
     });
-    if (nearBottom) _scrollToLatest();
+    if (nearBottom || hasNewOutgoing) _scrollToLatest();
     WidgetsBinding.instance.addPostFrameCallback((_) => _markRealRead());
   }
 
@@ -2545,11 +2554,22 @@ class _DirectChatPageState extends State<DirectChatPage>
       if (!_scrollController.hasClients) return;
       final target = _scrollController.position.maxScrollExtent;
       if ((_scrollController.position.pixels - target).abs() < 1) return;
-      _scrollController.animateTo(
-        target,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-      );
+      _scrollController
+          .animateTo(
+            target,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+          )
+          .then((_) {
+            if (!mounted || !_scrollController.hasClients) return;
+            final position = _scrollController.position;
+            // Lazy rows can change the estimated end while animating. Correct
+            // only an animation that reached its target, not a user interruption.
+            if ((position.pixels - target).abs() < 1 &&
+                position.extentAfter > 1) {
+              _scrollController.jumpTo(position.maxScrollExtent);
+            }
+          });
     });
   }
 
