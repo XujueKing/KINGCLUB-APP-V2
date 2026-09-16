@@ -7,6 +7,7 @@ import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../data/messaging_repository.dart';
+import '../data/chat_media_event_scope.dart';
 
 /// Cached bytes may be displayed only after a current message authorization.
 class ChatImageView extends StatefulWidget {
@@ -52,21 +53,12 @@ class _ChatImageViewState extends State<ChatImageView>
     });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
       final type = event['eventType'];
-      final data = event['data'];
-      final groupEvent =
-          type == 'chat.group.changed' || type == 'chat.group.read';
-      if (groupEvent && !widget.group) return;
-      if (data is Map) {
-        final scope = data[groupEvent ? 'groupId' : 'conversationId'];
-        if (scope is String &&
-            scope.isNotEmpty &&
-            (groupEvent ||
-                type == 'chat.settings.changed' ||
-                type == 'chat.relationship.changed') &&
-            ((widget.group && !groupEvent) ||
-                (widget.scopeId != null && scope != widget.scopeId))) {
-          return;
-        }
+      if (!affectsChatMedia(
+        event,
+        group: widget.group,
+        scopeId: widget.scopeId,
+      )) {
+        return;
       }
       if (type == 'chat.group.read') {
         _load(keepVisible: true);

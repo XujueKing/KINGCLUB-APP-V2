@@ -167,6 +167,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
         case 'video':
           return ChatVideoView(
             key: ValueKey('context-video-$id'),
+            scopeId: widget.groupId ?? message['conversationId'] as String?,
             repository: repository,
             messageId: id,
             group: group,
@@ -177,6 +178,8 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
               _preview(
                 ChatVideoView(
                   repository: repository,
+                  scopeId:
+                      widget.groupId ?? message['conversationId'] as String?,
                   messageId: id,
                   group: group,
                   full: true,

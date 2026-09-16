@@ -90,6 +90,7 @@ void main() {
               repository: repo,
               messageId: id,
               group: true,
+              scopeId: 'current',
               full: true,
               events: events.stream,
               loadFile: (_) async {
@@ -104,6 +105,22 @@ void main() {
       await tester.pumpAndSettle();
       expect(player.plays, 1);
       expect(calls, 2);
+      for (final type in ['chat.group.read', 'chat.group.changed']) {
+        events.add({
+          'eventType': type,
+          'data': {'groupId': 'other'},
+        });
+      }
+      events.add({
+        'eventType': 'chat.relationship.changed',
+        'data': {'conversationId': 'unrelated-direct'},
+      });
+      await tester.pumpAndSettle();
+      expect(calls, 2);
+      expect(player.disposals, 0);
+      expect(player.plays, 1);
+      expect(downloads, 1);
+      expect(player.value.position, const Duration(seconds: 7));
       void read() => events.add({'eventType': 'chat.group.read'});
       read();
       await tester.pumpAndSettle();

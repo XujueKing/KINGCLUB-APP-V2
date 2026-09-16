@@ -11,6 +11,7 @@ import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../data/messaging_repository.dart';
 import '../data/chat_video_grant.dart';
+import '../data/chat_media_event_scope.dart';
 
 class ChatVideoView extends StatefulWidget {
   const ChatVideoView({
@@ -26,9 +27,11 @@ class ChatVideoView extends StatefulWidget {
     this.loadFile,
     this.events,
     this.createPlayer,
+    this.scopeId,
   });
   final MessagingRepository repository;
   final String messageId;
+  final String? scopeId;
   final bool group, full;
   final int width, height, durationMs;
   final VoidCallback? onTap;
@@ -60,6 +63,9 @@ class _ChatVideoViewState extends State<ChatVideoView>
       _clear();
     });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((e) {
+      if (!affectsChatMedia(e, group: widget.group, scopeId: widget.scopeId)) {
+        return;
+      }
       if (e['eventType'] == 'chat.group.read') {
         if (widget.group) unawaited(_recheckPermission());
         return;
@@ -123,7 +129,8 @@ class _ChatVideoViewState extends State<ChatVideoView>
     if (old.messageId != widget.messageId ||
         old.repository != widget.repository ||
         old.full != widget.full ||
-        old.group != widget.group) {
+        old.group != widget.group ||
+        old.scopeId != widget.scopeId) {
       _preferHevc = true;
       _load();
     }
