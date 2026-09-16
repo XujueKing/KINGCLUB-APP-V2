@@ -19,3 +19,10 @@ layout/rebuild checks, not real-device frame-time or visual acceptance.
 The Android gfxinfo sample after installation had only 50 frames and 7 janky
 frames; it is neither a targeted IME capture nor the Flutter frame pipeline and
 must not be used to claim the remaining animation issue resolved.
+
+Follow-up installation: preview 5fa6e73 (includes this patch and sender video
+retention cb9a418) built in Profile mode, 159.2 MB. A installation returned
+Success and the start script verified stable foreground on attempt 2. Opened
+the existing A/B direct conversation and verified its unsent text was identical
+to the pre-install text. No message was sent. B was not modified. Smoothness and
+real offline video playback remain unaccepted for this build.
