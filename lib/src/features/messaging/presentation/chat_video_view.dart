@@ -9,6 +9,7 @@ import '../../../core/media/media_cache.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
+import '../../auth/domain/auth_repository.dart';
 import '../data/messaging_repository.dart';
 import '../data/chat_video_grant.dart';
 import '../data/chat_media_event_scope.dart';
@@ -28,10 +29,12 @@ class ChatVideoView extends StatefulWidget {
     this.events,
     this.createPlayer,
     this.scopeId,
+    this.mediaStore,
   });
   final MessagingRepository repository;
   final String messageId;
   final String? scopeId;
+  final MediaCache? mediaStore;
   final bool group, full;
   final int width, height, durationMs;
   final VoidCallback? onTap;
@@ -76,7 +79,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
         'chat.relationship.changed',
         'connection.ready',
       ].contains(e['eventType'])) {
-        _load();
+        _load(revalidate: true);
       }
     });
     _load();
@@ -96,7 +99,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
     if (_invalid || !mounted || !_foreground) return;
     final displayed = _displayedGrant;
     if (displayed == null) {
-      await _load();
+      await _load(revalidate: true);
       return;
     }
     final generation = _generation;
@@ -116,8 +119,14 @@ class _ChatVideoViewState extends State<ChatVideoView>
         }
         if (revision == _permissionRevision) return;
       }
-    } catch (_) {
-      if (mounted && generation == _generation) _clear();
+    } catch (error) {
+      if (!mounted || _invalid || generation != _generation) return;
+      _clear();
+      if (error is AuthFailure && error.code == 'NETWORK_ERROR') {
+        await _load();
+      } else if (error is AuthFailure) {
+        await _evictLocal();
+      }
     } finally {
       if (_checkingGeneration == generation) _checkingGeneration = null;
     }
@@ -156,7 +165,16 @@ class _ChatVideoViewState extends State<ChatVideoView>
     group: widget.group,
     full: widget.full,
   );
-  Future<void> _load() async {
+  String get _localKey =>
+      'chat-video-message:${widget.group}:${widget.messageId}:${widget.full ? 'video' : 'poster'}';
+  MediaCache get _media => widget.mediaStore ?? MediaCache.shared;
+  Future<void> _evictLocal() => _media.evict(
+    scope: 'member:${widget.repository.account}',
+    contentKey: _localKey,
+    kind: widget.full ? MediaKind.video : MediaKind.image,
+  );
+
+  Future<void> _load({bool revalidate = false}) async {
     if (_invalid || !mounted || !_foreground) return;
     _clear();
     final generation = _generation;
@@ -164,11 +182,47 @@ class _ChatVideoViewState extends State<ChatVideoView>
     VideoPlayerController? player;
     var decodingHevc = false;
     try {
+      if (!revalidate && widget.loadFile == null) {
+        File? local;
+        try {
+          local = await _media.cached(
+            scope: 'member:${widget.repository.account}',
+            contentKey: _localKey,
+            kind: widget.full ? MediaKind.video : MediaKind.image,
+          );
+        } catch (_) {}
+        if (!mounted || _invalid || generation != _generation) return;
+        if (local != null) {
+          if (widget.full) {
+            player =
+                widget.createPlayer?.call(local) ??
+                VideoPlayerController.file(local);
+            try {
+              await player.initialize();
+              if (!mounted || _invalid || generation != _generation) {
+                await player.dispose();
+                return;
+              }
+              setState(() => _player = player);
+              await player.play();
+              return;
+            } catch (_) {
+              await player.dispose();
+              player = null;
+              if (!mounted || _invalid || generation != _generation) return;
+              await _evictLocal();
+            }
+          } else {
+            setState(() => _poster = local);
+            return;
+          }
+        }
+      }
       final grant = await _grant();
       if (!mounted || _invalid || generation != _generation) return;
       final file =
           await (widget.loadFile?.call(grant) ??
-              MediaCache.shared.get(
+              _media.get(
                 '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}${grant.path}',
                 scope: 'member:${widget.repository.account}',
                 contentKey:
@@ -198,6 +252,15 @@ class _ChatVideoViewState extends State<ChatVideoView>
         throw const FormatException('视频已变化');
       }
       if (!mounted || _invalid || generation != _generation) return;
+      if (widget.loadFile == null) {
+        await _media.importFile(
+          file,
+          scope: 'member:${widget.repository.account}',
+          contentKey: _localKey,
+          kind: widget.full ? MediaKind.video : MediaKind.image,
+        );
+        if (!mounted || _invalid || generation != _generation) return;
+      }
       if (widget.full) {
         decodingHevc = grant.codec == 'hevc';
         player =
@@ -218,8 +281,25 @@ class _ChatVideoViewState extends State<ChatVideoView>
           _poster = file;
         });
       }
-    } catch (_) {
+    } catch (error) {
       await player?.dispose();
+      if (mounted &&
+          !_invalid &&
+          generation == _generation &&
+          error is AuthFailure) {
+        if (error.code == 'NETWORK_ERROR' && revalidate) {
+          await _load();
+          return;
+        }
+        if (![
+          'NETWORK_ERROR',
+          'SESSION_CHANGED',
+          'SESSION_EXPIRED',
+          'SECURE_REQUEST_FAILED',
+        ].contains(error.code)) {
+          await _evictLocal();
+        }
+      }
       if (mounted &&
           !_invalid &&
           generation == _generation &&
