@@ -1,5 +1,11 @@
 # A 语音修复更新包
 
+## 第三次增量更新
+
+追加e3fa3c1/e4a476d视频预览生命周期、47c6374通话前台服务及cac9f3e启动取消修复，独立构建提交ba8d880。对应原生服务、主Activity、Manifest和Dart实现与主分支无差异。
+
+Profile/preview ARM64构建75.9秒，159.2MB，SHA-256：308ABD1046D6CCD900B82FDEF549E6B90843EEADE6B9F58838B5B38C5E71A7EF。A覆盖安装Success，启动助手第二次确认稳定前台，实际UI显示原登录首页。空闲时dumpsys仅有既有定位插件绑定服务，没有CallForegroundService；未操作B，未以空闲检查代替真实后台通话验收。
+
 ## 第二次增量更新
 
 在上述独立构建工作区追加82cb323（转文字后台校验暂停）和2c39b55（通话实时通知刷新），构建提交c8271f6；与主分支对应三个实现文件无差异。Profile/preview ARM64构建87.3秒，APK159.2MB，原生库检查通过。
