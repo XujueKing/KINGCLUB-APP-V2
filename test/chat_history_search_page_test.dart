@@ -13,6 +13,57 @@ Map<String, dynamic> row(int sequence, String text) => {
   'createdDate': DateTime(2020, 1, 2, 10).toUtc().toIso8601String(),
 };
 void main() {
+  for (final group in [false, true]) {
+    testWidgets('unrelated group events preserve search; group=$group', (
+      tester,
+    ) async {
+      final events = StreamController<Map<String, dynamic>>();
+      addTearDown(events.close);
+      var calls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatHistorySearchPage(
+            groupId: group ? 'current' : null,
+            events: events.stream,
+            search: (_, _) async {
+              calls++;
+              return {
+                'messages': [row(1, 'retained result')],
+                'hasMore': false,
+              };
+            },
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('chat-history-search-input')),
+        'needle',
+      );
+      await tester.pump(const Duration(milliseconds: 301));
+      await tester.pumpAndSettle();
+      for (final type in ['chat.group.read', 'chat.group.changed']) {
+        events.add({
+          'eventType': type,
+          'data': {'groupId': 'other'},
+        });
+        await tester.pump();
+        expect(find.text('retained result'), findsOneWidget);
+        await tester.pump(const Duration(milliseconds: 301));
+      }
+      expect(calls, 1);
+      events.add({
+        'eventType': group ? 'chat.group.changed' : 'chat.settings.changed',
+        'data': group ? {'groupId': 'current'} : {},
+      });
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('retained result'), findsNothing);
+      await tester.pump(const Duration(milliseconds: 301));
+      await tester.pumpAndSettle();
+      expect(calls, 2);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
   testWidgets(
     'server search paginates independently and privacy change clears results',
     (tester) async {

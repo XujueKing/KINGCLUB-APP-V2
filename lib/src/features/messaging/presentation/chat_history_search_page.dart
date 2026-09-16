@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'chat_timestamp.dart';
+import '../data/chat_media_event_scope.dart';
 
 import 'package:flutter/material.dart';
 
@@ -20,8 +21,10 @@ class ChatHistorySearchPage extends StatefulWidget {
     this.events,
     this.onSelected,
     this.senderLabel,
+    this.groupId,
   });
   final HistorySearch search;
+  final String? groupId;
   final String Function(String account)? senderLabel;
   final ValueChanged<Map<String, dynamic>>? onSelected;
   final Stream<Map<String, dynamic>>? events;
@@ -52,12 +55,13 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
       if (mounted) setState(() => _error = '登录状态已变化');
     });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
-      if (event['eventType'] == 'connection.ready' ||
-          event['eventType'] == 'chat.relationship.changed' ||
-          event['eventType'] == 'chat.read.changed' ||
-          event['eventType'] == 'chat.settings.changed' ||
-          event['eventType'] == 'chat.group.changed' ||
-          event['eventType'] == 'chat.group.read') {
+      if (affectsChatMedia(
+            event,
+            group: widget.groupId != null,
+            scopeId: widget.groupId,
+          ) ||
+          (widget.groupId == null &&
+              event['eventType'] == 'chat.read.changed')) {
         _changed();
       }
     });
