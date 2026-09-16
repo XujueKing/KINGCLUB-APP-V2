@@ -20,6 +20,9 @@ class ChatVoicePrefetch {
   final _retryAfter = <String, DateTime>{};
   bool _disposed = false, _running = false;
   String? _active;
+  Future<void> _work = Future.value();
+  Future<void> get idle => _work;
+  bool get hasFailures => _retryAfter.isNotEmpty;
   static final _uuid = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
@@ -46,7 +49,7 @@ class ChatVoicePrefetch {
         _pending[entry.key] = entry.value;
       }
     }
-    unawaited(_drain());
+    if (!_running) _work = _drain();
   }
 
   Map<String, dynamic> _grant(Map<String, dynamic> result, String id) {

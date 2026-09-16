@@ -7,6 +7,8 @@ import '../data/novorudp_binding_runtime.dart';
 
 import 'dart:async';
 
+import '../data/chat_voice_inbox.dart';
+
 import '../data/messaging_repository.dart';
 import '../data/chat_sync_failure.dart';
 import 'direct_chat_page.dart';
@@ -86,6 +88,7 @@ class ConversationsPage extends StatefulWidget {
 class _ConversationsPageState extends State<ConversationsPage>
     with WidgetsBindingObserver {
   MessagingRepository? _repository;
+  ChatVoiceInbox? _voiceInbox;
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   final _realItems = <Map<String, dynamic>>[];
   final _slides = <String, double>{};
@@ -124,6 +127,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   bool _matches(String name) => name.toLowerCase().contains(_query);
   @override
   void dispose() {
+    _voiceInbox?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _realGeneration++;
     _events?.cancel();
@@ -201,6 +205,8 @@ class _ConversationsPageState extends State<ConversationsPage>
       _sessions = SecureSessionStore.changes.stream.listen((_) {
         _realGeneration++;
         _repository = null;
+        _voiceInbox?.dispose();
+        _voiceInbox = null;
         _avatarProfiles.clear();
         _events?.cancel();
         _relayEvents?.cancel();
@@ -335,6 +341,9 @@ class _ConversationsPageState extends State<ConversationsPage>
         _showOfflineBanner = false;
         _refreshFailure = null;
       });
+      if (repository.persistHistory) {
+        (_voiceInbox ??= ChatVoiceInbox(repository)).update(_realItems);
+      }
       widget.onFriendUnreadChanged(
         _realItems.fold<int>(
           0,
