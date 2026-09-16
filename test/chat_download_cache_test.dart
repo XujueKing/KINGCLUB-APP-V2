@@ -7,6 +7,35 @@ import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
 
 void main() {
   test(
+    'completed files survive expiry, pruning and reopen until deleted',
+    () async {
+      final root = await Directory.systemTemp.createTemp('chat-file-retained-');
+      addTearDown(() => root.delete(recursive: true));
+      final key = await AesGcm.with256bits().newSecretKey();
+      final cache = ChatDownloadCache(root: root, key: key);
+      for (var i = 0; i < 7; i++) {
+        await cache.write('saved-$i', 0, Uint8List.fromList([i]));
+        await cache.retainCompleted('saved-$i');
+      }
+      await for (final file in root.list(recursive: true)) {
+        if (file is File && file.path.endsWith('.block')) {
+          await file.setLastModified(
+            DateTime.now().subtract(const Duration(days: 30)),
+          );
+        }
+      }
+      final reopened = ChatDownloadCache(root: root, key: key);
+      await reopened.prune('new-transfer');
+      for (var i = 0; i < 7; i++) {
+        expect(await reopened.read('saved-$i', 0, 1), [i]);
+      }
+      await reopened.removePermanently('saved-0');
+      expect(await reopened.read('saved-0', 0, 1), isNull);
+      await expectLater(reopened.retainCompleted('saved-0'), throwsStateError);
+      expect(await reopened.read('saved-1', 0, 1), [1]);
+    },
+  );
+  test(
     'permanent deletion survives reopening and blocks later writes',
     () async {
       final root = await Directory.systemTemp.createTemp('chat-file-delete-');

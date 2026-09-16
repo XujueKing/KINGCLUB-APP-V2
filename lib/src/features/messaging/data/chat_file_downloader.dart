@@ -358,6 +358,28 @@ class ChatFileDownloader {
         await _grant(ref);
         await _check();
         await resumeCache?.ensureNotDeleted(identity);
+        if (resumeCache != null) {
+          final reader = await file.open();
+          try {
+            final count = ref.size == 0
+                ? 1
+                : (ref.size + chunkBytes - 1) ~/ chunkBytes;
+            for (var index = 0; index < count; index++) {
+              await _check();
+              final length = (ref.size - index * chunkBytes).clamp(
+                0,
+                chunkBytes,
+              );
+              final bytes = await reader.read(length);
+              if (bytes.length != length) throw StateError('File changed');
+              await resumeCache!.write(identity, index, bytes);
+            }
+            await resumeCache!.retainCompleted(identity);
+          } finally {
+            await reader.close();
+          }
+        }
+        await _check();
         _completed.add(working);
         _completedMessages[working] = (ref.group, ref.messageId);
         completed = true;
@@ -421,6 +443,7 @@ class ChatFileDownloader {
       await _grant(ref);
       await _check();
       await resumeCache?.ensureNotDeleted(identity);
+      await resumeCache?.retainCompleted(identity);
       _completed.add(working);
       _completedMessages[working] = (ref.group, ref.messageId);
       completed = true;
@@ -434,7 +457,7 @@ class ChatFileDownloader {
               _disposing != null);
       rethrow;
     } finally {
-      if (!keepResume) {
+      if (!keepResume && !completed) {
         try {
           await resumeCache?.remove(identity);
         } catch (_) {}

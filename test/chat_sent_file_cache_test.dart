@@ -196,7 +196,7 @@ void main() {
       await noPlaintext();
       final files = await blocks.root
           .list(recursive: true)
-          .where((e) => e is File)
+          .where((e) => e is File && e.path.endsWith('.block'))
           .cast<File>()
           .toList();
       expect(files.length, size == 0 ? 1 : 2);
@@ -204,39 +204,64 @@ void main() {
     });
   }
 
-  test('corrupt or expired blocks never reach sender callback', () async {
-    final input = await source([1, 2, 3]);
-    await cache.retain(input.file, assetId: asset, size: 3, sha256: input.hash);
-    final block =
-        (await blocks.root
-                .list(recursive: true)
-                .where((e) => e is File)
-                .cast<File>()
-                .toList())
-            .single;
-    final encrypted = await block.readAsBytes();
-    encrypted[12] ^= 1;
-    await block.writeAsBytes(encrypted);
-    Future<void> denied() async {
+  test(
+    'corrupt blocks are rejected but completed files do not expire',
+    () async {
+      final input = await source([1, 2, 3]);
+      await cache.retain(
+        input.file,
+        assetId: asset,
+        size: 3,
+        sha256: input.hash,
+      );
+      final block =
+          (await blocks.root
+                  .list(recursive: true)
+                  .where((e) => e is File && e.path.endsWith('.block'))
+                  .cast<File>()
+                  .toList())
+              .single;
+      final encrypted = await block.readAsBytes();
+      encrypted[12] ^= 1;
+      await block.writeAsBytes(encrypted);
+      Future<void> denied() async {
+        expect(
+          await cache.use<bool>(
+            assetId: asset,
+            size: 3,
+            sha256: input.hash,
+            send: (_) async => fail('Must not send invalid bytes'),
+          ),
+          isNull,
+        );
+        await noPlaintext();
+      }
+
+      await denied();
+      await cache.retain(
+        input.file,
+        assetId: asset,
+        size: 3,
+        sha256: input.hash,
+      );
+      await block.setLastModified(
+        DateTime.now().subtract(const Duration(days: 2)),
+      );
       expect(
         await cache.use<bool>(
           assetId: asset,
           size: 3,
           sha256: input.hash,
-          send: (_) async => fail('Must not send invalid bytes'),
+          send: (file) async {
+            expect(await file.readAsBytes(), [1, 2, 3]);
+            return true;
+          },
         ),
-        isNull,
+        isTrue,
       );
       await noPlaintext();
-    }
-
-    await denied();
-    await cache.retain(input.file, assetId: asset, size: 3, sha256: input.hash);
-    await block.setLastModified(
-      DateTime.now().subtract(const Duration(days: 2)),
-    );
-    await denied();
-  });
+    },
+  );
 
   test('source change and account change clean partial retention', () async {
     final input = await source([1, 2, 3]);
@@ -297,26 +322,29 @@ void main() {
     },
   );
 
-  test('oversized file is skipped and retained entries stay bounded', () async {
-    final input = await source([1, 2, 3]);
-    expect(
-      await cache.retain(
-        input.file,
-        assetId: asset,
-        size: ChatSentFileCache.maxBytes + 1,
-        sha256: input.hash,
-      ),
-      isFalse,
-    );
-    expect(await blocks.root.exists(), isFalse);
-    for (var i = 1; i <= 6; i++) {
-      await cache.retain(
-        input.file,
-        assetId: '00000000-0000-4000-8000-00000000000$i',
-        size: 3,
-        sha256: input.hash,
+  test(
+    'oversized file is skipped and completed entries remain retained',
+    () async {
+      final input = await source([1, 2, 3]);
+      expect(
+        await cache.retain(
+          input.file,
+          assetId: asset,
+          size: ChatSentFileCache.maxBytes + 1,
+          sha256: input.hash,
+        ),
+        isFalse,
       );
-    }
-    expect(await blocks.root.list().toList(), hasLength(4));
-  });
+      expect(await blocks.root.exists(), isFalse);
+      for (var i = 1; i <= 6; i++) {
+        await cache.retain(
+          input.file,
+          assetId: '00000000-0000-4000-8000-00000000000$i',
+          size: 3,
+          sha256: input.hash,
+        );
+      }
+      expect(await blocks.root.list().toList(), hasLength(6));
+    },
+  );
 }

@@ -92,6 +92,7 @@ class ChatSentFileCache {
         throw StateError('Source changed');
       }
       await checkSession();
+      await cache.retainCompleted(identity);
       complete = true;
       return true;
     } finally {

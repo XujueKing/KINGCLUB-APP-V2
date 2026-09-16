@@ -46,11 +46,16 @@ class ChatDownloadCache {
             value: base64Encode(await key.extractBytes()),
           );
         }
-        final parent = await getTemporaryDirectory();
-        return ChatDownloadCache(
-          root: Directory('${parent.path}/kingclub-$purpose-cache-$id'),
-          key: key,
+        final parent = await getApplicationSupportDirectory();
+        final root = Directory('${parent.path}/kingclub-$purpose-cache-$id');
+        final legacy = Directory(
+          '${(await getTemporaryDirectory()).path}/kingclub-$purpose-cache-$id',
         );
+        if (!await root.exists() && await legacy.exists()) {
+          await parent.create(recursive: true);
+          await legacy.rename(root.path);
+        }
+        return ChatDownloadCache(root: root, key: key);
       } catch (_) {
         _opens.remove(scope);
         rethrow;
@@ -76,6 +81,21 @@ class ChatDownloadCache {
     await remove(identity);
   }
 
+  /// Called only after the entire file digest has been verified. Completed
+  /// files live until explicit message cleanup; partial transfers still expire.
+  Future<void> retainCompleted(String identity) async {
+    await ensureNotDeleted(identity);
+    final directory = await _directory(identity);
+    await directory.create(recursive: true);
+    await File('${directory.path}/retained').writeAsBytes([1], flush: true);
+    try {
+      await ensureNotDeleted(identity);
+    } catch (_) {
+      await remove(identity);
+      rethrow;
+    }
+  }
+
   Future<Uint8List?> read(String identity, int index, int length) async {
     try {
       await ensureNotDeleted(identity);
@@ -83,7 +103,8 @@ class ChatDownloadCache {
       final stat = await file.stat();
       if (stat.type != FileSystemEntityType.file ||
           stat.size != length + 28 ||
-          DateTime.now().difference(stat.modified) > const Duration(days: 1)) {
+          (DateTime.now().difference(stat.modified) > const Duration(days: 1) &&
+              !await File('${file.parent.path}/retained').exists())) {
         return null;
       }
       final bytes = await _cipher.decrypt(
@@ -138,6 +159,7 @@ class ChatDownloadCache {
     final directories = <({Directory directory, DateTime modified})>[];
     await for (final entity in root.list(followLinks: false)) {
       if (entity is! Directory || path.equals(entity.path, current)) continue;
+      if (await File('${entity.path}/retained').exists()) continue;
       directories.add((
         directory: entity,
         modified: (await entity.stat()).modified,
