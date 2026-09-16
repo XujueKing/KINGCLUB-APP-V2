@@ -219,10 +219,18 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(input);
       await tester.pump();
-      for (final inset in [80.0, 160.0, 240.0]) {
+      for (final inset in [80.0, 160.0, 240.0, 160.0, 80.0, 0.0]) {
         tester.view.viewInsets = FakeViewPadding(bottom: inset);
         await tester.pump();
         expect(controller.position.extentBefore, lessThan(1));
+        expect(
+          tester
+              .getSize(find.byKey(const ValueKey('direct-chat-bottom-space')))
+              .height,
+          closeTo(inset, 0.01),
+          reason:
+              'The composer must follow each IME frame without a second tween',
+        );
       }
       expect(tester.takeException(), isNull);
     },

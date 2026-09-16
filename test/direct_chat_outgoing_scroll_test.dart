@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
@@ -6,6 +8,48 @@ import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.da
 import 'direct_chat_controller_test.dart' show MemoryOutbox, ack, history;
 
 void main() {
+  testWidgets('first outgoing bubble slides up without changing text size', (
+    tester,
+  ) async {
+    final send = Completer<Map<String, dynamic>>();
+    final repo = MessagingRepository(
+      account: 'me',
+      call: (method, params) async {
+        if (method == 'K260913000604') return history([]);
+        if (method == 'K260913000601') return send.future;
+        return {};
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DirectChatPage(
+          peerAccount: 'peer',
+          peerName: 'Test peer',
+          repository: repo,
+          chatOutbox: MemoryOutbox(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'First message');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('direct-chat-send')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+    final text = find.text('First message');
+    final size = tester.getSize(text);
+    final enteringY = tester.getTopLeft(text).dy;
+    await tester.pump(const Duration(milliseconds: 70));
+    expect(tester.getTopLeft(text).dy, lessThan(enteringY));
+    expect(tester.getSize(text), size);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(tester.getSize(text), size);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    send.complete({});
+    await tester.pump();
+  });
+
   testWidgets('sending from older history reveals the newly queued message', (
     tester,
   ) async {

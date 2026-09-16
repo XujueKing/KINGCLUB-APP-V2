@@ -846,7 +846,7 @@ class _DirectChatPageState extends State<DirectChatPage>
           (message['status'] == 'queued' || message['status'] == 'sending') &&
           !displayedIds.contains(message['clientMessageId']),
     );
-    if (_messages.isNotEmpty &&
+    if ((_messages.isNotEmpty || hasNewOutgoing) &&
         !_loadingOlder &&
         (nearBottom || hasNewOutgoing)) {
       _animatedMessageIds.addAll(
@@ -1025,9 +1025,6 @@ class _DirectChatPageState extends State<DirectChatPage>
             _ComposerPanel.gifts => 326.0,
           };
     final panelSpace = panelHeight + safeBottom;
-    final bottomSpace = keyboardHeight > panelSpace
-        ? keyboardHeight
-        : panelSpace;
     final messageIndices = <String, int>{
       for (var index = 0; index < _messages.length; index++)
         if (_messages[index].clientMessageId != null)
@@ -1330,12 +1327,21 @@ class _DirectChatPageState extends State<DirectChatPage>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _composer(),
-                    AnimatedContainer(
-                      key: const ValueKey('direct-chat-bottom-space'),
+                    TweenAnimationBuilder<double>(
+                      // Only our panels need interpolation. IME insets already
+                      // arrive as animation frames from the platform; easing
+                      // them again makes the composer lag behind the keyboard.
+                      tween: Tween<double>(begin: panelSpace, end: panelSpace),
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOutCubic,
-                      height: bottomSpace,
-                      width: double.infinity,
+                      builder: (context, animatedPanelSpace, child) => SizedBox(
+                        key: const ValueKey('direct-chat-bottom-space'),
+                        height: keyboardHeight > animatedPanelSpace
+                            ? keyboardHeight
+                            : animatedPanelSpace,
+                        width: double.infinity,
+                        child: child,
+                      ),
                       child: ClipRect(
                         child: OverflowBox(
                           alignment: Alignment.topCenter,
