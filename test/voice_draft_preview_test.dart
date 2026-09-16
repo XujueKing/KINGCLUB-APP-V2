@@ -11,11 +11,13 @@ import 'package:kingclub/src/features/messaging/presentation/voice_draft_preview
 class Output implements ChatVoiceOutput {
   final events = StreamController<void>.broadcast();
   int plays = 0, stops = 0, disposals = 0;
+  Completer<void>? playGate;
   @override
   Stream<void> get completed => events.stream;
   @override
   Future<void> play(String path) async {
     plays++;
+    await playGate?.future;
   }
 
   @override
@@ -31,6 +33,46 @@ class Output implements ChatVoiceOutput {
 }
 
 void main() {
+  testWidgets('short preview completion precedes native play acknowledgement', (
+    tester,
+  ) async {
+    final output = Output()..playGate = Completer<void>();
+    final store = VoiceDraftStore(
+      root: Directory.systemTemp,
+      account: 'synthetic',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: VoiceDraftPreview(
+            draft: VoiceDraft(
+              '${store.directory.path}/sample.m4a',
+              const Duration(seconds: 1),
+            ),
+            output: output,
+            loadStore: () async => store,
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byTooltip('播放录音'));
+    await tester.pump();
+    expect(output.plays, 1);
+    output.events.add(null);
+    await tester.pump();
+    output.playGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('播放录音'), findsOneWidget);
+    expect(find.byTooltip('停止播放'), findsNothing);
+    await tester.tap(find.byTooltip('播放录音'));
+    await tester.pumpAndSettle();
+    expect(output.plays, 2);
+    output.events.add(null);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('播放录音'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
   for (final action in ['close', 'background', 'repeat']) {
     testWidgets('pending preview authorization: $action', (tester) async {
       final output = Output();

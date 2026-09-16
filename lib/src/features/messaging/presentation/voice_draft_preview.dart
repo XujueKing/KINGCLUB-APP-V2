@@ -57,6 +57,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
     });
     _completion = _player.completed.listen(
       (_) {
+        _playGeneration++;
         if (mounted) setState(() => _playing = false);
       },
       onError: (Object _, StackTrace _) {
