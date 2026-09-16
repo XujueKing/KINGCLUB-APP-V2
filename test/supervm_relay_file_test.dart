@@ -98,6 +98,46 @@ void main() {
         ),
       );
       expect((await answer.channel.open(envelope)).payload, [4, 5, 6]);
+      // Rebinding the peer's UDP port must replace the stale authenticated
+      // endpoint, then require a fresh bidirectional probe before sending.
+      final delivered = <NovoRudpFrame>[];
+      right = await NovoRudpLanRoute.open(
+        channel: answer.channel,
+        sendControl: (frame) async {
+          await left?.acceptControl(frame);
+        },
+        deliver: (frame) async {
+          delivered.add(frame);
+        },
+      );
+      addTearDown(right!.close);
+      await right.advertise();
+      await left.advertise();
+      wait.reset();
+      while ((!left.ready || !right.ready) &&
+          wait.elapsed < const Duration(seconds: 8)) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      expect(left.ready && right.ready, isTrue);
+      expect(
+        await left.trySend(
+          NovoRudpFrame(
+            kind: NovoRudpFrameKind.data,
+            sessionId: channel.sessionId,
+            streamId: BigInt.one,
+            objectId: BigInt.one,
+            sequence: BigInt.two,
+            ackEpoch: BigInt.zero,
+            payload: [7, 8, 9],
+          ),
+        ),
+        isTrue,
+      );
+      wait.reset();
+      while (delivered.isEmpty && wait.elapsed < const Duration(seconds: 2)) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(delivered.single.payload, [7, 8, 9]);
     },
     skip: !enabled,
     timeout: const Timeout(Duration(seconds: 20)),
