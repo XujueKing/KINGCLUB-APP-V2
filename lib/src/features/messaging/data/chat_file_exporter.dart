@@ -6,13 +6,25 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/session/secure_session_store.dart';
 import 'chat_file_downloader.dart';
+import 'chat_media_deletion.dart';
 
 class ChatFileExporter {
-  ChatFileExporter() {
+  ChatFileExporter({String? account}) {
     _session = SecureSessionStore.changes.stream.listen((_) => dispose());
+    _removeDeletionListener = ChatMediaDeletion.listen((event) async {
+      final reference = _reference;
+      if (account != null &&
+          event.account == account &&
+          event.group == reference?.group &&
+          event.messageId == reference?.messageId) {
+        await dispose();
+      }
+    });
   }
   static const channel = MethodChannel('kingclub/chat-file-export');
   late final StreamSubscription<void> _session;
+  late final void Function() _removeDeletionListener;
+  ChatFileReference? _reference;
   String? _operationId;
   String? _savedOperationId;
   bool _disposed = false, _busy = false;
@@ -23,6 +35,7 @@ class ChatFileExporter {
   ) async {
     if (_disposed || _busy) throw StateError('Export unavailable');
     _busy = true;
+    _reference = reference;
     final operationId = const Uuid().v4();
     _operationId = operationId;
     var saved = false;
@@ -77,6 +90,7 @@ class ChatFileExporter {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _removeDeletionListener();
     await _session.cancel();
     try {
       final id = _operationId;

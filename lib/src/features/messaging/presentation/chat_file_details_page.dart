@@ -77,11 +77,14 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
       _error = null;
     });
     try {
-      final saved = await (_exporter ??= ChatFileExporter()).save(
-        file,
-        widget.reference,
-        () => downloader.authorizeExport(widget.reference),
-      );
+      final saved =
+          await (_exporter ??= ChatFileExporter(
+            account: widget.repository.account,
+          )).save(
+            file,
+            widget.reference,
+            () => downloader.authorizeExport(widget.reference),
+          );
       if (mounted && !_removed) setState(() => _saved = saved);
     } catch (_) {
       if (mounted) setState(() => _error = '保存未完成，请重试');
