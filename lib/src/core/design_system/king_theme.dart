@@ -175,6 +175,30 @@ const kingSectionTitleStyle = TextStyle(
   fontWeight: FontWeight.w600,
 );
 
+class KingPageRoute<T> extends MaterialPageRoute<T> {
+  KingPageRoute({required super.builder, super.settings})
+    : super(allowSnapshotting: false);
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 240);
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 220);
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => const KingSlidePageTransitionsBuilder().buildTransitions(
+    this,
+    context,
+    animation,
+    secondaryAnimation,
+    child,
+  );
+}
+
 class KingSlidePageTransitionsBuilder extends PageTransitionsBuilder {
   const KingSlidePageTransitionsBuilder();
   @override

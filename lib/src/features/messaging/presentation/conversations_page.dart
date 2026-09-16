@@ -12,6 +12,7 @@ import '../data/chat_sync_failure.dart';
 import 'direct_chat_page.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
+import '../../../core/design_system/king_theme.dart';
 
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -555,8 +556,7 @@ class _ConversationsPageState extends State<ConversationsPage>
       onTap: () async {
         await Navigator.push<void>(
           context,
-          MaterialPageRoute<void>(
-            allowSnapshotting: false,
+          KingPageRoute<void>(
             builder: (_) => DirectChatPage(
               peerAccount: group ? null : target,
               groupId: group ? target : null,

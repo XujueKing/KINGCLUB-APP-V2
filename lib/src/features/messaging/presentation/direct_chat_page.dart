@@ -240,6 +240,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   final _inputFocusNode = FocusNode();
   bool _scrollScheduled = false;
   final _animatedMessageIds = <String>{};
+  final _openedAt = DateTime.now();
   _ComposerPanel _composerPanel = _ComposerPanel.none;
   bool _voiceMode = false;
   bool _voiceInputToText = false;
@@ -841,6 +842,15 @@ class _DirectChatPageState extends State<DirectChatPage>
         (nearBottom || hasNewOutgoing)) {
       _animatedMessageIds.addAll(
         chat.messages
+            .where(
+              (message) =>
+                  message['sender'] == chat.messaging.account &&
+                  (DateTime.tryParse(message['createdDate'] as String? ?? '')
+                          ?.isAfter(_openedAt) ??
+                      false) &&
+                  (message['status'] == 'queued' ||
+                      message['status'] == 'sending'),
+            )
             .map((message) => message['clientMessageId'])
             .whereType<String>()
             .where((id) => !displayedIds.contains(id)),
