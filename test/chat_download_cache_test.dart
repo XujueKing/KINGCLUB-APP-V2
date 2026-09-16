@@ -7,6 +7,38 @@ import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
 
 void main() {
   test(
+    'permanent deletion survives reopening and blocks later writes',
+    () async {
+      final root = await Directory.systemTemp.createTemp('chat-file-delete-');
+      addTearDown(() => root.delete(recursive: true));
+      final key = await AesGcm.with256bits().newSecretKey();
+      final cache = ChatDownloadCache(root: root, key: key);
+      final bytes = Uint8List.fromList([1, 2, 3]);
+      await cache.write('deleted-message', 0, bytes);
+      await cache.write('kept-message', 0, bytes);
+      await cache.removePermanently('deleted-message');
+      final reopened = ChatDownloadCache(root: root, key: key);
+      expect(await reopened.read('deleted-message', 0, 3), isNull);
+      await expectLater(
+        reopened.write('deleted-message', 1, bytes),
+        throwsStateError,
+      );
+      await reopened.prune('kept-message');
+      await expectLater(
+        reopened.ensureNotDeleted('deleted-message'),
+        throwsStateError,
+      );
+      expect(await reopened.read('kept-message', 0, 3), bytes);
+      expect(
+        await root
+            .list(recursive: true)
+            .where((e) => e.path.endsWith('.block'))
+            .toList(),
+        hasLength(1),
+      );
+    },
+  );
+  test(
     'cached blocks reject foreign keys, metadata, indices and expired data',
     () async {
       final root = await Directory.systemTemp.createTemp(

@@ -1,5 +1,10 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:cryptography/cryptography.dart';
+import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
+
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -26,6 +31,46 @@ class DelayedDownload implements HttpClientAdapter {
 }
 
 void main() {
+  test('file cleanup uses the exact downloader identity', () async {
+    final root = await Directory.systemTemp.createTemp('chat-file-cleanup-');
+    addTearDown(() => root.delete(recursive: true));
+    final cache = ChatDownloadCache(
+      root: root,
+      key: await AesGcm.with256bits().newSecretKey(),
+    );
+    final identity = jsonEncode([
+      'a',
+      true,
+      'm',
+      'asset',
+      3,
+      'hash',
+      'test.bin',
+    ]);
+    await cache.write(identity, 0, Uint8List.fromList([1, 2, 3]));
+    await ChatMediaCleanup(
+      downloadCache: (account) async {
+        expect(account, 'a');
+        return cache;
+      },
+    ).remove(
+      account: 'a',
+      group: true,
+      message: {
+        'messageType': 'file',
+        'messageId': 'm',
+        'fileAssetId': 'asset',
+        'fileSize': 3,
+        'fileSha256': 'hash',
+        'fileName': 'test.bin',
+      },
+    );
+    expect(await cache.read(identity, 0, 3), isNull);
+    await expectLater(
+      cache.write(identity, 0, Uint8List.fromList([4, 5, 6])),
+      throwsStateError,
+    );
+  });
   test(
     'deletion fences in-flight download and imports after restart',
     () async {

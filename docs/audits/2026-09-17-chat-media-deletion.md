@@ -29,3 +29,21 @@ after deletion begins, absence of final/partial files, and rejection of a new
 import by a reopened store. Analyzer passed. This addresses late writes only
 for the message-owned keys already wired here; voice, file and transport aliases
 still need ownership-aware cleanup. No phone installation in this step.
+
+## File download blocks
+
+Explicit history clear now reconstructs the exact account/group/message/asset/
+size/hash/name identity used by ChatFileDownloader and permanently removes its
+encrypted download blocks. Tombstones survive cache pruning and reopening.
+Reads reject deleted identities; writes check before and after publication.
+Downloader checks deletion before requesting a grant, between blocks, and before
+returning either server or peer results. Exported user files are not targeted.
+
+48 cache/cleanup/downloader/sent-file/history tests passed; six files passed
+analyzer. New tests cover exact identity routing, reopened cache refusal, other
+identity preservation, and refusal to restart a deleted download without making
+a grant request. Network tests use fixtures; no phone deletion acceptance yet.
+
+Still outstanding: shared sent-file source cache, already-returned temporary
+files/viewers, absent resume-cache case, voice and transport aliases, revision
+and individual-delete paths, and media never inserted into local history.

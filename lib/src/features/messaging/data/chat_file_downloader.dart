@@ -319,6 +319,7 @@ class ChatFileDownloader {
           !RegExp(r'^[0-9a-f]{64}$').hasMatch(ref.sha256)) {
         throw const FormatException('文件消息无效');
       }
+      await resumeCache?.ensureNotDeleted(identity);
       var media = await _grant(ref);
       try {
         await resumeCache?.prune(identity);
@@ -330,6 +331,7 @@ class ChatFileDownloader {
       if (await _tryPeer(ref, file, onProgress)) {
         await _grant(ref);
         await _check();
+        await resumeCache?.ensureNotDeleted(identity);
         _completed.add(working);
         completed = true;
         onProgress?.call(ref.size, ref.size);
@@ -345,6 +347,7 @@ class ChatFileDownloader {
       var received = 0;
       for (var index = 0; index < (media['chunkCount'] as int); index++) {
         await _check();
+        await resumeCache?.ensureNotDeleted(identity);
         final expected = (ref.size - index * chunkBytes).clamp(0, chunkBytes);
         Uint8List? block = await resumeCache?.read(identity, index, expected);
         await _check();
@@ -390,6 +393,7 @@ class ChatFileDownloader {
       // Recheck permissions after network and disk I/O, including empty files.
       await _grant(ref);
       await _check();
+      await resumeCache?.ensureNotDeleted(identity);
       _completed.add(working);
       completed = true;
       return file;

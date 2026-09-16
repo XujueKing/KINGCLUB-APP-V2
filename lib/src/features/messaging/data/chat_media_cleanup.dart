@@ -1,16 +1,37 @@
 import '../../../core/media/media_cache.dart';
 
+import 'dart:convert';
+
+import 'chat_download_cache.dart';
+
 /// Deletes message-owned copies without clearing avatars or another account.
 /// Transport cache aliases and exported files are handled separately.
 class ChatMediaCleanup {
-  ChatMediaCleanup({MediaCache? media}) : media = media ?? MediaCache.shared;
+  ChatMediaCleanup({MediaCache? media, this.downloadCache})
+    : media = media ?? MediaCache.shared;
   final MediaCache media;
+  final Future<ChatDownloadCache> Function(String account)? downloadCache;
 
   Future<void> remove({
     required String account,
     required bool group,
     required Map<String, dynamic> message,
   }) async {
+    if (message['messageType'] == 'file') {
+      final cache = await (downloadCache ?? ChatDownloadCache.open)(account);
+      await cache.removePermanently(
+        jsonEncode([
+          account,
+          group,
+          message['messageId'],
+          message['fileAssetId'],
+          message['fileSize'],
+          message['fileSha256'],
+          message['fileName'],
+        ]),
+      );
+      return;
+    }
     if (!const {'image', 'video'}.contains(message['messageType'])) return;
     final id = message['messageId'];
     final client = message['clientMessageId'];

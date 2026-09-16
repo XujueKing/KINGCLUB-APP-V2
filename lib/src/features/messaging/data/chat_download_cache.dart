@@ -61,8 +61,24 @@ class ChatDownloadCache {
   Future<Directory> _directory(String identity) async =>
       Directory('${root.path}/${await _hash(identity)}');
 
+  Future<File> _marker(String identity) async =>
+      File('${root.path}/${await _hash(identity)}.deleted');
+
+  Future<void> ensureNotDeleted(String identity) async {
+    if (await (await _marker(identity)).exists()) {
+      throw StateError('文件所属聊天记录已删除');
+    }
+  }
+
+  Future<void> removePermanently(String identity) async {
+    await root.create(recursive: true);
+    await (await _marker(identity)).writeAsBytes([1], flush: true);
+    await remove(identity);
+  }
+
   Future<Uint8List?> read(String identity, int index, int length) async {
     try {
+      await ensureNotDeleted(identity);
       final file = File('${(await _directory(identity)).path}/$index.block');
       final stat = await file.stat();
       if (stat.type != FileSystemEntityType.file ||
@@ -79,6 +95,7 @@ class ChatDownloadCache {
         secretKey: key,
         aad: utf8.encode('$identity:$index'),
       );
+      await ensureNotDeleted(identity);
       return bytes.length == length ? Uint8List.fromList(bytes) : null;
     } catch (_) {
       return null;
@@ -86,6 +103,7 @@ class ChatDownloadCache {
   }
 
   Future<void> write(String identity, int index, Uint8List bytes) async {
+    await ensureNotDeleted(identity);
     final directory = await _directory(identity);
     await directory.create(recursive: true);
     final box = await _cipher.encrypt(
@@ -96,7 +114,12 @@ class ChatDownloadCache {
     final temp = File('${directory.path}/${const Uuid().v4()}.tmp');
     try {
       await temp.writeAsBytes(box.concatenation(), flush: true);
+      await ensureNotDeleted(identity);
       await temp.rename('${directory.path}/$index.block');
+      await ensureNotDeleted(identity);
+    } catch (_) {
+      if (await (await _marker(identity)).exists()) await remove(identity);
+      rethrow;
     } finally {
       if (await temp.exists()) await temp.delete();
     }

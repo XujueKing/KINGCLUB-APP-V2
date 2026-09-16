@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
 
 class DownloadTransport implements HttpClientAdapter {
   DownloadTransport(this.handler);
@@ -31,6 +32,49 @@ class RealHttpOverrides extends HttpOverrides {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'deleted file message cannot restart a download or request a grant',
+    () async {
+      final root = await Directory.systemTemp.createTemp('deleted-download-');
+      addTearDown(() => root.delete(recursive: true));
+      final cache = ChatDownloadCache(
+        root: root,
+        key: await AesGcm.with256bits().newSecretKey(),
+      );
+      final hash = 'a' * 64;
+      final ref = ChatFileReference(
+        messageId: messageId,
+        assetId: assetId,
+        fileName: 'file.bin',
+        size: 3,
+        sha256: hash,
+      );
+      await cache.removePermanently(
+        jsonEncode(['me', false, messageId, assetId, 3, hash, 'file.bin']),
+      );
+      var grants = 0;
+      final downloader = ChatFileDownloader(
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, _) async {
+            grants++;
+            throw StateError('Unexpected network request');
+          },
+        ),
+        checkSession: () async {},
+        resumeCache: cache,
+      );
+      addTearDown(downloader.dispose);
+      await expectLater(downloader.download(ref), throwsStateError);
+      expect(grants, 0);
+      await expectLater(
+        cache.ensureNotDeleted(
+          jsonEncode(['me', false, messageId, assetId, 3, hash, 'file.bin']),
+        ),
+        throwsStateError,
+      );
+    },
+  );
   for (final scenario in [
     'direct',
     'peer-unavailable',
