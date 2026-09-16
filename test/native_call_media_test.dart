@@ -172,6 +172,42 @@ class RestartPeer extends Peer {
 
 void main() {
   test(
+    'hangup cancels pending foreground startup before waiting for open',
+    () async {
+      final starting = Completer<void>(), pending = Completer<void>();
+      final stream = StreamFixture();
+      var peers = 0;
+      final native = NativeCallMedia(
+        video: false,
+        iceServers: [],
+        capture: (_) async => stream,
+        foregroundLease: CallForegroundLease(
+          supported: true,
+          invoke: (method, _) async {
+            if (method == 'start') {
+              starting.complete();
+              await pending.future;
+            } else if (!pending.isCompleted) {
+              pending.completeError(StateError('cancelled'));
+            }
+          },
+        ),
+        peerFactory: (_) async {
+          peers++;
+          return Peer();
+        },
+      );
+      final opening = native.open();
+      final rejected = expectLater(opening, throwsStateError);
+      await starting.future;
+      await native.close().timeout(const Duration(seconds: 1));
+      await rejected;
+      expect(peers, 0);
+      expect(stream.track.stops, 1);
+      expect(stream.disposed, 1);
+    },
+  );
+  test(
     'foreground service rejection releases capture before any peer is created',
     () async {
       final stream = StreamFixture();

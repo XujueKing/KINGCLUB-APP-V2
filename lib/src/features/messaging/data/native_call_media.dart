@@ -334,12 +334,23 @@ class NativeCallMedia {
   }
 
   Future<void> _close() async {
+    Object? foregroundFailure;
+    try {
+      // Native stop also rejects a pending start. Do this before awaiting open,
+      // otherwise hangup waits for the service startup timeout with capture on.
+      await _foregroundLease.close();
+    } catch (error) {
+      foregroundFailure = error;
+    }
     try {
       await _opening;
     } catch (_) {
       /* Opening failure already released resources. */
     }
     await _release();
+    if (foregroundFailure != null) {
+      throw StateError('Call foreground service cleanup failed');
+    }
   }
 
   Future<void> _release() async {
