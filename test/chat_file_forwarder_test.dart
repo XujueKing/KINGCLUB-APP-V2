@@ -36,7 +36,24 @@ class Destination extends ChatFileUploader {
     : super(repository: repo, checkSession: () async {});
   final UploadedChatFile asset;
   int uploads = 0;
+  int retained = 0, acknowledged = 0;
   Completer<void>? wait;
+  Completer<void>? retainWait;
+  @override
+  Future<void> retainQueuedSource(File source, UploadedChatFile file) async {
+    expect(await source.readAsBytes(), [1, 2, 3]);
+    expect(file, asset);
+    retained++;
+    if (retainWait != null) await retainWait!.future;
+    expect(await source.exists(), true);
+  }
+
+  @override
+  Future<void> acknowledgeQueued(UploadedChatFile file) async {
+    expect(retained, 1);
+    acknowledged++;
+  }
+
   @override
   Future<UploadedChatFile> upload(
     File input, {
@@ -53,7 +70,13 @@ class Destination extends ChatFileUploader {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  for (final mode in ['success', 'mismatch', 'session']) {
+  for (final mode in [
+    'success',
+    'cancel',
+    'retention-cancel',
+    'mismatch',
+    'session',
+  ]) {
     test(
       'file copy $mode cleans temporary source and verifies digest',
       () async {
@@ -107,6 +130,33 @@ void main() {
           expect((await forward.prepare()).assetId, 'owned');
           expect(source.downloads, 1);
           expect(target.uploads, 1);
+          expect(source.cleaned, false);
+          expect(await file.exists(), true);
+          expect(target.retained, 0);
+          if (mode == 'retention-cancel') {
+            target.retainWait = Completer<void>();
+            final saving = forward.acknowledgeQueued();
+            final rejected = expectLater(saving, throwsStateError);
+            while (target.retained == 0) {
+              await Future<void>.delayed(Duration.zero);
+            }
+            forward.dispose();
+            expect(await file.exists(), true);
+            target.retainWait!.complete();
+            await rejected;
+            expect(target.acknowledged, 0);
+          } else if (mode == 'cancel') {
+            forward.dispose();
+            while (await file.exists()) {
+              await Future<void>.delayed(Duration.zero);
+            }
+            expect(target.retained, 0);
+            expect(target.acknowledged, 0);
+          } else {
+            await forward.acknowledgeQueued();
+            expect(target.retained, 1);
+            expect(target.acknowledged, 1);
+          }
         }
         expect(source.cleaned, true);
         expect(await file.exists(), false);

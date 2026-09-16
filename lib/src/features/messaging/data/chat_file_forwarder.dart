@@ -1,12 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import '../../../core/session/secure_session_store.dart';
 import 'chat_file_downloader.dart';
 import 'chat_file_uploader.dart';
 import 'messaging_repository.dart';
 
-/// The downloader owns temporary plaintext; it is removed after the new owned
-/// asset is ready, on failure, or on session invalidation.
+/// The downloader owns temporary plaintext until the queued copy is retained,
+/// preparation fails, or the forwarding flow is closed.
 class ChatFileForwarder {
   ChatFileForwarder({
     required this.repository,
@@ -24,6 +25,7 @@ class ChatFileForwarder {
   ChatFileDownloader? _downloader;
   ChatFileUploader? _uploader;
   UploadedChatFile? _prepared;
+  File? _source;
   bool _closed = false, _busy = false;
   void _check() {
     if (_closed) throw StateError('文件转发已结束');
@@ -56,27 +58,51 @@ class ChatFileForwarder {
         throw StateError('转发文件校验不一致');
       }
       _prepared = asset;
+      _source = file;
       return asset;
     } finally {
-      await downloader?.dispose();
-      if (identical(_downloader, downloader)) _downloader = null;
+      if (_prepared == null || _closed) {
+        await downloader?.dispose();
+        if (identical(_downloader, downloader)) _downloader = null;
+      }
       _busy = false;
     }
   }
 
   Future<void> acknowledgeQueued() async {
+    _check();
+    if (_busy) throw StateError('文件仍在处理中');
+    _busy = true;
     final file = _prepared;
-    if (file != null) await _uploader?.acknowledgeQueued(file);
+    final source = _source;
+    try {
+      if (file != null) {
+        if (source != null) await _uploader?.retainQueuedSource(source, file);
+        _check();
+        await _uploader?.acknowledgeQueued(file);
+      }
+    } finally {
+      _source = null;
+      final downloader = _downloader;
+      _downloader = null;
+      await downloader?.dispose();
+      _busy = false;
+    }
   }
 
   void dispose() {
     if (_closed) return;
     _closed = true;
     _prepared = null;
+    _source = null;
     _session?.cancel();
     _uploader?.dispose();
     final downloader = _downloader;
-    // prepare owns cleanup after upload closes its file reader.
+    // Active upload/retention owns cleanup after its file reader closes.
     downloader?.cancel();
+    if (!_busy) {
+      _downloader = null;
+      unawaited(downloader?.dispose());
+    }
   }
 }
