@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_forwarder.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_uploader.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
+import 'package:kingclub/src/features/messaging/data/chat_sent_file_cache.dart';
 
 class Source extends ChatFileDownloader {
   Source(this.file, MessagingRepository repo)
@@ -32,8 +35,13 @@ class Source extends ChatFileDownloader {
 }
 
 class Destination extends ChatFileUploader {
-  Destination(this.asset, MessagingRepository repo)
-    : super(repository: repo, checkSession: () async {});
+  Destination(this.asset, MessagingRepository repo, {this.cache})
+    : super(
+        repository: repo,
+        checkSession: () async {},
+        openSentCache: cache == null ? null : (_) async => cache,
+      );
+  final ChatDownloadCache? cache;
   final UploadedChatFile asset;
   int uploads = 0;
   int retained = 0, acknowledged = 0;
@@ -44,6 +52,7 @@ class Destination extends ChatFileUploader {
     expect(await source.readAsBytes(), [1, 2, 3]);
     expect(file, asset);
     retained++;
+    if (cache != null) await super.retainQueuedSource(source, file);
     if (retainWait != null) await retainWait!.future;
     expect(await source.exists(), true);
   }
@@ -70,6 +79,66 @@ class Destination extends ChatFileUploader {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('queued forward is readable from reopened encrypted source after plaintext cleanup', () async {
+    final dir = await Directory.systemTemp.createTemp('forward-disk-');
+    addTearDown(() => dir.delete(recursive: true));
+    final key = await AesGcm.with256bits().newSecretKey();
+    final root = Directory('${dir.path}/encrypted');
+    final cache = ChatDownloadCache(root: root, key: key);
+    final bytes = [1, 2, 3];
+    final hash = (await Sha256().hash(bytes)).bytes
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join();
+    const assetId = '12345678-1234-1234-1234-123456789012';
+    final file = await File('${dir.path}/source').writeAsBytes(bytes);
+    final repo = MessagingRepository(
+      account: 'me',
+      call: (_, _) async => throw StateError('Unexpected network access'),
+    );
+    final source = Source(file, repo);
+    final target = Destination(
+      UploadedChatFile(assetId, 'test.bin', 3, hash, 'f', 'r'),
+      repo,
+      cache: cache,
+    );
+    final forward = ChatFileForwarder(
+      repository: repo,
+      reference: ChatFileReference(
+        messageId: 'm',
+        assetId: 'original',
+        fileName: 'test.bin',
+        size: 3,
+        sha256: hash,
+      ),
+      openDownloader: () async => source,
+      openUploader: () async => target,
+    );
+    addTearDown(forward.dispose);
+    await forward.prepare();
+    expect(await root.exists(), false);
+    await forward.acknowledgeQueued();
+    expect(await file.exists(), false);
+    final reopened = ChatSentFileCache(
+      cache: ChatDownloadCache(root: root, key: key),
+      checkSession: () async {},
+      temporaryDirectory: () async => dir,
+    );
+    File? decoded;
+    final restored = await reopened.use<bool>(
+      assetId: assetId,
+      size: 3,
+      sha256: hash,
+      send: (local) async {
+        decoded = local;
+        expect(await local.readAsBytes(), bytes);
+        return true;
+      },
+    );
+    expect(restored, true);
+    expect(await decoded!.exists(), false);
+    await reopened.remove(assetId: assetId, size: 3, sha256: hash);
+    expect(await root.list().toList(), isEmpty);
+  });
   for (final mode in [
     'success',
     'cancel',
