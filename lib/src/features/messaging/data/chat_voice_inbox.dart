@@ -94,8 +94,9 @@ class ChatVoiceInbox {
                 .toList();
             worker.update(rows);
             await worker.idle;
-            if (worker.hasFailures)
+            if (worker.hasFailures) {
               throw StateError('Voice retention incomplete');
+            }
             if (result['hasMore'] != true) break;
             if (rows.isEmpty) throw StateError('History page did not advance');
             final sequences =

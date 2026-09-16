@@ -27,7 +27,7 @@ void main() {
             expect(id, 'K260913000604');
             expect(params.containsKey('messageType'), false);
             requests.add(Map.of(params));
-            if (requests.length == 1)
+            if (requests.length == 1) {
               return {
                 'messages': [
                   for (var i = 51; i <= 100; i++)
@@ -35,13 +35,15 @@ void main() {
                 ],
                 'hasMore': true,
               };
-            if (requests.length == 2)
+            }
+            if (requests.length == 2) {
               return {
                 'messages': [
                   {...rows.single, 'sequence': 1},
                 ],
                 'hasMore': false,
               };
+            }
             return {'messages': [], 'hasMore': false};
           },
         ),
