@@ -11,6 +11,7 @@ import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 
 class DownloadTransport implements HttpClientAdapter {
   DownloadTransport(this.handler);
@@ -99,6 +100,8 @@ void main() {
     'retry-exhausted',
     'socket-retry',
     'dispose-before-directory',
+    'delete-before-directory',
+    'delete-completed',
   ]) {
     test('private chunk file download: $scenario', () async {
       final dir = await Directory.systemTemp.createTemp('chat-download-test-');
@@ -284,7 +287,8 @@ void main() {
         checkSession: () async {},
         dio: dio,
         temporaryDirectory: () async {
-          if (scenario == 'dispose-before-directory') {
+          if (scenario == 'dispose-before-directory' ||
+              scenario == 'delete-before-directory') {
             directoryEntered.complete();
             return directoryRelease.future;
           }
@@ -313,6 +317,22 @@ void main() {
         expect(await dir.list().toList(), isEmpty);
         return;
       }
+      if (scenario == 'delete-before-directory') {
+        final rejected = expectLater(operation, throwsA(anything));
+        await directoryEntered.future;
+        final deletion = const ChatMediaDeletion(
+          'test-account',
+          false,
+          messageId,
+        ).dispatch();
+        directoryRelease.complete(dir);
+        await rejected;
+        await deletion;
+        expect(requests, 0);
+        expect(await dir.list().toList(), isEmpty);
+        await expectLater(downloader.download(ref), throwsStateError);
+        return;
+      }
       if (scenario == 'dispose-before-directory') {
         final rejected = expectLater(operation, throwsA(anything));
         await directoryEntered.future;
@@ -333,6 +353,7 @@ void main() {
       }
       if ([
         'direct',
+        'delete-completed',
         'peer-unavailable',
         'group',
         'empty',
@@ -371,6 +392,27 @@ void main() {
           'socket-retry',
         ].contains(scenario)) {
           expect(requestedBlocks, [0, 1, 1]);
+        }
+        if (scenario == 'delete-completed') {
+          await const ChatMediaDeletion(
+            'other-account',
+            false,
+            messageId,
+          ).dispatch();
+          await const ChatMediaDeletion(
+            'test-account',
+            true,
+            messageId,
+          ).dispatch();
+          expect(await result.exists(), true);
+          await const ChatMediaDeletion(
+            'test-account',
+            false,
+            messageId,
+          ).dispatch();
+          expect(await result.exists(), false);
+          await expectLater(downloader.authorizeExport(ref), throwsStateError);
+          await expectLater(downloader.download(ref), throwsStateError);
         }
         if (scenario == 'session-after-download') {
           SecureSessionStore.changes.add(null);

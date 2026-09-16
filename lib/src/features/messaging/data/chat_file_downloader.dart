@@ -16,6 +16,7 @@ import 'chat_download_cache.dart';
 import 'novorudp_file_download.dart';
 import 'novorudp_binding_runtime.dart';
 import 'peer_file_authority.dart';
+import 'chat_media_deletion.dart';
 
 /// Metadata comes from the acknowledged message, never from a download URL.
 class ChatFileReference {
@@ -59,6 +60,17 @@ class ChatFileDownloader {
       cancel();
       _deleteCompleted();
     });
+    _removeDeletionListener = ChatMediaDeletion.listen((event) async {
+      if (event.account != repository.account) return;
+      final identity = (event.group, event.messageId);
+      _deleted.add(identity);
+      if (_activeMessage == identity) {
+        final done = _downloadDone?.future;
+        cancel();
+        await done;
+      }
+      await _deleteCompleted(only: identity, strict: true);
+    });
   }
   static const chunkBytes = 1024 * 1024, maxBytes = 256 * 1024 * 1024;
   final MessagingRepository repository;
@@ -76,6 +88,10 @@ class ChatFileDownloader {
   final Future<Directory> Function() _temporaryDirectory;
   late final StreamSubscription<void> _session;
   final List<Directory> _completed = [];
+  final _completedMessages = <Directory, (bool, String)>{};
+  final _deleted = <(bool, String)>{};
+  (bool, String)? _activeMessage;
+  late final void Function() _removeDeletionListener;
   Future<void> _cleanup = Future<void>.value();
   Completer<void>? _downloadDone;
   Future<void>? _disposing;
@@ -257,10 +273,16 @@ class ChatFileDownloader {
   }
 
   Future<Map<String, dynamic>> _grant(ChatFileReference ref) async {
+    if (_deleted.contains((ref.group, ref.messageId))) {
+      throw StateError('文件所属聊天记录已删除');
+    }
     await _check();
     final result = await repository.fileMedia(ref.messageId, group: ref.group);
     await _check();
     final raw = result['file'];
+    if (_deleted.contains((ref.group, ref.messageId))) {
+      throw StateError('文件所属聊天记录已删除');
+    }
     if (raw is! Map) throw const FormatException('文件授权无效');
     final media = Map<String, dynamic>.from(raw);
     final token = (media['headers'] as Map?)?['authorization'];
@@ -291,7 +313,11 @@ class ChatFileDownloader {
   }) async {
     if (_invalid) throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');
     if (_busy) throw StateError('正在下载文件');
+    if (_deleted.contains((ref.group, ref.messageId))) {
+      throw StateError('文件所属聊天记录已删除');
+    }
     _busy = true;
+    _activeMessage = (ref.group, ref.messageId);
     _downloadDone = Completer<void>();
     _cancel = CancelToken();
     Directory? working;
@@ -333,6 +359,7 @@ class ChatFileDownloader {
         await _check();
         await resumeCache?.ensureNotDeleted(identity);
         _completed.add(working);
+        _completedMessages[working] = (ref.group, ref.messageId);
         completed = true;
         onProgress?.call(ref.size, ref.size);
         return file;
@@ -395,11 +422,13 @@ class ChatFileDownloader {
       await _check();
       await resumeCache?.ensureNotDeleted(identity);
       _completed.add(working);
+      _completedMessages[working] = (ref.group, ref.messageId);
       completed = true;
       return file;
     } catch (error) {
       keepResume =
           !_sessionChanged &&
+          !_deleted.contains((ref.group, ref.messageId)) &&
           (_retryable(error) ||
               error is DioException && CancelToken.isCancel(error) ||
               _disposing != null);
@@ -419,6 +448,7 @@ class ChatFileDownloader {
           }
         } finally {
           _busy = false;
+          _activeMessage = null;
           _cancel = null;
           _downloadDone!.complete();
           _downloadDone = null;
@@ -506,18 +536,24 @@ class ChatFileDownloader {
     return block.takeBytes();
   }
 
-  Future<void> _deleteCompleted() {
-    final directories = List<Directory>.of(_completed);
-    _completed.clear();
-    _cleanup = _cleanup.then((_) async {
+  Future<void> _deleteCompleted({(bool, String)? only, bool strict = false}) {
+    final directories = _completed
+        .where((dir) => only == null || _completedMessages[dir] == only)
+        .toList();
+    _completed.removeWhere(directories.contains);
+    _cleanup = _cleanup.catchError((Object _) {}).then((_) async {
+      FileSystemException? failure;
       for (final directory in directories) {
         try {
           if (await directory.exists()) await directory.delete(recursive: true);
-        } on FileSystemException {
+          _completedMessages.remove(directory);
+        } on FileSystemException catch (error) {
           // Keep ownership for another cleanup attempt when a provider holds it.
           _completed.add(directory);
+          failure = error;
         }
       }
+      if (strict && failure != null) throw failure;
     });
     return _cleanup;
   }
@@ -529,6 +565,7 @@ class ChatFileDownloader {
   }
 
   Future<void> _dispose() async {
+    _removeDeletionListener();
     final active = _downloadDone?.future;
     _dio.close(force: true);
     await _session.cancel();
