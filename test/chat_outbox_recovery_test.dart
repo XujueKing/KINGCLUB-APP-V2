@@ -10,6 +10,47 @@ import 'group_chat_controller_test.dart' as group;
 
 void main() {
   test(
+    'reconnect during an active retry drains the queue again immediately',
+    () async {
+      final queue = direct.MemoryOutbox();
+      await queue.put({
+        'clientMessageId': 'q',
+        'status': 'queued',
+        'recipient': 'peer',
+        'sender': 'me',
+        'text': 'hello',
+      });
+      final entered = Completer<void>();
+      final first = Completer<Map<String, dynamic>>();
+      var sends = 0;
+      final worker = ChatOutboxRecovery(
+        MessagingRepository(
+          account: 'me',
+          call: (id, p) async {
+            if (id == 'K260913000604') return direct.history([]);
+            sends++;
+            if (sends == 1) {
+              entered.complete();
+              return first.future;
+            }
+            return {'message': direct.ack(p)};
+          },
+        ),
+        queue,
+      );
+      addTearDown(worker.close);
+      final running = worker.notify();
+      await entered.future;
+      final reconnect = worker.notify();
+      first.completeError(
+        const AuthFailure('NETWORK_ERROR', 'old connection failed'),
+      );
+      await Future.wait([running, reconnect]);
+      expect(sends, 2);
+      expect(queue.items, isEmpty);
+    },
+  );
+  test(
     'foreground recovery retains peer receipt across worker restart',
     () async {
       final queue = direct.MemoryOutbox();

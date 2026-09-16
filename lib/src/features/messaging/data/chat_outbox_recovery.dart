@@ -23,6 +23,7 @@ class ChatOutboxRecovery {
   Future<void>? _draining;
   Timer? _timer;
   bool _closed = false;
+  bool _drainAgain = false;
 
   static String _key(String account, String target, bool group) =>
       '$account:${group ? "group" : "direct"}:$target';
@@ -57,11 +58,18 @@ class ChatOutboxRecovery {
 
   Future<void> notify() {
     if (_closed) return Future<void>.value();
+    if (_draining != null) {
+      _drainAgain = true;
+      return _draining!;
+    }
     return _draining ??= _drain().whenComplete(() => _draining = null);
   }
 
   Future<void> _drain() async {
-    await Future.wait([_retryReads(), _drainMessages()]);
+    do {
+      _drainAgain = false;
+      await Future.wait([_retryReads(), _drainMessages()]);
+    } while (!_closed && _drainAgain);
   }
 
   Future<void> _retryReads() async {
