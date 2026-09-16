@@ -241,6 +241,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   bool _scrollScheduled = false;
   final _animatedMessageIds = <String>{};
   final _openedAt = DateTime.now();
+  int? _visibleReadSequence;
   _ComposerPanel _composerPanel = _ComposerPanel.none;
   bool _voiceMode = false;
   bool _voiceInputToText = false;
@@ -825,13 +826,21 @@ class _DirectChatPageState extends State<DirectChatPage>
   void _realChatChanged() {
     final chat = _chat;
     if (!mounted || chat == null) return;
+    // The controller merges and sorts history on access. Take one snapshot per
+    // change instead of sorting again for animation, voice, rows and read state.
+    final rows = chat.messages;
+    _visibleReadSequence = null;
+    for (final row in rows) {
+      final sequence = row['sequence'];
+      if (sequence is num) _visibleReadSequence = sequence.toInt();
+    }
     final nearBottom =
         !_scrollController.hasClients ||
         _scrollController.position.extentBefore < 48;
     final displayedIds = _messages
         .map((message) => message.clientMessageId)
         .toSet();
-    final hasNewOutgoing = chat.messages.any(
+    final hasNewOutgoing = rows.any(
       (message) =>
           message['sender'] == chat.messaging.account &&
           (message['status'] == 'queued' || message['status'] == 'sending') &&
@@ -841,7 +850,7 @@ class _DirectChatPageState extends State<DirectChatPage>
         !_loadingOlder &&
         (nearBottom || hasNewOutgoing)) {
       _animatedMessageIds.addAll(
-        chat.messages
+        rows
             .where(
               (message) =>
                   message['sender'] == chat.messaging.account &&
@@ -858,7 +867,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     }
     final activeVoice = _voicePlayback?.activeId;
     if (activeVoice != null &&
-        !chat.messages.any(
+        !rows.any(
           (m) => m['messageId'] == activeVoice && m['messageType'] == 'voice',
         )) {
       _voicePlayback?.stop();
@@ -867,7 +876,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       _messages
         ..clear()
         ..addAll(
-          chat.messages.map(
+          rows.map(
             (message) => _FakeMessage(
               message['text'] as String,
               messageId: message['messageId'] as String?,
@@ -946,12 +955,10 @@ class _DirectChatPageState extends State<DirectChatPage>
         _scrollController.position.extentBefore > 24) {
       return;
     }
-    final confirmed = chat.messages.where(
-      (message) => message['sequence'] is num,
-    );
     if (chat is DirectChatController) unawaited(chat.markRelayVisibleRead());
-    if (confirmed.isNotEmpty) {
-      chat.markVisibleRead((confirmed.last['sequence'] as num).toInt());
+    final sequence = _visibleReadSequence;
+    if (sequence != null) {
+      chat.markVisibleRead(sequence);
     }
   }
 
@@ -1007,6 +1014,11 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   @override
   Widget build(BuildContext context) {
+    final messageIndices = <String, int>{
+      for (var index = 0; index < _messages.length; index++)
+        if (_messages[index].clientMessageId != null)
+          _messages[index].clientMessageId!: _messages.length - 1 - index,
+    };
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.black,
@@ -1065,10 +1077,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                   itemCount: _messages.length + 1,
                   findChildIndexCallback: (key) {
                     if (key is! ValueKey<String>) return null;
-                    final index = _messages.indexWhere(
-                      (message) => message.clientMessageId == key.value,
-                    );
-                    return index < 0 ? null : _messages.length - 1 - index;
+                    return messageIndices[key.value];
                   },
                   itemBuilder: (context, index) {
                     if (index == _messages.length) {
