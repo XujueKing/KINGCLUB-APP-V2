@@ -39,6 +39,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
   int _playGeneration = 0;
   StreamSubscription<void>? _completion;
   bool _sending = false;
+  int _sendGeneration = 0;
   bool _valid = true;
   StreamSubscription<void>? _session;
   @override
@@ -47,6 +48,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
     WidgetsBinding.instance.addObserver(this);
     _session = SecureSessionStore.changes.stream.listen((_) {
       _playGeneration++;
+      _sendGeneration++;
       _player.stop().catchError((Object _) {});
       if (mounted) {
         setState(() {
@@ -104,20 +106,39 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
     _foreground = state == AppLifecycleState.resumed;
     if (!_foreground) {
       _playGeneration++;
+      _sendGeneration++;
       _player.stop().catchError((Object _) {});
       if (mounted) setState(() => _playing = false);
     }
   }
 
   Future<void> _send() async {
-    if (!_valid || _sending || _toggling || widget.onSend == null) return;
+    if (!_valid ||
+        !_foreground ||
+        _sending ||
+        _toggling ||
+        widget.onSend == null) {
+      return;
+    }
+    final generation = ++_sendGeneration;
     setState(() => _sending = true);
     try {
       await _player.stop();
+      if (mounted) setState(() => _playing = false);
+      if (!mounted ||
+          !_valid ||
+          !_foreground ||
+          generation != _sendGeneration) {
+        return;
+      }
       await widget.onSend!();
-      if (mounted) Navigator.of(context).pop();
+      if (mounted && _valid && generation == _sendGeneration) {
+        Navigator.of(context).pop();
+      }
     } catch (_) {
-      if (mounted) KingNotice.of(context).show('发送未完成，录音已保留，请重试');
+      if (mounted && _valid && _foreground && generation == _sendGeneration) {
+        KingNotice.of(context).show('发送未完成，录音已保留，请重试');
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -126,6 +147,7 @@ class _VoiceDraftPreviewState extends State<VoiceDraftPreview>
   @override
   void dispose() {
     _playGeneration++;
+    _sendGeneration++;
     WidgetsBinding.instance.removeObserver(this);
     _session?.cancel();
     _completion?.cancel();

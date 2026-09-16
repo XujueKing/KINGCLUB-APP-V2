@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_voice_playback.dart';
 import 'package:kingclub/src/features/messaging/data/voice_capture.dart';
 import 'package:kingclub/src/features/messaging/data/voice_draft_store.dart';
@@ -12,6 +13,7 @@ class Output implements ChatVoiceOutput {
   final events = StreamController<void>.broadcast();
   int plays = 0, stops = 0, disposals = 0;
   Completer<void>? playGate;
+  Completer<void>? stopGate;
   @override
   Stream<void> get completed => events.stream;
   @override
@@ -23,6 +25,7 @@ class Output implements ChatVoiceOutput {
   @override
   Future<void> stop() async {
     stops++;
+    await stopGate?.future;
   }
 
   @override
@@ -33,6 +36,129 @@ class Output implements ChatVoiceOutput {
 }
 
 void main() {
+  testWidgets('successful draft send dispatches once and closes preview', (
+    tester,
+  ) async {
+    final output = Output();
+    final sent = Completer<void>();
+    var sends = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                builder: (_) => VoiceDraftPreview(
+                  draft: const VoiceDraft(
+                    'synthetic.m4a',
+                    Duration(seconds: 2),
+                  ),
+                  output: output,
+                  onSend: () {
+                    sends++;
+                    return sent.future;
+                  },
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发送语音'));
+    await tester.pump();
+    await tester.tap(find.text('正在发送…'));
+    await tester.pump();
+    expect(sends, 1);
+    sent.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(VoiceDraftPreview), findsNothing);
+    expect(output.disposals, 1);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('failed send leaves preview stopped and ready to replay', (
+    tester,
+  ) async {
+    final output = Output();
+    final store = VoiceDraftStore(
+      root: Directory.systemTemp,
+      account: 'synthetic',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: VoiceDraftPreview(
+            draft: VoiceDraft(
+              '${store.directory.path}/sample.m4a',
+              const Duration(seconds: 2),
+            ),
+            output: output,
+            loadStore: () async => store,
+            onSend: () async => throw StateError('offline'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byTooltip('播放录音'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('停止播放'), findsOneWidget);
+    await tester.tap(find.text('发送语音'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('播放录音'), findsOneWidget);
+    await tester.tap(find.byTooltip('播放录音'));
+    await tester.pumpAndSettle();
+    expect(output.plays, 2);
+    await tester.pumpWidget(const SizedBox());
+  });
+  for (final action in ['close', 'session', 'background-resume']) {
+    testWidgets(
+      'send does not start after pending stop is invalidated: $action',
+      (tester) async {
+        final output = Output()..stopGate = Completer<void>();
+        var sends = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: VoiceDraftPreview(
+                draft: const VoiceDraft('synthetic.m4a', Duration(seconds: 2)),
+                output: output,
+                onSend: () async {
+                  sends++;
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('发送语音'));
+        await tester.pump();
+        expect(sends, 0);
+        if (action == 'close') {
+          await tester.pumpWidget(const SizedBox());
+        } else if (action == 'session') {
+          SecureSessionStore.changes.add(null);
+          await tester.pump();
+        } else {
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.paused,
+          );
+          await tester.pump();
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.resumed,
+          );
+          await tester.pump();
+        }
+        output.stopGate!.complete();
+        await tester.pumpAndSettle();
+        expect(sends, 0);
+        await tester.pumpWidget(const SizedBox());
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   testWidgets('short preview completion precedes native play acknowledgement', (
     tester,
   ) async {
