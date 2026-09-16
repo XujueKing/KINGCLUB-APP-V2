@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:label="KingClub"
@@ -12,6 +15,8 @@
         android:icon="@mipmap/ic_launcher"
         android:fullBackupContent="@xml/network_identity_backup"
         android:dataExtractionRules="@xml/network_identity_extraction">
+        <service android:name=".CallForegroundService" android:exported="false"
+            android:stopWithTask="true" android:foregroundServiceType="microphone|camera" />
         <activity android:name="com.yalantis.ucrop.UCropActivity" android:screenOrientation="portrait" android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
         <activity
             android:name=".MainActivity"

@@ -12,8 +12,22 @@ class MainActivity : FlutterActivity() {
     private var nearby: NearbyLanDiscovery? = null
     private var export: ChatFileExport? = null
     private var videoUpload: ChatVideoUpload? = null
+    private var foreground = false
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/call-foreground")
+            .setMethodCallHandler { call, result ->
+                val id = call.argument<String>("id") ?: ""
+                if (!Regex("^[a-f0-9-]{36}$").matches(id)) {
+                    result.error("CALL_SERVICE_INPUT", "Invalid call lease", null)
+                } else if (call.method == "stop") {
+                    CallForegroundService.stop(this, id)
+                    result.success(null)
+                } else if (call.method == "start") {
+                    if (!foreground) result.error("CALL_SERVICE_BACKGROUND", "Open the call in foreground", null)
+                    else CallForegroundService.start(this, id, call.argument<Boolean>("video") == true, result)
+                } else result.notImplemented()
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/chat-map")
             .setMethodCallHandler { call, result -> ChatMap.handle(this, call, result) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/microphone")
@@ -49,7 +63,16 @@ class MainActivity : FlutterActivity() {
         nearby?.stop()
         super.onStop()
     }
+    override fun onResume() {
+        super.onResume()
+        foreground = true
+    }
+    override fun onPause() {
+        foreground = false
+        super.onPause()
+    }
     override fun onDestroy() {
+        CallForegroundService.shutdown(this)
         nearby?.stop()
         videoUpload?.dispose()
         export?.dispose()

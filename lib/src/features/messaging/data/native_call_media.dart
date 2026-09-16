@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'call_relay_configuration.dart';
+import 'call_foreground_lease.dart';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
@@ -22,10 +23,12 @@ class NativeCallMedia {
     Future<void> Function(bool, MediaStreamTrack)? setMicrophoneMute,
     Future<void> Function(bool, MediaStreamTrack)? setVideoEnabled,
     Future<bool> Function(MediaStreamTrack)? switchCamera,
+    CallForegroundLease? foregroundLease,
     this.onCandidate,
     this.onConnection,
     this.onRemoteStream,
-  }) : _capture = capture ?? navigator.mediaDevices.getUserMedia,
+  }) : _foregroundLease = foregroundLease ?? CallForegroundLease(),
+       _capture = capture ?? navigator.mediaDevices.getUserMedia,
        _peerFactory = peerFactory ?? ((config) => createPeerConnection(config)),
        _switchCamera = switchCamera ?? ((track) => Helper.switchCamera(track)),
        _setSpeakerphone = setSpeakerphone ?? Helper.setSpeakerphoneOn,
@@ -51,6 +54,7 @@ class NativeCallMedia {
   }
 
   final Future<void> Function(bool, MediaStreamTrack) _setMicrophoneMute;
+  final CallForegroundLease _foregroundLease;
   Future<void>? _muting;
   final Future<void> Function(bool, MediaStreamTrack) _setVideoEnabled;
   Future<void>? _changingVideo;
@@ -106,6 +110,8 @@ class NativeCallMedia {
               }
             : false,
       });
+      _check();
+      await _foregroundLease.start(video: video);
       _check();
       _peer = await _peerFactory({
         'iceServers': iceServers,
@@ -395,6 +401,11 @@ class NativeCallMedia {
       } catch (e) {
         failure ??= e;
       }
+    }
+    try {
+      await _foregroundLease.close();
+    } catch (e) {
+      failure ??= e;
     }
     if (failure != null) throw StateError('Native call media cleanup failed');
   }

@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:kingclub/src/features/messaging/data/native_call_media.dart';
+import 'package:kingclub/src/features/messaging/data/call_foreground_lease.dart';
 
 class Track implements MediaStreamTrack {
   int stops = 0;
@@ -170,25 +171,60 @@ class RestartPeer extends Peer {
 }
 
 void main() {
-  test('invalidated stream still releases connection and speaker route', () async {
-    final stream = InvalidatedStream(), peer = Peer();
-    final routes = <bool>[];
-    final media = NativeCallMedia(
-      video: false,
-      iceServers: [],
-      capture: (_) async => stream,
-      peerFactory: (_) async => peer,
-      setSpeakerphone: (enabled) async { routes.add(enabled); },
-    );
-    await media.open();
-    await media.setSpeakerphone(true);
-    stream.invalidated = true;
-    await expectLater(media.close(), throwsStateError);
-    expect(stream.disposed, 1);
-    expect(peer.closes, 1);
-    expect(peer.disposes, 1);
-    expect(routes.last, false);
-  });
+  test(
+    'foreground service rejection releases capture before any peer is created',
+    () async {
+      final stream = StreamFixture();
+      var peers = 0;
+      final native = NativeCallMedia(
+        video: false,
+        iceServers: [],
+        capture: (_) async => stream,
+        foregroundLease: CallForegroundLease(
+          supported: true,
+          invoke: (method, _) async {
+            if (method == 'start') {
+              throw StateError('foreground permission denied');
+            }
+          },
+        ),
+        peerFactory: (_) async {
+          peers++;
+          return Peer();
+        },
+      );
+      await expectLater(native.open(), throwsStateError);
+      expect(peers, 0);
+      expect(stream.track.stops, 1);
+      expect(stream.disposed, 1);
+      await native.close();
+      expect(stream.track.stops, 1);
+    },
+  );
+  test(
+    'invalidated stream still releases connection and speaker route',
+    () async {
+      final stream = InvalidatedStream(), peer = Peer();
+      final routes = <bool>[];
+      final media = NativeCallMedia(
+        video: false,
+        iceServers: [],
+        capture: (_) async => stream,
+        peerFactory: (_) async => peer,
+        setSpeakerphone: (enabled) async {
+          routes.add(enabled);
+        },
+      );
+      await media.open();
+      await media.setSpeakerphone(true);
+      stream.invalidated = true;
+      await expectLater(media.close(), throwsStateError);
+      expect(stream.disposed, 1);
+      expect(peer.closes, 1);
+      expect(peer.disposes, 1);
+      expect(routes.last, false);
+    },
+  );
   test(
     'failed opening suppresses late native events while releasing tracks',
     () async {
