@@ -29,6 +29,7 @@ import 'chat_location_message.dart';
 import '../data/chat_location.dart';
 import 'chat_location_picker_page.dart';
 import '../data/chat_voice_playback.dart';
+import '../data/chat_voice_prefetch.dart';
 import '../data/voice_draft_sender.dart';
 import '../../../core/design_system/king_components.dart';
 import 'chat_image_view.dart';
@@ -356,6 +357,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   final _voiceSender = VoiceDraftSender();
   ChatVoicePlayback? _voicePlayback;
+  ChatVoicePrefetch? _voicePrefetch;
 
   Future<void> _finishRecording(bool cancel, VoiceHoldTarget target) async {
     final session = _voiceSession;
@@ -675,6 +677,8 @@ class _DirectChatPageState extends State<DirectChatPage>
     _endVoiceHold(interrupted: true);
     _voicePlayback?.dispose();
     _voicePlayback = null;
+    _voicePrefetch?.dispose();
+    _voicePrefetch = null;
     _chatEvents?.cancel();
     _chat?.removeListener(_realChatChanged);
     _chat?.dispose();
@@ -829,6 +833,12 @@ class _DirectChatPageState extends State<DirectChatPage>
     // The controller merges and sorts history on access. Take one snapshot per
     // change instead of sorting again for animation, voice, rows and read state.
     final rows = chat.messages;
+    if (chat.messaging.persistHistory) {
+      (_voicePrefetch ??= ChatVoicePrefetch(
+        chat.messaging,
+        group: widget.groupId != null,
+      )).update(rows);
+    }
     _visibleReadSequence = null;
     for (final row in rows) {
       final sequence = row['sequence'];
@@ -995,6 +1005,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     _chatEvents?.cancel();
     _sessionEvents?.cancel();
     _voiceSender.dispose();
+    _voicePrefetch?.dispose();
     _voicePlayback?.dispose();
     _chat?.removeListener(_realChatChanged);
     _chat?.dispose();
