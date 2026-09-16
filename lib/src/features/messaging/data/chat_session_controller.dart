@@ -81,5 +81,8 @@ abstract class ChatSessionController extends ChangeNotifier {
     });
   }
 
-  void resetVisibleHistory();
+  void resetVisibleHistory({
+    bool clearMedia = false,
+    Set<String>? deletedMessageIds,
+  });
 }

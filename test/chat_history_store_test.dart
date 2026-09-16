@@ -96,6 +96,59 @@ void main() {
       expect((await store.read('direct:other')).messages, isEmpty);
     },
   );
+  test('refresh keeps attachments and targeted deletion only removes selected media', () async {
+    final media = MediaCache(
+      directory: () async => Directory('${dir.path}/media'),
+    );
+    final cleanup = ChatMediaCleanup(media: media);
+    final rows = [
+      for (var i = 1; i <= 2; i++) {...message(i), 'messageType': 'image'},
+    ];
+    for (var i = 1; i <= 2; i++) {
+      await media.importBytes(
+        Uint8List.fromList([i]),
+        scope: 'member:me',
+        contentKey: 'chat-image-message:false:m-$i:image',
+        kind: MediaKind.image,
+      );
+    }
+    await store.commit('direct:peer', rows, expectedEpoch: 0, cursor: 2);
+    final epoch = await store.clear(
+      'direct:peer',
+      deleteMedia: false,
+      mediaCleanup: cleanup,
+    );
+    expect(
+      await media.cached(
+        scope: 'member:me',
+        contentKey: 'chat-image-message:false:m-1:image',
+        kind: MediaKind.image,
+      ),
+      isNotNull,
+    );
+    await store.commit('direct:peer', rows, expectedEpoch: epoch, cursor: 2);
+    await store.clear(
+      'direct:peer',
+      deletedMessageIds: {'m-1'},
+      mediaCleanup: cleanup,
+    );
+    await expectLater(
+      media.cached(
+        scope: 'member:me',
+        contentKey: 'chat-image-message:false:m-1:image',
+        kind: MediaKind.image,
+      ),
+      throwsStateError,
+    );
+    expect(
+      await media.cached(
+        scope: 'member:me',
+        contentKey: 'chat-image-message:false:m-2:image',
+        kind: MediaKind.image,
+      ),
+      isNotNull,
+    );
+  });
   test('call metadata survives reopen but hidden records lose it', () async {
     final call = {
       'callId': '00000000-0000-4000-8000-000000000001',

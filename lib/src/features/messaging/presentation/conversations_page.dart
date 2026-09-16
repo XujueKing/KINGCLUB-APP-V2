@@ -450,6 +450,10 @@ class _ConversationsPageState extends State<ConversationsPage>
             await groups.settings(groupId, pinned: item['pinned'] != true);
           case 'hide':
             await groups.settings(groupId, hide: true);
+            if (repository.persistHistory || widget.openRelayHistory != null) {
+              await (await _openRelayHistory(repository))
+                  .clear('group:$groupId');
+            }
         }
         await _refreshReal();
       } catch (error) {
@@ -484,7 +488,7 @@ class _ConversationsPageState extends State<ConversationsPage>
           await repository.settings(peer, pinned: item['pinned'] != true);
         case 'hide':
           await repository.settings(peer, hide: true);
-          if (_useRelayUnread) {
+          if (repository.persistHistory || widget.openRelayHistory != null) {
             await (await _openRelayHistory(repository))
                 .clear('direct:$peer', hideNearby: true);
           }

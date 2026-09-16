@@ -1017,7 +1017,7 @@ class DirectChatController extends ChatSessionController {
         'status': 'sent',
       };
     }
-    resetVisibleHistory();
+    resetVisibleHistory(clearMedia: true, deletedMessageIds: {messageId});
     await synchronize();
   }
 
@@ -1037,7 +1037,7 @@ class DirectChatController extends ChatSessionController {
     if (_disposed) return;
     // Remove stale content immediately after acknowledgement, even if refresh
     // fails. Reconnect will reload the authoritative tombstone.
-    resetVisibleHistory();
+    resetVisibleHistory(clearMedia: true, deletedMessageIds: {messageId});
     await synchronize();
   }
 
@@ -1067,7 +1067,11 @@ class DirectChatController extends ChatSessionController {
 
   /// Called only after the server has committed the owner's hide cursor.
   @override
-  void resetVisibleHistory({bool hideNearby = false}) {
+  void resetVisibleHistory({
+    bool hideNearby = false,
+    bool clearMedia = false,
+    Set<String>? deletedMessageIds,
+  }) {
     _historyGeneration++;
     _readConfirmed = 0;
     _readsPending.clear();
@@ -1080,6 +1084,8 @@ class DirectChatController extends ChatSessionController {
           _diskEpoch = await _history!.clear(
             _historyKey,
             hideNearby: hideNearby,
+            deleteMedia: clearMedia,
+            deletedMessageIds: deletedMessageIds,
           );
         }
       });

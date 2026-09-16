@@ -36,7 +36,13 @@ class GroupChatController extends ChatSessionController {
     'groupName': _groupName,
   };
   @override
-  void resetVisibleHistory() => clearVisibleHistory();
+  void resetVisibleHistory({
+    bool clearMedia = false,
+    Set<String>? deletedMessageIds,
+  }) => clearVisibleHistory(
+    clearMedia: clearMedia,
+    deletedMessageIds: deletedMessageIds,
+  );
   final String groupId;
   final ChatOutbox outbox;
   final Future<ChatHistoryStore> Function()? openHistory;
@@ -936,7 +942,7 @@ class GroupChatController extends ChatSessionController {
         'status': 'sent',
       };
     }
-    resetVisibleHistory();
+    resetVisibleHistory(clearMedia: true, deletedMessageIds: {messageId});
     await synchronize();
   }
 
@@ -956,7 +962,7 @@ class GroupChatController extends ChatSessionController {
     if (_disposed) return;
     // Remove stale content immediately after acknowledgement, even if refresh
     // fails. Reconnect will reload the authoritative tombstone.
-    resetVisibleHistory();
+    resetVisibleHistory(clearMedia: true, deletedMessageIds: {messageId});
     await synchronize();
   }
 
@@ -993,7 +999,10 @@ class GroupChatController extends ChatSessionController {
   }
 
   /// Clear visible data after membership or session revocation.
-  void clearVisibleHistory() {
+  void clearVisibleHistory({
+    bool clearMedia = false,
+    Set<String>? deletedMessageIds,
+  }) {
     _memberGeneration++;
     _memberNames.clear();
     _groupName = null;
@@ -1003,7 +1012,13 @@ class GroupChatController extends ChatSessionController {
     _readsPending.clear();
     if (openHistory != null) {
       _historyBarrier = (_historyBarrier ?? _ensureHistory()).then((_) async {
-        if (_history != null) _diskEpoch = await _history!.clear(_historyKey);
+        if (_history != null) {
+          _diskEpoch = await _history!.clear(
+            _historyKey,
+            deleteMedia: clearMedia,
+            deletedMessageIds: deletedMessageIds,
+          );
+        }
       });
       _historyBarrier!.catchError((Object e) {
         error = e.toString();

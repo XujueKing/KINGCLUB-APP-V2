@@ -2753,9 +2753,9 @@ class _DirectChatPageState extends State<DirectChatPage>
     );
     if (cleared == true && mounted) {
       if (_chat case final DirectChatController direct) {
-        direct.resetVisibleHistory(hideNearby: true);
+        direct.resetVisibleHistory(hideNearby: true, clearMedia: true);
       } else if (_chat != null) {
-        _chat!.resetVisibleHistory();
+        _chat!.resetVisibleHistory(clearMedia: true);
       } else {
         setState(_messages.clear);
       }
