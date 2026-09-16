@@ -9,6 +9,12 @@ import 'novorudp_secure_packet.dart';
 import 'novorudp_secure_session.dart';
 import 'novorudp_lan_route.dart';
 
+typedef NovoRudpLanRouteFactory = Future<NovoRudpLanRoute?> Function({
+  required NovoRudpSecureChannel channel,
+  required Future<void> Function(NovoRudpFrame) sendControl,
+  required Future<void> Function(NovoRudpFrame) deliver,
+});
+
 /// Owns one authenticated peer channel, not the shared relay connection.
 /// Relay acceptance never substitutes for the upper layer's durable receipt.
 class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
@@ -17,6 +23,7 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
     required this.channel,
     required this.expectedPeer,
     this.authorize,
+    this.openLanRoute = NovoRudpLanRoute.open,
     bool enableLan = const bool.fromEnvironment('KINGCLUB_NOVORUDP_LAN'),
   }) : _localPeer = relay.identity.peerId {
     if (!RegExp(r'^novovm-ed25519:[0-9a-f]{64}$').hasMatch(expectedPeer) ||
@@ -81,12 +88,13 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
   final String _localPeer;
   final String expectedPeer;
   final Future<void> Function()? authorize;
+  final NovoRudpLanRouteFactory openLanRoute;
   NovoRudpLanRoute? _lan;
   bool get directLanReady => _lan?.ready ?? false;
 
   Future<void> _openLan() async {
     try {
-      final route = await NovoRudpLanRoute.open(
+      final route = await openLanRoute(
         channel: channel,
         sendControl: send,
         deliver: (frame) async {

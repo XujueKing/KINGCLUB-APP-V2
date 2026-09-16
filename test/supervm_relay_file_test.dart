@@ -163,9 +163,11 @@ void main() {
     skip: !enabled,
     timeout: const Timeout(Duration(seconds: 20)),
   );
-  for (final lan in [false, true]) {
+  for (final mode in ['relay', 'lan', 'lanInterrupted']) {
+    final lan = mode != 'relay';
+    final interruptLan = mode == 'lanInterrupted';
     test(
-      'actual SUPERVM encrypted file completes after lost final receipt LAN=$lan',
+      'actual SUPERVM encrypted file completes after lost final receipt $mode',
       () async {
         final library = DynamicLibrary.open(env['NOVORUDP_NATIVE_LIBRARY']!);
         final random = Random.secure();
@@ -206,11 +208,24 @@ void main() {
           expectedPeer: b.peerId,
           enableLan: lan,
         );
+        NovoRudpLanRoute? receiverRoute;
         final right = NovoRudpRelayFrameLink(
           relay: await connect(b),
           channel: answer.channel,
           expectedPeer: a.peerId,
           enableLan: lan,
+          openLanRoute:
+              ({
+                required channel,
+                required sendControl,
+                required deliver,
+              }) async {
+                return receiverRoute = await NovoRudpLanRoute.open(
+                  channel: channel,
+                  sendControl: sendControl,
+                  deliver: deliver,
+                );
+              },
         );
         addTearDown(left.close);
         addTearDown(right.close);
@@ -260,12 +275,21 @@ void main() {
         addTearDown(receiver.close);
         var doneReceipts = 0;
         var frames = 0;
+        var interrupted = false;
         Object? lastAck;
         final errors = <Object>[];
         final subscription = right.frames.listen((frame) async {
           frames++;
           try {
             final ack = await receiver.receiveAuthenticated(frame);
+            if (interruptLan &&
+                !interrupted &&
+                receiver.receivedBytes > 16384) {
+              interrupted = true;
+              // Close the real UDP socket while keeping the authenticated
+              // channel and real WSS relay alive. Sender must recover itself.
+              await receiverRoute!.close();
+            }
             if (ack == null) return;
             lastAck = jsonDecode(utf8.decode(ack.payload));
             if ((jsonDecode(utf8.decode(ack.payload))
@@ -301,7 +325,14 @@ void main() {
         expect(errors, isEmpty);
         expect(doneReceipts, greaterThanOrEqualTo(2));
         expect(await (await receiver.verifiedFile()).readAsBytes(), bytes);
-        if (lan) {
+        if (interruptLan) {
+          expect(interrupted, isTrue);
+          expect(left.directLanReady, isFalse);
+          expect(
+            outcomes.values.fold<int>(0, (a, b) => a + b),
+            greaterThan(12),
+          );
+        } else if (lan) {
           // Only bounded endpoint advertisements may traverse WSS, not 269+
           // data fragments. Native encrypted UDP carries the file and receipts.
           expect(outcomes.values.fold<int>(0, (a, b) => a + b), lessThan(12));
