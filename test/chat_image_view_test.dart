@@ -9,6 +9,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kingclub/src/core/media/cached_media_image.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_image_view.dart';
 
 Map<String, dynamic> grant({
@@ -93,6 +94,19 @@ void main() {
           tester.element(find.byType(Image)),
         ),
       );
+      for (final event in [
+        const ChatMediaDeletion('other', false, 'm'),
+        const ChatMediaDeletion('me', true, 'm'),
+        const ChatMediaDeletion('me', false, 'other'),
+      ]) {
+        await event.dispatch();
+      }
+      await tester.pump();
+      expect(find.byType(Image), findsOneWidget);
+      await const ChatMediaDeletion('me', false, 'm').dispatch();
+      await tester.pump();
+      expect(find.byType(Image), findsNothing);
+      expect(requests, 0);
       await tester.pumpWidget(const SizedBox());
       await tester.runAsync(() => root.delete(recursive: true));
     });

@@ -12,6 +12,7 @@ import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../data/messaging_repository.dart';
 import '../data/chat_media_event_scope.dart';
+import '../data/chat_media_deletion.dart';
 
 /// Saved message images display locally; fetching missing bytes authorizes.
 class ChatImageView extends StatefulWidget {
@@ -48,11 +49,31 @@ class _ChatImageViewState extends State<ChatImageView>
   String get _localKey =>
       'chat-image-message:${widget.group}:${widget.messageId}:${widget.full ? 'image' : 'thumbnail'}';
   bool _invalid = false, _failed = false;
+  bool _deleted = false;
+  late final void Function() _removeDeletionListener;
   int _generation = 0;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _removeDeletionListener = ChatMediaDeletion.listen((event) async {
+      if (event.account != widget.repository.account ||
+          event.group != widget.group ||
+          event.messageId != widget.messageId) {
+        return;
+      }
+      _deleted = true;
+      _generation++;
+      final local = _local;
+      if (mounted) {
+        setState(() {
+          _local = null;
+          _media = null;
+          _failed = true;
+        });
+      }
+      if (local != null) await FileImage(local).evict();
+    });
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
       _generation++;
@@ -93,6 +114,11 @@ class _ChatImageViewState extends State<ChatImageView>
   void didUpdateWidget(ChatImageView old) {
     super.didUpdateWidget(old);
     if (old.messageId != widget.messageId ||
+        old.group != widget.group ||
+        old.repository.account != widget.repository.account) {
+      _deleted = false;
+    }
+    if (old.messageId != widget.messageId ||
         old.full != widget.full ||
         old.group != widget.group ||
         old.scopeId != widget.scopeId ||
@@ -112,7 +138,7 @@ class _ChatImageViewState extends State<ChatImageView>
     bool keepVisible = false,
     bool revalidate = false,
   }) async {
-    if (_invalid || !mounted) return;
+    if (_invalid || _deleted || !mounted) return;
     final generation = ++_generation;
     setState(() {
       if (!keepVisible) {
@@ -226,6 +252,7 @@ class _ChatImageViewState extends State<ChatImageView>
 
   @override
   void dispose() {
+    _removeDeletionListener();
     _generation++;
     _session?.cancel();
     _events?.cancel();

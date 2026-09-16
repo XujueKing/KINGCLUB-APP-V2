@@ -13,6 +13,7 @@ import '../../auth/domain/auth_repository.dart';
 import '../data/messaging_repository.dart';
 import '../data/chat_video_grant.dart';
 import '../data/chat_media_event_scope.dart';
+import '../data/chat_media_deletion.dart';
 
 class ChatVideoView extends StatefulWidget {
   const ChatVideoView({
@@ -54,6 +55,8 @@ class _ChatVideoViewState extends State<ChatVideoView>
   VideoPlayerController? _player;
   File? _poster;
   bool _invalid = false, _failed = false, _foreground = true;
+  bool _deleted = false;
+  late final void Function() _removeDeletionListener;
   int _generation = 0;
   bool _preferHevc = true;
   ChatVideoGrant? _displayedGrant;
@@ -63,6 +66,22 @@ class _ChatVideoViewState extends State<ChatVideoView>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _removeDeletionListener = ChatMediaDeletion.listen((event) async {
+      if (event.account != widget.repository.account ||
+          event.group != widget.group ||
+          event.messageId != widget.messageId) {
+        return;
+      }
+      _deleted = true;
+      _generation++;
+      final player = _player, poster = _poster;
+      _player = null;
+      _poster = null;
+      _displayedGrant = null;
+      if (mounted) setState(() => _failed = true);
+      await player?.dispose();
+      if (poster != null) await FileImage(poster).evict();
+    });
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
       _clear();
@@ -98,7 +117,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
   }
 
   Future<void> _recheckPermission() async {
-    if (_invalid || !mounted || !_foreground) return;
+    if (_invalid || _deleted || !mounted || !_foreground) return;
     final displayed = _displayedGrant;
     if (displayed == null) {
       await _load(revalidate: true);
@@ -142,6 +161,11 @@ class _ChatVideoViewState extends State<ChatVideoView>
   @override
   void didUpdateWidget(ChatVideoView old) {
     super.didUpdateWidget(old);
+    if (old.messageId != widget.messageId ||
+        old.group != widget.group ||
+        old.repository.account != widget.repository.account) {
+      _deleted = false;
+    }
     if (old.messageId != widget.messageId ||
         old.repository != widget.repository ||
         old.full != widget.full ||
@@ -215,7 +239,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
   );
 
   Future<void> _load({bool revalidate = false}) async {
-    if (_invalid || !mounted || !_foreground) return;
+    if (_invalid || _deleted || !mounted || !_foreground) return;
     _clear();
     final generation = _generation;
     setState(() => _failed = false);
@@ -383,6 +407,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
 
   @override
   void dispose() {
+    _removeDeletionListener();
     _generation++;
     _session?.cancel();
     _events?.cancel();

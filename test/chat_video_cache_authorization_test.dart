@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_player/video_player.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_video_view.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/core/media/media_cache.dart';
@@ -109,6 +110,18 @@ void main() {
     }
     expect(player.plays, 1);
     expect(calls, 0);
+    await const ChatMediaDeletion('other', false, id).dispatch();
+    await const ChatMediaDeletion('synthetic', true, id).dispatch();
+    await const ChatMediaDeletion('synthetic', false, 'other').dispatch();
+    expect(player.disposals, 0);
+    await const ChatMediaDeletion('synthetic', false, id).dispatch();
+    expect(player.disposals, 1);
+    await tester.pumpAndSettle();
+    expect(find.byType(VideoPlayer), findsNothing);
+    await tester.tap(find.text('视频暂不可播放，点击重试'));
+    await tester.pumpAndSettle();
+    expect(calls, 0);
+    expect(player.plays, 1);
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() => directory.delete(recursive: true));
   });
