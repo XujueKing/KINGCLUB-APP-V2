@@ -44,7 +44,9 @@ class ContactGroupsRepository {
     if (_saving) throw StateError('正在保存关系分组');
     final operation = ++_operation;
     var received = false;
-    if (onCached != null && openHistory != null) {
+    // A confirmed in-memory snapshot is newer than a possibly failed disk write.
+    // Disk restoration is only for the first successful network load.
+    if (_version == null && onCached != null && openHistory != null) {
       unawaited(() async {
         try {
           final history = await openHistory!();

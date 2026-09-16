@@ -99,4 +99,32 @@ void main() {
       expect(seen, isEmpty);
     },
   );
+  test(
+    'refresh retains confirmed groups when a previous disk write failed',
+    () async {
+      await store.saveContactGroupSnapshot(snapshot(1, '旧分组'));
+      var opens = 0, reads = 0;
+      final refresh = Completer<Map<String, dynamic>>();
+      final repo = ContactGroupsRepository(
+        MessagingRepository(
+          account: 'me',
+          call: (_, _) async {
+            if (++reads == 1) return snapshot(2, '已更新分组');
+            return refresh.future;
+          },
+        ),
+        openHistory: () async {
+          if (++opens == 1) throw StateError('disk temporarily unavailable');
+          return store;
+        },
+      );
+      expect((await repo.load()).single.name, '已更新分组');
+      final displayed = <List<ContactGroup>>[];
+      final pending = repo.load(onCached: displayed.add);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      refresh.complete(snapshot(2, '已更新分组'));
+      await pending;
+      expect(displayed, isEmpty);
+    },
+  );
 }
