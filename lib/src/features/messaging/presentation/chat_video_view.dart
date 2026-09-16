@@ -182,6 +182,13 @@ class _ChatVideoViewState extends State<ChatVideoView>
     final scope = 'member:${widget.repository.account}';
     final prefix = 'chat-video-message:${widget.group}:${widget.messageId}';
     await Future.wait([
+      for (final slot in ['poster', 'video'])
+        store.evict(
+          scope: scope,
+          contentKey:
+              'chat-video-transfer:${widget.group}:${widget.messageId}:$slot',
+          kind: slot == 'video' ? MediaKind.video : MediaKind.image,
+        ),
       if (widget.sentClientMessageId != null)
         store.evict(
           scope: scope,
@@ -280,7 +287,7 @@ class _ChatVideoViewState extends State<ChatVideoView>
                 '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}${grant.path}',
                 scope: 'member:${widget.repository.account}',
                 contentKey:
-                    'chat-video:${widget.repository.account}:${grant.fileId}:${grant.sha256}',
+                    'chat-video-transfer:${widget.group}:${widget.messageId}:${widget.full ? 'video' : 'poster'}',
                 kind: widget.full ? MediaKind.video : MediaKind.image,
                 headers: {'authorization': grant.authorization},
               ));

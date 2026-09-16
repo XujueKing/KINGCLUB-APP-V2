@@ -54,6 +54,7 @@ class Store extends MediaCache {
   }) {
     expect(scope, 'member:me');
     expect(kind, MediaKind.audio);
+    expect(contentKey, 'chat-voice-transfer:false:$message');
     expect(headers?['authorization'], 'Bearer fixture');
     downloads++;
     return download.future;

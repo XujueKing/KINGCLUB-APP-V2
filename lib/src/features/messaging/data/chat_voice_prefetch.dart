@@ -130,7 +130,7 @@ class ChatVoicePrefetch {
     final file = await _media.get(
       '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}${grant['path']}',
       scope: scope,
-      contentKey: 'chat-voice:${repository.account}:${grant['fileId']}',
+      contentKey: 'chat-voice-transfer:$group:$id',
       kind: MediaKind.audio,
       headers: {
         'authorization': (grant['headers'] as Map)['authorization'] as String,

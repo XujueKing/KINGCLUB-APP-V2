@@ -31,6 +31,54 @@ class DelayedDownload implements HttpClientAdapter {
 }
 
 void main() {
+  for (final type in ['voice', 'video']) {
+    test('$type transfer copy is removed with its message', () async {
+      final root = await Directory.systemTemp.createTemp(
+        'chat-transfer-cleanup-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final media = MediaCache(directory: () async => root);
+      final kind = type == 'voice' ? MediaKind.audio : MediaKind.video;
+      final key = type == 'voice'
+          ? 'chat-voice-transfer:false:m'
+          : 'chat-video-transfer:false:m:video';
+      await media.importBytes(
+        Uint8List.fromList([1, 2, 3]),
+        scope: 'member:a',
+        contentKey: key,
+        kind: kind,
+      );
+      await ChatMediaCleanup(media: media).remove(
+        account: 'a',
+        group: false,
+        message: {'messageType': type, 'messageId': 'm'},
+      );
+      final reopened = MediaCache(directory: () async => root);
+      await expectLater(
+        reopened.cached(scope: 'member:a', contentKey: key, kind: kind),
+        throwsStateError,
+      );
+      await expectLater(
+        reopened.importBytes(
+          Uint8List.fromList([4]),
+          scope: 'member:a',
+          contentKey: key,
+          kind: kind,
+        ),
+        throwsStateError,
+      );
+      expect(
+        await root
+            .list(recursive: true)
+            .where(
+              (entry) =>
+                  entry.path.endsWith('.mp4') || entry.path.endsWith('.m4a'),
+            )
+            .toList(),
+        isEmpty,
+      );
+    });
+  }
   test('file cleanup uses the exact downloader identity', () async {
     final root = await Directory.systemTemp.createTemp('chat-file-cleanup-');
     addTearDown(() => root.delete(recursive: true));

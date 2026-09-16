@@ -49,6 +49,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
     MediaCache? mediaStore,
   }) : _output = output ?? NativeChatVoiceOutput(),
        _mediaStore = mediaStore ?? MediaCache.shared,
+       _usesDefaultLoader = loadFile == null,
        _loadFile = loadFile ?? _cached,
        _evictFile = evictFile ?? _evictCached {
     WidgetsBinding.instance.addObserver(this);
@@ -125,7 +126,8 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
   ) => MediaCache.shared.get(
     url,
     scope: 'member:$account',
-    contentKey: 'chat-voice:$account:$fileId',
+    contentKey:
+        'chat-voice-transfer:${Uri.parse(url).path.contains('/group-chat-voice/')}:${Uri.parse(url).pathSegments.last}',
     kind: MediaKind.audio,
     headers: headers,
   );
@@ -136,6 +138,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
         kind: MediaKind.audio,
       );
   final Future<void> Function(String, String) _evictFile;
+  final bool _usesDefaultLoader;
   late final void Function() _removeDeletionListener;
   final ChatVoiceOutput _output;
   final MediaCache _mediaStore;
@@ -317,6 +320,13 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
             } catch (_) {}
             try {
               await _evictFile(repository.account, fileId);
+              if (_usesDefaultLoader) {
+                await MediaCache.shared.evict(
+                  scope: 'member:${repository.account}',
+                  contentKey: 'chat-voice-transfer:$group:$messageId',
+                  kind: MediaKind.audio,
+                );
+              }
             } catch (_) {}
             rethrow;
           }

@@ -28,6 +28,13 @@ class ChatMediaCleanup {
       await ChatMediaDeletion(account, group, messageId).dispatch();
     }
     if (message['messageType'] == 'voice') {
+      if (messageId is String && messageId.isNotEmpty) {
+        await media.removePermanently(
+          scope: 'member:$account',
+          contentKey: 'chat-voice-transfer:$group:$messageId',
+          kind: MediaKind.audio,
+        );
+      }
       final asset = message['voiceAssetId'];
       if (asset is String &&
           asset.isNotEmpty &&
@@ -82,6 +89,8 @@ class ChatMediaCleanup {
       keys['chat-image-message:$group:$id:thumbnail'] = MediaKind.image;
       keys['chat-video-message:$group:$id:video'] = MediaKind.video;
       keys['chat-video-message:$group:$id:poster'] = MediaKind.image;
+      keys['chat-video-transfer:$group:$id:video'] = MediaKind.video;
+      keys['chat-video-transfer:$group:$id:poster'] = MediaKind.image;
     }
     if (message['sender'] == account &&
         client is String &&
