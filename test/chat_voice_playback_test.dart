@@ -9,6 +9,7 @@ import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/chat_voice_playback.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 
 class Output implements ChatVoiceOutput {
   final plays = <String>[];
@@ -51,6 +52,42 @@ Map<String, dynamic> grant(String message, {bool group = false}) => {
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'deletion waits for native stop and ignores other message identities',
+    () async {
+      final output = Output();
+      final playback = ChatVoicePlayback(
+        output: output,
+        events: const Stream.empty(),
+        loadFile: (_, _, _, _) async => File('voice.m4a'),
+      );
+      addTearDown(playback.dispose);
+      await playback.toggle(
+        MessagingRepository(
+          account: 'me',
+          call: (_, _) async => grant('voice'),
+        ),
+        'voice',
+      );
+      expect(playback.activeId, 'voice');
+      await const ChatMediaDeletion('other', false, 'voice').dispatch();
+      await const ChatMediaDeletion('me', true, 'voice').dispatch();
+      expect(playback.activeId, 'voice');
+      output.stopGate = Completer<void>();
+      var deleted = false;
+      final deletion = const ChatMediaDeletion(
+        'me',
+        false,
+        'voice',
+      ).dispatch().then((_) => deleted = true);
+      await Future<void>.delayed(Duration.zero);
+      expect(playback.activeId, isNull);
+      expect(deleted, false);
+      output.stopGate!.complete();
+      await deletion;
+      expect(deleted, true);
+    },
+  );
   test(
     'saved voice plays after store reopen without contacting server',
     () async {

@@ -6,6 +6,7 @@ import 'package:kingclub/src/core/media/media_cache.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_voice_prefetch.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 
 const message = '12345678-1234-1234-1234-123456789012';
 const asset = '22345678-1234-1234-1234-123456789012';
@@ -73,6 +74,36 @@ class Store extends MediaCache {
 Future<void> settle() => Future<void>.delayed(Duration.zero);
 
 void main() {
+  test(
+    'deletion waits for late transfer and prevents retention or retry',
+    () async {
+      final store = Store();
+      final worker = ChatVoicePrefetch(
+        MessagingRepository(account: 'me', call: (_, _) async => grant()),
+        group: false,
+        media: store,
+      );
+      addTearDown(worker.dispose);
+      worker.update(rows);
+      await settle();
+      expect(store.downloads, 1);
+      var finished = false;
+      final deletion = const ChatMediaDeletion(
+        'me',
+        false,
+        message,
+      ).dispatch().then((_) => finished = true);
+      await settle();
+      expect(finished, false);
+      store.download.complete(File('late.m4a'));
+      await deletion;
+      expect(store.retained, isEmpty);
+      worker.update(rows);
+      await worker.idle;
+      expect(store.downloads, 1);
+      expect(worker.hasFailures, false);
+    },
+  );
   for (final mode in ['success', 'revoked', 'session']) {
     test('received voice prefetch $mode', () async {
       final store = Store();

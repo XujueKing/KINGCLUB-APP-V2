@@ -3,6 +3,7 @@ import '../../../core/media/media_cache.dart';
 import 'dart:convert';
 
 import 'chat_download_cache.dart';
+import 'chat_media_deletion.dart';
 
 /// Deletes message-owned copies without clearing avatars or another account.
 /// Transport cache aliases and exported files are handled separately.
@@ -18,6 +19,10 @@ class ChatMediaCleanup {
     required Map<String, dynamic> message,
     Set<String> retainedVoiceAssets = const {},
   }) async {
+    final messageId = message['messageId'];
+    if (messageId is String && messageId.isNotEmpty) {
+      await ChatMediaDeletion(account, group, messageId).dispatch();
+    }
     if (message['messageType'] == 'voice') {
       final asset = message['voiceAssetId'];
       if (asset is String &&

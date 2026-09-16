@@ -11,6 +11,7 @@ import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
+import 'chat_media_deletion.dart';
 
 abstract class ChatVoiceOutput {
   Future<void> play(String path);
@@ -51,6 +52,13 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
        _loadFile = loadFile ?? _cached,
        _evictFile = evictFile ?? _evictCached {
     WidgetsBinding.instance.addObserver(this);
+    _removeDeletionListener = ChatMediaDeletion.listen((event) async {
+      if (event.account == _repository?.account &&
+          event.group == _playingGroup &&
+          event.messageId == activeId) {
+        await stop();
+      }
+    });
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
       stop();
@@ -128,6 +136,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
         kind: MediaKind.audio,
       );
   final Future<void> Function(String, String) _evictFile;
+  late final void Function() _removeDeletionListener;
   final ChatVoiceOutput _output;
   final MediaCache _mediaStore;
   final VoiceFileLoader _loadFile;
@@ -353,6 +362,7 @@ class ChatVoicePlayback extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _removeDeletionListener();
     _generation++;
     _session?.cancel();
     _events?.cancel();

@@ -17,3 +17,19 @@ Not full voice deletion acceptance: old transport file-ID aliases, pending
 prefetch/playing audio, outbox-only references and media absent from persisted
 history still require ownership tracking and deletion propagation. No phone
 build was installed for this change.
+
+## Active voice users
+
+ChatMediaCleanup dispatches an account/group/message-scoped deletion notice
+before evicting bytes. Playback waits for its serialized stop; unrelated account
+and group identities are ignored. Voice prefetch removes the matching queue and
+retry entries, waits only for the current matching transfer, checks deletion
+after network awaits, and refuses to schedule that message again in that worker.
+Subscriptions are released on disposal. Native stop retains its preexisting
+error-swallowing behavior; no stronger failure guarantee is claimed here.
+
+40 voice/history/cleanup tests passed, plus analyzer for six changed files. New
+tests hold the download response and native stop completion to verify ordering.
+These use fake transport/player fixtures, not physical phone acceptance.
+The generic transport file-ID cache still needs ownership-aware removal;
+deletion of a voice message is not yet proven complete across all cache copies.

@@ -4,6 +4,7 @@ import '../../../core/media/media_cache.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import 'messaging_repository.dart';
+import 'chat_media_deletion.dart';
 
 /// Retains recent received voice messages without opening an audio device.
 /// One transfer at a time; failures remain retryable on a later history update.
@@ -11,15 +12,25 @@ class ChatVoicePrefetch {
   ChatVoicePrefetch(this.repository, {required this.group, MediaCache? media})
     : _media = media ?? MediaCache.shared {
     _session = SecureSessionStore.changes.stream.listen((_) => dispose());
+    _removeDeletionListener = ChatMediaDeletion.listen((event) async {
+      if (event.account != repository.account || event.group != group) return;
+      _deleted.add(event.messageId);
+      _pending.remove(event.messageId);
+      _retryAfter.remove(event.messageId);
+      if (_active == event.messageId) await _activeDone?.future;
+    });
   }
   final MessagingRepository repository;
   final bool group;
   final MediaCache _media;
+  late final void Function() _removeDeletionListener;
+  final _deleted = <String>{};
   StreamSubscription<void>? _session;
   final _pending = <String, String>{};
   final _retryAfter = <String, DateTime>{};
   bool _disposed = false, _running = false;
   String? _active;
+  Completer<void>? _activeDone;
   Future<void> _work = Future.value();
   Future<void> get idle => _work;
   bool get hasFailures => _retryAfter.isNotEmpty;
@@ -35,6 +46,7 @@ class ChatVoicePrefetch {
       if (message['messageType'] == 'voice' &&
           message['sender'] != repository.account &&
           id is String &&
+          !_deleted.contains(id) &&
           _uuid.hasMatch(id) &&
           asset is String &&
           _uuid.hasMatch(asset)) {
@@ -83,15 +95,18 @@ class ChatVoicePrefetch {
         final entry = _pending.entries.first;
         _pending.remove(entry.key);
         _active = entry.key;
+        _activeDone = Completer<void>();
         try {
           await _retain(entry.key, entry.value);
         } catch (_) {
-          if (!_disposed) {
+          if (!_disposed && !_deleted.contains(entry.key)) {
             _retryAfter[entry.key] = DateTime.now().add(
               const Duration(seconds: 30),
             );
           }
         } finally {
+          _activeDone?.complete();
+          _activeDone = null;
           _active = null;
         }
       }
@@ -101,15 +116,17 @@ class ChatVoicePrefetch {
   }
 
   Future<void> _retain(String id, String asset) async {
+    bool stopped() => _disposed || _deleted.contains(id);
+    if (stopped()) return;
     final scope = 'member:${repository.account}',
         key = 'chat-voice-asset:$asset';
     try {
       await _media.cached(scope: scope, contentKey: key, kind: MediaKind.audio);
       return;
     } catch (_) {}
-    if (_disposed) return;
+    if (stopped()) return;
     final grant = _grant(await repository.voiceMedia(id, group: group), id);
-    if (_disposed) return;
+    if (stopped()) return;
     final file = await _media.get(
       '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}${grant['path']}',
       scope: scope,
@@ -119,11 +136,11 @@ class ChatVoicePrefetch {
         'authorization': (grant['headers'] as Map)['authorization'] as String,
       },
     );
-    if (_disposed) return;
+    if (stopped()) return;
     // Do not publish a local asset mapping using authority captured before a
     // potentially slow download (removal/hide may have happened meanwhile).
     final fresh = _grant(await repository.voiceMedia(id, group: group), id);
-    if (_disposed || fresh['fileId'] != grant['fileId']) return;
+    if (stopped() || fresh['fileId'] != grant['fileId']) return;
     await _media.importFile(
       file,
       scope: scope,
@@ -135,6 +152,7 @@ class ChatVoicePrefetch {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _removeDeletionListener();
     _pending.clear();
     _retryAfter.clear();
     _session?.cancel();
