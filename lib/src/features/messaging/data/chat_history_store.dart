@@ -571,7 +571,11 @@ class ChatHistoryStore {
     });
   }
 
-  Future<int> clear(String conversation, {bool hideNearby = false}) async {
+  Future<int> clear(
+    String conversation, {
+    bool hideNearby = false,
+    ChatMediaCleanup? mediaCleanup,
+  }) async {
     if (hideNearby && !conversation.startsWith('direct:')) {
       throw ArgumentError('Nearby history requires a direct conversation');
     }
@@ -589,7 +593,40 @@ class ChatHistoryStore {
               as int;
       // Delete owned media before discarding the encrypted metadata needed to
       // locate it. A filesystem failure leaves history available for retry.
-      final cleanup = ChatMediaCleanup();
+      final cleanup = mediaCleanup ?? ChatMediaCleanup();
+      final retainedVoiceAssets = <String>{};
+      // Payloads are encrypted; inspect remaining conversations in bounded
+      // batches before discarding any shared asset. The transaction prevents
+      // a concurrent history write from changing this reference snapshot.
+      var referenceOffset = 0;
+      while (true) {
+        final references = await tx.query(
+          'message',
+          where: 'conversation<>?',
+          whereArgs: [id],
+          orderBy: 'conversation, sequence',
+          limit: 50,
+          offset: referenceOffset,
+        );
+        for (final row in references) {
+          final plain = await _cipher.decrypt(
+            SecretBox.fromConcatenation(
+              (row['payload'] as List).cast<int>(),
+              nonceLength: 12,
+              macLength: 16,
+            ),
+            secretKey: _key,
+            aad: _aad(row['conversation'] as String, row['sequence'] as int),
+          );
+          final message = jsonDecode(utf8.decode(plain)) as Map;
+          final asset = message['voiceAssetId'];
+          if (asset is String && message['messageType'] == 'voice') {
+            retainedVoiceAssets.add(asset);
+          }
+        }
+        if (references.length < 50) break;
+        referenceOffset += references.length;
+      }
       var offset = 0;
       while (true) {
         final rows = await tx.query(
@@ -613,6 +650,7 @@ class ChatHistoryStore {
           await cleanup.remove(
             account: account,
             group: conversation.startsWith('group:'),
+            retainedVoiceAssets: retainedVoiceAssets,
             message: Map<String, dynamic>.from(
               jsonDecode(utf8.decode(plain)) as Map,
             ),

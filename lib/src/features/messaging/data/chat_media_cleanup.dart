@@ -16,7 +16,23 @@ class ChatMediaCleanup {
     required String account,
     required bool group,
     required Map<String, dynamic> message,
+    Set<String> retainedVoiceAssets = const {},
   }) async {
+    if (message['messageType'] == 'voice') {
+      final asset = message['voiceAssetId'];
+      if (asset is String &&
+          asset.isNotEmpty &&
+          !retainedVoiceAssets.contains(asset)) {
+        // Asset copies can be shared by different messages. Unlike a message
+        // tombstone, eviction permits a future new authorized use of the asset.
+        await media.evict(
+          scope: 'member:$account',
+          contentKey: 'chat-voice-asset:$asset',
+          kind: MediaKind.audio,
+        );
+      }
+      return;
+    }
     if (message['messageType'] == 'file') {
       final cache = await (downloadCache ?? ChatDownloadCache.open)(account);
       await cache.removePermanently(

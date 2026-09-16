@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_cleanup.dart';
+import 'package:kingclub/src/core/media/media_cache.dart';
 
 Map<String, dynamic> message(int sequence) => {
   'sequence': sequence,
@@ -36,6 +39,63 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  test(
+    'clear preserves shared voice until last persisted reference is removed',
+    () async {
+      final media = MediaCache(
+        directory: () async => Directory('${dir.path}/media'),
+      );
+      final cleanup = ChatMediaCleanup(media: media);
+      const asset = '12345678-1234-1234-1234-123456789012';
+      Map<String, dynamic> voice(int sequence) => {
+        ...message(sequence),
+        'messageType': 'voice',
+        'voiceAssetId': asset,
+        'voiceDurationMs': 3000,
+      };
+      await media.importBytes(
+        Uint8List.fromList([1, 2, 3]),
+        scope: 'member:me',
+        contentKey: 'chat-voice-asset:$asset',
+        kind: MediaKind.audio,
+      );
+      await store.commit(
+        'direct:peer',
+        [voice(1)],
+        expectedEpoch: 0,
+        cursor: 1,
+      );
+      await store.commit(
+        'direct:other',
+        [for (var i = 1; i <= 50; i++) message(i), voice(51)],
+        expectedEpoch: 0,
+        cursor: 51,
+      );
+      await store.clear('direct:peer', mediaCleanup: cleanup);
+      expect((await store.read('direct:peer')).messages, isEmpty);
+      expect(
+        await (await media.cached(
+          scope: 'member:me',
+          contentKey: 'chat-voice-asset:$asset',
+          kind: MediaKind.audio,
+        )).readAsBytes(),
+        [1, 2, 3],
+      );
+      await store.clear('direct:other', mediaCleanup: cleanup);
+      final reopened = MediaCache(
+        directory: () async => Directory('${dir.path}/media'),
+      );
+      await expectLater(
+        reopened.cached(
+          scope: 'member:me',
+          contentKey: 'chat-voice-asset:$asset',
+          kind: MediaKind.audio,
+        ),
+        throwsStateError,
+      );
+      expect((await store.read('direct:other')).messages, isEmpty);
+    },
+  );
   test('call metadata survives reopen but hidden records lose it', () async {
     final call = {
       'callId': '00000000-0000-4000-8000-000000000001',
