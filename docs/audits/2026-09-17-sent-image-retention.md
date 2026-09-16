@@ -22,5 +22,13 @@ sender retention/retry test passed. Six changed source/test files passed analyze
 The real PNG tests reopen the disk store and decode own full/thumbnail images
 without repository requests. Sender network/queue tests use doubles; these do
 not establish real service delivery or phone offline acceptance. No new phone
-build was installed for this node. A remains on preview 5fa6e73; its animation
-smoothness and video offline playback are still awaiting acceptance.
+build was installed at the time of those checks.
+
+Installation follow-up: preview 39cd93f built in Profile mode (155 seconds,
+159.2 MB), installed successfully on A, and foreground was verified on attempt
+1. Returned to the A/B direct conversation. A project-owned PNG was copied to
+Download/KINGCLUB-retention-test.png and registered with the media scanner, but
+not selected or sent. The composer contained unsent text different from the
+pre-install snapshot; it was left untouched rather than overwritten. Phone
+photo sending/offline viewing, animation smoothness, and video offline playback
+remain pending. B was not operated or updated.
