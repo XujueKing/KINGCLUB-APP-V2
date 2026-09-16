@@ -43,6 +43,60 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   FlutterSecureStorage.setMockInitialValues({});
   test(
+    'unmute event resumes a held outgoing queue once with its original ID',
+    () async {
+      final outbox = Queue();
+      await outbox.put({
+        'groupId': 'group',
+        'sender': 'me',
+        'clientMessageId': 'held',
+        'text': 'hello',
+        'status': 'queued',
+      });
+      var muted = true;
+      final sent = <String>[];
+      final confirmed = <Map<String, dynamic>>[];
+      final controller = GroupChatController(
+        groupId: 'group',
+        outbox: outbox,
+        repository: GroupChatRepository(
+          MessagingRepository(
+            account: 'me',
+            call: (id, params) async {
+              if (id == 'K260913000621') {
+                return {
+                  ...history(confirmed),
+                  'sendPermission': {'allowed': !muted},
+                };
+              }
+              if (id == 'K260913000619') {
+                return {'members': <Map<String, dynamic>>[]};
+              }
+              if (id == 'K260913000620') {
+                final clientId = params['clientMessageId'] as String;
+                sent.add(clientId);
+                confirmed.add(message(clientId));
+                return {'message': confirmed.last};
+              }
+              return {};
+            },
+          ),
+        ),
+      );
+      await controller.initialize();
+      await controller.refreshGroup();
+      expect(sent, isEmpty);
+      expect(outbox.rows['held']?['status'], 'queued');
+      muted = false;
+      await controller.refreshGroup();
+      await controller.refreshGroup();
+      expect(sent, ['held']);
+      expect(outbox.rows, isEmpty);
+      expect(controller.messages, hasLength(1));
+      controller.dispose();
+    },
+  );
+  test(
     'silence keeps history and blocks queueing until authoritative unmute',
     () async {
       var muted = true;

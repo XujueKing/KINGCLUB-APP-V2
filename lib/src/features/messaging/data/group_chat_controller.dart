@@ -172,9 +172,10 @@ class GroupChatController extends ChatSessionController {
   /// Metadata notifications also cover membership changes. Keep the current
   /// messages while revalidating; access denial and history revisions still
   /// invalidate them through the normal synchronization path.
-  Future<void> refreshGroup() {
+  Future<void> refreshGroup() async {
     invalidateMemberNames();
-    return synchronize();
+    await synchronize();
+    await retryQueued();
   }
 
   @override
