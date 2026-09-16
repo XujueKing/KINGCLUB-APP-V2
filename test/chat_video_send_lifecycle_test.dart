@@ -37,12 +37,13 @@ class _Preview extends VideoPlayerController {
   int plays = 0, pauses = 0;
   @override
   Future<void> initialize() async {
-    if (ready)
+    if (ready) {
       value = const VideoPlayerValue(
         duration: Duration(seconds: 8),
         size: Size(1280, 720),
         isInitialized: true,
       );
+    }
   }
 
   @override
