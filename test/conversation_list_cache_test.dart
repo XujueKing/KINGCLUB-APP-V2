@@ -235,6 +235,14 @@ void main() {
           expect(find.text('Arrived offline'), findsNothing);
           expect(unread, 2);
           expect(find.text('卡座搭子'), findsNothing);
+          // No realtime/relay event and every server refresh still fails.
+          // Committing clear itself must update the visible list and badge.
+          await store.clear('direct:friend', hideNearby: true);
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await tester.pumpAndSettle();
+          expect(find.text('Cached friend'), findsNothing);
+          expect(find.text('Cached text'), findsNothing);
+          expect(unread, 0);
         } finally {
           await tester.pumpWidget(const SizedBox.shrink());
           await events.close();

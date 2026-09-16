@@ -4,6 +4,7 @@ import 'chat_media_cleanup.dart';
 import 'chat_outbox.dart';
 
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'chat_location.dart';
@@ -41,8 +42,11 @@ class ChatHistoryStore {
   final ChatOutbox? _outbox;
   final Database _db;
   int _conversationListRevision = 0;
+
   /// Fences requests begun before a local conversation was cleared.
   int get conversationListRevision => _conversationListRevision;
+  final _clearedConversations = StreamController<String>.broadcast();
+  Stream<String> get clearedConversations => _clearedConversations.stream;
   final SecretKey _key;
   final String account;
   static final _cipher = AesGcm.with256bits();
@@ -615,7 +619,7 @@ class ChatHistoryStore {
         ? await _outbox?.read() ?? <Map<String, dynamic>>[]
         : <Map<String, dynamic>>[];
     final id = await _conversation(conversation);
-    return _db.transaction((tx) async {
+    final nextEpoch = await _db.transaction((tx) async {
       await tx.insert('conversation', {
         'id': id,
       }, conflictAlgorithm: ConflictAlgorithm.ignore);
@@ -771,10 +775,15 @@ class ChatHistoryStore {
       );
       return epoch + 1;
     });
+    if (deleteMedia && deletedMessageIds == null) {
+      _clearedConversations.add(conversation);
+    }
+    return nextEpoch;
   }
 
   Future<void> close() async {
     _opens.remove(account);
     await _db.close();
+    await _clearedConversations.close();
   }
 }

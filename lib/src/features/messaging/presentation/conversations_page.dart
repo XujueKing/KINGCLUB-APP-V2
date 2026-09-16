@@ -96,6 +96,8 @@ class _ConversationsPageState extends State<ConversationsPage>
   StreamSubscription<void>? _sessions;
   StreamSubscription<String>? _relayEvents;
   StreamSubscription<String>? _readEvents;
+  StreamSubscription<String>? _clearEvents;
+  ChatHistoryStore? _observedHistory;
   StreamSubscription<String>? _remarkEvents;
   int _localRead = 0;
   bool get _useRelayUnread =>
@@ -108,9 +110,34 @@ class _ConversationsPageState extends State<ConversationsPage>
     final store =
         await (widget.openRelayHistory?.call() ??
             ChatHistoryStore.open(repository.account));
-    if (store.account != repository.account ||
+    if (!mounted ||
+        store.account != repository.account ||
         !identical(repository, _repository)) {
       throw StateError('Chat account changed');
+    }
+    if (!identical(_observedHistory, store)) {
+      _clearEvents?.cancel();
+      _observedHistory = store;
+      _clearEvents = store.clearedConversations.listen((conversation) {
+        if (!mounted || !identical(repository, _repository)) return;
+        _localRead++;
+        setState(() {
+          _realItems.removeWhere(
+            (row) =>
+                conversation ==
+                (row['kind'] == 'group'
+                    ? 'group:${row['groupId']}'
+                    : 'direct:${row['peer']}'),
+          );
+        });
+        widget.onFriendUnreadChanged(
+          _realItems.fold<int>(
+            0,
+            (sum, row) => sum + (row['unreadCount'] as num).toInt(),
+          ),
+        );
+        _refreshReal();
+      });
     }
     return store;
   }
@@ -134,6 +161,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     _sessions?.cancel();
     _relayEvents?.cancel();
     _readEvents?.cancel();
+    _clearEvents?.cancel();
     _remarkEvents?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -166,6 +194,8 @@ class _ConversationsPageState extends State<ConversationsPage>
     _sessions?.cancel();
     _relayEvents?.cancel();
     _readEvents?.cancel();
+    _clearEvents?.cancel();
+    _observedHistory = null;
     _remarkEvents?.cancel();
     try {
       final repository = widget.repository ?? await MessagingRepository.open();
@@ -211,6 +241,8 @@ class _ConversationsPageState extends State<ConversationsPage>
         _events?.cancel();
         _relayEvents?.cancel();
         _readEvents?.cancel();
+        _clearEvents?.cancel();
+        _observedHistory = null;
         _remarkEvents?.cancel();
         if (mounted) {
           setState(() {
@@ -224,6 +256,7 @@ class _ConversationsPageState extends State<ConversationsPage>
       if (repository.persistHistory || widget.openRelayHistory != null) {
         try {
           final store = await _openRelayHistory(repository);
+          final listRevision = store.conversationListRevision;
           var cached = await store.readConversationList();
           if (_useRelayUnread) {
             cached = await offlineRelayConversations(store, cached);
@@ -231,7 +264,9 @@ class _ConversationsPageState extends State<ConversationsPage>
           if (!mounted || !identical(repository, _repository)) return;
           // A realtime refresh may already be in flight; it must not suppress
           // disk restoration, or overwrite a newer server result with disk data.
-          if (cached.isNotEmpty && !_realReady) {
+          if (cached.isNotEmpty &&
+              !_realReady &&
+              listRevision == store.conversationListRevision) {
             setState(() {
               _realItems
                 ..clear()
