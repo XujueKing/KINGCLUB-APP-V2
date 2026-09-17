@@ -52,6 +52,39 @@ class Launcher extends CallLaunchCoordinator {
 }
 
 void main() {
+  for (final resumed in [false, true]) {
+    testWidgets(
+      'notification during lookup is replayed without waiting for timer resumed=$resumed',
+      (tester) async {
+        final first = Completer<PreparedCall?>();
+        var reads = 0, shown = 0;
+        Future<PreparedCall?> read() async =>
+            ++reads == 1 ? first.future : ready();
+        final inbox = ForegroundCallInbox(
+          launcher: Launcher(read),
+          present: (_) async {
+            shown++;
+            return true;
+          },
+        );
+        addTearDown(inbox.close);
+        inbox.foreground(true);
+        if (resumed) {
+          inbox.foreground(false);
+          inbox.foreground(true);
+        } else {
+          for (var n = 0; n < 10; n++) {
+            inbox.notify();
+          }
+        }
+        first.complete(null);
+        await tester.pump();
+        expect(reads, 2);
+        expect(shown, 1);
+        inbox.close();
+      },
+    );
+  }
   testWidgets(
     'server without call interface stops polling until explicitly reactivated',
     (tester) async {

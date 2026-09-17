@@ -31,6 +31,39 @@ class Repo extends GroupCallRepository {
 }
 
 void main() {
+  for (final resumed in [false, true]) {
+    testWidgets(
+      'notification during lookup is replayed without waiting for timer resumed=$resumed',
+      (tester) async {
+        final first = Completer<GroupCallSnapshot?>();
+        var reads = 0, shown = 0;
+        Future<GroupCallSnapshot?> read() async =>
+            ++reads == 1 ? first.future : invited();
+        final inbox = ForegroundGroupCallInbox(
+          repository: Repo(read),
+          present: (_) async {
+            shown++;
+            return true;
+          },
+        );
+        addTearDown(inbox.close);
+        inbox.foreground(true);
+        if (resumed) {
+          inbox.foreground(false);
+          inbox.foreground(true);
+        } else {
+          for (var n = 0; n < 10; n++) {
+            inbox.notify();
+          }
+        }
+        first.complete(null);
+        await tester.pump();
+        expect(reads, 2);
+        expect(shown, 1);
+        inbox.close();
+      },
+    );
+  }
   test('repeated invitations present once without joining', () async {
     var shown = 0;
     final presentation = Completer<bool>();

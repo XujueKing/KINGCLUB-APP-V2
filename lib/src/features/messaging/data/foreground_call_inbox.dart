@@ -16,6 +16,7 @@ class ForegroundCallInbox {
   final Duration interval;
   Timer? _timer;
   Future<void>? _refreshing;
+  bool _refreshQueued = false;
   bool _closed = false, _foreground = false;
   int _generation = 0;
   String? _shown;
@@ -33,13 +34,20 @@ class ForegroundCallInbox {
   }
 
   void notify() {
-    if (_refreshing != null) return;
     unawaited(refresh().catchError((Object _) {}));
   }
 
   Future<void> refresh() {
     if (_closed || !_foreground) return Future.value();
-    return _refreshing ??= _refresh().whenComplete(() => _refreshing = null);
+    if (_refreshing != null) {
+      _refreshQueued = true;
+      return _refreshing!;
+    }
+    _refreshQueued = false;
+    return _refreshing = _refresh().whenComplete(() {
+      _refreshing = null;
+      if (_refreshQueued && !_closed && _foreground) notify();
+    });
   }
 
   Future<void> _refresh() async {
