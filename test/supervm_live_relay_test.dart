@@ -354,6 +354,18 @@ void main() {
         messaging: MessagingRepository(
           account: account,
           call: (api, params) async {
+            if (api == 'K260918000709') {
+              expect(params['operation'], 'publish');
+              expect(
+                params['messageId'],
+                'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+              );
+              expect(params['nativeSessionId'], hasLength(32));
+              return {
+                'published': true,
+                'expiresAt': DateTime.now().millisecondsSinceEpoch + 45000,
+              };
+            }
             expect(api, 'K260915000672');
             directoryReads++;
             final isA = params['peer'] == 'member-a';

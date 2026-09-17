@@ -157,7 +157,38 @@ void main() {
         const groupId = '44444444-4444-4444-8444-444444444444';
         var epoch = 1;
         var wrongGroup = false;
+        var wrongContext = false;
         final binding = client((api, params) async {
+          if (api == 'K260918000709') {
+            if (params['operation'] == 'publish') {
+              expect(params['ownBindingId'], id);
+              expect(params['peerBindingId'], otherId);
+              expect(params['nativeSessionId'], hasLength(32));
+              return {
+                'published': true,
+                'expiresAt': DateTime.now().millisecondsSinceEpoch + 45000,
+              };
+            }
+            expect(params['sourcePeerId'], other.peerId);
+            return {
+              'peer': 'friend',
+              'peerBindingId': otherId,
+              'sourcePeerId': other.peerId,
+              'nativeSessionId': wrongContext
+                  ? '0' * 32
+                  : params['nativeSessionId'],
+              'expiresAt': DateTime.now().millisecondsSinceEpoch + 45000,
+              'scope': {
+                'kind': 'group-file',
+                'messageId': messageId,
+                'groupId': groupId,
+                'sender': 'UM_SYNTHETIC',
+                'recipient': 'friend',
+                'senderMembershipVersion': 1,
+                'recipientMembershipVersion': epoch,
+              },
+            };
+          }
           expect(api, 'K260915000672');
           if (params['peer'] == 'UM_SYNTHETIC') {
             expect(params, {'peer': 'UM_SYNTHETIC'});
@@ -241,6 +272,38 @@ void main() {
         expect(received.sessionId, response.channel.sessionId);
         received.close();
         response.channel.close();
+        final published = await binding.startGroupFilePeer(
+          'friend',
+          otherId,
+          directory.scope,
+        );
+        await binding.publishGroupFileHandshake(
+          'friend',
+          published.key,
+          directory.scope,
+          published.offer,
+        );
+        published.cancel();
+        final incoming = other.start(identity.peerId);
+        final resolved = await binding.resolveGroupFileHandshake(
+          other.peerId,
+          incoming.offer,
+        );
+        expect(resolved.key.peerId, other.peerId);
+        expect(resolved.scope.samePermission(directory.scope), isTrue);
+        wrongContext = true;
+        await expectLater(
+          binding.resolveGroupFileHandshake(other.peerId, incoming.offer),
+          throwsFormatException,
+        );
+        await expectLater(
+          binding.resolveGroupFileHandshake(other.peerId, {
+            ...incoming.offer,
+            'session_id': [1],
+          }),
+          throwsFormatException,
+        );
+        other.cancel(incoming);
         wrongGroup = true;
         await expectLater(
           binding.groupFileDirectory(

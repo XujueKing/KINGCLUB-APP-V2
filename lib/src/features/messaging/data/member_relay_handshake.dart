@@ -120,6 +120,19 @@ class MemberRelayHandshake {
             'Peer device binding changed',
           );
         }
+        if (scope != null) {
+          await binding.publishGroupFileHandshake(
+            peer,
+            key,
+            scope,
+            offer.offer,
+          );
+          _check();
+          if (_responding) {
+            offer.cancel();
+            return;
+          }
+        }
         relay.sendPeerHandshake(key.peerId, {
           'kind': 'offer',
           'body': offer.offer,

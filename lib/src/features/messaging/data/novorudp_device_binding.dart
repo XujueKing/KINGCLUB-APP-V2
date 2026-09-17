@@ -282,6 +282,101 @@ class NovoRudpDeviceBinding {
     return identity.respond(offer, expectedPeer: key.peerId);
   }
 
+  static String _nativeSession(Map<String, dynamic> offer) {
+    final bytes = offer['session_id'];
+    if (bytes is! List ||
+        bytes.length != 16 ||
+        bytes.any((v) => v is! int || v < 0 || v > 255)) {
+      throw const FormatException('Invalid native handshake session');
+    }
+    return bytes
+        .map((v) => (v as int).toRadixString(16).padLeft(2, '0'))
+        .join();
+  }
+
+  static void _checkContextExpiry(Object? expiry) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (expiry is! int || expiry <= now || expiry > now + 47000) {
+      throw const FormatException('Expired group handshake context');
+    }
+  }
+
+  Future<void> publishGroupFileHandshake(
+    String peer,
+    NetworkDeviceKey key,
+    GroupFileDeviceScope scope,
+    Map<String, dynamic> offer,
+  ) async {
+    final session = _nativeSession(offer);
+    if (offer['initiator_peer_id'] != identity.peerId ||
+        offer['responder_peer_id'] != key.peerId) {
+      throw const FormatException('Group handshake identity mismatch');
+    }
+    await verifyGroupFilePeer(peer, key, scope);
+    final own = await ensureRegistered();
+    final result = await _call('K260918000709', {
+      'operation': 'publish',
+      'peer': peer,
+      'ownBindingId': own.bindingId,
+      'peerBindingId': key.bindingId,
+      'messageId': scope.messageId,
+      'nativeSessionId': session,
+    });
+    if (result['published'] != true) {
+      throw const FormatException('Group handshake not published');
+    }
+    _checkContextExpiry(result['expiresAt']);
+  }
+
+  Future<({String peer, NetworkDeviceKey key, GroupFileDeviceScope scope})>
+  resolveGroupFileHandshake(
+    String sourcePeerId,
+    Map<String, dynamic> offer,
+  ) async {
+    final session = _nativeSession(offer);
+    if (!RegExp(r'^novovm-ed25519:[a-f0-9]{64}$').hasMatch(sourcePeerId) ||
+        offer['initiator_peer_id'] != sourcePeerId ||
+        offer['responder_peer_id'] != identity.peerId) {
+      throw const FormatException('Group handshake source mismatch');
+    }
+    final result = await _call('K260918000709', {
+      'operation': 'resolve',
+      'sourcePeerId': sourcePeerId,
+      'nativeSessionId': session,
+    });
+    final peer = result['peer'],
+        bindingId = result['peerBindingId'],
+        raw = result['scope'];
+    if (peer is! String ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peer) ||
+        peer == messaging.account ||
+        bindingId is! String ||
+        !_uuid.hasMatch(bindingId) ||
+        result['sourcePeerId'] != sourcePeerId ||
+        result['nativeSessionId'] != session ||
+        raw is! Map ||
+        raw['messageId'] is! String ||
+        raw['groupId'] is! String) {
+      throw const FormatException('Invalid resolved group handshake');
+    }
+    _checkContextExpiry(result['expiresAt']);
+    final scope = GroupFileDeviceScope.parse(
+      raw,
+      messageId: raw['messageId'],
+      groupId: raw['groupId'],
+      account: messaging.account,
+      peer: peer,
+    );
+    final key = await _requireGroupFileKey(
+      peer,
+      bindingId,
+      scope,
+      sourcePeerId.substring('novovm-ed25519:'.length),
+    );
+    _checkContextExpiry(result['expiresAt']);
+    return (peer: peer, key: key, scope: scope);
+  }
+
   Future<List<NetworkDeviceKey>> directory(String peer) async {
     final result = await _call('K260915000672', {'peer': peer});
     final keys = _directoryKeys(result);
