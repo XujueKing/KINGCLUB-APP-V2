@@ -104,7 +104,7 @@ void main() {
             accepted = true;
             return {'status': 'accepted'};
           }
-          if (id == 'K260913000608')
+          if (id == 'K260913000608') {
             return {
               'items': [
                 if (accepted)
@@ -112,7 +112,8 @@ void main() {
               ],
               'hasMore': false,
             };
-          if (id == 'K260913000611')
+          }
+          if (id == 'K260913000611') {
             return {
               'items': [
                 if (!accepted)
@@ -124,6 +125,7 @@ void main() {
               ],
               'hasMore': false,
             };
+          }
           return {'items': [], 'groups': [], 'hasMore': false};
         },
       );
