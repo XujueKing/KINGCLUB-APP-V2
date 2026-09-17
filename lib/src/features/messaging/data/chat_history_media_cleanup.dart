@@ -34,6 +34,15 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
       // first tombstone still invalidates that preview; after commit its row
       // records the marker so replay does not trigger another refresh.
       await _redactDraft(conversation, removedIds);
+      for (final message in incoming) {
+        if (removedIds.contains(message['messageId'])) {
+          await cleanup.remove(
+            account: account,
+            group: conversation.startsWith('group:'),
+            message: message,
+          );
+        }
+      }
       return tombstones;
     }
 
@@ -81,13 +90,6 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
           removedIds.add(message['messageId'] as String);
           if (!const {'hidden', 'recalled'}.contains(message['messageType'])) {
             removedContent.add(sequence);
-          }
-          if (const {
-            'image',
-            'video',
-            'voice',
-            'file',
-          }.contains(message['messageType'])) {
             removed.add(message);
           }
         } else if (!target || !replaced.contains(sequence)) {
@@ -98,6 +100,12 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
       offset += rows.length;
     }
     removedContent.addAll(tombstones.difference(seenTombstones));
+    for (final message in incoming) {
+      if (tombstones.contains(message['sequence']) &&
+          !seenTombstones.contains(message['sequence'])) {
+        removed.add(message);
+      }
+    }
     await _redactDraft(conversation, removedIds);
     if (removed.isEmpty) return removedContent;
     for (final message in incoming) {
