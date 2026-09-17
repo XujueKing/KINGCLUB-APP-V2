@@ -23,6 +23,49 @@ void main() {
     'membershipVersion': version,
     'joinedSequence': joined,
   };
+  test(
+    'older context page visibility cannot be undone by a lagging second page',
+    () async {
+      for (final field in ['hiddenThrough', 'joinedSequence']) {
+        await expectLater(
+          readChatHistoryContext(
+            messageId: 'm50',
+            sequence: 50,
+            read: ({before, after, required limit}) async => {
+              ...page(before != null ? [49, 50] : [51]),
+              if (field == 'hiddenThrough')
+                'settings': {'hiddenThrough': before != null ? 50 : 0},
+              if (field == 'joinedSequence')
+                'joinedSequence': before != null ? 50 : 0,
+            },
+          ),
+          throwsStateError,
+        );
+      }
+    },
+  );
+  test('malformed visibility on either context page is rejected', () async {
+    for (final first in [true, false]) {
+      for (final field in ['hiddenThrough', 'joinedSequence']) {
+        for (final invalid in [null, -1, 4294967296, '50']) {
+          await expectLater(
+            readChatHistoryContext(
+              messageId: 'm50',
+              sequence: 50,
+              read: ({before, after, required limit}) async => {
+                ...page(before != null ? [50] : [51]),
+                if ((before != null) == first && field == 'hiddenThrough')
+                  'settings': {'hiddenThrough': invalid},
+                if ((before != null) == first && field == 'joinedSequence')
+                  'joinedSequence': invalid,
+              },
+            ),
+            throwsFormatException,
+          );
+        }
+      }
+    }
+  });
   test('recall between context pages cannot expose the old message', () async {
     for (final group in [false, true]) {
       for (final revision in [2, null, -1, '1']) {

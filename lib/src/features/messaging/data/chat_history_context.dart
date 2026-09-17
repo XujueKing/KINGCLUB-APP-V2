@@ -33,16 +33,23 @@ Future<List<Map<String, dynamic>>> readChatHistoryContext({
   if (older['historyVersion'] != newer['historyVersion']) {
     throw StateError('History changed while locating the message');
   }
-  final settings = newer['settings'];
-  if (settings is! Map || settings['hiddenThrough'] is! int) {
-    throw const FormatException('Missing history visibility boundary');
+  var lower = 0;
+  for (final page in [older, newer]) {
+    final settings = page['settings'];
+    final hidden = settings is Map ? settings['hiddenThrough'] : null;
+    if (hidden is! int || hidden < 0 || hidden > 4294967295) {
+      throw const FormatException('Invalid history visibility boundary');
+    }
+    final joined = page['joinedSequence'];
+    if (page['membershipVersion'] != null &&
+        (joined is! int || joined < 0 || joined > 4294967295)) {
+      throw const FormatException('Invalid group admission boundary');
+    }
+    // Both pages are independently read snapshots. A lagging second response
+    // cannot undo a clear/admission boundary already observed in the first.
+    if (hidden > lower) lower = hidden;
+    if (joined is int && joined > lower) lower = joined;
   }
-  final hidden = settings['hiddenThrough'] as int;
-  final joined = newer['joinedSequence'];
-  if (newer['membershipVersion'] != null && joined is! int) {
-    throw const FormatException('Missing group admission boundary');
-  }
-  final lower = joined is int && joined > hidden ? joined : hidden;
   final messages = <int, Map<String, dynamic>>{};
   for (final page in [older, newer]) {
     final raw = page['messages'];
