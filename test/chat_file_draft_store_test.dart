@@ -31,6 +31,12 @@ void main() {
     await store().remove(first.id);
     expect((await store().read())!.id, second.id);
     expect(await first.file.exists(), false);
+    final changed = await second.file.open(mode: FileMode.append);
+    await changed.setPosition(second.size - 1);
+    await changed.writeByte(0);
+    await changed.close();
+    expect(await second.file.length(), second.size);
+    await expectLater(store().read(), throwsStateError);
     await second.file.writeAsBytes([1]);
     await expectLater(store().read(), throwsStateError);
     await store().remove(second.id);

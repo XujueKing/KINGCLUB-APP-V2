@@ -4,11 +4,32 @@ import '../../auth/domain/auth_repository.dart';
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:cryptography/dart.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
+
+// Only path/size cross the isolate boundary, never the account session store.
+Future<String> _draftFileDigest(String path, int expectedSize) =>
+    Isolate.run(() async {
+      final hash = const DartSha256().newHashSink();
+      var total = 0;
+      try {
+        await for (final bytes in File(path).openRead()) {
+          total += bytes.length;
+          if (total > expectedSize) throw StateError('Draft changed');
+          hash.add(bytes);
+        }
+      } finally {
+        hash.close();
+      }
+      if (total != expectedSize) throw StateError('Draft changed');
+      return (await hash.hash()).bytes
+          .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+          .join();
+    });
 
 class ChatFileDraft {
   const ChatFileDraft(this.id, this.file, this.name, this.size, this.sha256);
@@ -125,17 +146,10 @@ class ChatFileDraftStore {
   }
 
   Future<String> _digest(File source, int size) async {
-    final hash = const DartSha256().newHashSink();
-    var total = 0;
-    await for (final bytes in source.openRead()) {
-      await checkSession();
-      total += bytes.length;
-      if (total > size) throw StateError('Draft changed');
-      hash.add(bytes);
-    }
-    hash.close();
-    if (total != size) throw StateError('Draft changed');
-    return _hex((await hash.hash()).bytes);
+    await checkSession();
+    final digest = await _draftFileDigest(source.path, size);
+    await checkSession();
+    return digest;
   }
 
   Future<ChatFileDraft?> read() => _exclusive(() async {
@@ -164,21 +178,18 @@ class ChatFileDraftStore {
     var committed = false, publicationAttempted = false;
     try {
       output = await file.open(mode: FileMode.write);
-      final hash = const DartSha256().newHashSink();
       var total = 0;
       await for (final bytes in source.openRead()) {
         await checkSession();
         total += bytes.length;
         if (total > size) throw StateError('Source changed');
-        hash.add(bytes);
         await output.writeFrom(bytes);
       }
-      hash.close();
       if (total != size) throw StateError('Source changed');
       await output.flush();
       await output.close();
       output = null;
-      final digest = _hex((await hash.hash()).bytes);
+      final digest = await _digest(file, size);
       await checkSession();
       publicationAttempted = true;
       await _storage.write(
