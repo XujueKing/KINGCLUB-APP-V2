@@ -93,6 +93,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   final _realItems = <Map<String, dynamic>>[];
   final _slides = <String, double>{};
+  final _actions = <(MessagingRepository, String)>{};
   StreamSubscription<Map<String, dynamic>>? _events;
   StreamSubscription<void>? _sessions;
   StreamSubscription<String>? _relayEvents;
@@ -508,31 +509,62 @@ class _ConversationsPageState extends State<ConversationsPage>
     }
   }
 
-  Future<void> _realAction(Map<String, dynamic> item, String action) async {
+  String _rowKey(Map<String, dynamic> item) => item['kind'] == 'group'
+      ? 'group:${item['groupId']}'
+      : 'direct:${item['peer']}';
+
+  Future<void> _realAction(
+    Map<String, dynamic> item,
+    String action,
+    MessagingRepository? expected,
+  ) async {
     final repository = _repository;
-    if (repository == null) return;
+    if (!mounted || repository == null || !identical(repository, expected)) {
+      return;
+    }
+    final key = _rowKey(item);
+    final candidates = _realItems.where((row) => _rowKey(row) == key);
+    if (candidates.isEmpty) return;
+    final lock = (repository, key);
+    if (!_actions.add(lock)) return;
+    try {
+      await _performRealAction(
+        repository,
+        Map<String, dynamic>.from(candidates.first),
+        action,
+      );
+    } finally {
+      _actions.remove(lock);
+    }
+  }
+
+  Future<void> _performRealAction(
+    MessagingRepository repository,
+    Map<String, dynamic> item,
+    String action,
+  ) async {
+    bool current() => mounted && identical(repository, _repository);
     final groupId = item['groupId'] as String?;
     if (item['kind'] == 'group' && groupId != null) {
       final groups = GroupChatRepository(repository);
       try {
         switch (action) {
           case 'read':
-            await groups.markRead(
-              groupId,
-              (item['lastSequence'] as num).toInt(),
-            );
+            final sequence = (item['lastSequence'] as num).toInt();
+            if (sequence > 0) await groups.markRead(groupId, sequence);
           case 'pin':
             await groups.settings(groupId, pinned: item['pinned'] != true);
           case 'hide':
             await groups.settings(groupId, hide: true);
+            if (!current()) return;
             if (repository.persistHistory || widget.openRelayHistory != null) {
               await (await _openRelayHistory(repository))
                   .clear('group:$groupId');
             }
         }
-        await _refreshReal();
+        if (current()) await _refreshReal();
       } catch (error) {
-        if (mounted) KingNotice.of(context).show(error.toString());
+        if (mounted && current()) KingNotice.of(context).show(error.toString());
       }
       return;
     }
@@ -563,6 +595,7 @@ class _ConversationsPageState extends State<ConversationsPage>
           await repository.settings(peer, pinned: item['pinned'] != true);
         case 'hide':
           await repository.settings(peer, hide: true);
+          if (!current()) return;
           if (repository.persistHistory || widget.openRelayHistory != null) {
             await (await _openRelayHistory(repository))
                 .clear('direct:$peer', hideNearby: true);
@@ -570,13 +603,20 @@ class _ConversationsPageState extends State<ConversationsPage>
         case 'block':
           await repository.setRelationship(peer, 'block');
       }
-      await _refreshReal();
+      if (current()) await _refreshReal();
     } catch (error) {
-      if (mounted) KingNotice.of(context).show(error.toString());
+      if (mounted && current()) KingNotice.of(context).show(error.toString());
     }
   }
 
-  Future<void> _realMenu(Map<String, dynamic> item) async {
+  Future<void> _realMenu(
+    Map<String, dynamic> item,
+    MessagingRepository? expected,
+  ) async {
+    final repository = _repository;
+    if (!mounted || repository == null || !identical(repository, expected)) {
+      return;
+    }
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: legacyActionMenuBackground,
@@ -607,10 +647,11 @@ class _ConversationsPageState extends State<ConversationsPage>
         ),
       ),
     );
-    if (action != null && mounted) await _realAction(item, action);
+    if (action != null && mounted) await _realAction(item, action, repository);
   }
 
   Widget _realRow(Map<String, dynamic> item) {
+    final repository = _repository;
     final group = item['kind'] == 'group';
     final target = (group ? item['groupId'] : item['peer']) as String;
     final slideKey = '${group ? 'group' : 'direct'}:$target';
@@ -670,14 +711,14 @@ class _ConversationsPageState extends State<ConversationsPage>
         );
         await _refreshReal();
       },
-      onLongPress: () => _realMenu(item),
+      onLongPress: () => _realMenu(item, repository),
       onSlideChanged: (value) => setState(() => _slides[slideKey] = value),
       onSlideEnd: () => setState(
         () => _slides[slideKey] = (_slides[slideKey] ?? 0) < -72 ? -216 : 0,
       ),
-      onToggleRead: () => _realAction(item, 'read'),
-      onTogglePin: () => _realAction(item, 'pin'),
-      onDelete: () => _realAction(item, 'hide'),
+      onToggleRead: () => _realAction(item, 'read', repository),
+      onTogglePin: () => _realAction(item, 'pin', repository),
+      onDelete: () => _realAction(item, 'hide', repository),
     );
   }
 
