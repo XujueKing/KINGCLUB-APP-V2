@@ -70,9 +70,20 @@ class ChatTextDraftStore {
   final FlutterSecureStorage _storage;
   static final _locks = <String, Future<void>>{};
   static final _redactedDrafts = <String, Set<String>>{};
-  static final _hiddenThrough = <String, int>{};
   String get _key =>
       'kingclub.text-draft.${base64UrlEncode(utf8.encode(jsonEncode([account, target])))}';
+  String get _boundaryKey => '$_key.hidden-through';
+  Future<int> _readBoundary() async {
+    final raw = await _storage.read(key: _boundaryKey);
+    await checkSession();
+    if (raw == null) return 0;
+    final value = int.tryParse(raw);
+    if (value == null || value < 0 || value > 4294967295) {
+      throw const FormatException('Invalid draft history boundary');
+    }
+    return value;
+  }
+
   static Future<ChatTextDraftStore> open(String account, String target) async {
     final guard = await ChatFileDraftStore.open(account, target);
     return ChatTextDraftStore(account, target, guard.checkSession);
@@ -96,14 +107,24 @@ class ChatTextDraftStore {
   Future<ChatTextDraft?> read() => _exclusive(() async {
     final raw = await _storage.read(key: _key);
     await checkSession();
-    return raw == null ? null : ChatTextDraft.parse(raw);
+    if (raw == null) return null;
+    final draft = ChatTextDraft.parse(raw);
+    if (draft.replySequence != null &&
+        draft.replySequence! <= await _readBoundary()) {
+      final cleaned = ChatTextDraft(draft.text, id: draft.id);
+      await _storage.write(key: _key, value: jsonEncode(cleaned.toJson()));
+      return cleaned;
+    }
+    return draft;
   });
   Future<void> write(ChatTextDraft? draft) => _exclusive(() async {
     var value = draft;
+    if (value != null) ChatTextDraft.parse(jsonEncode(value.toJson()));
+    final boundary = value?.replySequence == null ? 0 : await _readBoundary();
     if (value != null &&
         ((_redactedDrafts[_key]?.contains(value.id) ?? false) ||
             (value.replySequence != null &&
-                value.replySequence! <= (_hiddenThrough[_key] ?? 0)))) {
+                value.replySequence! <= boundary))) {
       value = ChatTextDraft(value.text, id: value.id);
     }
     if (value == null || value.text.isEmpty && value.replyTo == null) {
@@ -120,8 +141,15 @@ class ChatTextDraftStore {
     Set<String>? messageIds, {
     int hiddenThrough = 0,
   }) => _exclusive(() async {
-    if (hiddenThrough > (_hiddenThrough[_key] ?? 0)) {
-      _hiddenThrough[_key] = hiddenThrough;
+    if (hiddenThrough < 0 || hiddenThrough > 4294967295) {
+      throw ArgumentError('Invalid draft history boundary');
+    }
+    final savedBoundary = await _readBoundary();
+    final boundary = hiddenThrough > savedBoundary
+        ? hiddenThrough
+        : savedBoundary;
+    if (boundary > savedBoundary) {
+      await _storage.write(key: _boundaryKey, value: '$boundary');
     }
     final raw = await _storage.read(key: _key);
     await checkSession();
@@ -131,7 +159,7 @@ class ChatTextDraftStore {
         (messageIds != null &&
             !messageIds.contains(draft.replyTo) &&
             !(draft.replySequence != null &&
-                draft.replySequence! <= hiddenThrough))) {
+                draft.replySequence! <= boundary))) {
       return null;
     }
     (_redactedDrafts[_key] ??= {}).add(draft.id);
