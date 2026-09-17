@@ -201,7 +201,8 @@ class _ConversationsPageState extends State<ConversationsPage>
             if (mounted && identical(repository, _repository)) _refreshReal();
           });
       _readEvents = MessagingRepository.readChanges(repository.account)
-          .listen((_) {
+          .listen((_) async {
+            await _refreshLocalReads(repository);
             if (mounted && identical(repository, _repository)) _refreshReal();
           });
       if (_useRelayUnread) {
@@ -255,6 +256,7 @@ class _ConversationsPageState extends State<ConversationsPage>
           if (_useRelayUnread) {
             cached = await offlineRelayConversations(store, cached);
           }
+          cached = (await repository.pendingReadProjection()).apply(cached);
           if (!mounted || !identical(repository, _repository)) return;
           // A realtime refresh may already be in flight; it must not suppress
           // disk restoration, or overwrite a newer server result with disk data.
@@ -410,12 +412,42 @@ class _ConversationsPageState extends State<ConversationsPage>
     }
   }
 
+  Future<void> _refreshLocalReads(MessagingRepository repository) async {
+    final read = ++_localRead;
+    final generation = _realGeneration;
+    try {
+      final projection = await repository.pendingReadProjection();
+      if (!mounted ||
+          !identical(repository, _repository) ||
+          generation != _realGeneration ||
+          read != _localRead) {
+        return;
+      }
+      final rows = projection.apply(_realItems);
+      setState(() {
+        _realItems
+          ..clear()
+          ..addAll(rows);
+      });
+      widget.onFriendUnreadChanged(
+        rows.fold<int>(
+          0,
+          (sum, row) => sum + (row['unreadCount'] as num).toInt(),
+        ),
+      );
+    } catch (_) {
+      // Keep the last list if local storage is temporarily unavailable.
+    }
+  }
+
   Future<void> _refreshLocalRelay(MessagingRepository repository) async {
     final read = ++_localRead;
     final generation = _realGeneration;
     try {
       final store = await _openRelayHistory(repository);
-      final rows = await offlineRelayConversations(store, _realItems);
+      final rows = (await repository.pendingReadProjection()).apply(
+        await offlineRelayConversations(store, _realItems),
+      );
       if (!mounted ||
           !identical(repository, _repository) ||
           generation != _realGeneration ||

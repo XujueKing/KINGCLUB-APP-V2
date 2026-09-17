@@ -147,6 +147,13 @@ void main() {
         await hold(target);
         await tester.pumpAndSettle();
         await tester.tap(find.text('删除'));
+        final deadline = DateTime.now().add(const Duration(seconds: 5));
+        while ((find.byTooltip('custom-pack').evaluate().isNotEmpty ||
+                await File(path).exists()) &&
+            DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await tester.pump();
+        }
         await settle();
         expect(find.byTooltip('custom-pack'), findsNothing);
         expect(

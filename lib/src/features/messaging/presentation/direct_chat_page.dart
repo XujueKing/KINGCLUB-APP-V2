@@ -56,6 +56,7 @@ import 'voice_draft_preview.dart';
 import 'dart:io';
 
 import 'chat_emoji_panel.dart';
+import 'chat_text_editing.dart';
 import 'voice_hold_overlay.dart';
 
 import 'package:flutter_svg/flutter_svg.dart';
@@ -2301,13 +2302,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       _scrollToLatest();
     },
     onDelete: () {
-      final text = _controller.text.characters;
-      _controller.text = text.isEmpty
-          ? ''
-          : text.take(text.length - 1).toString();
-      _controller.selection = TextSelection.collapsed(
-        offset: _controller.text.length,
-      );
+      _controller.value = deleteChatTextBackward(_controller.value);
     },
     onSend: _send,
   );
@@ -2326,14 +2321,27 @@ class _DirectChatPageState extends State<DirectChatPage>
       if (length <= 0 || length > 20 * 1024 * 1024) {
         throw StateError('请选择不超过20MB的表情');
       }
-      final bytes = await file.readAsBytes();
+      final drafts = await ChatFileDraftStore.open(
+        chat.messaging.account,
+        widget.groupId != null
+            ? 'image-group:${widget.groupId}'
+            : 'image-peer:${widget.peerAccount}',
+      );
+      if (!mounted || !identical(chat, _chat)) return;
+      final draft = await drafts.save(file, file.uri.pathSegments.last);
+      final bytes = await draft.file.readAsBytes();
       if (!mounted || !identical(chat, _chat)) return;
       _voicePlayback?.stop();
       _inputFocusNode.unfocus();
       await Navigator.of(context).push<bool>(
         MaterialPageRoute(
-          builder: (_) =>
-              ChatImageSendPage(bytes: bytes, chat: chat, title: '发送表情'),
+          builder: (_) => ChatImageSendPage(
+            bytes: bytes,
+            chat: chat,
+            draft: draft,
+            drafts: drafts,
+            title: '发送表情',
+          ),
         ),
       );
     } catch (_) {

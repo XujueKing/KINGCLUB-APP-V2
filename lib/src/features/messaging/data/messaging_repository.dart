@@ -3,6 +3,7 @@ import 'chat_video.dart';
 import 'dart:async';
 
 import 'chat_read_outbox.dart';
+import 'conversation_read_projection.dart';
 import 'chat_avatar_snapshot.dart';
 import 'authenticated_chat_api.dart';
 import 'novorudp_binding_runtime.dart';
@@ -209,7 +210,9 @@ class MessagingRepository {
   Future<Map<String, dynamic>> markRead(String peer, int sequence) async {
     _readRetryAfter.remove((false, peer));
     final queue = readOutbox;
-    if (queue != null) await queue.put(peer, sequence);
+    if (queue != null && await queue.put(peer, sequence)) {
+      _readChanges.add(account);
+    }
     final result = await call('K260913000605', {
       'peer': peer,
       'sequence': sequence,
@@ -290,7 +293,9 @@ class MessagingRepository {
   ) async {
     _readRetryAfter.remove((true, groupId));
     final queue = groupReadOutbox;
-    if (queue != null && sequence > 0) await queue.put(groupId, sequence);
+    if (queue != null && sequence > 0 && await queue.put(groupId, sequence)) {
+      _readChanges.add(account);
+    }
     final result = await call('K260913000622', {
       'groupId': groupId,
       'sequence': sequence,
@@ -337,6 +342,14 @@ class MessagingRepository {
     return result;
   }
 
+  Future<ConversationReadProjection> pendingReadProjection() async {
+    final values = await Future.wait([
+      readOutbox?.read() ?? Future.value(<String, int>{}),
+      groupReadOutbox?.read() ?? Future.value(<String, int>{}),
+    ]);
+    return ConversationReadProjection(values[0], values[1]);
+  }
+
   Future<Map<String, dynamic>> conversations({
     int offset = 0,
     int limit = 50,
@@ -352,12 +365,21 @@ class MessagingRepository {
             ))) {
       throw ArgumentError('Invalid local message IDs');
     }
+    final before = await pendingReadProjection();
     final result = await call('K260913000607', {
       'offset': offset,
       'limit': limit,
       if (known != null) 'knownLocalMessageIds': known.toList(),
     });
-    if (known == null) return result;
+    final after = await pendingReadProjection();
+    List<Map<String, dynamic>> project(List rows) => after.apply(
+      before.apply([
+        for (final row in rows) Map<String, dynamic>.from(row as Map),
+      ]),
+    );
+    if (known == null) {
+      return {...result, 'items': project(result['items'] as List)};
+    }
     final items = result['items'];
     if (items is! List) {
       throw const FormatException('Invalid conversation receipt response');
@@ -384,7 +406,7 @@ class MessagingRepository {
         'confirmedLocalMessageIds': ids.toList(),
       });
     }
-    return {...result, 'items': normalized};
+    return {...result, 'items': project(normalized)};
   }
 
   Future<Map<String, dynamic>> contacts({int offset = 0, int limit = 50}) =>

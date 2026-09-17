@@ -125,7 +125,7 @@ void main() {
           );
           await tester.pumpAndSettle();
           expect(find.text('$expectedCount'), findsOneWidget);
-          expectedCount = mode == 'readOffline' ? 1 : 0;
+          expectedCount = 0;
           count = Completer<int>();
           final press = await tester.startGesture(
             tester.getCenter(find.text('relay')),

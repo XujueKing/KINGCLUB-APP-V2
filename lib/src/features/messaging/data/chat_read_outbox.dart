@@ -41,14 +41,15 @@ class ChatReadOutbox {
 
   Future<Map<String, int>> read() => _exclusive(_read);
 
-  Future<void> put(String peer, int sequence) => _exclusive(() async {
+  Future<bool> put(String peer, int sequence) => _exclusive(() async {
     if (account.isEmpty || peer.isEmpty || sequence <= 0) {
       throw ArgumentError('Invalid read watermark');
     }
     final values = await _read();
-    if ((values[peer] ?? 0) >= sequence) return;
+    if ((values[peer] ?? 0) >= sequence) return false;
     values[peer] = sequence;
     await _storage.write(key: _key, value: jsonEncode(values));
+    return true;
   });
 
   Future<void> acknowledge(String peer, int sequence) => _exclusive(() async {

@@ -116,7 +116,12 @@ void main() {
               ),
             ),
           );
-          await Future<void>.delayed(const Duration(milliseconds: 100));
+          final firstDeadline = DateTime.now().add(const Duration(seconds: 5));
+          while (find.text('Old friend').evaluate().isEmpty &&
+              DateTime.now().isBefore(firstDeadline)) {
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+            await tester.pump();
+          }
           await tester.pumpAndSettle();
           expect(find.text('Latest relay text'), findsOneWidget);
           expect(find.text('Old friend'), findsOneWidget);
@@ -125,7 +130,12 @@ void main() {
             lessThan(tester.getTopLeft(find.text('Old friend')).dy),
           );
           await tester.tap(find.text('加载更多'));
-          await Future<void>.delayed(const Duration(milliseconds: 100));
+          final secondDeadline = DateTime.now().add(const Duration(seconds: 5));
+          while (find.text('Resolved name').evaluate().isEmpty &&
+              DateTime.now().isBefore(secondDeadline)) {
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+            await tester.pump();
+          }
           await tester.pumpAndSettle();
           expect(offsets, [0, 1]);
           expect(find.text('Latest relay text'), findsOneWidget);

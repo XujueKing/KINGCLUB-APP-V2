@@ -1,6 +1,8 @@
 # 原生聊天交付矩阵（最新汇总：2026-09-17）
 
 ## 当前验收汇总
+
+2026-09-17 additional batch: pending local read watermarks now update online/offline list badges; selected stickers retain private image drafts; emoji backspace follows the cursor. Automated checks passed, phone acceptance pending. [Scope and validation](2026-09-17-local-read-projection.md).
 ### 2026-09-17 整批修复（代码回归通过，待手机验收）
 
 本批补充：附件共享引用与待发队列串行保护、加密持久化延后回收、文件/录音发送及转发临时引用、草稿删除失败重试、旧语音缓存别名清理；后台补发群消息接入本地历史库；群邀请/公告刷新合并及群管理旧确认失效。相关自动回归和静态检查已通过，不将其等同于双机真实交付。范围及限制见 [整批修复记录](2026-09-17-batch-completion.md)。
