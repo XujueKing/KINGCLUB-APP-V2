@@ -36,3 +36,9 @@
 A 机预览 713d760 实测复现：群聊上下文中点击已缓存的 3 秒语音，在系统网络 none 时提示“网络连接失败，请联网后点击语音重试”。检查发现上下文入口未传 voiceAssetId，导致播放器跳过本地缓存分支。现将资源编号和 conversationId 传给现有播放器，保持删除与会话事件约束。
 
 31 项相关测试及静态检查通过，新增组件覆盖单聊/群聊离线上下文点击本地语音不请求服务器，并在删除目标后停止播放。修复实机复测待补充。
+
+### A 机修复复测
+
+预览 26f1e46 已安装 A，profile 构建 64.7 秒、159.4 MB；包含搜索取消优化。通过群聊离线搜索进入上下文，在网络 none 下点击同一条已保存的 3 秒语音，UI 出现“点击停止”，无网络连接失败提示。前后 media.metrics 差异出现本次 AAC decoder（24 kHz、单声道）、AudioTrack 音频输出区间约 2.68 秒、underrun=0。证明本机离线读取并启动音频输出，不代表用户主观听感验收。测试结束再次确认网络 none 后恢复 airplane_mode_on=0、wifi_on=1，B 未操作。
+
+私有证据：build/kc-cv-playing.xml、kc-cv-finished.xml、kc-cv-metrics-before.txt、kc-cv-metrics-finished.txt。单聊上下文同一路径已组件测试，但本次实机仅群聊；视频、图片上下文的离线验收继续待办。
