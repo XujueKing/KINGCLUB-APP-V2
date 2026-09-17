@@ -42,8 +42,9 @@ class _MessageVoiceTranscriptionPageState
     _removeDeletionListener = ChatMediaDeletion.listen((event) {
       if (event.account != widget.repository.account ||
           event.group != widget.group ||
-          event.messageId != widget.messageId)
+          event.messageId != widget.messageId) {
         return;
+      }
       _invalid = true;
       _clear('内容已移除');
     });
