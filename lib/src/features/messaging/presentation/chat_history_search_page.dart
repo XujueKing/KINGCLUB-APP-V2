@@ -29,8 +29,17 @@ class ChatHistorySearchPage extends StatefulWidget {
     this.account,
     this.localConversation,
     this.historyRemovals,
+    this.localSearch,
   });
   final HistorySearch search;
+
+  /// Account-scoped local lookup; the default uses encrypted persisted history.
+  final Future<Map<String, dynamic>> Function(
+    String query,
+    int? before,
+    String? messageType,
+  )?
+  localSearch;
   final HistorySearch? mediaSearch;
   final String? groupId;
   final String? account;
@@ -171,10 +180,14 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
       _busy = true;
       _error = null;
     });
+    var remoteFinished = false;
     try {
       await _watchingHistory;
       if (!mounted || _invalid || generation != _generation) return;
       Future<Map<String, dynamic>> localSearch() async {
+        if (widget.localSearch != null) {
+          return widget.localSearch!(query, before, messageType);
+        }
         final store = await ChatHistoryStore.open(widget.account!);
         return store.search(
           widget.localConversation!,
@@ -182,10 +195,39 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
           messageType: messageType,
           before: before,
           isActive: () =>
-              mounted && !_invalid && _foreground && generation == _generation,
+              mounted &&
+              !_invalid &&
+              _foreground &&
+              generation == _generation &&
+              !remoteFinished,
         );
       }
 
+      Future<Map<String, dynamic>>? preview;
+      if (!more && widget.account != null && widget.localConversation != null) {
+        preview = localSearch();
+        unawaited(
+          preview
+              .then((cached) {
+                if (!mounted ||
+                    _invalid ||
+                    generation != _generation ||
+                    remoteFinished) {
+                  return;
+                }
+                _applyResult(
+                  {...cached, 'localOnly': true},
+                  more: false,
+                  before: null,
+                  messageType: messageType,
+                  loading: true,
+                );
+              })
+              .catchError((Object _) {
+                // Missing/corrupt local storage must not suppress a valid remote query.
+              }),
+        );
+      }
       Map<String, dynamic> result;
       if (more && _localOnly) {
         result = await localSearch();
@@ -200,57 +242,19 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
               widget.localConversation == null) {
             rethrow;
           }
-          result = await localSearch();
+          result = await (preview ?? localSearch());
         }
       }
       if (!mounted || generation != _generation) {
         return;
       }
-      final raw = result['messages'];
-      if (raw is! List || result['hasMore'] is! bool) {
-        throw const FormatException('Invalid search result');
-      }
-      final page = raw
-          .map((row) => Map<String, dynamic>.from(row as Map))
-          .toList();
-      var previous = 0;
-      for (final row in page) {
-        final sequence = row['sequence'];
-        if (sequence is! int ||
-            sequence <= previous ||
-            (before != null && sequence >= before) ||
-            row['messageId'] is! String ||
-            row['text'] is! String ||
-            row['sender'] is! String) {
-          throw const FormatException('Invalid search message');
-        }
-        if (messageType != null && row['messageType'] != messageType) {
-          throw const FormatException('Unexpected media search result');
-        }
-        previous = sequence;
-      }
-      if (result['hasMore'] == true && page.isEmpty) {
-        throw const FormatException('Invalid search cursor');
-      }
-      setState(() {
-        _localOnly = result['localOnly'] == true;
-        if (!more) {
-          _items.clear();
-        }
-        _items.addAll(
-          page.reversed.where(
-            (row) =>
-                !_removedIds.contains(row['messageId']) &&
-                !_removedSequences.contains(row['sequence']) &&
-                (row['sequence'] as int) > _hiddenThrough &&
-                !const {'hidden', 'recalled'}.contains(row['messageType']),
-          ),
-        );
-        _before = result['hasMore'] == true
-            ? page.first['sequence'] as int
-            : null;
-        _busy = false;
-      });
+      remoteFinished = true;
+      _applyResult(
+        result,
+        more: more,
+        before: before,
+        messageType: messageType,
+      );
     } catch (_) {
       if (!mounted || generation != _generation) {
         return;
@@ -261,7 +265,63 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
         _busy = false;
         _error = '搜索未完成，请重试';
       });
+    } finally {
+      remoteFinished = true;
     }
+  }
+
+  void _applyResult(
+    Map<String, dynamic> result, {
+    required bool more,
+    required int? before,
+    required String? messageType,
+    bool loading = false,
+  }) {
+    final raw = result['messages'];
+    if (raw is! List || result['hasMore'] is! bool) {
+      throw const FormatException('Invalid search result');
+    }
+    final page = raw
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+    var previous = 0;
+    for (final row in page) {
+      final sequence = row['sequence'];
+      if (sequence is! int ||
+          sequence <= previous ||
+          (before != null && sequence >= before) ||
+          row['messageId'] is! String ||
+          row['text'] is! String ||
+          row['sender'] is! String) {
+        throw const FormatException('Invalid search message');
+      }
+      if (messageType != null && row['messageType'] != messageType) {
+        throw const FormatException('Unexpected media search result');
+      }
+      previous = sequence;
+    }
+    if (result['hasMore'] == true && page.isEmpty) {
+      throw const FormatException('Invalid search cursor');
+    }
+    setState(() {
+      _localOnly = result['localOnly'] == true;
+      if (!more) {
+        _items.clear();
+      }
+      _items.addAll(
+        page.reversed.where(
+          (row) =>
+              !_removedIds.contains(row['messageId']) &&
+              !_removedSequences.contains(row['sequence']) &&
+              (row['sequence'] as int) > _hiddenThrough &&
+              !const {'hidden', 'recalled'}.contains(row['messageType']),
+        ),
+      );
+      _before = result['hasMore'] == true
+          ? page.first['sequence'] as int
+          : null;
+      _busy = loading;
+    });
   }
 
   @override
