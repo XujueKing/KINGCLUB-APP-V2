@@ -98,6 +98,8 @@ void main() {
       await reopened.remove(assetId: asset, size: size, sha256: hash);
       expect(await blocks.root.list().toList(), isEmpty);
     },
+    // This exercises real encryption/decryption of 65 MiB on the host CPU.
+    timeout: const Timeout(Duration(minutes: 2)),
   );
 
   test(

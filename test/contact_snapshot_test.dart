@@ -56,7 +56,7 @@ void main() {
     final checked = await databaseFactoryFfi.openDatabase(
       '${dir.path}/contacts.db',
     );
-    expect(await checked.getVersion(), 20);
+    expect(await checked.getVersion(), 22);
     expect((await checked.query('conversation')).single['cursor'], 7);
     await checked.close();
     store = await open();

@@ -48,6 +48,7 @@ void main() {
       );
       var first = true;
       var grants = 0;
+      var offline = false;
       final requested = <int>[];
       HttpServer? server;
       if (scenario == 'socket-resume') {
@@ -84,6 +85,7 @@ void main() {
       final repo = MessagingRepository(
         account: 'me',
         call: (method, params) async {
+          if (offline) throw const SocketException('offline');
           expect(method, ref.group ? 'K260914000654' : 'K260914000652');
           expect(params, {'messageId': messageId});
           grants++;
@@ -188,12 +190,28 @@ void main() {
         expect(requested, scenario == 'corrupt-cache' ? [0, 1] : [1]);
       }
       expect(grants, scenario == 'revoked' ? 2 : 3);
-      expect(
-        await cacheRoot.list(recursive: true).where((e) => e is File).toList(),
-        isEmpty,
-      );
+      final retained = await cacheRoot
+          .list(recursive: true)
+          .where((e) => e is File)
+          .toList();
+      expect(retained, scenario == 'revoked' ? isEmpty : hasLength(3));
       await download.dispose();
       expect(await temp.list().toList(), isEmpty);
+      if (scenario != 'revoked') {
+        // Completed blocks are durable, unlike the plaintext export copy.
+        // Recreate the downloader and prove full restoration without grants
+        // or block requests, including the group and corrupt-resume cases.
+        offline = true;
+        requested.clear();
+        final grantsBeforeOffline = grants;
+        download = downloader();
+        final restored = await download.download(ref);
+        expect(await restored.readAsBytes(), bytes);
+        expect(requested, isEmpty);
+        expect(grants, grantsBeforeOffline);
+        await download.dispose();
+        expect(await temp.list().toList(), isEmpty);
+      }
     });
   }
 }

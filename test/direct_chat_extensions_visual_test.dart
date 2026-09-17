@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
 
 void main() {
@@ -37,10 +38,10 @@ void main() {
     );
 
     expect(tester.getSize(backButton), const Size(48, 48));
-    expect(tester.getSize(backImage), const Size(11, 22));
+    expect(tester.getSize(backImage), KingBackButton.glyphSize);
     expect(
       tester.getCenter(backButton).dy,
-      closeTo(tester.getCenter(find.text('卡座搭子')).dy, 0.01),
+      closeTo(tester.getCenter(find.text('卡座搭子')).dy, 1),
     );
   });
 

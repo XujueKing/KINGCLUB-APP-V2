@@ -118,7 +118,8 @@ void main() {
     expect(player.disposals, 1);
     await tester.pumpAndSettle();
     expect(find.byType(VideoPlayer), findsNothing);
-    await tester.tap(find.text('视频暂不可播放，点击重试'));
+    expect(find.text('内容已移除'), findsOneWidget);
+    expect(find.byType(TextButton), findsNothing);
     await tester.pumpAndSettle();
     expect(calls, 0);
     expect(player.plays, 1);
