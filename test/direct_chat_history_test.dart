@@ -84,6 +84,45 @@ void main() {
     },
   );
 
+  for (final confirmed in [false, true]) {
+    test(
+      'cleared history settles only an explicit receipt confirmed=$confirmed',
+      () async {
+        final queue = MemoryOutbox();
+        await queue.put({
+          'clientMessageId': 'c1',
+          'sender': 'me',
+          'recipient': 'peer',
+          'text': 'message1',
+          'status': 'failed',
+          'createdDate': '2026-09-17T00:00:00Z',
+        });
+        final chat = DirectChatController(
+          peer: 'peer',
+          outbox: queue,
+          openHistory: () async => store,
+          repository: MessagingRepository(
+            account: 'me',
+            call: (method, params) async {
+              expect(method, 'K260913000604');
+              return response(confirmed ? [message(1)] : [], hidden: 1);
+            },
+          ),
+        );
+        addTearDown(chat.dispose);
+        await chat.initialize();
+        expect(chat.error, isNull);
+        expect(queue.items.length, confirmed ? 0 : 1);
+        expect(chat.messages.length, confirmed ? 0 : 1);
+        final saved = await store.read('direct:peer');
+        expect(saved.hiddenThrough, 1);
+        expect(saved.messages, isEmpty);
+        await chat.synchronize();
+        expect(queue.items.length, confirmed ? 0 : 1);
+        expect(chat.messages.length, confirmed ? 0 : 1);
+      },
+    );
+  }
   for (final cached in [false, true]) {
     for (final code in ['NETWORK_ERROR', 'SESSION_EXPIRED']) {
       test('initial refresh error cache=$cached code=$code', () async {

@@ -512,7 +512,8 @@ class DirectChatController extends ChatSessionController {
     settings = Map<String, dynamic>.from(result['settings'] as Map);
     for (final message in rows) {
       if (_disposed || generation != _historyGeneration) return;
-      if (hidden is int && (message['sequence'] as int) <= hidden) continue;
+      // Visibility is enforced by _acknowledge. Even an already-cleared
+      // confirmed message must settle its matching durable pending entry.
       await _acknowledge(message, persist: false);
     }
     unawaited(_refreshRelay());
