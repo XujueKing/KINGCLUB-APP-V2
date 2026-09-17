@@ -1,4 +1,5 @@
 import 'chat_member_avatar.dart';
+import 'conversation_draft_preview.dart';
 import '../data/group_chat_repository.dart';
 import '../data/chat_history_store.dart';
 import '../data/conversation_relay_unread.dart';
@@ -639,6 +640,20 @@ class _ConversationsPageState extends State<ConversationsPage>
       unreadCount: (item['unreadCount'] as num).toInt(),
       pinned: item['pinned'] == true,
       preview: item['preview'] as String? ?? '',
+      previewWidget: _repository?.persistHistory == true
+          ? ConversationDraftPreview(
+              key: ValueKey(
+                '${_repository!.account}:${group ? 'group' : 'peer'}:$target',
+              ),
+              account: _repository!.account,
+              target: '${group ? 'group' : 'peer'}:$target',
+              preview: item['preview'] as String? ?? '',
+              style: TextStyle(
+                color: const Color(0x66FFFFFF),
+                fontSize: 26 * MediaQuery.sizeOf(context).width / 750,
+              ),
+            )
+          : null,
       inactive: false,
       onTap: () async {
         await Navigator.push<void>(
@@ -1265,6 +1280,7 @@ class _ConversationContent extends StatelessWidget {
   const _ConversationContent({
     required this.name,
     required this.preview,
+    this.previewWidget,
     required this.date,
     required this.unread,
     this.avatar,
@@ -1274,6 +1290,7 @@ class _ConversationContent extends StatelessWidget {
     this.pinned = false,
   });
   final Widget? avatar;
+  final Widget? previewWidget;
   final String name, preview, date;
   final int unread;
   final bool system, inactive, muted, pinned;
@@ -1379,17 +1396,19 @@ class _ConversationContent extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            preview,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: inactive
-                                  ? const Color(0x99C9B69E)
-                                  : const Color(0x66FFFFFF),
-                              fontSize: 26 * r,
-                            ),
-                          ),
+                          child:
+                              previewWidget ??
+                              Text(
+                                preview,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: inactive
+                                      ? const Color(0x99C9B69E)
+                                      : const Color(0x66FFFFFF),
+                                  fontSize: 26 * r,
+                                ),
+                              ),
                         ),
                         if (muted) ...[
                           SizedBox(width: 10 * r),
@@ -1444,6 +1463,7 @@ class _FriendConversation extends StatelessWidget {
     required this.unreadCount,
     required this.pinned,
     required this.preview,
+    this.previewWidget,
     required this.inactive,
     required this.onTap,
     required this.onLongPress,
@@ -1455,6 +1475,7 @@ class _FriendConversation extends StatelessWidget {
   });
 
   final Widget? avatar;
+  final Widget? previewWidget;
   final String name, date;
   final double slide;
   final bool muted;
@@ -1533,6 +1554,7 @@ class _FriendConversation extends StatelessWidget {
                     pinned: pinned,
                     muted: muted,
                     preview: preview,
+                    previewWidget: previewWidget,
                     date: date,
                     unread: unreadCount,
                     inactive: inactive,

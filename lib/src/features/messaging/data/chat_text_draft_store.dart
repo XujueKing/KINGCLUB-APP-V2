@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -59,6 +60,13 @@ class ChatTextDraft {
 /// Account/conversation-scoped secure storage; serialization prevents late writes
 /// from restoring a draft after its queued-message cleanup.
 class ChatTextDraftStore {
+  static final _changes =
+      StreamController<({String account, String target})>.broadcast();
+  static Stream<void> changes(String account, String target) => _changes.stream
+      .where((event) => event.account == account && event.target == target)
+      .map((_) {});
+  void _notify() => _changes.add((account: account, target: target));
+
   ChatTextDraftStore(
     this.account,
     this.target,
@@ -134,6 +142,7 @@ class ChatTextDraftStore {
       ChatTextDraft.parse(raw);
       await _storage.write(key: _key, value: raw);
     }
+    _notify();
   });
 
   /// Removes only the quote; pending user text is not part of history deletion.
@@ -167,6 +176,7 @@ class ChatTextDraftStore {
       key: _key,
       value: jsonEncode(ChatTextDraft(draft.text, id: draft.id).toJson()),
     );
+    _notify();
     return draft.replyTo;
   });
   Future<void> remove(String id) => _exclusive(() async {
@@ -174,6 +184,7 @@ class ChatTextDraftStore {
     await checkSession();
     if (raw != null && ChatTextDraft.parse(raw).id == id) {
       await _storage.delete(key: _key);
+      _notify();
     }
   });
 }
