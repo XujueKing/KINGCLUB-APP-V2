@@ -102,6 +102,8 @@ class ChatFileDownloader {
   CancelToken? _cancel;
   NovoRudpFileDownload? _peer;
   bool _invalid = false, _busy = false;
+  bool _lastReadWasLocal = false;
+  bool get lastReadWasLocal => _lastReadWasLocal;
   bool _sessionChanged = false;
 
   static Future<ChatFileDownloader> open(MessagingRepository repository) async {
@@ -388,6 +390,7 @@ class ChatFileDownloader {
       throw StateError('文件所属聊天记录已删除');
     }
     _busy = true;
+    _lastReadWasLocal = false;
     _activeMessage = (ref.group, ref.messageId);
     _downloadDone = Completer<void>();
     _cancel = CancelToken();
@@ -415,6 +418,7 @@ class ChatFileDownloader {
         working = await parent.createTemp('kingclub-chat-download-');
         final local = File('${working.path}/content.bin');
         if (await _restoreLocal(ref, identity, local)) {
+          _lastReadWasLocal = true;
           _completed.add(working);
           _completedMessages[working] = (ref.group, ref.messageId);
           completed = true;
@@ -449,6 +453,7 @@ class ChatFileDownloader {
           throw StateError('文件所属聊天记录已删除');
         }
         if (restored == true) {
+          _lastReadWasLocal = true;
           _verifiedLocal.add(identity);
           _completed.add(working);
           _completedMessages[working] = (ref.group, ref.messageId);

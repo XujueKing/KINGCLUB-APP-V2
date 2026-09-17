@@ -123,7 +123,7 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
       );
       if (mounted && !_cancelled) setState(() => _file = file);
     } catch (_) {
-      if (mounted && !_cancelled) setState(() => _error = '下载未完成，请检查网络后重试');
+      if (mounted && !_cancelled) setState(() => _error = '文件读取未完成，请重试');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -166,9 +166,11 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
                     ),
                     const SizedBox(height: 16),
                     if (_file != null)
-                      const Text(
-                        '下载完成，文件校验通过',
-                        style: TextStyle(color: Colors.white70),
+                      Text(
+                        _downloader?.lastReadWasLocal == true
+                            ? '已从本地读取，文件校验通过'
+                            : '下载完成，文件校验通过',
+                        style: const TextStyle(color: Colors.white70),
                       ),
                     if (_saved)
                       const Text(
@@ -193,11 +195,11 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
               const SizedBox.shrink()
             else if (_busy) ...[
               LinearProgressIndicator(value: _progress),
-              TextButton(onPressed: _cancel, child: const Text('取消下载')),
+              TextButton(onPressed: _cancel, child: const Text('取消读取')),
             ] else if (_file == null)
               FilledButton(
                 onPressed: _download,
-                child: Text(_error == null ? '下载文件' : '重新下载'),
+                child: Text(_error == null ? '读取文件' : '重试读取'),
               )
             else if (Platform.isAndroid)
               FilledButton(

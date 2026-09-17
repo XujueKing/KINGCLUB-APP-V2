@@ -91,6 +91,7 @@ void main() {
           );
           try {
             final local = await downloader.download(ref);
+            expect(downloader.lastReadWasLocal, true);
             expect(await local.readAsBytes(), bytes);
             await downloader.authorizeExport(ref);
             expect(grants, 0);

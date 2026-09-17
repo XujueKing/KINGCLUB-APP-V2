@@ -14,6 +14,9 @@ class PendingDownload extends ChatFileDownloader {
   Completer<File>? pending;
   int downloads = 0;
   bool released = false;
+  bool local = false;
+  @override
+  bool get lastReadWasLocal => local;
   @override
   Future<File> download(
     ChatFileReference ref, {
@@ -41,51 +44,62 @@ class PendingDownload extends ChatFileDownloader {
 
 void main() {
   for (final completed in [false, true]) {
-    testWidgets('deletion removes file actions, completed=$completed', (
-      tester,
-    ) async {
-      final repo = MessagingRepository(
-        account: 'synthetic',
-        call: (_, _) async => {},
-      );
-      final download = PendingDownload(repo);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ChatFileDetailsPage(
-            repository: repo,
-            openDownloader: (_) async => download,
-            reference: const ChatFileReference(
-              messageId: 'id',
-              assetId: 'asset',
-              fileName: 'test.txt',
-              size: 2,
-              sha256: 'test',
+    for (final local in [false, true]) {
+      testWidgets(
+        'deletion removes file actions, completed=$completed local=$local',
+        (tester) async {
+          final repo = MessagingRepository(
+            account: 'synthetic',
+            call: (_, _) async => {},
+          );
+          final download = PendingDownload(repo)..local = local;
+          await tester.pumpWidget(
+            MaterialApp(
+              home: ChatFileDetailsPage(
+                repository: repo,
+                openDownloader: (_) async => download,
+                reference: const ChatFileReference(
+                  messageId: 'id',
+                  assetId: 'asset',
+                  fileName: 'test.txt',
+                  size: 2,
+                  sha256: 'test',
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+          await tester.tap(find.text('读取文件'));
+          await tester.pump();
+          if (completed) {
+            download.pending!.complete(File('synthetic-file'));
+            await tester.pump();
+            expect(
+              find.text(local ? '已从本地读取，文件校验通过' : '下载完成，文件校验通过'),
+              findsOneWidget,
+            );
+          }
+          await const ChatMediaDeletion(
+            'other-account',
+            false,
+            'id',
+          ).dispatch();
+          await const ChatMediaDeletion('synthetic', true, 'id').dispatch();
+          await tester.pump();
+          expect(find.text('内容已移除'), findsNothing);
+          await const ChatMediaDeletion('synthetic', false, 'id').dispatch();
+          await tester.pump();
+          expect(find.text('内容已移除'), findsOneWidget);
+          expect(find.text('下载完成，文件校验通过'), findsNothing);
+          expect(find.text('已从本地读取，文件校验通过'), findsNothing);
+          expect(find.byType(FilledButton), findsNothing);
+          expect(find.byType(LinearProgressIndicator), findsNothing);
+          expect(download.downloads, 1);
+          await tester.pumpWidget(const SizedBox());
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+        },
       );
-      await tester.tap(find.text('下载文件'));
-      await tester.pump();
-      if (completed) {
-        download.pending!.complete(File('synthetic-file'));
-        await tester.pump();
-        expect(find.text('下载完成，文件校验通过'), findsOneWidget);
-      }
-      await const ChatMediaDeletion('other-account', false, 'id').dispatch();
-      await const ChatMediaDeletion('synthetic', true, 'id').dispatch();
-      await tester.pump();
-      expect(find.text('内容已移除'), findsNothing);
-      await const ChatMediaDeletion('synthetic', false, 'id').dispatch();
-      await tester.pump();
-      expect(find.text('内容已移除'), findsOneWidget);
-      expect(find.text('下载完成，文件校验通过'), findsNothing);
-      expect(find.byType(FilledButton), findsNothing);
-      expect(find.byType(LinearProgressIndicator), findsNothing);
-      expect(download.downloads, 1);
-      await tester.pumpWidget(const SizedBox());
-      await tester.pump();
-      expect(tester.takeException(), isNull);
-    });
+    }
   }
   testWidgets(
     'download cancellation permits retry and page disposal releases download',
@@ -111,18 +125,18 @@ void main() {
         ),
       );
       expect(download.downloads, 0);
-      await tester.tap(find.text('下载文件'));
+      await tester.tap(find.text('读取文件'));
       await tester.pump();
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
-      await tester.tap(find.text('取消下载'));
+      await tester.tap(find.text('取消读取'));
       await tester.pump();
-      expect(find.text('下载文件'), findsOneWidget);
-      await tester.tap(find.text('下载文件'));
+      expect(find.text('读取文件'), findsOneWidget);
+      await tester.tap(find.text('读取文件'));
       await tester.pump();
       expect(download.downloads, 2);
       download.pending!.completeError(StateError('offline'));
       await tester.pump();
-      expect(find.text('重新下载'), findsOneWidget);
+      expect(find.text('重试读取'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       await tester.pump();
       expect(download.released, true);
