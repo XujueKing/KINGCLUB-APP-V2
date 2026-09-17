@@ -2,6 +2,8 @@
 
 ## 当前验收汇总
 
+2026-09-18 A offline restart verified: with Wi-Fi/mobile data disabled, a fresh app process restored conversation list, contacts, avatars and existing direct history; an already-cached 8-second video played to completion. Original network settings restored. Sample-specific, not all-media or audio-quality acceptance. See [device evidence](../../audits/2026-09-18-a-batch-device.md).
+
 2026-09-18 A device update: consolidated **13175cc now installed on A**, existing login/history/avatars observed intact; B untouched. Three keyboard cycles yielded 228 UI/raster spans, maxima 10.868/14.849 ms, none over 16.67 ms. This measures execution spans, not every interaction or end-to-end latency. [Device evidence and limits](../../audits/2026-09-18-a-batch-device.md). Build-time "not installed" entries below are historical; real group media and public switching remain pending.
 
 2026-09-18 refreshed client batch: **13175cc ARM64 Profile preview built**, 135.9s Gradle, native ELF guard passed; **not installed**. **1038 passed, 10 skipped, 0 failed across 180 selected files** after replacing another fixed-time sticker rollback check with bounded operation completion. Includes call teardown, native audio/video constraints, missing-track guards and video retry/cache fixes. [Artifact, scope and initial failure](../../audits/2026-09-18-chat-batch-refresh.md). The previous APK below is replaced at the shared path. No uncommitted onboarding changes; no public relay/LAN flags. Skipped native cases and phone acceptance remain pending. Separate legacy app-smoke failures are documented and are not included in this passing selection.
