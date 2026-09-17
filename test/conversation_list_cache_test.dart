@@ -1,3 +1,5 @@
+import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
+
 import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
@@ -177,6 +179,20 @@ void main() {
               'pinned': false,
             },
           ]);
+          await store.saveContactSnapshot([
+            {
+              'peer': 'pendingfriend',
+              'nickname': 'Original nickname',
+              'remark': 'Saved remark',
+            },
+          ], 1);
+          final queue = SecureChatOutbox('me');
+          await queue.put({
+            'sender': 'me',
+            'recipient': 'pendingfriend',
+            'clientMessageId': 'pending',
+            'text': 'Pending body',
+          });
           var unread = 0;
           final repository = MessagingRepository(
             account: 'me',
@@ -192,6 +208,7 @@ void main() {
                   realData: true,
                   repository: repository,
                   openRelayHistory: () async => store,
+                  pendingOutbox: queue,
                   relayChanges: events.stream,
                   systemUnreadCount: 0,
                   initialFriendUnreadCount: 0,
@@ -209,6 +226,7 @@ void main() {
           // Real SQLite completes outside the widget fake clock.
           await Future<void>.delayed(const Duration(milliseconds: 100));
           await tester.pumpAndSettle();
+          expect(find.text('Saved remark'), findsOneWidget);
           expect(find.text('Cached friend'), findsOneWidget);
           expect(find.text('Cached text'), findsOneWidget);
           expect(unread, 2);

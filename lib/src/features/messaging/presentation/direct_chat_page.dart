@@ -486,7 +486,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     _textDraftRevision++;
     _textDraft = ChatTextDraft(
       text,
-      displayName: widget.peerName,
+      displayName: _displayPeerName,
       replyTo: _quotedMessageId,
       replySequence: _quotedMessageSequence,
       preview: _quotedDraft,

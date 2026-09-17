@@ -101,6 +101,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   final _realItems = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _pendingMessages = [];
+  Map<String, String> _localNames = {};
   StreamSubscription<void>? _pendingEvents;
   int _pendingGeneration = 0;
   Future<void> _refreshPending(MessagingRepository repository) async {
@@ -115,9 +116,35 @@ class _ConversationsPageState extends State<ConversationsPage>
         return;
       }
       List<Map<String, dynamic>>? local;
+      final names = <String, String>{};
       if (repository.persistHistory || widget.openRelayHistory != null) {
-        local = await (await _openRelayHistory(repository))
-            .readConversationList();
+        final history = await _openRelayHistory(repository);
+        local = await history.readConversationList();
+        for (final row in local) {
+          final name = row['remark'] ?? row['nickname'];
+          if (name is String &&
+              name.trim().isNotEmpty &&
+              row['localConfirmed'] != true) {
+            names[row['kind'] == 'group'
+                    ? 'group:${row['groupId']}'
+                    : 'peer:${row['peer']}'] =
+                name;
+          }
+        }
+        try {
+          for (final contact
+              in await history.contactSnapshot() ?? <Map<String, dynamic>>[]) {
+            final remark = (contact['remark'] as String?)?.trim();
+            final name = remark?.isNotEmpty == true
+                ? remark
+                : contact['nickname'];
+            if (name is String && name.trim().isNotEmpty) {
+              names['peer:${contact['peer']}'] = name;
+            }
+          }
+        } catch (_) {
+          // A damaged optional name snapshot must not hide pending messages.
+        }
       }
       if (!mounted ||
           generation != _pendingGeneration ||
@@ -126,6 +153,7 @@ class _ConversationsPageState extends State<ConversationsPage>
       }
       setState(() {
         _pendingMessages = messages;
+        _localNames = names;
         if (local != null) {
           final merged = mergeConfirmedConversationRows(local, _realItems);
           _realItems
@@ -266,6 +294,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     _pendingEvents?.cancel();
     _pendingGeneration++;
     _pendingMessages = [];
+    _localNames = {};
     _draftEvents?.cancel();
     _draftGeneration++;
     _drafts = {};
@@ -307,6 +336,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     _pendingEvents?.cancel();
     _pendingGeneration++;
     _pendingMessages = [];
+    _localNames = {};
     _draftEvents?.cancel();
     _draftGeneration++;
     _drafts = {};
@@ -384,6 +414,7 @@ class _ConversationsPageState extends State<ConversationsPage>
         _pendingEvents?.cancel();
         _pendingGeneration++;
         _pendingMessages = [];
+        _localNames = {};
         _draftEvents?.cancel();
         _draftGeneration++;
         _drafts = {};
@@ -809,9 +840,17 @@ class _ConversationsPageState extends State<ConversationsPage>
     final group = item['kind'] == 'group';
     final target = (group ? item['groupId'] : item['peer']) as String;
     final slideKey = '${group ? 'group' : 'direct'}:$target';
-    final name = (item['remark'] as String?)?.isNotEmpty == true
-        ? item['remark'] as String
-        : item['nickname'] as String? ?? target;
+    final localName =
+        (pendingOnly ||
+            (item['localConfirmed'] == true &&
+                const {'好友', '群聊'}.contains(item['nickname'])))
+        ? _localNames['${group ? 'group' : 'peer'}:$target']
+        : null;
+    final name =
+        localName ??
+        ((item['remark'] as String?)?.isNotEmpty == true
+            ? item['remark'] as String
+            : item['nickname'] as String? ?? target);
     final time = DateTime.tryParse(item['messageDate'] as String? ?? '')
         ?.toLocal();
     final date = time == null
@@ -912,6 +951,7 @@ class _ConversationsPageState extends State<ConversationsPage>
               'peer': entry.key.substring(5),
             'nickname':
                 entry.value.displayName ??
+                _localNames[entry.key] ??
                 (entry.key.startsWith('group:') ? '群聊' : '好友'),
             'unreadCount': 0,
             'preview':
