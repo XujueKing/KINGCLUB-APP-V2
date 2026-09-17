@@ -47,6 +47,9 @@ void main() {
     final corrupt = Uint8List.fromList((original as List).cast<int>());
     corrupt[corrupt.length - 1] ^= 1;
     await db.update('message', {'payload': corrupt}, where: 'sequence=55');
+    await db.execute(
+      'ALTER TABLE conversation DROP COLUMN membershipAccessRevoked',
+    );
     await db.setVersion(19);
     final before = await db.query('message', orderBy: 'sequence');
     await db.close();
@@ -148,6 +151,9 @@ void main() {
                 whereArgs: [conversation],
               );
             }
+            await raw.execute(
+              'ALTER TABLE conversation DROP COLUMN membershipAccessRevoked',
+            );
             await raw.setVersion(19);
             await raw.close();
             store = await open();

@@ -83,7 +83,7 @@ class GroupChatController extends ChatSessionController {
       );
     }
     if (page.membershipVersion == null) return;
-    _hasCachedMembership = true;
+    _hasCachedMembership = !page.membershipAccessRevoked;
     for (final message in page.messages) {
       if (message['groupId'] != groupId) {
         throw const FormatException('Wrong cached group');

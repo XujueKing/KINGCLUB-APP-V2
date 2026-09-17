@@ -34,10 +34,12 @@ class ChatHistoryPage {
     this.membershipVersion,
     this.presentation,
     this.historyVersion,
+    this.membershipAccessRevoked = false,
   ]);
   final List<Map<String, dynamic>> messages;
   final int cursor, epoch, hiddenThrough;
   final int? membershipVersion;
+  final bool membershipAccessRevoked;
   final int? historyVersion;
   final Map<String, dynamic>? presentation;
 }
@@ -172,8 +174,13 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 22,
+        version: 23,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 23) {
+            await db.execute(
+              'ALTER TABLE conversation ADD COLUMN membershipAccessRevoked INTEGER NOT NULL DEFAULT 0',
+            );
+          }
           if (oldVersion < 22) await _createVisibilityChecks(db);
           if (oldVersion < 21) await _createDeferredMediaCleanup(db);
           if (oldVersion < 19) await _createContactGroupSnapshot(db);
@@ -253,7 +260,7 @@ class ChatHistoryStore {
           await _createNearbyServerPresence(db);
           await _createNearbyMessages(db);
           await db.execute(
-            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER, presentation BLOB, historyVersion INTEGER)',
+            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER, presentation BLOB, historyVersion INTEGER, membershipAccessRevoked INTEGER NOT NULL DEFAULT 0)',
           );
           await db.execute(
             'CREATE TABLE message (conversation TEXT NOT NULL, sequence INTEGER NOT NULL, payload BLOB NOT NULL, stale INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(conversation, sequence))',
@@ -573,6 +580,7 @@ class ChatHistoryStore {
         state.isEmpty ? null : state.single['membershipVersion'] as int?,
         presentation,
         state.isEmpty ? null : state.single['historyVersion'] as int?,
+        state.isNotEmpty && state.single['membershipAccessRevoked'] == 1,
       );
     });
   }
@@ -788,6 +796,7 @@ class ChatHistoryStore {
         {
           'hiddenThrough': floor,
           'membershipVersion': ?membershipVersion,
+          if (membershipVersion != null) 'membershipAccessRevoked': 0,
           if (savedVersion != membershipVersion) 'presentation': null,
         },
         where: 'id=?',
@@ -1148,7 +1157,12 @@ class ChatHistoryStore {
       }
       await tx.update(
         'conversation',
-        {'cursor': 0, 'epoch': epoch + 1, 'presentation': null},
+        {
+          'cursor': 0,
+          'epoch': epoch + 1,
+          'presentation': null,
+          if (conversation.startsWith('group:')) 'membershipAccessRevoked': 1,
+        },
         where: 'id=?',
         whereArgs: [id],
       );

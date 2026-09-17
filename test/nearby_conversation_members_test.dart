@@ -70,6 +70,9 @@ void main() {
     await raw.execute('DROP TABLE contact_group_snapshot');
     await raw.execute('DROP TABLE contact_snapshot');
     await raw.execute('ALTER TABLE message DROP COLUMN stale');
+    await raw.execute(
+      'ALTER TABLE conversation DROP COLUMN membershipAccessRevoked',
+    );
     await raw.setVersion(11);
     await raw.close();
     store = await open();

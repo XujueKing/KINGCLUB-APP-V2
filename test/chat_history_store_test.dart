@@ -367,6 +367,9 @@ void main() {
     await store.close();
     final raw = await databaseFactoryFfi.openDatabase('${dir.path}/history.db');
     await raw.execute('DROP TABLE conversation_visibility_checks');
+    await raw.execute(
+      'ALTER TABLE conversation DROP COLUMN membershipAccessRevoked',
+    );
     await raw.setVersion(21);
     await raw.close();
     store = await open();
@@ -380,7 +383,7 @@ void main() {
     final inspected = await databaseFactoryFfi.openDatabase(
       '${dir.path}/history.db',
     );
-    expect(await inspected.getVersion(), 22);
+    expect(await inspected.getVersion(), 23);
     final jobs = await inspected.query('conversation_visibility_checks');
     expect(jobs, hasLength(1));
     expect(jobs.single['target'], isNot(contains('private-peer-marker')));
@@ -467,6 +470,9 @@ void main() {
     damaged[damaged.length - 1] ^= 1;
     await raw.update('message', {'payload': damaged}, where: 'sequence=55');
     await raw.execute('DROP TABLE contact_group_snapshot');
+    await raw.execute(
+      'ALTER TABLE conversation DROP COLUMN membershipAccessRevoked',
+    );
     await raw.setVersion(16);
     final before = await raw.query('message', orderBy: 'sequence');
     await raw.close();
@@ -519,6 +525,9 @@ void main() {
       );
     }
     await raw.execute('DROP TABLE contact_group_snapshot');
+    await raw.execute(
+      'ALTER TABLE conversation DROP COLUMN membershipAccessRevoked',
+    );
     await raw.setVersion(16);
     await raw.close();
     store = await open();
@@ -534,7 +543,7 @@ void main() {
     }
     await store.close();
     raw = await databaseFactoryFfi.openDatabase('${dir.path}/history.db');
-    expect(await raw.getVersion(), 22);
+    expect(await raw.getVersion(), 23);
     final after = await raw.query('message', orderBy: 'sequence');
     for (var i = 0; i < 60; i++) {
       if (i == 0 || i == 54) continue;

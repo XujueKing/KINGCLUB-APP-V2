@@ -5,3 +5,9 @@ Permit local queue ownership after a NETWORK_ERROR only when a previously confir
 ## Readmission boundary follow-up
 
 Expanded the SQLite recovery case to unchanged and renewed membership versions. Unchanged membership sends once and persists its acknowledgement; renewed membership keeps the old queue entry failed with its original version, performs zero sends, and manual retry cannot bypass the version check. The new membership version is persisted. Validation: all 21 group history tests passed and file analysis passed (build/group-offline-readmission.log and build/group-offline-readmission-analyze.log). This verifies the existing controller guard; no additional runtime change, APK build, or device installation in this follow-up.
+
+## Durable access invalidation
+
+Implemented SQLite schema 23 with a separate membershipAccessRevoked flag while retaining the membership version floor. Group history clears invalidate offline queue eligibility until an authoritative epoch-checked group history commit restores it. Cached membership alone no longer enables offline enqueue after a recorded revocation.
+
+Validation: 141 tests passed across group/direct history, group controller, SQLite history, outbox recovery, reply deletion, contact snapshots and nearby journals; eight changed Dart files pass analysis. The new regression covers denial, offline reopen rejecting enqueue, authorized revalidation and offline enqueue afterward. The schema-22 fixture preserves encrypted history through upgrade, verifies stale pre-clear commits cannot reset revocation, and verifies the flag survives closing/reopening SQLite. Older migration fixtures now remove the new column when constructing historical schemas. Logs: build/group-access-revocation-batch.log and build/group-access-revocation-analyze.log. Not packaged or installed; this is controller/SQLite verification, not a two-phone acceptance claim.

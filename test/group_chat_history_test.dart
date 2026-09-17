@@ -19,12 +19,14 @@ void main() {
   sqfliteFfiInit();
   late Directory dir;
   late ChatHistoryStore store;
+  late SecretKey storeKey;
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('group-history-');
+    storeKey = await AesGcm.with256bits().newSecretKey();
     store = await ChatHistoryStore.openDatabaseWithKey(
       factory: databaseFactoryFfi,
       file: '${dir.path}/history.db',
-      key: await AesGcm.with256bits().newSecretKey(),
+      key: storeKey,
       account: 'me',
     );
   });
@@ -41,6 +43,51 @@ void main() {
       MessagingRepository(account: 'me', call: call),
     ),
   );
+  test('schema 22 upgrades without losing encrypted group history', () async {
+    await store.commit(
+      'group:group',
+      [row(1)],
+      expectedEpoch: 0,
+      cursor: 1,
+      membershipVersion: 7,
+    );
+    await store.close();
+    final legacy = await databaseFactoryFfi.openDatabase(
+      '${dir.path}/history.db',
+    );
+    await legacy.execute(
+      'ALTER TABLE conversation DROP COLUMN membershipAccessRevoked',
+    );
+    await legacy.setVersion(22);
+    await legacy.close();
+    store = await ChatHistoryStore.openDatabaseWithKey(
+      factory: databaseFactoryFfi,
+      file: '${dir.path}/history.db',
+      key: storeKey,
+      account: 'me',
+    );
+    final page = await store.read('group:group');
+    expect(page.messages.single['clientMessageId'], 'c1');
+    expect(page.membershipVersion, 7);
+    expect(page.membershipAccessRevoked, false);
+    await store.clear('group:group', deleteMedia: false);
+    await store.commit(
+      'group:group',
+      [row(1)],
+      expectedEpoch: 0,
+      cursor: 1,
+      membershipVersion: 7,
+    );
+    expect((await store.read('group:group')).membershipAccessRevoked, true);
+    await store.close();
+    store = await ChatHistoryStore.openDatabaseWithKey(
+      factory: databaseFactoryFfi,
+      file: '${dir.path}/history.db',
+      key: storeKey,
+      account: 'me',
+    );
+    expect((await store.read('group:group')).membershipAccessRevoked, true);
+  });
   for (final renewedVersion in [0, 1]) {
     test(
       'offline cached membership revalidates version $renewedVersion before sending',
@@ -687,7 +734,29 @@ void main() {
       );
       await reopened.initialize();
       expect(reopened.messages, isEmpty);
+      expect((await store.read('group:group')).membershipVersion, 0);
+      expect((await store.read('group:group')).membershipAccessRevoked, true);
+      await expectLater(reopened.send('must not queue'), throwsStateError);
       reopened.dispose();
+      final restored = controller(
+        (_, _) async => {
+          ...history([]),
+          'membershipVersion': 1,
+          'joinedSequence': 0,
+          'settings': {'hiddenThrough': 0},
+        },
+      );
+      await restored.initialize();
+      expect(restored.hasAccess, true);
+      expect((await store.read('group:group')).membershipAccessRevoked, false);
+      restored.dispose();
+      final offlineAgain = controller(
+        (_, _) async => throw const AuthFailure('NETWORK_ERROR', 'offline'),
+      );
+      await offlineAgain.initialize();
+      await offlineAgain.send('allowed after revalidation');
+      expect(offlineAgain.messages.single['status'], 'queued');
+      offlineAgain.dispose();
     },
   );
 }
