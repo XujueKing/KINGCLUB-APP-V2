@@ -1,0 +1,5 @@
+# Call route teardown
+
+Fix outgoing presentation ownership when the navigator is destroyed instead of a normal pop. Navigator teardown can dispose the call page without completing the awaiting push future. Bind the exclusive presentation lease to the call route subtree as well as the existing finally block. A late release must not unlock a newer owner. The guard changes no UI and does not release merely on backgrounding or dispose the underlying chat while the call route remains alive. Cover group picker teardown and the guard lifecycle; retain existing direct/group call tests. Incoming flow lifecycle remains a separate follow-up.
+
+Validation: 11 call history, presentation ownership, direct call page and group call page tests passed; static analysis of four changed Dart files passed. Group audio/video tests now destroy the navigator instead of popping the picker and assert a new presentation lease can be acquired. Route scope test verifies ownership is held while mounted and an old delayed release cannot unlock the next call. No phone installation; this fix postdates the 72902aa APK.

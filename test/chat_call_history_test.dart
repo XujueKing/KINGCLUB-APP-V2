@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:kingclub/src/features/messaging/data/call_presentation_lease.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/chat_call_history.dart';
@@ -91,11 +93,16 @@ void main() {
           methods.where((id) => id == 'K260913000643' || id == 'K260915000678'),
           isEmpty,
         );
-        Navigator.of(tester.element(find.byType(GroupCallPage))).pop();
-        await tester.pumpAndSettle();
         await tester.pumpWidget(const SizedBox());
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
+        final next = CallPresentationLease.acquire();
+        expect(
+          next,
+          isNotNull,
+          reason: 'destroying navigator must release call presentation',
+        );
+        next?.release();
       },
     );
   }

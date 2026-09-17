@@ -24,6 +24,7 @@ import '../data/call_launch_coordinator.dart';
 import '../data/call_repository.dart';
 import 'group_call_page.dart';
 import 'call_page.dart';
+import 'call_presentation_scope.dart';
 import 'chat_member_avatar.dart';
 import '../data/chat_history_store.dart';
 import '../data/novorudp_binding_runtime.dart';
@@ -821,13 +822,16 @@ class _DirectChatPageState extends State<DirectChatPage>
     final lease = CallPresentationLease.acquire();
     if (lease == null) return;
     try {
-      await _openExclusiveCall(media);
+      await _openExclusiveCall(media, lease);
     } finally {
       lease.release();
     }
   }
 
-  Future<void> _openExclusiveCall(CallMedia media) async {
+  Future<void> _openExclusiveCall(
+    CallMedia media,
+    CallPresentationLease lease,
+  ) async {
     if (_openingCall || _leaving) return;
     final chat = _chat;
     final peer = widget.peerAccount;
@@ -838,10 +842,13 @@ class _DirectChatPageState extends State<DirectChatPage>
       try {
         await Navigator.of(context).push<void>(
           MaterialPageRoute(
-            builder: (_) => GroupCallPage(
-              repository: GroupChatRepository(chat.messaging),
-              groupId: widget.groupId!,
-              media: media,
+            builder: (_) => CallPresentationScope(
+              lease: lease,
+              child: GroupCallPage(
+                repository: GroupChatRepository(chat.messaging),
+                groupId: widget.groupId!,
+                media: media,
+              ),
             ),
           ),
         );
@@ -879,8 +886,11 @@ class _DirectChatPageState extends State<DirectChatPage>
           page.controller.dispose();
         }
       } else {
-        await Navigator.of(context)
-            .push<void>(MaterialPageRoute(builder: (_) => page));
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) => CallPresentationScope(lease: lease, child: page),
+          ),
+        );
       }
       if (!mounted || _leaving || !identical(_callLauncher, launcher)) return;
       await launcher.finishOutgoing(prepared.call.id);
