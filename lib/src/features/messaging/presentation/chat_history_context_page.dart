@@ -338,8 +338,9 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
         );
       } on AuthFailure catch (error) {
         if (error.code != 'NETWORK_ERROR' ||
-            (widget.localConversation == null && widget.readLocal == null))
+            (widget.localConversation == null && widget.readLocal == null)) {
           rethrow;
+        }
         final readLocal = widget.readLocal;
         result = readLocal != null
             ? await readLocal()
