@@ -1,10 +1,12 @@
 import '../data/chat_file_draft_store.dart';
 
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/king_components.dart';
+import '../../../core/session/secure_session_store.dart';
 import '../data/chat_file_uploader.dart';
 import '../data/chat_session_controller.dart';
 
@@ -17,7 +19,9 @@ class ChatFileSendPage extends StatefulWidget {
     required this.chat,
     this.draft,
     this.drafts,
+    this.createUploader,
   });
+  final Future<ChatFileUploader> Function()? createUploader;
   final ChatFileDraft? draft;
   final ChatFileDraftStore? drafts;
   final File file;
@@ -32,6 +36,25 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
   bool _busy = false;
   String? _error;
   double? _progress;
+  bool _invalid = false;
+  StreamSubscription<void>? _session;
+  bool get _usable => mounted && !_invalid;
+
+  @override
+  void initState() {
+    super.initState();
+    _session = SecureSessionStore.changes.stream.listen((_) {
+      if (!mounted) return;
+      _uploader?.dispose();
+      _uploader = null;
+      setState(() {
+        _invalid = true;
+        _busy = false;
+        _progress = null;
+        _error = '登录状态已变化，请重新进入会话';
+      });
+    });
+  }
 
   bool get _alreadyQueued =>
       widget.draft != null &&
@@ -44,12 +67,13 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
 
   @override
   void dispose() {
+    _session?.cancel();
     _uploader?.dispose();
     super.dispose();
   }
 
   Future<void> _send() async {
-    if (_busy) return;
+    if (_busy || !_usable) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -60,12 +84,14 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
         try {
           await widget.drafts?.remove(widget.draft!.id);
         } catch (_) {}
-        if (mounted) Navigator.of(context).pop(true);
+        if (mounted && !_invalid) Navigator.of(context).pop(true);
         return;
       }
       final uploader =
-          _uploader ?? await ChatFileUploader.open(widget.chat.messaging);
-      if (!mounted) {
+          _uploader ??
+          await (widget.createUploader?.call() ??
+              ChatFileUploader.open(widget.chat.messaging));
+      if (!_usable) {
         uploader.dispose();
         return;
       }
@@ -74,10 +100,10 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
         widget.file,
         fileName: widget.fileName,
         onProgress: (sent, total) {
-          if (mounted && total > 0) setState(() => _progress = sent / total);
+          if (_usable && total > 0) setState(() => _progress = sent / total);
         },
       );
-      if (!mounted) return;
+      if (!_usable) return;
       var queued = _alreadyQueued;
       if (!queued) {
         await widget.chat.sendFile(
@@ -90,6 +116,7 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
         );
       }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
+      if (!_usable) return;
       await uploader.retainQueuedSource(widget.file, file);
       // A journal cleanup error must not invite a second send of an already
       // durable message. The outbox now owns delivery and retry.
@@ -97,22 +124,22 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
         if (widget.draft != null) await widget.drafts?.remove(widget.draft!.id);
         await uploader.acknowledgeQueued(file);
       } catch (_) {}
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted && !_invalid) Navigator.of(context).pop(true);
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (_usable) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _discard() async {
-    if (_busy) return;
+    if (_busy || !_usable) return;
     setState(() => _busy = true);
     try {
       await widget.drafts!.remove(widget.draft!.id);
-      if (mounted) Navigator.of(context).pop(false);
+      if (mounted && !_invalid) Navigator.of(context).pop(false);
     } catch (_) {
-      if (mounted) setState(() => _error = '未能丢弃草稿，请重试');
+      if (_usable) setState(() => _error = '未能丢弃草稿，请重试');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -142,7 +169,8 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
                       color: Colors.white70,
                     ),
                     const SizedBox(height: 16),
-                    Text(widget.fileName, textAlign: TextAlign.center),
+                    if (!_invalid)
+                      Text(widget.fileName, textAlign: TextAlign.center),
                   ],
                 ),
               ),
@@ -150,7 +178,7 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
           ),
           if (widget.draft != null && widget.drafts != null)
             TextButton(
-              onPressed: _busy ? null : _discard,
+              onPressed: _busy || _invalid ? null : _discard,
               child: const Text('丢弃草稿'),
             ),
           if (_busy) LinearProgressIndicator(value: _progress),
@@ -167,7 +195,7 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _busy ? null : _send,
+                onPressed: _busy || _invalid ? null : _send,
                 child: Text(_busy ? '正在发送…' : '发送'),
               ),
             ),
