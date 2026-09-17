@@ -483,6 +483,7 @@ class GroupChatController extends ChatSessionController {
         _historyKey,
         [message],
         expectedEpoch: _diskEpoch,
+        recordOutgoingHead: _pending.containsKey(message['clientMessageId']),
         historyVersion: _historyVersion,
         membershipVersion: _membershipVersion,
         hiddenThrough: _visibleAfter,

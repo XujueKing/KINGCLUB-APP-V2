@@ -19,3 +19,7 @@ Eight pending projection, draft/list widget and existing conversation-action tes
 passed. Five-file analysis passed. Widget verification covers an initially queued
 first direct message, removal, and a newly queued group message. No phone install
 or offline-device acceptance was performed.
+
+Follow-up: the acknowledgement-to-list gap is now addressed in code by
+[transactional confirmed summaries](2026-09-17-confirmed-conversation-bridge.md);
+its device acceptance is still pending.

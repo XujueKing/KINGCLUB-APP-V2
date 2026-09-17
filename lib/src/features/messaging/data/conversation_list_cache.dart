@@ -40,6 +40,39 @@ Future<void> _createConversationListCache(DatabaseExecutor db) => db.execute(
   'CREATE TABLE conversation_list_cache (id INTEGER PRIMARY KEY CHECK(id=1), payload BLOB NOT NULL)',
 );
 
+/// Keep locally confirmed outgoing heads until the server list catches up.
+List<Map<String, dynamic>> mergeConfirmedConversationRows(
+  List<Map<String, dynamic>> local,
+  List<Map<String, dynamic>> incoming,
+) {
+  String key(Map<String, dynamic> row) => row['kind'] == 'group'
+      ? 'group:${row['groupId']}'
+      : 'direct:${row['peer']}';
+  final rows = {
+    for (final row in incoming) key(row): Map<String, dynamic>.from(row),
+  };
+  for (final row in local) {
+    if (row['localConfirmed'] != true) continue;
+    final server = rows[key(row)];
+    if (server == null) {
+      rows[key(row)] = Map<String, dynamic>.from(row);
+    } else if ((server['lastSequence'] as num? ?? 0) <
+        (row['lastSequence'] as num? ?? 0)) {
+      rows[key(row)] = {
+        ...server,
+        for (final field in [
+          'preview',
+          'messageDate',
+          'lastSequence',
+          'localConfirmed',
+        ])
+          field: row[field],
+      };
+    }
+  }
+  return rows.values.toList();
+}
+
 extension ConversationListCache on ChatHistoryStore {
   List<int> get _listAad =>
       utf8.encode(jsonEncode(['conversation-list-v1', account]));
@@ -63,6 +96,7 @@ extension ConversationListCache on ChatHistoryStore {
       'muted',
       'pinned',
       'localOnly',
+      'localConfirmed',
     };
     final projected = items
         .map(
@@ -83,8 +117,62 @@ extension ConversationListCache on ChatHistoryStore {
           expectedRevision != _conversationListRevision) {
         return;
       }
-      await _writeConversationList(tx, bytes);
+      final merged = mergeConfirmedConversationRows(
+        await _readConversationList(tx),
+        projected,
+      );
+      await _writeConversationList(tx, utf8.encode(jsonEncode(merged)));
     });
+  }
+
+  Future<void> _recordOutgoingHead(
+    Transaction tx,
+    String conversation,
+    Map<String, dynamic> message,
+  ) async {
+    final group = conversation.startsWith('group:');
+    if (!group && !conversation.startsWith('direct:')) return;
+    if (message['sender'] != account ||
+        const {'hidden', 'recalled'}.contains(message['messageType'])) {
+      return;
+    }
+    final rows = await _readConversationList(tx);
+    final target = conversation.substring(group ? 6 : 7);
+    final index = rows.indexWhere(
+      (row) =>
+          (row['kind'] == 'group') == group &&
+          row[group ? 'groupId' : 'peer'] == target,
+    );
+    final previous = index < 0 ? <String, dynamic>{} : rows[index];
+    if ((previous['lastSequence'] as num? ?? 0) >=
+        (message['sequence'] as int)) {
+      return;
+    }
+    final preview = switch (message['messageType']) {
+      'image' => '[图片]',
+      'video' => '[视频]',
+      'voice' => '[语音]',
+      'file' => '[文件]',
+      'location' => '[位置]',
+      _ => message['text'],
+    };
+    final row = <String, dynamic>{
+      'kind': group ? 'group' : 'direct',
+      group ? 'groupId' : 'peer': target,
+      'nickname': group ? '群聊' : '好友',
+      'unreadCount': 0,
+      ...previous,
+      'preview': preview,
+      'messageDate': message['createdDate'],
+      'lastSequence': message['sequence'],
+      'localConfirmed': true,
+    };
+    if (index < 0) {
+      rows.insert(0, row);
+    } else {
+      rows[index] = row;
+    }
+    await _writeConversationList(tx, utf8.encode(jsonEncode(rows)));
   }
 
   Future<List<Map<String, dynamic>>> readConversationList() async {

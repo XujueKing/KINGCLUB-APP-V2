@@ -58,6 +58,66 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  for (final group in [false, true]) {
+    test(
+      'outgoing confirmation bridges missing list and obeys clear: group=$group',
+      () async {
+        final conversation = group ? 'group:room' : 'direct:peer';
+        final own = {
+          ...message(1),
+          'sender': 'me',
+          'recipient': 'peer',
+          if (group) 'groupId': 'room',
+        };
+        expect(
+          await store.commit(
+            conversation,
+            [own],
+            expectedEpoch: 0,
+            recordOutgoingHead: true,
+          ),
+          true,
+        );
+        final cached = await store.readConversationList();
+        expect(cached.single['localConfirmed'], true);
+        expect(cached.single['preview'], own['text']);
+        await store.saveConversationList([]);
+        expect(await store.readConversationList(), hasLength(1));
+        await store.close();
+        store = await open();
+        expect(
+          (await store.readConversationList()).single['preview'],
+          own['text'],
+        );
+        await store.saveConversationList([
+          {
+            'kind': group ? 'group' : 'direct',
+            group ? 'groupId' : 'peer': group ? 'room' : 'peer',
+            'nickname': 'Actual name',
+            'preview': 'server confirmed',
+            'lastSequence': 1,
+            'unreadCount': 0,
+          },
+        ]);
+        expect(
+          (await store.readConversationList()).single['localConfirmed'],
+          isNull,
+        );
+        await store.clear(conversation);
+        expect(await store.readConversationList(), isEmpty);
+        expect(
+          await store.commit(
+            conversation,
+            [own],
+            expectedEpoch: 0,
+            recordOutgoingHead: true,
+          ),
+          false,
+        );
+        expect(await store.readConversationList(), isEmpty);
+      },
+    );
+  }
   test('v17 upgrade rolls back earlier rewrites when a later encrypted row is corrupt', () async {
     await store.commit('direct:peer', [
       for (var i = 1; i <= 55; i++) message(i),

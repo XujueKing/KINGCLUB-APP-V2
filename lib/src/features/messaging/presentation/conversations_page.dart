@@ -114,7 +114,25 @@ class _ConversationsPageState extends State<ConversationsPage>
           !identical(repository, _repository)) {
         return;
       }
-      setState(() => _pendingMessages = messages);
+      List<Map<String, dynamic>>? local;
+      if (repository.persistHistory || widget.openRelayHistory != null) {
+        local = await (await _openRelayHistory(repository))
+            .readConversationList();
+      }
+      if (!mounted ||
+          generation != _pendingGeneration ||
+          !identical(repository, _repository)) {
+        return;
+      }
+      setState(() {
+        _pendingMessages = messages;
+        if (local != null) {
+          final merged = mergeConfirmedConversationRows(local, _realItems);
+          _realItems
+            ..clear()
+            ..addAll(merged);
+        }
+      });
     } catch (_) {}
   }
 
@@ -207,6 +225,7 @@ class _ConversationsPageState extends State<ConversationsPage>
       _clearEvents = store.clearedConversations.listen((removal) {
         if (!mounted || !identical(repository, _repository)) return;
         _localRead++;
+        _pendingGeneration++;
         setState(() {
           removal.applyTo(_realItems);
         });
@@ -470,12 +489,17 @@ class _ConversationsPageState extends State<ConversationsPage>
                         .toSet()
                   : const {},
             )
-          : await repository.conversations(
-              offset: more ? _realItems.length : 0,
-            );
+          : await repository.conversations(offset: more ? _serverOffset : 0);
+      final serverRowCount = (result['items'] as List).length;
       var pageRows = (result['items'] as List)
           .map((raw) => Map<String, dynamic>.from(raw as Map))
           .toList();
+      if (history != null) {
+        pageRows = mergeConfirmedConversationRows(
+          await history.readConversationList(),
+          pageRows,
+        );
+      }
       if (_useRelayUnread) {
         if (more) pageRows = mergeConversationRows(_realItems, pageRows);
         pageRows = await offlineRelayConversations(
@@ -507,7 +531,8 @@ class _ConversationsPageState extends State<ConversationsPage>
         if (_useRelayUnread) sortConversationRows(_realItems);
         _hasMore = result['hasMore'] == true;
         _serverOffset =
-            (result['nextServerOffset'] as int?) ?? _realItems.length;
+            (result['nextServerOffset'] as int?) ??
+            (more ? _serverOffset + serverRowCount : serverRowCount);
         _realReady = true;
         _showOfflineBanner = false;
         _refreshFailure = null;

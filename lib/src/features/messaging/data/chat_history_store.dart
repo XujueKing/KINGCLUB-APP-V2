@@ -577,6 +577,7 @@ class ChatHistoryStore {
     String conversation,
     List<Map<String, dynamic>> messages, {
     required int expectedEpoch,
+    bool recordOutgoingHead = false,
     int? cursor,
     int hiddenThrough = 0,
     int? membershipVersion,
@@ -589,6 +590,7 @@ class ChatHistoryStore {
       conversation,
       messages,
       expectedEpoch: expectedEpoch,
+      recordOutgoingHead: recordOutgoingHead,
       cursor: cursor,
       hiddenThrough: hiddenThrough,
       membershipVersion: membershipVersion,
@@ -604,6 +606,7 @@ class ChatHistoryStore {
     String conversation,
     List<Map<String, dynamic>> messages, {
     required int expectedEpoch,
+    bool recordOutgoingHead = false,
     int? cursor,
     int hiddenThrough = 0,
     int? membershipVersion,
@@ -753,6 +756,13 @@ class ChatHistoryStore {
         );
       }
       await batch.commit(noResult: true);
+      if (recordOutgoingHead) {
+        for (final message in messages) {
+          if ((message['sequence'] as int) > floor) {
+            await _recordOutgoingHead(tx, conversation, message);
+          }
+        }
+      }
       if (removedSequences.isNotEmpty || floor > savedHidden) {
         await _redactStoredReplies(tx, id, {
           for (final message in messages)

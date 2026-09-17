@@ -538,6 +538,7 @@ class DirectChatController extends ChatSessionController {
         _historyKey,
         [message],
         expectedEpoch: _diskEpoch,
+        recordOutgoingHead: _pending.containsKey(message['clientMessageId']),
         historyVersion: _historyVersion,
       )) {
         throw StateError('聊天记录已变化，请重新同步');
