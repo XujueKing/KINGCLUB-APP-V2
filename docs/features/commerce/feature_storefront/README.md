@@ -2,6 +2,8 @@
 
 状态：In Review，未批准业务开发。
 
+详细草案：[商品、自提、配送与链上订单](../review_2026-09-17/FINANCE_AND_STORE_CONTRACTS.md)、[页面衔接和权限](../review_2026-09-17/ROLES_AND_PAGE_MAP.md)。
+
 地区和门店选择、到店商品、配送/自提、链上商品；发行方、适用门店与收款主体明确。
 
 - [总体需求](../review_2026-09-17/REQUIREMENTS.md)

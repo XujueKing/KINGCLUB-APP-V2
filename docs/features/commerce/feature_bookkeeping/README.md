@@ -2,6 +2,8 @@
 
 状态：In Review，未批准业务开发。
 
+详细草案：[记账、利润、账务与商店契约](../review_2026-09-17/FINANCE_AND_STORE_CONTRACTS.md)、[角色权限](../review_2026-09-17/ROLES_AND_PAGE_MAP.md)。
+
 经营收支、钱包与佣金明细、凭证/科目/总账/报表；账套按核算主体，门店为经营维度，平台汇总不混合商户资金。
 
 - [总体需求](../review_2026-09-17/REQUIREMENTS.md)
