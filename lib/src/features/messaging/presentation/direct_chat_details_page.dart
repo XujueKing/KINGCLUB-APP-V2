@@ -170,6 +170,10 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                             Navigator.of(context).push<void>(
                               MaterialPageRoute(
                                 builder: (_) => ChatHistoryContextPage(
+                                  localConversation:
+                                      widget.repository!.persistHistory
+                                      ? 'direct:${widget.peerAccount!}'
+                                      : null,
                                   onCall: widget.onCall,
                                   repository: widget.repository,
                                   senderLabel: _senderLabel,

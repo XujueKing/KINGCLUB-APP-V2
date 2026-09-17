@@ -36,6 +36,18 @@ void main() {
           for (var i = 1; i <= 125; i++) message(i),
         ], expectedEpoch: 0);
         await store.commit('direct:other', [message(999)], expectedEpoch: 0);
+        final context = await store.context(
+          conversation,
+          messageId: 'm60',
+          sequence: 60,
+        );
+        expect(context.map((m) => m['sequence']), [
+          for (var i = 40; i <= 80; i++) i,
+        ]);
+        await expectLater(
+          store.context(conversation, messageId: 'wrong', sequence: 60),
+          throwsStateError,
+        );
         final first = await store.search(
           conversation,
           query: 'needle',
@@ -81,6 +93,10 @@ void main() {
         await store.clear(conversation, deletedMessageIds: {'m123'});
         await store.close();
         store = await open();
+        await expectLater(
+          store.context(conversation, messageId: 'm123', sequence: 123),
+          throwsStateError,
+        );
         final after = await store.search(
           conversation,
           query: 'needle',

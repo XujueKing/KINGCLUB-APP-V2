@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import '../../auth/domain/auth_repository.dart';
+import '../data/chat_history_store.dart';
+
 import '../data/chat_media_deletion.dart';
 import '../data/chat_media_event_scope.dart';
 
@@ -37,8 +40,12 @@ class ChatHistoryContextPage extends StatefulWidget {
     this.events,
     this.createVoicePlayback,
     this.onCall,
+    this.localConversation,
+    this.readLocal,
   });
   final ContextHistoryReader read;
+  final String? localConversation;
+  final Future<List<Map<String, dynamic>>> Function()? readLocal;
   final String messageId, account;
   final String Function(String account)? senderLabel;
   final int sequence;
@@ -64,6 +71,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
   String? _error;
   ChatVoicePlayback? _voice;
   bool _openingCall = false;
+  bool _localOnly = false;
 
   Future<void> _call(CallMedia media) async {
     if (_invalid || !_foreground || _openingCall || widget.onCall == null) {
@@ -320,11 +328,28 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
     }
     if (_invalid || !_foreground) return;
     try {
-      final result = await readChatHistoryContext(
-        read: widget.read,
-        messageId: widget.messageId,
-        sequence: widget.sequence,
-      );
+      List<Map<String, dynamic>> result;
+      var localOnly = false;
+      try {
+        result = await readChatHistoryContext(
+          read: widget.read,
+          messageId: widget.messageId,
+          sequence: widget.sequence,
+        );
+      } on AuthFailure catch (error) {
+        if (error.code != 'NETWORK_ERROR' ||
+            (widget.localConversation == null && widget.readLocal == null))
+          rethrow;
+        final readLocal = widget.readLocal;
+        result = readLocal != null
+            ? await readLocal()
+            : await (await ChatHistoryStore.open(widget.account)).context(
+                widget.localConversation!,
+                messageId: widget.messageId,
+                sequence: widget.sequence,
+              );
+        localOnly = true;
+      }
       if (!mounted || generation != _generation) return;
       final messages = result
           .where((message) => !_removedIds.contains(message['messageId']))
@@ -338,7 +363,10 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
           )) {
         _voice?.stop();
       }
-      setState(() => _messages = messages);
+      setState(() {
+        _messages = messages;
+        _localOnly = localOnly;
+      });
       if (background) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final target = _target.currentContext;
@@ -384,6 +412,14 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
             title: '消息上下文',
             onBack: () => Navigator.pop(context),
           ),
+          if (_localOnly && _error == null && _messages.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                '当前显示本机已保存的记录',
+                style: TextStyle(color: Color(0x88FFFFFF), fontSize: 12),
+              ),
+            ),
           Expanded(
             child: _error != null
                 ? Center(

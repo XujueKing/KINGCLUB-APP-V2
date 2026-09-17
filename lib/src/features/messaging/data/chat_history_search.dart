@@ -1,6 +1,59 @@
 part of 'chat_history_store.dart';
 
 extension LocalChatHistorySearch on ChatHistoryStore {
+  /// Returns at most 20 messages on either side of the exact visible target.
+  Future<List<Map<String, dynamic>>> context(
+    String conversation, {
+    required String messageId,
+    required int sequence,
+  }) async {
+    if (messageId.isEmpty || sequence < 1 || sequence > 4294967295) {
+      throw ArgumentError('Invalid message reference');
+    }
+    final id = await _conversation(conversation);
+    return _db.transaction((tx) async {
+      final older = await tx.query(
+        'message',
+        where: 'conversation=? AND stale=0 AND sequence<=?',
+        whereArgs: [id, sequence],
+        orderBy: 'sequence DESC',
+        limit: 21,
+      );
+      final newer = await tx.query(
+        'message',
+        where: 'conversation=? AND stale=0 AND sequence>?',
+        whereArgs: [id, sequence],
+        orderBy: 'sequence ASC',
+        limit: 20,
+      );
+      final messages = <Map<String, dynamic>>[];
+      for (final row in [...older.reversed, ...newer]) {
+        final plain = await ChatHistoryStore._cipher.decrypt(
+          SecretBox.fromConcatenation(
+            (row['payload'] as List).cast<int>(),
+            nonceLength: 12,
+            macLength: 16,
+          ),
+          secretKey: _key,
+          aad: _aad(id, row['sequence'] as int),
+        );
+        final message = Map<String, dynamic>.from(
+          jsonDecode(utf8.decode(plain)) as Map,
+        );
+        if (message['messageType'] != 'hidden') messages.add(message);
+      }
+      if (!messages.any(
+        (message) =>
+            message['sequence'] == sequence &&
+            message['messageId'] == messageId &&
+            message['messageType'] != 'recalled',
+      )) {
+        throw StateError('The message is no longer available locally');
+      }
+      return messages;
+    });
+  }
+
   /// Searches only persisted, visible messages. No plaintext search index is
   /// written to disk. A transaction keeps deletion and pagination consistent.
   Future<Map<String, dynamic>> search(
