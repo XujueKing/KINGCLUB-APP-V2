@@ -1,5 +1,7 @@
 # 设计验收与开发准入
 
+第四批场景见 [31 页索引](pages/README.md)：关闭报名保留已报名、配比与人数配置冲突、并发退款额度、券规则版本、手续费净额对账及渠道未接通状态。均为未执行的设计场景。
+
 第三批验收场景见 [25 页索引](pages/README.md) 及 [营业流程衔接检查](FLOW_REVIEW.md)。新增套餐共用原料、券占用、退款与实物回库分离及跨店返回场景；均未执行。
 
 第二批验收设计见 [每日盘点](pages/stocktake/README.md)、[调酒](pages/bar_usage/README.md)、[耗品](pages/consumable_issue/README.md)、[备用金](pages/petty_cash/README.md)、[支出](pages/expense/README.md)、[日结](pages/daily_close/README.md)、[利润](pages/profit_summary/README.md)。各页包含合成数量/金额例子及竞态、防重、更正场景，未运行测试。
