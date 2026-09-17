@@ -2946,6 +2946,7 @@ class _DirectChatPageState extends State<DirectChatPage>
             repository: menuChat.messaging,
             messageId: message.messageId!,
             group: widget.groupId != null,
+            scopeId: widget.groupId ?? menuChat.conversationId,
           ),
         ),
       );

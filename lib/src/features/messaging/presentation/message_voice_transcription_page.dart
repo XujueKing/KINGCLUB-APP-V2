@@ -7,6 +7,7 @@ import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/messaging_repository.dart';
 import '../data/chat_media_deletion.dart';
+import '../data/chat_media_event_scope.dart';
 
 class MessageVoiceTranscriptionPage extends StatefulWidget {
   const MessageVoiceTranscriptionPage({
@@ -14,11 +15,13 @@ class MessageVoiceTranscriptionPage extends StatefulWidget {
     required this.repository,
     required this.messageId,
     required this.group,
+    this.scopeId,
     this.events,
   });
   final MessagingRepository repository;
   final String messageId;
   final bool group;
+  final String? scopeId;
   final Stream<Map<String, dynamic>>? events;
   @override
   State<MessageVoiceTranscriptionPage> createState() =>
@@ -54,9 +57,11 @@ class _MessageVoiceTranscriptionPageState
     });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
       if (_invalid || !_foreground) return;
-      final type = event['eventType'];
-      if (type == 'connection.ready' ||
-          (type is String && type.startsWith('chat.'))) {
+      if (affectsChatMedia(
+        event,
+        group: widget.group,
+        scopeId: widget.scopeId,
+      )) {
         _revision++;
         unawaited(
           _check().catchError((Object _) {

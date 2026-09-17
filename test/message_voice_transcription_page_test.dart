@@ -9,6 +9,71 @@ import 'package:kingclub/src/features/messaging/presentation/message_voice_trans
 
 void main() {
   for (final group in [false, true]) {
+    testWidgets('only relevant transcript events recheck group=$group', (
+      tester,
+    ) async {
+      final events = StreamController<Map<String, dynamic>>();
+      var reads = 0;
+      var allowed = true;
+      final repository = MessagingRepository(
+        account: 'synthetic',
+        call: (id, _) async {
+          if (id == 'K260915000675') {
+            return {
+              'messageId': 'message',
+              'kind': group ? 'group' : 'direct',
+              'status': 'recognized',
+              'text': '保留识别内容',
+            };
+          }
+          reads++;
+          if (!allowed) throw StateError('denied');
+          return {'messageId': 'message', 'voice': {}};
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MessageVoiceTranscriptionPage(
+            repository: repository,
+            messageId: 'message',
+            group: group,
+            scopeId: 'current',
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(reads, 1);
+      for (final type in [
+        'chat.message.created',
+        'chat.read',
+        'chat.group.changed',
+        'chat.group.read',
+        'chat.settings.changed',
+        'chat.relationship.changed',
+      ]) {
+        events.add({
+          'eventType': type,
+          'data': {'groupId': 'other', 'conversationId': 'other'},
+        });
+      }
+      await tester.pumpAndSettle();
+      expect(reads, 1);
+      expect(find.text('保留识别内容'), findsOneWidget);
+      events.add({'eventType': 'connection.ready'});
+      await tester.pumpAndSettle();
+      expect(reads, 2);
+      allowed = false;
+      events.add({
+        'eventType': group ? 'chat.group.changed' : 'chat.settings.changed',
+        'data': {group ? 'groupId' : 'conversationId': 'current'},
+      });
+      await tester.pumpAndSettle();
+      expect(reads, 3);
+      expect(find.text('保留识别内容'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+        unawaited(events.close());
+    });
     for (final late in [false, true]) {
       testWidgets('local deletion clears transcript group=$group late=$late', (
         tester,
