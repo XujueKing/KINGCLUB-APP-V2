@@ -31,6 +31,7 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
   String? _submittedNote, _status, _error;
   String? _applicationId;
   bool _busy = false, _invalid = false, _foreground = true, _restoring = true;
+  bool _restoreFailed = false;
   int _generation = 0;
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
@@ -65,8 +66,13 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
   }
 
   Future<void> _restoreApplication() async {
+    if (!mounted || _invalid || !_foreground) return;
     final generation = _generation;
-    if (mounted) setState(() => _restoring = true);
+    setState(() {
+      _restoring = true;
+      _restoreFailed = false;
+      _error = null;
+    });
     try {
       final id = await widget.repository.savedJoinApplication(widget.groupId);
       if (!mounted || _invalid || generation != _generation) return;
@@ -79,6 +85,12 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
       }
     } catch (_) {
       // A local storage failure cannot imply approval or rejection.
+      if (mounted && !_invalid && generation == _generation) {
+        setState(() {
+          _restoreFailed = true;
+          _error = '无法读取上次入群申请，请重试';
+        });
+      }
     } finally {
       if (mounted && generation == _generation) {
         setState(() => _restoring = false);
@@ -251,7 +263,12 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
   }
 
   Future<void> _submit() async {
-    if (_busy || _restoring || _invalid || !_foreground || _status != null) {
+    if (_busy ||
+        _restoring ||
+        _restoreFailed ||
+        _invalid ||
+        !_foreground ||
+        _status != null) {
       return;
     }
     final generation = ++_generation;
@@ -376,9 +393,18 @@ class _GroupJoinRequestPageState extends State<GroupJoinRequestPage>
                           style: const TextStyle(color: Colors.grey),
                         ),
                       TextButton(
-                        onPressed: _busy || _restoring ? null : _submit,
+                        onPressed: _busy || _restoring || _restoreFailed
+                            ? null
+                            : _submit,
                         child: Text(_submittedNote == null ? '提交申请' : '重试申请'),
                       ),
+                      if (_restoreFailed)
+                        TextButton(
+                          onPressed: _restoring || _busy
+                              ? null
+                              : _restoreApplication,
+                          child: const Text('重试读取申请'),
+                        ),
                     ] else ...[
                       Text(
                         _resultText,

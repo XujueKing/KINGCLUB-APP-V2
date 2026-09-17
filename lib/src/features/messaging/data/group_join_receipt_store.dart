@@ -35,11 +35,13 @@ class GroupJoinReceiptStore {
 
   Future<String?> application(String groupId) => _exclusive(() async {
     final value = (await _read())[groupId];
-    return value is String &&
-            RegExp(r'^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$')
-                .hasMatch(value)
-        ? value
-        : null;
+    if (value == null) return null;
+    if (value is! String ||
+        !RegExp(r'^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$')
+            .hasMatch(value)) {
+      throw const FormatException('Invalid saved group application');
+    }
+    return value;
   });
 
   Future<void> save(String groupId, String applicationId) =>

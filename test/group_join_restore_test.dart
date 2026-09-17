@@ -13,6 +13,59 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
+  for (final corrupt in ['broken-json', '{"$group":"broken-id"}']) {
+    testWidgets(
+      'unreadable receipt blocks duplicate submission until restored: $corrupt',
+      (tester) async {
+        FlutterSecureStorage.setMockInitialValues({
+          'kingclub.chat.group-join-receipts.a': corrupt,
+        });
+        var submissions = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: GroupJoinRequestPage(
+              groupId: group,
+              groupName: 'Test group',
+              code: code,
+              events: const Stream.empty(),
+              repository: GroupChatRepository(
+                MessagingRepository(
+                  account: 'a',
+                  call: (id, _) async {
+                    if (id == 'K260914000658') submissions++;
+                    if (id == 'K260913000619') throw StateError('not a member');
+                    return {
+                      'groupId': group,
+                      'applicationId': application,
+                      'status': 'pending',
+                      'changed': false,
+                    };
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('无法读取上次入群申请，请重试'), findsOneWidget);
+        final submit = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, '提交申请'),
+        );
+        expect(submit.onPressed, isNull);
+        expect(submissions, 0);
+        await const FlutterSecureStorage().write(
+          key: 'kingclub.chat.group-join-receipts.a',
+          value: '{"$group":"$application"}',
+        );
+        await tester.tap(find.text('重试读取申请'));
+        await tester.pumpAndSettle();
+        expect(find.text('申请已提交，等待群主或管理员审核'), findsOneWidget);
+        expect(find.text('提交申请'), findsNothing);
+        expect(submissions, 0);
+      },
+    );
+  }
+
   test(
     'receipts survive recreation, isolate accounts, and reject stale removal',
     () async {
