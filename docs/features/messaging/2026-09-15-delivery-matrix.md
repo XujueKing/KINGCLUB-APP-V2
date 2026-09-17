@@ -1,6 +1,10 @@
-# 原生聊天交付矩阵（最新汇总：2026-09-17）
+# 原生聊天交付矩阵（最新汇总：2026-09-18）
 
 ## 当前验收汇总
+
+2026-09-18 group-call follow-up: server f4ff170 adds new-call initiator and one terminal group message (migration 123). Real isolated MySQL tests passed concurrent replay/rollback; encrypted HTTP history and WebSocket delivery passed. Real mediasoup resources/ICE restart/authority/cleanup passed in the same fixture (service evidence commits c764ead, 62e8665, ee5eaf5 in XujueKing/ccsop). **Not deployed; no device DTLS/SRTP, microphone/camera packet or group-phone acceptance.** Legacy unknown initiators are not backfilled; records do not yet provide duration or structured callback metadata.
+
+Client follow-up after the built 758ab7d APK: committed-history page rendering (fba1860), context clear/admission boundary handling (4511389), cleared pending-receipt reconciliation (9e0e9fb), coalesced incoming-call refresh (9816c14) and stale foreground-error isolation (48cef77). Targeted regressions passed, but these changes are not in the currently built APK and have not been installed on phones. The 956-test consolidated result below predates them.
 
 Latest Android artifact: **758ab7d ARM64 Profile preview**, built successfully in 87.3s, native packaging check passed. Includes the 956-pass source batch below. [Hash, path and runtime limits](../../audits/2026-09-17-chat-history-batch-build.md). Not installed; supersedes the d44afcb APK at the shared build path.
 
