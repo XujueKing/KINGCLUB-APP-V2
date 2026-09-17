@@ -45,6 +45,58 @@ class Upload extends ChatVoiceUploader {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'voice returns after durable retention while transport is pending',
+    () async {
+      final root = await Directory.systemTemp.createTemp('voice-pending-');
+      addTearDown(() => root.delete(recursive: true));
+      final store = VoiceDraftStore(root: root, account: 'me');
+      final path = await store.allocate();
+      await File(path).writeAsBytes([1, 2, 3]);
+      final network = Completer<Map<String, dynamic>>();
+      final started = Completer<void>();
+      final repo = MessagingRepository(
+        account: 'me',
+        call: (_, _) {
+          if (!started.isCompleted) started.complete();
+          return network.future;
+        },
+      );
+      final upload = Upload(repo);
+      final queue = MemoryOutbox();
+      final chat = DirectChatController(
+        repository: repo,
+        peer: 'peer',
+        outbox: queue,
+      );
+      addTearDown(chat.dispose);
+      final media = MediaCache(
+        directory: () async => Directory('${root.path}/retained'),
+      );
+      final sender = VoiceDraftSender(
+        currentStore: () async => store,
+        openUploader: (_) async => upload,
+        mediaStore: media,
+      );
+      addTearDown(sender.dispose);
+      await sender.send(chat, VoiceDraft(path, const Duration(seconds: 2)));
+      await started.future;
+      expect(network.isCompleted, false);
+      expect(queue.items.keys.single, store.messageId(path));
+      expect(upload.acknowledged, true);
+      expect(await File(path).exists(), false);
+      final retained = await media.cached(
+        scope: 'member:me',
+        contentKey: 'chat-voice-asset:12345678-1234-1234-1234-123456789012',
+        kind: MediaKind.audio,
+      );
+      expect(await retained.readAsBytes(), [1, 2, 3]);
+      network.completeError(const AuthFailure('NETWORK_ERROR', 'offline'));
+      await Future<void>.delayed(Duration.zero);
+      expect(queue.items, hasLength(1));
+      expect(chat.messages, hasLength(1));
+    },
+  );
   for (final confirmed in [false, true]) {
     test(
       'leftover queued voice draft does not upload again: $confirmed',

@@ -16,3 +16,10 @@ file recovery/session, media preview session, and location drafts/picker. The
 image route test holds remote acknowledgement pending and verifies the composer
 returns, then observes a late network failure without a second send.
 No APK was installed; real-device interaction remains pending the combined build.
+
+Voice follow-up: VoiceDraftSender now returns after local audio retention and
+durable queue ownership, without waiting for message transport acknowledgement.
+Source leases remain held through journal/draft cleanup. Upload or queue failure
+preserves the recording. 21 voice sender/store/preview and queue tests passed;
+Dart analysis passed. A held-network controller test verifies retained bytes and
+one pending message after a late network failure. Device verification pending.

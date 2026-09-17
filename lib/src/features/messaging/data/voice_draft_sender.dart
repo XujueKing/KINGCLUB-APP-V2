@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'chat_outbox.dart';
+import 'chat_queue_completion.dart';
 
 import '../../../core/session/member_qr_memory.dart';
 import '../../../core/media/media_cache.dart';
@@ -92,12 +93,15 @@ class VoiceDraftSender {
         if (alreadyQueued()) {
           queued = true;
         } else {
-          await chat.sendVoice(
-            voice.assetId,
-            voice.durationMs,
-            onQueued: () => queued = true,
-            clientMessageId: messageId,
+          await waitForChatQueue(
+            (onQueued) => chat.sendVoice(
+              voice.assetId,
+              voice.durationMs,
+              onQueued: onQueued,
+              clientMessageId: messageId,
+            ),
           );
+          queued = true;
         }
       } finally {
         if (queued) {
