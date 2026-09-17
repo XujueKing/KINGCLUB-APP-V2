@@ -1114,7 +1114,17 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => PopScope<void>(
+    canPop: _composerPanel == _ComposerPanel.none,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop && _composerPanel != _ComposerPanel.none) {
+        _dismissComposer();
+      }
+    },
+    child: _buildConversation(context),
+  );
+
+  Widget _buildConversation(BuildContext context) {
     final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
     final panelHeight = _readOnly
         ? 0.0
