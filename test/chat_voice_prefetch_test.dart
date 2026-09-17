@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/media/media_cache.dart';
@@ -74,7 +75,69 @@ class Store extends MediaCache {
 
 Future<void> settle() => Future<void>.delayed(Duration.zero);
 
+class DiskVoices extends MediaCache {
+  DiskVoices(Directory root) : super(directory: () async => root);
+  int downloads = 0;
+  @override
+  Future<File> get(
+    String url, {
+    required String scope,
+    String? contentKey,
+    MediaKind kind = MediaKind.image,
+    Map<String, String>? headers,
+  }) async {
+    downloads++;
+    return importBytes(
+      Uint8List.fromList([1, 2, 3]),
+      scope: scope,
+      contentKey: contentKey!,
+      kind: kind,
+    );
+  }
+}
+
 void main() {
+  for (final group in [false, true]) {
+    test('missing sent voice survives disk reopen group=$group', () async {
+      final root = await Directory.systemTemp.createTemp('voice-backfill-');
+      addTearDown(() => root.delete(recursive: true));
+      final media = DiskVoices(root);
+      var calls = 0;
+      final worker = ChatVoicePrefetch(
+        MessagingRepository(
+          account: 'me',
+          call: (method, _) async {
+            expect(method, group ? 'K260913000640' : 'K260913000638');
+            calls++;
+            final result = grant();
+            (result['voice'] as Map)['path'] =
+                '/kingclub/${group ? 'group-chat-voice' : 'chat-voice'}/$message';
+            return result;
+          },
+        ),
+        group: group,
+        media: media,
+      );
+      addTearDown(worker.dispose);
+      final sent = [
+        {...rows.single, 'sender': 'me'},
+      ];
+      worker.update(sent);
+      await worker.idle;
+      expect(worker.hasFailures, false);
+      final reopened = MediaCache(directory: () async => root);
+      final saved = await reopened.cached(
+        scope: 'member:me',
+        contentKey: 'chat-voice-asset:$asset',
+        kind: MediaKind.audio,
+      );
+      expect(await saved.readAsBytes(), [1, 2, 3]);
+      worker.update(sent);
+      await worker.idle;
+      expect(calls, 2);
+      expect(media.downloads, 1);
+    });
+  }
   test(
     'deletion waits for late transfer and prevents retention or retry',
     () async {
@@ -144,8 +207,9 @@ void main() {
       expect(store.downloads, 1);
     });
   }
-  test('own and non-voice messages do not trigger downloads', () async {
+  test('cached own and non-voice messages do not trigger downloads', () async {
     final store = Store();
+    store.retained.add('chat-voice-asset:$asset');
     final worker = ChatVoicePrefetch(
       MessagingRepository(
         account: 'me',

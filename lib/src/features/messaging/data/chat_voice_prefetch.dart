@@ -6,7 +6,8 @@ import '../../auth/data/auth_repository_provider.dart';
 import 'messaging_repository.dart';
 import 'chat_media_deletion.dart';
 
-/// Retains recent received voice messages without opening an audio device.
+/// Retains recent voice messages without opening an audio device, including
+/// sent messages whose local copy is missing after migration or device changes.
 /// One transfer at a time; failures remain retryable on a later history update.
 class ChatVoicePrefetch {
   ChatVoicePrefetch(this.repository, {required this.group, MediaCache? media})
@@ -51,7 +52,6 @@ class ChatVoicePrefetch {
     for (final message in messages.reversed.take(50)) {
       final id = message['messageId'], asset = message['voiceAssetId'];
       if (message['messageType'] == 'voice' &&
-          message['sender'] != repository.account &&
           id is String &&
           !_deleted.contains(id) &&
           _uuid.hasMatch(id) &&
