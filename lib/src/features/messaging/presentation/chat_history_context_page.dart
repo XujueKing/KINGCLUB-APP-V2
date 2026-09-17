@@ -1,4 +1,6 @@
 import 'dart:async';
+
+import '../data/chat_media_deletion.dart';
 import '../data/chat_media_event_scope.dart';
 
 import 'package:flutter/material.dart';
@@ -55,6 +57,8 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
   List<Map<String, dynamic>> _messages = [];
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
+  void Function()? _stopDeletion;
+  final _removedIds = <String>{};
   bool _invalid = false, _foreground = true;
   int _generation = 0;
   String? _error;
@@ -252,6 +256,29 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _stopDeletion = ChatMediaDeletion.listen((event) async {
+      if (_invalid ||
+          event.account != widget.account ||
+          event.group != (widget.groupId != null)) {
+        return;
+      }
+      _removedIds.add(event.messageId);
+      if (event.messageId == widget.messageId) {
+        _generation++;
+        setState(() {
+          _messages = [];
+          _error = '原消息不可用';
+        });
+        await _voice?.stop();
+      } else {
+        setState(
+          () => _messages.removeWhere(
+            (message) => message['messageId'] == event.messageId,
+          ),
+        );
+        if (_voice?.activeId == event.messageId) await _voice?.stop();
+      }
+    });
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
       _voice?.stop();
@@ -277,7 +304,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
   }
 
   Future<void> _load({bool background = false}) async {
-    if (_invalid) return;
+    if (_invalid || _removedIds.contains(widget.messageId)) return;
     if (!background) _voice?.stop();
     final generation = ++_generation;
     if (mounted) {
@@ -288,12 +315,15 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
     }
     if (_invalid || !_foreground) return;
     try {
-      final messages = await readChatHistoryContext(
+      final result = await readChatHistoryContext(
         read: widget.read,
         messageId: widget.messageId,
         sequence: widget.sequence,
       );
       if (!mounted || generation != _generation) return;
+      final messages = result
+          .where((message) => !_removedIds.contains(message['messageId']))
+          .toList();
       final activeId = _voice?.activeId;
       if (activeId != null &&
           !messages.any(
@@ -334,6 +364,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
     _generation++;
     _session?.cancel();
     _events?.cancel();
+    _stopDeletion?.call();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -352,7 +383,10 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
             child: _error != null
                 ? Center(
                     child: TextButton(
-                      onPressed: _invalid ? null : _load,
+                      onPressed:
+                          _invalid || _removedIds.contains(widget.messageId)
+                          ? null
+                          : _load,
                       child: Text(_error!),
                     ),
                   )

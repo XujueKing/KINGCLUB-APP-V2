@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_voice_playback.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_history_context_page.dart';
 
@@ -24,6 +25,74 @@ class _Output implements ChatVoiceOutput {
 }
 
 void main() {
+  for (final group in [false, true]) {
+    testWidgets('local deletion fences context and late reads group=$group', (
+      tester,
+    ) async {
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      addTearDown(events.close);
+      Completer<void>? gate;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatHistoryContextPage(
+            account: 'me',
+            messageId: 'target',
+            sequence: 2,
+            groupId: group ? 'current' : null,
+            events: events.stream,
+            read: ({before, after, required limit}) async {
+              await gate?.future;
+              return {
+                'messages': before == null
+                    ? []
+                    : [
+                        {
+                          'messageId': 'adjacent',
+                          'sequence': 1,
+                          'sender': 'friend',
+                          'messageType': 'text',
+                          'text': 'adjacent body',
+                        },
+                        {
+                          'messageId': 'target',
+                          'sequence': 2,
+                          'sender': 'friend',
+                          'messageType': 'text',
+                          'text': 'target body',
+                        },
+                      ],
+                'settings': {'hiddenThrough': 0},
+              };
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await ChatMediaDeletion('other', group, 'target').dispatch();
+      await ChatMediaDeletion('me', !group, 'target').dispatch();
+      await tester.pump();
+      expect(find.text('target body'), findsOneWidget);
+      gate = Completer<void>();
+      events.add({'eventType': 'connection.ready', 'data': {}});
+      await tester.pump();
+      await ChatMediaDeletion('me', group, 'adjacent').dispatch();
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('adjacent body'), findsNothing);
+      expect(find.text('target body'), findsOneWidget);
+      gate = Completer<void>();
+      events.add({'eventType': 'connection.ready', 'data': {}});
+      await tester.pump();
+      await ChatMediaDeletion('me', group, 'target').dispatch();
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('target body'), findsNothing);
+      expect(find.text('原消息不可用'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await ChatMediaDeletion('me', group, 'target').dispatch();
+      expect(tester.takeException(), isNull);
+    });
+  }
   for (final invalidateSession in [false, true]) {
     testWidgets(
       'history receipt preserves voice until ${invalidateSession ? "logout" : "hidden"}',
