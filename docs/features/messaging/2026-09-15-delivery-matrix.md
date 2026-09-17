@@ -2,6 +2,13 @@
 
 ## 当前验收汇总
 
+2026-09-18 consolidated preview from **cfb45a7** generated; **not installed**.
+201 selected files: **1095 passed / 77 skipped / 0 failed**. Native ARM64 ELF
+and APK ZIP integrity independently passed. The outer PowerShell wrapper
+returned nonzero on redirected Cargo stderr despite Gradle success; exact
+artifact/hash and limitation are recorded in the [batch audit](../../audits/2026-09-18-group-transport-batch-build.md).
+Relay/LAN/group peer features remain opt-in and are not enabled in this APK.
+
 2026-09-18 group peer file path: real Flutter client + encrypted CCSOP HTTP +
 SQL/Redis + native SuperVM WSS integration passed for direct and group files.
 A previously retained downloader guard silently skipped all group peer transfers;
