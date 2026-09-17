@@ -4,9 +4,75 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/presentation/message_voice_transcription_page.dart';
 
 void main() {
+  for (final group in [false, true]) {
+    for (final late in [false, true]) {
+      testWidgets('local deletion clears transcript group=$group late=$late', (
+        tester,
+      ) async {
+        final pending = Completer<Map<String, dynamic>>();
+        var calls = 0;
+        final result = {
+          'messageId': 'message',
+          'kind': group ? 'group' : 'direct',
+          'status': 'recognized',
+          'text': '删除测试语音',
+        };
+        final repository = MessagingRepository(
+          account: 'synthetic',
+          call: (id, _) async {
+            calls++;
+            if (id == 'K260915000675') return late ? pending.future : result;
+            return {'messageId': 'message', 'voice': {}};
+          },
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MessageVoiceTranscriptionPage(
+              repository: repository,
+              messageId: 'message',
+              group: group,
+              events: const Stream.empty(),
+            ),
+          ),
+        );
+        await tester.pump();
+        for (final event in [
+          ChatMediaDeletion('other', group, 'message'),
+          ChatMediaDeletion('synthetic', !group, 'message'),
+          ChatMediaDeletion('synthetic', group, 'other'),
+        ]) {
+          await event.dispatch();
+        }
+        await tester.pump();
+        if (!late) expect(find.text('删除测试语音'), findsOneWidget);
+        expect(find.text('内容已移除'), findsNothing);
+        await ChatMediaDeletion('synthetic', group, 'message').dispatch();
+        if (late) pending.complete(result);
+        await tester.pumpAndSettle();
+        expect(find.text('删除测试语音'), findsNothing);
+        expect(find.text('内容已移除'), findsOneWidget);
+        final before = calls;
+        expect(
+          tester
+              .widget<TextButton>(find.widgetWithText(TextButton, '重试'))
+              .onPressed,
+          isNull,
+        );
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('内容已移除'), findsOneWidget);
+        expect(calls, before);
+        await tester.pumpWidget(const SizedBox());
+      });
+    }
+  }
   testWidgets(
     'background ignores notifications and late recognition until retry',
     (tester) async {

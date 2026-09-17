@@ -6,6 +6,7 @@ import '../../../core/design_system/king_components.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/messaging_repository.dart';
+import '../data/chat_media_deletion.dart';
 
 class MessageVoiceTranscriptionPage extends StatefulWidget {
   const MessageVoiceTranscriptionPage({
@@ -33,10 +34,19 @@ class _MessageVoiceTranscriptionPageState
   bool _busy = false, _invalid = false, _foreground = true;
   int _generation = 0, _revision = 0;
   Future<void>? _checking;
+  late final void Function() _removeDeletionListener;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _removeDeletionListener = ChatMediaDeletion.listen((event) {
+      if (event.account != widget.repository.account ||
+          event.group != widget.group ||
+          event.messageId != widget.messageId)
+        return;
+      _invalid = true;
+      _clear('内容已移除');
+    });
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
       _clear('登录状态已变化');
@@ -49,7 +59,7 @@ class _MessageVoiceTranscriptionPageState
         _revision++;
         unawaited(
           _check().catchError((Object _) {
-            if (mounted) _clear('该语音暂不可查看');
+            if (mounted && !_invalid) _clear('该语音暂不可查看');
           }),
         );
       }
@@ -132,7 +142,7 @@ class _MessageVoiceTranscriptionPageState
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
-    if (!_foreground) {
+    if (!_foreground && !_invalid) {
       _clear('返回后请重新识别');
     }
   }
@@ -140,6 +150,7 @@ class _MessageVoiceTranscriptionPageState
   @override
   void dispose() {
     _generation++;
+    _removeDeletionListener();
     WidgetsBinding.instance.removeObserver(this);
     _session?.cancel();
     _events?.cancel();
