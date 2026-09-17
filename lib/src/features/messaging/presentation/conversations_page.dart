@@ -1,3 +1,5 @@
+import '../data/chat_outbox.dart';
+import '../data/pending_conversation_rows.dart';
 import '../data/chat_text_draft_store.dart';
 import 'chat_member_avatar.dart';
 import 'conversation_draft_preview.dart';
@@ -47,6 +49,7 @@ class ConversationsPage extends StatefulWidget {
     this.repository,
     this.openRelayHistory,
     this.openTextDraftStore,
+    this.pendingOutbox,
     this.relayChanges,
     this.pendingRequests = 0,
     this.friendMuted = false,
@@ -64,6 +67,7 @@ class ConversationsPage extends StatefulWidget {
     required this.onOpenDirectChat,
   });
 
+  final ChatOutbox? pendingOutbox;
   final bool realData;
   final int pendingRequests;
   final MessagingRepository? repository;
@@ -96,6 +100,24 @@ class _ConversationsPageState extends State<ConversationsPage>
   ChatVoiceInbox? _voiceInbox;
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   final _realItems = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> _pendingMessages = [];
+  StreamSubscription<void>? _pendingEvents;
+  int _pendingGeneration = 0;
+  Future<void> _refreshPending(MessagingRepository repository) async {
+    final generation = ++_pendingGeneration;
+    try {
+      final messages =
+          await (widget.pendingOutbox ?? SecureChatOutbox(repository.account))
+              .read();
+      if (!mounted ||
+          generation != _pendingGeneration ||
+          !identical(repository, _repository)) {
+        return;
+      }
+      setState(() => _pendingMessages = messages);
+    } catch (_) {}
+  }
+
   Map<String, ChatTextDraft> _drafts = {};
   StreamSubscription<void>? _draftEvents;
   int _draftGeneration = 0;
@@ -222,6 +244,9 @@ class _ConversationsPageState extends State<ConversationsPage>
     _clearEvents?.cancel();
     _remarkEvents?.cancel();
     _relationshipEvents?.cancel();
+    _pendingEvents?.cancel();
+    _pendingGeneration++;
+    _pendingMessages = [];
     _draftEvents?.cancel();
     _draftGeneration++;
     _drafts = {};
@@ -260,6 +285,9 @@ class _ConversationsPageState extends State<ConversationsPage>
     _observedHistory = null;
     _remarkEvents?.cancel();
     _relationshipEvents?.cancel();
+    _pendingEvents?.cancel();
+    _pendingGeneration++;
+    _pendingMessages = [];
     _draftEvents?.cancel();
     _draftGeneration++;
     _drafts = {};
@@ -268,6 +296,16 @@ class _ConversationsPageState extends State<ConversationsPage>
       if (!mounted || generation != _realGeneration) return;
       _avatarProfiles.clear();
       _repository = repository;
+      if (repository.persistHistory || widget.pendingOutbox != null) {
+        _pendingEvents = SecureChatOutbox.changes(repository.account)
+            .listen((_) async {
+              await _refreshReal();
+              if (mounted && identical(repository, _repository)) {
+                await _refreshPending(repository);
+              }
+            });
+        unawaited(_refreshPending(repository));
+      }
       if (repository.persistHistory || widget.openTextDraftStore != null) {
         _draftEvents = ChatTextDraftStore.accountChanges(repository.account)
             .listen((_) => unawaited(_refreshDrafts(repository)));
@@ -324,6 +362,9 @@ class _ConversationsPageState extends State<ConversationsPage>
         _observedHistory = null;
         _remarkEvents?.cancel();
         _relationshipEvents?.cancel();
+        _pendingEvents?.cancel();
+        _pendingGeneration++;
+        _pendingMessages = [];
         _draftEvents?.cancel();
         _draftGeneration++;
         _drafts = {};
@@ -739,6 +780,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   Widget _realRow(Map<String, dynamic> item) {
     final repository = _repository;
     final draftOnly = item['_draftTarget'] is String;
+    final pendingOnly = item['_pendingOnly'] == true;
     final group = item['kind'] == 'group';
     final target = (group ? item['groupId'] : item['peer']) as String;
     final slideKey = '${group ? 'group' : 'direct'}:$target';
@@ -768,7 +810,8 @@ class _ConversationsPageState extends State<ConversationsPage>
       unreadCount: (item['unreadCount'] as num).toInt(),
       pinned: item['pinned'] == true,
       preview: item['preview'] as String? ?? '',
-      previewWidget: !draftOnly && _repository?.persistHistory == true
+      previewWidget:
+          !draftOnly && !pendingOnly && _repository?.persistHistory == true
           ? ConversationDraftPreview(
               key: ValueKey(
                 '${_repository!.account}:${group ? 'group' : 'peer'}:$target',
@@ -792,16 +835,24 @@ class _ConversationsPageState extends State<ConversationsPage>
               groupId: group ? target : null,
               peerName: name,
               repository: _repository,
+              chatOutbox: widget.pendingOutbox,
               initialMuted: item['muted'] == true,
             ),
           ),
         );
         await _refreshReal();
       },
-      onLongPress: () =>
-          draftOnly ? _draftMenu(item) : _realMenu(item, repository),
+      onLongPress: () {
+        if (draftOnly) {
+          _draftMenu(item);
+        } else if (!pendingOnly) {
+          _realMenu(item, repository);
+        }
+      },
       onSlideChanged: (value) {
-        if (!draftOnly) setState(() => _slides[slideKey] = value);
+        if (!draftOnly && !pendingOnly) {
+          setState(() => _slides[slideKey] = value);
+        }
       },
       onSlideEnd: () => setState(
         () => _slides[slideKey] = (_slides[slideKey] ?? 0) < -72 ? -216 : 0,
@@ -813,7 +864,12 @@ class _ConversationsPageState extends State<ConversationsPage>
   }
 
   List<Widget> _realRows() {
-    final existing = _realItems
+    final visible = pendingConversationRows(
+      _repository?.account ?? '',
+      _realItems,
+      _pendingMessages,
+    );
+    final existing = visible
         .map(
           (item) => item['kind'] == 'group'
               ? 'group:${item['groupId']}'
@@ -839,7 +895,7 @@ class _ConversationsPageState extends State<ConversationsPage>
             '_draftId': entry.value.id,
           },
     ];
-    final filtered = [...draftRows, ..._realItems]
+    final filtered = [...draftRows, ...visible]
         .where(
           (item) => _matches(
             '${item['remark'] ?? ''} ${item['nickname'] ?? ''} ${item['peer']} ${item['preview']}',

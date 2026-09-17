@@ -1,3 +1,4 @@
+import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,9 +11,10 @@ void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   ChatTextDraftStore store(String account, String target) =>
       ChatTextDraftStore(account, target, () async {});
-  Widget page({bool serverRow = false}) => MaterialApp(
+  Widget page({bool serverRow = false, ChatOutbox? outbox}) => MaterialApp(
     home: Scaffold(
       body: ConversationsPage(
+        pendingOutbox: outbox,
         active: true,
         realData: true,
         repository: MessagingRepository(
@@ -68,6 +70,33 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Friend'), findsNothing);
       expect(await own.read(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'offline first pending conversation appears and follows queue changes',
+    (tester) async {
+      final queue = SecureChatOutbox('me');
+      await queue.put({
+        'clientMessageId': 'first',
+        'sender': 'me',
+        'recipient': 'peer',
+        'text': 'pending first',
+      });
+      await tester.pumpWidget(page(outbox: queue));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('pending first'), findsOneWidget);
+      await queue.remove('first');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('pending first'), findsNothing);
+      await queue.put({
+        'clientMessageId': 'second',
+        'sender': 'me',
+        'groupId': 'group',
+        'text': 'pending group',
+      });
+      await tester.pumpAndSettle();
+      expect(find.textContaining('pending group'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
     },
   );

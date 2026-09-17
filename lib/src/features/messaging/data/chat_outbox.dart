@@ -27,6 +27,9 @@ class SecureChatOutbox implements ProtectedChatOutbox {
       _key = 'kingclub.chat.outbox.$account',
       _storage = storage ?? const FlutterSecureStorage();
   final String _account;
+  static final _changes = StreamController<String>.broadcast();
+  static Stream<void> changes(String account) =>
+      _changes.stream.where((value) => value == account).map((_) {});
   static final _removed = StreamController<String>.broadcast();
   static Stream<String> get removedReferences => _removed.stream;
   final String _key;
@@ -65,6 +68,7 @@ class SecureChatOutbox implements ProtectedChatOutbox {
         }
       });
       _removed.add(_account);
+      _changes.add(_account);
     };
   }
 
@@ -112,6 +116,7 @@ class SecureChatOutbox implements ProtectedChatOutbox {
     if (items.length >= 200) throw StateError('待发送消息较多，请先处理失败消息');
     items.add(message);
     await _storage.write(key: _key, value: jsonEncode(items));
+    _changes.add(_account);
   });
   @override
   Future<void> remove(String clientMessageId) async {
@@ -121,5 +126,6 @@ class SecureChatOutbox implements ProtectedChatOutbox {
       await _storage.write(key: _key, value: jsonEncode(items));
     });
     _removed.add(_account);
+    _changes.add(_account);
   }
 }
