@@ -31,6 +31,32 @@ class _Transport implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+class _BlockedTransport implements HttpClientAdapter {
+  final ready = Completer<void>();
+  final requests = <String, Completer<ResponseBody>>{};
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? stream,
+    Future<void>? cancel,
+  ) {
+    final response = Completer<ResponseBody>();
+    requests[options.path] = response;
+    if (requests.length == 2) ready.complete();
+    cancel?.then((_) {
+      if (!response.isCompleted) {
+        response.completeError(
+          DioException(requestOptions: options, type: DioExceptionType.cancel),
+        );
+      }
+    });
+    return response.future;
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 void main() {
   late Directory dir;
   late _Transport transport;
@@ -47,6 +73,68 @@ void main() {
   });
   tearDown(() async {
     if (await dir.exists()) await dir.delete(recursive: true);
+  });
+  test('deleting a blocked download cancels only its own transfer', () async {
+    final blocked = _BlockedTransport();
+    final media = MediaCache(
+      directory: () async => dir,
+      dio: Dio()..httpClientAdapter = blocked,
+    );
+    final first = media.get(
+      'https://media.example.test/deleted',
+      scope: 'member:a',
+      contentKey: 'deleted',
+      kind: MediaKind.video,
+    );
+    final rejected = expectLater(first, throwsA(anything));
+    final second = media.get(
+      'https://media.example.test/kept',
+      scope: 'member:a',
+      contentKey: 'kept',
+      kind: MediaKind.video,
+    );
+    await blocked.ready.future;
+    await media.cancelForDeletion(
+      scope: 'member:a',
+      contentKey: 'deleted',
+      kind: MediaKind.video,
+    );
+    await media
+        .removePermanently(
+          scope: 'member:a',
+          contentKey: 'deleted',
+          kind: MediaKind.video,
+        )
+        .timeout(const Duration(seconds: 3));
+    await rejected;
+    final kept = blocked.requests['https://media.example.test/kept']!;
+    expect(kept.isCompleted, false);
+    kept.complete(ResponseBody.fromBytes([1, 2, 3], 200));
+    expect(await (await second).readAsBytes(), [1, 2, 3]);
+    final reopened = MediaCache(directory: () async => dir);
+    await expectLater(
+      reopened.cached(
+        scope: 'member:a',
+        contentKey: 'deleted',
+        kind: MediaKind.video,
+      ),
+      throwsStateError,
+    );
+    expect(
+      await (await reopened.cached(
+        scope: 'member:a',
+        contentKey: 'kept',
+        kind: MediaKind.video,
+      )).readAsBytes(),
+      [1, 2, 3],
+    );
+    expect(
+      await dir
+          .list(recursive: true)
+          .where((e) => e.path.endsWith('.part'))
+          .toList(),
+      isEmpty,
+    );
   });
   test('maximum upload-sized voice remains readable after reopening', () async {
     transport.size = 2 * 1024 * 1024;

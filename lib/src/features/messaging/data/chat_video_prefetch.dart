@@ -21,7 +21,14 @@ class ChatVideoPrefetch {
       _deleted.add(event.messageId);
       _pending.remove(event.messageId);
       _retryAfter.remove(event.messageId);
-      if (_active == event.messageId) await _activeDone?.future;
+      if (_active == event.messageId) {
+        await _media.cancelForDeletion(
+          scope: 'member:${repository.account}',
+          contentKey: 'chat-video-transfer:$group:${event.messageId}:video',
+          kind: MediaKind.video,
+        );
+        await _activeDone?.future;
+      }
     });
   }
   final MessagingRepository repository;

@@ -61,6 +61,7 @@ class MediaCache {
   final Future<void> Function(File file)? onImageEvicted;
   final Map<String, Future<File>> _pending = {};
   final Set<CancelToken> _downloads = {};
+  final Map<String, CancelToken> _keyDownloads = {};
   int _generation = 0;
   final Set<String> _deleted = {};
 
@@ -92,10 +93,23 @@ class MediaCache {
   }) async {
     final key = await _hash('$scope|${kind.name}|$contentKey');
     _deleted.add(key);
+    _keyDownloads[key]?.cancel('媒体所属聊天记录已删除');
     final marker = await _deletionMarker(key);
     await marker.parent.create(recursive: true);
     await marker.writeAsBytes([1], flush: true);
     await evict(scope: scope, contentKey: contentKey, kind: kind);
+  }
+
+  /// Stop a message-owned transfer before deletion listeners wait for it.
+  /// The owning cleanup still writes the durable deletion marker afterwards.
+  Future<void> cancelForDeletion({
+    required String scope,
+    required String contentKey,
+    required MediaKind kind,
+  }) async {
+    final key = await _hash('$scope|${kind.name}|$contentKey');
+    _deleted.add(key);
+    _keyDownloads[key]?.cancel('媒体所属聊天记录已删除');
   }
 
   Future<String> _hash(String value) async =>
@@ -353,12 +367,14 @@ class MediaCache {
     final temp = File('${file.path}.part');
     final cancel = CancelToken();
     _downloads.add(cancel);
+    _keyDownloads[key] = cancel;
     final limit = kind == MediaKind.audio
         ? 2 * 1024 * 1024
         : kind == MediaKind.image
         ? 20 * 1024 * 1024
         : 200 * 1024 * 1024;
     try {
+      await _checkDeleted(key);
       await _dio.download(
         url,
         temp.path,
@@ -381,8 +397,13 @@ class MediaCache {
       await _checkPublishedFile(key, file);
       if (!retainMedia) await _trim(root, kind, except: file.path);
       return file;
+    } on DioException {
+      // Keep the deletion contract independent of the HTTP cancellation type.
+      await _checkDeleted(key);
+      rethrow;
     } finally {
       _downloads.remove(cancel);
+      if (identical(_keyDownloads[key], cancel)) _keyDownloads.remove(key);
       if (await temp.exists()) await temp.delete();
     }
   }
