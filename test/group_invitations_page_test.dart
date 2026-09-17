@@ -8,6 +8,71 @@ import 'package:kingclub/src/features/messaging/data/group_chat_repository.dart'
 import 'package:kingclub/src/features/messaging/presentation/group_invitations_page.dart';
 
 void main() {
+  for (final background in [false, true]) {
+    testWidgets(
+      'stale invitation confirmation is rejected background=$background',
+      (tester) async {
+        final events = StreamController<Map<String, dynamic>>.broadcast();
+        addTearDown(events.close);
+        var reads = 0, decisions = 0;
+        final repository = GroupChatRepository(
+          MessagingRepository(
+            account: 'me',
+            call: (id, params) async {
+              if (id == 'K260913000629') {
+                reads++;
+                return {
+                  'items': [
+                    {
+                      'invitationId': 'invite',
+                      'groupId': 'group',
+                      'groupName': 'Fixture group',
+                      'inviter': 'friend',
+                      'status': 'pending',
+                    },
+                  ],
+                  'nextCursor': null,
+                };
+              }
+              decisions++;
+              throw StateError('outdated confirmation must not submit');
+            },
+          ),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: GroupInvitationsPage(
+              repository: repository,
+              events: events.stream,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('加入'));
+        await tester.pumpAndSettle();
+        if (background) {
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.paused,
+          );
+          await tester.pump();
+          events.add({'eventType': 'connection.ready'});
+          await tester.pump();
+          expect(reads, 1);
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.resumed,
+          );
+        } else {
+          events.add({'eventType': 'chat.group.changed'});
+        }
+        await tester.pumpAndSettle();
+        expect(reads, 2);
+        await tester.tap(find.widgetWithText(TextButton, '加入').last);
+        await tester.pumpAndSettle();
+        expect(decisions, 0);
+        expect(find.text('Fixture group'), findsOneWidget);
+      },
+    );
+  }
   testWidgets('accept requires confirmation and server acknowledgement', (
     tester,
   ) async {
@@ -18,7 +83,7 @@ void main() {
       MessagingRepository(
         account: 'me',
         call: (id, params) async {
-          if (id == 'K260913000629')
+          if (id == 'K260913000629') {
             return {
               'items': [
                 {
@@ -31,6 +96,7 @@ void main() {
               ],
               'nextCursor': null,
             };
+          }
           expect(id, 'K260913000630');
           decisions.add(params);
           return ack.future;

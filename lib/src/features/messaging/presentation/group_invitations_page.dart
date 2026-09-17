@@ -17,17 +17,20 @@ class GroupInvitationsPage extends StatefulWidget {
   State<GroupInvitationsPage> createState() => _GroupInvitationsPageState();
 }
 
-class _GroupInvitationsPageState extends State<GroupInvitationsPage> {
+class _GroupInvitationsPageState extends State<GroupInvitationsPage>
+    with WidgetsBindingObserver {
   GroupChatRepository? _repository;
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
   List<Map<String, dynamic>> _items = [];
   String? _next, _error, _saving;
   bool _invalid = false, _loading = false;
+  bool _foreground = true;
   int _generation = 0;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _session = SecureSessionStore.changes.stream.listen((_) {
       _generation++;
       _invalid = true;
@@ -50,7 +53,9 @@ class _GroupInvitationsPageState extends State<GroupInvitationsPage> {
   }
 
   Future<void> _load({bool reset = false}) async {
-    if (_invalid || (!reset && (_loading || _next == null))) return;
+    if (_invalid || !_foreground || (!reset && (_loading || _next == null))) {
+      return;
+    }
     final generation = ++_generation;
     final before = reset ? null : _next;
     setState(() {
@@ -98,7 +103,14 @@ class _GroupInvitationsPageState extends State<GroupInvitationsPage> {
   }
 
   Future<void> _respond(Map<String, dynamic> item, bool accept) async {
-    if (_invalid || _saving != null || _repository == null) return;
+    if (_invalid ||
+        !_foreground ||
+        _loading ||
+        _saving != null ||
+        _repository == null) {
+      return;
+    }
+    final generation = _generation;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -117,7 +129,13 @@ class _GroupInvitationsPageState extends State<GroupInvitationsPage> {
         ],
       ),
     );
-    if (confirmed != true || !mounted || _invalid) return;
+    if (confirmed != true ||
+        !mounted ||
+        _invalid ||
+        !_foreground ||
+        generation != _generation) {
+      return;
+    }
     setState(() {
       _saving = item['invitationId'] as String;
       _error = null;
@@ -128,22 +146,35 @@ class _GroupInvitationsPageState extends State<GroupInvitationsPage> {
         item['invitationId'] as String,
         accept: accept,
       );
-      if (!mounted || _invalid) return;
+      if (!mounted || _invalid || !_foreground || generation != _generation) {
+        return;
+      }
       setState(() => item['status'] = result['status']);
       await _load(reset: true);
     } catch (e) {
-      if (mounted && !_invalid) setState(() => _error = e.toString());
+      if (mounted && !_invalid && _foreground && generation == _generation) {
+        setState(() => _error = e.toString());
+      }
     } finally {
       if (mounted) setState(() => _saving = null);
     }
   }
 
   Future<void> _open(Map<String, dynamic> item) async {
-    if (_repository == null || _invalid || _saving != null) return;
+    if (_repository == null ||
+        _invalid ||
+        !_foreground ||
+        _loading ||
+        _saving != null) {
+      return;
+    }
+    final generation = _generation;
     try {
       // A replayed acceptance is a receipt, not proof of current membership.
       final details = await _repository!.details(item['groupId'] as String);
-      if (!mounted || _invalid) return;
+      if (!mounted || _invalid || !_foreground || generation != _generation) {
+        return;
+      }
       await Navigator.push<void>(
         context,
         MaterialPageRoute(
@@ -155,12 +186,31 @@ class _GroupInvitationsPageState extends State<GroupInvitationsPage> {
         ),
       );
     } catch (e) {
-      if (mounted && !_invalid) setState(() => _error = e.toString());
+      if (mounted && !_invalid && _foreground && generation == _generation) {
+        setState(() => _error = e.toString());
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _generation++;
+    if (!_foreground) {
+      setState(() {
+        _items = [];
+        _next = null;
+        _loading = false;
+        _error = null;
+      });
+    } else {
+      unawaited(_load(reset: true));
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _generation++;
     _session?.cancel();
     _events?.cancel();
