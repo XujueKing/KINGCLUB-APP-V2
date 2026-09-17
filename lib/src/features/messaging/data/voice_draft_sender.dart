@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'chat_outbox.dart';
+
 import '../../../core/session/member_qr_memory.dart';
 import '../../../core/media/media_cache.dart';
 import 'chat_session_controller.dart';
@@ -29,6 +31,7 @@ class VoiceDraftSender {
     if (!_sending.add(draft.path)) throw StateError('这条录音正在发送');
     final generation = MemberQrMemory.generation;
     ChatVoiceUploader? uploader;
+    Future<void> Function()? releaseSource;
     var queued = false;
     try {
       final store = await _currentStore();
@@ -58,6 +61,9 @@ class VoiceDraftSender {
           );
           final asset = message['voiceAssetId'];
           if (asset is String && await file.exists()) {
+            releaseSource = await SecureChatOutbox(
+              store.account,
+            ).holdMediaSource({'messageType': 'voice', 'voiceAssetId': asset});
             await _retain(file, store.account, asset);
             await file.delete();
           }
@@ -74,6 +80,10 @@ class VoiceDraftSender {
       if (_disposed || generation != MemberQrMemory.generation) {
         throw StateError('登录状态已变化');
       }
+      releaseSource = await SecureChatOutbox(store.account).holdMediaSource({
+        'messageType': 'voice',
+        'voiceAssetId': voice.assetId,
+      });
       await _retain(file, store.account, voice.assetId);
       if (_disposed || generation != MemberQrMemory.generation) {
         throw StateError('登录状态已变化');
@@ -105,6 +115,7 @@ class VoiceDraftSender {
     } catch (_) {
       if (!queued) rethrow;
     } finally {
+      await releaseSource?.call();
       if (uploader != null) {
         _uploads.remove(uploader);
         uploader.dispose();

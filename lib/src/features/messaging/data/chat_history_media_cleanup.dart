@@ -8,6 +8,7 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
     List<Map<String, dynamic>> incoming,
     int floor,
     ChatMediaCleanup cleanup,
+    PendingMessageReader readPending,
   ) async {
     final tombstones = {
       for (final message in incoming)
@@ -124,10 +125,17 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
         retain(message);
       }
     }
-    for (final message in await _outbox?.read() ?? <Map<String, dynamic>>[]) {
+    for (final message in await readPending()) {
       if (message['sender'] == account) retain(message);
     }
     for (final message in removed) {
+      await _deferSharedMedia(
+        tx,
+        message,
+        voices: voices,
+        files: files,
+        clients: clients,
+      );
       await cleanup.remove(
         account: account,
         group: conversation.startsWith('group:'),

@@ -39,6 +39,13 @@ class ChatMediaCleanup {
       if (asset is String &&
           asset.isNotEmpty &&
           !retainedVoiceAssets.contains(asset)) {
+        // Older builds retained the same asset under an account/file alias.
+        // It follows the same remaining-reference rule as the current copy.
+        await media.evict(
+          scope: 'member:$account',
+          contentKey: 'chat-voice:$account:$asset',
+          kind: MediaKind.audio,
+        );
         // Asset copies can be shared by different messages. Unlike a message
         // tombstone, eviction permits a future new authorized use of the asset.
         await media.evict(
@@ -50,18 +57,20 @@ class ChatMediaCleanup {
       return;
     }
     if (message['messageType'] == 'file') {
-      final cache = await (downloadCache ?? ChatDownloadCache.open)(account);
-      await cache.removePermanently(
-        jsonEncode([
-          account,
-          group,
-          message['messageId'],
-          message['fileAssetId'],
-          message['fileSize'],
-          message['fileSha256'],
-          message['fileName'],
-        ]),
-      );
+      if (messageId is String && messageId.isNotEmpty) {
+        final cache = await (downloadCache ?? ChatDownloadCache.open)(account);
+        await cache.removePermanently(
+          jsonEncode([
+            account,
+            group,
+            message['messageId'],
+            message['fileAssetId'],
+            message['fileSize'],
+            message['fileSha256'],
+            message['fileName'],
+          ]),
+        );
+      }
       final asset = message['fileAssetId'],
           size = message['fileSize'],
           hash = message['fileSha256'];

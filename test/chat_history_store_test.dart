@@ -156,7 +156,7 @@ void main() {
     }
     await store.close();
     raw = await databaseFactoryFfi.openDatabase('${dir.path}/history.db');
-    expect(await raw.getVersion(), 20);
+    expect(await raw.getVersion(), 21);
     final after = await raw.query('message', orderBy: 'sequence');
     for (var i = 0; i < 60; i++) {
       if (i == 0 || i == 54) continue;

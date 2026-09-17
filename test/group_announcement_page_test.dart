@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +9,61 @@ import 'package:kingclub/src/features/messaging/data/group_chat_repository.dart'
 import 'package:kingclub/src/features/messaging/presentation/group_announcement_page.dart';
 
 void main() {
+  testWidgets('announcement scopes events and folds a refresh burst', (
+    tester,
+  ) async {
+    final events = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(events.close);
+    var reads = 0;
+    final first = Completer<Map<String, dynamic>>();
+    final details = <String, dynamic>{
+      'ownerAccount': 'me',
+      'membershipVersion': 0,
+      'announcementVersion': 1,
+      'announcementText': 'notice',
+      'members': [
+        {'account': 'me', 'role': 'owner'},
+      ],
+    };
+    final repo = GroupChatRepository(
+      MessagingRepository(
+        account: 'me',
+        call: (id, params) async {
+          if (id != 'K260913000619') throw StateError(id);
+          reads++;
+          return reads == 1 ? first.future : details;
+        },
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GroupAnnouncementPage(
+          groupId: 'group',
+          repository: repo,
+          events: events.stream,
+        ),
+      ),
+    );
+    events.add({
+      'eventType': 'chat.group.changed',
+      'data': {'groupId': 'other'},
+    });
+    await tester.pump();
+    expect(reads, 1);
+    for (var i = 0; i < 20; i++) {
+      events.add({
+        'eventType': 'chat.group.changed',
+        'data': {'groupId': 'group'},
+      });
+    }
+    await tester.pump();
+    expect(reads, 1);
+    first.complete(details);
+    await tester.pumpAndSettle();
+    expect(reads, 2);
+    expect(find.text('notice'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
   for (final role in ['member', 'admin']) {
     testWidgets('announcement reads and respects role=$role', (tester) async {
       var text = '原公告', version = 2, fail = true;

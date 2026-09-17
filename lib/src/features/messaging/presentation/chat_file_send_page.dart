@@ -1,4 +1,5 @@
 import '../data/chat_file_draft_store.dart';
+import '../data/chat_outbox.dart';
 
 import 'dart:io';
 import 'dart:async';
@@ -79,6 +80,7 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
       _error = null;
       _progress = null;
     });
+    Future<void> Function()? releaseSource;
     try {
       if (_alreadyQueued) {
         try {
@@ -104,6 +106,10 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
         },
       );
       if (!_usable) return;
+      releaseSource = await SecureChatOutbox(
+        widget.chat.messaging.account,
+      ).holdMediaSource({'messageType': 'file', 'fileAssetId': file.assetId});
+      if (!_usable) return;
       var queued = _alreadyQueued;
       if (!queued) {
         await widget.chat.sendFile(
@@ -128,6 +134,7 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
     } catch (error) {
       if (_usable) setState(() => _error = error.toString());
     } finally {
+      await releaseSource?.call();
       if (mounted) setState(() => _busy = false);
     }
   }

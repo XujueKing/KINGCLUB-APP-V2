@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import 'chat_outbox.dart';
+
 import 'dart:io';
 
 import '../../../core/session/secure_session_store.dart';
@@ -27,14 +30,21 @@ class ChatFileForwarder {
   UploadedChatFile? _prepared;
   File? _source;
   bool _closed = false, _busy = false;
+  Future<void> Function()? _releaseSource;
+  Future<void> _releaseHeldSource() async {
+    final release = _releaseSource;
+    _releaseSource = null;
+    await release?.call();
+  }
+
   void _check() {
     if (_closed) throw StateError('文件转发已结束');
   }
 
   Future<UploadedChatFile> prepare() async {
     _check();
-    if (_prepared != null) return _prepared!;
     if (_busy) throw StateError('正在准备文件');
+    if (_prepared != null) return _prepared!;
     _busy = true;
     ChatFileDownloader? downloader;
     try {
@@ -57,6 +67,10 @@ class ChatFileForwarder {
       if (asset.size != reference.size || asset.sha256 != reference.sha256) {
         throw StateError('转发文件校验不一致');
       }
+      _releaseSource = await SecureChatOutbox(
+        repository.account,
+      ).holdMediaSource({'messageType': 'file', 'fileAssetId': asset.assetId});
+      _check();
       _prepared = asset;
       _source = file;
       return asset;
@@ -66,6 +80,7 @@ class ChatFileForwarder {
         if (identical(_downloader, downloader)) _downloader = null;
       }
       _busy = false;
+      if (_closed) await _releaseHeldSource();
     }
   }
 
@@ -87,6 +102,7 @@ class ChatFileForwarder {
       _downloader = null;
       await downloader?.dispose();
       _busy = false;
+      if (_closed) await _releaseHeldSource();
     }
   }
 
@@ -101,6 +117,7 @@ class ChatFileForwarder {
     // Active upload/retention owns cleanup after its file reader closes.
     downloader?.cancel();
     if (!_busy) {
+      unawaited(_releaseHeldSource());
       _downloader = null;
       unawaited(downloader?.dispose());
     }

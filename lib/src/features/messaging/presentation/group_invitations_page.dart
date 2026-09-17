@@ -27,6 +27,8 @@ class _GroupInvitationsPageState extends State<GroupInvitationsPage>
   bool _invalid = false, _loading = false;
   bool _foreground = true;
   int _generation = 0;
+  Future<void>? _activeLoad;
+  bool _resetPending = false;
   @override
   void initState() {
     super.initState();
@@ -52,7 +54,29 @@ class _GroupInvitationsPageState extends State<GroupInvitationsPage>
     unawaited(_load(reset: true));
   }
 
-  Future<void> _load({bool reset = false}) async {
+  Future<void> _load({bool reset = false}) {
+    if (!mounted || _invalid || !_foreground) return Future<void>.value();
+    final active = _activeLoad;
+    if (active != null) {
+      if (reset) {
+        _resetPending = true;
+        _generation++;
+      }
+      return active;
+    }
+    return _activeLoad = _drainLoads(reset)
+        .whenComplete(() => _activeLoad = null);
+  }
+
+  Future<void> _drainLoads(bool reset) async {
+    do {
+      _resetPending = false;
+      await _readPage(reset: reset);
+      reset = true;
+    } while (_resetPending && mounted && !_invalid && _foreground);
+  }
+
+  Future<void> _readPage({required bool reset}) async {
     if (_invalid || !_foreground || (!reset && (_loading || _next == null))) {
       return;
     }

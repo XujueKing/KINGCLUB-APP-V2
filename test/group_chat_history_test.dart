@@ -1,4 +1,7 @@
 import 'dart:io';
+
+import 'package:kingclub/src/features/messaging/data/chat_outbox_recovery.dart';
+
 import 'dart:async';
 
 import 'package:cryptography/cryptography.dart';
@@ -37,6 +40,52 @@ void main() {
     repository: GroupChatRepository(
       MessagingRepository(account: 'me', call: call),
     ),
+  );
+  test(
+    'background group recovery persists acknowledgement before dropping queue',
+    () async {
+      final queue = Queue();
+      await queue.put({
+        'groupId': 'group',
+        'sender': 'me',
+        'clientMessageId': 'recover',
+        'membershipVersion': 0,
+        'text': 'hello',
+        'status': 'queued',
+      });
+      final worker = ChatOutboxRecovery(
+        MessagingRepository(
+          account: 'me',
+          call: (id, params) async {
+            if (id == 'K260913000619') {
+              return {'groupName': 'Test', 'members': []};
+            }
+            if (id == 'K260913000621') {
+              return {
+                ...history([]),
+                'membershipVersion': 0,
+                'joinedSequence': 0,
+                'settings': {'hiddenThrough': 0},
+              };
+            }
+            if (id == 'K260913000620') return {'message': message('recover')};
+            return {};
+          },
+        ),
+        queue,
+        openHistory: () async => store,
+      );
+      try {
+        await worker.notify();
+        expect(queue.rows, isEmpty);
+        expect(
+          (await store.read('group:group')).messages.single['clientMessageId'],
+          'recover',
+        );
+      } finally {
+        worker.close();
+      }
+    },
   );
   for (final revoked in [false, true]) {
     for (final cached in [false, true]) {

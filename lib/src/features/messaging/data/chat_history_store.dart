@@ -20,6 +20,7 @@ import 'package:sqflite/sqflite.dart';
 part 'nearby_message_history.dart';
 part 'conversation_list_cache.dart';
 part 'chat_history_media_cleanup.dart';
+part 'chat_history_deferred_cleanup.dart';
 part 'chat_history_replies.dart';
 part 'chat_history_draft_migration.dart';
 part 'chat_history_search.dart';
@@ -77,7 +78,32 @@ class ChatHistoryStore {
     }
   }
 
+  StreamSubscription<String>? _outboxRemovals;
+  Timer? _deferredCleanupTimer;
+  void _scheduleDeferredCleanup() {
+    if (_closed || _deferredCleanupTimer != null) return;
+    // Coalesce a burst of acknowledgements instead of rescanning history for
+    // every message. Explicit clear still performs its collection immediately.
+    _deferredCleanupTimer = Timer(const Duration(milliseconds: 250), () {
+      _deferredCleanupTimer = null;
+      if (!_closed) {
+        unawaited(collectDeferredMedia().catchError((Object _) {}));
+      }
+    });
+  }
+
+  bool _closed = false;
   final ChatOutbox? _outbox;
+  Future<T> _protectPendingReferences<T>(
+    Future<T> Function(PendingMessageReader read) action,
+  ) {
+    final outbox = _outbox;
+    if (outbox is ProtectedChatOutbox) {
+      return outbox.protectReferences(action);
+    }
+    return action(() async => await outbox?.read() ?? []);
+  }
+
   final Database _db;
   int _conversationListRevision = 0;
 
@@ -145,8 +171,9 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 20,
+        version: 21,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 21) await _createDeferredMediaCleanup(db);
           if (oldVersion < 19) await _createContactGroupSnapshot(db);
           if (oldVersion < 16) {
             await db.execute(
@@ -215,6 +242,7 @@ class ChatHistoryStore {
           if (oldVersion < 20) await _sanitizeLegacyReplies(db, key, account);
         },
         onCreate: (db, _) async {
+          await _createDeferredMediaCleanup(db);
           await _createContactGroupSnapshot(db);
           await _createContactSnapshot(db);
           await _createConversationListCache(db);
@@ -233,6 +261,16 @@ class ChatHistoryStore {
     final store = ChatHistoryStore._(db, key, account, outbox, draftStorage);
     try {
       await store._sanitizeLegacyDraftReplies();
+      store._outboxRemovals = SecureChatOutbox.removedReferences.listen((
+        owner,
+      ) {
+        if (owner == account && !store._closed) {
+          store._scheduleDeferredCleanup();
+        }
+      });
+      // Cleanup failure must not prevent opening saved chats. Durable rows stay
+      // available for the next queue removal, history cleanup or app restart.
+      store._scheduleDeferredCleanup();
       return store;
     } catch (_) {
       await store.close();
@@ -546,6 +584,34 @@ class ChatHistoryStore {
     int? peerReadSequence,
     String? serverConversationId,
     ChatMediaCleanup? mediaCleanup,
+  }) => _protectPendingReferences(
+    (readPending) => _commit(
+      conversation,
+      messages,
+      expectedEpoch: expectedEpoch,
+      cursor: cursor,
+      hiddenThrough: hiddenThrough,
+      membershipVersion: membershipVersion,
+      historyVersion: historyVersion,
+      peerReadSequence: peerReadSequence,
+      serverConversationId: serverConversationId,
+      mediaCleanup: mediaCleanup,
+      readPending: readPending,
+    ),
+  );
+
+  Future<bool> _commit(
+    String conversation,
+    List<Map<String, dynamic>> messages, {
+    required int expectedEpoch,
+    int? cursor,
+    int hiddenThrough = 0,
+    int? membershipVersion,
+    int? historyVersion,
+    int? peerReadSequence,
+    String? serverConversationId,
+    ChatMediaCleanup? mediaCleanup,
+    required PendingMessageReader readPending,
   }) async {
     if ((peerReadSequence == null) != (serverConversationId == null) ||
         (peerReadSequence != null &&
@@ -605,6 +671,7 @@ class ChatHistoryStore {
         messages,
         floor,
         mediaCleanup ?? ChatMediaCleanup(),
+        readPending,
       );
       if (removedSequences.isNotEmpty || floor > savedHidden) {
         removal = ConversationHistoryRemoval(
@@ -710,7 +777,17 @@ class ChatHistoryStore {
       }
       return true;
     });
-    if (committed && removal != null) _clearedConversations.add(removal!);
+    if (committed && removal != null) {
+      _clearedConversations.add(removal!);
+      try {
+        await _collectDeferredMedia(
+          readPending,
+          mediaCleanup ?? ChatMediaCleanup(),
+        );
+      } catch (_) {
+        // Keep deferred source locators for the next cleanup opportunity.
+      }
+    }
     return committed;
   }
 
@@ -801,6 +878,24 @@ class ChatHistoryStore {
     ChatMediaCleanup? mediaCleanup,
     bool deleteMedia = true,
     Set<String>? deletedMessageIds,
+  }) => _protectPendingReferences(
+    (readPending) => _clear(
+      conversation,
+      hideNearby: hideNearby,
+      mediaCleanup: mediaCleanup,
+      deleteMedia: deleteMedia,
+      deletedMessageIds: deletedMessageIds,
+      readPending: readPending,
+    ),
+  );
+
+  Future<int> _clear(
+    String conversation, {
+    bool hideNearby = false,
+    ChatMediaCleanup? mediaCleanup,
+    bool deleteMedia = true,
+    Set<String>? deletedMessageIds,
+    required PendingMessageReader readPending,
   }) async {
     if (hideNearby && !conversation.startsWith('direct:')) {
       throw ArgumentError('Nearby history requires a direct conversation');
@@ -809,7 +904,7 @@ class ChatHistoryStore {
       throw ArgumentError('Targeted deletion requires media cleanup');
     }
     final pending = deleteMedia
-        ? await _outbox?.read() ?? <Map<String, dynamic>>[]
+        ? await readPending()
         : <Map<String, dynamic>>[];
     final id = await _conversation(conversation);
     ConversationHistoryRemoval? removal;
@@ -912,6 +1007,13 @@ class ChatHistoryStore {
                 !deletedMessageIds.contains(message['messageId'])) {
               continue;
             }
+            await _deferSharedMedia(
+              tx,
+              message,
+              voices: retainedVoiceAssets,
+              files: retainedFileAssets,
+              clients: retainedSentClients,
+            );
             await cleanup.remove(
               account: account,
               group: conversation.startsWith('group:'),
@@ -990,10 +1092,22 @@ class ChatHistoryStore {
     if (removal != null) {
       _clearedConversations.add(removal!);
     }
+    try {
+      await _collectDeferredMedia(
+        readPending,
+        mediaCleanup ?? ChatMediaCleanup(),
+      );
+    } catch (_) {
+      // The explicit deletion is committed; a failed deferred cleanup retains
+      // its durable locator instead of turning success into a stale UI error.
+    }
     return nextEpoch;
   }
 
   Future<void> close() async {
+    _closed = true;
+    _deferredCleanupTimer?.cancel();
+    await _outboxRemovals?.cancel();
     _opens.remove(account);
     await _db.close();
     await _clearedConversations.close();

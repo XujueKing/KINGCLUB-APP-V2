@@ -30,10 +30,13 @@ class GroupDetailsPage extends StatefulWidget {
   State<GroupDetailsPage> createState() => _GroupDetailsPageState();
 }
 
-class _GroupDetailsPageState extends State<GroupDetailsPage> {
+class _GroupDetailsPageState extends State<GroupDetailsPage>
+    with WidgetsBindingObserver {
   Map<String, dynamic>? _details;
   String? _error;
   bool _invalid = false;
+  bool _foreground = true;
+  int _actionEpoch = 0;
   bool _saving = false;
   final _name = TextEditingController();
   final _memberSearch = TextEditingController();
@@ -68,8 +71,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
+      _actionEpoch++;
       _avatarProfiles.clear();
       _name.clear();
       _memberSearch.clear();
@@ -91,6 +96,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           data['groupId'] != widget.groupId) {
         return;
       }
+      if (event['eventType'] == 'chat.group.changed') _actionEpoch++;
       if (!_invalid &&
           mounted &&
           event['eventType'] == 'chat.group.read' &&
@@ -110,7 +116,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   }
 
   Future<void> _load({bool refreshAvatars = true}) {
-    if (_invalid || !mounted) return Future<void>.value();
+    if (_invalid || !mounted || !_foreground) return Future<void>.value();
     _refreshAvatars = _refreshAvatars || refreshAvatars;
     final active = _loading;
     if (active != null) {
@@ -127,7 +133,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     do {
       _reloadAgain = false;
       await _loadOnce();
-    } while (_reloadAgain && mounted && !_invalid);
+    } while (_reloadAgain && mounted && !_invalid && _foreground);
   }
 
   Future<void> _loadOnce() async {
@@ -165,7 +171,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   }
 
   Future<void> _save({bool? muted, bool? pinned}) async {
-    if (_invalid || _saving || _details == null) return;
+    if (_invalid ||
+        !_foreground ||
+        _loading != null ||
+        _saving ||
+        _details == null) {
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -178,17 +190,21 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       );
       if (result['saved'] != true) throw const FormatException('设置未保存');
     } catch (error) {
-      if (mounted && !_invalid) setState(() => _error = error.toString());
+      if (mounted && !_invalid && _foreground) {
+        setState(() => _error = error.toString());
+      }
       return;
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-    if (mounted && !_invalid) await _load(refreshAvatars: false);
+    if (mounted && !_invalid && _foreground) await _load(refreshAvatars: false);
   }
 
   List<String> _memberActions(Map member) {
     if (_details == null ||
         _invalid ||
+        !_foreground ||
+        _loading != null ||
         member['membershipVersion'] is! num ||
         member['account'] == widget.repository.account ||
         member['role'] == 'owner') {
@@ -263,6 +279,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       _saving = true;
       _error = null;
     });
+    final actionEpoch = _actionEpoch;
     try {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -289,7 +306,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ],
         ),
       );
-      if (confirmed != true || !mounted || _invalid) return;
+      if (confirmed != true ||
+          !mounted ||
+          _invalid ||
+          !_foreground ||
+          actionEpoch != _actionEpoch) {
+        return;
+      }
       final result = await widget.repository.manageMember(
         widget.groupId,
         member['account'] as String,
@@ -298,9 +321,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         membershipVersion: (member['membershipVersion'] as num).toInt(),
       );
       if (result['changed'] is! bool) throw const FormatException('成员管理结果无效');
-      if (mounted && !_invalid) await _load();
+      if (mounted && !_invalid && _foreground) await _load();
     } catch (error) {
-      if (mounted && !_invalid) setState(() => _error = error.toString());
+      if (mounted && !_invalid && _foreground) {
+        setState(() => _error = error.toString());
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -308,6 +333,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   Future<void> _transfer() async {
     if (_invalid ||
+        !_foreground ||
+        _loading != null ||
         _saving ||
         _details?['ownerAccount'] != widget.repository.account) {
       return;
@@ -321,6 +348,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       _saving = true;
       _error = null;
     });
+    final actionEpoch = _actionEpoch;
     try {
       final target = await showDialog<Map>(
         context: context,
@@ -362,7 +390,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ],
         ),
       );
-      if (target == null || !mounted || _invalid) return;
+      if (target == null ||
+          !mounted ||
+          _invalid ||
+          !_foreground ||
+          actionEpoch != _actionEpoch) {
+        return;
+      }
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -388,25 +422,40 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ],
         ),
       );
-      if (confirmed != true || !mounted || _invalid) return;
+      if (confirmed != true ||
+          !mounted ||
+          _invalid ||
+          !_foreground ||
+          actionEpoch != _actionEpoch) {
+        return;
+      }
       await widget.repository.transfer(
         widget.groupId,
         target['account'] as String,
         version,
       );
-      if (mounted && !_invalid) await _load();
+      if (mounted && !_invalid && _foreground) await _load();
     } catch (error) {
-      if (mounted && !_invalid) setState(() => _error = error.toString());
+      if (mounted && !_invalid && _foreground) {
+        setState(() => _error = error.toString());
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
   Future<void> _depart() async {
-    if (_invalid || _saving || _details == null) return;
+    if (_invalid ||
+        !_foreground ||
+        _loading != null ||
+        _saving ||
+        _details == null) {
+      return;
+    }
     final dissolve = _details!['ownerAccount'] == widget.repository.account;
     final version = (_details!['membershipVersion'] as num).toInt();
     setState(() => _saving = true);
+    final actionEpoch = _actionEpoch;
     try {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -436,7 +485,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ],
         ),
       );
-      if (confirmed != true || !mounted || _invalid) return;
+      if (confirmed != true ||
+          !mounted ||
+          _invalid ||
+          !_foreground ||
+          actionEpoch != _actionEpoch) {
+        return;
+      }
       final result = await widget.repository.depart(
         widget.groupId,
         dissolve: dissolve,
@@ -446,9 +501,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           result['changed'] is! bool) {
         throw const FormatException('退出结果无效');
       }
-      if (mounted && !_invalid) Navigator.pop(context, true);
+      if (mounted && !_invalid && _foreground) Navigator.pop(context, true);
     } catch (error) {
-      if (mounted && !_invalid) setState(() => _error = error.toString());
+      if (mounted && !_invalid && _foreground) {
+        setState(() => _error = error.toString());
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -456,6 +513,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   Future<void> _rename() async {
     if (_invalid ||
+        !_foreground ||
+        _loading != null ||
         _saving ||
         _editingVersion == null ||
         _details?['ownerAccount'] != widget.repository.account) {
@@ -476,7 +535,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       setState(() => _editingVersion = null);
       await _load();
     } catch (error) {
-      if (mounted && !_invalid) setState(() => _error = error.toString());
+      if (mounted && !_invalid && _foreground) {
+        setState(() => _error = error.toString());
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -499,7 +560,17 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   );
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _generation++;
+    _actionEpoch++;
+    if (_foreground) unawaited(_load());
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _name.dispose();
     _memberSearch.dispose();
     _generation++;
@@ -551,7 +622,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                 ),
                               ),
                             );
-                            if (mounted && !_invalid) await _load();
+                            if (mounted && !_invalid && _foreground) {
+                              await _load();
+                            }
                           },
                   ),
                   ListTile(

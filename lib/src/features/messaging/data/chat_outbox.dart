@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -8,15 +9,69 @@ abstract interface class ChatOutbox {
   Future<void> remove(String clientMessageId);
 }
 
+typedef PendingMessageReader = Future<List<Map<String, dynamic>>> Function();
+
+/// Keeps pending references stable while history removes shared media.
+/// The reader is lazy so ordinary history writes do not access secure storage.
+abstract interface class ProtectedChatOutbox implements ChatOutbox {
+  Future<T> protectReferences<T>(
+    Future<T> Function(PendingMessageReader read) action,
+  );
+}
+
 /// Small pending message/reference queue, encrypted by the platform secure storage.
 /// Per-account serialization prevents two open conversations overwriting it.
-class SecureChatOutbox implements ChatOutbox {
+class SecureChatOutbox implements ProtectedChatOutbox {
   SecureChatOutbox(String account, {FlutterSecureStorage? storage})
-    : _key = 'kingclub.chat.outbox.$account',
+    : _account = account,
+      _key = 'kingclub.chat.outbox.$account',
       _storage = storage ?? const FlutterSecureStorage();
+  final String _account;
+  static final _removed = StreamController<String>.broadcast();
+  static Stream<String> get removedReferences => _removed.stream;
   final String _key;
   final FlutterSecureStorage _storage;
   static final _locks = <String, Future<void>>{};
+  static final _sourceReferences =
+      <String, Map<Object, Map<String, dynamic>>>{};
+
+  /// Protect a source while it is being retained and handed to the durable
+  /// queue. This lease contains metadata only, never source bytes or grants.
+  Future<Future<void> Function()> holdMediaSource(
+    Map<String, dynamic> message,
+  ) async {
+    final token = Object();
+    await _exclusive(() async {
+      (_sourceReferences[_key] ??= {})[token] = {
+        'sender': _account,
+        for (final field in const [
+          'messageType',
+          'clientMessageId',
+          'voiceAssetId',
+          'fileAssetId',
+        ])
+          if (message[field] != null) field: message[field],
+      };
+    });
+    var released = false;
+    return () async {
+      if (released) return;
+      released = true;
+      await _exclusive(() async {
+        final references = _sourceReferences[_key];
+        references?.remove(token);
+        if (references != null && references.isEmpty) {
+          _sourceReferences.remove(_key);
+        }
+      });
+      _removed.add(_account);
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> _readReferences() async => [
+    ...await _read(),
+    ...?_sourceReferences[_key]?.values,
+  ];
 
   Future<T> _exclusive<T>(Future<T> Function() action) async {
     final previous = _locks[_key] ?? Future<void>.value();
@@ -42,6 +97,11 @@ class SecureChatOutbox implements ChatOutbox {
   }
 
   @override
+  Future<T> protectReferences<T>(
+    Future<T> Function(PendingMessageReader read) action,
+  ) => _exclusive(() => action(_readReferences));
+
+  @override
   Future<List<Map<String, dynamic>>> read() => _exclusive(_read);
   @override
   Future<void> put(Map<String, dynamic> message) => _exclusive(() async {
@@ -54,9 +114,12 @@ class SecureChatOutbox implements ChatOutbox {
     await _storage.write(key: _key, value: jsonEncode(items));
   });
   @override
-  Future<void> remove(String clientMessageId) => _exclusive(() async {
-    final items = await _read();
-    items.removeWhere((item) => item['clientMessageId'] == clientMessageId);
-    await _storage.write(key: _key, value: jsonEncode(items));
-  });
+  Future<void> remove(String clientMessageId) async {
+    await _exclusive(() async {
+      final items = await _read();
+      items.removeWhere((item) => item['clientMessageId'] == clientMessageId);
+      await _storage.write(key: _key, value: jsonEncode(items));
+    });
+    _removed.add(_account);
+  }
 }

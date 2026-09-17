@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import 'chat_outbox.dart';
+
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -42,14 +45,21 @@ class ChatVoiceForwarder {
   final _cancel = CancelToken();
   UploadedChatVoice? _prepared;
   bool _closed = false, _busy = false;
+  Future<void> Function()? _releaseSource;
+  Future<void> _releaseHeldSource() async {
+    final release = _releaseSource;
+    _releaseSource = null;
+    await release?.call();
+  }
+
   void _check() {
     if (_closed) throw StateError('语音转发已结束');
   }
 
   Future<UploadedChatVoice> prepare() async {
     _check();
-    if (_prepared != null) return _prepared!;
     if (_busy) throw StateError('正在准备语音');
+    if (_prepared != null) return _prepared!;
     _busy = true;
     try {
       final result = await repository.voiceMedia(messageId, group: group);
@@ -117,33 +127,48 @@ class ChatVoiceForwarder {
         _prepared = await uploader.upload(data);
       }
       _check();
+      _releaseSource = await SecureChatOutbox(repository.account)
+          .holdMediaSource({
+            'messageType': 'voice',
+            'voiceAssetId': _prepared!.assetId,
+          });
+      _check();
       _sourceBytes = data;
       return _prepared!;
     } finally {
       _busy = false;
+      if (_closed) await _releaseHeldSource();
     }
   }
 
   Future<void> acknowledgeQueued() async {
     _check();
-    final voice = _prepared;
-    final bytes = _sourceBytes;
-    if (voice != null && bytes != null) {
-      await (mediaStore ?? MediaCache.shared).importBytes(
-        bytes,
-        scope: 'member:${repository.account}',
-        contentKey: 'chat-voice-asset:${voice.assetId}',
-        kind: MediaKind.audio,
-      );
-      _check();
+    if (_busy) throw StateError('Voice forwarding is busy');
+    _busy = true;
+    try {
+      final voice = _prepared;
+      final bytes = _sourceBytes;
+      if (voice != null && bytes != null) {
+        await (mediaStore ?? MediaCache.shared).importBytes(
+          bytes,
+          scope: 'member:${repository.account}',
+          contentKey: 'chat-voice-asset:${voice.assetId}',
+          kind: MediaKind.audio,
+        );
+        _check();
+      }
+      _sourceBytes = null;
+      if (voice != null) await _uploader?.acknowledgeQueued(voice);
+    } finally {
+      _busy = false;
+      if (_closed) await _releaseHeldSource();
     }
-    _sourceBytes = null;
-    if (voice != null) await _uploader?.acknowledgeQueued(voice);
   }
 
   void dispose() {
     if (_closed) return;
     _closed = true;
+    if (!_busy) unawaited(_releaseHeldSource());
     _prepared = null;
     _sourceBytes = null;
     _cancel.cancel('voice forwarding closed');

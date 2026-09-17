@@ -242,7 +242,10 @@ class ChatFileDraftStore {
     await checkSession();
     final draft = await _read();
     if (draft?.id != id) return;
-    await _storage.delete(key: _key);
+    // Preserve the locator when the private file is busy or deletion fails.
+    // Otherwise a retry can no longer find the bytes it was meant to erase.
     if (await draft!.file.exists()) await draft.file.delete();
+    await checkSession();
+    await _storage.delete(key: _key);
   });
 }

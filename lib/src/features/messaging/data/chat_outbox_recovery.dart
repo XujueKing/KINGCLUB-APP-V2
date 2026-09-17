@@ -12,7 +12,18 @@ import 'chat_history_store.dart';
 /// Foreground delivery is independent of which conversation is visible.
 /// Existing controllers retain receipt validation and membership checks.
 class ChatOutboxRecovery {
-  ChatOutboxRecovery(this.repository, this.outbox, {this.relaySenderFor});
+  ChatOutboxRecovery(
+    this.repository,
+    this.outbox, {
+    this.relaySenderFor,
+    this.openHistory,
+  });
+  final Future<ChatHistoryStore> Function()? openHistory;
+  Future<ChatHistoryStore> Function()? get _historyFactory =>
+      openHistory ??
+      (repository.persistHistory
+          ? () => ChatHistoryStore.open(repository.account)
+          : null);
   final Future<bool> Function(String text, String id) Function(String peer)?
   relaySenderFor;
   final MessagingRepository repository;
@@ -43,6 +54,11 @@ class ChatOutboxRecovery {
       final count = (_visible[key] ?? 1) - 1;
       if (count == 0) {
         _visible.remove(key);
+        for (final worker in _workers.toList()) {
+          if (worker.repository.account == account && !worker._closed) {
+            unawaited(worker.notify());
+          }
+        }
       } else {
         _visible[key] = count;
       }
@@ -86,7 +102,10 @@ class ChatOutboxRecovery {
       final conversations = <(String, bool)>[];
       for (final row in rows) {
         if (_closed) return;
-        if (row['status'] != 'queued') continue;
+        if (row['status'] != 'queued' ||
+            (row['sender'] != null && row['sender'] != repository.account)) {
+          continue;
+        }
         final group = row['groupId'] is String;
         final target = group ? row['groupId'] : row['recipient'];
         if (target is! String || target.isEmpty) continue;
@@ -106,14 +125,13 @@ class ChatOutboxRecovery {
                   repository: GroupChatRepository(repository),
                   groupId: target,
                   outbox: outbox,
+                  openHistory: _historyFactory,
                 )
               : DirectChatController(
                   repository: repository,
                   peer: target,
                   outbox: outbox,
-                  openHistory: repository.persistHistory
-                      ? () => ChatHistoryStore.open(repository.account)
-                      : null,
+                  openHistory: _historyFactory,
                   sendRelayText:
                       relaySenderFor?.call(target) ??
                       (repository.persistHistory
