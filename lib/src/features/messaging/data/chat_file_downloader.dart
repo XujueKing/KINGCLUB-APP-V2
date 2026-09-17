@@ -240,8 +240,10 @@ class ChatFileDownloader {
     if (connect == null || ref.group) return false;
     final token = _cancel;
     var opening = true;
+    var peerAttemptActive = true;
     Timer? progressTimer;
     bool active() =>
+        peerAttemptActive &&
         !_invalid &&
         token != null &&
         identical(token, _cancel) &&
@@ -329,6 +331,7 @@ class ChatFileDownloader {
       await _check();
       return false;
     } finally {
+      peerAttemptActive = false;
       progressTimer?.cancel();
       opening = false;
       final peer = _peer;

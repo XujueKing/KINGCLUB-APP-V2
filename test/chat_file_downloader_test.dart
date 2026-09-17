@@ -157,6 +157,7 @@ void main() {
     'direct',
     'peer-unavailable',
     'peer-connect-cancel',
+    'peer-connect-timeout',
     'group',
     'empty',
     'corrupt',
@@ -202,6 +203,7 @@ void main() {
         group: group,
       );
       var grants = 0, requests = 0;
+      bool Function()? peerActive;
       final requestedBlocks = <int>[];
       final repo = MessagingRepository(
         account: 'test-account',
@@ -209,6 +211,11 @@ void main() {
           expect(id, group ? 'K260914000654' : 'K260914000652');
           expect(params, {'messageId': messageId});
           grants++;
+          if (scenario == 'peer-connect-timeout' && grants == 2) {
+            // Check before HTTP starts, while the overall download is active.
+            expect(peerActive, isNotNull);
+            expect(peerActive!(), false);
+          }
           if (scenario == 'session-before-grant-return') {
             SecureSessionStore.changes.add(null);
             await Future<void>.delayed(Duration.zero);
@@ -354,8 +361,9 @@ void main() {
         repository: repo,
         peerDownload: scenario == 'peer-unavailable'
             ? (_, _) async => throw const SocketException('peer unavailable')
-            : scenario == 'peer-connect-cancel'
-            ? (_, _) async {
+            : ['peer-connect-cancel', 'peer-connect-timeout'].contains(scenario)
+            ? (_, active) async {
+                peerActive = active;
                 peerEntered.complete();
                 await peerRelease.future;
                 return null;
@@ -432,6 +440,7 @@ void main() {
         'direct',
         'delete-completed',
         'peer-unavailable',
+        'peer-connect-timeout',
         'group',
         'empty',
         'session-after-download',
@@ -443,9 +452,22 @@ void main() {
       ].contains(scenario)) {
         final result = await operation;
         expect(await result.readAsBytes(), bytes);
+        if (scenario == 'peer-connect-timeout') {
+          expect(peerActive, isNotNull);
+          expect(peerActive!(), false);
+          peerRelease.complete();
+          await Future<void>.delayed(Duration.zero);
+          expect(peerActive!(), false);
+        }
         expect(
           grants,
-          ['expired-grant', 'peer-unavailable'].contains(scenario) ? 3 : 2,
+          [
+                'expired-grant',
+                'peer-unavailable',
+                'peer-connect-timeout',
+              ].contains(scenario)
+              ? 3
+              : 2,
         );
         expect(
           requests,
