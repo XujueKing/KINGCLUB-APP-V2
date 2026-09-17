@@ -63,6 +63,16 @@ void main() {
       () async {
         const fileMessage = '11111111-1111-4111-8111-111111111111';
         const fileAsset = '22222222-2222-4222-8222-222222222222';
+        const groupId = '33333333-3333-4333-8333-333333333333';
+        final groupScope = {
+          'kind': 'group-file',
+          'messageId': fileMessage,
+          'groupId': groupId,
+          'sender': 'friend',
+          'recipient': 'runtime-member',
+          'senderMembershipVersion': 1,
+          'recipientMembershipVersion': 2,
+        };
         final fileBytes = Uint8List.fromList(
           List.generate(4097, (i) => i % 251),
         );
@@ -73,6 +83,11 @@ void main() {
           expect(params['messageId'], fileMessage);
           return {
             'messageId': fileMessage,
+            if (params['group'] == true) ...{
+              'groupId': groupId,
+              'senderMembershipVersion': 1,
+              'recipientMembershipVersion': 2,
+            },
             'sender': 'friend',
             'recipient': 'runtime-member',
             'assetId': fileAsset,
@@ -103,11 +118,44 @@ void main() {
         addTearDown(callerIdentity.dispose);
         Completer<void>? hold;
         var reads = 0;
+        final contexts = <String, Map<String, dynamic>>{};
+        Map<String, dynamic> context(
+          String account,
+          Map<String, dynamic> params,
+        ) {
+          final session = params['nativeSessionId'] as String;
+          if (params['operation'] == 'publish') {
+            contexts[session] = {...params, 'from': account};
+            return {
+              'published': true,
+              'expiresAt': DateTime.now().millisecondsSinceEpoch + 45000,
+            };
+          }
+          final record = contexts[session];
+          if (record == null || record['peer'] != account) {
+            throw const AuthFailure(
+              'GROUP_FILE_HANDSHAKE_DENIED',
+              'no context',
+            );
+          }
+          return {
+            'peer': record['from'],
+            'peerBindingId': record['ownBindingId'],
+            'sourcePeerId': params['sourcePeerId'],
+            'nativeSessionId': session,
+            'scope': groupScope,
+            'expiresAt': DateTime.now().millisecondsSinceEpoch + 44000,
+          };
+        }
+
         final binding = NovoRudpDeviceBinding(
           identity: identity,
           messaging: MessagingRepository(
             account: 'runtime-member',
             call: (api, params) async {
+              if (api == 'K260918000709') {
+                return context('runtime-member', params);
+              }
               if (api == 'K260916000686') return fileAuthority(params);
               expect(api, 'K260915000672');
               final resolving = params.containsKey('peerId');
@@ -118,6 +166,10 @@ void main() {
               await hold?.future;
               return {
                 if (resolving) 'peer': 'friend',
+                if (params['groupFileMessageId'] != null) ...{
+                  'peer': params['peer'],
+                  'scope': groupScope,
+                },
                 'cacheSeconds': 0,
                 'keys': [
                   {
@@ -133,6 +185,7 @@ void main() {
           ),
         );
         final runtime = MemberRelayRuntime(
+          enableGroupFiles: true,
           binding: binding,
           endpoint: Uri.parse(env['SUPERVM_TEST_RELAY_URL']!),
           expectedRelay: env['SUPERVM_TEST_RELAY_PEER']!,
@@ -155,11 +208,13 @@ void main() {
         first.heartbeat();
         await ack.timeout(const Duration(seconds: 2));
         final caller = MemberRelayRuntime(
+          enableGroupFiles: true,
           binding: NovoRudpDeviceBinding(
             identity: callerIdentity,
             messaging: MessagingRepository(
               account: 'friend',
               call: (api, params) async {
+                if (api == 'K260918000709') return context('friend', params);
                 if (api == 'K260916000686') return fileAuthority(params);
                 expect(api, 'K260915000672');
                 expect(params['peer'], anyOf('friend', 'runtime-member'));
@@ -167,6 +222,10 @@ void main() {
                 final device = own ? callerIdentity : identity;
                 return {
                   'cacheSeconds': 0,
+                  if (params['groupFileMessageId'] != null) ...{
+                    'peer': params['peer'],
+                    'scope': groupScope,
+                  },
                   'keys': [
                     {
                       'bindingId': own
@@ -322,6 +381,34 @@ void main() {
         } finally {
           await download?.close();
         }
+        var directArrivals = 0, groupArrivals = 0;
+        final directEvents = caller.channels.listen((_) => directArrivals++);
+        final groupEvents = caller.groupFileChannels.listen(
+          (_) => groupArrivals++,
+        );
+        final groupDownload = await receiveFiles.receive(
+          peer: 'friend',
+          group: true,
+          messageId: fileMessage,
+          assetId: fileAsset,
+          fileName: 'runtime.bin',
+          size: fileBytes.length,
+          sha256: fileHash,
+          stillActive: () => true,
+        );
+        expect(groupDownload, isNotNull);
+        try {
+          expect(
+            await (await groupDownload!.completed).readAsBytes(),
+            fileBytes,
+          );
+        } finally {
+          await groupDownload?.close();
+        }
+        expect(groupArrivals, 1);
+        expect(directArrivals, 0);
+        await directEvents.cancel();
+        await groupEvents.cancel();
         const textId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
         final textChanged = receiveText.changes.first;
         final fallbackOutbox = _UnusedOutbox();

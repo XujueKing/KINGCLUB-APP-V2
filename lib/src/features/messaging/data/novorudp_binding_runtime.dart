@@ -33,6 +33,7 @@ class NovoRudpBindingRuntime {
   static Future<NovoRudpFileDownload?> receiveFile({
     required String account,
     required String sender,
+    bool group = false,
     required String messageId,
     required String assetId,
     required String fileName,
@@ -49,6 +50,7 @@ class NovoRudpBindingRuntime {
     final generation = MemberQrMemory.generation;
     return files.receive(
       peer: sender,
+      group: group,
       messageId: messageId,
       assetId: assetId,
       fileName: fileName,

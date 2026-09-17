@@ -19,6 +19,7 @@ class PeerFileChannel {
     required this.repository,
     required this.peer,
     this.groupId,
+    this.scopedMessageId,
     required this.cache,
     required this.privateDirectory,
     required this.canExchange,
@@ -42,7 +43,10 @@ class PeerFileChannel {
             return;
           }
           final messageId = packet['messageId'] as String;
-          if (!_uuid.hasMatch(messageId)) return;
+          if (!_uuid.hasMatch(messageId) ||
+              (scopedMessageId != null && messageId != scopedMessageId)) {
+            return;
+          }
           switch (packet['op']) {
             case 'request':
               if (_sending != null) {
@@ -91,6 +95,7 @@ class PeerFileChannel {
   final MessagingRepository repository;
   final String peer;
   final String? groupId;
+  final String? scopedMessageId;
   final ChatSentFileCache cache;
   final Directory privateDirectory;
   final bool Function() canExchange;
@@ -144,6 +149,9 @@ class PeerFileChannel {
     required bool sending,
   }) async {
     _check();
+    if (scopedMessageId != null && messageId != scopedMessageId) {
+      throw StateError('File outside lane scope');
+    }
     final value = await PeerFileAuthority.read(
       repository,
       peer,

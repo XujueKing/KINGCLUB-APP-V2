@@ -6,9 +6,17 @@ import 'package:flutter/widgets.dart';
 import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
 import 'novorudp_device_binding.dart';
+import 'group_file_device_scope.dart';
+import '../../auth/domain/auth_repository.dart';
 import 'novorudp_relay_connection.dart';
 import 'novorudp_relay_frame_link.dart';
 import 'member_relay_handshake.dart';
+
+typedef GroupFileRelayArrival = ({
+  String peer,
+  NovoRudpRelayFrameLink link,
+  GroupFileDeviceScope scope,
+});
 
 typedef MemberRelayArrival = ({String peer, NovoRudpRelayFrameLink link});
 
@@ -20,11 +28,17 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     required this.endpoint,
     required this.expectedRelay,
     this.securityContext,
+    this.enableGroupFiles = const bool.fromEnvironment(
+      'KINGCLUB_NOVORUDP_GROUP_FILES',
+    ),
   });
   final NovoRudpDeviceBinding binding;
   final Uri endpoint;
   final String expectedRelay;
   final SecurityContext? securityContext;
+  final bool enableGroupFiles;
+  final _groupChannels = StreamController<GroupFileRelayArrival>.broadcast();
+  Stream<GroupFileRelayArrival> get groupFileChannels => _groupChannels.stream;
   final int _generation = MemberQrMemory.generation;
   final _connections = StreamController<NovoRudpRelayConnection?>.broadcast();
   final _offers = StreamController<Map<String, dynamic>>.broadcast();
@@ -155,7 +169,28 @@ class MemberRelayRuntime with WidgetsBindingObserver {
 
   /// Coalesces concurrent requests for one member/device; the caller retains
   /// the normal service transport when this foreground route is unavailable.
-  Future<NovoRudpRelayFrameLink> connectPeer(String peer, String bindingId) {
+  Future<NovoRudpRelayFrameLink> connectGroupFilePeer(
+    String peer,
+    String bindingId,
+    GroupFileDeviceScope scope,
+  ) {
+    if (!enableGroupFiles) throw StateError('Group peer files disabled');
+    return _connectPeer(peer, bindingId, scope);
+  }
+
+  Future<NovoRudpRelayFrameLink> connectPeer(String peer, String bindingId) =>
+      _connectPeer(peer, bindingId, null);
+
+  static String _laneId(String peer, GroupFileDeviceScope? scope) =>
+      scope == null
+      ? peer
+      : '$peer/${scope.groupId}/${scope.messageId}/${scope.senderVersion}/${scope.recipientVersion}';
+
+  Future<NovoRudpRelayFrameLink> _connectPeer(
+    String peer,
+    String bindingId,
+    GroupFileDeviceScope? scope,
+  ) {
     if (!RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(peer) ||
         peer == binding.messaging.account ||
         !RegExp(r'^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$')
@@ -166,12 +201,12 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     if (socket == null || !_current(_attempt)) {
       throw StateError('Relay unavailable');
     }
-    final id = '$peer/$bindingId';
+    final id = _laneId('$peer/$bindingId', scope);
     final pending = _outgoing[id];
     if (pending != null) return pending;
     if (_outgoing.length >= 8) throw StateError('Too many relay lookups');
     late final Future<NovoRudpRelayFrameLink> task;
-    task = _openPeer(socket, peer, bindingId, _attempt).whenComplete(() {
+    task = _openPeer(socket, peer, bindingId, _attempt, scope).whenComplete(() {
       if (identical(_outgoing[id], task)) _outgoing.remove(id);
     });
     _outgoing[id] = task;
@@ -183,13 +218,22 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     String peer,
     String bindingId,
     int attempt,
+    GroupFileDeviceScope? scope,
   ) async {
-    final keys = await binding
-        .directory(peer)
-        .timeout(const Duration(seconds: 5));
+    final keys = scope == null
+        ? await binding.directory(peer).timeout(const Duration(seconds: 5))
+        : (await binding
+                  .groupFileDirectory(
+                    peer,
+                    messageId: scope.messageId,
+                    groupId: scope.groupId,
+                  )
+                  .timeout(const Duration(seconds: 5)))
+              .keys;
     if (!_current(attempt)) throw StateError('Relay changed');
     final key = keys.where((key) => key.bindingId == bindingId).single;
-    final existing = _peerLinks[key.peerId];
+    final laneId = _laneId(key.peerId, scope);
+    final existing = _peerLinks[laneId];
     if (existing != null) {
       await existing.revalidate();
       if (!_current(attempt)) throw StateError('Relay changed');
@@ -206,6 +250,7 @@ class MemberRelayRuntime with WidgetsBindingObserver {
       peer: peer,
       peerBindingId: bindingId,
       initiate: true,
+      groupFileScope: scope,
     );
     _handshakes[key.peerId] = handshake;
     NovoRudpRelayFrameLink? link;
@@ -214,8 +259,12 @@ class MemberRelayRuntime with WidgetsBindingObserver {
       if (!_current(attempt) || link.expectedPeer != key.peerId) {
         throw StateError('Relay peer changed');
       }
-      _holdLink(key.peerId, link);
-      _channels.add((peer: peer, link: link));
+      _holdLink(laneId, link);
+      if (scope == null) {
+        _channels.add((peer: peer, link: link));
+      } else {
+        _groupChannels.add((peer: peer, link: link, scope: scope));
+      }
       return link;
     } catch (_) {
       if (link != null) unawaited(link.close());
@@ -253,10 +302,13 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     int attempt,
   ) async {
     if (!_current(attempt) ||
-        (!_arrivals.hasListener && !_channels.hasListener)) {
+        (!_arrivals.hasListener &&
+            !_channels.hasListener &&
+            !_groupChannels.hasListener)) {
       return;
     }
-    final source = (event['body'] as Map)['source_peer_id'] as String;
+    final source = (event['body'] as Map)['source_peer_id'];
+    if (source is! String) return;
     if (_pendingPeers.contains(source) ||
         (!_peerLinks.containsKey(source) &&
             _pendingPeers.length + _peerLinks.length >= 8)) {
@@ -271,9 +323,29 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     MemberRelayHandshake? handshake;
     NovoRudpRelayFrameLink? link;
     try {
-      final resolved = await binding
-          .resolvePeer(source)
-          .timeout(const Duration(seconds: 5));
+      GroupFileDeviceScope? scope;
+      ({String peer, NetworkDeviceKey key}) resolved;
+      if (enableGroupFiles) {
+        try {
+          final offer = (event['body'] as Map)['handshake']['body'];
+          if (offer is! Map<String, dynamic>) return;
+          final group = await binding
+              .resolveGroupFileHandshake(source, offer)
+              .timeout(const Duration(seconds: 5));
+          scope = group.scope;
+          resolved = (peer: group.peer, key: group.key);
+        } on AuthFailure catch (error) {
+          if (error.code != 'GROUP_FILE_HANDSHAKE_DENIED') rethrow;
+          resolved = await binding
+              .resolvePeer(source)
+              .timeout(const Duration(seconds: 5));
+        }
+      } else {
+        resolved = await binding
+            .resolvePeer(source)
+            .timeout(const Duration(seconds: 5));
+      }
+      if (scope != null && !_groupChannels.hasListener) return;
       if (!_current(attempt)) return;
       handshake = MemberRelayHandshake(
         binding: binding,
@@ -281,18 +353,25 @@ class MemberRelayRuntime with WidgetsBindingObserver {
         peer: resolved.peer,
         peerBindingId: resolved.key.bindingId,
         initialOffer: event,
+        groupFileScope: scope,
       );
       _handshakes[source] = handshake;
       link = await handshake.connect();
       if (!_current(attempt) ||
-          (!_arrivals.hasListener && !_channels.hasListener)) {
+          (!_arrivals.hasListener &&
+              !_channels.hasListener &&
+              !_groupChannels.hasListener)) {
         await link.close();
         return;
       }
       final accepted = link;
-      _holdLink(source, accepted);
-      _arrivals.add((peer: resolved.peer, link: accepted));
-      _channels.add((peer: resolved.peer, link: accepted));
+      _holdLink(_laneId(source, scope), accepted);
+      if (scope == null) {
+        _arrivals.add((peer: resolved.peer, link: accepted));
+        _channels.add((peer: resolved.peer, link: accepted));
+      } else {
+        _groupChannels.add((peer: resolved.peer, link: accepted, scope: scope));
+      }
       link = null;
     } catch (_) {
       // An untrusted/expired request cannot interrupt the relay or UI.
@@ -345,5 +424,6 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     unawaited(_offers.close());
     unawaited(_arrivals.close());
     unawaited(_channels.close());
+    unawaited(_groupChannels.close());
   }
 }

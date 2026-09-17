@@ -129,14 +129,13 @@ class ChatFileDownloader {
       peerDownload: NovoRudpBindingRuntime.fileTransferEnabled
           ? (reference, active) {
               final sender = reference.sender;
-              if (reference.group ||
-                  sender == null ||
-                  sender == repository.account) {
+              if (sender == null || sender == repository.account) {
                 return Future.value(null);
               }
               return NovoRudpBindingRuntime.receiveFile(
                 account: repository.account,
                 sender: sender,
+                group: reference.group,
                 messageId: reference.messageId,
                 assetId: reference.assetId,
                 fileName: reference.fileName,

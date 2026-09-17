@@ -260,6 +260,7 @@ void main() {
           repository: repository('a'),
           peer: 'b',
           groupId: groupId,
+          scopedMessageId: groupId == null ? null : messageId,
           cache: cache,
           privateDirectory: directory,
           canExchange: () => true,
@@ -269,12 +270,19 @@ void main() {
           repository: repository('b'),
           peer: 'a',
           groupId: groupId,
+          scopedMessageId: groupId == null ? null : messageId,
           cache: cache,
           privateDirectory: directory,
           canExchange: () => true,
         );
         addTearDown(sending.close);
         addTearDown(receiving.close);
+        if (groupId != null) {
+          await expectLater(
+            receiving.authorize(assetId, sending: false),
+            throwsStateError,
+          );
+        }
         final authority = await receiving.authorize(messageId, sending: false);
         if (scenario == 'success' || scenario == 'group-success') {
           final transfer = await receiving.receive(authority, () => true);

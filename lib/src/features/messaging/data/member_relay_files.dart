@@ -7,6 +7,8 @@ import 'member_relay_runtime.dart';
 import 'novorudp_file_download.dart';
 import 'novorudp_relay_frame_link.dart';
 import 'peer_file_channel.dart';
+import 'group_file_device_scope.dart';
+import 'novorudp_device_binding.dart';
 
 /// File streams share the member's secure lane with text without owning it.
 class MemberRelayFiles {
@@ -17,6 +19,9 @@ class MemberRelayFiles {
   }) {
     _incoming = runtime.channels.listen((arrival) {
       if (_active) _attach(arrival.peer, arrival.link);
+    });
+    _groupIncoming = runtime.groupFileChannels.listen((arrival) {
+      if (_active) _attach(arrival.peer, arrival.link, arrival.scope);
     });
     _connections = runtime.connections.listen((connection) {
       if (connection == null) _clear();
@@ -29,6 +34,7 @@ class MemberRelayFiles {
   final _channels = <String, PeerFileChannel>{};
   final _closingChannels = <Future<void>>{};
   late final StreamSubscription<MemberRelayArrival> _incoming;
+  late final StreamSubscription<GroupFileRelayArrival> _groupIncoming;
   late final StreamSubscription _connections;
   bool _closed = false;
   Future<void>? _closing;
@@ -43,8 +49,14 @@ class MemberRelayFiles {
     unawaited(work.whenComplete(() => _closingChannels.remove(work)));
   }
 
-  PeerFileChannel _attach(String peer, NovoRudpRelayFrameLink link) {
-    final old = _channels[link.expectedPeer];
+  PeerFileChannel _attach(
+    String peer,
+    NovoRudpRelayFrameLink link, [
+    GroupFileDeviceScope? scope,
+  ]) {
+    final id =
+        '${link.expectedPeer}/${scope?.groupId ?? ''}/${scope?.messageId ?? ''}';
+    final old = _channels[id];
     if (old != null && identical(old.link, link)) return old;
     if (old != null) _release(old);
     if (old == null && _channels.length >= 8) {
@@ -54,16 +66,19 @@ class MemberRelayFiles {
       link: link,
       repository: runtime.binding.messaging,
       peer: peer,
+      groupId: scope?.groupId,
+      scopedMessageId: scope?.messageId,
       cache: cache,
       privateDirectory: privateDirectory,
       canExchange: () => _active,
     );
-    _channels[link.expectedPeer] = channel;
+    _channels[id] = channel;
     return channel;
   }
 
   Future<NovoRudpFileDownload?> receive({
     required String peer,
+    bool group = false,
     required String messageId,
     required String assetId,
     required String fileName,
@@ -77,13 +92,37 @@ class MemberRelayFiles {
         size > ChatSentFileCache.maxBytes) {
       return null;
     }
-    final keys = await runtime.binding.directory(peer);
+    GroupFileDeviceScope? scope;
+    List<NetworkDeviceKey> keys;
+    if (group) {
+      if (!runtime.enableGroupFiles) return null;
+      final manifest = await runtime.binding.messaging.peerFileAuthority(
+        messageId,
+        peer,
+        group: true,
+      );
+      final groupId = manifest['groupId'];
+      if (groupId is! String) {
+        throw const FormatException('Missing group file scope');
+      }
+      final directory = await runtime.binding.groupFileDirectory(
+        peer,
+        messageId: messageId,
+        groupId: groupId,
+      );
+      scope = directory.scope;
+      keys = directory.keys;
+    } else {
+      keys = await runtime.binding.directory(peer);
+    }
     if (!active()) return null;
     for (final key in keys.take(2)) {
       try {
-        final link = await runtime.connectPeer(peer, key.bindingId);
+        final link = scope == null
+            ? await runtime.connectPeer(peer, key.bindingId)
+            : await runtime.connectGroupFilePeer(peer, key.bindingId, scope);
         if (!active()) return null;
-        final channel = _attach(peer, link);
+        final channel = _attach(peer, link, scope);
         final authority = await channel.authorize(messageId, sending: false);
         if (!active()) return null;
         if (authority.assetId != assetId ||
@@ -120,6 +159,7 @@ class MemberRelayFiles {
   Future<void> _close() async {
     _clear();
     await _incoming.cancel();
+    await _groupIncoming.cancel();
     await _connections.cancel();
     await Future.wait(_closingChannels.toList());
   }

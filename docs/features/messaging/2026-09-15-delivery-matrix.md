@@ -2,6 +2,14 @@
 
 ## 当前验收汇总
 
+2026-09-18 group peer file path: opt-in runtime now automatically resolves
+handshake context, isolates group lanes from private text and downloads from
+the original sender cache. Real local SuperVM WSS runtime: 2 passed; native
+UDP file negotiation: 5 passed; downloader regressions: 31 passed. HTTP
+authority/context remain fixtures. Backend migrations124-126 are implemented
+and un-deployed; real SQL/Redis/HTTP and Android A/B acceptance remain pending.
+Group transfer flag defaults off. [Evidence](2026-09-18-group-file-runtime.md).
+
 2026-09-18 UI batch **f68744b installed on A**: 92 focused tests passed; actual Android Back closes the attachment panel first and then returns to the list. An offline group pending preview now survives force-stop/restart and automatically becomes a confirmed preview on reconnect. B untouched. Own-avatar real-device check exposed self-profile API rejection; corrected in **6d5d211**, with five tests passed, corrected APK built and installed on A (6d5d211). Actual own-profile rendering verification paused after A appeared on the AA reservation page, indicating possible concurrent operation. [Exact batch evidence](../../audits/2026-09-18-chat-ui-batch-device.md).
 
 2026-09-18 native transport batch: **72 passed / 0 skipped / 0 failed across 18 files**, with real native DLL and temporary local SUPERVM WSS daemon. Includes encrypted UDP/file recovery and actual relay/LAN transition cases; daemon stopped afterward. [Exact coverage and artifacts](../../audits/2026-09-18-native-transport-batch.md). This does not establish mobile/public-network automatic switching.
