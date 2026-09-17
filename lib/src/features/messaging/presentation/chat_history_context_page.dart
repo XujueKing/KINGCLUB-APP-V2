@@ -1,3 +1,5 @@
+import '../data/chat_history_access.dart';
+
 import 'dart:async';
 
 import '../../auth/domain/auth_repository.dart';
@@ -481,13 +483,27 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
       if (!mounted || generation != _generation) return;
       remoteFinished = true;
       apply(result, localOnly);
-    } catch (_) {
+    } catch (error) {
+      remoteFinished = true;
       if (!mounted || generation != _generation) return;
       _voice?.stop();
       setState(() {
         _messages = [];
         _error = '暂时无法查看该消息，可能已清空或权限已变化';
       });
+      if (widget.groupId != null) {
+        try {
+          await clearDeniedGroupHistory(
+            error,
+            account: widget.account,
+            groupId: widget.groupId,
+          );
+        } catch (_) {
+          // Keep the denied/error presentation even if local cleanup fails.
+        }
+      }
+    } finally {
+      remoteFinished = true;
     }
   }
 

@@ -1,3 +1,5 @@
+import '../data/chat_history_access.dart';
+
 import 'dart:async';
 
 import 'chat_timestamp.dart';
@@ -255,7 +257,8 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
         before: before,
         messageType: messageType,
       );
-    } catch (_) {
+    } catch (error) {
+      remoteFinished = true;
       if (!mounted || generation != _generation) {
         return;
       }
@@ -265,6 +268,17 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
         _busy = false;
         _error = '搜索未完成，请重试';
       });
+      if (widget.account != null && widget.groupId != null) {
+        try {
+          await clearDeniedGroupHistory(
+            error,
+            account: widget.account!,
+            groupId: widget.groupId,
+          );
+        } catch (_) {
+          // Keep the denied/error presentation even if local cleanup fails.
+        }
+      }
     } finally {
       remoteFinished = true;
     }
