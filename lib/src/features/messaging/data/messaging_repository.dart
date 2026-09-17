@@ -20,6 +20,15 @@ typedef ChatApiCall = Future<Map<String, dynamic>> Function(
 
 /// All requests are bound to the account which opened this repository.
 class MessagingRepository {
+  static final _relationshipChanges =
+      StreamController<({String account, String? peer})>.broadcast();
+  static Stream<String?> relationshipChanges(String account) =>
+      _relationshipChanges.stream
+          .where((event) => event.account == account)
+          .map((event) => event.peer);
+  void _relationshipChanged([String? peer]) =>
+      _relationshipChanges.add((account: account, peer: peer));
+
   static final _remarkChanges =
       StreamController<({String account, String peer})>.broadcast();
   static Stream<String> remarkChanges(String account) => _remarkChanges.stream
@@ -182,8 +191,18 @@ class MessagingRepository {
   }) =>
       call(group ? 'K260913000640' : 'K260913000638', {'messageId': messageId});
 
-  Future<Map<String, dynamic>> setRelationship(String peer, String action) =>
-      call('K260913000602', {'peer': peer, 'action': action});
+  Future<Map<String, dynamic>> setRelationship(
+    String peer,
+    String action,
+  ) async {
+    final result = await call('K260913000602', {
+      'peer': peer,
+      'action': action,
+    });
+    _relationshipChanged(peer);
+    return result;
+  }
+
   Future<Map<String, dynamic>> permission(String peer) =>
       call('K260913000603', {'peer': peer});
   Future<Map<String, dynamic>> history(
@@ -415,15 +434,28 @@ class MessagingRepository {
     required String code,
     required String requestId,
     String note = '',
-  }) => call('K260913000609', {
-    'code': code,
-    'requestId': requestId,
-    'note': note,
-  });
+  }) async {
+    final result = await call('K260913000609', {
+      'code': code,
+      'requestId': requestId,
+      'note': note,
+    });
+    _relationshipChanged();
+    return result;
+  }
+
   Future<Map<String, dynamic>> resolveRequest(
     String requestId, {
     required bool accept,
-  }) => call('K260913000610', {'requestId': requestId, 'accept': accept});
+  }) async {
+    final result = await call('K260913000610', {
+      'requestId': requestId,
+      'accept': accept,
+    });
+    _relationshipChanged();
+    return result;
+  }
+
   Future<Map<String, dynamic>> requests({int offset = 0, int limit = 50}) =>
       call('K260913000611', {'offset': offset, 'limit': limit});
 }

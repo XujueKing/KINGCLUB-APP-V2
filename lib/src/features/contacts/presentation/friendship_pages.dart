@@ -57,18 +57,51 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
   MessagingRepository? _repository;
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
+  StreamSubscription<String?>? _relationshipEvents;
+  MessagingRepository? _relationshipRepository;
   bool _sessionInvalid = false;
   BuildContext? _requestSheetContext;
   int _generation = 0;
   final _resolving = <String>{};
 
-  Future<void> _loadReal() async {
+  Future<void>? _loadTask;
+  bool _reloadAgain = false;
+  Future<void> _loadReal() {
+    if (_sessionInvalid || !mounted) return Future.value();
+    if (_loadTask != null) {
+      _reloadAgain = true;
+      return _loadTask!;
+    }
+    return _loadTask = _drainLoads();
+  }
+
+  Future<void> _drainLoads() async {
+    try {
+      do {
+        _reloadAgain = false;
+        await _readReal();
+      } while (mounted && !_sessionInvalid && _reloadAgain);
+    } finally {
+      _loadTask = null;
+    }
+  }
+
+  Future<void> _readReal() async {
     if (_sessionInvalid || !mounted) return;
     final generation = ++_generation;
     try {
       final repository =
           _repository ?? widget.repository ?? await MessagingRepository.open();
       if (!mounted || _sessionInvalid || generation != _generation) return;
+      if (!identical(_relationshipRepository, repository)) {
+        _relationshipEvents?.cancel();
+        _relationshipRepository = repository;
+        _relationshipEvents =
+            MessagingRepository.relationshipChanges(repository.account)
+                .listen((_) {
+                  if (mounted && !_sessionInvalid) unawaited(_loadReal());
+                });
+      }
       final requests = <_FriendRequest>[];
       var offset = 0;
       while (true) {
@@ -144,6 +177,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
     _generation++;
     _session?.cancel();
     _events?.cancel();
+    _relationshipEvents?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -163,6 +197,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
       _scenario = FriendRequestsScenario.ready;
       _session = SecureSessionStore.changes.stream.listen((_) {
         _sessionInvalid = true;
+        _relationshipEvents?.cancel();
         _generation++;
         final sheet = _requestSheetContext;
         if (sheet != null &&
@@ -184,7 +219,6 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
         if (event['eventType'] == 'chat.relationship.changed' &&
             mounted &&
             !_sessionInvalid) {
-          setState(() => _requests.clear());
           unawaited(_loadReal());
         }
         if (event['eventType'] == 'chat.friend-request.changed' ||

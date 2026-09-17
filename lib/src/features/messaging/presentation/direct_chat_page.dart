@@ -208,6 +208,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   String? _peerNickname;
   StreamSubscription<String>? _remarkEvents;
+  StreamSubscription<String?>? _relationshipEvents;
 
   String get _displayPeerName {
     if (widget.groupId != null) {
@@ -650,6 +651,20 @@ class _DirectChatPageState extends State<DirectChatPage>
             );
       _chat = chat;
       _remarkEvents?.cancel();
+      _relationshipEvents?.cancel();
+      _relationshipEvents =
+          MessagingRepository.relationshipChanges(repository.account)
+              .listen((peer) {
+                if (!mounted ||
+                    !identical(chat, _chat) ||
+                    widget.groupId != null ||
+                    (peer != null && peer != widget.peerAccount)) {
+                  return;
+                }
+                setState(_avatarProfiles.clear);
+                unawaited(_refreshPeerNickname(chat));
+                unawaited(chat.synchronize());
+              });
       _remarkEvents = MessagingRepository.remarkChanges(repository.account)
           .listen((peer) {
             if (mounted &&
@@ -711,6 +726,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   Future<void> _rebindChatSession() async {
     _remarkEvents?.cancel();
+    _relationshipEvents?.cancel();
     _textDraftTimer?.cancel();
     _textDrafts = null;
     final generation = ++_connectionGeneration;
@@ -1054,6 +1070,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   void dispose() {
     _stopDraftDeletion?.call();
     _remarkEvents?.cancel();
+    _relationshipEvents?.cancel();
     unawaited(_flushTextDraft());
     _controller.removeListener(_captureTextDraft);
     _leaving = true;

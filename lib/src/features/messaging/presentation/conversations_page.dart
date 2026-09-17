@@ -101,6 +101,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   StreamSubscription<ConversationHistoryRemoval>? _clearEvents;
   ChatHistoryStore? _observedHistory;
   StreamSubscription<String>? _remarkEvents;
+  StreamSubscription<String?>? _relationshipEvents;
   int _localRead = 0;
   bool get _useRelayUnread =>
       widget.openRelayHistory != null ||
@@ -159,6 +160,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     _readEvents?.cancel();
     _clearEvents?.cancel();
     _remarkEvents?.cancel();
+    _relationshipEvents?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -193,11 +195,19 @@ class _ConversationsPageState extends State<ConversationsPage>
     _clearEvents?.cancel();
     _observedHistory = null;
     _remarkEvents?.cancel();
+    _relationshipEvents?.cancel();
     try {
       final repository = widget.repository ?? await MessagingRepository.open();
       if (!mounted || generation != _realGeneration) return;
       _avatarProfiles.clear();
       _repository = repository;
+      _relationshipEvents =
+          MessagingRepository.relationshipChanges(repository.account)
+              .listen((_) {
+                if (!mounted || !identical(repository, _repository)) return;
+                _avatarProfiles.clear();
+                _refreshReal();
+              });
       _remarkEvents = MessagingRepository.remarkChanges(repository.account)
           .listen((_) {
             if (mounted && identical(repository, _repository)) _refreshReal();
@@ -241,6 +251,7 @@ class _ConversationsPageState extends State<ConversationsPage>
         _clearEvents?.cancel();
         _observedHistory = null;
         _remarkEvents?.cancel();
+        _relationshipEvents?.cancel();
         if (mounted) {
           setState(() {
             _realItems.clear();

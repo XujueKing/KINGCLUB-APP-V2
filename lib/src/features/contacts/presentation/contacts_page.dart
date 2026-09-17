@@ -94,6 +94,7 @@ class _ContactsPageState extends State<ContactsPage>
   StreamSubscription<void>? _sessions;
   StreamSubscription<Map<String, dynamic>>? _events;
   StreamSubscription<String>? _remarkEvents;
+  StreamSubscription<String?>? _relationshipEvents;
   int _connectionGeneration = 0;
 
   Future<void> _connectReal() async {
@@ -101,6 +102,7 @@ class _ContactsPageState extends State<ContactsPage>
       _connectionGeneration++;
       _events?.cancel();
       _remarkEvents?.cancel();
+      _relationshipEvents?.cancel();
       _real?.dispose();
       _real = null;
       widget.onPendingRequestsChanged?.call(0);
@@ -119,6 +121,7 @@ class _ContactsPageState extends State<ContactsPage>
     final generation = ++_connectionGeneration;
     _events?.cancel();
     _remarkEvents?.cancel();
+    _relationshipEvents?.cancel();
     _real?.dispose();
     _real = null;
     try {
@@ -127,6 +130,14 @@ class _ContactsPageState extends State<ContactsPage>
       _avatarProfiles.clear();
       final controller = ContactsController(repository);
       _real = controller;
+      _relationshipEvents =
+          MessagingRepository.relationshipChanges(repository.account)
+              .listen((_) {
+                if (!mounted || !identical(controller, _real)) return;
+                _avatarProfiles.clear();
+                unawaited(controller.refreshRequests());
+                unawaited(controller.refresh(afterCurrent: true));
+              });
       _remarkEvents = MessagingRepository.remarkChanges(repository.account)
           .listen((_) {
             if (mounted && identical(controller, _real)) {
@@ -366,6 +377,7 @@ class _ContactsPageState extends State<ContactsPage>
   @override
   void dispose() {
     _remarkEvents?.cancel();
+    _relationshipEvents?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _connectionGeneration++;
     _sessions?.cancel();
