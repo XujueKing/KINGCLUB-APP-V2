@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
 import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
@@ -43,6 +44,56 @@ class PendingDownload extends ChatFileDownloader {
 }
 
 void main() {
+  for (final stage in ['opening', 'reading', 'complete']) {
+    testWidgets('session change clears file details during $stage', (
+      tester,
+    ) async {
+      final repo = MessagingRepository(
+        account: 'synthetic',
+        call: (_, _) async => {},
+      );
+      final download = PendingDownload(repo);
+      final opening = Completer<ChatFileDownloader>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatFileDetailsPage(
+            repository: repo,
+            openDownloader: (_) =>
+                stage == 'opening' ? opening.future : Future.value(download),
+            reference: const ChatFileReference(
+              messageId: 'id',
+              assetId: 'asset',
+              fileName: 'private.txt',
+              size: 2,
+              sha256: 'test',
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('读取文件'));
+      await tester.pump();
+      if (stage == 'complete') {
+        download.pending!.complete(File('synthetic-file'));
+        await tester.pump();
+      }
+      SecureSessionStore.changes.add(null);
+      await tester.pump();
+      await tester.pump();
+      if (stage == 'opening') {
+        opening.complete(download);
+        await tester.pump();
+        expect(download.downloads, 0);
+        expect(download.released, true);
+      }
+      expect(find.text('private.txt'), findsNothing);
+      expect(find.text('登录状态已变化，请重新进入会话'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(find.text('下载完成，文件校验通过'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      expect(tester.takeException(), isNull);
+    });
+  }
   for (final completed in [false, true]) {
     for (final local in [false, true]) {
       testWidgets(
@@ -89,6 +140,7 @@ void main() {
           await const ChatMediaDeletion('synthetic', false, 'id').dispatch();
           await tester.pump();
           expect(find.text('内容已移除'), findsOneWidget);
+          expect(find.text('test.txt'), findsNothing);
           expect(find.text('下载完成，文件校验通过'), findsNothing);
           expect(find.text('已从本地读取，文件校验通过'), findsNothing);
           expect(find.byType(FilledButton), findsNothing);
