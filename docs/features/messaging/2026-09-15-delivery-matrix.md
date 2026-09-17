@@ -2,13 +2,15 @@
 
 ## 当前验收汇总
 
-Latest source regression (8e2e9cf plus batched tombstone lookup): **956 passed, 0 failed, 10 skipped**, 170 selected chat test files. Local-first search/context, group access cleanup, media receipt validation and restart-safe terminal visibility are included. [Batch evidence and limits](../../audits/2026-09-17-chat-history-batch-regression.md). No phone installation; the d44afcb APK below predates these changes.
+Latest Android artifact: **758ab7d ARM64 Profile preview**, built successfully in 87.3s, native packaging check passed. Includes the 956-pass source batch below. [Hash, path and runtime limits](../../audits/2026-09-17-chat-history-batch-build.md). Not installed; supersedes the d44afcb APK at the shared build path.
+
+Latest source regression (8e2e9cf plus batched tombstone lookup): **956 passed, 0 failed, 10 skipped**, 170 selected chat test files. Local-first search/context, group access cleanup, media receipt validation and restart-safe terminal visibility are included. [Batch evidence and limits](../../audits/2026-09-17-chat-history-batch-regression.md). No phone installation; the 758ab7d build above includes these changes.
 
 Local-search scale evidence: real encrypted SQLite with 10000 records found oldest sparse matches in 722 ms on this desktop; a concurrent new-message commit finished in 19 ms before search completed. Three 30-result pages and early exit on recent dense matches were verified. [Scope and limitations](../../audits/2026-09-17-local-search-scale.md). Android frame timing, cold-cache and large-history device latency remain unverified.
 
 Real HTTP/native follow-up: gated member authorization + WSS text/file integration passed; directory/rendezvous handshake passed after using an independent fixture (initial shared-device fixture conflict is recorded). Real 4097-byte relay and HTTP-fallback file contents matched; synthetic sessions were revoked and temporary processes stopped. [Evidence and limits](../../audits/2026-09-17-real-member-native-http.md). Not mobile/public-network acceptance.
 
-Latest Android build: clean d44afcb ARM64 Profile preview succeeded (Gradle 96.2s), includes all preceding consolidated chat changes; native packaging verified. Not installed. Service-backed runtime only; no LAN/relay flags supplied. [Artifact hash and scope](../../audits/2026-09-17-chat-consolidated-build.md). The older APK at the same path has been replaced by this build.
+Previous Android build: clean d44afcb ARM64 Profile preview succeeded (Gradle 96.2s), includes all preceding consolidated chat changes; native packaging verified. Not installed. Service-backed runtime only; no LAN/relay flags supplied. [Artifact hash and scope](../../audits/2026-09-17-chat-consolidated-build.md). The older APK at the same path has been replaced by this build.
 
 Latest consolidated regression at 6a137d3: **856 passed, 0 failed, 10 skipped**, 166 selected chat-related test files, elapsed 2m38s. This supersedes the earlier failing broad run for this selection; skipped native/runtime cases and phone acceptance remain separate. See [batch scope and exclusions](../../audits/2026-09-17-chat-consolidated-regression.md). No APK rebuilt or installed in this batch.
 
