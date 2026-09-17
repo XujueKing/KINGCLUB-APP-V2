@@ -107,7 +107,7 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 19,
+        version: 20,
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 19) await _createContactGroupSnapshot(db);
           if (oldVersion < 16) {
@@ -174,6 +174,7 @@ class ChatHistoryStore {
               "UPDATE nearby_message SET payload=X'' WHERE hidden=1",
             );
           }
+          if (oldVersion < 20) await _sanitizeLegacyReplies(db, key, account);
         },
         onCreate: (db, _) async {
           await _createContactGroupSnapshot(db);
