@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../club/presentation/legacy_club_components.dart';
+import '../data/ordering_context.dart';
 
 enum ScanOrderingScenario {
   ready,
@@ -24,11 +25,13 @@ class FakeOrderingQuote {
     required this.itemCount,
     required this.total,
     required this.items,
+    this.orderingContext,
   });
 
   final int itemCount;
   final int total;
   final List<FakeOrderingQuoteItem> items;
+  final OrderingContext? orderingContext;
 }
 
 class FakeOrderingQuoteItem {
@@ -55,11 +58,13 @@ class ScanOrderingCartPage extends StatefulWidget {
     required this.onBack,
     this.onQuoteReady,
     this.onOpenOrders,
+    this.orderingContext,
   });
 
   final VoidCallback onBack;
   final ValueChanged<FakeOrderingQuote>? onQuoteReady;
   final VoidCallback? onOpenOrders;
+  final OrderingContext? orderingContext;
 
   @override
   State<ScanOrderingCartPage> createState() => _ScanOrderingCartPageState();
@@ -124,6 +129,30 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   String _subcategory = '畅饮套餐';
   bool _quoting = false;
   bool _cartPanelOpen = false;
+  int _scopeGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Existing no-context route remains the legacy UI demonstration.
+    if (widget.orderingContext != null) _quantities.clear();
+  }
+
+  @override
+  void didUpdateWidget(covariant ScanOrderingCartPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final previous = oldWidget.orderingContext;
+    final current = widget.orderingContext;
+    if (previous == null && current == null) return;
+    if (previous != null && current != null && previous.hasSameScope(current)) {
+      return;
+    }
+    _scopeGeneration++;
+    _quantities.clear();
+    _quoting = false;
+    _cartPanelOpen = false;
+    _scenario = ScanOrderingScenario.ready;
+  }
 
   @override
   void dispose() {
@@ -283,9 +312,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   alignment: Alignment.centerLeft,
                 ),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'KINGBAR 湖南工大店',
+                    widget.orderingContext?.storeName ?? 'KINGBAR 湖南工大店',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -297,19 +326,33 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                SvgPicture.asset(
-                  'assets/legacy/ordering/table_888.svg',
-                  key: ValueKey('ordering-table-888'),
-                  width: 78,
-                  height: 34,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.centerRight,
-                ),
+                if (widget.orderingContext == null)
+                  SvgPicture.asset(
+                    'assets/legacy/ordering/table_888.svg',
+                    key: ValueKey('ordering-table-888'),
+                    width: 78,
+                    height: 34,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.centerRight,
+                  )
+                else
+                  Flexible(
+                    child: Text(
+                      widget.orderingContext!.tableName,
+                      key: const ValueKey('ordering-table-name'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFF1EEEA),
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 6),
-            const Text(
-              '株洲市天元区金华路瀚水栗源1栋102',
+            Text(
+              widget.orderingContext?.storeAddress ?? '株洲市天元区金华路瀚水栗源1栋102',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -805,10 +848,12 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
 
   Future<void> _requestFakeQuote() async {
     setState(() => _quoting = true);
+    final generation = _scopeGeneration;
     await Future<void>.delayed(const Duration(milliseconds: 450));
-    if (!mounted) return;
+    if (!mounted || generation != _scopeGeneration) return;
     setState(() => _quoting = false);
     final quote = FakeOrderingQuote(
+      orderingContext: widget.orderingContext,
       itemCount: _itemCount,
       total: _total,
       items: _products

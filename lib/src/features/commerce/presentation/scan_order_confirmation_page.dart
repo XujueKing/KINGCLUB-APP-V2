@@ -198,8 +198,11 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
       key: const ValueKey('order-info-card'),
       child: Column(
         children: [
-          _infoRow('订单日期：', '2026/8/29'),
-          _infoRow('桌号：', '888'),
+          _infoRow(
+            '订单日期：',
+            _quote.orderingContext?.businessDate ?? '2026/8/29',
+          ),
+          _infoRow('桌号：', _quote.orderingContext?.tableName ?? '888'),
           _infoRow(
             '报价剩余：',
             _formatDuration(_secondsRemaining),
@@ -219,10 +222,10 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
       key: const ValueKey('order-items-card'),
       child: Column(
         children: [
-          const Align(
+          Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'KINGBAR 湖南工大店',
+              _quote.orderingContext?.storeName ?? 'KINGBAR 湖南工大店',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
             ),
           ),

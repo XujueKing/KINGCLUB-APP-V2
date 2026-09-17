@@ -1,5 +1,9 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-18 开始扫码点单增量实现
+
+用户最新要求边做功能边完善，先对照旧小程序与新版已有 UI 做扫码点单。允许本独立 worktree 内推进此功能代码与测试，覆盖此前本轮仅文档的限制；优先复用已有页面。真实支付/数据库执行/第三方核销未在本次操作授权，聊天主目录和测试手机仍不动。记录见 feature_scan_ordering/2026-09-18-incremental-implementation.md。
+
 ## 2026-09-18 已有新服务优先复用
 
 用户要求核对旧表与已经在新服务完成的功能。已有 kingclubProfileAssets 包含现金/金币/钻石且代码实际读取，031–034 有历史部署记录；不得再以 wallet 名称搜索未命中认定没有资产表。复用身份、储物、审计、回调、接口目录等，35 张 SQL 只是候选，实际运行库结构待核验。正式后端表需遵守其 camelCase/rowId/双语注释/目录登记规范，当前 snake_case 草案不可直接部署。详见 commerce 评审包 database/REUSE_REVIEW.md。
