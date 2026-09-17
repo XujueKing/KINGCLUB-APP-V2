@@ -47,7 +47,7 @@ void main() {
             expect(params['group'], true);
             return {
               ...manifest(),
-              if (groupId != null) 'groupId': groupId,
+              'groupId': ?groupId,
               'senderMembershipVersion': 1,
               'recipientMembershipVersion': 2,
             };
