@@ -154,6 +154,9 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
     final repository = widget.repository;
     final id = message['messageId'];
     final group = widget.groupId != null;
+    final sentClient = message['sender'] == widget.account
+        ? message['clientMessageId'] as String?
+        : null;
     if (repository != null && id is String && id.isNotEmpty) {
       switch (message['messageType']) {
         case 'image':
@@ -162,6 +165,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
             onTap: () => _open(
               _preview(
                 ChatImageView(
+                  sentClientMessageId: sentClient,
                   repository: repository,
                   scopeId:
                       widget.groupId ?? message['conversationId'] as String?,
@@ -173,6 +177,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
               ),
             ),
             child: ChatImageView(
+              sentClientMessageId: sentClient,
               repository: repository,
               scopeId: widget.groupId ?? message['conversationId'] as String?,
               messageId: id,
@@ -181,6 +186,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
           );
         case 'video':
           return ChatVideoView(
+            sentClientMessageId: sentClient,
             key: ValueKey('context-video-$id'),
             scopeId: widget.groupId ?? message['conversationId'] as String?,
             repository: repository,
@@ -192,6 +198,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
             onTap: () => _open(
               _preview(
                 ChatVideoView(
+                  sentClientMessageId: sentClient,
                   repository: repository,
                   scopeId:
                       widget.groupId ?? message['conversationId'] as String?,

@@ -4,8 +4,78 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_history_context_page.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_file_details_page.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_location_message.dart';
+import 'package:kingclub/src/features/messaging/presentation/chat_image_view.dart';
+import 'package:kingclub/src/features/messaging/presentation/chat_video_view.dart';
 
 void main() {
+  for (final type in ['image', 'video']) {
+    for (final mine in [false, true]) {
+      testWidgets('context $type keeps sender cache identity mine=$mine', (
+        tester,
+      ) async {
+        final repository = MessagingRepository(
+          account: 'me',
+          call: (_, _) async => throw StateError('offline'),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ChatHistoryContextPage(
+              account: 'me',
+              messageId: 'media',
+              sequence: 1,
+              repository: repository,
+              events: const Stream.empty(),
+              read: ({before, after, required limit}) async => {
+                'messages': before == null
+                    ? []
+                    : [
+                        {
+                          'messageId': 'media',
+                          'sequence': 1,
+                          'sender': mine ? 'me' : 'friend',
+                          'clientMessageId': 'client',
+                          'messageType': type,
+                          'text': '[media]',
+                        },
+                      ],
+                'settings': {'hiddenThrough': 0},
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        if (type == 'image') {
+          expect(
+            tester
+                .widget<ChatImageView>(find.byType(ChatImageView))
+                .sentClientMessageId,
+            mine ? 'client' : null,
+          );
+          await tester.tap(find.byKey(const ValueKey('context-image-media')));
+        } else {
+          final video = tester.widget<ChatVideoView>(
+            find.byType(ChatVideoView),
+          );
+          expect(video.sentClientMessageId, mine ? 'client' : null);
+          video.onTap!();
+        }
+        // Only finish navigation: this wiring test supplies no video decoder
+        // or local file, so a loading spinner need not become idle.
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        if (type == 'image') {
+          final full = tester.widget<ChatImageView>(find.byType(ChatImageView));
+          expect(full.full, true);
+          expect(full.sentClientMessageId, mine ? 'client' : null);
+        } else {
+          final full = tester.widget<ChatVideoView>(find.byType(ChatVideoView));
+          expect(full.full, true);
+          expect(full.sentClientMessageId, mine ? 'client' : null);
+        }
+        await tester.pumpWidget(const SizedBox());
+      });
+    }
+  }
   testWidgets(
     'history renders actionable media and keeps group file authorization scope',
     (tester) async {
