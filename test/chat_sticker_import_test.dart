@@ -88,7 +88,17 @@ void main() {
           await tester.tap(find.byKey(const ValueKey('add-single-sticker')));
         }
         await settle();
-        await settle();
+        if (scenario.allowed) {
+          // Real filesystem writes can outlast a fixed 200 ms under parallel
+          // builds. Wait for the durable commit, retaining a bounded failure.
+          final deadline = DateTime.now().add(const Duration(seconds: 10));
+          while (await journal.readAsString() == before &&
+              DateTime.now().isBefore(deadline)) {
+            await settle();
+          }
+        } else {
+          await settle();
+        }
         expect(selected.writes, scenario.allowed ? 1 : 0);
         if (scenario.allowed) {
           final next = jsonDecode(await journal.readAsString()) as List;
