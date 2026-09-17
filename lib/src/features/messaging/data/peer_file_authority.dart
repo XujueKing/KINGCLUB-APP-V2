@@ -11,8 +11,13 @@ class PeerFileAuthority {
     this.size,
     this.sha256,
     this.expiresAt,
+    this.groupId,
+    this.senderMembershipVersion,
+    this.recipientMembershipVersion,
   );
   final String messageId, sender, recipient, assetId, fileName, sha256;
+  final String? groupId;
+  final int? senderMembershipVersion, recipientMembershipVersion;
   final int size;
   final DateTime expiresAt;
   static final _uuid = RegExp(
@@ -24,13 +29,31 @@ class PeerFileAuthority {
     String peer,
     String messageId, {
     required bool sending,
+    String? groupId,
   }) async {
-    final data = await repository.peerFileAuthority(messageId, peer);
+    if (groupId != null && !_uuid.hasMatch(groupId)) {
+      throw const FormatException('Invalid peer file group');
+    }
+    final data = await repository.peerFileAuthority(
+      messageId,
+      peer,
+      group: groupId != null,
+    );
+    final senderVersion = data['senderMembershipVersion'];
+    final recipientVersion = data['recipientMembershipVersion'];
+    final validScope = groupId == null
+        ? !data.containsKey('groupId') &&
+              !data.containsKey('senderMembershipVersion') &&
+              !data.containsKey('recipientMembershipVersion')
+        : data['groupId'] == groupId &&
+              _validMembershipVersion(senderVersion) &&
+              _validMembershipVersion(recipientVersion);
     final expiry = DateTime.tryParse(
       data['expiresAt'] is String ? data['expiresAt'] : '',
     );
     final now = DateTime.now().toUtc();
-    if (!_uuid.hasMatch(messageId) ||
+    if (!validScope ||
+        !_uuid.hasMatch(messageId) ||
         data['messageId'] != messageId ||
         data['sender'] != (sending ? repository.account : peer) ||
         data['recipient'] != (sending ? peer : repository.account) ||
@@ -59,10 +82,19 @@ class PeerFileAuthority {
       data['size'],
       data['sha256'],
       expiry,
+      groupId,
+      senderVersion as int?,
+      recipientVersion as int?,
     );
   }
 
+  static bool _validMembershipVersion(Object? value) =>
+      value is int && value >= 0 && value <= 4294967295;
+
   bool sameFile(PeerFileAuthority other) =>
+      groupId == other.groupId &&
+      senderMembershipVersion == other.senderMembershipVersion &&
+      recipientMembershipVersion == other.recipientMembershipVersion &&
       messageId == other.messageId &&
       sender == other.sender &&
       recipient == other.recipient &&

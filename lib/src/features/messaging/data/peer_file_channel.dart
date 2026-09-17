@@ -18,6 +18,7 @@ class PeerFileChannel {
     required this.link,
     required this.repository,
     required this.peer,
+    this.groupId,
     required this.cache,
     required this.privateDirectory,
     required this.canExchange,
@@ -33,8 +34,9 @@ class PeerFileChannel {
         try {
           final packet = jsonDecode(utf8.decode(frame.payload));
           if (packet is! Map ||
-              packet.length != 3 ||
-              packet['v'] != 1 ||
+              packet.length != (groupId == null ? 3 : 4) ||
+              packet['v'] != (groupId == null ? 1 : 2) ||
+              (groupId != null && packet['groupId'] != groupId) ||
               packet['messageId'] is! String ||
               frame.objectId == BigInt.zero) {
             return;
@@ -88,6 +90,7 @@ class PeerFileChannel {
   final NovoRudpFrameLink link;
   final MessagingRepository repository;
   final String peer;
+  final String? groupId;
   final ChatSentFileCache cache;
   final Directory privateDirectory;
   final bool Function() canExchange;
@@ -124,7 +127,12 @@ class PeerFileChannel {
             sequence: BigInt.zero,
             ackEpoch: BigInt.zero,
             payload: utf8.encode(
-              jsonEncode({'v': 1, 'op': op, 'messageId': messageId}),
+              jsonEncode({
+                'v': groupId == null ? 1 : 2,
+                'op': op,
+                'messageId': messageId,
+                if (groupId != null) 'groupId': groupId,
+              }),
             ),
           ),
         )
@@ -141,6 +149,7 @@ class PeerFileChannel {
       peer,
       messageId,
       sending: sending,
+      groupId: groupId,
     );
     _check();
     return value;
@@ -190,7 +199,10 @@ class PeerFileChannel {
           _ready = true;
           await _control('ready', messageId, object);
           await sender.run();
-          await authorize(messageId, sending: true);
+          final completed = await authorize(messageId, sending: true);
+          if (!authority.sameFile(completed)) {
+            throw StateError('Peer file changed');
+          }
           return true;
         },
       );

@@ -143,10 +143,19 @@ void main() {
       },
     );
 
-    for (final scenario in ['success', 'missing', 'wrong-member']) {
+    for (final scenario in [
+      'success',
+      'missing',
+      'wrong-member',
+      'group-success',
+      'group-rejoined',
+    ]) {
       test('peer file negotiation over encrypted UDP: $scenario', () async {
         const messageId = '00000000-0000-4000-8000-000000000001';
         const assetId = '00000000-0000-4000-8000-000000000002';
+        final groupId = scenario.startsWith('group-')
+            ? '00000000-0000-4000-8000-000000000003'
+            : null;
         final bytes = List.generate(70000, (i) => i % 251);
         final input = await source(bytes);
         final cache = ChatSentFileCache(
@@ -171,6 +180,7 @@ void main() {
           call: (id, params) async {
             expect(id, 'K260916000686');
             expect(params['messageId'], messageId);
+            expect(params['group'], groupId == null ? null : true);
             expect(params['peer'], account == 'a' ? 'b' : 'a');
             if (account == 'a') {
               senderChecks++;
@@ -183,6 +193,12 @@ void main() {
                   ? 'outsider'
                   : 'a',
               'recipient': 'b',
+              if (groupId != null) ...{
+                'groupId': groupId,
+                'senderMembershipVersion': 1,
+                'recipientMembershipVersion':
+                    scenario == 'group-rejoined' && receiverChecks > 1 ? 2 : 1,
+              },
               'assetId': assetId,
               'fileName': 'fixture.bin',
               'size': bytes.length,
@@ -198,6 +214,7 @@ void main() {
           link: left,
           repository: repository('a'),
           peer: 'b',
+          groupId: groupId,
           cache: cache,
           privateDirectory: directory,
           canExchange: () => true,
@@ -206,6 +223,7 @@ void main() {
           link: right,
           repository: repository('b'),
           peer: 'a',
+          groupId: groupId,
           cache: cache,
           privateDirectory: directory,
           canExchange: () => true,
@@ -213,7 +231,7 @@ void main() {
         addTearDown(sending.close);
         addTearDown(receiving.close);
         final authority = await receiving.authorize(messageId, sending: false);
-        if (scenario == 'success') {
+        if (scenario == 'success' || scenario == 'group-success') {
           final transfer = await receiving.receive(authority, () => true);
           try {
             expect(await (await transfer.completed).readAsBytes(), bytes);
@@ -226,7 +244,7 @@ void main() {
             receiving.receive(authority, () => true),
             throwsStateError,
           );
-          expect(senderChecks, 1);
+          expect(senderChecks, scenario == 'group-rejoined' ? 0 : 1);
         }
         expect(receiverChecks, 2);
         await sending.close();
