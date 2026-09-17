@@ -1,0 +1,7 @@
+# Pending outbox conversation previews
+
+Device evidence: after offline group enqueue and process restart, the group restored the queued message while the conversation list still showed its previous voice preview. Extend the display-only pending projection to existing rows, preserve names/settings/unread counts and actions, select only pending content newer than the confirmed preview, and distinguish failed delivery. Refresh local pending data before waiting for the network. Do not persist synthetic previews as server snapshots or change pagination.
+
+Implemented the pending overlay for existing direct/group rows, newest-date selection, failed/queued labels, chronological projection and local-first queue change processing. Existing server row identity and settings remain intact; no pending-only action restrictions are applied to existing rows. Removing the queue entry restores the authoritative preview.
+
+Validation: 15 tests passed across projection, draft/pending widgets, refresh ordering, pagination, group routing and mute behavior. Widget regression holds the server refresh unresolved and observes the local preview update; recreation restores it and removing the queue entry restores the original preview. Four changed Dart files pass analysis after removing an unnecessary test non-null assertion. Logs: build/pending-list-preview-tests.log and build/pending-list-preview-analyze.log. Not packaged or installed; A remains on ba6ee30.

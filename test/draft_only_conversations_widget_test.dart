@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -11,7 +13,11 @@ void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   ChatTextDraftStore store(String account, String target) =>
       ChatTextDraftStore(account, target, () async {});
-  Widget page({bool serverRow = false, ChatOutbox? outbox}) => MaterialApp(
+  Widget page({
+    bool serverRow = false,
+    ChatOutbox? outbox,
+    Future<void> Function()? beforeList,
+  }) => MaterialApp(
     home: Scaffold(
       body: ConversationsPage(
         pendingOutbox: outbox,
@@ -19,21 +25,24 @@ void main() {
         realData: true,
         repository: MessagingRepository(
           account: 'me',
-          call: (method, _) async => method == 'K260913000607'
-              ? {
-                  'items': [
-                    if (serverRow)
-                      {
-                        'kind': 'direct',
-                        'peer': 'peer',
-                        'nickname': 'Friend',
-                        'preview': 'sent',
-                        'unreadCount': 0,
-                      },
-                  ],
-                  'hasMore': false,
-                }
-              : {},
+          call: (method, _) async {
+            if (method == 'K260913000607') await beforeList?.call();
+            return method == 'K260913000607'
+                ? {
+                    'items': [
+                      if (serverRow)
+                        {
+                          'kind': 'direct',
+                          'peer': 'peer',
+                          'nickname': 'Friend',
+                          'preview': 'sent',
+                          'unreadCount': 0,
+                        },
+                    ],
+                    'hasMore': false,
+                  }
+                : {};
+          },
         ),
         openTextDraftStore: (account, target) async => store(account, target),
         systemUnreadCount: 0,
@@ -125,4 +134,47 @@ void main() {
     expect(find.text('Group'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets(
+    'existing preview refreshes locally before blocked server refresh',
+    (tester) async {
+      final queue = SecureChatOutbox('me');
+      Completer<void>? gate;
+      await tester.pumpWidget(
+        page(
+          serverRow: true,
+          outbox: queue,
+          beforeList: () async {
+            await gate?.future;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('sent'), findsOneWidget);
+      gate = Completer<void>();
+      await queue.put({
+        'clientMessageId': 'pending',
+        'sender': 'me',
+        'recipient': 'peer',
+        'text': 'offline latest',
+        'status': 'queued',
+        'createdDate': '2026-09-18T03:00:00Z',
+      });
+      await tester.pumpAndSettle();
+      expect(find.textContaining('offline latest'), findsOneWidget);
+      expect(find.text('Friend'), findsOneWidget);
+      expect(find.text('sent'), findsNothing);
+      gate.complete();
+      gate = null;
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(page(serverRow: true, outbox: queue));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('offline latest'), findsOneWidget);
+      await queue.remove('pending');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('offline latest'), findsNothing);
+      expect(find.text('sent'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 }

@@ -348,6 +348,8 @@ class _ConversationsPageState extends State<ConversationsPage>
       if (repository.persistHistory || widget.pendingOutbox != null) {
         _pendingEvents = SecureChatOutbox.changes(repository.account)
             .listen((_) async {
+              await _refreshPending(repository);
+              if (!mounted || !identical(repository, _repository)) return;
               await _refreshReal();
               if (mounted && identical(repository, _repository)) {
                 await _refreshPending(repository);
