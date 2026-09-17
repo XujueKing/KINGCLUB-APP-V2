@@ -837,6 +837,13 @@ class GroupChatController extends ChatSessionController {
       final received = Map<String, dynamic>.from(result['message'] as Map);
       final recalled = ['recalled', 'hidden'].contains(received['messageType']);
       if (!recalled &&
+          (kind == null || kind == 'text') &&
+          ((received['messageType'] != null &&
+                  received['messageType'] != 'text') ||
+              received['text'] != pending['text'])) {
+        throw const FormatException('文字回执与发送内容不符');
+      }
+      if (!recalled &&
           pending['replyToMessageId'] != null &&
           (received['reply'] is! Map ||
               (received['reply'] as Map)['messageId'] !=
