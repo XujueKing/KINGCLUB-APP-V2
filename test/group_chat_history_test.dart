@@ -41,60 +41,82 @@ void main() {
       MessagingRepository(account: 'me', call: call),
     ),
   );
-  test('offline cached membership queues locally and sends only after revalidation', () async {
-    await store.commit(
-      'group:group',
-      [row(1)],
-      expectedEpoch: 0,
-      cursor: 1,
-      membershipVersion: 0,
+  for (final renewedVersion in [0, 1]) {
+    test(
+      'offline cached membership revalidates version $renewedVersion before sending',
+      () async {
+        await store.commit(
+          'group:group',
+          [row(1)],
+          expectedEpoch: 0,
+          cursor: 1,
+          membershipVersion: 0,
+        );
+        final queue = Queue();
+        var online = false, sends = 0;
+        final chat = GroupChatController(
+          groupId: 'group',
+          outbox: queue,
+          openHistory: () async => store,
+          repository: GroupChatRepository(
+            MessagingRepository(
+              account: 'me',
+              call: (api, params) async {
+                if (api == 'K260913000620') {
+                  sends++;
+                  return {
+                    'message': {
+                      ...message(params['clientMessageId'] as String),
+                      'sequence': 2,
+                    },
+                  };
+                }
+                if (!online) {
+                  throw const AuthFailure('NETWORK_ERROR', 'offline');
+                }
+                if (api == 'K260913000619') return {'members': []};
+                return {
+                  ...history([]),
+                  'membershipVersion': renewedVersion,
+                  'joinedSequence': 0,
+                  'settings': {'hiddenThrough': 0},
+                };
+              },
+            ),
+          ),
+        );
+        addTearDown(chat.dispose);
+        await chat.initialize();
+        expect(chat.hasAccess, false);
+        await chat.send('hello');
+        expect(queue.rows.values.single['status'], 'queued');
+        expect(queue.rows.values.single['membershipVersion'], 0);
+        expect(sends, 0);
+        await chat.retryQueued();
+        expect(sends, 0);
+        online = true;
+        await chat.refreshGroup();
+        expect(chat.hasAccess, true);
+        if (renewedVersion == 0) {
+          expect(sends, 1);
+          expect(queue.rows, isEmpty);
+          expect(
+            (await store.read('group:group')).messages.last['text'],
+            'hello',
+          );
+        } else {
+          expect(sends, 0);
+          final failed = queue.rows.values.single;
+          expect(failed['status'], 'failed');
+          expect(failed['membershipVersion'], 0);
+          expect(failed['error'], contains('群成员状态已变化'));
+          await chat.retry(failed['clientMessageId'] as String);
+          expect(sends, 0);
+          expect((await store.read('group:group')).membershipVersion, 1);
+        }
+      },
     );
-    final queue = Queue();
-    var online = false, sends = 0;
-    final chat = GroupChatController(
-      groupId: 'group',
-      outbox: queue,
-      openHistory: () async => store,
-      repository: GroupChatRepository(
-        MessagingRepository(
-          account: 'me',
-          call: (api, params) async {
-            if (api == 'K260913000620') {
-              sends++;
-              return {
-                'message': {
-                  ...message(params['clientMessageId'] as String),
-                  'sequence': 2,
-                },
-              };
-            }
-            if (!online) throw const AuthFailure('NETWORK_ERROR', 'offline');
-            if (api == 'K260913000619') return {'members': []};
-            return {
-              ...history([]),
-              'membershipVersion': 0,
-              'joinedSequence': 0,
-              'settings': {'hiddenThrough': 0},
-            };
-          },
-        ),
-      ),
-    );
-    addTearDown(chat.dispose);
-    await chat.initialize();
-    expect(chat.hasAccess, false);
-    await chat.send('hello');
-    expect(queue.rows.values.single['status'], 'queued');
-    expect(queue.rows.values.single['membershipVersion'], 0);
-    expect(sends, 0);
-    await chat.retryQueued();
-    expect(sends, 0);
-    online = true;
-    await chat.refreshGroup();
-    expect(sends, 1);
-    expect(queue.rows, isEmpty);
-    expect((await store.read('group:group')).messages.last['text'], 'hello');
-  });
+  }
   test(
     'old tombstones outside loaded pages survive stale server pagination',
     () async {
