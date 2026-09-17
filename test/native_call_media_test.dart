@@ -171,6 +171,34 @@ class RestartPeer extends Peer {
 }
 
 void main() {
+  for (final missing in ['audio', 'video']) {
+    test(
+      'missing $missing capture fails before peer setup and releases other tracks',
+      () async {
+        final stream = PartialCapture(missing != 'audio', missing != 'video');
+        var peers = 0;
+        final media = NativeCallMedia(
+          video: true,
+          iceServers: [],
+          capture: (_) async => stream,
+          peerFactory: (_) async {
+            peers++;
+            return Peer();
+          },
+        );
+        await expectLater(media.open(), throwsStateError);
+        expect(peers, 0);
+        expect(stream.disposed, 1);
+        expect(
+          missing == 'audio' ? stream.camera.stops : stream.track.stops,
+          1,
+        );
+        await media.close();
+        expect(stream.disposed, 1);
+      },
+    );
+  }
+
   test(
     'hangup cancels pending foreground startup before waiting for open',
     () async {
@@ -695,4 +723,18 @@ void main() {
       await expectLater(media.open(), throwsStateError);
     },
   );
+}
+
+class PartialCapture extends VideoStreamFixture {
+  PartialCapture(this.hasAudio, this.hasVideo);
+  final bool hasAudio, hasVideo;
+  @override
+  List<MediaStreamTrack> getAudioTracks() => hasAudio ? [track] : [];
+  @override
+  List<MediaStreamTrack> getVideoTracks() => hasVideo ? [camera] : [];
+  @override
+  List<MediaStreamTrack> getTracks() => [
+    ...getAudioTracks(),
+    ...getVideoTracks(),
+  ];
 }

@@ -109,6 +109,12 @@ class NativeCallMedia {
             : false,
       });
       _check();
+      if (_local!.getAudioTracks().isEmpty) {
+        throw StateError('Microphone track missing');
+      }
+      if (video && _local!.getVideoTracks().isEmpty) {
+        throw StateError('Camera track missing');
+      }
       await _foregroundLease.start(video: video);
       _check();
       _peer = await _peerFactory({

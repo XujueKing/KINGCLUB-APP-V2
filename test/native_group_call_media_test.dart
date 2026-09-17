@@ -273,6 +273,36 @@ class Repo extends GroupCallMediaRepository {
 }
 
 void main() {
+  for (final missing in ['audio', 'video']) {
+    test(
+      'group missing $missing releases capture and transports without publishing',
+      () async {
+        final stream = PartialGroupCapture(
+          missing != 'audio',
+          missing != 'video',
+        );
+        final device = DeviceFixture();
+        final media = NativeGroupCallMedia(
+          repository: Repo(video: true),
+          device: device,
+          capture: (_) async => stream,
+        );
+        await expectLater(media.open(), throwsStateError);
+        expect(media.isClosed, true);
+        expect(stream.disposed, 1);
+        expect(device.send.producer, isNull);
+        expect(device.send.closes, 1);
+        expect(device.receive.closes, 1);
+        expect(
+          missing == 'audio' ? stream.camera.stops : stream.track.stops,
+          1,
+        );
+        await media.close();
+        expect(stream.disposed, 1);
+      },
+    );
+  }
+
   test(
     'leaving during foreground startup cancels capture and SFU transports',
     () async {
@@ -766,4 +796,18 @@ class VideoStream extends StreamFixture {
   List<rtc.MediaStreamTrack> getTracks() => [track, camera];
   @override
   List<rtc.MediaStreamTrack> getVideoTracks() => [camera];
+}
+
+class PartialGroupCapture extends VideoStream {
+  PartialGroupCapture(this.hasAudio, this.hasVideo);
+  final bool hasAudio, hasVideo;
+  @override
+  List<rtc.MediaStreamTrack> getAudioTracks() => hasAudio ? [track] : [];
+  @override
+  List<rtc.MediaStreamTrack> getVideoTracks() => hasVideo ? [camera] : [];
+  @override
+  List<rtc.MediaStreamTrack> getTracks() => [
+    ...getAudioTracks(),
+    ...getVideoTracks(),
+  ];
 }

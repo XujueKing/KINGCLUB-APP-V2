@@ -162,6 +162,10 @@ class NativeGroupCallMedia {
       if (stream.getAudioTracks().isEmpty) {
         throw StateError('Microphone track missing');
       }
+      if (repository.call.media == CallMedia.video &&
+          stream.getVideoTracks().isEmpty) {
+        throw StateError('Camera track missing');
+      }
       await _foregroundLease.start(
         video: repository.call.media == CallMedia.video,
       );
