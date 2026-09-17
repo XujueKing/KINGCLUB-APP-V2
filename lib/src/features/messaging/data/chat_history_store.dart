@@ -698,7 +698,13 @@ class ChatHistoryStore {
           'member',
           id,
           conversation.substring('direct:'.length),
-          messages,
+          [
+            for (final message in messages)
+              if ((message['sequence'] as int) <= floor)
+                {...message, 'messageType': 'hidden', 'text': ''}
+              else
+                message,
+          ],
         );
       }
       return true;

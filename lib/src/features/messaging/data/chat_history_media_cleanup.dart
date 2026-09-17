@@ -107,6 +107,16 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
       }
     }
     await _redactDraft(conversation, removedIds, hiddenThrough: floor);
+    if (conversation.startsWith('direct:')) {
+      // A clear boundary may arrive without individual message tombstones.
+      // Erase the reconciled journal copies before their history IDs are lost.
+      for (final messageId in removedIds) {
+        await tx.rawUpdate(
+          "UPDATE nearby_message SET hidden=1, payload=X'' WHERE member=? AND serverId=?",
+          [id, messageId],
+        );
+      }
+    }
     if (removed.isEmpty) return removedContent;
     for (final message in incoming) {
       if ((message['sequence'] as int) > floor &&

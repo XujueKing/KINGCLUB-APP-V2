@@ -5,3 +5,9 @@
 验证：`nearby_targeted_deletion_test.dart` 使用真实临时 SQLite，覆盖两设备副本正文清空、重开数据库、旧设备及新设备重复投递不复活、另一会话正文保留。与 nearby_member_history、nearby_history_reconciliation、chat_history_deletion_events 合计 10 项通过；修改文件静态分析通过。
 
 安装：已将 f16bc64 合入独立测试工作树 e5d2590，Profile APK 构建成功（65.8 秒，159.4MB），覆盖安装 A 成功，启动前台稳定检查通过。实际进入 KINGCLUB-AB-0915-OK，群标题和两个 3 秒语音按钮存在。未操作 B，未删除真实聊天；本次仅安装及页面检查，不计为直连删除的双机真机验收。
+
+## 后续：远端清空边界
+
+服务端返回 hiddenThrough 而没有逐条隐藏消息时，清理普通历史的事务现在也擦除这些已知消息的直连日志正文。首次补收页面中落在清空边界内的消息，以隐藏标记参与直连对账，不再留下正文副本。尚未对账、没有服务端序号的待发送直连消息不因猜测时间范围而删除。
+
+新增两种真实 SQLite 场景：缓存已有记录后收到空页面及清空边界、首次页面与清空边界一起到达；均核对正文为空、重开及跨设备重复投递不能复活、另一会话保留。联合 history_store、nearby_member_history、nearby_history_reconciliation、history_deletion_events 共 52 项通过，三个修改文件静态分析通过。此后续补丁尚未安装到 A。
