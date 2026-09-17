@@ -12,6 +12,71 @@ import 'package:kingclub/src/features/contacts/presentation/public_member_page.d
 void main() {
   const groupId = '11111111-1111-4111-8111-111111111111';
   const applicationId = '22222222-2222-4222-8222-222222222222';
+  testWidgets('review notification burst coalesces and discards stale page', (
+    tester,
+  ) async {
+    final events = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(events.close);
+    final stale = Completer<Map<String, dynamic>>();
+    final latest = Completer<Map<String, dynamic>>();
+    var reads = 0;
+    Map<String, dynamic> page(String note) => {
+      'groupId': groupId,
+      'membershipVersion': 1,
+      'nextCursor': null,
+      'items': [
+        {
+          'applicationId': applicationId,
+          'applicant': 'peer',
+          'status': 'pending',
+          'note': note,
+        },
+      ],
+    };
+    final repo = GroupChatRepository(
+      MessagingRepository(
+        account: 'me',
+        call: (id, _) async {
+          if (id != 'K260914000659') return {'nickname': 'Peer'};
+          reads++;
+          if (reads == 1) return page('initial');
+          if (reads == 2) return stale.future;
+          return latest.future;
+        },
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GroupJoinReviewPage(
+          groupId: groupId,
+          repository: repo,
+          events: events.stream,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    events.add({
+      'eventType': 'chat.group.changed',
+      'data': {'groupId': groupId},
+    });
+    await tester.pump();
+    for (var i = 0; i < 20; i++) {
+      events.add({
+        'eventType': 'chat.group.changed',
+        'data': {'groupId': groupId},
+      });
+    }
+    await tester.pump();
+    expect(reads, 2);
+    stale.complete(page('stale private note'));
+    await tester.pump();
+    expect(reads, 3);
+    expect(find.text('stale private note'), findsNothing);
+    latest.complete(page('latest'));
+    await tester.pumpAndSettle();
+    expect(find.text('latest'), findsOneWidget);
+    expect(reads, 3);
+  });
   testWidgets('only relevant membership notifications refresh review', (
     tester,
   ) async {

@@ -33,6 +33,8 @@ class _GroupJoinReviewPageState extends State<GroupJoinReviewPage>
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
   final _profiles = <String, Future<Map<String, dynamic>>>{};
+  Future<void>? _loading;
+  bool _reloadAgain = false;
 
   @override
   void initState() {
@@ -70,10 +72,36 @@ class _GroupJoinReviewPageState extends State<GroupJoinReviewPage>
     _busy = false;
   }
 
-  Future<void> _load({bool more = false}) async {
-    if (_invalid || !_foreground || (more && (_busy || _next == null))) {
-      return;
+  Future<void> _load({bool more = false}) {
+    if (!mounted ||
+        _invalid ||
+        !_foreground ||
+        (more && (_busy || _next == null))) {
+      return Future<void>.value();
     }
+    final active = _loading;
+    if (active != null) {
+      if (!more) {
+        _reloadAgain = true;
+        setState(() {
+          _clear();
+          _busy = true;
+        });
+      }
+      return active;
+    }
+    return _loading = _drainLoads(more).whenComplete(() => _loading = null);
+  }
+
+  Future<void> _drainLoads(bool more) async {
+    do {
+      _reloadAgain = false;
+      await _readPage(more: more);
+      more = false;
+    } while (_reloadAgain && mounted && !_invalid && _foreground);
+  }
+
+  Future<void> _readPage({required bool more}) async {
     final before = more ? _next : null;
     if (!more) {
       _clear();
@@ -125,7 +153,7 @@ class _GroupJoinReviewPageState extends State<GroupJoinReviewPage>
         }
       }
       if (more && _version != version) {
-        await _load();
+        _reloadAgain = true;
         return;
       }
       setState(() {
