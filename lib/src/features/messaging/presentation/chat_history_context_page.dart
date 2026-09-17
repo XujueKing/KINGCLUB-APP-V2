@@ -93,7 +93,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
     if (mounted) setState(() {});
   }
 
-  Future<void> _playVoice(String id) async {
+  Future<void> _playVoice(Map<String, dynamic> message) async {
     final repository = widget.repository;
     if (_invalid || !_foreground || repository == null) return;
     final voice = _voice ??=
@@ -101,9 +101,11 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
           ..addListener(_voiceChanged));
     await voice.toggle(
       repository,
-      id,
+      message['messageId'] as String,
       group: widget.groupId != null,
       groupId: widget.groupId,
+      conversationId: message['conversationId'] as String?,
+      assetId: message['voiceAssetId'] as String?,
     );
     if (mounted && voice.error != null) {
       KingNotice.of(context).show(voice.error!);
@@ -244,7 +246,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
           final active = _voice?.activeId == id;
           return TextButton.icon(
             key: ValueKey('context-voice-$id'),
-            onPressed: () => _playVoice(id),
+            onPressed: () => _playVoice(message),
             icon: Icon(active ? Icons.stop : Icons.volume_up),
             label: Text(
               active
