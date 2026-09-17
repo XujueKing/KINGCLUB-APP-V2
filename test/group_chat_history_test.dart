@@ -39,6 +39,33 @@ void main() {
     ),
   );
   for (final revoked in [false, true]) {
+    for (final cached in [false, true]) {
+      test('initial group refresh cached=$cached revoked=$revoked', () async {
+        if (cached) {
+          await store.commit(
+            'group:group',
+            [row(1)],
+            expectedEpoch: 0,
+            cursor: 1,
+            membershipVersion: 0,
+          );
+        }
+        final chat = controller(
+          (_, _) async => throw AuthFailure(
+            revoked ? 'CHAT_GROUP_ACCESS_DENIED' : 'NETWORK_ERROR',
+            'fixture',
+          ),
+        );
+        addTearDown(chat.dispose);
+        await chat.initialize();
+        expect(chat.messages.length, cached && !revoked ? 1 : 0);
+        if (cached && !revoked) {
+          expect(chat.error, isNull);
+        } else {
+          expect(chat.error, isNotNull);
+        }
+      });
+    }
     test(
       'cached older group page revalidates access: revoked=$revoked',
       () async {

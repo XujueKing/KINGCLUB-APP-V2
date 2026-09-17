@@ -274,7 +274,14 @@ class GroupChatController extends ChatSessionController {
         clearVisibleHistory();
         await _historyBarrier;
       }
-      error = e.toString();
+      // Cached history remains usable when its background refresh is offline.
+      // Permission denials and explicit send/pagination failures remain errors.
+      error =
+          e is AuthFailure &&
+              e.code == 'NETWORK_ERROR' &&
+              _confirmed.values.any((row) => row['messageType'] != 'hidden')
+          ? null
+          : e.toString();
       _changed();
     }
   }

@@ -7,6 +7,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/direct_chat_controller.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 
 import 'direct_chat_controller_test.dart' show MemoryOutbox, ack, history;
 
@@ -45,6 +46,31 @@ void main() {
     repository: MessagingRepository(account: 'me', call: call),
   );
 
+  for (final cached in [false, true]) {
+    for (final code in ['NETWORK_ERROR', 'SESSION_EXPIRED']) {
+      test('initial refresh error cache=$cached code=$code', () async {
+        if (cached) {
+          await store.commit(
+            'direct:peer',
+            [message(1)],
+            expectedEpoch: 0,
+            cursor: 1,
+          );
+        }
+        final chat = controller(
+          (_, _) async => throw AuthFailure(code, 'fixture'),
+        );
+        addTearDown(chat.dispose);
+        await chat.initialize();
+        expect(chat.messages.length, cached ? 1 : 0);
+        if (cached && code == 'NETWORK_ERROR') {
+          expect(chat.error, isNull);
+        } else {
+          expect(chat.error, isNotNull);
+        }
+      });
+    }
+  }
   test(
     'server peer reads survive database reopen and offline history',
     () async {

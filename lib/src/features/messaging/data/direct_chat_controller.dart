@@ -402,7 +402,14 @@ class DirectChatController extends ChatSessionController {
       _changed();
     } catch (e) {
       if (_disposed || generation != _historyGeneration) return;
-      error = e.toString();
+      // A failed background refresh does not invalidate readable local history.
+      // Keep failures from explicit sends, pagination and access checks visible.
+      error =
+          e is AuthFailure &&
+              e.code == 'NETWORK_ERROR' &&
+              _confirmed.values.any((row) => row['messageType'] != 'hidden')
+          ? null
+          : e.toString();
       _changed();
     }
   }
