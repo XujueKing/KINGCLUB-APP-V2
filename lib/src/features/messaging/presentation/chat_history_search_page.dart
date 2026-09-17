@@ -28,12 +28,16 @@ class ChatHistorySearchPage extends StatefulWidget {
     this.mediaSearch,
     this.account,
     this.localConversation,
+    this.historyRemovals,
   });
   final HistorySearch search;
   final HistorySearch? mediaSearch;
   final String? groupId;
   final String? account;
   final String? localConversation;
+
+  /// Must belong to [account], like the default account-scoped history store.
+  final Stream<ConversationHistoryRemoval>? historyRemovals;
   final String Function(String account)? senderLabel;
   final ValueChanged<Map<String, dynamic>>? onSelected;
   final Stream<Map<String, dynamic>>? events;
@@ -47,8 +51,12 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
   final _items = <Map<String, dynamic>>[];
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
+  StreamSubscription<ConversationHistoryRemoval>? _historyRemovals;
+  late final Future<void> _watchingHistory;
   void Function()? _stopDeletion;
   final _removedIds = <String>{};
+  final _removedSequences = <int>{};
+  int _hiddenThrough = 0;
   Timer? _debounce;
   int _generation = 0;
   int? _before;
@@ -63,6 +71,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _watchingHistory = _watchHistory();
     _stopDeletion = ChatMediaDeletion.listen((event) {
       if (_invalid ||
           event.account != widget.account ||
@@ -91,6 +100,39 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
         _changed();
       }
     });
+  }
+
+  Future<void> _watchHistory() async {
+    if (widget.localConversation == null || widget.account == null) return;
+    try {
+      final stream =
+          widget.historyRemovals ??
+          (await ChatHistoryStore.open(widget.account!)).clearedConversations;
+      if (!mounted || _invalid) return;
+      _historyRemovals = stream.listen((removal) {
+        if (_invalid || removal.conversation != widget.localConversation) {
+          return;
+        }
+        if (removal.hiddenThrough > _hiddenThrough) {
+          _hiddenThrough = removal.hiddenThrough;
+        }
+        final sequences = removal.sequences;
+        if (sequences == null) {
+          // A full clear includes remote search rows not yet saved on disk.
+          // Cancel the old query instead of reissuing it during clear handling.
+          _input.clear();
+          _messageType = null;
+          _clear();
+          setState(() {});
+        } else {
+          _removedSequences.addAll(sequences);
+          _changed();
+        }
+      });
+    } catch (_) {
+      // Local storage failure does not grant offline access or stop a valid
+      // remote search; normal query error handling remains authoritative.
+    }
   }
 
   void _clear() {
@@ -130,6 +172,8 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
       _error = null;
     });
     try {
+      await _watchingHistory;
+      if (!mounted || _invalid || generation != _generation) return;
       Future<Map<String, dynamic>> localSearch() async {
         final store = await ChatHistoryStore.open(widget.account!);
         return store.search(
@@ -197,6 +241,8 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
           page.reversed.where(
             (row) =>
                 !_removedIds.contains(row['messageId']) &&
+                !_removedSequences.contains(row['sequence']) &&
+                (row['sequence'] as int) > _hiddenThrough &&
                 !const {'hidden', 'recalled'}.contains(row['messageType']),
           ),
         );
@@ -229,6 +275,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
     _clear();
     _session?.cancel();
     _events?.cancel();
+    _historyRemovals?.cancel();
     _stopDeletion?.call();
     WidgetsBinding.instance.removeObserver(this);
     _input.dispose();

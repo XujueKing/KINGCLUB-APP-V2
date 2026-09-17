@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_history_search_page.dart';
 import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
+import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 
 Map<String, dynamic> row(int sequence, String text) => {
   'messageId': 'm$sequence',
@@ -14,6 +15,71 @@ Map<String, dynamic> row(int sequence, String text) => {
   'createdDate': DateTime(2020, 1, 2, 10).toUtc().toIso8601String(),
 };
 void main() {
+  for (final group in [false, true]) {
+    testWidgets(
+      'conversation clear fences unsaved search results group=$group',
+      (tester) async {
+        final removals = StreamController<ConversationHistoryRemoval>();
+        addTearDown(removals.close);
+        final late = Completer<Map<String, dynamic>>();
+        final conversation = group ? 'group:test' : 'direct:friend';
+        var calls = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ChatHistorySearchPage(
+              account: 'me',
+              groupId: group ? 'test' : null,
+              localConversation: conversation,
+              historyRemovals: removals.stream,
+              events: const Stream.empty(),
+              search: (_, _) async {
+                calls++;
+                if (calls == 2) return late.future;
+                return {
+                  'messages': [row(1, 'unsaved result')],
+                  'hasMore': false,
+                };
+              },
+            ),
+          ),
+        );
+        final input = find.byKey(const ValueKey('chat-history-search-input'));
+        await tester.enterText(input, 'first');
+        await tester.pump(const Duration(milliseconds: 301));
+        await tester.pumpAndSettle();
+        expect(find.text('unsaved result'), findsOneWidget);
+        removals.add(ConversationHistoryRemoval('direct:unrelated'));
+        await tester.pump();
+        expect(find.text('unsaved result'), findsOneWidget);
+        await tester.enterText(input, 'second');
+        await tester.pump(const Duration(milliseconds: 301));
+        expect(calls, 2);
+        removals.add(ConversationHistoryRemoval(conversation));
+        await tester.pump();
+        expect(tester.widget<TextField>(input).controller!.text, isEmpty);
+        late.complete({
+          'messages': [row(2, 'late private result')],
+          'hasMore': false,
+        });
+        await tester.pumpAndSettle();
+        expect(find.text('late private result'), findsNothing);
+        expect(calls, 2);
+        await tester.enterText(input, 'new');
+        await tester.pump(const Duration(milliseconds: 301));
+        await tester.pumpAndSettle();
+        expect(calls, 3);
+        removals.add(ConversationHistoryRemoval(conversation, sequences: {1}));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 301));
+        await tester.pumpAndSettle();
+        expect(find.text('unsaved result'), findsNothing);
+        await tester.pumpWidget(const SizedBox());
+        removals.add(ConversationHistoryRemoval(conversation));
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   for (final group in [false, true]) {
     testWidgets(
       'local deletion invalidates search without a socket event group=$group',
