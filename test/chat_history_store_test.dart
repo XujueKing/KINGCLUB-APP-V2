@@ -220,6 +220,7 @@ void main() {
       'visible',
       'offline',
       'changed',
+      'regressed',
       'inactive',
     ]) {
       test(
@@ -260,8 +261,13 @@ void main() {
               if (outcome == 'offline') throw const SocketException('offline');
               if (outcome == 'inactive') active = false;
               return {
-                'historyVersion': outcome == 'changed' ? 2 : 1,
+                'historyVersion': outcome == 'changed'
+                    ? 2
+                    : outcome == 'regressed'
+                    ? 0
+                    : 1,
                 if (group) 'membershipVersion': 1,
+                if (group) 'joinedSequence': 0,
                 'settings': {'hiddenThrough': outcome == 'visible' ? 0 : 1},
               };
             },
@@ -269,17 +275,21 @@ void main() {
           expect(calls, 1);
           expect(
             (await store.read(conversation)).messages,
-            outcome == 'hidden' ? isEmpty : hasLength(1),
+            (outcome == 'hidden' || outcome == 'changed')
+                ? isEmpty
+                : hasLength(1),
           );
           expect(
             await store.readConversationList(),
-            outcome == 'hidden' ? isEmpty : hasLength(1),
+            (outcome == 'hidden' || outcome == 'changed')
+                ? isEmpty
+                : hasLength(1),
           );
           await store.close();
           store = await open();
           expect(
             (await store.read(conversation)).hiddenThrough,
-            outcome == 'hidden' ? 1 : 0,
+            (outcome == 'hidden' || outcome == 'changed') ? 1 : 0,
           );
         },
       );
@@ -383,6 +393,48 @@ void main() {
     );
     await inspected.close();
     store = await open();
+  });
+  test('newer group boundary preserves visible history and defers revision adoption', () async {
+    final epoch = (await store.adoptHistoryVersion(
+      'group:room',
+      expectedEpoch: 0,
+      historyVersion: 1,
+    ))!;
+    await store.commit(
+      'group:room',
+      [
+        for (final seq in [1, 2])
+          {
+            ...message(seq),
+            'sender': 'me',
+            'recipient': 'peer',
+            'groupId': 'room',
+          },
+      ],
+      expectedEpoch: epoch,
+      historyVersion: 1,
+      membershipVersion: 1,
+      recordOutgoingHead: true,
+    );
+    final candidates = await store.readConversationList();
+    await store.reconcileHiddenConfirmedHeads(
+      candidates: candidates,
+      visible: [],
+      isActive: () => true,
+      fetch: (_, _) async => {
+        'historyVersion': 2,
+        'membershipVersion': 2,
+        'joinedSequence': 1,
+        'settings': {'hiddenThrough': 0},
+      },
+    );
+    final retained = await store.read('group:room');
+    expect(retained.messages.map((m) => m['sequence']), [2]);
+    expect(retained.hiddenThrough, 1);
+    expect(retained.historyVersion, 1);
+    expect(retained.membershipVersion, 1);
+    expect(retained.epoch, epoch);
+    expect((await store.readConversationList()).single['lastSequence'], 2);
   });
   test('v17 upgrade rolls back earlier rewrites when a later encrypted row is corrupt', () async {
     await store.commit('direct:peer', [

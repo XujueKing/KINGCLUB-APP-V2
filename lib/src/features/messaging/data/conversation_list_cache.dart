@@ -279,23 +279,36 @@ extension ConversationListCache on ChatHistoryStore {
           final floor = (response['settings'] as Map?)?['hiddenThrough'];
           final version = response['historyVersion'];
           final membership = response['membershipVersion'];
+          final joined = response['joinedSequence'];
           if (floor is! int ||
               floor < 0 ||
               version is! int ||
               version < 0 ||
-              version != saved.historyVersion ||
+              version > 4294967295 ||
+              (saved.historyVersion != null &&
+                  version < saved.historyVersion!) ||
               (group &&
                   (membership is! int ||
-                      membership != saved.membershipVersion))) {
+                      membership < 0 ||
+                      joined is! int ||
+                      joined < 0 ||
+                      (saved.membershipVersion != null &&
+                          membership < saved.membershipVersion!)))) {
             continue;
           }
+          // Boundary cleanup does not adopt a new history revision: doing so
+          // would mark retained messages stale without fetching replacements.
+          // Authenticated newer revisions can still advance a monotonic floor.
+          final visibleAfter = group && (joined as int) > floor
+              ? joined
+              : floor;
           final applied = await commit(
             conversation,
             const [],
             expectedEpoch: saved.epoch,
-            hiddenThrough: floor,
-            historyVersion: version,
-            membershipVersion: group ? membership as int : null,
+            hiddenThrough: visibleAfter,
+            historyVersion: saved.historyVersion,
+            membershipVersion: saved.membershipVersion,
           );
           if (applied) {
             // A concurrent enqueue gets a different autoincrement id and must
