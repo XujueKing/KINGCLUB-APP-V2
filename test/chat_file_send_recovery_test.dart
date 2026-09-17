@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/core/media/media_cache.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_draft_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_video.dart';
@@ -33,6 +35,39 @@ class Preview extends VideoPlayerController {
   // No platform player is created by this double.
   // ignore: must_call_super
   Future<void> dispose() async {}
+}
+
+// This suite verifies composer idempotency; filesystem persistence has its
+// own MediaCache tests. Do not invoke path_provider from a widget fake clock.
+class RetainingMedia extends MediaCache {
+  final keys = <String>[];
+  @override
+  Future<File> importBytes(
+    Uint8List bytes, {
+    required String scope,
+    required String contentKey,
+    required MediaKind kind,
+  }) async {
+    expect(scope, 'member:me');
+    expect(kind, MediaKind.image);
+    expect(bytes, isNotEmpty);
+    keys.add(contentKey);
+    return File('retained-image');
+  }
+
+  @override
+  Future<File> importFile(
+    File source, {
+    required String scope,
+    required String contentKey,
+    required MediaKind kind,
+  }) async {
+    expect(scope, 'member:me');
+    expect(kind, MediaKind.video);
+    expect(source.path, '/not-needed-for-already-queued.bin');
+    keys.add(contentKey);
+    return File('retained-video');
+  }
 }
 
 void main() {
@@ -99,6 +134,7 @@ void main() {
             );
           }
           final drafts = Drafts();
+          final media = RetainingMedia();
           final file = File('/not-needed-for-already-queued.bin');
           final draft = ChatFileDraft(id, file, 'fixture.bin', 2, 'a' * 64);
           bool? result;
@@ -111,6 +147,7 @@ void main() {
                       MaterialPageRoute(
                         builder: (_) => kind == 'image'
                             ? ChatImageSendPage(
+                                mediaStore: media,
                                 bytes: base64Decode(
                                   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
                                 ),
@@ -120,6 +157,7 @@ void main() {
                               )
                             : kind == 'video'
                             ? ChatVideoSendPage(
+                                mediaStore: media,
                                 file: file,
                                 fileName: 'fixture.mp4',
                                 chat: chat,
@@ -155,6 +193,10 @@ void main() {
           await tester.tap(find.text('发送'));
           await tester.pumpAndSettle();
           expect(result, true);
+          expect(
+            media.keys,
+            kind == 'file' ? isEmpty : ['chat-$kind-sent:$id'],
+          );
           expect(drafts.removed, [id]);
           expect(calls, 1);
           expect(chat.messages, hasLength(1));
