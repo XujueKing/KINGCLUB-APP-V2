@@ -1,5 +1,7 @@
 # 原生聊天交付矩阵（最新汇总：2026-09-18）
 
+> 当前功能表见 [当前聊天交付状态](2026-09-18-current-chat-status.md)。本文件保留历次记录，旧日期状态不代表最新状态。
+
 ## 当前验收汇总
 
 2026-09-18 consolidated preview from **cfb45a7** generated; **not installed**.
