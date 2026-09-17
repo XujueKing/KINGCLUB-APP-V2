@@ -1,0 +1,5 @@
+# Group call record client
+
+Keep the existing chat call-row style. Parse server-authored group call metadata only when groupId matches the enclosing conversation; never infer from text. Persist metadata in encrypted history, remove it for hidden/recalled messages. Tapping opens the existing group participant chooser without automatically calling previous participants. Apply the same behavior in history context. Duration remains unknown and is not fabricated. Source implementation and targeted tests precede the next combined build/device validation.
+
+Validation: 91 call-row/history/store/group-history tests and 28 history-context tests passed. Group audio/video row taps open GroupCallPage with matching media/group and issue no call-start request. SQLite close/reopen retains only matching visible metadata. Static analysis passed for the six modified Dart files. Server dependency is ccsop cd80ea9 and migration 123; no combined APK installation or live group-call acceptance was performed for this change.

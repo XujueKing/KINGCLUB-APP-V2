@@ -140,9 +140,11 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
 
   Widget _content(Map<String, dynamic> message) {
     final call =
-        widget.groupId == null &&
-            (message['messageType'] == 'text' || message['messageType'] == null)
-        ? ChatCallHistory.tryParse(message['call'])
+        (message['messageType'] == 'text' || message['messageType'] == null)
+        ? ChatCallHistory.tryParse(
+            message['call'],
+            expectedGroupId: widget.groupId,
+          )
         : null;
     if (call != null) {
       return TextButton.icon(

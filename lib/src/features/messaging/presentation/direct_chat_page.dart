@@ -968,10 +968,12 @@ class _DirectChatPageState extends State<DirectChatPage>
               quoted: ChatReply.tryParse(message['reply'])?.text,
               reply: ChatReply.tryParse(message['reply']),
               call:
-                  widget.groupId == null &&
-                      (message['messageType'] == null ||
-                          message['messageType'] == 'text')
-                  ? ChatCallHistory.tryParse(message['call'])
+                  (message['messageType'] == null ||
+                      message['messageType'] == 'text')
+                  ? ChatCallHistory.tryParse(
+                      message['call'],
+                      expectedGroupId: widget.groupId,
+                    )
                   : null,
               fileName: message['messageType'] == 'file'
                   ? message['fileName'] as String?
@@ -2925,7 +2927,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                     ? 'direct:${widget.peerAccount!}'
                     : 'group:${widget.groupId}')
               : null,
-          onCall: widget.groupId == null ? _openCall : null,
+          onCall: _openCall,
           repository: repository,
           groupId: widget.groupId,
           senderLabel: (account) {
@@ -3234,7 +3236,9 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Future<void> _openMediaPreview(_FakeMessage message) async {
-    if (message.call != null && widget.groupId == null && _chat != null) {
+    if (message.call != null &&
+        message.call!.groupId == widget.groupId &&
+        _chat != null) {
       await _openCall(message.call!.media);
       return;
     }

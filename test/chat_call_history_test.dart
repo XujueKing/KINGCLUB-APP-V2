@@ -7,6 +7,9 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
 
 import 'direct_chat_controller_test.dart' as fixture;
+import 'group_chat_controller_test.dart' as group_fixture;
+
+import 'package:kingclub/src/features/messaging/presentation/group_call_page.dart';
 
 const callId = '00000000-0000-4000-8000-000000000001';
 Map<String, dynamic> record(String media) => {
@@ -17,6 +20,86 @@ Map<String, dynamic> record(String media) => {
 };
 
 void main() {
+  const groupId = '00000000-0000-4000-8000-000000000002';
+  Map<String, dynamic> groupRecord(String media) => {
+    ...record(media),
+    'groupId': groupId,
+    'endReason': 'ended',
+    'durationMs': null,
+  };
+  test('group metadata requires matching scope and never invents duration', () {
+    final data = groupRecord('video');
+    expect(ChatCallHistory.tryParse(data), isNull);
+    expect(ChatCallHistory.tryParse(data, expectedGroupId: callId), isNull);
+    expect(
+      ChatCallHistory.tryParse(record('audio'), expectedGroupId: groupId),
+      isNull,
+    );
+    expect(
+      ChatCallHistory.tryParse({
+        ...data,
+        'durationMs': 1000,
+      }, expectedGroupId: groupId),
+      isNull,
+    );
+    final parsed = ChatCallHistory.tryParse(data, expectedGroupId: groupId)!;
+    expect(parsed.toJson(), data);
+    expect(parsed.displayText(outgoing: true), '群视频通话 · 通话已结束');
+  });
+  for (final media in ['audio', 'video']) {
+    testWidgets(
+      'group $media record opens participant chooser without dialing',
+      (tester) async {
+        final methods = <String>[];
+        final repo = MessagingRepository(
+          account: 'me',
+          call: (id, params) async {
+            methods.add(id);
+            if (id == 'K260913000621') {
+              return group_fixture.history([
+                {
+                  ...group_fixture.message('call'),
+                  'groupId': groupId,
+                  'call': groupRecord(media),
+                },
+              ]);
+            }
+            if (id == 'K260913000619') return {'members': <dynamic>[]};
+            return {};
+          },
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DirectChatPage(
+              groupId: groupId,
+              repository: repo,
+              chatOutbox: fixture.MemoryOutbox(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final card = find.byKey(const ValueKey('chat-call-record-$callId'));
+        expect(card, findsOneWidget);
+        methods.clear();
+        await tester.tap(card);
+        await tester.pumpAndSettle();
+        final page = tester.widget<GroupCallPage>(find.byType(GroupCallPage));
+        expect(page.groupId, groupId);
+        expect(page.media.name, media);
+        expect(methods, contains('K260913000619'));
+        expect(
+          methods.where((id) => id == 'K260913000643' || id == 'K260915000678'),
+          isEmpty,
+        );
+        Navigator.of(tester.element(find.byType(GroupCallPage))).pop();
+        await tester.pumpAndSettle();
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   test(
     'call status is relative to the viewer and retains connected duration',
     () {

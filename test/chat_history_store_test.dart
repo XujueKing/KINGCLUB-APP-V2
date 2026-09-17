@@ -1099,6 +1099,39 @@ void main() {
       throwsStateError,
     );
   });
+  test(
+    'group call metadata survives reopen only for visible matching records',
+    () async {
+      const group = '00000000-0000-4000-8000-000000000002';
+      final call = {
+        'callId': '00000000-0000-4000-8000-000000000001',
+        'groupId': group,
+        'mediaKind': 'video',
+        'endReason': 'ended',
+        'durationMs': null,
+      };
+      await store.commit(
+        'group:$group',
+        [
+          for (var n = 1; n <= 4; n++)
+            {
+              ...message(n),
+              'groupId': group,
+              'call': n == 4 ? {...call, 'groupId': call['callId']} : call,
+              if (n == 2) 'messageType': 'hidden',
+              if (n == 3) 'messageType': 'recalled',
+            },
+        ],
+        expectedEpoch: 0,
+        cursor: 4,
+      );
+      await store.close();
+      store = await open();
+      final rows = (await store.read('group:$group')).messages;
+      expect(rows.first['call'], call);
+      expect(rows.skip(1).every((row) => !row.containsKey('call')), true);
+    },
+  );
   test('call metadata survives reopen but hidden records lose it', () async {
     final call = {
       'callId': '00000000-0000-4000-8000-000000000001',

@@ -498,9 +498,11 @@ class ChatHistoryStore {
       final reply = ChatReply.tryParse(message['reply']);
       if (reply != null) value['reply'] = reply.toJson();
     }
-    if (value['groupId'] == null &&
-        (value['messageType'] == null || value['messageType'] == 'text')) {
-      final call = ChatCallHistory.tryParse(message['call']);
+    if (value['messageType'] == null || value['messageType'] == 'text') {
+      final call = ChatCallHistory.tryParse(
+        message['call'],
+        expectedGroupId: value['groupId'] as String?,
+      );
       if (call != null) value['call'] = call.toJson();
     }
     if (utf8.encode(jsonEncode(value)).length > 32768) {
