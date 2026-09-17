@@ -54,7 +54,7 @@ class GroupChatController extends ChatSessionController {
   bool _canHideMessage = false;
   bool _canReply = false;
   @override
-  bool get canReply => !_disposed && _canReply;
+  bool get canReply => !_disposed && hasAccess && _canReply;
   final _hiddenMessages = <String, Map<String, dynamic>>{};
   String get _historyKey => 'group:$groupId';
   Future<void> _ensureHistory() => _historyReady ??= _restoreHistory()
@@ -779,6 +779,7 @@ class GroupChatController extends ChatSessionController {
 
   @override
   Future<void> retry(String id) async {
+    if (_disposed || !hasAccess) return;
     if (sendMuted) {
       error = sendDisabledReason;
       _changed();
@@ -914,6 +915,12 @@ class GroupChatController extends ChatSessionController {
       error = null;
     } catch (e) {
       if (_disposed || !_pending.containsKey(id)) return;
+      if (e is AuthFailure &&
+          e.code == 'CHAT_GROUP_ACCESS_DENIED' &&
+          historyGeneration == _historyGeneration) {
+        clearVisibleHistory();
+        await _historyBarrier;
+      }
       final transient = e is AuthFailure && e.code == 'NETWORK_ERROR';
       if (e is AuthFailure && e.code == 'CHAT_GROUP_MUTED') sendMuted = true;
       final failed = {
@@ -1057,6 +1064,8 @@ class GroupChatController extends ChatSessionController {
     _syncing = null;
     _syncAgain = false;
     hasAccess = false;
+    _canReply = false;
+    _canHideMessage = false;
     _confirmed.clear();
     _lastSynced = 0;
     _oldest = null;

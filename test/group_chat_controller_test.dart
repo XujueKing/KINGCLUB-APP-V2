@@ -489,6 +489,73 @@ void main() {
       chat.dispose();
     },
   );
+  test(
+    'send denial immediately revokes access and holds failed text',
+    () async {
+      var denied = true, sends = 0;
+      final outbox = Queue();
+      final chat = GroupChatController(
+        groupId: 'group',
+        outbox: outbox,
+        repository: GroupChatRepository(
+          MessagingRepository(
+            account: 'me',
+            call: (api, params) async {
+              if (api == 'K260913000621') {
+                return {
+                  ...history([message('old')]),
+                  'canReply': true,
+                };
+              }
+              if (api == 'K260913000619') return {'members': []};
+              if (api == 'K260913000620') {
+                sends++;
+                if (denied) {
+                  throw const AuthFailure(
+                    'CHAT_GROUP_ACCESS_DENIED',
+                    'removed',
+                  );
+                }
+                return {
+                  'message': {
+                    ...message(params['clientMessageId'] as String),
+                    'sequence': 2,
+                  },
+                };
+              }
+              return {};
+            },
+          ),
+        ),
+      );
+      addTearDown(chat.dispose);
+      await chat.initialize();
+      expect(chat.hasAccess, true);
+      expect(chat.canReply, true);
+      await chat.send(
+        'hello',
+        clientMessageId: '11111111-1111-4111-8111-111111111111',
+      );
+      expect(chat.hasAccess, false);
+      expect(chat.canReply, false);
+      expect(chat.messages, hasLength(1));
+      expect(chat.messages.single['status'], 'failed');
+      expect(
+        outbox.rows['11111111-1111-4111-8111-111111111111']?['text'],
+        'hello',
+      );
+      await chat.retry('11111111-1111-4111-8111-111111111111');
+      await chat.retryQueued();
+      await expectLater(chat.send('another'), throwsStateError);
+      expect(sends, 1);
+      denied = false;
+      await chat.synchronize();
+      expect(chat.hasAccess, true);
+      await chat.retry('11111111-1111-4111-8111-111111111111');
+      expect(sends, 2);
+      expect(outbox.rows, isEmpty);
+    },
+  );
   test('group notification during active sync triggers another read', () async {
     final old = Completer<Map<String, dynamic>>();
     var reads = 0;
