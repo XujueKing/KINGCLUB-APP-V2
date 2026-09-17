@@ -118,6 +118,47 @@ void main() {
       },
     );
   }
+  for (final group in [false, true]) {
+    for (final kind in ['hidden', 'recalled']) {
+      test(
+        'removed outgoing head yields to server: group=$group kind=$kind',
+        () async {
+          final conversation = group ? 'group:room' : 'direct:peer';
+          final own = {
+            ...message(2),
+            'sender': 'me',
+            'recipient': 'peer',
+            if (group) 'groupId': 'room',
+          };
+          await store.commit(
+            conversation,
+            [own],
+            expectedEpoch: 0,
+            recordOutgoingHead: true,
+          );
+          await store.commit(conversation, [
+            {...own, 'messageType': kind, 'text': ''},
+          ], expectedEpoch: 0);
+          final removed = await store.readConversationList();
+          expect(removed.single['localConfirmed'], isNull);
+          expect(removed.single['preview'], '');
+          await store.close();
+          store = await open();
+          final older = {
+            'kind': group ? 'group' : 'direct',
+            group ? 'groupId' : 'peer': group ? 'room' : 'peer',
+            'lastSequence': 1,
+            'preview': 'Previous visible message',
+            'unreadCount': 0,
+          };
+          await store.saveConversationList([older]);
+          expect(await store.readConversationList(), [older]);
+          await store.saveConversationList([]);
+          expect(await store.readConversationList(), isEmpty);
+        },
+      );
+    }
+  }
   test('v17 upgrade rolls back earlier rewrites when a later encrypted row is corrupt', () async {
     await store.commit('direct:peer', [
       for (var i = 1; i <= 55; i++) message(i),

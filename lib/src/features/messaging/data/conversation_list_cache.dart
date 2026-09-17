@@ -26,9 +26,14 @@ class ConversationHistoryRemoval {
         changed = true;
         return true;
       }
-      if (sequences!.contains(row['lastSequence']) && row['preview'] != '') {
-        row['preview'] = '';
-        changed = true;
+      if (sequences!.contains(row['lastSequence'])) {
+        // A removed outgoing head must stop overriding the server's older,
+        // still-visible preview (or its decision to omit the conversation).
+        final wasConfirmed = row.remove('localConfirmed') != null;
+        if (row['preview'] != '' || wasConfirmed) {
+          row['preview'] = '';
+          changed = true;
+        }
       }
       return false;
     });
