@@ -53,6 +53,40 @@ class Launcher extends CallLaunchCoordinator {
 
 void main() {
   for (final resumed in [false, true]) {
+    for (final code in ['INTERFACE_DISABLED', 'INTERFACE_NOT_FOUND']) {
+      testWidgets(
+        'interface error only stops its own foreground generation resumed=$resumed code=$code',
+        (tester) async {
+          final first = Completer<PreparedCall?>();
+          var reads = 0, shown = 0;
+          Future<PreparedCall?> read() async =>
+              ++reads == 1 ? first.future : ready();
+          final inbox = ForegroundCallInbox(
+            launcher: Launcher(read),
+            present: (_) async {
+              shown++;
+              return true;
+            },
+          );
+          inbox.foreground(true);
+          if (resumed) {
+            inbox.foreground(false);
+            inbox.foreground(true);
+          }
+          first.completeError(AuthFailure(code, 'fixture'));
+          await tester.pump();
+          expect(reads, resumed ? 2 : 1);
+          expect(shown, resumed ? 1 : 0);
+          if (!resumed) {
+            await tester.pump(const Duration(seconds: 10));
+            expect(reads, 1);
+          }
+          inbox.close();
+        },
+      );
+    }
+  }
+  for (final resumed in [false, true]) {
     testWidgets(
       'notification during lookup is replayed without waiting for timer resumed=$resumed',
       (tester) async {

@@ -56,6 +56,7 @@ class ForegroundCallInbox {
     try {
       ready = await launcher.incoming();
     } on AuthFailure catch (error) {
+      if (_closed || !_foreground || generation != _generation) return;
       if (error.code == 'INTERFACE_NOT_FOUND' ||
           error.code == 'INTERFACE_DISABLED') {
         foreground(false);

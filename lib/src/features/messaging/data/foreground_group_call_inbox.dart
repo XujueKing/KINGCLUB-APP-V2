@@ -50,6 +50,7 @@ class ForegroundGroupCallInbox {
     try {
       call = await repository.current();
     } on AuthFailure catch (error) {
+      if (_closed || !_foreground || generation != _generation) return;
       if (error.code == 'INTERFACE_DISABLED' ||
           error.code == 'INTERFACE_NOT_FOUND') {
         foreground(false);
