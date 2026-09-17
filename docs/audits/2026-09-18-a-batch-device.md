@@ -15,3 +15,9 @@ On the same installed 13175cc build, disabled A Wi-Fi and mobile data (both orig
 Opened the already-cached 8-second synthetic video from that history. The offline player displayed changing test frames, progressed from approximately 0.9 seconds to 7.93 seconds, then showed a full progress bar and play control at completion. Audio was not independently listened to during this run. Returned to the conversation and restored Wi-Fi and mobile data; both settings read 1 afterward. No messages were sent, no records deleted, no B operations.
 
 Local evidence: build/a-offline-restart.png, a-offline-list.png, a-offline-contacts.png, a-offline-history.png, a-offline-video.png and a-offline-video-end.png. Do not publish member-bearing screenshots. This establishes restoration and playback for the existing sample only, not never-downloaded attachments, all codecs, large-history latency or offline group authorization changes.
+
+## New outgoing text persistence
+
+Sent the synthetic marker KINGCLUB-BATCH-20260918-01 once from A in the previously authorized A/B direct conversation. The composer cleared and one outgoing bubble appeared. Disabled A Wi-Fi/mobile data, force-stopped and relaunched the app: the conversation preview showed the new marker, and opening the conversation showed the same marker once at the latest position with its timestamp. Restored both network settings to enabled (readback 1/1). No B operation or recipient receipt inspection; this proves local outgoing persistence, not B delivery or exactly-once server storage.
+
+Attempted send-frame collection could not locate the restarted process VM endpoint in available logs, so no send-animation timing result is claimed. That failed collector did not tap Send; the subsequent deliberate UI tap sent the single marker. Local evidence: build/a-send-prepared.png, a-send-confirmed.png, a-new-message-list.png and a-new-message-offline.png. Raw member screenshots remain untracked.
