@@ -1,4 +1,6 @@
 -- REVIEW ONLY. Run nowhere until approved and validated.
+-- REUSE REVIEW REQUIRED: audit_event and storage_holding_link are unresolved alternatives.
+-- Existing profile assets, storage, audit and callback infrastructure must be assessed first.
 -- Depends on core_schema.draft.sql; no existing tables altered.
 
 CREATE TABLE kc_draft_product_unit (

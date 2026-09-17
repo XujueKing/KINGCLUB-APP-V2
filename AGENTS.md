@@ -1,5 +1,9 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-18 已有新服务优先复用
+
+用户要求核对旧表与已经在新服务完成的功能。已有 kingclubProfileAssets 包含现金/金币/钻石且代码实际读取，031–034 有历史部署记录；不得再以 wallet 名称搜索未命中认定没有资产表。复用身份、储物、审计、回调、接口目录等，35 张 SQL 只是候选，实际运行库结构待核验。正式后端表需遵守其 camelCase/rowId/双语注释/目录登记规范，当前 snake_case 草案不可直接部署。详见 commerce 评审包 database/REUSE_REVIEW.md。
+
 ## 2026-09-18 旧业务逻辑优先
 
 用户强调旧系统虽不完整但逻辑正确。commerce 数据库以旧页面/服务/SQL 业务链为基础补齐，保留开台聚合、标准业务支付单、渠道交易、逐行上菜及分类权益，不因技术缺口否定原逻辑。已明确的新需求优先。新 SQL 仅评审草案，不执行或导入；35 表候选仍需按 database/LEGACY_ALIGNMENT.md 对齐后定稿。

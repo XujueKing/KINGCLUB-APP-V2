@@ -1,4 +1,6 @@
 -- REVIEW DRAFT ONLY. MySQL 8 candidate DDL. Do not run as a migration.
+-- REUSE REVIEW REQUIRED: see REUSE_REVIEW.md and EXISTING_TABLE_INVENTORY.md.
+-- Candidate relations only, NOT a list of mandatory new tables. Naming/catalog not production-ready.
 -- No CREATE DATABASE, DROP, ALTER, INSERT, or imported data.
 -- kc_draft_* names are placeholders; existing identity/wallet/store integration is unresolved.
 
