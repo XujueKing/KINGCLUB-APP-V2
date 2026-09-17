@@ -145,6 +145,115 @@ void main() {
       },
     );
     test(
+      'group file handshake rechecks epochs and never requests friend scope',
+      () async {
+        final other = NovoRudpSecureSession.fromSeed(
+          library: DynamicLibrary.open(path!),
+          seed: Uint8List.fromList(List.filled(32, 19)),
+        );
+        addTearDown(other.dispose);
+        const otherId = '22222222-2222-4222-8222-222222222222';
+        const messageId = '33333333-3333-4333-8333-333333333333';
+        const groupId = '44444444-4444-4444-8444-444444444444';
+        var epoch = 1;
+        var wrongGroup = false;
+        final binding = client((api, params) async {
+          expect(api, 'K260915000672');
+          if (params['peer'] == 'UM_SYNTHETIC') {
+            expect(params, {'peer': 'UM_SYNTHETIC'});
+            return {
+              'cacheSeconds': 0,
+              'keys': [key],
+            };
+          }
+          expect(params, {'peer': 'friend', 'groupFileMessageId': messageId});
+          return {
+            'peer': 'friend',
+            'cacheSeconds': 0,
+            'keys': [
+              {
+                'bindingId': otherId,
+                'publicKey': other.peerId.split(':').last,
+                'peerId': other.peerId,
+              },
+            ],
+            'scope': {
+              'kind': 'group-file',
+              'messageId': messageId,
+              'groupId': wrongGroup ? messageId : groupId,
+              'sender': 'UM_SYNTHETIC',
+              'recipient': 'friend',
+              'senderMembershipVersion': 1,
+              'recipientMembershipVersion': epoch,
+            },
+          };
+        });
+        final directory = await binding.groupFileDirectory(
+          'friend',
+          messageId: messageId,
+          groupId: groupId,
+        );
+        final attempt = await binding.startGroupFilePeer(
+          'friend',
+          otherId,
+          directory.scope,
+        );
+        final answer = other.respond(
+          attempt.offer,
+          expectedPeer: identity.peerId,
+        );
+        final channel = await attempt.complete(answer.response);
+        expect(channel.sessionId, answer.channel.sessionId);
+        channel.close();
+        answer.channel.close();
+        final stale = await binding.startGroupFilePeer(
+          'friend',
+          otherId,
+          directory.scope,
+        );
+        final staleAnswer = other.respond(
+          stale.offer,
+          expectedPeer: identity.peerId,
+        );
+        epoch = 2;
+        await expectLater(
+          stale.complete(staleAnswer.response),
+          throwsA(isA<AuthFailure>()),
+        );
+        staleAnswer.channel.close();
+        await expectLater(
+          binding.verifyGroupFilePeer(
+            'friend',
+            directory.keys.single,
+            directory.scope,
+          ),
+          throwsA(isA<AuthFailure>()),
+        );
+        epoch = 1;
+        final offer = other.start(identity.peerId);
+        final response = await binding.respondGroupFilePeer(
+          'friend',
+          otherId,
+          directory.scope,
+          offer.offer,
+        );
+        final received = other.complete(offer, response.response);
+        expect(received.sessionId, response.channel.sessionId);
+        received.close();
+        response.channel.close();
+        wrongGroup = true;
+        await expectLater(
+          binding.groupFileDirectory(
+            'friend',
+            messageId: messageId,
+            groupId: groupId,
+          ),
+          throwsFormatException,
+        );
+      },
+    );
+
+    test(
       'concurrent registration shares signed request and refreshes directory',
       () async {
         var registered = false, reads = 0, issues = 0, writes = 0;

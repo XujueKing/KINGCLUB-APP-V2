@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../../../core/session/member_qr_memory.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
+import 'group_file_device_scope.dart';
 import 'nearby_peer_identity_store.dart';
 import 'novorudp_device_identity_store.dart';
 import 'novorudp_secure_session.dart';
@@ -37,7 +38,14 @@ class NetworkDeviceKey {
 /// Production callers use open(); injected sessions are for embedding/tests.
 /// It does not start a UDP lane or silently rotate a revoked/lost device key.
 class BoundNetworkHandshake {
-  BoundNetworkHandshake._(this._binding, this.peer, this.key, this._native);
+  BoundNetworkHandshake._(
+    this._binding,
+    this.peer,
+    this.key,
+    this._native, [
+    this._verifyScope,
+  ]);
+  final Future<void> Function()? _verifyScope;
   final NovoRudpDeviceBinding _binding;
   final String peer;
   final NetworkDeviceKey key;
@@ -50,7 +58,11 @@ class BoundNetworkHandshake {
     _completing = true;
     var nativeAttempted = false;
     try {
-      await _binding._requirePeerKey(peer, key.bindingId, key.publicKey);
+      if (_verifyScope != null) {
+        await _verifyScope();
+      } else {
+        await _binding._requirePeerKey(peer, key.bindingId, key.publicKey);
+      }
       if (_closed) throw StateError('Handshake cancelled');
       nativeAttempted = true;
       return _binding.identity.complete(_native, response);
@@ -175,6 +187,98 @@ class NovoRudpDeviceBinding {
   Future<({NovoRudpSecureChannel channel, Map<String, dynamic> response})>
   respondPeer(String peer, String bindingId, Map<String, dynamic> offer) async {
     final key = await _requirePeerKey(peer, bindingId);
+    return identity.respond(offer, expectedPeer: key.peerId);
+  }
+
+  Future<({GroupFileDeviceScope scope, List<NetworkDeviceKey> keys})>
+  groupFileDirectory(
+    String peer, {
+    required String messageId,
+    required String groupId,
+  }) async {
+    if (peer == messaging.account) {
+      throw ArgumentError('Peer must be another member');
+    }
+    final result = await _call('K260915000672', {
+      'peer': peer,
+      'groupFileMessageId': messageId,
+    });
+    if (result['peer'] != peer) {
+      throw const FormatException('Group file owner mismatch');
+    }
+    final scope = GroupFileDeviceScope.parse(
+      result['scope'],
+      messageId: messageId,
+      groupId: groupId,
+      account: messaging.account,
+      peer: peer,
+    );
+    final keys = _directoryKeys(result);
+    _check();
+    return (scope: scope, keys: keys);
+  }
+
+  Future<NetworkDeviceKey> _requireGroupFileKey(
+    String peer,
+    String bindingId,
+    GroupFileDeviceScope scope, [
+    String? publicKey,
+  ]) async {
+    await ensureRegistered();
+    final current = await groupFileDirectory(
+      peer,
+      messageId: scope.messageId,
+      groupId: scope.groupId,
+    );
+    if (!scope.samePermission(current.scope)) {
+      throw const AuthFailure(
+        'NETWORK_KEY_DENIED',
+        'Group file membership changed',
+      );
+    }
+    for (final key in current.keys) {
+      if (key.bindingId == bindingId &&
+          (publicKey == null || key.publicKey == publicKey)) {
+        return key;
+      }
+    }
+    throw const AuthFailure(
+      'NETWORK_KEY_DENIED',
+      'Group file device unavailable',
+    );
+  }
+
+  Future<BoundNetworkHandshake> startGroupFilePeer(
+    String peer,
+    String bindingId,
+    GroupFileDeviceScope scope,
+  ) async {
+    final key = await _requireGroupFileKey(peer, bindingId, scope);
+    return BoundNetworkHandshake._(
+      this,
+      peer,
+      key,
+      identity.start(key.peerId),
+      () => verifyGroupFilePeer(peer, key, scope),
+    );
+  }
+
+  Future<void> verifyGroupFilePeer(
+    String peer,
+    NetworkDeviceKey key,
+    GroupFileDeviceScope scope,
+  ) async {
+    await _requireGroupFileKey(peer, key.bindingId, scope, key.publicKey);
+  }
+
+  Future<({NovoRudpSecureChannel channel, Map<String, dynamic> response})>
+  respondGroupFilePeer(
+    String peer,
+    String bindingId,
+    GroupFileDeviceScope scope,
+    Map<String, dynamic> offer,
+  ) async {
+    final key = await _requireGroupFileKey(peer, bindingId, scope);
     return identity.respond(offer, expectedPeer: key.peerId);
   }
 
