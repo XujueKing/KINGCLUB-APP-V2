@@ -52,6 +52,51 @@ Map<String, dynamic> history(
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  for (final reason in [
+    'blocked',
+    'awaiting_reply',
+    'follow_required',
+    'inactive',
+  ]) {
+    test('known $reason denial keeps new text out of queue', () async {
+      final outbox = MemoryOutbox();
+      var sends = 0, denied = true;
+      final chat = DirectChatController(
+        peer: 'peer',
+        outbox: outbox,
+        repository: MessagingRepository(
+          account: 'me',
+          call: (api, params) async {
+            if (api == 'K260913000604') {
+              return {
+                ...history([]),
+                'sendPermission': denied
+                    ? {'allowed': false, 'reason': reason}
+                    : {'allowed': true},
+              };
+            }
+            sends++;
+            return {'message': ack(params)};
+          },
+        ),
+      );
+      addTearDown(chat.dispose);
+      await chat.initialize();
+      var queued = false;
+      await expectLater(
+        chat.send('hello', onQueued: () => queued = true),
+        throwsStateError,
+      );
+      expect(queued, false);
+      expect(outbox.items, isEmpty);
+      expect(sends, 0);
+      denied = false;
+      await chat.synchronize();
+      await chat.send('hello');
+      expect(sends, 1);
+      expect(outbox.items, isEmpty);
+    });
+  }
   test(
     'restored failed text appears before newer history without resending',
     () async {
@@ -571,11 +616,11 @@ void main() {
       await controller.synchronize();
       await controller.synchronize();
       expect(cursors, [null, 1, 51]);
-        expect(controller.messages.length, 51);
-        expect(controller.permission['allowed'], isTrue);
-        // Background catch-up can fail silently while visible history remains;
-        // the next synchronization still resumes from the last committed page.
-        expect(controller.error, isNull);
+      expect(controller.messages.length, 51);
+      expect(controller.permission['allowed'], isTrue);
+      // Background catch-up can fail silently while visible history remains;
+      // the next synchronization still resumes from the last committed page.
+      expect(controller.error, isNull);
       await controller.synchronize();
       expect(cursors, [null, 1, 51, 51, 101]);
       expect(

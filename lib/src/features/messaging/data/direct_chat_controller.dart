@@ -574,6 +574,16 @@ class DirectChatController extends ChatSessionController {
     }
   }
 
+  void _checkNewSendPermission() {
+    if (_disposed || permission['allowed'] != false) return;
+    final message = switch (permission['reason']) {
+      'awaiting_reply' => '对方回复后才能继续发送',
+      'follow_required' => '请先关注对方',
+      _ => '当前无法发送消息',
+    };
+    throw StateError(message);
+  }
+
   @override
   Future<void> send(
     String text, {
@@ -581,6 +591,7 @@ class DirectChatController extends ChatSessionController {
     String? replyToMessageId,
     String? clientMessageId,
   }) async {
+    _checkNewSendPermission();
     if (replyToMessageId != null &&
         (!canReply ||
             !RegExp(
@@ -622,6 +633,7 @@ class DirectChatController extends ChatSessionController {
     VoidCallback? onQueued,
     String? clientMessageId,
   }) async {
+    _checkNewSendPermission();
     if (_disposed) return;
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -658,6 +670,7 @@ class DirectChatController extends ChatSessionController {
     VoidCallback? onQueued,
     String? clientMessageId,
   }) async {
+    _checkNewSendPermission();
     if (_disposed) return;
     final id = clientMessageId ?? const Uuid().v4();
     if (!RegExp(
@@ -692,6 +705,7 @@ class DirectChatController extends ChatSessionController {
     VoidCallback? onQueued,
     String? clientMessageId,
   }) async {
+    _checkNewSendPermission();
     if (_disposed) return;
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -739,6 +753,7 @@ class DirectChatController extends ChatSessionController {
     VoidCallback? onQueued,
     String? clientMessageId,
   }) async {
+    _checkNewSendPermission();
     if (_disposed) return;
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -777,6 +792,7 @@ class DirectChatController extends ChatSessionController {
     VoidCallback? onQueued,
     String? clientMessageId,
   }) async {
+    _checkNewSendPermission();
     if (_disposed) return;
     final id = clientMessageId ?? const Uuid().v4();
     if (!RegExp(
