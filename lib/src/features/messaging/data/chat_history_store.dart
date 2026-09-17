@@ -18,6 +18,7 @@ import 'package:sqflite/sqflite.dart';
 part 'nearby_message_history.dart';
 part 'conversation_list_cache.dart';
 part 'chat_history_media_cleanup.dart';
+part 'chat_history_replies.dart';
 
 class ChatHistoryPage {
   const ChatHistoryPage(
@@ -639,6 +640,13 @@ class ChatHistoryStore {
         );
       }
       await batch.commit(noResult: true);
+      if (removedSequences.isNotEmpty || floor > savedHidden) {
+        await _redactStoredReplies(tx, id, {
+          for (final message in messages)
+            if (const {'hidden', 'recalled'}.contains(message['messageType']))
+              message['messageId'] as String,
+        }, floor > savedHidden ? floor : 0);
+      }
       if (conversation.startsWith('direct:')) {
         await _reconcileNearbyRows(
           tx,
@@ -879,6 +887,7 @@ class ChatHistoryStore {
           );
         }
       } else {
+        await _redactStoredReplies(tx, id, deletedMessageIds, 0);
         final batch = tx.batch();
         for (final sequence in deletedSequences) {
           batch.delete(
