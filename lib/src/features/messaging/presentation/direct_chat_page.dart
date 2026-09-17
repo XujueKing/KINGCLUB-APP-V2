@@ -32,6 +32,7 @@ import 'chat_location_picker_page.dart';
 import '../data/chat_voice_playback.dart';
 import '../data/chat_voice_prefetch.dart';
 import '../data/chat_video_prefetch.dart';
+import '../data/chat_image_prefetch.dart';
 import '../data/voice_draft_sender.dart';
 import '../../../core/design_system/king_components.dart';
 import 'chat_image_view.dart';
@@ -361,6 +362,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   ChatVoicePlayback? _voicePlayback;
   ChatVoicePrefetch? _voicePrefetch;
   ChatVideoPrefetch? _videoPrefetch;
+  ChatImagePrefetch? _imagePrefetch;
 
   Future<void> _finishRecording(bool cancel, VoiceHoldTarget target) async {
     final session = _voiceSession;
@@ -712,8 +714,10 @@ class _DirectChatPageState extends State<DirectChatPage>
     _voicePlayback = null;
     _voicePrefetch?.dispose();
     _videoPrefetch?.dispose();
+    _imagePrefetch?.dispose();
     _voicePrefetch = null;
     _videoPrefetch = null;
+    _imagePrefetch = null;
     _chatEvents?.cancel();
     _chat?.removeListener(_realChatChanged);
     _chat?.dispose();
@@ -870,6 +874,10 @@ class _DirectChatPageState extends State<DirectChatPage>
     // change instead of sorting again for animation, voice, rows and read state.
     final rows = chat.messages;
     if (chat.messaging.persistHistory) {
+      (_imagePrefetch ??= ChatImagePrefetch(
+        chat.messaging,
+        group: widget.groupId != null,
+      )).update(rows);
       (_videoPrefetch ??= ChatVideoPrefetch(
         chat.messaging,
         group: widget.groupId != null,
@@ -1048,6 +1056,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     _voiceSender.dispose();
     _voicePrefetch?.dispose();
     _videoPrefetch?.dispose();
+    _imagePrefetch?.dispose();
     _voicePlayback?.dispose();
     _chat?.removeListener(_realChatChanged);
     _chat?.dispose();

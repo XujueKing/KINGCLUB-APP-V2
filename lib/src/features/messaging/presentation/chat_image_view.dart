@@ -157,11 +157,20 @@ class _ChatImageViewState extends State<ChatImageView>
               contentKey: _localKey,
             );
           } catch (_) {
-            if (widget.sentClientMessageId == null) rethrow;
-            local = await _store.cachedImage(
-              scope: 'member:${widget.repository.account}',
-              contentKey: 'chat-image-sent:${widget.sentClientMessageId}',
-            );
+            try {
+              if (widget.full) rethrow;
+              local = await _store.cachedImage(
+                scope: 'member:${widget.repository.account}',
+                contentKey:
+                    'chat-image-message:${widget.group}:${widget.messageId}:image',
+              );
+            } catch (_) {
+              if (widget.sentClientMessageId == null) rethrow;
+              local = await _store.cachedImage(
+                scope: 'member:${widget.repository.account}',
+                contentKey: 'chat-image-sent:${widget.sentClientMessageId}',
+              );
+            }
           }
           final buffer = await ui.ImmutableBuffer.fromUint8List(
             await local.readAsBytes(),

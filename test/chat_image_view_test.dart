@@ -34,7 +34,12 @@ class EmptyMedia extends MediaCache {
 }
 
 void main() {
-  for (final mode in ['downloaded', 'sent-thumbnail', 'sent-full']) {
+  for (final mode in [
+    'downloaded',
+    'original-thumbnail',
+    'sent-thumbnail',
+    'sent-full',
+  ]) {
     testWidgets('$mode image reopens offline from real local storage', (
       tester,
     ) async {
@@ -49,7 +54,9 @@ void main() {
         await media.importBytes(
           await source.readAsBytes(),
           scope: 'member:me',
-          contentKey: mode == 'downloaded'
+          contentKey: mode == 'original-thumbnail'
+              ? 'chat-image-message:false:m:image'
+              : mode == 'downloaded'
               ? 'chat-image-message:false:m:thumbnail'
               : 'chat-image-sent:local-id',
           kind: MediaKind.image,
@@ -72,7 +79,10 @@ void main() {
             repository: repo,
             messageId: 'm',
             mediaStore: media,
-            sentClientMessageId: mode == 'downloaded' ? null : 'local-id',
+            sentClientMessageId:
+                mode == 'downloaded' || mode == 'original-thumbnail'
+                ? null
+                : 'local-id',
             full: mode == 'sent-full',
             events: const Stream.empty(),
           ),

@@ -88,6 +88,7 @@ class ChatMediaCleanup {
     if (id is String && id.isNotEmpty) {
       keys['chat-image-message:$group:$id:image'] = MediaKind.image;
       keys['chat-image-message:$group:$id:thumbnail'] = MediaKind.image;
+      keys['chat-image-transfer:$group:$id:image'] = MediaKind.image;
       keys['chat-video-message:$group:$id:video'] = MediaKind.video;
       keys['chat-video-message:$group:$id:poster'] = MediaKind.image;
       keys['chat-video-transfer:$group:$id:video'] = MediaKind.video;
