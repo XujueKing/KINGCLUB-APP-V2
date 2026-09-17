@@ -55,7 +55,8 @@ extension LocalChatHistorySearch on ChatHistoryStore {
   }
 
   /// Searches only persisted, visible messages. No plaintext search index is
-  /// written to disk. A transaction keeps deletion and pagination consistent.
+  /// written to disk. Decrypt outside database transactions so new messages can
+  /// persist during long scans; revalidate matched ciphertext before returning.
   Future<Map<String, dynamic>> search(
     String conversation, {
     String query = '',
@@ -79,13 +80,14 @@ extension LocalChatHistorySearch on ChatHistoryStore {
       return {'messages': <Map<String, dynamic>>[], 'hasMore': false};
     }
     final id = await _conversation(conversation);
-    return _db.transaction((tx) async {
+    {
       checkActive();
       final matches = <Map<String, dynamic>>[];
+      final matchedPayloads = <int, List<int>>{};
       var cursor = before;
       while (matches.length <= limit) {
         checkActive();
-        final rows = await tx.query(
+        final rows = await _db.query(
           'message',
           where: cursor == null
               ? 'conversation=? AND stale=0'
@@ -119,17 +121,44 @@ extension LocalChatHistorySearch on ChatHistoryStore {
             continue;
           }
           matches.add({...message, 'status': 'sent'});
+          matchedPayloads[row['sequence'] as int] = (row['payload'] as List)
+              .cast<int>();
           if (matches.length > limit) break;
         }
         if (rows.length < 50 || matches.length > limit) break;
         cursor = rows.last['sequence'] as int;
       }
       checkActive();
+      if (matchedPayloads.isNotEmpty) {
+        final current = await _db.query(
+          'message',
+          columns: ['sequence', 'payload'],
+          where:
+              'conversation=? AND stale=0 AND sequence IN (${List.filled(matchedPayloads.length, '?').join(',')})',
+          whereArgs: [id, ...matchedPayloads.keys],
+        );
+        checkActive();
+        if (current.length != matchedPayloads.length) {
+          throw StateError('Local history changed during search');
+        }
+        for (final row in current) {
+          final saved = matchedPayloads[row['sequence']]!;
+          final now = row['payload'] as List;
+          if (saved.length != now.length) {
+            throw StateError('Local history changed during search');
+          }
+          for (var i = 0; i < saved.length; i++) {
+            if (saved[i] != now[i]) {
+              throw StateError('Local history changed during search');
+            }
+          }
+        }
+      }
       return {
         'messages': matches.take(limit).toList().reversed.toList(),
         'hasMore': matches.length > limit,
         'localOnly': true,
       };
-    });
+    }
   }
 }
