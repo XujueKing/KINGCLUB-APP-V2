@@ -22,6 +22,7 @@ part 'conversation_list_cache.dart';
 part 'chat_history_media_cleanup.dart';
 part 'chat_history_replies.dart';
 part 'chat_history_draft_migration.dart';
+part 'chat_history_search.dart';
 
 class ChatHistoryPage {
   const ChatHistoryPage(

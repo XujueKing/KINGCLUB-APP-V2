@@ -659,6 +659,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                             MaterialPageRoute(
                               builder: (_) => ChatHistorySearchPage(
                                 account: widget.repository.messaging.account,
+                                localConversation:
+                                    widget.repository.messaging.persistHistory
+                                    ? 'group:${widget.groupId}'
+                                    : null,
                                 mediaSearch: (type, before) =>
                                     widget.repository.history(
                                       widget.groupId,

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'chat_timestamp.dart';
+import '../../auth/domain/auth_repository.dart';
+import '../data/chat_history_store.dart';
 import '../data/chat_media_event_scope.dart';
 import '../data/chat_media_deletion.dart';
 
@@ -25,11 +27,13 @@ class ChatHistorySearchPage extends StatefulWidget {
     this.groupId,
     this.mediaSearch,
     this.account,
+    this.localConversation,
   });
   final HistorySearch search;
   final HistorySearch? mediaSearch;
   final String? groupId;
   final String? account;
+  final String? localConversation;
   final String Function(String account)? senderLabel;
   final ValueChanged<Map<String, dynamic>>? onSelected;
   final Stream<Map<String, dynamic>>? events;
@@ -51,6 +55,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
   bool _busy = false, _invalid = false, _foreground = true;
   String? _error;
   String? _messageType;
+  bool _localOnly = false;
   bool get _hasCriteria =>
       _messageType != null || _input.text.trim().isNotEmpty;
 
@@ -95,6 +100,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
     _before = null;
     _busy = false;
     _error = null;
+    _localOnly = false;
   }
 
   void _changed() {
@@ -124,9 +130,33 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
       _error = null;
     });
     try {
-      final result = messageType == null
-          ? await widget.search(query, before)
-          : await widget.mediaSearch!(messageType, before);
+      Future<Map<String, dynamic>> localSearch() async {
+        final store = await ChatHistoryStore.open(widget.account!);
+        return store.search(
+          widget.localConversation!,
+          query: query,
+          messageType: messageType,
+          before: before,
+        );
+      }
+
+      Map<String, dynamic> result;
+      if (more && _localOnly) {
+        result = await localSearch();
+      } else {
+        try {
+          result = messageType == null
+              ? await widget.search(query, before)
+              : await widget.mediaSearch!(messageType, before);
+        } on AuthFailure catch (error) {
+          if (error.code != 'NETWORK_ERROR' ||
+              widget.account == null ||
+              widget.localConversation == null) {
+            rethrow;
+          }
+          result = await localSearch();
+        }
+      }
       if (!mounted || generation != _generation) {
         return;
       }
@@ -157,6 +187,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
         throw const FormatException('Invalid search cursor');
       }
       setState(() {
+        _localOnly = result['localOnly'] == true;
         if (!more) {
           _items.clear();
         }
@@ -269,6 +300,14 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
                 ],
               ),
             ),
+          if (_localOnly)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                '当前仅搜索本机已保存的记录',
+                style: TextStyle(color: Color(0x88FFFFFF), fontSize: 12),
+              ),
+            ),
           Expanded(
             child: !_foreground
                 ? const SizedBox.shrink()
@@ -315,7 +354,10 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
                             ? null
                             : () => widget.onSelected!(row),
                         title: Text(
-                          row['text'] as String,
+                          row['messageType'] == 'file'
+                              ? (row['fileName'] as String? ??
+                                    row['text'] as String)
+                              : row['text'] as String,
                           style: const TextStyle(color: Colors.white),
                         ),
                         subtitle: Text(

@@ -155,6 +155,9 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                     MaterialPageRoute(
                       builder: (_) => ChatHistorySearchPage(
                         account: widget.repository!.account,
+                        localConversation: widget.repository!.persistHistory
+                            ? 'direct:${widget.peerAccount!}'
+                            : null,
                         mediaSearch: (type, before) =>
                             widget.repository!.history(
                               widget.peerAccount!,
