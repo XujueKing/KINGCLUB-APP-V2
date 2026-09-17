@@ -22,6 +22,38 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
+  test(
+    'confirmed reads survive reopening without returning to retry queue',
+    () async {
+      final queue = ChatReadOutbox('me');
+      await queue.put('peer', 8);
+      await queue.acknowledge('peer', 8);
+      final reopened = ChatReadOutbox('me');
+      expect(await reopened.read(), isEmpty);
+      expect(await reopened.displayWatermarks(), {'peer': 8});
+      await reopened.put('peer', 3);
+      await reopened.acknowledge('peer', 3);
+      expect(await reopened.displayWatermarks(), {'peer': 8});
+      expect(await ChatReadOutbox('other').displayWatermarks(), isEmpty);
+      expect(
+        await ChatReadOutbox('me', group: true).displayWatermarks(),
+        isEmpty,
+      );
+      final repository = MessagingRepository(
+        account: 'me',
+        readOutbox: reopened,
+        call: (_, _) async => {},
+      );
+      final projection = await repository.pendingReadProjection();
+      final rows = projection.apply([
+        {'peer': 'peer', 'lastSequence': 8, 'unreadCount': 3},
+        {'peer': 'peer', 'lastSequence': 9, 'unreadCount': 1},
+      ]);
+      expect(rows[0]['unreadCount'], 0);
+      expect(rows[1]['unreadCount'], 1);
+    },
+  );
+
   test('only successful read recovery notifies the matching account', () async {
     final matching = <String>[];
     final other = <String>[];

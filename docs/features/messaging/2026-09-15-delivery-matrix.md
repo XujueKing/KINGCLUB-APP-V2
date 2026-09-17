@@ -2,6 +2,15 @@
 
 ## 当前验收汇总
 
+2026-09-17 follow-up implementation (device acceptance pending): local relationship
+changes refresh contacts/conversations without waiting for WebSocket; existing
+conversation rows show saved text drafts; location drafts restore without sending;
+media/voice confirmation returns after durable queue ownership; confirmed read
+positions now survive removal of retry intents. See
+[media queue response](2026-09-17-media-queue-response.md),
+[local relationship sync](2026-09-17-local-relationship-sync.md), and
+[confirmed read positions](2026-09-17-confirmed-read-watermarks.md).
+
 2026-09-17 additional batch: pending local read watermarks now update online/offline list badges; selected stickers retain private image drafts; emoji backspace follows the cursor. Automated checks passed, phone acceptance pending. [Scope and validation](2026-09-17-local-read-projection.md).
 ### 2026-09-17 整批修复（代码回归通过，待手机验收）
 

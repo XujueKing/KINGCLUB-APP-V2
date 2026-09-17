@@ -41,6 +41,23 @@ class ChatReadOutbox {
 
   Future<Map<String, int>> read() => _exclusive(_read);
 
+  Future<Map<String, int>> _confirmed() async {
+    final raw = await _storage.read(key: '$_key.confirmed');
+    return raw == null ? {} : Map<String, int>.from(jsonDecode(raw) as Map);
+  }
+
+  /// Local display state survives successful delivery of the read receipt.
+  /// Pending intents stay separate so recovery does not resend confirmed reads.
+  Future<Map<String, int>> displayWatermarks() => _exclusive(() async {
+    final values = await _confirmed();
+    for (final entry in (await _read()).entries) {
+      if (entry.value > (values[entry.key] ?? 0)) {
+        values[entry.key] = entry.value;
+      }
+    }
+    return values;
+  });
+
   Future<bool> put(String peer, int sequence) => _exclusive(() async {
     if (account.isEmpty || peer.isEmpty || sequence <= 0) {
       throw ArgumentError('Invalid read watermark');
@@ -56,6 +73,16 @@ class ChatReadOutbox {
     final values = await _read();
     final pending = values[peer];
     if (pending == null || pending > sequence) return;
+    final confirmed = await _confirmed();
+    if (pending > (confirmed[peer] ?? 0)) {
+      confirmed[peer] = pending;
+      // Save the display watermark first. A crash can leave a redundant intent,
+      // but must never erase both the pending and confirmed read positions.
+      await _storage.write(
+        key: '$_key.confirmed',
+        value: jsonEncode(confirmed),
+      );
+    }
     values.remove(peer);
     await _storage.write(key: _key, value: jsonEncode(values));
   });

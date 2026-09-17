@@ -363,8 +363,8 @@ class MessagingRepository {
 
   Future<ConversationReadProjection> pendingReadProjection() async {
     final values = await Future.wait([
-      readOutbox?.read() ?? Future.value(<String, int>{}),
-      groupReadOutbox?.read() ?? Future.value(<String, int>{}),
+      readOutbox?.displayWatermarks() ?? Future.value(<String, int>{}),
+      groupReadOutbox?.displayWatermarks() ?? Future.value(<String, int>{}),
     ]);
     return ConversationReadProjection(values[0], values[1]);
   }

@@ -38,13 +38,15 @@ void main() {
           await repo.retryPendingReads(isActive: () => true);
           await Future<void>.delayed(Duration.zero);
           expect(await queue.read(), {'target': 5});
-          expect(notifications, isEmpty);
+          // One local-read notification is emitted when the intent is saved.
+          // Invalid server acknowledgements must not add another notification.
+          expect(notifications, ['me']);
           result = {'readSequence': 7, 'groupId': 'target'};
           now = now.add(const Duration(minutes: 5));
           await repo.retryPendingReads(isActive: () => true);
           await Future<void>.delayed(Duration.zero);
           expect(await queue.read(), isEmpty);
-          expect(notifications, ['me']);
+          expect(notifications, ['me', 'me']);
         },
       );
     }
