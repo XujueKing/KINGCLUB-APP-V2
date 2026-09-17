@@ -45,6 +45,10 @@ Future<void> _createConversationListCache(DatabaseExecutor db) => db.execute(
   'CREATE TABLE conversation_list_cache (id INTEGER PRIMARY KEY CHECK(id=1), payload BLOB NOT NULL)',
 );
 
+Future<void> _createVisibilityChecks(DatabaseExecutor db) => db.execute(
+  'CREATE TABLE IF NOT EXISTS conversation_visibility_checks (id INTEGER PRIMARY KEY AUTOINCREMENT, target TEXT NOT NULL UNIQUE, payload BLOB NOT NULL)',
+);
+
 /// Keep locally confirmed outgoing heads until the server list catches up.
 List<Map<String, dynamic>> mergeConfirmedConversationRows(
   List<Map<String, dynamic>> local,
@@ -133,6 +137,9 @@ extension ConversationListCache on ChatHistoryStore {
           expectedRevision != _conversationListRevision) {
         return;
       }
+      // Journal candidates before replacing the snapshot: a failed probe or
+      // process exit must not lose the only reference to a hidden conversation.
+      await _queueVisibilityChecks(tx, settledHeads, projected);
       final merged = mergeConfirmedConversationRows(
         await _readConversationList(tx),
         projected,
@@ -192,8 +199,38 @@ extension ConversationListCache on ChatHistoryStore {
     await _writeConversationList(tx, utf8.encode(jsonEncode(rows)));
   }
 
-  /// A missing paginated row is not proof of deletion. Query its history
-  /// boundary before removing a locally confirmed bridge or retained messages.
+  List<int> _visibilityAad(String target) =>
+      utf8.encode(jsonEncode(['conversation-visibility-v1', account, target]));
+
+  Future<void> _queueVisibilityChecks(
+    DatabaseExecutor db,
+    List<Map<String, dynamic>> candidates,
+    List<Map<String, dynamic>> visible,
+  ) async {
+    String key(Map<String, dynamic> row) => row['kind'] == 'group'
+        ? 'group:${row['groupId']}'
+        : 'direct:${row['peer']}';
+    final seen = visible.map(key).toSet();
+    for (final row in candidates) {
+      if (seen.contains(key(row)) || row['localOnly'] == true) continue;
+      final group = row['kind'] == 'group';
+      final target = row[group ? 'groupId' : 'peer'];
+      if (target is! String || target.isEmpty) continue;
+      final digest = await _conversation(key(row));
+      final box = await ChatHistoryStore._cipher.encrypt(
+        utf8.encode(jsonEncode({'group': group, 'target': target})),
+        secretKey: _key,
+        aad: _visibilityAad(digest),
+      );
+      await db.insert('conversation_visibility_checks', {
+        'target': digest,
+        'payload': box.concatenation(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+  }
+
+  /// Missing rows are checked against authoritative history boundaries.
+  /// Failed probes survive process restarts in the encrypted cleanup journal.
   Future<void> reconcileHiddenConfirmedHeads({
     required List<Map<String, dynamic>> candidates,
     required List<Map<String, dynamic>> visible,
@@ -201,48 +238,82 @@ extension ConversationListCache on ChatHistoryStore {
     fetch,
     required bool Function() isActive,
   }) async {
-    String key(Map<String, dynamic> row) => row['kind'] == 'group'
-        ? 'group:${row['groupId']}'
-        : 'direct:${row['peer']}';
-    final seen = visible.map(key).toSet();
-    for (final row in candidates) {
-      if (!isActive()) return;
-      if (row['localConfirmed'] != true || seen.contains(key(row))) continue;
-      final group = row['kind'] == 'group';
-      final target = row[group ? 'groupId' : 'peer'];
-      if (target is! String || target.isEmpty) continue;
-      try {
-        final conversation = key(row);
-        final saved = await read(conversation, limit: 1);
+    if (!isActive()) return;
+    try {
+      await _db.transaction(
+        (tx) => _queueVisibilityChecks(
+          tx,
+          candidates.where((row) => row['localConfirmed'] == true).toList(),
+          visible,
+        ),
+      );
+    } catch (_) {
+      return;
+    }
+    if (_visibilityRunning || !isActive()) return;
+    _visibilityRunning = true;
+    try {
+      final pending = await _db.query(
+        'conversation_visibility_checks',
+        orderBy: 'id',
+      );
+      for (final job in pending) {
         if (!isActive()) return;
-        final response = await fetch(group, target);
-        if (!isActive()) return;
-        final floor = (response['settings'] as Map?)?['hiddenThrough'];
-        final version = response['historyVersion'];
-        final membership = response['membershipVersion'];
-        if (floor is! int ||
-            floor <= saved.hiddenThrough ||
-            version is! int ||
-            version < 0 ||
-            version != saved.historyVersion ||
-            (group &&
-                (membership is! int ||
-                    membership != saved.membershipVersion))) {
-          continue;
+        try {
+          final bytes = await ChatHistoryStore._cipher.decrypt(
+            SecretBox.fromConcatenation(
+              (job['payload'] as List).cast<int>(),
+              nonceLength: 12,
+              macLength: 16,
+            ),
+            secretKey: _key,
+            aad: _visibilityAad(job['target'] as String),
+          );
+          final row = jsonDecode(utf8.decode(bytes)) as Map;
+          final group = row['group'] as bool, target = row['target'] as String;
+          final conversation = '${group ? 'group' : 'direct'}:$target';
+          final saved = await read(conversation, limit: 1);
+          if (!isActive()) return;
+          final response = await fetch(group, target);
+          if (!isActive()) return;
+          final floor = (response['settings'] as Map?)?['hiddenThrough'];
+          final version = response['historyVersion'];
+          final membership = response['membershipVersion'];
+          if (floor is! int ||
+              floor < 0 ||
+              version is! int ||
+              version < 0 ||
+              version != saved.historyVersion ||
+              (group &&
+                  (membership is! int ||
+                      membership != saved.membershipVersion))) {
+            continue;
+          }
+          final applied = await commit(
+            conversation,
+            const [],
+            expectedEpoch: saved.epoch,
+            hiddenThrough: floor,
+            historyVersion: version,
+            membershipVersion: group ? membership as int : null,
+          );
+          if (applied) {
+            // A concurrent enqueue gets a different autoincrement id and must
+            // not be acknowledged by this older request.
+            await _db.delete(
+              'conversation_visibility_checks',
+              where: 'id=?',
+              whereArgs: [job['id']],
+            );
+          }
+        } catch (_) {
+          // Offline, denied and malformed responses stay queued for retry.
         }
-        // Commit only the authoritative boundary. Do not mark messages read,
-        // advance pagination, or adopt a membership/history revision here.
-        await commit(
-          conversation,
-          const [],
-          expectedEpoch: saved.epoch,
-          hiddenThrough: floor,
-          historyVersion: version,
-          membershipVersion: group ? membership as int : null,
-        );
-      } catch (_) {
-        // Offline, denied and malformed responses never imply deletion.
       }
+    } catch (_) {
+      // Database closure on account disposal leaves the durable journal intact.
+    } finally {
+      _visibilityRunning = false;
     }
   }
 

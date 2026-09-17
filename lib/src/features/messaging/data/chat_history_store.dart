@@ -53,6 +53,7 @@ class ChatHistoryStore {
     this._draftStorage,
   );
   final FlutterSecureStorage? _draftStorage;
+  bool _visibilityRunning = false;
   Future<void> _redactDraft(
     String conversation,
     Set<String>? ids, {
@@ -171,8 +172,9 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 21,
+        version: 22,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 22) await _createVisibilityChecks(db);
           if (oldVersion < 21) await _createDeferredMediaCleanup(db);
           if (oldVersion < 19) await _createContactGroupSnapshot(db);
           if (oldVersion < 16) {
@@ -242,6 +244,7 @@ class ChatHistoryStore {
           if (oldVersion < 20) await _sanitizeLegacyReplies(db, key, account);
         },
         onCreate: (db, _) async {
+          await _createVisibilityChecks(db);
           await _createDeferredMediaCleanup(db);
           await _createContactGroupSnapshot(db);
           await _createContactSnapshot(db);

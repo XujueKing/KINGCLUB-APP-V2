@@ -285,6 +285,105 @@ void main() {
       );
     }
   }
+  for (final confirmed in [true, false]) {
+    test(
+      'visibility retry survives list replacement and restart: confirmed=$confirmed',
+      () async {
+        final epoch = (await store.adoptHistoryVersion(
+          'direct:peer',
+          expectedEpoch: 0,
+          historyVersion: 1,
+        ))!;
+        await store.commit(
+          'direct:peer',
+          [
+            {...message(1), 'sender': 'me', 'recipient': 'peer'},
+          ],
+          expectedEpoch: epoch,
+          historyVersion: 1,
+          recordOutgoingHead: true,
+        );
+        final initial = await store.readConversationList();
+        if (!confirmed) {
+          await store.saveConversationList([
+            {...initial.single}..remove('localConfirmed'),
+          ]);
+        }
+        final beforeRequest = await store.readConversationList();
+        await store.saveConversationList([], settledHeads: beforeRequest);
+        expect(await store.readConversationList(), isEmpty);
+        await store.reconcileHiddenConfirmedHeads(
+          candidates: [],
+          visible: [],
+          isActive: () => true,
+          fetch: (_, _) async => throw const SocketException('offline'),
+        );
+        expect((await store.read('direct:peer')).messages, hasLength(1));
+        await store.close();
+        store = await open();
+        var calls = 0;
+        Future<Map<String, dynamic>> recovered(
+          bool group,
+          String target,
+        ) async {
+          calls++;
+          expect(group, false);
+          expect(target, 'peer');
+          return {
+            'historyVersion': 1,
+            'settings': {'hiddenThrough': 1},
+          };
+        }
+
+        await store.reconcileHiddenConfirmedHeads(
+          candidates: [],
+          visible: [],
+          isActive: () => true,
+          fetch: recovered,
+        );
+        expect(calls, 1);
+        expect((await store.read('direct:peer')).messages, isEmpty);
+        await store.reconcileHiddenConfirmedHeads(
+          candidates: [],
+          visible: [],
+          isActive: () => true,
+          fetch: recovered,
+        );
+        expect(calls, 1);
+      },
+    );
+  }
+  test('v21 upgrades with an encrypted visibility journal', () async {
+    await store.close();
+    final raw = await databaseFactoryFfi.openDatabase('${dir.path}/history.db');
+    await raw.execute('DROP TABLE conversation_visibility_checks');
+    await raw.setVersion(21);
+    await raw.close();
+    store = await open();
+    await store.saveConversationList(
+      [],
+      settledHeads: [
+        {'kind': 'direct', 'peer': 'private-peer-marker', 'lastSequence': 1},
+      ],
+    );
+    await store.close();
+    final inspected = await databaseFactoryFfi.openDatabase(
+      '${dir.path}/history.db',
+    );
+    expect(await inspected.getVersion(), 22);
+    final jobs = await inspected.query('conversation_visibility_checks');
+    expect(jobs, hasLength(1));
+    expect(jobs.single['target'], isNot(contains('private-peer-marker')));
+    expect(
+      utf8.decode(
+        (jobs.single['payload'] as List).cast<int>(),
+        allowMalformed: true,
+      ),
+      isNot(contains('private-peer-marker')),
+    );
+    await inspected.close();
+    store = await open();
+  });
   test('v17 upgrade rolls back earlier rewrites when a later encrypted row is corrupt', () async {
     await store.commit('direct:peer', [
       for (var i = 1; i <= 55; i++) message(i),
@@ -383,7 +482,7 @@ void main() {
     }
     await store.close();
     raw = await databaseFactoryFfi.openDatabase('${dir.path}/history.db');
-    expect(await raw.getVersion(), 21);
+    expect(await raw.getVersion(), 22);
     final after = await raw.query('message', orderBy: 'sequence');
     for (var i = 0; i < 60; i++) {
       if (i == 0 || i == 54) continue;
