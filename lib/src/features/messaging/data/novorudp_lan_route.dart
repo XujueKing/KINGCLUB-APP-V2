@@ -255,7 +255,11 @@ class NovoRudpLanRoute {
           if (epoch != _endpointEpoch) continue;
           if (frame.streamId == controlStream) {
             await acceptControl(frame, datagram: true, source: packet.address);
-          } else if (ready && packet.address.address == _peer?.address) {
+          } else if (ready) {
+            // Both peers may select different advertised interfaces on a
+            // multi-homed host. Source candidate/port, endpoint epoch and AEAD
+            // were already verified above; requiring our chosen outbound IP
+            // here drops valid traffic from the peer's other signed candidate.
             await deliver(frame);
           }
         } on FormatException {
