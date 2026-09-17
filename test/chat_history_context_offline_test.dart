@@ -8,6 +8,61 @@ import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_history_context_page.dart';
 
 void main() {
+  for (final outcome in ['success', 'offline', 'denied']) {
+    testWidgets('saved context displays during pending remote: $outcome', (
+      tester,
+    ) async {
+      final remote = Completer<Map<String, dynamic>>();
+      var localReads = 0;
+      Map<String, dynamic> row(String text) => {
+        'messageId': 'm1',
+        'sequence': 1,
+        'sender': 'me',
+        'text': text,
+      };
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatHistoryContextPage(
+            account: 'me',
+            messageId: 'm1',
+            sequence: 1,
+            events: const Stream.empty(),
+            readLocal: () async {
+              localReads++;
+              return [row('cached context')];
+            },
+            read: ({before, after, required limit}) => remote.future,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('cached context'), findsOneWidget);
+      if (outcome == 'success') {
+        remote.complete({
+          'messages': [row('remote context')],
+          'settings': {'hiddenThrough': 0},
+        });
+      } else {
+        remote.completeError(
+          AuthFailure(
+            outcome == 'offline' ? 'NETWORK_ERROR' : 'FORBIDDEN',
+            'unavailable',
+          ),
+        );
+      }
+      await tester.pumpAndSettle();
+      expect(localReads, 1);
+      expect(
+        find.text('cached context'),
+        outcome == 'offline' ? findsOneWidget : findsNothing,
+      );
+      expect(
+        find.text('remote context'),
+        outcome == 'success' ? findsOneWidget : findsNothing,
+      );
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
   for (final group in [false, true]) {
     testWidgets(
       'clear fences pending context without per-message events $group',
@@ -86,7 +141,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(localReads, code == 'NETWORK_ERROR' ? 1 : 0);
+      expect(localReads, 1);
       expect(
         find.text('saved body'),
         code == 'NETWORK_ERROR' ? findsOneWidget : findsNothing,

@@ -399,9 +399,69 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
       });
     }
     if (_invalid || !_foreground) return;
+    var remoteFinished = false;
+    var positioned = false;
     try {
       await _watchingHistory;
       if (!mounted || _invalid || generation != _generation) return;
+      void apply(List<Map<String, dynamic>> result, bool localOnly) {
+        final messages = result
+            .where(
+              (message) =>
+                  !_removedIds.contains(message['messageId']) &&
+                  !_removedSequences.contains(message['sequence']) &&
+                  (message['sequence'] as int) > _hiddenThrough,
+            )
+            .toList();
+        final activeId = _voice?.activeId;
+        if (activeId != null &&
+            !messages.any(
+              (message) =>
+                  message['messageId'] == activeId &&
+                  message['messageType'] == 'voice',
+            )) {
+          _voice?.stop();
+        }
+        setState(() {
+          _messages = messages;
+          _localOnly = localOnly;
+        });
+        if (background || positioned) return;
+        positioned = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final target = _target.currentContext;
+          if (mounted && generation == _generation && target != null) {
+            Scrollable.ensureVisible(target, alignment: 0.35);
+          }
+        });
+      }
+
+      Future<List<Map<String, dynamic>>> readLocal() async =>
+          widget.readLocal != null
+          ? await widget.readLocal!()
+          : await (await ChatHistoryStore.open(widget.account)).context(
+              widget.localConversation!,
+              messageId: widget.messageId,
+              sequence: widget.sequence,
+            );
+      Future<List<Map<String, dynamic>>>? cached;
+      if (!background &&
+          (widget.readLocal != null || widget.localConversation != null)) {
+        cached = readLocal();
+        unawaited(
+          cached
+              .then((rows) {
+                if (!mounted ||
+                    _invalid ||
+                    generation != _generation ||
+                    remoteFinished) {
+                  return;
+                }
+                apply(rows, true);
+              })
+              .catchError((Object _) {}),
+        );
+      }
       List<Map<String, dynamic>> result;
       var localOnly = false;
       try {
@@ -415,45 +475,12 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
             (widget.localConversation == null && widget.readLocal == null)) {
           rethrow;
         }
-        final readLocal = widget.readLocal;
-        result = readLocal != null
-            ? await readLocal()
-            : await (await ChatHistoryStore.open(widget.account)).context(
-                widget.localConversation!,
-                messageId: widget.messageId,
-                sequence: widget.sequence,
-              );
+        result = await (cached ?? readLocal());
         localOnly = true;
       }
       if (!mounted || generation != _generation) return;
-      final messages = result
-          .where(
-            (message) =>
-                !_removedIds.contains(message['messageId']) &&
-                !_removedSequences.contains(message['sequence']) &&
-                (message['sequence'] as int) > _hiddenThrough,
-          )
-          .toList();
-      final activeId = _voice?.activeId;
-      if (activeId != null &&
-          !messages.any(
-            (message) =>
-                message['messageId'] == activeId &&
-                message['messageType'] == 'voice',
-          )) {
-        _voice?.stop();
-      }
-      setState(() {
-        _messages = messages;
-        _localOnly = localOnly;
-      });
-      if (background) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final target = _target.currentContext;
-        if (mounted && generation == _generation && target != null) {
-          Scrollable.ensureVisible(target, alignment: 0.35);
-        }
-      });
+      remoteFinished = true;
+      apply(result, localOnly);
     } catch (_) {
       if (!mounted || generation != _generation) return;
       _voice?.stop();
