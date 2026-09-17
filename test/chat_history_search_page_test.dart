@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_history_search_page.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 
 Map<String, dynamic> row(int sequence, String text) => {
   'messageId': 'm$sequence',
@@ -13,6 +14,60 @@ Map<String, dynamic> row(int sequence, String text) => {
   'createdDate': DateTime(2020, 1, 2, 10).toUtc().toIso8601String(),
 };
 void main() {
+  for (final group in [false, true]) {
+    testWidgets(
+      'local deletion invalidates search without a socket event group=$group',
+      (tester) async {
+        var calls = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ChatHistorySearchPage(
+              account: 'me',
+              groupId: group ? 'group' : null,
+              events: const Stream.empty(),
+              search: (_, _) async {
+                calls++;
+                return {
+                  'messages': [
+                    row(1, 'deleted original'),
+                    row(2, 'retained original'),
+                    {
+                      ...row(3, 'recalled private text'),
+                      'messageType': 'recalled',
+                    },
+                  ],
+                  'hasMore': false,
+                };
+              },
+            ),
+          ),
+        );
+        await tester.enterText(
+          find.byKey(const ValueKey('chat-history-search-input')),
+          'needle',
+        );
+        await tester.pump(const Duration(milliseconds: 301));
+        await tester.pumpAndSettle();
+        expect(find.text('deleted original'), findsOneWidget);
+        expect(find.text('recalled private text'), findsNothing);
+        await ChatMediaDeletion('other', group, 'm1').dispatch();
+        await ChatMediaDeletion('me', !group, 'm1').dispatch();
+        await tester.pump(const Duration(milliseconds: 301));
+        expect(calls, 1);
+        await ChatMediaDeletion('me', group, 'm1').dispatch();
+        await tester.pump();
+        expect(find.text('deleted original'), findsNothing);
+        await tester.pump(const Duration(milliseconds: 301));
+        await tester.pumpAndSettle();
+        expect(calls, 2);
+        expect(find.text('deleted original'), findsNothing);
+        expect(find.text('retained original'), findsOneWidget);
+        await tester.pumpWidget(const SizedBox());
+        await ChatMediaDeletion('me', group, 'm2').dispatch();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   testWidgets('media type switches reset cursor and reject previous results', (
     tester,
   ) async {

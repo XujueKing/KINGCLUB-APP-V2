@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'chat_timestamp.dart';
 import '../data/chat_media_event_scope.dart';
+import '../data/chat_media_deletion.dart';
 
 import 'package:flutter/material.dart';
 
@@ -23,10 +24,12 @@ class ChatHistorySearchPage extends StatefulWidget {
     this.senderLabel,
     this.groupId,
     this.mediaSearch,
+    this.account,
   });
   final HistorySearch search;
   final HistorySearch? mediaSearch;
   final String? groupId;
+  final String? account;
   final String Function(String account)? senderLabel;
   final ValueChanged<Map<String, dynamic>>? onSelected;
   final Stream<Map<String, dynamic>>? events;
@@ -40,6 +43,8 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
   final _items = <Map<String, dynamic>>[];
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
+  void Function()? _stopDeletion;
+  final _removedIds = <String>{};
   Timer? _debounce;
   int _generation = 0;
   int? _before;
@@ -53,6 +58,17 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _stopDeletion = ChatMediaDeletion.listen((event) {
+      if (_invalid ||
+          event.account != widget.account ||
+          event.group != (widget.groupId != null)) {
+        return;
+      }
+      _removedIds.add(event.messageId);
+      if (_busy || _items.any((row) => row['messageId'] == event.messageId)) {
+        _changed();
+      }
+    });
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
       _input.clear();
@@ -144,7 +160,13 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
         if (!more) {
           _items.clear();
         }
-        _items.addAll(page.reversed);
+        _items.addAll(
+          page.reversed.where(
+            (row) =>
+                !_removedIds.contains(row['messageId']) &&
+                !const {'hidden', 'recalled'}.contains(row['messageType']),
+          ),
+        );
         _before = result['hasMore'] == true
             ? page.first['sequence'] as int
             : null;
@@ -174,6 +196,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
     _clear();
     _session?.cancel();
     _events?.cancel();
+    _stopDeletion?.call();
     WidgetsBinding.instance.removeObserver(this);
     _input.dispose();
     super.dispose();
