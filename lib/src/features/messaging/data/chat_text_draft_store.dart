@@ -6,22 +6,30 @@ import 'package:uuid/uuid.dart';
 import 'chat_file_draft_store.dart';
 
 class ChatTextDraft {
-  ChatTextDraft(this.text, {this.replyTo, this.preview, String? id})
-    : id = id ?? const Uuid().v4();
+  ChatTextDraft(
+    this.text, {
+    this.replyTo,
+    this.preview,
+    this.replySequence,
+    String? id,
+  }) : id = id ?? const Uuid().v4();
   final String id, text;
   final String? replyTo, preview;
+  final int? replySequence;
   Map<String, dynamic> toJson() => {
     'id': id,
     'text': text,
     'replyTo': replyTo,
     'preview': preview,
+    if (replySequence != null) 'replySequence': replySequence,
   };
   static ChatTextDraft parse(String raw) {
     final value = jsonDecode(raw) as Map;
     final id = value['id'],
         text = value['text'],
         reply = value['replyTo'],
-        preview = value['preview'];
+        preview = value['preview'],
+        sequence = value['replySequence'];
     final uuid = RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
     );
@@ -30,7 +38,12 @@ class ChatTextDraft {
         text is! String ||
         text.length > 4000 ||
         (reply != null && (reply is! String || !uuid.hasMatch(reply))) ||
-        (preview != null && (preview is! String || preview.length > 4000))) {
+        (preview != null && (preview is! String || preview.length > 4000)) ||
+        (sequence != null &&
+            (sequence is! int ||
+                sequence < 1 ||
+                sequence > 4294967295 ||
+                reply == null))) {
       throw const FormatException('Invalid text draft');
     }
     return ChatTextDraft(
@@ -38,6 +51,7 @@ class ChatTextDraft {
       id: id,
       replyTo: reply as String?,
       preview: preview as String?,
+      replySequence: sequence as int?,
     );
   }
 }
@@ -56,6 +70,7 @@ class ChatTextDraftStore {
   final FlutterSecureStorage _storage;
   static final _locks = <String, Future<void>>{};
   static final _redactedDrafts = <String, Set<String>>{};
+  static final _hiddenThrough = <String, int>{};
   String get _key =>
       'kingclub.text-draft.${base64UrlEncode(utf8.encode(jsonEncode([account, target])))}';
   static Future<ChatTextDraftStore> open(String account, String target) async {
@@ -85,7 +100,10 @@ class ChatTextDraftStore {
   });
   Future<void> write(ChatTextDraft? draft) => _exclusive(() async {
     var value = draft;
-    if (value != null && (_redactedDrafts[_key]?.contains(value.id) ?? false)) {
+    if (value != null &&
+        ((_redactedDrafts[_key]?.contains(value.id) ?? false) ||
+            (value.replySequence != null &&
+                value.replySequence! <= (_hiddenThrough[_key] ?? 0)))) {
       value = ChatTextDraft(value.text, id: value.id);
     }
     if (value == null || value.text.isEmpty && value.replyTo == null) {
@@ -98,20 +116,30 @@ class ChatTextDraftStore {
   });
 
   /// Removes only the quote; pending user text is not part of history deletion.
-  Future<void> redactReply(Set<String>? messageIds) => _exclusive(() async {
+  Future<String?> redactReply(
+    Set<String>? messageIds, {
+    int hiddenThrough = 0,
+  }) => _exclusive(() async {
+    if (hiddenThrough > (_hiddenThrough[_key] ?? 0)) {
+      _hiddenThrough[_key] = hiddenThrough;
+    }
     final raw = await _storage.read(key: _key);
     await checkSession();
-    if (raw == null) return;
+    if (raw == null) return null;
     final draft = ChatTextDraft.parse(raw);
     if (draft.replyTo == null ||
-        (messageIds != null && !messageIds.contains(draft.replyTo))) {
-      return;
+        (messageIds != null &&
+            !messageIds.contains(draft.replyTo) &&
+            !(draft.replySequence != null &&
+                draft.replySequence! <= hiddenThrough))) {
+      return null;
     }
     (_redactedDrafts[_key] ??= {}).add(draft.id);
     await _storage.write(
       key: _key,
       value: jsonEncode(ChatTextDraft(draft.text, id: draft.id).toJson()),
     );
+    return draft.replyTo;
   });
   Future<void> remove(String id) => _exclusive(() async {
     final raw = await _storage.read(key: _key);

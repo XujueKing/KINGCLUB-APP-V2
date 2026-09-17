@@ -3,6 +3,7 @@ import 'chat_reply.dart';
 import 'chat_media_cleanup.dart';
 import 'chat_outbox.dart';
 import 'chat_text_draft_store.dart';
+import 'chat_media_deletion.dart';
 
 import 'dart:convert';
 import 'dart:async';
@@ -50,18 +51,29 @@ class ChatHistoryStore {
     this._draftStorage,
   );
   final FlutterSecureStorage? _draftStorage;
-  Future<void> _redactDraft(String conversation, Set<String>? ids) async {
+  Future<void> _redactDraft(
+    String conversation,
+    Set<String>? ids, {
+    int hiddenThrough = 0,
+  }) async {
     final storage = _draftStorage;
     if (storage == null) return;
     final target = conversation.startsWith('direct:')
         ? 'peer:${conversation.substring(7)}'
         : conversation;
-    await ChatTextDraftStore(
+    final removed = await ChatTextDraftStore(
       account,
       target,
       () async {},
       storage: storage,
-    ).redactReply(ids);
+    ).redactReply(ids, hiddenThrough: hiddenThrough);
+    if (removed != null) {
+      await ChatMediaDeletion(
+        account,
+        conversation.startsWith('group:'),
+        removed,
+      ).dispatch();
+    }
   }
 
   final ChatOutbox? _outbox;

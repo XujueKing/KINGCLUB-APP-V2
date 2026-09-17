@@ -11,6 +11,65 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  test(
+    'clear floor removes uncached draft source but preserves later quote',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('draft-floor-');
+      final history = await ChatHistoryStore.openDatabaseWithKey(
+        factory: databaseFactoryFfi,
+        file: '${dir.path}/history.db',
+        key: await AesGcm.with256bits().newSecretKey(),
+        account: 'floor-member',
+        draftStorage: const FlutterSecureStorage(),
+      );
+      final drafts = ChatTextDraftStore(
+        'floor-member',
+        'peer:peer',
+        () async {},
+      );
+      const reply = '11111111-1111-4111-8111-111111111111';
+      final old = ChatTextDraft(
+        'keep',
+        replyTo: reply,
+        preview: 'quote',
+        replySequence: 12,
+      );
+      await drafts.write(old);
+      await history.commit(
+        'direct:peer',
+        [],
+        expectedEpoch: 0,
+        hiddenThrough: 12,
+      );
+      expect((await drafts.read())!.replyTo, isNull);
+      expect((await drafts.read())!.text, 'keep');
+      await drafts.write(
+        ChatTextDraft(
+          'new input',
+          replyTo: reply,
+          preview: 'late',
+          replySequence: 12,
+        ),
+      );
+      expect((await drafts.read())!.preview, isNull);
+      final later = ChatTextDraft(
+        'later',
+        replyTo: reply,
+        preview: 'valid',
+        replySequence: 13,
+      );
+      await drafts.write(later);
+      await history.commit(
+        'direct:peer',
+        [],
+        expectedEpoch: 0,
+        hiddenThrough: 12,
+      );
+      expect((await drafts.read())!.toJson(), later.toJson());
+      await history.close();
+      await dir.delete(recursive: true);
+    },
+  );
   for (final mode in ['delete', 'clear', 'recall', 'floor']) {
     test('unopened draft cleanup and late write fence: $mode', () async {
       final dir = await Directory.systemTemp.createTemp('history-draft-');

@@ -33,7 +33,7 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
       // A list snapshot may precede downloading its message history. The
       // first tombstone still invalidates that preview; after commit its row
       // records the marker so replay does not trigger another refresh.
-      await _redactDraft(conversation, removedIds);
+      await _redactDraft(conversation, removedIds, hiddenThrough: floor);
       for (final message in incoming) {
         if (removedIds.contains(message['messageId'])) {
           await cleanup.remove(
@@ -106,7 +106,7 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
         removed.add(message);
       }
     }
-    await _redactDraft(conversation, removedIds);
+    await _redactDraft(conversation, removedIds, hiddenThrough: floor);
     if (removed.isEmpty) return removedContent;
     for (final message in incoming) {
       if ((message['sequence'] as int) > floor &&

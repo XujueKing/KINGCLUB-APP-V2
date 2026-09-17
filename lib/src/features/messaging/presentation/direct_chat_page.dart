@@ -439,6 +439,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   int _goldBalance = 501;
   String? _quotedDraft;
   String? _quotedMessageId;
+  int? _quotedMessageSequence;
   ChatTextDraftStore? _textDrafts;
   ChatTextDraft? _textDraft;
   Timer? _textDraftTimer;
@@ -459,6 +460,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     setState(() {
       _quotedDraft = null;
       _quotedMessageId = null;
+      _quotedMessageSequence = null;
     });
     _captureTextDraft();
     await _flushTextDraft();
@@ -469,6 +471,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     final text = _controller.text;
     if (_textDraft?.text == text &&
         _textDraft?.replyTo == _quotedMessageId &&
+        _textDraft?.replySequence == _quotedMessageSequence &&
         _textDraft?.preview == _quotedDraft) {
       return;
     }
@@ -476,6 +479,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     _textDraft = ChatTextDraft(
       text,
       replyTo: _quotedMessageId,
+      replySequence: _quotedMessageSequence,
       preview: _quotedDraft,
     );
     _textDraftTimer?.cancel();
@@ -522,6 +526,7 @@ class _DirectChatPageState extends State<DirectChatPage>
           _textDraft = draft;
           _quotedDraft = draft.preview;
           _quotedMessageId = draft.replyTo;
+          _quotedMessageSequence = draft.replySequence;
           _controller.value = TextEditingValue(
             text: draft.text,
             selection: TextSelection.collapsed(offset: draft.text.length),
@@ -718,6 +723,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       _messages.clear();
       _quotedDraft = null;
       _quotedMessageId = null;
+      _quotedMessageSequence = null;
       _connectionNotice = '正在恢复会话…';
     });
     try {
@@ -1452,6 +1458,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                     onPressed: () => setState(() {
                       _quotedDraft = null;
                       _quotedMessageId = null;
+                      _quotedMessageSequence = null;
                       _captureTextDraft();
                     }),
                     icon: const Icon(Icons.close, size: 18),
@@ -2087,6 +2094,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       _controller.clear();
       _quotedDraft = null;
       _quotedMessageId = null;
+      _quotedMessageSequence = null;
       _composerPanel = _ComposerPanel.none;
     });
     _scrollToLatest();
@@ -2116,6 +2124,7 @@ class _DirectChatPageState extends State<DirectChatPage>
               _controller.clear();
               _quotedDraft = null;
               _quotedMessageId = null;
+              _quotedMessageSequence = null;
               _composerPanel = _ComposerPanel.none;
             });
             _captureTextDraft();
@@ -2990,6 +2999,13 @@ class _DirectChatPageState extends State<DirectChatPage>
         setState(() {
           _quotedDraft = _messagePreview(message);
           _quotedMessageId = message.messageId;
+          _quotedMessageSequence = null;
+          for (final row in _chat?.messages ?? <Map<String, dynamic>>[]) {
+            if (row['messageId'] == message.messageId) {
+              _quotedMessageSequence = row['sequence'] as int?;
+              break;
+            }
+          }
           _captureTextDraft();
         });
       case _FakeMessageAction.forward:
