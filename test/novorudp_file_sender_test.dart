@@ -194,6 +194,8 @@ void main() {
       'wrong-member',
       'group-success',
       'group-rejoined',
+      'group-stale-sender',
+      'group-stale-recipient',
     ]) {
       test('peer file negotiation over encrypted UDP: $scenario', () async {
         const messageId = '00000000-0000-4000-8000-000000000001';
@@ -240,9 +242,14 @@ void main() {
               'recipient': 'b',
               if (groupId != null) ...{
                 'groupId': groupId,
-                'senderMembershipVersion': 1,
+                'senderMembershipVersion': scenario == 'group-stale-sender'
+                    ? 2
+                    : 1,
                 'recipientMembershipVersion':
-                    scenario == 'group-rejoined' && receiverChecks > 1 ? 2 : 1,
+                    (scenario == 'group-rejoined' && receiverChecks > 1) ||
+                        scenario == 'group-stale-recipient'
+                    ? 2
+                    : 1,
               },
               'assetId': assetId,
               'fileName': 'fixture.bin',
@@ -255,12 +262,28 @@ void main() {
             };
           },
         );
+        final scope = groupId == null
+            ? null
+            : GroupFileDeviceScope.parse(
+                {
+                  'kind': 'group-file',
+                  'groupId': groupId,
+                  'messageId': messageId,
+                  'sender': 'a',
+                  'recipient': 'b',
+                  'senderMembershipVersion': 1,
+                  'recipientMembershipVersion': 1,
+                },
+                messageId: messageId,
+                groupId: groupId,
+                account: 'a',
+                peer: 'b',
+              );
         final sending = PeerFileChannel(
           link: left,
           repository: repository('a'),
           peer: 'b',
-          groupId: groupId,
-          scopedMessageId: groupId == null ? null : messageId,
+          groupScope: scope,
           cache: cache,
           privateDirectory: directory,
           canExchange: () => true,
@@ -269,8 +292,7 @@ void main() {
           link: right,
           repository: repository('b'),
           peer: 'a',
-          groupId: groupId,
-          scopedMessageId: groupId == null ? null : messageId,
+          groupScope: scope,
           cache: cache,
           privateDirectory: directory,
           canExchange: () => true,
@@ -282,6 +304,20 @@ void main() {
             receiving.authorize(assetId, sending: false),
             throwsStateError,
           );
+        }
+        if (scenario.startsWith('group-stale-')) {
+          await expectLater(
+            receiving.authorize(messageId, sending: false),
+            throwsStateError,
+          );
+          await expectLater(
+            sending.authorize(messageId, sending: true),
+            throwsStateError,
+          );
+          expect(packets, 0);
+          expect(senderChecks, 1);
+          expect(receiverChecks, 1);
+          return;
         }
         final authority = await receiving.authorize(messageId, sending: false);
         if (scenario == 'success' || scenario == 'group-success') {

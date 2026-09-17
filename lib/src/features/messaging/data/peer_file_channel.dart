@@ -11,6 +11,7 @@ import 'novorudp_file_sender.dart';
 import 'novorudp_frame.dart';
 import 'novorudp_frame_link.dart';
 import 'peer_file_authority.dart';
+import 'group_file_device_scope.dart';
 
 /// Runs only over an independently authenticated member/device lane.
 class PeerFileChannel {
@@ -18,8 +19,7 @@ class PeerFileChannel {
     required this.link,
     required this.repository,
     required this.peer,
-    this.groupId,
-    this.scopedMessageId,
+    this.groupScope,
     required this.cache,
     required this.privateDirectory,
     required this.canExchange,
@@ -94,8 +94,9 @@ class PeerFileChannel {
   final NovoRudpFrameLink link;
   final MessagingRepository repository;
   final String peer;
-  final String? groupId;
-  final String? scopedMessageId;
+  final GroupFileDeviceScope? groupScope;
+  String? get groupId => groupScope?.groupId;
+  String? get scopedMessageId => groupScope?.messageId;
   final ChatSentFileCache cache;
   final Directory privateDirectory;
   final bool Function() canExchange;
@@ -160,6 +161,16 @@ class PeerFileChannel {
       groupId: groupId,
     );
     _check();
+    final scope = groupScope;
+    if (scope != null &&
+        (value.groupId != scope.groupId ||
+            value.messageId != scope.messageId ||
+            value.sender != scope.sender ||
+            value.recipient != scope.recipient ||
+            value.senderMembershipVersion != scope.senderVersion ||
+            value.recipientMembershipVersion != scope.recipientVersion)) {
+      throw StateError('Group file lane permission changed');
+    }
     return value;
   }
 
