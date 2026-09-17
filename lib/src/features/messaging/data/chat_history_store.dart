@@ -949,6 +949,17 @@ class ChatHistoryStore {
           "UPDATE nearby_message SET hidden=1, payload=X'' WHERE member=?",
           [id],
         );
+      } else if (deletedMessageIds != null &&
+          conversation.startsWith('direct:')) {
+        // A reconciled direct message also has a device-to-device journal
+        // copy. Erase it in this transaction, without waiting for a later
+        // server tombstone to reach the nearby reconciliation path.
+        for (final messageId in deletedMessageIds) {
+          await tx.rawUpdate(
+            "UPDATE nearby_message SET hidden=1, payload=X'' WHERE member=? AND serverId=?",
+            [id, messageId],
+          );
+        }
       }
       if (deleteMedia &&
           (deletedMessageIds == null || deletedSequences.isNotEmpty)) {
