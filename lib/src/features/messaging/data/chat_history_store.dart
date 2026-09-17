@@ -20,6 +20,7 @@ part 'nearby_message_history.dart';
 part 'conversation_list_cache.dart';
 part 'chat_history_media_cleanup.dart';
 part 'chat_history_replies.dart';
+part 'chat_history_draft_migration.dart';
 
 class ChatHistoryPage {
   const ChatHistoryPage(
@@ -216,7 +217,14 @@ class ChatHistoryStore {
         },
       ),
     );
-    return ChatHistoryStore._(db, key, account, outbox, draftStorage);
+    final store = ChatHistoryStore._(db, key, account, outbox, draftStorage);
+    try {
+      await store._sanitizeLegacyDraftReplies();
+      return store;
+    } catch (_) {
+      await store.close();
+      rethrow;
+    }
   }
 
   static Future<void> _createContactSnapshot(Database db) => db.execute(
