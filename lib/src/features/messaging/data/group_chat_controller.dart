@@ -424,7 +424,7 @@ class GroupChatController extends ChatSessionController {
       );
     final hidden = (_settings['hiddenThrough'] as num?)?.toInt() ?? 0;
     if (hidden > _visibleAfter) _visibleAfter = hidden;
-    final rows = (result['messages'] as List)
+    var rows = (result['messages'] as List)
         .map((raw) => _preserveHidden(Map<String, dynamic>.from(raw as Map)))
         .toList();
     for (final message in rows) {
@@ -438,6 +438,7 @@ class GroupChatController extends ChatSessionController {
         _historyKey,
         rows,
         expectedEpoch: _diskEpoch,
+        onCommittedMessages: (saved) => rows = saved,
         historyVersion: _historyVersion,
         membershipVersion: _membershipVersion,
         hiddenThrough: _visibleAfter,
@@ -451,7 +452,7 @@ class GroupChatController extends ChatSessionController {
     _confirmed.removeWhere(
       (_, message) => (message['sequence'] as num).toInt() <= _visibleAfter,
     );
-    for (final raw in result['messages'] as List) {
+    for (final raw in rows) {
       if (_disposed || generation != _historyGeneration) return;
       await _acknowledge(Map<String, dynamic>.from(raw as Map), persist: false);
     }
@@ -495,6 +496,7 @@ class GroupChatController extends ChatSessionController {
         _historyKey,
         [message],
         expectedEpoch: _diskEpoch,
+        onCommittedMessages: (saved) => message = saved.single,
         recordOutgoingHead: _pending.containsKey(message['clientMessageId']),
         historyVersion: _historyVersion,
         membershipVersion: _membershipVersion,

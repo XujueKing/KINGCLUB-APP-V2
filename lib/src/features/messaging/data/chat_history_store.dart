@@ -588,6 +588,7 @@ class ChatHistoryStore {
     int? peerReadSequence,
     String? serverConversationId,
     ChatMediaCleanup? mediaCleanup,
+    void Function(List<Map<String, dynamic>> messages)? onCommittedMessages,
   }) => _protectPendingReferences(
     (readPending) => _commit(
       conversation,
@@ -602,6 +603,7 @@ class ChatHistoryStore {
       serverConversationId: serverConversationId,
       mediaCleanup: mediaCleanup,
       readPending: readPending,
+      onCommittedMessages: onCommittedMessages,
     ),
   );
 
@@ -617,6 +619,7 @@ class ChatHistoryStore {
     int? peerReadSequence,
     String? serverConversationId,
     ChatMediaCleanup? mediaCleanup,
+    void Function(List<Map<String, dynamic>> messages)? onCommittedMessages,
     required PendingMessageReader readPending,
   }) async {
     if ((peerReadSequence == null) != (serverConversationId == null) ||
@@ -847,6 +850,7 @@ class ChatHistoryStore {
         // Keep deferred source locators for the next cleanup opportunity.
       }
     }
+    if (committed) onCommittedMessages?.call(messages);
     return committed;
   }
 

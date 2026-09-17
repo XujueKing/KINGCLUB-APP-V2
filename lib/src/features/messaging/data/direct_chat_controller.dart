@@ -463,7 +463,7 @@ class DirectChatController extends ChatSessionController {
     int generation, {
     bool advanceCursor = false,
   }) async {
-    final rows = (result['messages'] as List)
+    var rows = (result['messages'] as List)
         .map((raw) => _preserveHidden(Map<String, dynamic>.from(raw as Map)))
         .toList();
     for (final message in rows) {
@@ -476,6 +476,7 @@ class DirectChatController extends ChatSessionController {
         _historyKey,
         rows,
         expectedEpoch: _diskEpoch,
+        onCommittedMessages: (saved) => rows = saved,
         historyVersion: _historyVersion,
         hiddenThrough: hidden,
         peerReadSequence: (result['peerReadSequence'] as num).toInt(),
@@ -551,6 +552,7 @@ class DirectChatController extends ChatSessionController {
         _historyKey,
         [message],
         expectedEpoch: _diskEpoch,
+        onCommittedMessages: (saved) => message = saved.single,
         recordOutgoingHead: _pending.containsKey(message['clientMessageId']),
         historyVersion: _historyVersion,
       )) {

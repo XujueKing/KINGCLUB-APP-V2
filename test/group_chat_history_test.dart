@@ -42,6 +42,47 @@ void main() {
     ),
   );
   test(
+    'old tombstones outside loaded pages survive stale server pagination',
+    () async {
+      await store.commit(
+        'group:group',
+        [
+          for (var n = 1; n <= 120; n++)
+            {
+              ...row(n),
+              if (n <= 2) 'messageType': n == 1 ? 'recalled' : 'hidden',
+              if (n <= 2) 'text': '',
+            },
+        ],
+        expectedEpoch: 0,
+        cursor: 120,
+        membershipVersion: 0,
+      );
+      var online = false;
+      final chat = controller((method, params) async {
+        if (!online) throw const AuthFailure('NETWORK_ERROR', 'offline');
+        return {
+          ...history([for (var n = 1; n <= 70; n++) row(n)]),
+          'settings': {'hiddenThrough': 0},
+          "membershipVersion": 0,
+          "joinedSequence": 0,
+        };
+      });
+      addTearDown(chat.dispose);
+      await chat.initialize();
+      expect(chat.messages, hasLength(50));
+      online = true;
+      await chat.loadOlder();
+      expect(chat.error, isNull);
+      expect(
+        chat.messages.where((m) => m['sequence'] == 1).single['messageType'],
+        'recalled',
+      );
+      expect(chat.messages.any((m) => m['sequence'] == 2), false);
+    },
+  );
+
+  test(
     'background group recovery persists acknowledgement before dropping queue',
     () async {
       final queue = Queue();

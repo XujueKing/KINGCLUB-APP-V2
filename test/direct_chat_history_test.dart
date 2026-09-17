@@ -46,6 +46,44 @@ void main() {
     repository: MessagingRepository(account: 'me', call: call),
   );
 
+  test(
+    'old tombstones outside loaded pages survive stale server pagination',
+    () async {
+      await store.commit(
+        'direct:peer',
+        [
+          for (var n = 1; n <= 120; n++)
+            {
+              ...message(n),
+              if (n <= 2) 'messageType': n == 1 ? 'recalled' : 'hidden',
+              if (n <= 2) 'text': '',
+            },
+        ],
+        expectedEpoch: 0,
+        cursor: 120,
+      );
+      var online = false;
+      final chat = controller((method, params) async {
+        if (!online) throw const AuthFailure('NETWORK_ERROR', 'offline');
+        return {
+          ...history([for (var n = 1; n <= 70; n++) message(n)]),
+          'settings': {'hiddenThrough': 0},
+        };
+      });
+      addTearDown(chat.dispose);
+      await chat.initialize();
+      expect(chat.messages, hasLength(50));
+      online = true;
+      await chat.loadOlder();
+      expect(chat.error, isNull);
+      expect(
+        chat.messages.where((m) => m['sequence'] == 1).single['messageType'],
+        'recalled',
+      );
+      expect(chat.messages.any((m) => m['sequence'] == 2), false);
+    },
+  );
+
   for (final cached in [false, true]) {
     for (final code in ['NETWORK_ERROR', 'SESSION_EXPIRED']) {
       test('initial refresh error cache=$cached code=$code', () async {
