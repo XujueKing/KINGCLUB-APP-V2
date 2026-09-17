@@ -1,5 +1,8 @@
 # 数据、库存与账务设计提案
 
+> 最新已确认规则见 [营业规则确认](CONFIRMED_OPERATING_RULES.md)：活动不限报名人数、开局前分配卡座，按各卡座最小/最大人数开台；加餐 AA 有效 30 分钟，未付齐退 APP 余额；AA 门票酒禁存，单点/购买套餐由购买者存酒、仅原店取、保管 3 个月；券按配置选择使用，成本按进货价；收银硬件第二期。本文较早的冲突描述以该确认为准，技术方案仍待评审。
+
+
 状态：Model In Review。**用户明确暂不导入旧数据库数据**；本文不是建表脚本或迁移执行计划。对象名称为概念名，尚未分配正式表、接口或 migration 编号。
 
 ## 1. 旧对象去向
@@ -141,7 +144,7 @@
 
 参见 [AA 入局、共享套餐与加餐](AA_AND_SHARED_PACKAGE.md)。点单必须提供「直接买单 / 发起 AA」。抖音、美团券自助核销或 App 购买后取得入局权益，按卡座容量和男女配比预定；预定与实际入座分别显示。基础共享套餐在员工确认开局、准备酒水时整桌出库一次，不能逐人核销重复出库。加餐 AA 由发起人设置人数，参与者先付各自份额，人数与款项付齐才成单并整单出库，未成团超时退款。此前“付款立即出库”适用于直接买单；买入局券和单人支付 AA 份额不触发整套出库。
 
-目标模型补充：ExternalVoucherRedemption（外部核销及唯一凭据）、AdmissionEntitlement（入局权益）、TableSessionConfigSnapshot（容量/配比/套餐版本）、SessionMembership（名额/权益/入座）、SharedPackageFulfillment（整局套餐唯一出库）、AAGroup（人数/期限/金额快照）、AAParticipation（会员与份额）、ParticipantPayment/Refund（逐笔资金）。这些是概念模型，尚非批准的表名或迁移。外部核销、参与付款、成团、出库分别去重并保留来源。
+目标模型补充：ExternalVoucherRedemption（外部核销及唯一凭据）、AdmissionEntitlement（入局权益）、StoreActivity（不限报名人数的门店活动）、ActivityRegistration（报名及权益引用）、TableSession（具体卡座本次开台）、TableSessionConfigSnapshot（最小/最大人数、配比、套餐版本）、SeatingAssignment（报名与卡座分配历史）、SharedPackageFulfillment（每次卡座开台套餐唯一出库）、AAGroup（份额/30 分钟期限/金额快照）、AAParticipation（会员与份额）、ParticipantPayment/Refund（逐笔资金及退款至 APP 余额）。这些是概念模型，尚非批准的表名或迁移。活动和卡座是一对多关系；报名不预占具体桌位。外部核销、参与付款、成团、出库分别去重并保留来源。
 
 ## 平台化补充（用户最新确认）
 
@@ -149,7 +152,7 @@
 
 ## 会员存酒服务
 
-用户已确认 [存酒/取酒与二维码核销](MEMBER_WINE_STORAGE.md)。联动现有 APP 储物柜与动态码，增加员工手机/收银机存取办理和门店权限。会员保管酒不进入可售库存，取酒不重复记销售或扣销售库存；存取事件、实际操作者、归属及二维码均可追溯。AA 余酒归属、计量、期限、代取/跨店规则列为待确认，不能自动分配给发起人。
+用户已确认 [存酒/取酒与二维码核销](MEMBER_WINE_STORAGE.md)。联动现有 APP 储物柜与动态码，增加员工手机/收银机存取办理和门店权限。会员保管酒不进入可售库存，取酒不重复记销售或扣销售库存；存取事件、实际操作者、归属及二维码均可追溯。AA 门票酒禁止存酒；单点/购买套餐酒仅购买会员可存，原店取酒，保管 3 个月。计量、期满处置等细节待完善，不自动分配多人 AA 加餐剩酒。
 
 概念扩展：StorageDepositRequest、StoragePickupRequest、CustodyBottle/Batch、CustodyEvent 与现有 StorageHolding/Pickup/Event 的映射需审查；复用既有会员和目录，不建立第二套不一致余额。请求区分待确认/已确认/取消/过期，实物保管状态与二维码状态独立；新接口用明确的取出量，内部校验余额和并发版本。暂不新增正式表或迁移编号。
 
