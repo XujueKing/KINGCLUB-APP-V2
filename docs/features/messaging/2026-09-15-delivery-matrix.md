@@ -2,6 +2,8 @@
 
 ## 当前验收汇总
 
+2026-09-18 latest source batch **ba6ee30**: ARM64 Profile preview built (155.7s), **1052 passed / 10 skipped / 0 failed across 180 selected files**. Includes durable group access invalidation, offline queue/readmission checks, direct send permission updates and forwarded-video background verification. **Not installed on A/B**; replaces the previous artifact at the shared path. [Artifact and exact scope](../../audits/2026-09-18-chat-offline-batch.md).
+
 2026-09-18 A offline restart verified: with Wi-Fi/mobile data disabled, a fresh app process restored conversation list, contacts, avatars and existing direct history; an already-cached 8-second video played to completion. Original network settings restored. Sample-specific, not all-media or audio-quality acceptance. See [device evidence](../../audits/2026-09-18-a-batch-device.md).
 
 2026-09-18 A device update: consolidated **13175cc now installed on A**, existing login/history/avatars observed intact; B untouched. Three keyboard cycles yielded 228 UI/raster spans, maxima 10.868/14.849 ms, none over 16.67 ms. This measures execution spans, not every interaction or end-to-end latency. [Device evidence and limits](../../audits/2026-09-18-a-batch-device.md). Build-time "not installed" entries below are historical; real group media and public switching remain pending.
