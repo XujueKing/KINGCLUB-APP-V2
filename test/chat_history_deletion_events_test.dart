@@ -14,10 +14,11 @@ void main() {
         'remote text deletion notifies open consumers group=$group cached=$cached',
         () async {
           final dir = await Directory.systemTemp.createTemp('deletion-events-');
-          final store = await ChatHistoryStore.openDatabaseWithKey(
+          final key = await AesGcm.with256bits().newSecretKey();
+          var store = await ChatHistoryStore.openDatabaseWithKey(
             factory: databaseFactoryFfi,
             file: '${dir.path}/history.db',
-            key: await AesGcm.with256bits().newSecretKey(),
+            key: key,
             account: 'me',
           );
           final conversation = group ? 'group:peer' : 'direct:peer';
@@ -54,6 +55,18 @@ void main() {
               hasLength(1),
               reason: 'replayed tombstone does not re-notify',
             );
+            await store.close();
+            store = await ChatHistoryStore.openDatabaseWithKey(
+              factory: databaseFactoryFfi,
+              file: '${dir.path}/history.db',
+              key: key,
+              account: 'me',
+            );
+            await store.commit(conversation, [source], expectedEpoch: 0);
+            expect(
+              (await store.read(conversation)).messages.single['messageType'],
+              'recalled',
+            );
             await store.commit(conversation, [
               {...source, 'messageId': 'second', 'sequence': 2},
             ], expectedEpoch: 0);
@@ -64,6 +77,15 @@ void main() {
               hiddenThrough: 2,
             );
             expect(events.map((e) => e.messageId), ['source', 'second']);
+            final third = {...source, 'messageId': 'third', 'sequence': 3};
+            await store.commit(conversation, [
+              {...third, 'messageType': 'hidden'},
+            ], expectedEpoch: 0);
+            await store.commit(conversation, [third], expectedEpoch: 0);
+            expect(
+              (await store.read(conversation)).messages.single['messageType'],
+              'hidden',
+            );
           } finally {
             stop();
             await store.close();

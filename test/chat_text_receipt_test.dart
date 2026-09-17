@@ -117,6 +117,13 @@ void main() {
             await controller.synchronize();
           }
           expect(outbox.rows, isEmpty);
+          if (mutation == 'recalled' || mutation == 'hidden') {
+            corrected = true;
+            await controller.synchronize();
+            if (mutation == 'recalled') {
+              expect(controller.messages.single['messageType'], 'recalled');
+            }
+          }
           if (mutation == 'hidden') {
             expect(controller.messages, isEmpty);
           } else {

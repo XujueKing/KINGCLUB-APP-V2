@@ -462,7 +462,8 @@ class GroupChatController extends ChatSessionController {
     final previous = _hiddenMessages[messageId] ?? _confirmed[messageId];
     if (message['messageType'] == 'hidden') {
       _hiddenMessages[messageId] = Map<String, dynamic>.from(message);
-    } else if (previous?['messageType'] == 'hidden') {
+    } else if (previous?['messageType'] == 'hidden' ||
+        previous?['messageType'] == 'recalled') {
       message = Map<String, dynamic>.from(previous!);
       _hiddenMessages[messageId] = message;
     }

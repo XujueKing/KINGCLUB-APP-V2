@@ -668,6 +668,37 @@ class ChatHistoryStore {
           (membershipVersion == null || membershipVersion < savedVersion)) {
         return false;
       }
+      // Resolve terminal visibility inside the transaction: a stale history
+      // response must not resurrect content after a recall or local deletion.
+      messages = messages
+          .map((message) => Map<String, dynamic>.from(message))
+          .toList();
+      for (var index = 0; index < rows.length; index++) {
+        final row = rows[index];
+        final prior = await tx.query(
+          'message',
+          columns: ['payload'],
+          where: 'conversation=? AND sequence=?',
+          whereArgs: [id, row['sequence']],
+        );
+        if (prior.isEmpty) continue;
+        final bytes = (prior.single['payload'] as List).cast<int>();
+        final plain = await _cipher.decrypt(
+          SecretBox.fromConcatenation(bytes, nonceLength: 12, macLength: 16),
+          secretKey: _key,
+          aad: _aad(id, row['sequence'] as int),
+        );
+        final saved = Map<String, dynamic>.from(
+          jsonDecode(utf8.decode(plain)) as Map,
+        );
+        final type = saved['messageType'];
+        if (type == 'hidden' ||
+            (type == 'recalled' &&
+                messages[index]['messageType'] != 'hidden')) {
+          messages[index] = saved;
+          row['payload'] = bytes;
+        }
+      }
       final savedHidden = state['hiddenThrough'] as int;
       final floor = hiddenThrough > savedHidden ? hiddenThrough : savedHidden;
       final removedSequences = await _cleanupSupersededMedia(
