@@ -343,13 +343,31 @@ void main() {
             return result;
           },
         );
+        final groupLane =
+            group && const bool.fromEnvironment('KINGCLUB_NOVORUDP_LAN')
+            ? right.groupFileChannels.first
+            : null;
         try {
           expect(await (await downloader.download(ref)).readAsBytes(), bytes);
           expect(peerTransfers, 1, reason: 'group=$group');
           expect(httpChunks, 0);
+          var expectedPeerTransfers = 1;
+          if (groupLane != null) {
+            final lane = await groupLane.timeout(const Duration(seconds: 5));
+            final deadline = Stopwatch()..start();
+            while (!lane.link.directLanReady &&
+                deadline.elapsed < const Duration(seconds: 10)) {
+              await Future<void>.delayed(const Duration(milliseconds: 100));
+            }
+            expect(lane.link.directLanReady, true);
+            expect(await (await downloader.download(ref)).readAsBytes(), bytes);
+            expect(peerTransfers, 2);
+            expect(httpChunks, 0);
+            expectedPeerTransfers = 2;
+          }
           await sourceCache.cache.root.delete(recursive: true);
           expect(await (await downloader.download(ref)).readAsBytes(), bytes);
-          expect(peerTransfers, 1, reason: 'group=$group');
+          expect(peerTransfers, expectedPeerTransfers, reason: 'group=$group');
           expect(httpChunks, greaterThan(0));
         } finally {
           await downloader.dispose();

@@ -32,3 +32,18 @@ checking device-key revocation. The updated combined test passed in eight second
 Dart analysis passed. These are synthetic members only. Local key storage is a test substitute,
 and this does not prove mobile hardware keystore behavior, public NAT traversal,
 or group RTC. Group transport remains default-off pending device acceptance.
+
+## Local-network upgrade follow-up
+
+The combined test also passed with `--dart-define=KINGCLUB_NOVORUDP_LAN=true`
+(11 seconds). Existing private endpoints both report authenticated LAN readiness.
+For the non-friend group, the test observes the runtime's group-lane event, waits
+for authenticated LAN readiness, and repeats the file download before evicting
+the sender cache. Both peer downloads match all bytes and make zero HTTP chunk
+requests; cache-miss fallback then succeeds over HTTP. Dart analysis is clean.
+
+This proves route establishment plus successful peer transfer while the LAN
+route is ready on this host. It does not count individual UDP versus WSS frames,
+force LAN loss mid-file, or demonstrate two physical phones / public NAT. The
+shared local log was replaced by this latest successful invocation. Owned helper
+processes were stopped and synthetic sessions revoked by fixture cleanup.
