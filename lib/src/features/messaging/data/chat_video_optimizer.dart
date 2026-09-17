@@ -29,6 +29,19 @@ class ChatVideoOptimizer {
 
   Future<File> prepare(File source, {void Function(double)? onProgress}) async {
     _check();
+    if (!_supported) return source;
+    final sourceLength = await source.length();
+    _check();
+    if (sourceLength < 4 * 1024 * 1024) {
+      _prepared = null;
+      _key = null;
+      return source;
+    }
+    // Revalidate actual content, even when a file's path and size are unchanged.
+    final sourceKey = await _hashInBackground(source.path, account);
+    _check();
+    if (sourceKey != _key) _prepared = null;
+    _key = sourceKey;
     final prepared = _prepared;
     if (prepared != null) {
       var available = false;
@@ -41,10 +54,6 @@ class ChatVideoOptimizer {
       if (available) return prepared;
       _prepared = null;
     }
-    if (!_supported || await source.length() < 4 * 1024 * 1024) return source;
-    // Pass only strings: capturing this would transfer native callbacks/state.
-    _key = await _hashInBackground(source.path, account);
-    _check();
     String? path;
     var observing = true, polling = false;
     var lastProgress = -1;

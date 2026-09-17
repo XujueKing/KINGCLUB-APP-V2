@@ -51,6 +51,36 @@ void main() {
     },
   );
 
+  for (final small in [false, true]) {
+    test('changed source cannot reuse old upload copy: small=$small', () async {
+      final first = await File('${directory.path}/first.mp4').writeAsBytes([1]);
+      final second = await File('${directory.path}/second.mp4')
+          .writeAsBytes([2]);
+      final keys = <String>[];
+      final optimizer = ChatVideoOptimizer(
+        account: 'fixture',
+        supported: true,
+        invoke: (method, args) async {
+          if (method != 'prepare') return null;
+          keys.add(args['key'] as String);
+          return keys.length == 1 ? first.path : second.path;
+        },
+      );
+      expect((await optimizer.prepare(source)).path, first.path);
+      final modified = (await source.stat()).modified;
+      await source.writeAsBytes(List.filled(small ? 3 : 4 * 1024 * 1024, 8));
+      await source.setLastModified(modified);
+      expect(
+        (await optimizer.prepare(source)).path,
+        small ? source.path : second.path,
+      );
+      expect(keys.length, small ? 1 : 2);
+      if (!small) expect(keys[0], isNot(keys[1]));
+      expect((await source.readAsBytes()).first, 8);
+      optimizer.dispose();
+    });
+  }
+
   test('native failure preserves original upload source', () async {
     final optimizer = ChatVideoOptimizer(
       account: 'fixture',
