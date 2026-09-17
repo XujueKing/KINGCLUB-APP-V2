@@ -83,6 +83,7 @@ class GroupChatController extends ChatSessionController {
       );
     }
     if (page.membershipVersion == null) return;
+    _hasCachedMembership = true;
     for (final message in page.messages) {
       if (message['groupId'] != groupId) {
         throw const FormatException('Wrong cached group');
@@ -110,6 +111,7 @@ class GroupChatController extends ChatSessionController {
   @override
   bool hasOlder = false;
   bool hasAccess = false;
+  bool _hasCachedMembership = false, _offlineQueueAllowed = false;
   bool sendMuted = false;
   String get sendDisabledReason => '你已被禁言，请联系群主或管理员';
   bool _syncAgain = false;
@@ -266,6 +268,8 @@ class GroupChatController extends ChatSessionController {
         more = !initial && result['hasMore'] == true && rows.isNotEmpty;
       } while (more && !_disposed);
       hasAccess = true;
+      _hasCachedMembership = _membershipVersion != null;
+      _offlineQueueAllowed = false;
       error = null;
       _changed();
       await _loadMemberNames(generation);
@@ -275,6 +279,8 @@ class GroupChatController extends ChatSessionController {
         clearVisibleHistory();
         await _historyBarrier;
       }
+      _offlineQueueAllowed =
+          _hasCachedMembership && e is AuthFailure && e.code == 'NETWORK_ERROR';
       // Cached history remains usable when its background refresh is offline.
       // Permission denials and explicit send/pagination failures remain errors.
       error =
@@ -538,7 +544,7 @@ class GroupChatController extends ChatSessionController {
     }
     text = text.trim();
     if (text.isEmpty || _disposed) return;
-    if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (!hasAccess && !_offlineQueueAllowed) throw StateError('请先确认群聊访问权限');
     if (sendMuted) throw StateError(sendDisabledReason);
     if (text.length > 4000) throw StateError('文字最多4000字');
     final id = clientMessageId ?? const Uuid().v4();
@@ -572,7 +578,7 @@ class GroupChatController extends ChatSessionController {
     String? clientMessageId,
   }) async {
     if (_disposed) return;
-    if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (!hasAccess && !_offlineQueueAllowed) throw StateError('请先确认群聊访问权限');
     if (sendMuted) throw StateError(sendDisabledReason);
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -611,7 +617,7 @@ class GroupChatController extends ChatSessionController {
     String? clientMessageId,
   }) async {
     if (_disposed) return;
-    if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (!hasAccess && !_offlineQueueAllowed) throw StateError('请先确认群聊访问权限');
     if (sendMuted) throw StateError(sendDisabledReason);
     final id = clientMessageId ?? const Uuid().v4();
     if (!RegExp(
@@ -648,7 +654,7 @@ class GroupChatController extends ChatSessionController {
     String? clientMessageId,
   }) async {
     if (_disposed) return;
-    if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (!hasAccess && !_offlineQueueAllowed) throw StateError('请先确认群聊访问权限');
     if (sendMuted) throw StateError(sendDisabledReason);
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -698,7 +704,7 @@ class GroupChatController extends ChatSessionController {
     String? clientMessageId,
   }) async {
     if (_disposed) return;
-    if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (!hasAccess && !_offlineQueueAllowed) throw StateError('请先确认群聊访问权限');
     if (sendMuted) throw StateError(sendDisabledReason);
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -739,7 +745,7 @@ class GroupChatController extends ChatSessionController {
     String? clientMessageId,
   }) async {
     if (_disposed) return;
-    if (!hasAccess) throw StateError('请先确认群聊访问权限');
+    if (!hasAccess && !_offlineQueueAllowed) throw StateError('请先确认群聊访问权限');
     if (sendMuted) throw StateError(sendDisabledReason);
     final id = clientMessageId ?? const Uuid().v4();
     if (!RegExp(
@@ -1064,6 +1070,8 @@ class GroupChatController extends ChatSessionController {
     _syncing = null;
     _syncAgain = false;
     hasAccess = false;
+    _hasCachedMembership = false;
+    _offlineQueueAllowed = false;
     _canReply = false;
     _canHideMessage = false;
     _confirmed.clear();
