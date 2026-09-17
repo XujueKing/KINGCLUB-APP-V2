@@ -2,6 +2,8 @@
 
 ## 当前验收汇总
 
+Real HTTP/native follow-up: gated member authorization + WSS text/file integration passed; directory/rendezvous handshake passed after using an independent fixture (initial shared-device fixture conflict is recorded). Real 4097-byte relay and HTTP-fallback file contents matched; synthetic sessions were revoked and temporary processes stopped. [Evidence and limits](../../audits/2026-09-17-real-member-native-http.md). Not mobile/public-network acceptance.
+
 Latest Android build: clean d44afcb ARM64 Profile preview succeeded (Gradle 96.2s), includes all preceding consolidated chat changes; native packaging verified. Not installed. Service-backed runtime only; no LAN/relay flags supplied. [Artifact hash and scope](../../audits/2026-09-17-chat-consolidated-build.md). The older APK at the same path has been replaced by this build.
 
 Latest consolidated regression at 6a137d3: **856 passed, 0 failed, 10 skipped**, 166 selected chat-related test files, elapsed 2m38s. This supersedes the earlier failing broad run for this selection; skipped native/runtime cases and phone acceptance remain separate. See [batch scope and exclusions](../../audits/2026-09-17-chat-consolidated-regression.md). No APK rebuilt or installed in this batch.
