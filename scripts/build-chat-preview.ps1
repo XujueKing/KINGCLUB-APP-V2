@@ -7,6 +7,7 @@ param(
   [string]$NovoRudpSourceRoot,
   [switch]$SkipNovoRudp,
   [switch]$EnablePeerFiles,
+  [switch]$EnableGroupFiles,
   [switch]$EnableLan
 )
 $ErrorActionPreference = 'Stop'
@@ -17,6 +18,12 @@ Push-Location (Split-Path -Parent $PSScriptRoot)
 $previousJni = $env:KINGCLUB_NOVORUDP_JNI_DIR
 try {
   $relayArguments = @()
+  if ($EnableGroupFiles -and !$EnablePeerFiles) {
+    throw 'Group peer files require EnablePeerFiles and the deployed group-file authorization interfaces.'
+  }
+  if ($EnableGroupFiles) {
+    $relayArguments += '--dart-define=KINGCLUB_NOVORUDP_GROUP_FILES=true'
+  }
   if ($EnableLan -and ($SkipNovoRudp -or !$RelayUrl -or !$RelayPeer)) {
     throw 'LAN upgrade requires the configured authenticated NovoRUDP relay.'
   }

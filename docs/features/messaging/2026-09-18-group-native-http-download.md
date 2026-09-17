@@ -47,3 +47,12 @@ route is ready on this host. It does not count individual UDP versus WSS frames,
 force LAN loss mid-file, or demonstrate two physical phones / public NAT. The
 shared local log was replaced by this latest successful invocation. Owned helper
 processes were stopped and synthetic sessions revoked by fixture cleanup.
+
+## Preview build option
+
+`scripts/build-chat-preview.ps1 -EnableGroupFiles` now explicitly forwards the
+runtime group-file flag. It requires `-EnablePeerFiles`, which in turn requires
+the native library and a configured authenticated relay. The switch is opt-in;
+normal preview builds remain unchanged. Only enable it against an environment
+with group-file authority/directory/context interfaces deployed. PowerShell
+syntax and the missing-peer-file dependency rejection were checked.
