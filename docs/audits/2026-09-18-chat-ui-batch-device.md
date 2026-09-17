@@ -39,3 +39,18 @@ On reconnect, list pending prefix disappeared automatically and timestamp became
 Own-avatar tap then exposed a genuine backend mismatch: profile page showed
 self-message rejection instead of identity. This batch does not count own-avatar
 profile as delivered; follow-up changes use authenticated own snapshot 501.
+
+## Own-profile correction artifact
+
+Source 6d5d211571ae027e9a521a887cb02f9a1ddc3155 built successfully, Gradle
+68.7 seconds, ARM64 ELF guard passed. Same build configuration and artifact path;
+167260232 bytes, SHA256
+4EF51F21585F3D0F91F084276DF6757937F0787B6B9F107884EB8F745AE62723.
+This replaces the first artifact above. Five profile/avatar tests passed again
+and static analysis passed. adb install -r returned Success on A.
+
+After installation/start, A unexpectedly displayed the AA reservation page,
+not the expected chat/home flow. No taps were issued on that page. Device
+operations paused to avoid interfering with another operator; own-profile actual
+rendering verification remains pending. This is not counted as successful
+own-profile device acceptance. Build log: preview build/chat-own-profile-build.log.

@@ -2,6 +2,8 @@
 
 ## 当前验收汇总
 
+2026-09-18 UI batch **f68744b installed on A**: 92 focused tests passed; actual Android Back closes the attachment panel first and then returns to the list. An offline group pending preview now survives force-stop/restart and automatically becomes a confirmed preview on reconnect. B untouched. Own-avatar real-device check exposed self-profile API rejection; corrected in **6d5d211**, with five tests passed, corrected APK built and installed on A (6d5d211). Actual own-profile rendering verification paused after A appeared on the AA reservation page, indicating possible concurrent operation. [Exact batch evidence](../../audits/2026-09-18-chat-ui-batch-device.md).
+
 2026-09-18 native transport batch: **72 passed / 0 skipped / 0 failed across 18 files**, with real native DLL and temporary local SUPERVM WSS daemon. Includes encrypted UDP/file recovery and actual relay/LAN transition cases; daemon stopped afterward. [Exact coverage and artifacts](../../audits/2026-09-18-native-transport-batch.md). This does not establish mobile/public-network automatic switching.
 
 2026-09-18 latest source batch **ba6ee30**: ARM64 Profile preview built (155.7s), **1052 passed / 10 skipped / 0 failed across 180 selected files**. Includes durable group access invalidation, offline queue/readmission checks, direct send permission updates and forwarded-video background verification. **Installed on A; B untouched.** A verified one offline group text surviving force-stop/restart and automatic retry on reconnect. Pending conversation-list preview still needs improvement; B receipt not checked. Replaces the previous artifact at the shared path. [Artifact and exact scope](../../audits/2026-09-18-chat-offline-batch.md).
