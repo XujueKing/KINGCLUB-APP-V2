@@ -192,6 +192,60 @@ extension ConversationListCache on ChatHistoryStore {
     await _writeConversationList(tx, utf8.encode(jsonEncode(rows)));
   }
 
+  /// A missing paginated row is not proof of deletion. Query its history
+  /// boundary before removing a locally confirmed bridge or retained messages.
+  Future<void> reconcileHiddenConfirmedHeads({
+    required List<Map<String, dynamic>> candidates,
+    required List<Map<String, dynamic>> visible,
+    required Future<Map<String, dynamic>> Function(bool group, String target)
+    fetch,
+    required bool Function() isActive,
+  }) async {
+    String key(Map<String, dynamic> row) => row['kind'] == 'group'
+        ? 'group:${row['groupId']}'
+        : 'direct:${row['peer']}';
+    final seen = visible.map(key).toSet();
+    for (final row in candidates) {
+      if (!isActive()) return;
+      if (row['localConfirmed'] != true || seen.contains(key(row))) continue;
+      final group = row['kind'] == 'group';
+      final target = row[group ? 'groupId' : 'peer'];
+      if (target is! String || target.isEmpty) continue;
+      try {
+        final conversation = key(row);
+        final saved = await read(conversation, limit: 1);
+        if (!isActive()) return;
+        final response = await fetch(group, target);
+        if (!isActive()) return;
+        final floor = (response['settings'] as Map?)?['hiddenThrough'];
+        final version = response['historyVersion'];
+        final membership = response['membershipVersion'];
+        if (floor is! int ||
+            floor <= saved.hiddenThrough ||
+            version is! int ||
+            version < 0 ||
+            version != saved.historyVersion ||
+            (group &&
+                (membership is! int ||
+                    membership != saved.membershipVersion))) {
+          continue;
+        }
+        // Commit only the authoritative boundary. Do not mark messages read,
+        // advance pagination, or adopt a membership/history revision here.
+        await commit(
+          conversation,
+          const [],
+          expectedEpoch: saved.epoch,
+          hiddenThrough: floor,
+          historyVersion: version,
+          membershipVersion: group ? membership as int : null,
+        );
+      } catch (_) {
+        // Offline, denied and malformed responses never imply deletion.
+      }
+    }
+  }
+
   Future<List<Map<String, dynamic>>> readConversationList() async {
     return _readConversationList(_db);
   }

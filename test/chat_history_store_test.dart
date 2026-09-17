@@ -214,6 +214,77 @@ void main() {
       },
     );
   }
+  for (final group in [false, true]) {
+    for (final outcome in [
+      'hidden',
+      'visible',
+      'offline',
+      'changed',
+      'inactive',
+    ]) {
+      test(
+        'missing paginated bridge checks boundary: group=$group $outcome',
+        () async {
+          final conversation = group ? 'group:room' : 'direct:peer';
+          final epoch = (await store.adoptHistoryVersion(
+            conversation,
+            expectedEpoch: 0,
+            historyVersion: 1,
+          ))!;
+          await store.commit(
+            conversation,
+            [
+              {
+                ...message(1),
+                'sender': 'me',
+                'recipient': 'peer',
+                if (group) 'groupId': 'room',
+              },
+            ],
+            expectedEpoch: epoch,
+            historyVersion: 1,
+            membershipVersion: group ? 1 : null,
+            recordOutgoingHead: true,
+          );
+          final candidates = await store.readConversationList();
+          var active = true;
+          var calls = 0;
+          await store.reconcileHiddenConfirmedHeads(
+            candidates: candidates,
+            visible: const [],
+            isActive: () => active,
+            fetch: (isGroup, target) async {
+              calls++;
+              expect(isGroup, group);
+              expect(target, group ? 'room' : 'peer');
+              if (outcome == 'offline') throw const SocketException('offline');
+              if (outcome == 'inactive') active = false;
+              return {
+                'historyVersion': outcome == 'changed' ? 2 : 1,
+                if (group) 'membershipVersion': 1,
+                'settings': {'hiddenThrough': outcome == 'visible' ? 0 : 1},
+              };
+            },
+          );
+          expect(calls, 1);
+          expect(
+            (await store.read(conversation)).messages,
+            outcome == 'hidden' ? isEmpty : hasLength(1),
+          );
+          expect(
+            await store.readConversationList(),
+            outcome == 'hidden' ? isEmpty : hasLength(1),
+          );
+          await store.close();
+          store = await open();
+          expect(
+            (await store.read(conversation)).hiddenThrough,
+            outcome == 'hidden' ? 1 : 0,
+          );
+        },
+      );
+    }
+  }
   test('v17 upgrade rolls back earlier rewrites when a later encrypted row is corrupt', () async {
     await store.commit('direct:peer', [
       for (var i = 1; i <= 55; i++) message(i),

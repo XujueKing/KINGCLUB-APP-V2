@@ -596,6 +596,22 @@ class _ConversationsPageState extends State<ConversationsPage>
           // Cache availability must not turn a successful refresh into an error.
         }
       }
+      if (history != null) {
+        // Visibility checks run after rendering the list. A slow history
+        // endpoint must not hold up the conversation list or pagination.
+        unawaited(
+          history.reconcileHiddenConfirmedHeads(
+            candidates: headsBeforeRequest,
+            visible: (result['items'] as List)
+                .map((row) => Map<String, dynamic>.from(row as Map))
+                .toList(),
+            fetch: (group, target) => group
+                ? GroupChatRepository(repository).history(target, limit: 1)
+                : repository.history(target, limit: 1),
+            isActive: () => mounted && identical(repository, _repository),
+          ),
+        );
+      }
     } catch (error) {
       if (mounted && generation == _realGeneration) {
         setState(() {
