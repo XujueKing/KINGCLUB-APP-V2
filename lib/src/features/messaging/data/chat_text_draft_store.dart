@@ -55,6 +55,7 @@ class ChatTextDraftStore {
   final Future<void> Function() checkSession;
   final FlutterSecureStorage _storage;
   static final _locks = <String, Future<void>>{};
+  static final _redactedDrafts = <String, Set<String>>{};
   String get _key =>
       'kingclub.text-draft.${base64UrlEncode(utf8.encode(jsonEncode([account, target])))}';
   static Future<ChatTextDraftStore> open(String account, String target) async {
@@ -83,13 +84,34 @@ class ChatTextDraftStore {
     return raw == null ? null : ChatTextDraft.parse(raw);
   });
   Future<void> write(ChatTextDraft? draft) => _exclusive(() async {
-    if (draft == null || draft.text.isEmpty && draft.replyTo == null) {
+    var value = draft;
+    if (value != null && (_redactedDrafts[_key]?.contains(value.id) ?? false)) {
+      value = ChatTextDraft(value.text, id: value.id);
+    }
+    if (value == null || value.text.isEmpty && value.replyTo == null) {
       await _storage.delete(key: _key);
     } else {
-      final raw = jsonEncode(draft.toJson());
+      final raw = jsonEncode(value.toJson());
       ChatTextDraft.parse(raw);
       await _storage.write(key: _key, value: raw);
     }
+  });
+
+  /// Removes only the quote; pending user text is not part of history deletion.
+  Future<void> redactReply(Set<String>? messageIds) => _exclusive(() async {
+    final raw = await _storage.read(key: _key);
+    await checkSession();
+    if (raw == null) return;
+    final draft = ChatTextDraft.parse(raw);
+    if (draft.replyTo == null ||
+        (messageIds != null && !messageIds.contains(draft.replyTo))) {
+      return;
+    }
+    (_redactedDrafts[_key] ??= {}).add(draft.id);
+    await _storage.write(
+      key: _key,
+      value: jsonEncode(ChatTextDraft(draft.text, id: draft.id).toJson()),
+    );
   });
   Future<void> remove(String id) => _exclusive(() async {
     final raw = await _storage.read(key: _key);

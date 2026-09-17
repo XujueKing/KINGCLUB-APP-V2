@@ -2,6 +2,7 @@ import 'chat_call_history.dart';
 import 'chat_reply.dart';
 import 'chat_media_cleanup.dart';
 import 'chat_outbox.dart';
+import 'chat_text_draft_store.dart';
 
 import 'dart:convert';
 import 'dart:async';
@@ -40,7 +41,28 @@ class ChatHistoryPage {
 /// Message payloads are AES-256-GCM encrypted. Sequence/index metadata is not.
 /// No media grants, transport headers or authentication tokens are persisted.
 class ChatHistoryStore {
-  ChatHistoryStore._(this._db, this._key, this.account, this._outbox);
+  ChatHistoryStore._(
+    this._db,
+    this._key,
+    this.account,
+    this._outbox,
+    this._draftStorage,
+  );
+  final FlutterSecureStorage? _draftStorage;
+  Future<void> _redactDraft(String conversation, Set<String>? ids) async {
+    final storage = _draftStorage;
+    if (storage == null) return;
+    final target = conversation.startsWith('direct:')
+        ? 'peer:${conversation.substring(7)}'
+        : conversation;
+    await ChatTextDraftStore(
+      account,
+      target,
+      () async {},
+      storage: storage,
+    ).redactReply(ids);
+  }
+
   final ChatOutbox? _outbox;
   final Database _db;
   int _conversationListRevision = 0;
@@ -85,6 +107,7 @@ class ChatHistoryStore {
           key: key,
           account: account,
           outbox: SecureChatOutbox(account),
+          draftStorage: secure,
         );
       } catch (_) {
         _opens.remove(account);
@@ -100,6 +123,7 @@ class ChatHistoryStore {
     required SecretKey key,
     required String account,
     ChatOutbox? outbox,
+    FlutterSecureStorage? draftStorage,
   }) async {
     if ((await key.extractBytes()).length != 32 || account.isEmpty) {
       throw ArgumentError('256-bit account key required');
@@ -192,7 +216,7 @@ class ChatHistoryStore {
         },
       ),
     );
-    return ChatHistoryStore._(db, key, account, outbox);
+    return ChatHistoryStore._(db, key, account, outbox, draftStorage);
   }
 
   static Future<void> _createContactSnapshot(Database db) => db.execute(
@@ -777,6 +801,7 @@ class ChatHistoryStore {
       // locate it. A filesystem failure leaves history available for retry.
       final deletedSequences = <int>[];
       if (deleteMedia) {
+        await _redactDraft(conversation, deletedMessageIds);
         final cleanup = mediaCleanup ?? ChatMediaCleanup();
         final retainedVoiceAssets = <String>{};
         final retainedFileAssets = <String>{};

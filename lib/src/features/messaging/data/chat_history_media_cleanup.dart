@@ -15,6 +15,11 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
           message['sequence'] as int,
     }..removeWhere((sequence) => sequence <= floor);
     if (floor == 0 && tombstones.isEmpty) return {};
+    final removedIds = <String>{
+      for (final message in incoming)
+        if (const {'hidden', 'recalled'}.contains(message['messageType']))
+          message['messageId'] as String,
+    };
     final condition = tombstones.isEmpty
         ? 'sequence<=?'
         : '(sequence<=? OR sequence IN (${List.filled(tombstones.length, '?').join(',')}))';
@@ -28,6 +33,7 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
       // A list snapshot may precede downloading its message history. The
       // first tombstone still invalidates that preview; after commit its row
       // records the marker so replay does not trigger another refresh.
+      await _redactDraft(conversation, removedIds);
       return tombstones;
     }
 
@@ -72,6 +78,7 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
           seenTombstones.add(sequence);
         }
         if (target && (sequence <= floor || tombstones.contains(sequence))) {
+          removedIds.add(message['messageId'] as String);
           if (!const {'hidden', 'recalled'}.contains(message['messageType'])) {
             removedContent.add(sequence);
           }
@@ -91,6 +98,7 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
       offset += rows.length;
     }
     removedContent.addAll(tombstones.difference(seenTombstones));
+    await _redactDraft(conversation, removedIds);
     if (removed.isEmpty) return removedContent;
     for (final message in incoming) {
       if ((message['sequence'] as int) > floor &&
