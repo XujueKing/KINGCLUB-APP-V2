@@ -252,6 +252,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
         );
       }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
+      if (!_usable) return;
       trace('queued');
       // A journal cleanup error must not invite a second send of an already
       // durable message. The outbox now owns delivery and retry.
@@ -278,13 +279,13 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
   }
 
   Future<void> _discard() async {
-    if (_busy) return;
+    if (_busy || !_usable) return;
     setState(() => _busy = true);
     try {
       await widget.drafts!.remove(widget.draft!.id);
-      if (mounted) Navigator.of(context).pop(false);
+      if (mounted && !_invalid) Navigator.of(context).pop(false);
     } catch (_) {
-      if (mounted) setState(() => _error = '未能丢弃草稿，请重试');
+      if (_usable) setState(() => _error = '未能丢弃草稿，请重试');
     } finally {
       if (mounted) {
         setState(() {
@@ -314,7 +315,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (_preview?.value.isInitialized == true)
+                    if (!_invalid && _preview?.value.isInitialized == true)
                       Flexible(
                         child: AspectRatio(
                           aspectRatio: _preview!.value.aspectRatio,
@@ -342,7 +343,8 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
                         color: Colors.white70,
                       ),
                     const SizedBox(height: 16),
-                    Text(widget.fileName, textAlign: TextAlign.center),
+                    if (!_invalid)
+                      Text(widget.fileName, textAlign: TextAlign.center),
                   ],
                 ),
               ),
@@ -350,10 +352,10 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
           ),
           if (widget.draft != null && widget.drafts != null)
             TextButton(
-              onPressed: _busy ? null : _discard,
+              onPressed: _busy || _invalid ? null : _discard,
               child: const Text('丢弃草稿'),
             ),
-          if (_uploadSize != null)
+          if (!_invalid && _uploadSize != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: Text(

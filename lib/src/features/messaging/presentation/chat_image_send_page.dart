@@ -48,6 +48,7 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
     super.initState();
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
+      _uploader?.dispose();
       if (mounted) setState(() => _error = '登录状态已变化，请重新进入会话');
     });
   }
@@ -94,7 +95,7 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
         try {
           await widget.drafts?.remove(widget.draft!.id);
         } catch (_) {}
-        if (mounted) Navigator.of(context).pop(true);
+        if (mounted && !_invalid) Navigator.of(context).pop(true);
         return;
       }
       final uploader =
@@ -129,28 +130,31 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
         );
       }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
+      if (!_usable) return;
       // A journal cleanup error must not invite a second send of an already
       // durable message. The outbox now owns delivery and retry.
       try {
         if (widget.draft != null) await widget.drafts?.remove(widget.draft!.id);
         await uploader.acknowledgeQueued(image);
       } catch (_) {}
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted && !_invalid) Navigator.of(context).pop(true);
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (_usable) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _discard() async {
-    if (_busy || widget.draft == null || widget.drafts == null) return;
+    if (_busy || !_usable || widget.draft == null || widget.drafts == null) {
+      return;
+    }
     setState(() => _busy = true);
     try {
       await widget.drafts!.remove(widget.draft!.id);
-      if (mounted) Navigator.of(context).pop(false);
+      if (mounted && !_invalid) Navigator.of(context).pop(false);
     } catch (_) {
-      if (mounted) setState(() => _error = '未能丢弃照片草稿，请重试');
+      if (_usable) setState(() => _error = '未能丢弃照片草稿，请重试');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -169,18 +173,20 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
         children: [
           Expanded(
             child: Center(
-              child: Image.memory(
-                widget.bytes,
-                fit: BoxFit.contain,
-                cacheWidth: 1080,
-                errorBuilder: (_, _, _) => const Text('无法预览此图片'),
-              ),
+              child: _invalid
+                  ? const SizedBox.shrink()
+                  : Image.memory(
+                      widget.bytes,
+                      fit: BoxFit.contain,
+                      cacheWidth: 1080,
+                      errorBuilder: (_, _, _) => const Text('无法预览此图片'),
+                    ),
             ),
           ),
           if (_busy) LinearProgressIndicator(value: _progress),
           if (widget.draft != null && widget.drafts != null)
             TextButton(
-              onPressed: _busy ? null : _discard,
+              onPressed: _busy || _invalid ? null : _discard,
               child: const Text('放弃这张照片'),
             ),
           if (_error != null)
@@ -196,7 +202,7 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _busy ? null : _send,
+                onPressed: _busy || _invalid ? null : _send,
                 child: Text(_busy ? '正在发送…' : '发送'),
               ),
             ),
