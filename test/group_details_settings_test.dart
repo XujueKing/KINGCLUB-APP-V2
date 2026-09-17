@@ -224,7 +224,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('group-name-row')), findsNothing);
       expect(find.byType(Switch), findsNothing);
-      expect(find.textContaining('Access denied'), findsOneWidget);
+      expect(find.text('当前无法访问，请检查账号权限'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       await events.close();
     },

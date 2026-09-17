@@ -1,3 +1,5 @@
+import '../data/chat_sync_failure.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -33,6 +35,7 @@ class _GroupAnnouncementPageState extends State<GroupAnnouncementPage>
   int _generation = 0, _version = 0, _membership = 0;
   int _lifecycleEpoch = 0;
   bool _foreground = true, _reloadAgain = false;
+  bool _stale = false;
   Future<void>? _loading;
   void _discardDeniedDraft(Object error) {
     if (error is AuthFailure &&
@@ -53,7 +56,7 @@ class _GroupAnnouncementPageState extends State<GroupAnnouncementPage>
 
   bool get _canEdit {
     final details = _details;
-    if (_invalid || !_foreground || details == null) return false;
+    if (_invalid || _stale || !_foreground || details == null) return false;
     return (details['members'] as List).cast<Map>().any(
       (member) =>
           member['account'] == widget.repository.account &&
@@ -124,6 +127,7 @@ class _GroupAnnouncementPageState extends State<GroupAnnouncementPage>
         throw const FormatException('群公告服务尚未更新');
       }
       setState(() {
+        _stale = false;
         _details = details;
         _error = null;
         if (_editing &&
@@ -137,9 +141,12 @@ class _GroupAnnouncementPageState extends State<GroupAnnouncementPage>
     } catch (error) {
       if (mounted && !_invalid && generation == _generation) {
         setState(() {
-          _details = null;
+          _stale = true;
+          if (error is! AuthFailure || error.code != 'NETWORK_ERROR') {
+            _details = null;
+          }
           _discardDeniedDraft(error);
-          _error = error.toString();
+          _error = chatSyncFailureMessage(error);
         });
       }
     }

@@ -1,3 +1,5 @@
+import '../../auth/domain/auth_repository.dart';
+import '../data/chat_sync_failure.dart';
 import 'chat_history_context_page.dart';
 import 'chat_history_search_page.dart';
 import 'group_join_review_page.dart';
@@ -35,6 +37,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   Map<String, dynamic>? _details;
   String? _error;
   bool _invalid = false;
+  bool _stale = false;
   bool _foreground = true;
   int _actionEpoch = 0;
   bool _saving = false;
@@ -154,6 +157,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
           _avatarProfiles.removeWhere(
             (account, _) => !accounts.contains(account),
           );
+          _stale = false;
           _details = result;
           _settings = settings;
           _error = null;
@@ -162,9 +166,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
     } catch (error) {
       if (mounted && generation == _generation) {
         setState(() {
-          _avatarProfiles.clear();
-          _details = null;
-          _error = error.toString();
+          _stale = true;
+          _actionEpoch++;
+          if (error is! AuthFailure || error.code != 'NETWORK_ERROR') {
+            _avatarProfiles.clear();
+            _details = null;
+          }
+          _error = chatSyncFailureMessage(error);
         });
       }
     }
@@ -173,6 +181,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   Future<void> _save({bool? muted, bool? pinned}) async {
     if (_invalid ||
         !_foreground ||
+        _stale ||
         _loading != null ||
         _saving ||
         _details == null) {
@@ -204,6 +213,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
     if (_details == null ||
         _invalid ||
         !_foreground ||
+        _stale ||
         _loading != null ||
         member['membershipVersion'] is! num ||
         member['account'] == widget.repository.account ||
@@ -334,6 +344,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   Future<void> _transfer() async {
     if (_invalid ||
         !_foreground ||
+        _stale ||
         _loading != null ||
         _saving ||
         _details?['ownerAccount'] != widget.repository.account) {
@@ -447,6 +458,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   Future<void> _depart() async {
     if (_invalid ||
         !_foreground ||
+        _stale ||
         _loading != null ||
         _saving ||
         _details == null) {
@@ -514,6 +526,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   Future<void> _rename() async {
     if (_invalid ||
         !_foreground ||
+        _stale ||
         _loading != null ||
         _saving ||
         _editingVersion == null ||
