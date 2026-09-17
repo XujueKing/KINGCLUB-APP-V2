@@ -2,6 +2,8 @@
 
 ## 当前验收汇总
 
+Local-search scale evidence: real encrypted SQLite with 10000 records found oldest sparse matches in 722 ms on this desktop; a concurrent new-message commit finished in 19 ms before search completed. Three 30-result pages and early exit on recent dense matches were verified. [Scope and limitations](../../audits/2026-09-17-local-search-scale.md). Android frame timing, cold-cache and large-history device latency remain unverified.
+
 Real HTTP/native follow-up: gated member authorization + WSS text/file integration passed; directory/rendezvous handshake passed after using an independent fixture (initial shared-device fixture conflict is recorded). Real 4097-byte relay and HTTP-fallback file contents matched; synthetic sessions were revoked and temporary processes stopped. [Evidence and limits](../../audits/2026-09-17-real-member-native-http.md). Not mobile/public-network acceptance.
 
 Latest Android build: clean d44afcb ARM64 Profile preview succeeded (Gradle 96.2s), includes all preceding consolidated chat changes; native packaging verified. Not installed. Service-backed runtime only; no LAN/relay flags supplied. [Artifact hash and scope](../../audits/2026-09-17-chat-consolidated-build.md). The older APK at the same path has been replaced by this build.
