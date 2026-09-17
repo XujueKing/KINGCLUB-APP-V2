@@ -1,5 +1,7 @@
 # KINGCLUB 五项经营功能：分析与重新设计
 
+2026-09-18：新增 [响应、状态与异常恢复](STATE_AND_RECOVERY.md) 和 [4 个成功响应结构草案](contracts/core-response-shapes.json)。修正 AA 关闭与迟到退款共用单状态的歧义，团裁决与退款进度分开；尚未执行接口/故障测试。
+
 2026-09-18：新增 [数据库约束与接口校验](DATABASE_AND_VALIDATION.md)，包含唯一键候选、事务锁顺序、校验器实际能力边界和 [4 个请求结构草案](contracts/core-request-shapes.json)。未执行数据库测试或注册接口。
 
 2026-09-18：新增 [核心字段与操作契约](CORE_DATA_CONTRACTS.md)，细化报名分座、批次出库、AA 与余额退款，包含 8 个合成 JSON 样例。只读核对当前 CCSOP 请求外层与储物基础字段；语义动作尚未注册，接口/DDL 未冻结。JSON 仅通过语法检查，未调用服务。
