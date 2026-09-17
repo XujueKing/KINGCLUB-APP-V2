@@ -1,3 +1,4 @@
+import '../data/chat_queue_completion.dart';
 import '../data/chat_outbox_recovery.dart';
 import '../data/chat_call_history.dart';
 import 'chat_timestamp.dart';
@@ -1845,11 +1846,14 @@ class _DirectChatPageState extends State<DirectChatPage>
                     message['clientMessageId'] == selected.id,
               );
               if (!queued) {
-                await chat.sendLocation(
-                  location,
-                  clientMessageId: selected.id,
-                  onQueued: () => queued = true,
+                await waitForChatQueue(
+                  (onQueued) => chat.sendLocation(
+                    location,
+                    clientMessageId: selected.id,
+                    onQueued: onQueued,
+                  ),
                 );
+                queued = true;
               }
               if (!queued) throw StateError('Session closed');
               // Queue ownership is durable even if draft cleanup must be retried.

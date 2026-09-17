@@ -1,3 +1,5 @@
+import '../data/chat_queue_completion.dart';
+
 import 'package:video_player/video_player.dart';
 import 'package:uuid/uuid.dart';
 
@@ -245,11 +247,14 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
       var queued = _alreadyQueued;
       trace('queueing');
       if (!queued) {
-        await widget.chat.sendVideo(
-          video,
-          onQueued: () => queued = true,
-          clientMessageId: _clientMessageId,
+        await waitForChatQueue(
+          (onQueued) => widget.chat.sendVideo(
+            video,
+            onQueued: onQueued,
+            clientMessageId: _clientMessageId,
+          ),
         );
+        queued = true;
       }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
       if (!_usable) return;

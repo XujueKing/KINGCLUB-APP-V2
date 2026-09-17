@@ -1,3 +1,5 @@
+import '../data/chat_queue_completion.dart';
+
 import 'dart:typed_data';
 import 'dart:async';
 
@@ -123,11 +125,14 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
       if (!_usable) return;
       var queued = _alreadyQueued;
       if (!queued) {
-        await widget.chat.sendImage(
-          image.assetId,
-          onQueued: () => queued = true,
-          clientMessageId: _clientMessageId,
+        await waitForChatQueue(
+          (onQueued) => widget.chat.sendImage(
+            image.assetId,
+            onQueued: onQueued,
+            clientMessageId: _clientMessageId,
+          ),
         );
+        queued = true;
       }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
       if (!_usable) return;

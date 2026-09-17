@@ -1,3 +1,4 @@
+import '../data/chat_queue_completion.dart';
 import '../data/chat_file_draft_store.dart';
 import '../data/chat_outbox.dart';
 
@@ -112,14 +113,17 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
       if (!_usable) return;
       var queued = _alreadyQueued;
       if (!queued) {
-        await widget.chat.sendFile(
-          file.assetId,
-          file.fileName,
-          file.size,
-          file.sha256,
-          onQueued: () => queued = true,
-          clientMessageId: widget.draft?.id,
+        await waitForChatQueue(
+          (onQueued) => widget.chat.sendFile(
+            file.assetId,
+            file.fileName,
+            file.size,
+            file.sha256,
+            onQueued: onQueued,
+            clientMessageId: widget.draft?.id,
+          ),
         );
+        queued = true;
       }
       if (!queued) throw StateError('会话已关闭，请重新进入后发送');
       if (!_usable) return;
