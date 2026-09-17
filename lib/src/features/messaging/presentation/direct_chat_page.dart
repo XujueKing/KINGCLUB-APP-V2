@@ -1328,6 +1328,15 @@ class _DirectChatPageState extends State<DirectChatPage>
                                       MaterialPageRoute(
                                         builder: (_) => ChatLocationDetailsPage(
                                           location: message.location!,
+                                          source:
+                                              _chat == null ||
+                                                  message.messageId == null
+                                              ? null
+                                              : ChatMediaDeletion(
+                                                  _chat!.messaging.account,
+                                                  widget.groupId != null,
+                                                  message.messageId!,
+                                                ),
                                         ),
                                       ),
                                     );

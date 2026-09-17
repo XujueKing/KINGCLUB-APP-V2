@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_location.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_location_message.dart';
 
 void main() {
@@ -69,6 +70,39 @@ void main() {
     'name': '测试地点',
     'address': '测试地址',
   });
+  for (final group in [false, true]) {
+    testWidgets('deleted location hides address and actions group=$group', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatLocationDetailsPage(
+            location: location,
+            source: ChatMediaDeletion('member', group, 'location-message'),
+          ),
+        ),
+      );
+      for (final event in [
+        ChatMediaDeletion('other', group, 'location-message'),
+        ChatMediaDeletion('member', !group, 'location-message'),
+        ChatMediaDeletion('member', group, 'different-message'),
+      ]) {
+        await event.dispatch();
+        await tester.pump();
+        expect(find.text('测试地址'), findsOneWidget);
+      }
+      await ChatMediaDeletion('member', group, 'location-message').dispatch();
+      await tester.pump();
+      expect(find.text('内容已移除'), findsOneWidget);
+      expect(find.text('测试地址'), findsNothing);
+      expect(find.textContaining('经纬度：'), findsNothing);
+      expect(find.text('在高德地图查看'), findsNothing);
+      expect(find.text('复制地点信息'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      await ChatMediaDeletion('member', group, 'location-message').dispatch();
+      expect(tester.takeException(), isNull);
+    });
+  }
   testWidgets(
     'map launch preserves coordinates and prevents duplicate launches',
     (tester) async {

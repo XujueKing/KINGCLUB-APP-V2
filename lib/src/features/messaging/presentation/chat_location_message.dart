@@ -7,6 +7,7 @@ import '../../../core/design_system/king_components.dart';
 import '../../../core/design_system/king_notice.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/chat_location.dart';
+import '../data/chat_media_deletion.dart';
 
 class ChatLocationMessage extends StatelessWidget {
   const ChatLocationMessage({
@@ -75,8 +76,13 @@ class ChatLocationMessage extends StatelessWidget {
 }
 
 class ChatLocationDetailsPage extends StatefulWidget {
-  const ChatLocationDetailsPage({super.key, required this.location});
+  const ChatLocationDetailsPage({
+    super.key,
+    required this.location,
+    this.source,
+  });
   final ChatLocation location;
+  final ChatMediaDeletion? source;
   @override
   State<ChatLocationDetailsPage> createState() =>
       _ChatLocationDetailsPageState();
@@ -85,6 +91,8 @@ class ChatLocationDetailsPage extends StatefulWidget {
 class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
   static const _maps = MethodChannel('kingclub/chat-map');
   StreamSubscription<void>? _session;
+  void Function()? _removeDeletionListener;
+  bool _deleted = false;
   bool _valid = true;
   bool _openingMap = false;
 
@@ -110,11 +118,26 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
     _session = SecureSessionStore.changes.stream.listen((_) {
       if (mounted) setState(() => _valid = false);
     });
+    _removeDeletionListener = ChatMediaDeletion.listen((event) {
+      final source = widget.source;
+      if (!mounted ||
+          source == null ||
+          event.account != source.account ||
+          event.group != source.group ||
+          event.messageId != source.messageId) {
+        return;
+      }
+      setState(() {
+        _deleted = true;
+        _valid = false;
+      });
+    });
   }
 
   @override
   void dispose() {
     _session?.cancel();
+    _removeDeletionListener?.call();
     super.dispose();
   }
 
@@ -136,7 +159,7 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: !_valid
-              ? const Text('登录状态已变化，请重新进入')
+              ? Text(_deleted ? '内容已移除' : '登录状态已变化，请重新进入')
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

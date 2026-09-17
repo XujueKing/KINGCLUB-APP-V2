@@ -223,7 +223,12 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
             return ChatLocationMessage(
               location: location,
               mine: message['sender'] == widget.account,
-              onTap: () => _open(ChatLocationDetailsPage(location: location)),
+              onTap: () => _open(
+                ChatLocationDetailsPage(
+                  location: location,
+                  source: ChatMediaDeletion(widget.account, group, id),
+                ),
+              ),
             );
           }
         case 'voice':
