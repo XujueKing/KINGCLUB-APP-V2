@@ -65,6 +65,9 @@ class ChatTextDraftStore {
   static Stream<void> changes(String account, String target) => _changes.stream
       .where((event) => event.account == account && event.target == target)
       .map((_) {});
+  static Stream<void> accountChanges(String account) =>
+      _changes.stream.where((event) => event.account == account).map((_) {});
+
   void _notify() => _changes.add((account: account, target: target));
 
   ChatTextDraftStore(
@@ -110,6 +113,50 @@ class ChatTextDraftStore {
     } finally {
       if (identical(_locks[key], tail)) _locks.remove(key);
     }
+  }
+
+  /// Enumerate only text conversation drafts for this authenticated account.
+  /// Each candidate is reread through its normal lock and quote-redaction path.
+  Future<Map<String, ChatTextDraft>> readConversations() async {
+    await checkSession();
+    final saved = await _storage.readAll();
+    await checkSession();
+    final result = <String, ChatTextDraft>{};
+    const prefix = 'kingclub.text-draft.';
+    for (final key in saved.keys) {
+      if (!key.startsWith(prefix) || key.endsWith('.hidden-through')) continue;
+      String conversation;
+      try {
+        final identity = jsonDecode(
+          utf8.decode(base64Url.decode(key.substring(prefix.length))),
+        );
+        if (identity is! List ||
+            identity.length != 2 ||
+            identity[0] != account ||
+            identity[1] is! String) {
+          continue;
+        }
+        conversation = identity[1] as String;
+        if (!RegExp(r'^(peer|group):.+$').hasMatch(conversation)) continue;
+      } on FormatException {
+        continue;
+      }
+      try {
+        final draft = await ChatTextDraftStore(
+          account,
+          conversation,
+          checkSession,
+          storage: _storage,
+        ).read();
+        if (draft != null && (draft.text.isNotEmpty || draft.replyTo != null)) {
+          result[conversation] = draft;
+        }
+      } on FormatException {
+        // One damaged draft must not hide the remaining valid conversations.
+      }
+    }
+    await checkSession();
+    return result;
   }
 
   Future<ChatTextDraft?> read() => _exclusive(() async {
