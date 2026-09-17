@@ -8,8 +8,13 @@ import '../data/group_call_repository.dart';
 
 /// Owns read-only invitation watching. It never accepts or captures media.
 class GroupCallInvitationDialog extends StatefulWidget {
-  const GroupCallInvitationDialog({super.key, required this.controller});
+  const GroupCallInvitationDialog({
+    super.key,
+    required this.controller,
+    this.onInterrupted,
+  });
   final GroupCallController controller;
+  final VoidCallback? onInterrupted;
   @override
   State<GroupCallInvitationDialog> createState() => _InvitationState();
 }
@@ -67,6 +72,7 @@ class _InvitationState extends State<GroupCallInvitationDialog> {
     _expiry?.cancel();
     _controller.removeListener(_changed);
     _controller.dispose();
+    if (!_finished) widget.onInterrupted?.call();
     super.dispose();
   }
 

@@ -7,6 +7,7 @@ import 'features/messaging/data/call_launch_coordinator.dart';
 import 'features/messaging/data/call_repository.dart';
 import 'features/messaging/data/messaging_repository.dart';
 import 'features/messaging/presentation/call_page.dart';
+import 'features/messaging/presentation/call_presentation_scope.dart';
 import 'features/messaging/data/foreground_group_call_inbox.dart';
 import 'features/messaging/data/group_call_repository.dart';
 import 'features/messaging/data/group_chat_repository.dart';
@@ -44,7 +45,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   bool _foreground = true;
   ForegroundCallInbox? _callInbox;
   ForegroundGroupCallInbox? _groupCallInbox;
-  bool _presentingGroupCall = false, _presentingDirectCall = false;
+  final _incomingPresentation = CallPresentationOwner();
   int _callGeneration = 0;
   Future<void>? _openingCallInbox;
   ChatOutboxRecovery? _outboxRecovery;
@@ -107,8 +108,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
         if (!mounted ||
             !_foreground ||
             generation != _callGeneration ||
-            current?.phase != CallPhase.ringing ||
-            _presentingGroupCall) {
+            current?.phase != CallPhase.ringing) {
           return false;
         }
         final navigator = ref
@@ -117,9 +117,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
             .navigatorKey
             .currentState;
         if (navigator == null) return false;
-        final lease = CallPresentationLease.acquire();
+        final lease = _incomingPresentation.acquire();
         if (lease == null) return false;
-        _presentingDirectCall = true;
         try {
           final page = CallPage.native(
             repository: repository,
@@ -127,10 +126,14 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
             peerName: profile['nickname'] as String? ?? prepared.call.caller,
             relay: prepared.relay,
           );
-          await navigator.push<void>(MaterialPageRoute(builder: (_) => page));
+          await pushCallPresentation(
+            navigator,
+            page,
+            lease,
+            onDisposed: () => _incomingPresentation.release(lease),
+          );
         } finally {
-          _presentingDirectCall = false;
-          lease.release();
+          _incomingPresentation.release(lease);
         }
         return true;
       },
@@ -140,11 +143,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     _groupCallInbox = ForegroundGroupCallInbox(
       repository: groups,
       present: (call) async {
-        if (!mounted ||
-            !_foreground ||
-            generation != _callGeneration ||
-            _presentingDirectCall ||
-            _presentingGroupCall) {
+        if (!mounted || !_foreground || generation != _callGeneration) {
           return false;
         }
         final navigator = ref
@@ -153,20 +152,28 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
             .navigatorKey
             .currentState;
         if (navigator == null) return false;
-        final lease = CallPresentationLease.acquire();
+        final lease = _incomingPresentation.acquire();
         if (lease == null) return false;
-        _presentingGroupCall = true;
         try {
           final invitation = GroupCallController.realtime(
             repository: groups,
             initial: call,
           );
-          final accepted = await showDialog<bool>(
-            context: navigator.context,
-            barrierDismissible: false,
-            builder: (context) =>
-                GroupCallInvitationDialog(controller: invitation),
-          );
+          final interrupted = Completer<bool?>();
+          final accepted = await Future.any<bool?>([
+            showDialog<bool>(
+              context: navigator.context,
+              barrierDismissible: false,
+              builder: (context) => GroupCallInvitationDialog(
+                controller: invitation,
+                onInterrupted: () {
+                  _incomingPresentation.release(lease);
+                  if (!interrupted.isCompleted) interrupted.complete(null);
+                },
+              ),
+            ),
+            interrupted.future,
+          ]);
           if (!mounted ||
               !_foreground ||
               generation != _callGeneration ||
@@ -189,21 +196,21 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
           if (!accepted) {
             await groups.declineInvitation(current);
           } else {
-            await navigator.push<void>(
-              MaterialPageRoute(
-                builder: (_) => GroupCallPage(
-                  repository: GroupChatRepository(repository.messaging),
-                  groupId: current.groupId,
-                  media: current.media,
-                  acceptedInvitation: current,
-                ),
+            await pushCallPresentation(
+              navigator,
+              GroupCallPage(
+                repository: GroupChatRepository(repository.messaging),
+                groupId: current.groupId,
+                media: current.media,
+                acceptedInvitation: current,
               ),
+              lease,
+              onDisposed: () => _incomingPresentation.release(lease),
             );
           }
           return true;
         } finally {
-          _presentingGroupCall = false;
-          lease.release();
+          _incomingPresentation.release(lease);
         }
       },
     );
@@ -214,6 +221,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   void _clearCallInbox() {
     _stopOutboxRecovery();
     _callGeneration++;
+    _incomingPresentation.reset();
     _callInbox?.close();
     _callInbox = null;
     _groupCallInbox?.close();

@@ -13,3 +13,22 @@ class CallPresentationLease {
     if (identical(_owner, this)) _owner = null;
   }
 }
+
+/// Tracks one presenter's ownership across account and navigator lifetimes.
+class CallPresentationOwner {
+  CallPresentationLease? _lease;
+  CallPresentationLease? acquire() {
+    if (_lease != null) return null;
+    return _lease = CallPresentationLease.acquire();
+  }
+
+  void release(CallPresentationLease lease) {
+    lease.release();
+    if (identical(_lease, lease)) _lease = null;
+  }
+
+  void reset() {
+    _lease?.release();
+    _lease = null;
+  }
+}

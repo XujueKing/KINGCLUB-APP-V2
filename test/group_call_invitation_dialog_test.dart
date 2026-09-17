@@ -8,6 +8,65 @@ import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/group_call_invitation_dialog.dart';
 
 void main() {
+  for (final answer in [null, true, false]) {
+    testWidgets(
+      'invitation teardown distinguishes an answer from navigator loss: $answer',
+      (tester) async {
+        final deadline = DateTime.now().millisecondsSinceEpoch + 60000;
+        final state = {
+          'callId': '00000000-0000-4000-8000-000000000001',
+          'groupId': '00000000-0000-4000-8000-000000000002',
+          'version': 1,
+          'mediaKind': 'audio',
+          'endedAtMs': null,
+          'participants': [
+            {'account': 'me', 'phase': 'invited', 'deadlineMs': deadline},
+            {'account': 'friend', 'phase': 'joined', 'deadlineMs': deadline},
+          ],
+        };
+        final controller = GroupCallController(
+          repository: GroupCallRepository(
+            MessagingRepository(account: 'me', call: (id, _) async => state),
+          ),
+          initial: GroupCallSnapshot.parse(state, 'me'),
+          sessionChanges: const Stream.empty(),
+          invalidations: const Stream.empty(),
+        );
+        var interrupted = 0;
+        bool? result;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  result = await showDialog<bool>(
+                    context: context,
+                    builder: (_) => GroupCallInvitationDialog(
+                      controller: controller,
+                      onInterrupted: () => interrupted++,
+                    ),
+                  );
+                },
+                child: const Text('show'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('show'));
+        await tester.pumpAndSettle();
+        if (answer != null) {
+          await tester.tap(find.text(answer ? '接听' : '拒绝'));
+          await tester.pumpAndSettle();
+          expect(result, answer);
+        }
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+        expect(interrupted, answer == null ? 1 : 0);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   for (final change in ['session', 'expiry', 'ended']) {
     testWidgets('invitation closes on $change without accepting', (
       tester,
