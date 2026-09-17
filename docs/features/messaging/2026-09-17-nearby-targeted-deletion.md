@@ -4,4 +4,4 @@
 
 验证：`nearby_targeted_deletion_test.dart` 使用真实临时 SQLite，覆盖两设备副本正文清空、重开数据库、旧设备及新设备重复投递不复活、另一会话正文保留。与 nearby_member_history、nearby_history_reconciliation、chat_history_deletion_events 合计 10 项通过；修改文件静态分析通过。
 
-本节点尚未打包安装到手机，不计为真机验收完成。
+安装：已将 f16bc64 合入独立测试工作树 e5d2590，Profile APK 构建成功（65.8 秒，159.4MB），覆盖安装 A 成功，启动前台稳定检查通过。实际进入 KINGCLUB-AB-0915-OK，群标题和两个 3 秒语音按钮存在。未操作 B，未删除真实聊天；本次仅安装及页面检查，不计为直连删除的双机真机验收。
