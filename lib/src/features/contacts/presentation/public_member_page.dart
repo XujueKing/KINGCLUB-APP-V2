@@ -106,9 +106,13 @@ class _PublicMemberPageState extends State<PublicMemberPage>
     try {
       final repository =
           _repository ?? widget.repository ?? await MessagingRepository.open();
-      final profile = await repository.call('K260913000612', {
-        'peer': widget.account,
-      });
+      final own = repository.account == widget.account;
+      final profile = own
+          ? {
+              ...await repository.call('K260912000501', {}),
+              'contentVisible': true,
+            }
+          : await repository.call('K260913000612', {'peer': widget.account});
       if (!mounted || generation != _generation) return;
       setState(() {
         _repository = repository;
@@ -448,9 +452,15 @@ class _PublicMemberPageState extends State<PublicMemberPage>
   Widget _mediaImage(dynamic media, Widget fallback) {
     if (media is! Map || kingclubApiBaseUrl.isEmpty) return fallback;
     final path = media['path'];
-    if (path is! String || !path.startsWith('/kingclub/profile-media/')) {
-      return fallback;
-    }
+    final own = _repository?.account == widget.account;
+    final validPath =
+        path is String &&
+        (path.startsWith('/kingclub/profile-media/') ||
+            (own &&
+                RegExp(
+                  r'^/attachments/[A-Za-z0-9_-]+\?token=[A-Za-z0-9%._~-]+$',
+                ).hasMatch(path)));
+    if (!validPath) return fallback;
     final rawHeaders = media['headers'];
     final headers = rawHeaders is Map
         ? rawHeaders.map(
@@ -588,7 +598,11 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                           right: KingBackButton.leftOffset(context),
                           child: IconButton(
                             tooltip: '设置备注',
-                            onPressed: profile == null ? null : _remark,
+                            onPressed:
+                                profile == null ||
+                                    _repository?.account == widget.account
+                                ? null
+                                : _remark,
                             icon: const Icon(
                               Icons.more_horiz,
                               color: Colors.white,

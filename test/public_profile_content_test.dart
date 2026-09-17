@@ -19,6 +19,60 @@ Map<String, dynamic> item(String ref) => {
   'media': null,
 };
 void main() {
+  testWidgets('own profile uses own snapshot and never creates a self pair', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final calls = <String>[];
+    final categories = <String>[];
+    final repository = MessagingRepository(
+      account: 'me',
+      call: (id, params) async {
+        calls.add(id);
+        if (id == 'K260913000612') throw StateError('self pair rejected');
+        if (id == 'K260912000501') {
+          expect(params, isEmpty);
+          return {...profile, 'nickname': 'My actual name'}
+            ..remove('contentVisible');
+        }
+        if (id == 'K260913000614') {
+          expect(params['peer'], 'me');
+          categories.add(params['category'] as String);
+          return {
+            'items': [item('Own published content')],
+            'nextOffset': null,
+          };
+        }
+        throw StateError('unexpected API $id');
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PublicMemberPage(
+          account: 'me',
+          repository: repository,
+          events: const Stream.empty(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('My actual name'), findsOneWidget);
+    expect(calls, ['K260912000501', 'K260913000614']);
+    expect(categories, ['work']);
+    final more = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.more_horiz),
+    );
+    expect(more.onPressed, isNull);
+    expect(find.text('发消息'), findsNothing);
+    await tester.tap(find.text('动态'));
+    await tester.pumpAndSettle();
+    expect(find.text('Own published content'), findsOneWidget);
+    expect(categories, ['work', 'post']);
+    expect(calls, isNot(contains('K260913000612')));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets(
     'category changes reject a late response and privacy rejects stale pages',
     (tester) async {

@@ -26,10 +26,13 @@ void main() {
       final repo = MessagingRepository(
         account: 'me',
         call: (api, args) async {
-          if (api == 'K260913000612') {
-            profiles.add(args['peer'] as String);
+          if (api == 'K260913000612' || api == 'K260912000501') {
+            profiles.add(
+              api == 'K260912000501' ? 'me' : args['peer'] as String,
+            );
             return {'nickname': 'Member profile'};
           }
+          if (api == 'K260913000614') return {'items': [], 'nextOffset': null};
           if (api == 'K260913000619') return {'members': []};
           if (api == 'K260913000621') {
             if (pending) throw const AuthFailure('NETWORK_ERROR', 'offline');
