@@ -12,18 +12,6 @@ import 'package:kingclub/src/features/messaging/data/chat_media_cleanup.dart';
 const id = '11111111-1111-4111-8111-111111111111';
 const hash = '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81';
 
-class _File implements File {
-  _File({this.corrupt = false});
-  final bool corrupt;
-  @override
-  Future<int> length() async => 3;
-  @override
-  Stream<List<int>> openRead([int? start, int? end]) =>
-      Stream.value(corrupt ? [3, 2, 1] : [1, 2, 3]);
-  @override
-  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
-}
-
 class _Uploader extends ChatFileUploader {
   _Uploader(MessagingRepository repo)
     : super(repository: repo, checkSession: () async {});
@@ -137,6 +125,9 @@ void main() {
     );
   }
   test('corrupted cached video is rejected before uploading', () async {
+    final dir = await Directory.systemTemp.createTemp('forward-corrupt-');
+    addTearDown(() => dir.delete(recursive: true));
+    final source = await File('${dir.path}/source.mp4').writeAsBytes([3, 2, 1]);
     final repo = MessagingRepository(
       account: 'me',
       call: (_, _) async => {
@@ -154,7 +145,7 @@ void main() {
     final f = ChatVideoForwarder(
       repository: repo,
       messageId: id,
-      loadFile: (_) async => _File(corrupt: true),
+      loadFile: (_) async => source,
       openUploader: () async {
         opened++;
         return _Uploader(repo);
@@ -176,7 +167,7 @@ void main() {
       messageId: id,
       loadFile: (_) async {
         loaded++;
-        return _File();
+        throw StateError('File loading must not start after logout');
       },
     );
     addTearDown(f.dispose);
@@ -195,5 +186,44 @@ void main() {
     });
     await result;
     expect(loaded, 0);
+  });
+  test('cancel during file load never opens uploader', () async {
+    final dir = await Directory.systemTemp.createTemp('forward-cancel-');
+    addTearDown(() => dir.delete(recursive: true));
+    final source = await File('${dir.path}/source.mp4').writeAsBytes([1, 2, 3]);
+    final loaded = Completer<void>(), release = Completer<File>();
+    var uploadsOpened = 0;
+    final repo = MessagingRepository(
+      account: 'me',
+      call: (_, _) async => {
+        'messageId': id,
+        'video': {
+          'fileId': id,
+          'size': 3,
+          'sha256': hash,
+          'path': '/kingclub/chat-video/$id/video',
+          'headers': {'authorization': 'Bearer fixture'},
+        },
+      },
+    );
+    final forwarder = ChatVideoForwarder(
+      repository: repo,
+      messageId: id,
+      loadFile: (_) {
+        loaded.complete();
+        return release.future;
+      },
+      openUploader: () async {
+        uploadsOpened++;
+        return _Uploader(repo);
+      },
+    );
+    addTearDown(forwarder.dispose);
+    final result = expectLater(forwarder.prepare(), throwsStateError);
+    await loaded.future;
+    forwarder.dispose();
+    release.complete(source);
+    await result;
+    expect(uploadsOpened, 0);
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:cryptography/dart.dart';
 
@@ -77,19 +78,9 @@ class ChatVideoForwarder {
                 ));
         _check();
         if (await file.length() != grant.size) throw StateError('视频文件不完整');
-        final hash = const DartSha256().newHashSink();
-        var size = 0;
-        await for (final bytes in file.openRead()) {
-          _check();
-          size += bytes.length;
-          if (size > grant.size) throw StateError('视频文件已变化');
-          hash.add(bytes);
-        }
-        hash.close();
-        final digest = (await hash.hash()).bytes
-            .map((b) => b.toRadixString(16).padLeft(2, '0'))
-            .join();
-        if (size != grant.size || digest != grant.sha256) {
+        final digest = await _forwardDigest(file.path, grant.size);
+        _check();
+        if (digest != grant.sha256) {
           throw StateError('视频校验失败');
         }
         await _grant();
@@ -153,3 +144,22 @@ class ChatVideoForwarder {
     _sourceFile = null;
   }
 }
+
+Future<String> _forwardDigest(String path, int expectedSize) =>
+    Isolate.run(() async {
+      final hash = const DartSha256().newHashSink();
+      var total = 0;
+      try {
+        await for (final bytes in File(path).openRead()) {
+          total += bytes.length;
+          if (total > expectedSize) throw StateError('Video source changed');
+          hash.add(bytes);
+        }
+      } finally {
+        hash.close();
+      }
+      if (total != expectedSize) throw StateError('Incomplete video source');
+      return (await hash.hash()).bytes
+          .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+          .join();
+    });
