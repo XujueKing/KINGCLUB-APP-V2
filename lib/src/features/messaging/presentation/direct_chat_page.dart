@@ -672,6 +672,12 @@ class _DirectChatPageState extends State<DirectChatPage>
         if (type == 'connection.ready' && chat is GroupChatController) {
           chat.invalidateMemberNames();
         }
+        if (type == 'connection.ready') {
+          final rows = chat.messages;
+          _imagePrefetch?.update(rows, retryFailures: true);
+          _voicePrefetch?.update(rows, retryFailures: true);
+          _videoPrefetch?.update(rows, retryFailures: true);
+        }
         if (chat is GroupChatController && type == 'chat.group.changed') {
           chat.refreshGroup();
           return;

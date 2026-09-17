@@ -34,6 +34,8 @@ class ChatImagePrefetch {
   final _pending = <String, String?>{};
   final _deleted = <String>{};
   final _retryAfter = <String, DateTime>{};
+  Map<String, String?> _recent = {};
+  int _retryRevision = 0;
   bool _disposed = false, _running = false;
   String? _active;
   Completer<void>? _activeDone;
@@ -46,8 +48,15 @@ class ChatImagePrefetch {
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
 
-  void update(List<Map<String, dynamic>> messages) {
+  void update(
+    List<Map<String, dynamic>> messages, {
+    bool retryFailures = false,
+  }) {
     if (_disposed) return;
+    if (retryFailures) {
+      _retryRevision++;
+      _retryAfter.clear();
+    }
     final recent = <String, String?>{};
     for (final row in messages.reversed.take(50)) {
       final id = row['messageId'], client = row['clientMessageId'];
@@ -64,6 +73,7 @@ class ChatImagePrefetch {
           ? client
           : null;
     }
+    _recent = recent;
     _pending.removeWhere((id, _) => !recent.containsKey(id));
     _retryAfter.removeWhere((id, _) => !recent.containsKey(id));
     for (final entry in recent.entries) {
@@ -108,10 +118,18 @@ class ChatImagePrefetch {
         _pending.remove(entry.key);
         _active = entry.key;
         _activeDone = Completer<void>();
+        final revision = _retryRevision;
         try {
           await _retain(entry.key, entry.value);
+          _retryAfter.remove(entry.key);
         } catch (_) {
-          if (!_disposed && !_deleted.contains(entry.key)) {
+          if (!_disposed &&
+              !_deleted.contains(entry.key) &&
+              _recent.containsKey(entry.key)) {
+            if (revision != _retryRevision) {
+              _pending[entry.key] = _recent[entry.key];
+              continue;
+            }
             _retryAfter[entry.key] = DateTime.now().add(
               const Duration(seconds: 30),
             );
@@ -169,5 +187,6 @@ class ChatImagePrefetch {
     _session?.cancel();
     _pending.clear();
     _retryAfter.clear();
+    _recent.clear();
   }
 }
