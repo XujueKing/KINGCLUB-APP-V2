@@ -137,6 +137,8 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
           query: query,
           messageType: messageType,
           before: before,
+          isActive: () =>
+              mounted && !_invalid && _foreground && generation == _generation,
         );
       }
 

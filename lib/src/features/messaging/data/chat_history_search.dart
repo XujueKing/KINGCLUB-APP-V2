@@ -62,7 +62,15 @@ extension LocalChatHistorySearch on ChatHistoryStore {
     String? messageType,
     int? before,
     int limit = 30,
+    bool Function()? isActive,
   }) async {
+    void checkActive() {
+      if (isActive != null && !isActive()) {
+        throw StateError('Local history search was cancelled');
+      }
+    }
+
+    checkActive();
     final needle = query.trim().toLowerCase();
     if (limit < 1 || limit > 200 || (before != null && before < 1)) {
       throw ArgumentError('Invalid search page');
@@ -72,9 +80,11 @@ extension LocalChatHistorySearch on ChatHistoryStore {
     }
     final id = await _conversation(conversation);
     return _db.transaction((tx) async {
+      checkActive();
       final matches = <Map<String, dynamic>>[];
       var cursor = before;
       while (matches.length <= limit) {
+        checkActive();
         final rows = await tx.query(
           'message',
           where: cursor == null
@@ -85,6 +95,7 @@ extension LocalChatHistorySearch on ChatHistoryStore {
           limit: 50,
         );
         for (final row in rows) {
+          checkActive();
           final plain = await ChatHistoryStore._cipher.decrypt(
             SecretBox.fromConcatenation(
               (row['payload'] as List).cast<int>(),
@@ -113,6 +124,7 @@ extension LocalChatHistorySearch on ChatHistoryStore {
         if (rows.length < 50 || matches.length > limit) break;
         cursor = rows.last['sequence'] as int;
       }
+      checkActive();
       return {
         'messages': matches.take(limit).toList().reversed.toList(),
         'hasMore': matches.length > limit,
