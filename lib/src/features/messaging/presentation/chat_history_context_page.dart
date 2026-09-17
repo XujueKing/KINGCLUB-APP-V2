@@ -42,9 +42,13 @@ class ChatHistoryContextPage extends StatefulWidget {
     this.onCall,
     this.localConversation,
     this.readLocal,
+    this.historyRemovals,
   });
   final ContextHistoryReader read;
   final String? localConversation;
+
+  /// Account-scoped, matching the default local history store.
+  final Stream<ConversationHistoryRemoval>? historyRemovals;
   final Future<List<Map<String, dynamic>>> Function()? readLocal;
   final String messageId, account;
   final String Function(String account)? senderLabel;
@@ -64,8 +68,12 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
   List<Map<String, dynamic>> _messages = [];
   StreamSubscription<void>? _session;
   StreamSubscription<Map<String, dynamic>>? _events;
+  StreamSubscription<ConversationHistoryRemoval>? _historyRemovals;
+  late final Future<void> _watchingHistory;
   void Function()? _stopDeletion;
   final _removedIds = <String>{};
+  final _removedSequences = <int>{};
+  int _hiddenThrough = 0;
   bool _invalid = false, _foreground = true;
   int _generation = 0;
   String? _error;
@@ -278,6 +286,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _watchingHistory = _watchHistory();
     _stopDeletion = ChatMediaDeletion.listen((event) async {
       if (_invalid ||
           event.account != widget.account ||
@@ -325,6 +334,60 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
     _load();
   }
 
+  Future<void> _watchHistory() async {
+    if (widget.localConversation == null) return;
+    try {
+      final stream =
+          widget.historyRemovals ??
+          (await ChatHistoryStore.open(widget.account)).clearedConversations;
+      if (!mounted || _invalid) return;
+      _historyRemovals = stream.listen((removal) async {
+        if (_invalid || removal.conversation != widget.localConversation) {
+          return;
+        }
+        if (removal.hiddenThrough > _hiddenThrough) {
+          _hiddenThrough = removal.hiddenThrough;
+        }
+        _removedSequences.addAll(removal.sequences ?? const <int>{});
+        bool removed(int sequence) =>
+            removal.sequences == null ||
+            sequence <= _hiddenThrough ||
+            _removedSequences.contains(sequence);
+        final ids = <String>{
+          for (final message in _messages)
+            if (removed(message['sequence'] as int))
+              message['messageId'] as String,
+          if (removed(widget.sequence)) widget.messageId,
+        };
+        _removedIds.addAll(ids);
+        setState(() {
+          if (ids.contains(widget.messageId)) {
+            _generation++;
+            _messages = [];
+            _error = '原消息不可用';
+          } else {
+            _messages.removeWhere(
+              (message) => ids.contains(message['messageId']),
+            );
+          }
+        });
+        if (ids.contains(widget.messageId) || ids.contains(_voice?.activeId)) {
+          await _voice?.stop();
+        }
+        // Also invalidate a full-screen preview opened from an unsaved row.
+        for (final id in ids) {
+          await ChatMediaDeletion(
+            widget.account,
+            widget.groupId != null,
+            id,
+          ).dispatch();
+        }
+      });
+    } catch (_) {
+      // Keep normal remote read/error handling when local storage is unavailable.
+    }
+  }
+
   Future<void> _load({bool background = false}) async {
     if (_invalid || _removedIds.contains(widget.messageId)) return;
     if (!background) _voice?.stop();
@@ -337,6 +400,8 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
     }
     if (_invalid || !_foreground) return;
     try {
+      await _watchingHistory;
+      if (!mounted || _invalid || generation != _generation) return;
       List<Map<String, dynamic>> result;
       var localOnly = false;
       try {
@@ -362,7 +427,12 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
       }
       if (!mounted || generation != _generation) return;
       final messages = result
-          .where((message) => !_removedIds.contains(message['messageId']))
+          .where(
+            (message) =>
+                !_removedIds.contains(message['messageId']) &&
+                !_removedSequences.contains(message['sequence']) &&
+                (message['sequence'] as int) > _hiddenThrough,
+          )
           .toList();
       final activeId = _voice?.activeId;
       if (activeId != null &&
@@ -407,6 +477,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
     _generation++;
     _session?.cancel();
     _events?.cancel();
+    _historyRemovals?.cancel();
     _stopDeletion?.call();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();

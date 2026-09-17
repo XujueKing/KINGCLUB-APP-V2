@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_voice_playback.dart';
 import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
+import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_history_context_page.dart';
 
@@ -48,63 +49,75 @@ class _SavedVoice extends MediaCache {
 
 void main() {
   for (final group in [false, true]) {
-    testWidgets('offline context voice uses saved asset group=$group', (
-      tester,
-    ) async {
-      final media = _SavedVoice();
-      final output = _Output();
-      final player = ChatVoicePlayback(
-        output: output,
-        mediaStore: media,
-        events: const Stream.empty(),
-      );
-      var requests = 0;
-      final repository = MessagingRepository(
-        account: 'me',
-        call: (_, _) async {
-          requests++;
-          throw const AuthFailure('NETWORK_ERROR', 'offline');
+    for (final clearAll in [false, true]) {
+      testWidgets(
+        'offline context voice uses saved asset group=$group clear=$clearAll',
+        (tester) async {
+          final media = _SavedVoice();
+          final removals = StreamController<ConversationHistoryRemoval>();
+          addTearDown(removals.close);
+          final conversation = group ? 'group:test' : 'direct:friend';
+          final output = _Output();
+          final player = ChatVoicePlayback(
+            output: output,
+            mediaStore: media,
+            events: const Stream.empty(),
+          );
+          var requests = 0;
+          final repository = MessagingRepository(
+            account: 'me',
+            call: (_, _) async {
+              requests++;
+              throw const AuthFailure('NETWORK_ERROR', 'offline');
+            },
+          );
+          await tester.pumpWidget(
+            MaterialApp(
+              home: ChatHistoryContextPage(
+                account: 'me',
+                localConversation: conversation,
+                historyRemovals: removals.stream,
+                repository: repository,
+                messageId: 'voice',
+                sequence: 1,
+                groupId: group ? 'group' : null,
+                events: const Stream.empty(),
+                createVoicePlayback: () => player,
+                read: ({before, after, required limit}) async =>
+                    throw const AuthFailure('NETWORK_ERROR', 'offline'),
+                readLocal: () async => [
+                  {
+                    'messageId': 'voice',
+                    'sequence': 1,
+                    'sender': 'friend',
+                    'messageType': 'voice',
+                    'text': '[语音]',
+                    'voiceDurationMs': 3000,
+                    'voiceAssetId': '12345678-1234-1234-1234-123456789012',
+                  },
+                ],
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const ValueKey('context-voice-voice')));
+          await tester.pumpAndSettle();
+          expect(requests, 0);
+          expect(media.reads, [
+            'chat-voice-asset:12345678-1234-1234-1234-123456789012',
+          ]);
+          expect(output.plays, ['/saved-voice.m4a']);
+          if (clearAll) {
+            removals.add(ConversationHistoryRemoval(conversation));
+          } else {
+            await ChatMediaDeletion('me', group, 'voice').dispatch();
+          }
+          await tester.pumpAndSettle();
+          expect(player.activeId, isNull);
+          expect(find.text('原消息不可用'), findsOneWidget);
         },
       );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ChatHistoryContextPage(
-            account: 'me',
-            repository: repository,
-            messageId: 'voice',
-            sequence: 1,
-            groupId: group ? 'group' : null,
-            events: const Stream.empty(),
-            createVoicePlayback: () => player,
-            read: ({before, after, required limit}) async =>
-                throw const AuthFailure('NETWORK_ERROR', 'offline'),
-            readLocal: () async => [
-              {
-                'messageId': 'voice',
-                'sequence': 1,
-                'sender': 'friend',
-                'messageType': 'voice',
-                'text': '[语音]',
-                'voiceDurationMs': 3000,
-                'voiceAssetId': '12345678-1234-1234-1234-123456789012',
-              },
-            ],
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('context-voice-voice')));
-      await tester.pumpAndSettle();
-      expect(requests, 0);
-      expect(media.reads, [
-        'chat-voice-asset:12345678-1234-1234-1234-123456789012',
-      ]);
-      expect(output.plays, ['/saved-voice.m4a']);
-      await ChatMediaDeletion('me', group, 'voice').dispatch();
-      await tester.pump();
-      expect(player.activeId, isNull);
-      expect(find.text('原消息不可用'), findsOneWidget);
-    });
+    }
     testWidgets('local deletion fences context and late reads group=$group', (
       tester,
     ) async {
