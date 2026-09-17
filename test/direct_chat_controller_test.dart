@@ -97,6 +97,56 @@ void main() {
       expect(outbox.items, isEmpty);
     });
   }
+  for (final reason in [
+    'blocked',
+    'awaiting_reply',
+    'follow_required',
+    'inactive',
+    'self',
+  ]) {
+    test(
+      'send-time $reason denial blocks new content without relay fallback',
+      () async {
+        final outbox = MemoryOutbox();
+        var sends = 0, relayAttempts = 0, denied = true;
+        final chat = DirectChatController(
+          peer: 'peer',
+          outbox: outbox,
+          sendRelayText: (_, _) async {
+            relayAttempts++;
+            return true;
+          },
+          repository: MessagingRepository(
+            account: 'me',
+            call: (api, params) async {
+              if (api == 'K260913000604') return history([]);
+              sends++;
+              if (denied) {
+                throw AuthFailure('CHAT_${reason.toUpperCase()}', 'denied');
+              }
+              return {'message': ack(params)};
+            },
+          ),
+        );
+        addTearDown(chat.dispose);
+        await chat.initialize();
+        await chat.send('hello');
+        expect(chat.permission, {'allowed': false, 'reason': reason});
+        expect(outbox.items, hasLength(1));
+        expect(outbox.items.values.single['status'], 'failed');
+        await expectLater(chat.send('another'), throwsStateError);
+        await chat.retryQueued();
+        expect(sends, 1);
+        expect(relayAttempts, 0);
+        // Existing IDs can still reconcile an earlier accepted server receipt.
+        denied = false;
+        await chat.retry(outbox.items.keys.single);
+        expect(sends, 2);
+        expect(outbox.items, isEmpty);
+        expect(chat.messages.single['status'], 'sent');
+      },
+    );
+  }
   test(
     'restored failed text appears before newer history without resending',
     () async {

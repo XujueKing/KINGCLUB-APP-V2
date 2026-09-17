@@ -988,6 +988,19 @@ class DirectChatController extends ChatSessionController {
       error = null;
     } catch (e) {
       if (_disposed || !_pending.containsKey(id)) return;
+      if (e is AuthFailure && historyGeneration == _historyGeneration) {
+        final reason = switch (e.code) {
+          'CHAT_BLOCKED' => 'blocked',
+          'CHAT_AWAITING_REPLY' => 'awaiting_reply',
+          'CHAT_FOLLOW_REQUIRED' => 'follow_required',
+          'CHAT_INACTIVE' => 'inactive',
+          'CHAT_SELF' => 'self',
+          _ => null,
+        };
+        if (reason != null) {
+          permission = {'allowed': false, 'reason': reason};
+        }
+      }
       final transient = e is AuthFailure && e.code == 'NETWORK_ERROR';
       if (transient &&
           !peerDelivered &&
