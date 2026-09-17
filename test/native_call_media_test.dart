@@ -661,6 +661,14 @@ void main() {
         capture: (constraints) async {
           expect(constraints['video'], false);
           expect((constraints['audio'] as Map)['noiseSuppression'], true);
+          expect(
+            (constraints['audio'] as Map)['optional'],
+            containsAll([
+              {'googEchoCancellation': true},
+              {'googNoiseSuppression': true},
+              {'googAutoGainControl': true},
+            ]),
+          );
           return stream;
         },
         peerFactory: (_) async => peer,

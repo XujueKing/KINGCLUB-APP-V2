@@ -1,3 +1,5 @@
+import 'call_audio_constraints.dart';
+
 import 'package:flutter/foundation.dart';
 
 import 'call_relay_configuration.dart';
@@ -96,11 +98,7 @@ class NativeCallMedia {
   Future<void> _open() async {
     try {
       _local = await _capture({
-        'audio': {
-          'echoCancellation': true,
-          'noiseSuppression': true,
-          'autoGainControl': true,
-        },
+        'audio': callAudioConstraints,
         'video': video
             ? {
                 'facingMode': 'user',

@@ -281,7 +281,17 @@ void main() {
       final media = NativeGroupCallMedia(
         repository: Repo(),
         device: device,
-        capture: (_) async => stream,
+        capture: (constraints) async {
+          expect(
+            (constraints['audio'] as Map)['optional'],
+            containsAll([
+              {'googEchoCancellation': true},
+              {'googNoiseSuppression': true},
+              {'googAutoGainControl': true},
+            ]),
+          );
+          return stream;
+        },
         foregroundLease: CallForegroundLease(
           supported: true,
           invoke: (method, _) async {
@@ -673,6 +683,11 @@ void main() {
         'echoCancellation': true,
         'noiseSuppression': true,
         'autoGainControl': true,
+        'optional': [
+          {'googEchoCancellation': true},
+          {'googNoiseSuppression': true},
+          {'googAutoGainControl': true},
+        ],
       });
       expect(constraints!['video'], false);
       expect(device.sendIce!.single.urls, [

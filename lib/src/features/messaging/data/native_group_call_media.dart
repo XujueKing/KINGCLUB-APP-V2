@@ -1,3 +1,5 @@
+import 'call_audio_constraints.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -142,11 +144,7 @@ class NativeGroupCallMedia {
       );
       _wire(_receive!, 'receive');
       final stream = await _capture({
-        'audio': {
-          'echoCancellation': true,
-          'noiseSuppression': true,
-          'autoGainControl': true,
-        },
+        'audio': callAudioConstraints,
         'video': repository.call.media == CallMedia.video
             ? {
                 'facingMode': 'user',
