@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/chat_sent_file_cache.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_uploader.dart';
 import 'package:kingclub/src/features/messaging/data/chat_file_downloader.dart';
@@ -269,6 +270,17 @@ void main() {
             'members': [b.messaging.account],
           });
           groupId = created['groupId'] as String;
+          // Shared group membership must not depend on private friendship.
+          await a.messaging.setRelationship(b.messaging.account, 'unfollow');
+          await b.messaging.setRelationship(a.messaging.account, 'unfollow');
+          final denied = isA<AuthFailure>().having(
+            (error) => error.code,
+            'code',
+            'NETWORK_KEY_DENIED',
+          );
+          await expectLater(a.directory(b.messaging.account), throwsA(denied));
+          await expectLater(b.directory(a.messaging.account), throwsA(denied));
+          await expectLater(sender.revalidate(), throwsA(denied));
         }
         final sent = group
             ? await a.messaging.call('K260914000653', {
@@ -343,9 +355,16 @@ void main() {
           await downloader.dispose();
         }
       }
+      await a.messaging.setRelationship(b.messaging.account, 'follow');
+      await b.messaging.setRelationship(a.messaging.account, 'follow');
+      final freshSender = await left.connectPeer(
+        b.messaging.account,
+        kb.bindingId,
+      );
+      await freshSender.revalidate();
       await b.revoke(kb);
-      await expectLater(sender.revalidate(), throwsA(anything));
-      await expectLater(sender.send(frame), throwsStateError);
+      await expectLater(freshSender.revalidate(), throwsA(anything));
+      await expectLater(freshSender.send(frame), throwsStateError);
       left.close();
       right.close();
     },

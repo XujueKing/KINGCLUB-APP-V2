@@ -24,7 +24,11 @@ and relay processes stopped. Synthetic history remains in the isolated test DB;
 no real members, production containers or phones were changed.
 
 Scope: loopback native relay reached an isolated server by SSH tunnel. The
-fixture members are friends and group members; non-friend group access was
-validated separately at the service layer. Local key storage is a test substitute,
+fixture now removes both follow edges through real APIs after creating the group.
+Both ordinary device directories and the existing private lane reject access,
+while native group-file download and HTTP fallback still pass. Friendship is
+then restored and a fresh private lane is revalidated before independently
+checking device-key revocation. The updated combined test passed in eight seconds;
+Dart analysis passed. These are synthetic members only. Local key storage is a test substitute,
 and this does not prove mobile hardware keystore behavior, public NAT traversal,
 or group RTC. Group transport remains default-off pending device acceptance.

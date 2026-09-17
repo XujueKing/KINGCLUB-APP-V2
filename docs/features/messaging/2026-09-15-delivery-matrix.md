@@ -7,7 +7,9 @@ SQL/Redis + native SuperVM WSS integration passed for direct and group files.
 A previously retained downloader guard silently skipped all group peer transfers;
 that guard and the final group authority check are corrected. Both scopes now
 verify sender-cache delivery with zero HTTP chunks and HTTP fallback after cache
-removal. Native device keys are registered through real proof endpoints.
+removal. Native device keys are registered through real proof endpoints. Group transfer
+was also verified after removing both follow edges: private transport is denied
+while the group file still transfers and falls back correctly.
 Migrations 124-126 are applied only to the isolated test database, not production.
 The group transfer flag remains default-off; Android A/B and public-network
 acceptance remain pending. [Evidence](2026-09-18-group-native-http-download.md).
