@@ -11,6 +11,7 @@ import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_image_view.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 
 Map<String, dynamic> grant({
   String path = '/kingclub/chat-image/m/thumbnail',
@@ -34,6 +35,94 @@ class EmptyMedia extends MediaCache {
 }
 
 void main() {
+  for (final result in ['allowed', 'offline', 'denied']) {
+    testWidgets('local image stays stable during reconnect: $result', (
+      tester,
+    ) async {
+      late Directory root;
+      late MediaCache store;
+      await tester.runAsync(() async {
+        root = await Directory.systemTemp.createTemp('image-reconnect-');
+        store = MediaCache(directory: () async => root);
+        await store.importBytes(
+          await File('assets/legacy/storage/wine_flip.png').readAsBytes(),
+          scope: 'member:me',
+          contentKey: 'chat-image-message:false:m:thumbnail',
+          kind: MediaKind.image,
+        );
+      });
+      final events = StreamController<Map<String, dynamic>>();
+      final pending = Completer<Map<String, dynamic>>();
+      var calls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatImageView(
+            repository: MessagingRepository(
+              account: 'me',
+              call: (_, _) async {
+                calls++;
+                return pending.future;
+              },
+            ),
+            messageId: 'm',
+            mediaStore: store,
+            events: events.stream,
+          ),
+        ),
+      );
+      await tester.runAsync(() async {
+        for (var i = 0; i < 50 && find.byType(Image).evaluate().isEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await tester.pump();
+        }
+      });
+      expect(find.byType(Image), findsOneWidget);
+      final original = tester.element(find.byType(Image));
+      final size = tester.getSize(find.byType(Image));
+      await tester.runAsync(
+        () => precacheImage(
+          tester.widget<Image>(find.byType(Image)).image,
+          tester.element(find.byType(Image)),
+        ),
+      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(tester.element(find.byType(Image)), same(original));
+      // Let the lifecycle-triggered filesystem read finish before disposal;
+      // its stale result must not replace the later authorization result.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      events.add({'eventType': 'connection.ready'});
+      await tester.pump();
+      expect(calls, 1);
+      expect(tester.element(find.byType(Image)), same(original));
+      expect(tester.getSize(find.byType(Image)), size);
+      if (result == 'allowed') {
+        pending.complete(grant());
+      } else {
+        pending.completeError(
+          AuthFailure(
+            result == 'offline' ? 'NETWORK_ERROR' : 'CHAT_ACCESS_DENIED',
+            'fixture',
+          ),
+        );
+      }
+      await tester.pump();
+      if (result == 'denied') {
+        expect(find.byType(Image), findsNothing);
+      } else {
+        expect(tester.element(find.byType(Image)), same(original));
+        expect(tester.getSize(find.byType(Image)), size);
+      }
+      await tester.pumpWidget(const SizedBox());
+      await tester.runAsync(() async {
+        await events.close();
+        await root.delete(recursive: true);
+      });
+    });
+  }
   for (final mode in [
     'downloaded',
     'original-thumbnail',

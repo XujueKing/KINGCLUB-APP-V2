@@ -104,7 +104,7 @@ class _ChatImageViewState extends State<ChatImageView>
         'chat.relationship.changed',
         'connection.ready',
       ].contains(event['eventType'])) {
-        _load(revalidate: true);
+        _load(keepVisible: type == 'connection.ready', revalidate: true);
       }
     });
     _load();
@@ -131,7 +131,7 @@ class _ChatImageViewState extends State<ChatImageView>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _load();
+    if (state == AppLifecycleState.resumed) _load(keepVisible: true);
   }
 
   Future<void> _load({
@@ -215,11 +215,21 @@ class _ChatImageViewState extends State<ChatImageView>
         throw const FormatException('图片授权无效');
       }
       setState(() {
-        _local = null;
-        _media = media;
+        // Re-authorizing an immutable message does not require replacing its
+        // decoded local image with another loading widget or changing its size.
+        if (!keepVisible || _local == null) {
+          _local = null;
+          _media = media;
+        }
       });
     } catch (failure) {
       if (mounted && generation == _generation) {
+        if (keepVisible &&
+            _local != null &&
+            failure is AuthFailure &&
+            failure.code == 'NETWORK_ERROR') {
+          return;
+        }
         setState(() {
           _media = null;
           _local = null;
