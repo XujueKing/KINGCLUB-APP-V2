@@ -17,6 +17,7 @@ class ChatOutboxRecovery {
     this.outbox, {
     this.relaySenderFor,
     this.openHistory,
+    this.recoverTransport,
   });
   final Future<ChatHistoryStore> Function()? openHistory;
   Future<ChatHistoryStore> Function()? get _historyFactory =>
@@ -28,6 +29,9 @@ class ChatOutboxRecovery {
   relaySenderFor;
   final MessagingRepository repository;
   final ChatOutbox outbox;
+
+  /// Starts optional native recovery without holding up service delivery.
+  final void Function()? recoverTransport;
   static final _visible = <String, int>{};
   static final _workers = <ChatOutboxRecovery>{};
   final _running = <String, ChatSessionController>{};
@@ -74,6 +78,15 @@ class ChatOutboxRecovery {
 
   Future<void> notify() {
     if (_closed) return Future<void>.value();
+    try {
+      if (recoverTransport != null) {
+        recoverTransport!();
+      } else if (repository.persistHistory) {
+        NovoRudpBindingRuntime.start(repository);
+      }
+    } catch (_) {
+      // The optional native lane cannot disable ordinary service recovery.
+    }
     if (_draining != null) {
       _drainAgain = true;
       return _draining!;

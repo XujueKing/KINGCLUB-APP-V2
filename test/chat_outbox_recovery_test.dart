@@ -9,6 +9,65 @@ import 'direct_chat_controller_test.dart' as direct;
 import 'group_chat_controller_test.dart' as group;
 
 void main() {
+  testWidgets('idle foreground timer kicks transport without queued messages', (
+    tester,
+  ) async {
+    var attempts = 0;
+    final worker = ChatOutboxRecovery(
+      MessagingRepository(account: 'me', call: (_, _) async => {}),
+      direct.MemoryOutbox(),
+      recoverTransport: () => attempts++,
+    );
+    worker.start();
+    await tester.pump();
+    expect(attempts, 1);
+    await tester.pump(const Duration(seconds: 15));
+    expect(attempts, 2);
+    worker.close();
+    await tester.pump(const Duration(seconds: 30));
+    expect(attempts, 2);
+  });
+
+  test(
+    'native recovery retries on notification and stops with worker',
+    () async {
+      final queue = direct.MemoryOutbox();
+      var attempts = 0;
+      var sent = 0;
+      final worker = ChatOutboxRecovery(
+        MessagingRepository(
+          account: 'me',
+          call: (id, params) async {
+            if (id == 'K260913000604') return direct.history([]);
+            sent++;
+            return {'message': direct.ack(params)};
+          },
+        ),
+        queue,
+        recoverTransport: () {
+          attempts++;
+          if (attempts == 1) throw StateError('native lane unavailable');
+        },
+      );
+      await queue.put({
+        'clientMessageId': 'q',
+        'status': 'queued',
+        'recipient': 'peer',
+        'sender': 'me',
+        'text': 'hello',
+      });
+      await worker.notify();
+      expect(sent, 1);
+      expect(queue.items, isEmpty);
+      expect(attempts, 1);
+      await worker.notify();
+      expect(attempts, 2);
+      worker.close();
+      await worker.notify();
+      expect(attempts, 2);
+    },
+  );
+
   test(
     'independent conversations recover concurrently with a bounded limit',
     () async {
