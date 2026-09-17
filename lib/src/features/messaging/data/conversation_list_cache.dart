@@ -48,16 +48,26 @@ Future<void> _createConversationListCache(DatabaseExecutor db) => db.execute(
 /// Keep locally confirmed outgoing heads until the server list catches up.
 List<Map<String, dynamic>> mergeConfirmedConversationRows(
   List<Map<String, dynamic>> local,
-  List<Map<String, dynamic>> incoming,
-) {
+  List<Map<String, dynamic>> incoming, {
+  List<Map<String, dynamic>> settledHeads = const [],
+}) {
   String key(Map<String, dynamic> row) => row['kind'] == 'group'
       ? 'group:${row['groupId']}'
       : 'direct:${row['peer']}';
+  final settled = {
+    for (final row in settledHeads) key(row): row['lastSequence'] as num? ?? 0,
+  };
   final rows = {
     for (final row in incoming) key(row): Map<String, dynamic>.from(row),
   };
   for (final row in local) {
     if (row['localConfirmed'] != true) continue;
+    // A complete server snapshot requested after this confirmation is
+    // authoritative. Only confirmations made during the request still bridge.
+    if (settled.containsKey(key(row)) &&
+        (row['lastSequence'] as num? ?? 0) <= settled[key(row)]!) {
+      continue;
+    }
     final server = rows[key(row)];
     if (server == null) {
       rows[key(row)] = Map<String, dynamic>.from(row);
@@ -86,6 +96,7 @@ extension ConversationListCache on ChatHistoryStore {
   Future<void> saveConversationList(
     List<Map<String, dynamic>> items, {
     int? expectedRevision,
+    List<Map<String, dynamic>> settledHeads = const [],
   }) async {
     const fields = {
       'kind',
@@ -125,6 +136,7 @@ extension ConversationListCache on ChatHistoryStore {
       final merged = mergeConfirmedConversationRows(
         await _readConversationList(tx),
         projected,
+        settledHeads: settledHeads,
       );
       await _writeConversationList(tx, utf8.encode(jsonEncode(merged)));
     });

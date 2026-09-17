@@ -159,6 +159,61 @@ void main() {
       );
     }
   }
+  for (final group in [false, true]) {
+    test(
+      'complete list retires old bridge but preserves concurrent send: group=$group',
+      () async {
+        final conversation = group ? 'group:room' : 'direct:peer';
+        Map<String, dynamic> own(int sequence) => {
+          ...message(sequence),
+          'sender': 'me',
+          'recipient': 'peer',
+          if (group) 'groupId': 'room',
+        };
+        await store.commit(
+          conversation,
+          [own(1)],
+          expectedEpoch: 0,
+          recordOutgoingHead: true,
+        );
+        final beforeRequest = await store.readConversationList();
+        await store.saveConversationList([], settledHeads: beforeRequest);
+        expect(await store.readConversationList(), isEmpty);
+        await store.commit(
+          conversation,
+          [own(2)],
+          expectedEpoch: 0,
+          recordOutgoingHead: true,
+        );
+        final secondRequest = await store.readConversationList();
+        await store.commit(
+          conversation,
+          [own(3)],
+          expectedEpoch: 0,
+          recordOutgoingHead: true,
+        );
+        await store.saveConversationList([], settledHeads: secondRequest);
+        expect((await store.readConversationList()).single['lastSequence'], 3);
+        await store.close();
+        store = await open();
+        final current = await store.readConversationList();
+        expect(current.single['lastSequence'], 3);
+        final older = {
+          ...current.single,
+          'lastSequence': 2,
+          'preview': 'older visible',
+        }..remove('localConfirmed');
+        expect(
+          mergeConfirmedConversationRows(current, [
+            older,
+          ], settledHeads: current),
+          [older],
+        );
+        await store.saveConversationList([older], settledHeads: current);
+        expect(await store.readConversationList(), [older]);
+      },
+    );
+  }
   test('v17 upgrade rolls back earlier rewrites when a later encrypted row is corrupt', () async {
     await store.commit('direct:peer', [
       for (var i = 1; i <= 55; i++) message(i),

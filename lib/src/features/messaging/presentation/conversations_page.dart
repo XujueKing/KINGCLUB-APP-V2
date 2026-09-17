@@ -506,6 +506,8 @@ class _ConversationsPageState extends State<ConversationsPage>
           ? await _openRelayHistory(repository)
           : null;
       final listRevision = history?.conversationListRevision;
+      final headsBeforeRequest =
+          await history?.readConversationList() ?? <Map<String, dynamic>>[];
       final result = _useRelayUnread
           ? await conversationsWithRelayUnread(
               repository: repository,
@@ -521,6 +523,11 @@ class _ConversationsPageState extends State<ConversationsPage>
                   : const {},
             )
           : await repository.conversations(offset: more ? _serverOffset : 0);
+      // Absence is authoritative only for a complete first-page snapshot.
+      // Never infer deletion from a partial page or a failed request.
+      final settledHeads = !more && result['hasMore'] == false
+          ? headsBeforeRequest
+          : <Map<String, dynamic>>[];
       final serverRowCount = (result['items'] as List).length;
       var pageRows = (result['items'] as List)
           .map((raw) => Map<String, dynamic>.from(raw as Map))
@@ -529,6 +536,7 @@ class _ConversationsPageState extends State<ConversationsPage>
         pageRows = mergeConfirmedConversationRows(
           await history.readConversationList(),
           pageRows,
+          settledHeads: settledHeads,
         );
       }
       if (_useRelayUnread) {
@@ -582,6 +590,7 @@ class _ConversationsPageState extends State<ConversationsPage>
           await history!.saveConversationList(
             _realItems,
             expectedRevision: listRevision,
+            settledHeads: settledHeads,
           );
         } catch (_) {
           // Cache availability must not turn a successful refresh into an error.
