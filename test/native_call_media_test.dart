@@ -295,7 +295,13 @@ void main() {
     final media = NativeCallMedia(
       video: true,
       iceServers: [],
-      capture: (_) async {
+      capture: (constraints) async {
+        expect(constraints['video'], {
+          'facingMode': 'user',
+          'width': 1280,
+          'height': 720,
+          'frameRate': 24,
+        });
         captures++;
         return stream;
       },

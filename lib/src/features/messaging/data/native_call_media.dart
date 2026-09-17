@@ -102,9 +102,9 @@ class NativeCallMedia {
         'video': video
             ? {
                 'facingMode': 'user',
-                'width': {'ideal': 1280},
-                'height': {'ideal': 720},
-                'frameRate': {'ideal': 24, 'max': 30},
+                'width': 1280,
+                'height': 720,
+                'frameRate': 24,
               }
             : false,
       });

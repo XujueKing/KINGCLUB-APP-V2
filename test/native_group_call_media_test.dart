@@ -583,7 +583,15 @@ void main() {
       final media = NativeGroupCallMedia(
         repository: Repo(video: true),
         device: DeviceFixture(),
-        capture: (_) async => stream,
+        capture: (constraints) async {
+          expect(constraints['video'], {
+            'facingMode': 'user',
+            'width': 640,
+            'height': 480,
+            'frameRate': 24,
+          });
+          return stream;
+        },
         switchCamera: (track) async {
           expect(track, same(stream.camera));
           if (++calls == 1) return false;

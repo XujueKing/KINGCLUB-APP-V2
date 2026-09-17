@@ -148,9 +148,9 @@ class NativeGroupCallMedia {
         'video': repository.call.media == CallMedia.video
             ? {
                 'facingMode': 'user',
-                'width': {'ideal': 640},
-                'height': {'ideal': 480},
-                'frameRate': {'ideal': 24, 'max': 30},
+                'width': 640,
+                'height': 480,
+                'frameRate': 24,
               }
             : false,
       });
