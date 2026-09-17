@@ -148,8 +148,16 @@ void main() {
         await tester.tap(find.byTooltip('添加的单个表情'));
         await tester.pump();
         await tester.tap(find.byKey(const ValueKey('add-single-sticker')));
-        await Future<void>.delayed(const Duration(milliseconds: 100));
         await tester.pump();
+        final add = find.byKey(const ValueKey('add-single-sticker'));
+        final deadline = DateTime.now().add(const Duration(seconds: 10));
+        while (tester.widget<InkWell>(add).onTap == null &&
+            DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          await tester.pump();
+        }
+        // The control is re-enabled only after rollback has completed.
+        expect(tester.widget<InkWell>(add).onTap, isNotNull);
         expect(first.writes, 1);
         expect(second.writes, large ? 0 : 1);
         expect((await dir.list().toList()).length, 2);
