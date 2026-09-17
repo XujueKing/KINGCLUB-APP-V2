@@ -21,6 +21,8 @@ import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dar
 import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
 import 'package:kingclub/src/features/messaging/data/chat_sent_file_cache.dart';
 import 'package:kingclub/src/features/messaging/data/peer_file_channel.dart';
+import 'package:kingclub/src/features/messaging/data/group_file_device_scope.dart';
+import 'package:kingclub/src/features/messaging/data/group_file_scope_exchange.dart';
 
 class HeldSendLink implements NovoRudpFrameLink {
   HeldSendLink(this.delegate);
@@ -142,6 +144,49 @@ void main() {
         expect(packets, 0);
       },
     );
+
+    for (final mismatch in [false, true]) {
+      test(
+        'encrypted scope confirmation with delayed peer mismatch=$mismatch',
+        () async {
+          const message = '11111111-1111-4111-8111-111111111111';
+          const group = '22222222-2222-4222-8222-222222222222';
+          GroupFileDeviceScope scope(int epoch) => GroupFileDeviceScope.parse(
+            {
+              'kind': 'group-file',
+              'messageId': message,
+              'groupId': group,
+              'sender': 'a',
+              'recipient': 'b',
+              'senderMembershipVersion': 1,
+              'recipientMembershipVersion': epoch,
+            },
+            messageId: message,
+            groupId: group,
+            account: 'a',
+            peer: 'b',
+          );
+          final first = GroupFileScopeExchange.confirm(left, scope(1));
+          final checked = mismatch
+              ? expectLater(first, throwsStateError)
+              : first;
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          final second = GroupFileScopeExchange.confirm(
+            right,
+            scope(mismatch ? 2 : 1),
+          );
+          await Future.wait([
+            checked,
+            mismatch
+                ? expectLater(
+                    second,
+                    throwsA(anyOf(isA<StateError>(), isA<TimeoutException>())),
+                  )
+                : second,
+          ]);
+        },
+      );
+    }
 
     for (final scenario in [
       'success',

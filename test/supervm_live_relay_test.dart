@@ -361,6 +361,18 @@ void main() {
             final device = isA ? a : b;
             return {
               'cacheSeconds': 0,
+              if (params['groupFileMessageId'] != null) ...{
+                'peer': params['peer'],
+                'scope': {
+                  'kind': 'group-file',
+                  'messageId': params['groupFileMessageId'],
+                  'groupId': 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+                  'sender': 'member-a',
+                  'recipient': 'member-b',
+                  'senderMembershipVersion': 1,
+                  'recipientMembershipVersion': 2,
+                },
+              },
               'keys':
                   (revokePeer || membershipRevoked) && params['peer'] != account
                   ? []
@@ -422,6 +434,43 @@ void main() {
         singleResponder.connect(),
       ]);
       await Future.wait(singleLanes.map((lane) => lane.close()));
+      final groupBindingA = bound('member-a', a),
+          groupBindingB = bound('member-b', b);
+      const groupMessage = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+      const groupId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+      final groupScopeA = await groupBindingA.groupFileDirectory(
+        'member-b',
+        messageId: groupMessage,
+        groupId: groupId,
+      );
+      final groupScopeB = await groupBindingB.groupFileDirectory(
+        'member-a',
+        messageId: groupMessage,
+        groupId: groupId,
+      );
+      final groupA = MemberRelayHandshake(
+        binding: groupBindingA,
+        relay: renewedLeft.socket,
+        peer: 'member-b',
+        peerBindingId: bindingB,
+        initiate: true,
+        groupFileScope: groupScopeA.scope,
+      );
+      final groupB = MemberRelayHandshake(
+        binding: groupBindingB,
+        relay: renewedRight.socket,
+        peer: 'member-a',
+        peerBindingId: bindingA,
+        initiate: true,
+        groupFileScope: groupScopeB.scope,
+      );
+      addTearDown(groupA.close);
+      addTearDown(groupB.close);
+      final groupLanes = await Future.wait([
+        groupA.connect(),
+        groupB.connect(),
+      ]);
+      await Future.wait(groupLanes.map((lane) => lane.close()));
       final memberA = MemberRelayHandshake(
         binding: bound('member-a', a),
         relay: renewedLeft.socket,

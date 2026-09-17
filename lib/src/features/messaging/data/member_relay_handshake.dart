@@ -6,6 +6,8 @@ import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'novorudp_device_binding.dart';
+import 'group_file_device_scope.dart';
+import 'group_file_scope_exchange.dart';
 import 'novorudp_relay_connection.dart';
 import 'novorudp_relay_frame_link.dart';
 import 'novorudp_secure_session.dart';
@@ -20,6 +22,7 @@ class MemberRelayHandshake {
     required this.peerBindingId,
     this.initiate = false,
     this.initialOffer,
+    this.groupFileScope,
   }) : _ownPeerId = binding.identity.peerId {
     if (!identical(binding.identity, relay.identity) ||
         peer == binding.messaging.account) {
@@ -29,6 +32,7 @@ class MemberRelayHandshake {
   final NovoRudpDeviceBinding binding;
   final NovoRudpRelayConnection relay;
   final String peer, peerBindingId;
+  final GroupFileDeviceScope? groupFileScope;
 
   /// Explicit initiation allows either peer to open a lane. The default
   /// retains deterministic initiation when both peers prepare concurrently.
@@ -81,7 +85,14 @@ class MemberRelayHandshake {
 
   Future<void> _start() async {
     try {
-      final keys = await binding.directory(peer);
+      final scope = groupFileScope;
+      final keys = scope == null
+          ? await binding.directory(peer)
+          : (await binding.groupFileDirectory(
+              peer,
+              messageId: scope.messageId,
+              groupId: scope.groupId,
+            )).keys;
       _check();
       final matches = keys.where((key) => key.bindingId == peerBindingId);
       if (matches.isEmpty) {
@@ -94,7 +105,9 @@ class MemberRelayHandshake {
       _key = key;
       if (initialOffer == null &&
           (initiate || _ownPeerId.compareTo(key.peerId) < 0)) {
-        final offer = await binding.startPeer(peer, peerBindingId);
+        final offer = scope == null
+            ? await binding.startPeer(peer, peerBindingId)
+            : await binding.startGroupFilePeer(peer, peerBindingId, scope);
         if (_closed || _responding) {
           offer.cancel();
           return;
@@ -132,6 +145,7 @@ class MemberRelayHandshake {
       return;
     }
     final wire = body['handshake'] as Map;
+    final scope = groupFileScope;
     if (wire['body'] is! Map<String, dynamic>) {
       return;
     }
@@ -164,11 +178,14 @@ class MemberRelayHandshake {
       if (initiator) {
         channel = await offer.complete(wire['body'] as Map<String, dynamic>);
       } else {
-        final answer = await binding.respondPeer(
-          peer,
-          peerBindingId,
-          wire['body'] as Map<String, dynamic>,
-        );
+        final answer = scope == null
+            ? await binding.respondPeer(peer, peerBindingId, payload)
+            : await binding.respondGroupFilePeer(
+                peer,
+                peerBindingId,
+                scope,
+                payload,
+              );
         channel = answer.channel;
         _check();
         relay.sendPeerHandshake(_key!.peerId, {
@@ -181,9 +198,18 @@ class MemberRelayHandshake {
         relay: relay,
         channel: channel,
         expectedPeer: _key!.peerId,
-        authorize: () => binding.verifyPeer(peer, _key!),
+        authorize: () => scope == null
+            ? binding.verifyPeer(peer, _key!)
+            : binding.verifyGroupFilePeer(peer, _key!, scope),
       );
       channel = null;
+      try {
+        if (scope != null) await GroupFileScopeExchange.confirm(link, scope);
+        _check();
+      } catch (_) {
+        await link.close();
+        rethrow;
+      }
       _result!.complete(link);
       close();
     } catch (error) {
