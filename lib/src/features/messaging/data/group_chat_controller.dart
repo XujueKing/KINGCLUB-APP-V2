@@ -1,3 +1,4 @@
+import 'chat_message_receipt.dart';
 import 'chat_video.dart';
 import 'chat_history_store.dart';
 import 'chat_location.dart';
@@ -427,7 +428,7 @@ class GroupChatController extends ChatSessionController {
         .map((raw) => _preserveHidden(Map<String, dynamic>.from(raw as Map)))
         .toList();
     for (final message in rows) {
-      _validatePendingText(message);
+      _validatePendingReceipt(message);
     }
     if (_history != null) {
       if (rows.any((row) => row['groupId'] != groupId)) {
@@ -468,18 +469,10 @@ class GroupChatController extends ChatSessionController {
     return message;
   }
 
-  void _validatePendingText(Map<String, dynamic> message) {
+  void _validatePendingReceipt(Map<String, dynamic> message) {
     if (message['sender'] != repository.account) return;
     final pending = _pending[message['clientMessageId']];
-    if (pending == null ||
-        (pending['messageType'] != null && pending['messageType'] != 'text') ||
-        ['recalled', 'hidden'].contains(message['messageType'])) {
-      return;
-    }
-    if ((message['messageType'] != null && message['messageType'] != 'text') ||
-        message['text'] != pending['text']) {
-      throw const FormatException('文字回执与发送内容不符');
-    }
+    if (pending != null) validateQueuedMessageReceipt(pending, message);
   }
 
   Future<void> _acknowledge(
@@ -487,7 +480,7 @@ class GroupChatController extends ChatSessionController {
     bool persist = true,
   }) async {
     message = _preserveHidden(message);
-    _validatePendingText(message);
+    _validatePendingReceipt(message);
     final generation = _historyGeneration;
     if (persist && openHistory != null) {
       await _ensureHistory();
@@ -854,7 +847,7 @@ class GroupChatController extends ChatSessionController {
       if (_disposed) return;
       final received = Map<String, dynamic>.from(result['message'] as Map);
       final recalled = ['recalled', 'hidden'].contains(received['messageType']);
-      _validatePendingText(received);
+      _validatePendingReceipt(received);
       if (!recalled &&
           pending['replyToMessageId'] != null &&
           (received['reply'] is! Map ||
