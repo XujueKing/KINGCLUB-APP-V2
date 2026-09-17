@@ -2,6 +2,11 @@
 
 ## 当前验收汇总
 
+Latest consolidated regression at 6a137d3: **856 passed, 0 failed, 10 skipped**, 166 selected chat-related test files, elapsed 2m38s. This supersedes the earlier failing broad run for this selection; skipped native/runtime cases and phone acceptance remain separate. See [batch scope and exclusions](../../audits/2026-09-17-chat-consolidated-regression.md). No APK rebuilt or installed in this batch.
+
+2026-09-17 transport and receipt follow-up (source 6a137d3): native Rust/WSS/UDP desktop tests exposed and fixed multi-interface LAN reception; see [native relay evidence](../../audits/2026-09-17-native-relay-batch.md). File fallback now cancels the abandoned peer attempt before HTTP recovery ([details](2026-09-17-peer-file-fallback-cancellation.md)). Direct/group text acknowledgements and history reconciliation reject mismatched contents before dropping queued originals or committing history/cursors ([98-test batch and SQLite evidence](2026-09-17-text-receipt-integrity.md)). These changes postdate the built 16867c5 APK and are not installed on phones. Local relay tests do not establish cross-network/public-mainnet delivery.
+
+
 2026-09-17 latest batch (source 16867c5): draft-only and first-offline-send conversations, saved contact names, confirmed outgoing previews, remote hidden-boundary cleanup with encrypted restart-safe retry journal, and monotonic boundary handling are implemented. Android ARM64 Profile build succeeded; not installed. Broad regression initially reported 817 passed / 10 skipped / 11 failed; nine failures were corrected and rechecked, the two legacy visual checks were subsequently updated to the current approved flow and passed normal golden comparison (see [panel baselines](../../audits/2026-09-17-chat-panel-baselines.md)). See [batch build and remaining failures](../../audits/2026-09-17-chat-visibility-batch-build.md). This does not supersede pending real-device acceptance below.
 
 
