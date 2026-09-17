@@ -11,6 +11,7 @@ import 'chat_history_context_page.dart';
 import 'forward_text_page.dart';
 import '../data/chat_file_draft_store.dart';
 import '../data/chat_text_draft_store.dart';
+import '../data/chat_media_deletion.dart';
 import 'chat_file_details_page.dart';
 import '../data/chat_file_downloader.dart';
 import 'chat_file_card.dart';
@@ -443,6 +444,25 @@ class _DirectChatPageState extends State<DirectChatPage>
   Timer? _textDraftTimer;
   int _textDraftRevision = 0;
   bool _restoringTextDraft = false;
+  void Function()? _stopDraftDeletion;
+  final _deletedDraftReplies = <(String, String)>{};
+
+  Future<void> _removeDeletedDraftReply() async {
+    final account = _conversationAccount;
+    final reply = _quotedMessageId;
+    if (!mounted ||
+        account == null ||
+        reply == null ||
+        !_deletedDraftReplies.contains((account, reply))) {
+      return;
+    }
+    setState(() {
+      _quotedDraft = null;
+      _quotedMessageId = null;
+    });
+    _captureTextDraft();
+    await _flushTextDraft();
+  }
 
   void _captureTextDraft() {
     if (_realTarget == null || _restoringTextDraft) return;
@@ -508,6 +528,7 @@ class _DirectChatPageState extends State<DirectChatPage>
           );
         });
         _restoringTextDraft = false;
+        await _removeDeletedDraftReply();
       } else if (_textDraft != null) {
         await _flushTextDraft();
       }
@@ -540,6 +561,11 @@ class _DirectChatPageState extends State<DirectChatPage>
     _muted = widget.initialMuted;
     _inputFocusNode.addListener(_handleInputFocusChanged);
     _controller.addListener(_captureTextDraft);
+    _stopDraftDeletion = ChatMediaDeletion.listen((event) async {
+      if (event.group != (widget.groupId != null)) return;
+      _deletedDraftReplies.add((event.account, event.messageId));
+      await _removeDeletedDraftReply();
+    });
     if (_realTarget != null) {
       _sessionEvents = SecureSessionStore.changes.stream.listen(
         (_) => _rebindChatSession(),
@@ -996,6 +1022,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   @override
   void dispose() {
+    _stopDraftDeletion?.call();
     _remarkEvents?.cancel();
     unawaited(_flushTextDraft());
     _controller.removeListener(_captureTextDraft);

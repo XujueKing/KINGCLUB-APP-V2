@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kingclub/src/features/messaging/data/chat_text_draft_store.dart';
+import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
 
@@ -55,6 +56,45 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+  }
+
+  for (final delayed in [false, true]) {
+    testWidgets(
+      'deleted draft quote is removed, preserves input delayed=$delayed',
+      (tester) async {
+        final store = delayed
+            ? DelayedReadStore()
+            : ChatTextDraftStore('me', 'peer:peer', () async {});
+        final draft = ChatTextDraft(
+          'unfinished',
+          replyTo: '11111111-1111-4111-8111-111111111111',
+          preview: 'deleted quote',
+        );
+        if (!delayed) await store.write(draft);
+        await open(tester, store);
+        await ChatMediaDeletion('other', false, draft.replyTo!).dispatch();
+        await ChatMediaDeletion('me', true, draft.replyTo!).dispatch();
+        await tester.pump();
+        if (!delayed) expect(find.text('deleted quote'), findsOneWidget);
+        await ChatMediaDeletion('me', false, draft.replyTo!).dispatch();
+        if (delayed) (store as DelayedReadStore).restored.complete(draft);
+        await tester.pumpAndSettle();
+        expect(find.text('deleted quote'), findsNothing);
+        expect(tester.widget<TextField>(input).controller!.text, 'unfinished');
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+        final saved = await ChatTextDraftStore(
+          'me',
+          'peer:peer',
+          () async {},
+        ).read();
+        expect(saved!.text, 'unfinished');
+        expect(saved.replyTo, isNull);
+        expect(saved.preview, isNull);
+        await ChatMediaDeletion('me', false, draft.replyTo!).dispatch();
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   testWidgets('restores text and quote, persists quote removal on leaving', (
