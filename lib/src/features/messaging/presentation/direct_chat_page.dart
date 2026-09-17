@@ -3494,7 +3494,10 @@ class _MessageRow extends StatelessWidget {
               ),
               if (message.mine) ...[
                 const SizedBox(width: 10),
-                avatar ?? const LegacyFakeAvatar(size: 42),
+                GestureDetector(
+                  onTap: onAvatarTap,
+                  child: avatar ?? const LegacyFakeAvatar(size: 42),
+                ),
               ],
             ],
           ),
