@@ -12,6 +12,55 @@ import 'package:kingclub/src/features/contacts/presentation/public_member_page.d
 void main() {
   const groupId = '11111111-1111-4111-8111-111111111111';
   const applicationId = '22222222-2222-4222-8222-222222222222';
+  testWidgets('only relevant membership notifications refresh review', (
+    tester,
+  ) async {
+    final events = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(events.close);
+    var reads = 0;
+    final repo = GroupChatRepository(
+      MessagingRepository(
+        account: 'me',
+        call: (_, _) async {
+          reads++;
+          return {
+            'groupId': groupId,
+            'membershipVersion': 1,
+            'items': [],
+            'nextCursor': null,
+          };
+        },
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GroupJoinReviewPage(
+          groupId: groupId,
+          repository: repo,
+          events: events.stream,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    events.add({
+      'eventType': 'chat.group.changed',
+      'data': {'groupId': 'other'},
+    });
+    await tester.pumpAndSettle();
+    expect(reads, 1);
+    events.add({
+      'eventType': 'chat.group.changed',
+      'data': {'groupId': groupId},
+    });
+    await tester.pumpAndSettle();
+    expect(reads, 2);
+    events.add({'eventType': 'connection.ready'});
+    await tester.pumpAndSettle();
+    expect(reads, 3);
+    events.add({'eventType': 'chat.group.changed'});
+    await tester.pumpAndSettle();
+    expect(reads, 4);
+  });
   testWidgets('applicant avatar opens authorized visitor profile', (
     tester,
   ) async {

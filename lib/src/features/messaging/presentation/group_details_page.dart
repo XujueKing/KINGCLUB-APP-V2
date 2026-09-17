@@ -85,6 +85,12 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
       final data = event['data'];
+      if (event['eventType'] == 'chat.group.changed' &&
+          data is Map &&
+          data['groupId'] is String &&
+          data['groupId'] != widget.groupId) {
+        return;
+      }
       if (!_invalid &&
           mounted &&
           event['eventType'] == 'chat.group.read' &&

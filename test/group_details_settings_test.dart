@@ -61,6 +61,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(profiles, 1);
     events.add({
+      'eventType': 'chat.group.changed',
+      'data': {'groupId': 'another'},
+    });
+    await tester.pumpAndSettle();
+    expect(reads, 1);
+    expect(profiles, 1);
+    events.add({
       'eventType': 'chat.group.read',
       'data': {'groupId': 'another'},
     });

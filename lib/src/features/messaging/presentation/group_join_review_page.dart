@@ -46,6 +46,13 @@ class _GroupJoinReviewPageState extends State<GroupJoinReviewPage>
       }
     });
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
+      final data = event['data'];
+      if (event['eventType'] == 'chat.group.changed' &&
+          data is Map &&
+          data['groupId'] is String &&
+          data['groupId'] != widget.groupId) {
+        return;
+      }
       if (event['eventType'] == 'chat.group.changed' ||
           event['eventType'] == 'connection.ready') {
         unawaited(_load());
