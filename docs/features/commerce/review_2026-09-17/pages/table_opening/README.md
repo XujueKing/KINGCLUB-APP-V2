@@ -12,7 +12,7 @@
 
 桌号/活动 → 已分配与已入座人数 → 最小/最大及配比 → 套餐商品/所需/可用数量 → 确认开台并备酒 → 回执/待送数量。
 
-tableSessionId、expectedVersion、requestId；套餐数量和版本由服务器读取，不由客户端随意传价格或扣库数。
+tableSessionId、expectedVersion、commandId；套餐数量和版本由服务器读取，不由客户端随意传价格或扣库数。
 
 ## 操作与结果
 

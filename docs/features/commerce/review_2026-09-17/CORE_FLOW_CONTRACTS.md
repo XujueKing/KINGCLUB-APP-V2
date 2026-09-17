@@ -7,7 +7,7 @@
 
 ## 1. 通用约定
 
-每个写请求携带 requestId 和目标对象版本，业务数据另列。服务端从会话取得实际操作人，验证经营主体、门店和对象归属；客户端可选门店但不能自报权限。金额传精确最小单位及币种，数量传明确单位，ID 不以浮点保存。
+每个写请求携带 commandId 和目标对象版本，业务数据另列。服务端从会话取得实际操作人，验证经营主体、门店和对象归属；客户端可选门店但不能自报权限。金额传精确最小单位及币种，数量传明确单位，ID 不以浮点保存。
 
 响应统一包含业务对象 ID、状态、版本、可执行动作及结构化错误码；外部请求未知返回 processing/unknown，不谎报失败或成功。重复请求内容相同复用结果，内容不同拒绝。客户端超时后查原单，不自动创建第二单。
 
@@ -43,7 +43,7 @@
 
 **用例**：CreateAAGroup、JoinAndPayAA、GetAAGroup、CloseExpiredAAGroup、GetParticipantRefund。一个人即可发起，页面以“共 N 份、已付 X 份”显示；发起不算已支付。创建成功后 30 分钟到期。
 
-**状态**：collecting → forming → formed；未成团关闭进入 closing → refunding → closed。形成中不提前展示点单成功；部分退款失败时保留 refunding 和待处理明细。
+**状态**：groupState 从 collecting 裁决为 formed 或 closed；退款另用 refundState（not_required/pending/processing/completed/attention_required）。关闭后迟到实收只更新退款进度，不重新成团或出库。详见 [状态与恢复](STATE_AND_RECOVERY.md)。
 
 **规则**：整份加餐库存一次预留；个人付款成功增加有效已付份额；最后一份付款确认时锁定团与对应库存/订单，验证人数、总金额和有效预留后唯一成单、出库。异步外部付款不能用一个数据库事务“全部回滚”。
 

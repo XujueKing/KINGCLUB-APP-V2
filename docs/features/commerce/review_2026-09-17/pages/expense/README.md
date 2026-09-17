@@ -12,7 +12,7 @@
 
 业务分类 → 金额/币种 → 付款账户 → 发生时间 → 来源单/票据/备注 → 预览影响 → 确认。
 
-categoryRef、amountMinor、currency、accountRef、occurredAt、sourceRef、attachmentRefs、note、requestId。正数金额，单据所属店/主体一致。
+categoryRef、amountMinor、currency、accountRef、occurredAt、sourceRef、attachmentRefs、note、commandId。正数金额，单据所属店/主体一致。
 
 ## 操作和业务变化
 
@@ -22,7 +22,7 @@ categoryRef、amountMinor、currency、accountRef、occurredAt、sourceRef、att
 
 凭证附件可后补但金额、账户与分类必填。缺模板/未分类可留待处理，报表标不完整；期间已锁不能直接回写。网络未知查原支出单。已确认更正须原单/原因，不直接改余额。
 
-加载用骨架；空记录提供新建/返回；离线仅存草稿，确认需联网。无权限返回工作台；会话过期重新登录后查询原操作。字段错误保留输入并定位，未知结果保留 requestId 查询，不重复新建。
+加载用骨架；空记录提供新建/返回；离线仅存草稿，确认需联网。无权限返回工作台；会话过期重新登录后查询原操作。字段错误保留输入并定位，未知结果保留 commandId 查询，不重复新建。
 
 ## 契约与记录
 

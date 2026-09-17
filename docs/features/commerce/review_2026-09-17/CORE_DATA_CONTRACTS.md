@@ -1,6 +1,6 @@
 # 报名分座、出库与 AA 退款：字段及操作契约 v0.1
 
-后续 [状态与恢复设计](STATE_AND_RECOVERY.md) 将 AA 单字段状态拆成 groupState/refundState；下文旧 JSON 为早期示例，冻结时按新双状态更新。成功命令结果统一包装见 [响应结构](contracts/core-response-shapes.json)，非 HTTP/加密外层。
+后续 [状态与恢复设计](STATE_AND_RECOVERY.md) 将 AA 单字段状态拆成 groupState/refundState；下文 AA JSON 已同步双状态，其余业务样例仍为局部结果体。成功命令结果统一包装见 [响应结构](contracts/core-response-shapes.json)，非 HTTP/加密外层。
 
 后续细化见 [数据库约束与接口校验](DATABASE_AND_VALIDATION.md) 与 [请求结构草案](contracts/core-request-shapes.json)。请求体仍需业务层校验，结构文件未注册；其候选份数/批量上限不是活动报名总人数限制。
 
@@ -106,7 +106,7 @@ CreateAAGroup params 示例（quoteRef 冻结购物车及优惠，不由客户�
 结果示例：
 
 ```json
-{"groupRef":"demo-aa","status":"collecting","totalMinor":30000,"currency":"CNY","shareAmountsMinor":[10000,10000,10000],"createdAt":"2026-09-18T12:00:00Z","expiresAt":"2026-09-18T12:30:00Z","version":1}
+{"groupRef":"demo-aa","groupState":"collecting","refundState":"not_required","totalMinor":30000,"currency":"CNY","shareAmountsMinor":[10000,10000,10000],"createdAt":"2026-09-18T12:00:00Z","expiresAt":"2026-09-18T12:30:00Z","version":1}
 ```
 
 发起人不自动计已付；按最小货币单位分摊尾差，份额之和等于应收。代付多份及发起人是否必须认领仍待交互规则，不以字段设计默认批准。
@@ -116,10 +116,10 @@ CreateAAGroup params 示例（quoteRef 冻结购物车及优惠，不由客户�
 余额退款事务锁原支付可退额度和目标主体会员余额，写唯一退款流水并增加余额；同事务成功后退款才为 succeeded。两个付款各 100 元的查询结果示例（仅管理员有权完整查看；会员查询只返回本人项）：
 
 ```json
-{"groupRef":"demo-aa","status":"closed","issueRef":null,"refunds":[{"refundRef":"demo-refund-a","paymentRef":"demo-pay-a","amountMinor":10000,"currency":"CNY","destination":"app_balance","status":"succeeded"},{"refundRef":"demo-refund-b","paymentRef":"demo-pay-b","amountMinor":10000,"currency":"CNY","destination":"app_balance","status":"succeeded"}]}
+{"groupRef":"demo-aa","groupState":"closed","refundState":"completed","issueRef":null,"refunds":[{"refundRef":"demo-refund-a","paymentRef":"demo-pay-a","amountMinor":10000,"currency":"CNY","destination":"app_balance","status":"succeeded"},{"refundRef":"demo-refund-b","paymentRef":"demo-pay-b","amountMinor":10000,"currency":"CNY","destination":"app_balance","status":"succeeded"}]}
 ```
 
-若一笔入账失败，团保持 refunding，不给全成功回执。退款到余额不删除原外部收款、不同时发原路退款；原外部结算与新钱包负债分别保留。
+若一笔入账失败，groupState 保持 closed，refundState 为 processing 或 attention_required，不给全成功回执。退款到余额不删除原外部收款、不同时发原路退款；原外部结算与新钱包负债分别保留。
 
 ## 6. 错误样例和验证门槛
 

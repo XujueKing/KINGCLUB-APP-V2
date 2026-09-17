@@ -12,7 +12,7 @@
 
 领用/归还 → 转出/转入账户 → 经手人 → 金额/币种 → 交接时间/备注 → 确认。
 
-direction、sourceAccountRef、destinationAccountRef、amountMinor、currency、handlerRef、shiftId、occurredAt、requestId。实际操作人由会话记录，不能用经手人替代。
+direction、sourceAccountRef、destinationAccountRef、amountMinor、currency、handlerRef、shiftId、occurredAt、commandId。实际操作人由会话记录，不能用经手人替代。
 
 ## 操作和业务变化
 
@@ -22,7 +22,7 @@ direction、sourceAccountRef、destinationAccountRef、amountMinor、currency、
 
 同账户互转、币种不匹配、金额非正、余额不足拒绝。现金尚未交接时可存草稿，不能提前显示已领。错误通过反向更正单处理，不能删流水。
 
-加载用骨架；空记录提供新建/返回；离线仅存草稿，确认需联网。无权限返回工作台；会话过期重新登录后查询原操作。字段错误保留输入并定位，未知结果保留 requestId 查询，不重复新建。
+加载用骨架；空记录提供新建/返回；离线仅存草稿，确认需联网。无权限返回工作台；会话过期重新登录后查询原操作。字段错误保留输入并定位，未知结果保留 commandId 查询，不重复新建。
 
 ## 契约与记录
 

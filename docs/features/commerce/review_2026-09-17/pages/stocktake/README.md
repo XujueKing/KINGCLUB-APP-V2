@@ -12,7 +12,7 @@
 
 门店/盘点位置/计数时间 → 商品逐行实数 → 待交付与保管酒分区 → 差异清单 → 原因/复点 → 确认调整。未填行显示未盘，不视为零。
 
-scope、locationRef、productOrCustodyRef、unit、countedQuantity、countedAt、snapshotVersion、reason、requestId。数量允许零但不允许负数；单位必须明确。
+scope、locationRef、productOrCustodyRef、unit、countedQuantity、countedAt、snapshotVersion、reason、commandId。数量允许零但不允许负数；单位必须明确。
 
 ## 操作和业务变化
 
@@ -22,7 +22,7 @@ scope、locationRef、productOrCustodyRef、unit、countedQuantity、countedAt�
 
 计数期间继续营业：调整量 = 实点量 − 计数时点账面量；确认时在当前账面上加调整量，不直接覆盖当前量。若时点不可重建、并发移动无法定位或调整后低于已预留量，要求复点/先处理预留，不静默取消订单。保管酒差异形成调查记录，不自动减会员权益或变成店内可售酒。
 
-加载用骨架；空记录提供新建/返回；离线仅存草稿，确认需联网。无权限返回工作台；会话过期重新登录后查询原操作。字段错误保留输入并定位，未知结果保留 requestId 查询，不重复新建。
+加载用骨架；空记录提供新建/返回；离线仅存草稿，确认需联网。无权限返回工作台；会话过期重新登录后查询原操作。字段错误保留输入并定位，未知结果保留 commandId 查询，不重复新建。
 
 ## 契约与记录
 

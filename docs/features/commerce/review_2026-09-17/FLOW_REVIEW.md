@@ -1,5 +1,7 @@
 # 营业流程衔接检查
 
+2026-09-18：已同步页面业务 commandId、AA 双状态及核心 JSON 样例，补 [非成功结果查询](OPERATION_RESULTS.md)。README 改为当前评审导航，历史进度在 Git 保留。
+
 2026-09-18 契约审阅发现 AA 组团裁决与退款进度混在单状态，已在 [响应与恢复](STATE_AND_RECOVERY.md) 修正；统一业务 commandId 正文，增加成功响应结构草案。仍待全动作 DTO 统一及真实验证。
 
 2026-09-18 已补 [约束与校验设计](DATABASE_AND_VALIDATION.md)：当前校验器不支持 format/pattern 等完整 Schema 关键字，格式、重复项和跨字段规则须业务层检查。并发场景仅设计，未执行。

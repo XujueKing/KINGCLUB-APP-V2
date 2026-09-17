@@ -12,7 +12,7 @@
 
 用途 → 用品选择 → 领用位置/使用位置 → 本次数量 → 备注 → 确认。
 
-productId、quantity、unit、sourceLocation、destinationLocation、purpose、requestId；只从用品目录选择。
+productId、quantity、unit、sourceLocation、destinationLocation、purpose、commandId；只从用品目录选择。
 
 ## 操作和业务变化
 
@@ -22,7 +22,7 @@ productId、quantity、unit、sourceLocation、destinationLocation、purpose、r
 
 超库存拒绝；跨主体/错误用品类型拒绝；退回必须实物确认并引用原领用行。相同用品不能同时按采购付款和领用重复记费用。具体类别初始化仍为设计建议。
 
-加载用骨架；空记录提供新建/返回；离线仅存草稿，确认需联网。无权限返回工作台；会话过期重新登录后查询原操作。字段错误保留输入并定位，未知结果保留 requestId 查询，不重复新建。
+加载用骨架；空记录提供新建/返回；离线仅存草稿，确认需联网。无权限返回工作台；会话过期重新登录后查询原操作。字段错误保留输入并定位，未知结果保留 commandId 查询，不重复新建。
 
 ## 契约与记录
 

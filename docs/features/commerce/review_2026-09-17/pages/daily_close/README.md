@@ -12,7 +12,7 @@
 
 营业日/时区 → 各账户期初/收入/退款/支出/调拨 → 实点现金 → 差额 → 库存/退款/渠道待办 → 确认交班。
 
-shiftId、accountCounts[accountRef,actualAmountMinor]、note、expectedVersion、requestId；系统数服务端计算。营业日切点为门店设置，未配置先提示设置，不默认把旧 04:00 当确认规则。
+shiftId、accountCounts[accountRef,actualAmountMinor]、note、expectedVersion、commandId；系统数服务端计算。营业日切点为门店设置，未配置先提示设置，不默认把旧 04:00 当确认规则。
 
 ## 操作和业务变化
 
@@ -22,7 +22,7 @@ shiftId、accountCounts[accountRef,actualAmountMinor]、note、expectedVersion�
 
 未完成退款、待交付、渠道差异列出责任来源。设计建议允许带可追踪待办交班，但阻止重复交班、无实点及数据未知的账户确认；日结不是会计月结，不能把待办标已完成。跨班晚到事件按实际入账和原业务来源记录调整，不覆盖旧快照。
 
-加载用骨架；空记录提供新建/返回；离线仅存草稿，确认需联网。无权限返回工作台；会话过期重新登录后查询原操作。字段错误保留输入并定位，未知结果保留 requestId 查询，不重复新建。
+加载用骨架；空记录提供新建/返回；离线仅存草稿，确认需联网。无权限返回工作台；会话过期重新登录后查询原操作。字段错误保留输入并定位，未知结果保留 commandId 查询，不重复新建。
 
 ## 契约与记录
 

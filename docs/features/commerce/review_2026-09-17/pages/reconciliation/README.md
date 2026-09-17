@@ -20,7 +20,7 @@ sourceTransactionRef、externalTransactionRef、grossMinor、feeMinor、netMinor
 
 ListReconciliationExceptions/PreviewReconciliationMatch/ConfirmReconciliationMatch；处理差异通过核实来源/关联更正，不能直接改会员余额或订单来抹平。设计预留只读渠道数据来源，未执行文件导入、API 或真实对账。
 
-接口和字段是语义草案，未注册编号。服务端验证主体、门店、实际操作人、对象版本；写动作以 requestId 防重。加载骨架、空数据指引、无权限返回、会话过期重登后查原单；离线只读/保存草稿，不提交经营结果。失败保留输入并定位原因；超时未知保持原请求查询，不显示假成功。返回保留来源状态与筛选，切店不转移草稿。
+接口和字段是语义草案，未注册编号。服务端验证主体、门店、实际操作人、对象版本；写动作以 commandId 防重。加载骨架、空数据指引、无权限返回、会话过期重登后查原单；离线只读/保存草稿，不提交经营结果。失败保留输入并定位原因；超时未知保持原请求查询，不显示假成功。返回保留来源状态与筛选，切店不转移草稿。
 
 ## 审计、语言与验收
 

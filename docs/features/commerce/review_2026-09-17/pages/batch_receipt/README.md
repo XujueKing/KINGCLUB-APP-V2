@@ -12,7 +12,7 @@
 
 采购来源/供应商 → 每行计划/已收/待收 → 本次实收、单位、批次、单价、存放位置、适用保质期 → 入库合计 → 确认。
 
-purchaseLineRef、receivedQuantity、unit、actualUnitCost、batchLabel、locationRef、可选 expiryDate、requestId。
+purchaseLineRef、receivedQuantity、unit、actualUnitCost、batchLabel、locationRef、可选 expiryDate、commandId。
 
 ## 操作与结果
 
