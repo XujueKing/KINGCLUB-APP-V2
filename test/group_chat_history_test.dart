@@ -169,6 +169,59 @@ void main() {
     );
   }
 
+  test(
+    'conflicting history cannot persist or advance cursor past queued text',
+    () async {
+      final queue = Queue();
+      await queue.put({
+        'clientMessageId': 'c1',
+        'groupId': 'group',
+        'sender': 'me',
+        'text': 'original',
+        'status': 'failed',
+        'membershipVersion': 0,
+        'createdDate': '2026-09-17T00:00:00Z',
+      });
+      var corrected = false;
+      final chat = GroupChatController(
+        groupId: 'group',
+        outbox: queue,
+        openHistory: () async => store,
+        repository: GroupChatRepository(
+          MessagingRepository(
+            account: 'me',
+            call: (id, _) async {
+              if (id == 'K260913000619') {
+                return {'members': <Map<String, dynamic>>[]};
+              }
+              return {
+                ...history([
+                  {...row(1), 'text': corrected ? 'original' : 'conflicting'},
+                ]),
+                'membershipVersion': 0,
+                'joinedSequence': 0,
+                'settings': {'hiddenThrough': 0},
+              };
+            },
+          ),
+        ),
+      );
+      addTearDown(chat.dispose);
+      await chat.initialize();
+      expect(chat.error, isNotNull);
+      expect(queue.rows['c1']?['text'], 'original');
+      expect((await store.read('group:group')).messages, isEmpty);
+      expect((await store.read('group:group')).cursor, 0);
+      corrected = true;
+      await chat.synchronize();
+      expect(chat.error, isNull);
+      expect(queue.rows, isEmpty);
+      expect(
+        (await store.read('group:group')).messages.single['text'],
+        'original',
+      );
+    },
+  );
   test('transient cache opening failure can recover on next sync', () async {
     var opens = 0;
     final queue = Queue();
@@ -176,7 +229,7 @@ void main() {
       'clientMessageId': 'c1',
       'groupId': 'group',
       'sender': 'me',
-      'text': 'message1',
+      'text': 'hello',
       'status': 'queued',
       'membershipVersion': 0,
     });

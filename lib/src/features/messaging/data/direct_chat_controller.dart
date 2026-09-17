@@ -464,6 +464,9 @@ class DirectChatController extends ChatSessionController {
     final rows = (result['messages'] as List)
         .map((raw) => _preserveHidden(Map<String, dynamic>.from(raw as Map)))
         .toList();
+    for (final message in rows) {
+      _validatePendingText(message);
+    }
     final hidden = (result['settings'] as Map)['hiddenThrough'];
     if (_history != null) {
       if (hidden is! int || hidden < 0) throw StateError('服务端尚未提供聊天记录同步信息');
@@ -524,11 +527,26 @@ class DirectChatController extends ChatSessionController {
     return message;
   }
 
+  void _validatePendingText(Map<String, dynamic> message) {
+    if (message['sender'] != repository.account) return;
+    final pending = _pending[message['clientMessageId']];
+    if (pending == null ||
+        (pending['messageType'] != null && pending['messageType'] != 'text') ||
+        ['recalled', 'hidden'].contains(message['messageType'])) {
+      return;
+    }
+    if ((message['messageType'] != null && message['messageType'] != 'text') ||
+        message['text'] != pending['text']) {
+      throw const FormatException('文字回执与发送内容不符');
+    }
+  }
+
   Future<void> _acknowledge(
     Map<String, dynamic> message, {
     bool persist = true,
   }) async {
     message = _preserveHidden(message);
+    _validatePendingText(message);
     final generation = _historyGeneration;
     if (persist && openHistory != null) {
       await _ensureHistory();
@@ -892,13 +910,7 @@ class DirectChatController extends ChatSessionController {
       if (_disposed) return;
       final received = Map<String, dynamic>.from(result['message'] as Map);
       final recalled = ['recalled', 'hidden'].contains(received['messageType']);
-      if (!recalled &&
-          (kind == null || kind == 'text') &&
-          ((received['messageType'] != null &&
-                  received['messageType'] != 'text') ||
-              received['text'] != pending['text'])) {
-        throw const FormatException('文字回执与发送内容不符');
-      }
+      _validatePendingText(received);
       if (!recalled &&
           pending['replyToMessageId'] != null &&
           (received['reply'] is! Map ||
