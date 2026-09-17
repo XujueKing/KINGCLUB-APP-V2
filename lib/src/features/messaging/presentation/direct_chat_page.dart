@@ -1332,30 +1332,24 @@ class _DirectChatPageState extends State<DirectChatPage>
                                           _inputFocusNode.unfocus();
                                           Navigator.of(context).push<void>(
                                             MaterialPageRoute(
-                                              builder: (_) =>
-                                                  ChatFileDetailsPage(
-                                                    repository:
-                                                        _chat!.messaging,
-                                                    reference: ChatFileReference(
-                                                      messageId:
-                                                          message.messageId!,
-                                                      assetId:
-                                                          message.fileAssetId!,
-                                                      fileName:
-                                                          message.fileName!,
-                                                      size: message.fileSize!,
-                                                      sha256:
-                                                          message.fileSha256!,
-                                                      group:
-                                                          widget.groupId !=
-                                                          null,
-                                                      sender: message.mine
+                                              builder: (_) => ChatFileDetailsPage(
+                                                repository: _chat!.messaging,
+                                                reference: ChatFileReference(
+                                                  messageId: message.messageId!,
+                                                  assetId: message.fileAssetId!,
+                                                  fileName: message.fileName!,
+                                                  size: message.fileSize!,
+                                                  sha256: message.fileSha256!,
+                                                  group: widget.groupId != null,
+                                                  sender:
+                                                      message.senderAccount ??
+                                                      (message.mine
                                                           ? _chat!
                                                                 .messaging
                                                                 .account
-                                                          : widget.peerAccount,
-                                                    ),
-                                                  ),
+                                                          : widget.peerAccount),
+                                                ),
+                                              ),
                                             ),
                                           );
                                         },
@@ -3107,9 +3101,11 @@ class _DirectChatPageState extends State<DirectChatPage>
                     size: message.fileSize!,
                     sha256: message.fileSha256!,
                     group: widget.groupId != null,
-                    sender: message.mine
-                        ? _chat!.messaging.account
-                        : widget.peerAccount,
+                    sender:
+                        message.senderAccount ??
+                        (message.mine
+                            ? _chat!.messaging.account
+                            : widget.peerAccount),
                   ),
             outbox: widget.chatOutbox,
           ),
