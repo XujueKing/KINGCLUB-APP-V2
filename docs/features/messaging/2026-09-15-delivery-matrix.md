@@ -2,6 +2,8 @@
 
 ## 当前验收汇总
 
+Latest source regression (8e2e9cf plus batched tombstone lookup): **956 passed, 0 failed, 10 skipped**, 170 selected chat test files. Local-first search/context, group access cleanup, media receipt validation and restart-safe terminal visibility are included. [Batch evidence and limits](../../audits/2026-09-17-chat-history-batch-regression.md). No phone installation; the d44afcb APK below predates these changes.
+
 Local-search scale evidence: real encrypted SQLite with 10000 records found oldest sparse matches in 722 ms on this desktop; a concurrent new-message commit finished in 19 ms before search completed. Three 30-result pages and early exit on recent dense matches were verified. [Scope and limitations](../../audits/2026-09-17-local-search-scale.md). Android frame timing, cold-cache and large-history device latency remain unverified.
 
 Real HTTP/native follow-up: gated member authorization + WSS text/file integration passed; directory/rendezvous handshake passed after using an independent fixture (initial shared-device fixture conflict is recorded). Real 4097-byte relay and HTTP-fallback file contents matched; synthetic sessions were revoked and temporary processes stopped. [Evidence and limits](../../audits/2026-09-17-real-member-native-http.md). Not mobile/public-network acceptance.

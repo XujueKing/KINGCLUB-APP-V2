@@ -8,6 +8,57 @@ import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 
 void main() {
   sqfliteFfiInit();
+  test(
+    'large replay preserves terminal content across query batches',
+    () async {
+      final dir = await Directory.systemTemp.createTemp(
+        'history-replay-batch-',
+      );
+      final store = await ChatHistoryStore.openDatabaseWithKey(
+        factory: databaseFactoryFfi,
+        file: '${dir.path}/history.db',
+        key: await AesGcm.with256bits().newSecretKey(),
+        account: 'me',
+      );
+      addTearDown(() async {
+        await store.close();
+        await dir.delete(recursive: true);
+      });
+      final messages = <Map<String, dynamic>>[
+        for (var n = 1; n <= 450; n++)
+          {
+            'messageId': 'message-$n',
+            'clientMessageId': 'client-$n',
+            'sender': 'peer',
+            'sequence': n,
+            'messageType': 'text',
+            'text': 'original $n',
+          },
+      ];
+      await store.commit('direct:peer', [
+        for (final row in messages)
+          {...row, 'messageType': 'recalled', 'text': ''},
+      ], expectedEpoch: 0);
+      await store.commit('direct:peer', messages, expectedEpoch: 0);
+      var seen = 0;
+      int? before;
+      while (true) {
+        final page = await store.read(
+          'direct:peer',
+          before: before,
+          limit: 200,
+        );
+        if (page.messages.isEmpty) break;
+        expect(
+          page.messages.every((row) => row['messageType'] == 'recalled'),
+          true,
+        );
+        seen += page.messages.length;
+        before = page.messages.first['sequence'] as int;
+      }
+      expect(seen, 450);
+    },
+  );
   for (final group in [false, true]) {
     for (final cached in [false, true]) {
       test(

@@ -673,16 +673,31 @@ class ChatHistoryStore {
       messages = messages
           .map((message) => Map<String, dynamic>.from(message))
           .toList();
-      for (var index = 0; index < rows.length; index++) {
-        final row = rows[index];
+      final savedPayloads = <int, List<int>>{};
+      // Bound SQL parameters and cross the platform database channel once per
+      // batch rather than once per message in a catch-up page.
+      for (var start = 0; start < rows.length; start += 200) {
+        final sequences = rows
+            .skip(start)
+            .take(200)
+            .map((row) => row['sequence'] as int)
+            .toList();
         final prior = await tx.query(
           'message',
-          columns: ['payload'],
-          where: 'conversation=? AND sequence=?',
-          whereArgs: [id, row['sequence']],
+          columns: ['sequence', 'payload'],
+          where:
+              'conversation=? AND sequence IN (${List.filled(sequences.length, '?').join(',')})',
+          whereArgs: [id, ...sequences],
         );
-        if (prior.isEmpty) continue;
-        final bytes = (prior.single['payload'] as List).cast<int>();
+        for (final saved in prior) {
+          savedPayloads[saved['sequence'] as int] = (saved['payload'] as List)
+              .cast<int>();
+        }
+      }
+      for (var index = 0; index < rows.length; index++) {
+        final row = rows[index];
+        final bytes = savedPayloads[row['sequence']];
+        if (bytes == null) continue;
         final plain = await _cipher.decrypt(
           SecretBox.fromConcatenation(bytes, nonceLength: 12, macLength: 16),
           secretKey: _key,
