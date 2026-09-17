@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:isolate';
 
 import 'package:cryptography/dart.dart';
 
@@ -163,18 +165,8 @@ class ChatVideoPrefetch {
       await discardTransfer();
       throw const FormatException('Incomplete video');
     }
-    final hash = const DartSha256().newHashSink();
-    await for (final bytes in file.openRead()) {
-      if (stopped()) {
-        hash.close();
-        return;
-      }
-      hash.add(bytes);
-    }
-    hash.close();
-    final digest = (await hash.hash()).bytes
-        .map((b) => b.toRadixString(16).padLeft(2, '0'))
-        .join();
+    final digest = await _videoDigest(file.path, grant.size);
+    if (stopped()) return;
     if (digest != grant.sha256) {
       await discardTransfer();
       throw const FormatException('Invalid video hash');
@@ -204,3 +196,27 @@ class ChatVideoPrefetch {
     _session?.cancel();
   }
 }
+
+// Keep the repository, session and cache objects on their owning isolate.
+Future<String> _videoDigest(String path, int expectedSize) =>
+    Isolate.run(() async {
+      final hash = const DartSha256().newHashSink();
+      var total = 0;
+      try {
+        await for (final bytes in File(path).openRead()) {
+          total += bytes.length;
+          if (total > expectedSize) {
+            throw const FormatException('Video changed during verification');
+          }
+          hash.add(bytes);
+        }
+      } finally {
+        hash.close();
+      }
+      if (total != expectedSize) {
+        throw const FormatException('Incomplete video');
+      }
+      return (await hash.hash()).bytes
+          .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+          .join();
+    });
