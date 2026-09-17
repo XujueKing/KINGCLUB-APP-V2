@@ -9,23 +9,27 @@ import 'chat_file_draft_store.dart';
 class ChatTextDraft {
   ChatTextDraft(
     this.text, {
+    this.displayName,
     this.replyTo,
     this.preview,
     this.replySequence,
     String? id,
   }) : id = id ?? const Uuid().v4();
   final String id, text;
+  final String? displayName;
   final String? replyTo, preview;
   final int? replySequence;
   Map<String, dynamic> toJson() => {
     'id': id,
     'text': text,
+    if (displayName != null) 'displayName': displayName,
     'replyTo': replyTo,
     'preview': preview,
     if (replySequence != null) 'replySequence': replySequence,
   };
   static ChatTextDraft parse(String raw) {
     final value = jsonDecode(raw) as Map;
+    final label = value['displayName'];
     final id = value['id'],
         text = value['text'],
         reply = value['replyTo'],
@@ -38,6 +42,7 @@ class ChatTextDraft {
         !uuid.hasMatch(id) ||
         text is! String ||
         text.length > 4000 ||
+        (label != null && (label is! String || label.length > 256)) ||
         (reply != null && (reply is! String || !uuid.hasMatch(reply))) ||
         (preview != null && (preview is! String || preview.length > 4000)) ||
         (sequence != null &&
@@ -50,6 +55,7 @@ class ChatTextDraft {
     return ChatTextDraft(
       text,
       id: id,
+      displayName: label as String?,
       replyTo: reply as String?,
       preview: preview as String?,
       replySequence: sequence as int?,
@@ -166,7 +172,11 @@ class ChatTextDraftStore {
     final draft = ChatTextDraft.parse(raw);
     if (draft.replySequence != null &&
         draft.replySequence! <= await _readBoundary()) {
-      final cleaned = ChatTextDraft(draft.text, id: draft.id);
+      final cleaned = ChatTextDraft(
+        draft.text,
+        id: draft.id,
+        displayName: draft.displayName,
+      );
       await _storage.write(key: _key, value: jsonEncode(cleaned.toJson()));
       return cleaned;
     }
@@ -180,7 +190,11 @@ class ChatTextDraftStore {
         ((_redactedDrafts[_key]?.contains(value.id) ?? false) ||
             (value.replySequence != null &&
                 value.replySequence! <= boundary))) {
-      value = ChatTextDraft(value.text, id: value.id);
+      value = ChatTextDraft(
+        value.text,
+        id: value.id,
+        displayName: value.displayName,
+      );
     }
     if (value == null || value.text.isEmpty && value.replyTo == null) {
       await _storage.delete(key: _key);
@@ -221,7 +235,13 @@ class ChatTextDraftStore {
     (_redactedDrafts[_key] ??= {}).add(draft.id);
     await _storage.write(
       key: _key,
-      value: jsonEncode(ChatTextDraft(draft.text, id: draft.id).toJson()),
+      value: jsonEncode(
+        ChatTextDraft(
+          draft.text,
+          id: draft.id,
+          displayName: draft.displayName,
+        ).toJson(),
+      ),
     );
     _notify();
     return draft.replyTo;

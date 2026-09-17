@@ -1,3 +1,4 @@
+import '../data/chat_text_draft_store.dart';
 import 'chat_member_avatar.dart';
 import 'conversation_draft_preview.dart';
 import '../data/group_chat_repository.dart';
@@ -45,6 +46,7 @@ class ConversationsPage extends StatefulWidget {
     this.realData = false,
     this.repository,
     this.openRelayHistory,
+    this.openTextDraftStore,
     this.relayChanges,
     this.pendingRequests = 0,
     this.friendMuted = false,
@@ -66,6 +68,8 @@ class ConversationsPage extends StatefulWidget {
   final int pendingRequests;
   final MessagingRepository? repository;
   final Future<ChatHistoryStore> Function()? openRelayHistory;
+  final Future<ChatTextDraftStore> Function(String account, String target)?
+  openTextDraftStore;
   final Stream<String>? relayChanges;
   final bool active;
   final bool friendMuted;
@@ -92,6 +96,63 @@ class _ConversationsPageState extends State<ConversationsPage>
   ChatVoiceInbox? _voiceInbox;
   final _avatarProfiles = <String, Future<Map<String, dynamic>>>{};
   final _realItems = <Map<String, dynamic>>[];
+  Map<String, ChatTextDraft> _drafts = {};
+  StreamSubscription<void>? _draftEvents;
+  int _draftGeneration = 0;
+  Future<ChatTextDraftStore> _draftStore(String target) =>
+      (widget.openTextDraftStore ?? ChatTextDraftStore.open)(
+        _repository!.account,
+        target,
+      );
+
+  Future<void> _refreshDrafts(MessagingRepository repository) async {
+    final generation = ++_draftGeneration;
+    try {
+      final store =
+          await (widget.openTextDraftStore ?? ChatTextDraftStore.open)(
+            repository.account,
+            'index',
+          );
+      final drafts = await store.readConversations();
+      if (!mounted ||
+          generation != _draftGeneration ||
+          !identical(repository, _repository)) {
+        return;
+      }
+      setState(() => _drafts = drafts);
+    } catch (_) {
+      // A failed local read does not discard a previously loaded snapshot.
+    }
+  }
+
+  Future<void> _draftMenu(Map<String, dynamic> item) async {
+    final repository = _repository;
+    final target = item['_draftTarget'] as String;
+    final id = item['_draftId'] as String;
+    final remove = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF191715),
+      builder: (sheet) => SafeArea(
+        child: ListTile(
+          title: const Text('删除草稿'),
+          onTap: () => Navigator.pop(sheet, true),
+        ),
+      ),
+    );
+    if (remove != true || !mounted || !identical(repository, _repository)) {
+      return;
+    }
+    try {
+      final store = await _draftStore(target);
+      await store.remove(id);
+      if (repository != null) await _refreshDrafts(repository);
+    } catch (_) {
+      if (mounted && identical(repository, _repository)) {
+        KingNotice.of(context).show('草稿删除失败，请重试');
+      }
+    }
+  }
+
   final _slides = <String, double>{};
   final _actions = <(MessagingRepository, String)>{};
   StreamSubscription<Map<String, dynamic>>? _events;
@@ -161,6 +222,9 @@ class _ConversationsPageState extends State<ConversationsPage>
     _clearEvents?.cancel();
     _remarkEvents?.cancel();
     _relationshipEvents?.cancel();
+    _draftEvents?.cancel();
+    _draftGeneration++;
+    _drafts = {};
     _searchController.dispose();
     super.dispose();
   }
@@ -196,11 +260,19 @@ class _ConversationsPageState extends State<ConversationsPage>
     _observedHistory = null;
     _remarkEvents?.cancel();
     _relationshipEvents?.cancel();
+    _draftEvents?.cancel();
+    _draftGeneration++;
+    _drafts = {};
     try {
       final repository = widget.repository ?? await MessagingRepository.open();
       if (!mounted || generation != _realGeneration) return;
       _avatarProfiles.clear();
       _repository = repository;
+      if (repository.persistHistory || widget.openTextDraftStore != null) {
+        _draftEvents = ChatTextDraftStore.accountChanges(repository.account)
+            .listen((_) => unawaited(_refreshDrafts(repository)));
+        unawaited(_refreshDrafts(repository));
+      }
       _relationshipEvents =
           MessagingRepository.relationshipChanges(repository.account)
               .listen((_) {
@@ -252,6 +324,9 @@ class _ConversationsPageState extends State<ConversationsPage>
         _observedHistory = null;
         _remarkEvents?.cancel();
         _relationshipEvents?.cancel();
+        _draftEvents?.cancel();
+        _draftGeneration++;
+        _drafts = {};
         if (mounted) {
           setState(() {
             _realItems.clear();
@@ -663,6 +738,7 @@ class _ConversationsPageState extends State<ConversationsPage>
 
   Widget _realRow(Map<String, dynamic> item) {
     final repository = _repository;
+    final draftOnly = item['_draftTarget'] is String;
     final group = item['kind'] == 'group';
     final target = (group ? item['groupId'] : item['peer']) as String;
     final slideKey = '${group ? 'group' : 'direct'}:$target';
@@ -692,7 +768,7 @@ class _ConversationsPageState extends State<ConversationsPage>
       unreadCount: (item['unreadCount'] as num).toInt(),
       pinned: item['pinned'] == true,
       preview: item['preview'] as String? ?? '',
-      previewWidget: _repository?.persistHistory == true
+      previewWidget: !draftOnly && _repository?.persistHistory == true
           ? ConversationDraftPreview(
               key: ValueKey(
                 '${_repository!.account}:${group ? 'group' : 'peer'}:$target',
@@ -722,8 +798,11 @@ class _ConversationsPageState extends State<ConversationsPage>
         );
         await _refreshReal();
       },
-      onLongPress: () => _realMenu(item, repository),
-      onSlideChanged: (value) => setState(() => _slides[slideKey] = value),
+      onLongPress: () =>
+          draftOnly ? _draftMenu(item) : _realMenu(item, repository),
+      onSlideChanged: (value) {
+        if (!draftOnly) setState(() => _slides[slideKey] = value);
+      },
       onSlideEnd: () => setState(
         () => _slides[slideKey] = (_slides[slideKey] ?? 0) < -72 ? -216 : 0,
       ),
@@ -734,7 +813,33 @@ class _ConversationsPageState extends State<ConversationsPage>
   }
 
   List<Widget> _realRows() {
-    final filtered = _realItems
+    final existing = _realItems
+        .map(
+          (item) => item['kind'] == 'group'
+              ? 'group:${item['groupId']}'
+              : 'peer:${item['peer']}',
+        )
+        .toSet();
+    final draftRows = [
+      for (final entry in _drafts.entries)
+        if (!existing.contains(entry.key))
+          <String, dynamic>{
+            'kind': entry.key.startsWith('group:') ? 'group' : 'direct',
+            if (entry.key.startsWith('group:'))
+              'groupId': entry.key.substring(6)
+            else
+              'peer': entry.key.substring(5),
+            'nickname':
+                entry.value.displayName ??
+                (entry.key.startsWith('group:') ? '群聊' : '好友'),
+            'unreadCount': 0,
+            'preview':
+                '[草稿] ${entry.value.text.isEmpty ? '引用消息' : entry.value.text}',
+            '_draftTarget': entry.key,
+            '_draftId': entry.value.id,
+          },
+    ];
+    final filtered = [...draftRows, ..._realItems]
         .where(
           (item) => _matches(
             '${item['remark'] ?? ''} ${item['nickname'] ?? ''} ${item['peer']} ${item['preview']}',
