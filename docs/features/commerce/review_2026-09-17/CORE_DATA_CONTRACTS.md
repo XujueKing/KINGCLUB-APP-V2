@@ -1,5 +1,7 @@
 # 报名分座、出库与 AA 退款：字段及操作契约 v0.1
 
+后续细化见 [数据库约束与接口校验](DATABASE_AND_VALIDATION.md) 与 [请求结构草案](contracts/core-request-shapes.json)。请求体仍需业务层校验，结构文件未注册；其候选份数/批量上限不是活动报名总人数限制。
+
 2026-09-18，In Review。所有字段、约束和请求示例为设计建议，未注册接口、未创建表或导入数据。以 [已确认营业规则](CONFIRMED_OPERATING_RULES.md) 为业务依据。
 
 ## 1. 与当前服务接轨的证据
