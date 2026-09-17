@@ -12,6 +12,8 @@ class OrderingContext {
     required this.storeAddress,
     required this.tableName,
     required this.businessDate,
+    this.cityId,
+    this.cityName,
   });
 
   final String contextRef;
@@ -22,11 +24,16 @@ class OrderingContext {
   final String storeAddress;
   final String tableName;
   final String businessDate;
+  // A bar is the operating store in commerce, not a separate duplicate ID.
+  String get barId => storeRef;
+  final String? cityId;
+  final String? cityName;
 
   bool hasSameScope(OrderingContext other) =>
       contextRef == other.contextRef &&
       memberRef == other.memberRef &&
       storeRef == other.storeRef &&
+      cityId == other.cityId &&
       tableSessionRef == other.tableSessionRef &&
       businessDate == other.businessDate;
 }

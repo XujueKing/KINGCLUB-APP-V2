@@ -1,5 +1,7 @@
 # 扫码点单
 
+桌卡新要求与兼容识别见 [旧桌卡、酒吧与城市](table_card_resolution.md)：已补 type=9/tableId 解析、可选旧 shopId 及新 barId/cityId，OrderingContext 增加城市；酒吧对应原 storeRef。8 项解析/页面测试通过，定向分析通过；真实桌码解析接口与相机分支尚未接通。
+
 2026-09-18 用户授权从已有 UI 增量实现，最新状态见 [扫码点单增量记录](2026-09-18-incremental-implementation.md)。已补门店/桌台上下文传递与跨场次清空、防迟到报价；真实桌码入口和服务端解析尚未接通。下文旧 M0 范围中“AA 不混入点单”已被用户后续“直接买单/加餐 AA”要求覆盖，后续按新规则完善。
 
 - Scope ID：`KC-F-027`

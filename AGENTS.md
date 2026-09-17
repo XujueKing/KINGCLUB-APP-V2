@@ -1,5 +1,9 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-18 桌卡关联
+
+用户提供 V1 桌卡，要求沿旧小程序识别桌号，新增关联酒吧 ID 和城市。沿旧 type=9/tableId 兼容，酒吧对应 storeRef，城市使用 cityId；旧 shopId 可作为定位提示。最终由桌台档案解析归属，不因扫码创建酒吧/城市，不要求重印已能唯一定位的旧卡。桌名 V1 不是全平台唯一键。详见 feature_scan_ordering/table_card_resolution.md。
+
 ## 2026-09-18 开始扫码点单增量实现
 
 用户最新要求边做功能边完善，先对照旧小程序与新版已有 UI 做扫码点单。允许本独立 worktree 内推进此功能代码与测试，覆盖此前本轮仅文档的限制；优先复用已有页面。真实支付/数据库执行/第三方核销未在本次操作授权，聊天主目录和测试手机仍不动。记录见 feature_scan_ordering/2026-09-18-incremental-implementation.md。
