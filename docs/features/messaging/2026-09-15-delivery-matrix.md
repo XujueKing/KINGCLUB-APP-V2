@@ -2,7 +2,7 @@
 
 ## 当前验收汇总
 
-2026-09-17 latest batch (source 16867c5): draft-only and first-offline-send conversations, saved contact names, confirmed outgoing previews, remote hidden-boundary cleanup with encrypted restart-safe retry journal, and monotonic boundary handling are implemented. Android ARM64 Profile build succeeded; not installed. Broad regression initially reported 817 passed / 10 skipped / 11 failed; nine failures were corrected and rechecked, two legacy visual checks remain unresolved. See [batch build and remaining failures](../../audits/2026-09-17-chat-visibility-batch-build.md). This does not supersede pending real-device acceptance below.
+2026-09-17 latest batch (source 16867c5): draft-only and first-offline-send conversations, saved contact names, confirmed outgoing previews, remote hidden-boundary cleanup with encrypted restart-safe retry journal, and monotonic boundary handling are implemented. Android ARM64 Profile build succeeded; not installed. Broad regression initially reported 817 passed / 10 skipped / 11 failed; nine failures were corrected and rechecked, the two legacy visual checks were subsequently updated to the current approved flow and passed normal golden comparison (see [panel baselines](../../audits/2026-09-17-chat-panel-baselines.md)). See [batch build and remaining failures](../../audits/2026-09-17-chat-visibility-batch-build.md). This does not supersede pending real-device acceptance below.
 
 
 2026-09-17 follow-up implementation (device acceptance pending): local relationship
