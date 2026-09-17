@@ -57,7 +57,14 @@ void main() {
         outbox: queue,
       );
       await first.initialize();
-      await first.sendLocation(location);
+      await first.sendLocation(
+        location,
+        clientMessageId: '33333333-3333-4333-8333-333333333333',
+      );
+      expect(
+        queue.items.values.single['clientMessageId'],
+        '33333333-3333-4333-8333-333333333333',
+      );
       expect(queue.items.length, 1);
       expect(first.messages.single['status'], 'queued');
       first.dispose();

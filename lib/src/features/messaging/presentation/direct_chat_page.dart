@@ -57,6 +57,7 @@ import 'dart:io';
 
 import 'chat_emoji_panel.dart';
 import 'chat_text_editing.dart';
+import '../data/chat_location_draft.dart';
 import 'voice_hold_overlay.dart';
 
 import 'package:flutter_svg/flutter_svg.dart';
@@ -1784,22 +1785,71 @@ class _DirectChatPageState extends State<DirectChatPage>
     };
   }
 
+  bool _choosingLocation = false;
   Future<void> _selectChatLocation() async {
     final chat = _chat;
-    if (chat == null || _readOnly) return;
-    _voicePlayback?.stop();
-    _inputFocusNode.unfocus();
-    await Navigator.of(context).push<ChatLocation>(
-      MaterialPageRoute(
-        builder: (_) => ChatLocationPickerPage(
-          onConfirm: (location) async {
-            var queued = false;
-            await chat.sendLocation(location, onQueued: () => queued = true);
-            if (!queued) throw StateError('会话已关闭');
-          },
+    if (chat == null || _readOnly || _choosingLocation) return;
+    _choosingLocation = true;
+    try {
+      final drafts = await ChatLocationDraftStore.open(
+        chat.messaging.account,
+        widget.groupId != null
+            ? 'group:${widget.groupId}'
+            : 'peer:${widget.peerAccount}',
+      );
+      ChatLocationDraft? draft;
+      try {
+        draft = await drafts.read();
+      } on FormatException {
+        // A new explicit selection can replace a malformed old selection.
+      }
+      if (!mounted || !identical(chat, _chat)) return;
+      _voicePlayback?.stop();
+      _inputFocusNode.unfocus();
+      await Navigator.of(context).push<ChatLocation>(
+        MaterialPageRoute(
+          builder: (_) => ChatLocationPickerPage(
+            initialSelection: draft?.location,
+            onSelectionChanged: (location) async {
+              draft = await drafts.save(location);
+            },
+            onConfirm: (location) async {
+              if (!mounted || !identical(chat, _chat)) {
+                throw StateError('Session changed');
+              }
+              final selected = draft;
+              if (selected == null || !selected.location.sameAs(location)) {
+                throw StateError('Location selection changed');
+              }
+              var queued = chat.messages.any(
+                (message) =>
+                    message['sender'] == chat.messaging.account &&
+                    message['messageType'] == 'location' &&
+                    message['clientMessageId'] == selected.id,
+              );
+              if (!queued) {
+                await chat.sendLocation(
+                  location,
+                  clientMessageId: selected.id,
+                  onQueued: () => queued = true,
+                );
+              }
+              if (!queued) throw StateError('Session closed');
+              // Queue ownership is durable even if draft cleanup must be retried.
+              try {
+                await drafts.remove(selected.id);
+              } catch (_) {}
+            },
+          ),
         ),
-      ),
-    );
+      );
+    } catch (_) {
+      if (mounted && identical(chat, _chat)) {
+        KingNotice.of(context).show('位置草稿读取失败，请重试');
+      }
+    } finally {
+      _choosingLocation = false;
+    }
   }
 
   Widget _attachmentPanel() {

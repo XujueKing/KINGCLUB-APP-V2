@@ -48,7 +48,11 @@ abstract class ChatSessionController extends ChangeNotifier {
     VoidCallback? onQueued,
     String? clientMessageId,
   });
-  Future<void> sendLocation(ChatLocation location, {VoidCallback? onQueued});
+  Future<void> sendLocation(
+    ChatLocation location, {
+    VoidCallback? onQueued,
+    String? clientMessageId,
+  });
   Future<void> loadOlder();
   Future<void> markVisibleRead(int sequence);
   bool canHideMessage(String messageId) => false;

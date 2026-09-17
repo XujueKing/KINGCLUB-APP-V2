@@ -593,11 +593,17 @@ class GroupChatController extends ChatSessionController {
   Future<void> sendLocation(
     ChatLocation location, {
     VoidCallback? onQueued,
+    String? clientMessageId,
   }) async {
     if (_disposed) return;
     if (!hasAccess) throw StateError('请先确认群聊访问权限');
     if (sendMuted) throw StateError(sendDisabledReason);
-    final id = const Uuid().v4();
+    final id = clientMessageId ?? const Uuid().v4();
+    if (!RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(id)) {
+      throw ArgumentError('Invalid location message ID');
+    }
     final message = <String, dynamic>{
       'clientMessageId': id,
       'groupId': groupId,

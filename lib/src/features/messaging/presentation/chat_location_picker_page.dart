@@ -9,8 +9,16 @@ import '../data/chat_location_lookup.dart';
 
 /// Selecting a candidate never sends it; the explicit confirm returns it.
 class ChatLocationPickerPage extends StatefulWidget {
-  const ChatLocationPickerPage({super.key, this.lookup, this.onConfirm});
+  const ChatLocationPickerPage({
+    super.key,
+    this.lookup,
+    this.onConfirm,
+    this.initialSelection,
+    this.onSelectionChanged,
+  });
   final ChatLocationLookup? lookup;
+  final ChatLocation? initialSelection;
+  final Future<void> Function(ChatLocation)? onSelectionChanged;
   final Future<void> Function(ChatLocation)? onConfirm;
   @override
   State<ChatLocationPickerPage> createState() => _ChatLocationPickerPageState();
@@ -29,6 +37,8 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   @override
   void initState() {
     super.initState();
+    _selected = widget.initialSelection;
+    if (_selected != null) _results = [_selected!];
     _session = SecureSessionStore.changes.stream.listen((_) {
       if (!mounted) return;
       _generation++;
@@ -67,6 +77,28 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
               ? error.message.toString()
               : '无法获取地点，请重试',
         );
+      }
+    } finally {
+      if (mounted && generation == _generation) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _select(ChatLocation location) async {
+    if (_invalid || _busy || _sending) return;
+    final generation = ++_generation;
+    setState(() {
+      _busy = true;
+      _selected = null;
+      _error = null;
+    });
+    try {
+      await widget.onSelectionChanged?.call(location);
+      if (mounted && generation == _generation && !_invalid) {
+        setState(() => _selected = location);
+      }
+    } catch (_) {
+      if (mounted && generation == _generation && !_invalid) {
+        setState(() => _error = '地点未能保存，请重新选择');
       }
     } finally {
       if (mounted && generation == _generation) setState(() => _busy = false);
@@ -147,9 +179,9 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                 final location = _results[index],
                     selected = _selected == location;
                 return ListTile(
-                  onTap: _sending
+                  onTap: _sending || _busy || _invalid
                       ? null
-                      : () => setState(() => _selected = location),
+                      : () => _select(location),
                   leading: Icon(
                     selected
                         ? Icons.radio_button_checked
