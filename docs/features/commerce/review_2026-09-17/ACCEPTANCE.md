@@ -1,5 +1,7 @@
 # 设计验收与开发准入
 
+第三批验收场景见 [25 页索引](pages/README.md) 及 [营业流程衔接检查](FLOW_REVIEW.md)。新增套餐共用原料、券占用、退款与实物回库分离及跨店返回场景；均未执行。
+
 第二批验收设计见 [每日盘点](pages/stocktake/README.md)、[调酒](pages/bar_usage/README.md)、[耗品](pages/consumable_issue/README.md)、[备用金](pages/petty_cash/README.md)、[支出](pages/expense/README.md)、[日结](pages/daily_close/README.md)、[利润](pages/profit_summary/README.md)。各页包含合成数量/金额例子及竞态、防重、更正场景，未运行测试。
 
 > 最新已确认规则见 [营业规则确认](CONFIRMED_OPERATING_RULES.md)：活动不限报名人数、开局前分配卡座，按各卡座最小/最大人数开台；加餐 AA 有效 30 分钟，未付齐退 APP 余额；AA 门票酒禁存，单点/购买套餐由购买者存酒、仅原店取、保管 3 个月；券按配置选择使用，成本按进货价；收银硬件第二期。本文较早的冲突描述以该确认为准，技术方案仍待评审。
