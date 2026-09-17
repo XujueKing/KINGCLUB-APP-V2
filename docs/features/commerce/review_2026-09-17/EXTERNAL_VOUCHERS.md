@@ -58,7 +58,7 @@ CCSOP 内分别建设 DouyinVoucherAdapter、MeituanVoucherAdapter，统一内�
 - 抖音生活服务的 [团购核销能力](https://developer.open-douyin.com/docs/resource/zh-CN/local-life/develop/capability/basic/verify-introduce) 说明需完成应用接入和相应能力申请。
 - [验券准备](https://developer.open-douyin.com/docs/resource/zh-CN/local-life/develop/OpenAPI/general-capabilities/life.capacity.fulfilment/certificate.prepare) 用于取得抖音码对应可用券和加密券码；二维码可为短链，不能固定长度截取。
 - [验券接口](https://developer.open-douyin.com/docs/resource/zh-CN/local-life/develop/OpenAPI/general-capabilities/life.capacity.fulfilment/certificate.verify) 为 POST https://open.douyin.com/goodlife/v1/fulfilment/certificate/verify/，要求接口权限和商家授权；使用 verify_token、poi_id 等渠道参数。需按完整业务返回判断结果，不能只看 HTTP 200。
-- 美团 [技术服务合作中心](https://developer.meituan.com/) 为官方入口，本轮公开页面未返回可审读的团购接口契约。具体鉴权、查询/核销/撤销路径、签名与回调字段须在授权官方文档中核实，尚未冻结端点，未采用第三方聚合核销服务或非官方 SDK 作为依据。
+- 美团 [技术服务合作中心](https://developer.meituan.com/) 为官方入口；后续浏览器实查已读取新版预验券、核销、查询、撤销及顾客自助核销契约，见 [官方接入实查](CHANNEL_ACCESS_REVIEW.md)。鉴权签名完整细节、实际行业适用与本账号业务授权仍待核对；未采用非官方聚合服务作为依据。
 - 美团 [商户履约规则](https://rules-center.meituan.com/v1/mss_7482cc6672ce4e76a32d7d7c3161ac24/rules-center/c7d16d50-2104-4bb5-9073-558b554b4321-53229755/%E5%88%B0%E5%BA%97%E7%BB%BC%E5%90%88%E4%B8%9A%E5%8A%A1%E5%95%86%E6%88%B7%E5%B1%A5%E7%BA%A6%E4%BF%9D%E9%9A%9C%E7%AE%A1%E7%90%86%E5%8A%9E%E6%B3%95.pdf?openInApp=2) 涉及未实际履约前核销限制；具体行业现行规则与“换本地券”模式的适用性需按实际商户确认，不能从 API 可调用推断任意提前兑换都已被允许。
 
 以上仅文档查阅；未申请账号、读取密钥、连接商户后台或调用真实验券接口。服务商身份、商户授权和具体券商品映射是接入前待补项。
