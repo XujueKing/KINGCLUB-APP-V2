@@ -2,13 +2,15 @@
 
 ## 当前验收汇总
 
-2026-09-18 group peer file path: opt-in runtime now automatically resolves
-handshake context, isolates group lanes from private text and downloads from
-the original sender cache. Real local SuperVM WSS runtime: 2 passed; native
-UDP file negotiation: 5 passed; downloader regressions: 31 passed. HTTP
-authority/context remain fixtures. Backend migrations124-126 are implemented
-and un-deployed; real SQL/Redis/HTTP and Android A/B acceptance remain pending.
-Group transfer flag defaults off. [Evidence](2026-09-18-group-file-runtime.md).
+2026-09-18 group peer file path: real Flutter client + encrypted CCSOP HTTP +
+SQL/Redis + native SuperVM WSS integration passed for direct and group files.
+A previously retained downloader guard silently skipped all group peer transfers;
+that guard and the final group authority check are corrected. Both scopes now
+verify sender-cache delivery with zero HTTP chunks and HTTP fallback after cache
+removal. Native device keys are registered through real proof endpoints.
+Migrations 124-126 are applied only to the isolated test database, not production.
+The group transfer flag remains default-off; Android A/B and public-network
+acceptance remain pending. [Evidence](2026-09-18-group-native-http-download.md).
 
 2026-09-18 UI batch **f68744b installed on A**: 92 focused tests passed; actual Android Back closes the attachment panel first and then returns to the list. An offline group pending preview now survives force-stop/restart and automatically becomes a confirmed preview on reconnect. B untouched. Own-avatar real-device check exposed self-profile API rejection; corrected in **6d5d211**, with five tests passed, corrected APK built and installed on A (6d5d211). Actual own-profile rendering verification paused after A appeared on the AA reservation page, indicating possible concurrent operation. [Exact batch evidence](../../audits/2026-09-18-chat-ui-batch-device.md).
 

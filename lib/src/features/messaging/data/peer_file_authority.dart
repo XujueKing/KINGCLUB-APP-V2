@@ -30,6 +30,7 @@ class PeerFileAuthority {
     String messageId, {
     required bool sending,
     String? groupId,
+    bool group = false,
   }) async {
     if (groupId != null && !_uuid.hasMatch(groupId)) {
       throw const FormatException('Invalid peer file group');
@@ -37,8 +38,15 @@ class PeerFileAuthority {
     final data = await repository.peerFileAuthority(
       messageId,
       peer,
-      group: groupId != null,
+      group: group || groupId != null,
     );
+    if (group && groupId == null) {
+      final actualGroup = data['groupId'];
+      if (actualGroup is! String || !_uuid.hasMatch(actualGroup)) {
+        throw const FormatException('Missing peer file group');
+      }
+      groupId = actualGroup;
+    }
     final senderVersion = data['senderMembershipVersion'];
     final recipientVersion = data['recipientMembershipVersion'];
     final validScope = groupId == null

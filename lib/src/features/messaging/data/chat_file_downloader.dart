@@ -236,7 +236,7 @@ class ChatFileDownloader {
     void Function(int, int)? onProgress,
   ) async {
     final connect = peerDownload;
-    if (connect == null || ref.group) return false;
+    if (connect == null) return false;
     final token = _cancel;
     var opening = true;
     var peerAttemptActive = true;
@@ -315,6 +315,7 @@ class ChatFileDownloader {
           ref.sender!,
           ref.messageId,
           sending: false,
+          group: ref.group,
         );
         if (authority.assetId != ref.assetId ||
             authority.fileName != ref.fileName ||
@@ -506,7 +507,7 @@ class ChatFileDownloader {
         onProgress?.call(ref.size, ref.size);
         return file;
       }
-      if (peerDownload != null && !ref.group) {
+      if (peerDownload != null) {
         // The peer attempt may outlive a grant or a membership change.
         media = await _grant(ref);
         onProgress?.call(0, ref.size);

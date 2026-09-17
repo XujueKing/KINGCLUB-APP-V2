@@ -37,6 +37,37 @@ void main() {
       );
     },
   );
+  for (final groupId in [asset, null, '../group']) {
+    test(
+      'group discovery requires an explicit valid group: $groupId',
+      () async {
+        final repository = MessagingRepository(
+          account: 'me',
+          call: (_, params) async {
+            expect(params['group'], true);
+            return {
+              ...manifest(),
+              if (groupId != null) 'groupId': groupId,
+              'senderMembershipVersion': 1,
+              'recipientMembershipVersion': 2,
+            };
+          },
+        );
+        final result = PeerFileAuthority.read(
+          repository,
+          'peer',
+          message,
+          sending: true,
+          group: true,
+        );
+        if (groupId == asset) {
+          expect((await result).groupId, asset);
+        } else {
+          await expectLater(result, throwsFormatException);
+        }
+      },
+    );
+  }
   for (final invalid in <Map<String, dynamic>>[
     {'sender': 'outsider'},
     {'recipient': 'outsider'},

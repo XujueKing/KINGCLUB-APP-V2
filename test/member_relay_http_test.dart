@@ -97,6 +97,7 @@ void main() {
       MemberRelayRuntime runtime(NovoRudpDeviceBinding binding) {
         final value = MemberRelayRuntime(
           binding: binding,
+          enableGroupFiles: true,
           endpoint: Uri.parse(env['SUPERVM_TEST_RELAY_URL']!),
           expectedRelay: env['SUPERVM_TEST_RELAY_PEER']!,
           securityContext: SecurityContext(withTrustedRoots: false)
@@ -259,67 +260,88 @@ void main() {
         source,
         fileName: 'synthetic-relay.bin',
       );
-      final sent = await a.messaging.sendFile(
-        peer: b.messaging.account,
-        clientMessageId: const Uuid().v4(),
-        assetId: uploaded.assetId,
-      );
-      final ref = ChatFileReference(
-        messageId: (sent['message'] as Map)['messageId'] as String,
-        assetId: uploaded.assetId,
-        fileName: uploaded.fileName,
-        size: uploaded.size,
-        sha256: uploaded.sha256,
-        sender: a.messaging.account,
-      );
-      expect(
-        await sourceCache.retain(
-          source,
-          assetId: ref.assetId,
-          size: ref.size,
-          sha256: ref.sha256,
-        ),
-        isTrue,
-      );
-      var httpChunks = 0, peerTransfers = 0;
-      final downloadHttp = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:39184'));
-      downloadHttp.interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (options, handler) {
-            httpChunks++;
-            handler.next(options);
+      for (final group in [false, true]) {
+        String? groupId;
+        if (group) {
+          final created = await a.messaging.call('K260913000617', {
+            'requestId': const Uuid().v4(),
+            'name': 'Synthetic native file group',
+            'members': [b.messaging.account],
+          });
+          groupId = created['groupId'] as String;
+        }
+        final sent = group
+            ? await a.messaging.call('K260914000653', {
+                'groupId': groupId,
+                'clientMessageId': const Uuid().v4(),
+                'assetId': uploaded.assetId,
+              })
+            : await a.messaging.sendFile(
+                peer: b.messaging.account,
+                clientMessageId: const Uuid().v4(),
+                assetId: uploaded.assetId,
+              );
+        final ref = ChatFileReference(
+          group: group,
+          messageId: (sent['message'] as Map)['messageId'] as String,
+          assetId: uploaded.assetId,
+          fileName: uploaded.fileName,
+          size: uploaded.size,
+          sha256: uploaded.sha256,
+          sender: a.messaging.account,
+        );
+        expect(
+          await sourceCache.retain(
+            source,
+            assetId: ref.assetId,
+            size: ref.size,
+            sha256: ref.sha256,
+          ),
+          isTrue,
+        );
+        var httpChunks = 0, peerTransfers = 0;
+        final downloadHttp = Dio(
+          BaseOptions(baseUrl: 'http://127.0.0.1:39184'),
+        );
+        downloadHttp.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              httpChunks++;
+              handler.next(options);
+            },
+          ),
+        );
+        final downloader = ChatFileDownloader(
+          repository: b.messaging,
+          checkSession: () async {},
+          dio: downloadHttp,
+          temporaryDirectory: () async => directory,
+          peerDownload: (reference, active) async {
+            final result = await bf.receive(
+              peer: a.messaging.account,
+              group: reference.group,
+              messageId: reference.messageId,
+              assetId: reference.assetId,
+              fileName: reference.fileName,
+              size: reference.size,
+              sha256: reference.sha256,
+              stillActive: active,
+            );
+            if (result != null) peerTransfers++;
+            return result;
           },
-        ),
-      );
-      final downloader = ChatFileDownloader(
-        repository: b.messaging,
-        checkSession: () async {},
-        dio: downloadHttp,
-        temporaryDirectory: () async => directory,
-        peerDownload: (reference, active) async {
-          final result = await bf.receive(
-            peer: a.messaging.account,
-            messageId: reference.messageId,
-            assetId: reference.assetId,
-            fileName: reference.fileName,
-            size: reference.size,
-            sha256: reference.sha256,
-            stillActive: active,
-          );
-          if (result != null) peerTransfers++;
-          return result;
-        },
-      );
-      try {
-        expect(await (await downloader.download(ref)).readAsBytes(), bytes);
-        expect(peerTransfers, 1);
-        expect(httpChunks, 0);
-        await sourceCache.cache.root.delete(recursive: true);
-        expect(await (await downloader.download(ref)).readAsBytes(), bytes);
-        expect(peerTransfers, 1);
-        expect(httpChunks, greaterThan(0));
-      } finally {
-        await downloader.dispose();
+        );
+        try {
+          expect(await (await downloader.download(ref)).readAsBytes(), bytes);
+          expect(peerTransfers, 1, reason: 'group=$group');
+          expect(httpChunks, 0);
+          await sourceCache.cache.root.delete(recursive: true);
+          expect(await (await downloader.download(ref)).readAsBytes(), bytes);
+          expect(peerTransfers, 1, reason: 'group=$group');
+          expect(httpChunks, greaterThan(0));
+        } finally {
+          await downloader.dispose();
+        }
       }
       await b.revoke(kb);
       await expectLater(sender.revalidate(), throwsA(anything));
@@ -328,6 +350,6 @@ void main() {
       right.close();
     },
     skip: !enabled,
-    timeout: const Timeout(Duration(seconds: 60)),
+    timeout: const Timeout(Duration(seconds: 90)),
   );
 }
