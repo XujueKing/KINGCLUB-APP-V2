@@ -10,6 +10,55 @@ import 'group_chat_controller_test.dart' as group;
 
 void main() {
   test(
+    'independent conversations recover concurrently with a bounded limit',
+    () async {
+      final queue = direct.MemoryOutbox();
+      final gate = Completer<void>();
+      final entered = Completer<void>();
+      var active = 0, peak = 0, histories = 0;
+      for (var i = 0; i < 5; i++) {
+        await queue.put({
+          'clientMessageId': 'q$i',
+          'status': 'queued',
+          'recipient': 'peer$i',
+          'sender': 'me',
+          'text': 'hello',
+        });
+      }
+      final worker = ChatOutboxRecovery(
+        MessagingRepository(
+          account: 'me',
+          call: (id, p) async {
+            if (id == 'K260913000604') {
+              histories++;
+              active++;
+              if (active > peak) peak = active;
+              if (!entered.isCompleted) entered.complete();
+              await gate.future;
+              active--;
+              return direct.history([]);
+            }
+            return {
+              'message': {...direct.ack(p), 'recipient': p['recipient']},
+            };
+          },
+        ),
+        queue,
+      );
+      final running = worker.notify();
+      await entered.future;
+      await Future<void>.delayed(Duration.zero);
+      final startedBeforeRelease = histories;
+      gate.complete();
+      await running;
+      worker.close();
+      expect(startedBeforeRelease, 3);
+      expect(peak, 3);
+      expect(histories, 5);
+      expect(queue.items, isEmpty);
+    },
+  );
+  test(
     'reconnect during an active retry drains the queue again immediately',
     () async {
       final queue = direct.MemoryOutbox();

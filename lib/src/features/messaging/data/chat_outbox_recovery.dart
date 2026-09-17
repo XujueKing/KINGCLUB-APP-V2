@@ -83,6 +83,7 @@ class ChatOutboxRecovery {
     try {
       final rows = await outbox.read();
       final visited = <String>{};
+      final conversations = <(String, bool)>[];
       for (final row in rows) {
         if (_closed) return;
         if (row['status'] != 'queued') continue;
@@ -91,38 +92,52 @@ class ChatOutboxRecovery {
         if (target is! String || target.isEmpty) continue;
         final key = _key(repository.account, target, group);
         if (!visited.add(key) || _visible.containsKey(key)) continue;
-        final ChatSessionController chat = group
-            ? GroupChatController(
-                repository: GroupChatRepository(repository),
-                groupId: target,
-                outbox: outbox,
-              )
-            : DirectChatController(
-                repository: repository,
-                peer: target,
-                outbox: outbox,
-                openHistory: repository.persistHistory
-                    ? () => ChatHistoryStore.open(repository.account)
-                    : null,
-                sendRelayText:
-                    relaySenderFor?.call(target) ??
-                    (repository.persistHistory
-                        ? NovoRudpBindingRuntime.textSender(
-                            repository.account,
-                            target,
-                          )
-                        : null),
-              );
-        _running[key] = chat;
-        try {
-          await chat.initialize();
-        } finally {
-          if (identical(_running[key], chat)) {
-            _running.remove(key);
-            chat.dispose();
+        conversations.add((target, group));
+      }
+      var next = 0;
+      Future<void> recoverNext() async {
+        while (!_closed && next < conversations.length) {
+          final (target, group) = conversations[next++];
+          final key = _key(repository.account, target, group);
+          // The page may have taken ownership while another slot was busy.
+          if (_visible.containsKey(key)) continue;
+          final ChatSessionController chat = group
+              ? GroupChatController(
+                  repository: GroupChatRepository(repository),
+                  groupId: target,
+                  outbox: outbox,
+                )
+              : DirectChatController(
+                  repository: repository,
+                  peer: target,
+                  outbox: outbox,
+                  openHistory: repository.persistHistory
+                      ? () => ChatHistoryStore.open(repository.account)
+                      : null,
+                  sendRelayText:
+                      relaySenderFor?.call(target) ??
+                      (repository.persistHistory
+                          ? NovoRudpBindingRuntime.textSender(
+                              repository.account,
+                              target,
+                            )
+                          : null),
+                );
+          _running[key] = chat;
+          try {
+            await chat.initialize();
+          } catch (_) {
+            // One unavailable conversation must not block other recipients.
+          } finally {
+            if (identical(_running[key], chat)) {
+              _running.remove(key);
+              chat.dispose();
+            }
           }
         }
       }
+
+      await Future.wait(List.generate(3, (_) => recoverNext()));
     } catch (_) {
       // Durable queue survives storage/network errors; retry on ready/resume.
     }
