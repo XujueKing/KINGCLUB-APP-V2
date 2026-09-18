@@ -1,0 +1,106 @@
+import 'package:flutter/material.dart';
+
+import '../data/ordering_context.dart';
+import 'scan_ordering_cart_page.dart';
+
+typedef ResolveOrderingTable = Future<OrderingContext> Function(String tableId);
+
+/// Entry for a scanned tableId. Does not substitute a demo venue on failure.
+class TableOrderingEntryPage extends StatefulWidget {
+  const TableOrderingEntryPage({
+    super.key,
+    required this.tableId,
+    required this.onBack,
+    this.resolveTable,
+    this.onQuoteReady,
+    this.onOpenOrders,
+  });
+
+  final String tableId;
+  final VoidCallback onBack;
+  final ResolveOrderingTable? resolveTable;
+  final ValueChanged<FakeOrderingQuote>? onQuoteReady;
+  final VoidCallback? onOpenOrders;
+
+  @override
+  State<TableOrderingEntryPage> createState() => _TableOrderingEntryPageState();
+}
+
+class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
+  OrderingContext? _context;
+  bool _loading = false;
+  String? _error;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(covariant TableOrderingEntryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tableId != widget.tableId ||
+        oldWidget.resolveTable != widget.resolveTable) {
+      _resolve();
+    }
+  }
+
+  Future<void> _resolve() async {
+    final generation = ++_generation;
+    setState(() {
+      _context = null;
+      _loading = widget.resolveTable != null;
+      _error = widget.resolveTable == null ? '桌台点单服务尚未接通' : null;
+    });
+    final resolver = widget.resolveTable;
+    if (resolver == null) return;
+    try {
+      final result = await resolver(widget.tableId);
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _context = result;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _loading = false;
+        _error = '暂时无法读取桌台信息，请重试';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = _context;
+    if (resolved != null) {
+      return ScanOrderingCartPage(
+        key: ValueKey(resolved.contextRef),
+        orderingContext: resolved,
+        onBack: widget.onBack,
+        onQuoteReady: widget.onQuoteReady,
+        onOpenOrders: widget.onOpenOrders,
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('桌台点单'),
+        leading: BackButton(onPressed: widget.onBack),
+      ),
+      body: Center(
+        child: _loading
+            ? const CircularProgressIndicator()
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_error ?? '正在读取桌台信息'),
+                  if (widget.resolveTable != null)
+                    TextButton(onPressed: _resolve, child: const Text('重试')),
+                ],
+              ),
+      ),
+    );
+  }
+}

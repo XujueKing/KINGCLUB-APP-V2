@@ -1,6 +1,7 @@
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import '../features/scanner/presentation/member_scanner_page.dart';
+import '../features/commerce/presentation/table_ordering_entry_page.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1083,8 +1084,11 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
   const ScanOrderingCartRoute();
 
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      ScanOrderingCartPage(
+  Widget build(BuildContext context, GoRouterState state) {
+    final tableId = state.uri.queryParameters['tableId'];
+    if (tableId != null) {
+      return TableOrderingEntryPage(
+        tableId: tableId,
         onBack: () => context.canPop()
             ? context.pop()
             : const AppShellRoute().go(context),
@@ -1092,6 +1096,15 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
             ScanOrderConfirmationRoute(quote).push<void>(context),
         onOpenOrders: () => const OrderCenterRoute().push<void>(context),
       );
+    }
+    return ScanOrderingCartPage(
+      onBack: () =>
+          context.canPop() ? context.pop() : const AppShellRoute().go(context),
+      onQuoteReady: (quote) =>
+          ScanOrderConfirmationRoute(quote).push<void>(context),
+      onOpenOrders: () => const OrderCenterRoute().push<void>(context),
+    );
+  }
 }
 
 @TypedGoRoute<ScanOrderConfirmationRoute>(path: '/commerce/ordering/confirm')

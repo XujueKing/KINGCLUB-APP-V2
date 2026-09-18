@@ -2,6 +2,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/commerce/data/table_ordering_code.dart';
 
 void main() {
+  test('type 决定点单入口，路由仅携带编码后的 tableId', () {
+    final code = TableOrderingCode.tryParse(
+      'type=9&tableId=T%26A&barId=B1&cityId=C1',
+    )!;
+    final route = Uri.parse(code.orderingLocation);
+    expect(route.path, '/commerce/ordering');
+    expect(route.queryParameters, {'tableId': 'T&A'});
+    for (var type = 0; type <= 10; type++) {
+      if (type == 9) continue;
+      expect(TableOrderingCode.tryParse('type=$type&tableId=T1'), isNull);
+    }
+  });
   test('旧 type=9 码保留桌台与旧店铺定位', () {
     final code = TableOrderingCode.tryParse(
       'https://example.test/card/?type=9&tableId=T1&shopId=S1&tableName=V1',

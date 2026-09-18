@@ -3,6 +3,9 @@ import '../../messaging/presentation/group_qr_preview_page.dart';
 import '../../../core/session/secure_session_store.dart';
 
 import 'package:uuid/uuid.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../commerce/data/table_ordering_code.dart';
 
 import '../../messaging/data/messaging_repository.dart';
 import '../../../core/design_system/king_notice.dart';
@@ -81,6 +84,12 @@ class _MemberScannerPageState extends State<MemberScannerPage>
     final generation = ++_generation;
     try {
       await _controller.stop();
+      if (!mounted || !_active || _invalid || generation != _generation) return;
+      final tableCode = TableOrderingCode.tryParse(code);
+      if (tableCode != null) {
+        await context.push<void>(tableCode.orderingLocation);
+        return;
+      }
       final messaging = await MessagingRepository.open();
       if (!mounted || !_active || _invalid || generation != _generation) return;
       if (code.startsWith('KC:G:')) {
