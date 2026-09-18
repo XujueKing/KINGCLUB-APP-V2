@@ -1089,6 +1089,8 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
     if (tableId != null) {
       return TableOrderingEntryPage(
         tableId: tableId,
+        tableName: state.uri.queryParameters['tableName'],
+        previewEnabled: appFlavor == 'commerce',
         onBack: () => context.canPop()
             ? context.pop()
             : const AppShellRoute().go(context),

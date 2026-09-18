@@ -14,6 +14,8 @@ class TableOrderingEntryPage extends StatefulWidget {
     this.resolveTable,
     this.onQuoteReady,
     this.onOpenOrders,
+    this.previewEnabled = false,
+    this.tableName,
   });
 
   final String tableId;
@@ -21,6 +23,8 @@ class TableOrderingEntryPage extends StatefulWidget {
   final ResolveOrderingTable? resolveTable;
   final ValueChanged<FakeOrderingQuote>? onQuoteReady;
   final VoidCallback? onOpenOrders;
+  final bool previewEnabled;
+  final String? tableName;
 
   @override
   State<TableOrderingEntryPage> createState() => _TableOrderingEntryPageState();
@@ -74,6 +78,42 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.previewEnabled && widget.resolveTable == null) {
+      final preview = OrderingContext(
+        contextRef: 'preview:${widget.tableId}',
+        memberRef: 'preview-member',
+        storeRef: 'preview-store',
+        tableSessionRef: 'preview:${widget.tableId}',
+        storeName: 'KINGBAR 湖南工大店',
+        storeAddress: '株洲市天元区金华路瀚水栗源1栋102',
+        tableName: widget.tableName ?? widget.tableId,
+        businessDate: '界面预览',
+      );
+      return Scaffold(
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Text('界面预览 · 门店、商品和价格为演示数据，暂不下单'),
+              ),
+              Expanded(
+                child: ScanOrderingCartPage(
+                  key: ValueKey(preview.contextRef),
+                  orderingContext: preview,
+                  onBack: widget.onBack,
+                  onQuoteReady: (_) => ScaffoldMessenger.of(context)
+                      .showSnackBar(
+                        const SnackBar(content: Text('已选商品仅供预览，真实下单尚未开放')),
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final resolved = _context;
     if (resolved != null) {
       return ScanOrderingCartPage(

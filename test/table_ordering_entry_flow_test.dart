@@ -19,6 +19,34 @@ OrderingContext scope(String id) => OrderingContext(
 );
 
 void main() {
+  testWidgets('商务预览展示扫码桌名、空购物袋，结算不进入真实订单', (tester) async {
+    var quotes = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TableOrderingEntryPage(
+          tableId: 'K24000000001',
+          tableName: 'V1',
+          previewEnabled: true,
+          onBack: () {},
+          onQuoteReady: (_) => quotes++,
+        ),
+      ),
+    );
+    expect(find.text('V1'), findsOneWidget);
+    expect(find.textContaining('门店、商品和价格为演示数据'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ordering-confirm')));
+    await tester.pumpAndSettle();
+    expect(find.text('已选商品仅供预览，真实下单尚未开放'), findsNothing);
+    final add = find.byKey(const ValueKey('ordering-add-hennessy-xo'));
+    await tester.ensureVisible(add);
+    await tester.pumpAndSettle();
+    await tester.tap(add);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('ordering-confirm')));
+    await tester.pumpAndSettle();
+    expect(find.text('已选商品仅供预览，真实下单尚未开放'), findsOneWidget);
+    expect(quotes, 0);
+  });
   testWidgets('查询器未接通不显示演示点单商品', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

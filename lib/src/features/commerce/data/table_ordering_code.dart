@@ -14,10 +14,14 @@ class TableOrderingCode {
   final String? cityId;
   final String? tableName;
 
-  /// The route carries only the table record ID. Venue/city come from lookup.
+  /// Table ID selects the record; optional tableName is an unverified UI label.
+  /// Venue/city come from lookup.
   String get orderingLocation => Uri(
     path: '/commerce/ordering',
-    queryParameters: {'tableId': tableId},
+    queryParameters: {
+      'tableId': tableId,
+      'tableName': ?tableName,
+    },
   ).toString();
 
   /// Supports legacy type=9 links, including a once-encoded whole URL.

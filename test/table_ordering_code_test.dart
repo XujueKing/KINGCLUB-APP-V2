@@ -9,7 +9,10 @@ void main() {
     expect(code.tableId, 'K24000000001');
     expect(code.legacyShopId, '0');
     expect(code.tableName, 'V1');
-    expect(code.orderingLocation, '/commerce/ordering?tableId=K24000000001');
+    expect(
+      code.orderingLocation,
+      '/commerce/ordering?tableId=K24000000001&tableName=V1',
+    );
   });
   test('别名冲突或重复时不猜测桌台，相同别名允许', () {
     for (final query in [

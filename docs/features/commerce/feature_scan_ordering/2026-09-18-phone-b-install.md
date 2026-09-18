@@ -1,5 +1,11 @@
 # B 手机扫码测试包
 
+## 接回点单页面的更新
+
+用户已确认上一包能扫码路由。本节点仅 commerce flavor 开启标注清楚的点单 UI 预览：携带桌名 V1、原有分类和商品、初始空购物袋，结算不进入订单。19 项相关测试及 4 文件 analyze 通过。
+
+Gradle 133.4 秒，158.4 MB；SHA256 `BDFA90831371B4294541E1AA52182D0A357AE35CA11FDC5EFDD29136A4AAFCA5`。仅 B commerce 包 `install -r` Success，启动 Status ok、前台 Activity 正确，保留数据。等待用户复扫检查 V1、列表滚动、加减商品及金额；没有宣称真实门店解析、库存或支付接通。该预览更新取代此前扫码只能停在服务未接通提示的 commerce 行为。
+
 ## V1 实扫失败后的更新
 
 首包用户反馈“无效”，真实链接证明旧印刷码使用 `tableld/shopld`。兼容修复及真实链接回归已完成，16 项测试、3 文件 analyze 通过。修复包 Gradle 108.8 秒，158.4 MB，SHA256 `CF5310B6177DA2AD97725F942D2E1181AB033C996ECEDF127741839891B16FE3`。已仅向 B 更新 commerce 包（install -r Success），启动 Status ok，前台 Activity 核对正确，保留应用数据。等待用户再次实扫；以下为首包历史记录。

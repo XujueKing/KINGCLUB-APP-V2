@@ -7,7 +7,10 @@ void main() {
       'https://www.wuyexin.cn/view/static/kingclubaddfriend/?type=9&tableld=K24000000001&shopld=0&tableName=V1',
     );
     expect(route.kind, ScanRouteKind.tableOrdering);
-    expect(route.location, '/commerce/ordering?tableId=K24000000001');
+    expect(
+      route.location,
+      '/commerce/ordering?tableId=K24000000001&tableName=V1',
+    );
   });
   test('换域名与路径仍按 type=9 和 tableId 路由', () {
     for (final prefix in [
