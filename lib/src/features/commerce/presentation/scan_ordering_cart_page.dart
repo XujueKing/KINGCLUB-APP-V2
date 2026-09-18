@@ -197,11 +197,25 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Match the ordering design density independently of the phone's global
+    // large-font setting; scale this visual catalog with the viewport width.
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: TextScaler.linear(
+          (MediaQuery.sizeOf(context).width / 393).clamp(.78, 1.15),
+        ),
+      ),
+      child: Builder(builder: _buildOrderingPage),
+    );
+  }
+
+  Widget _buildOrderingPage(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 _buildSearchHeader(),
@@ -211,14 +225,29 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   final banner? => [banner],
                   null => const <Widget>[],
                 },
-                Expanded(child: _buildCatalog()),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final unobscuredHeight =
+                          constraints.maxHeight -
+                          80 -
+                          MediaQuery.paddingOf(context).bottom;
+                      return _buildCatalog(
+                        (unobscuredHeight / 3.6).clamp(
+                          MediaQuery.sizeOf(context).width > 480 ? 132 : 108,
+                          220,
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           ),
+          Positioned(left: 0, right: 0, bottom: 0, child: _buildCartBar()),
           if (_cartPanelOpen) _buildCartOverlay(),
         ],
       ),
-      bottomNavigationBar: SafeArea(top: false, child: _buildCartBar()),
     );
   }
 
@@ -470,7 +499,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     );
   }
 
-  Widget _buildCatalog() {
+  Widget _buildCatalog(double rowHeight) {
     if (_scenario == ScanOrderingScenario.catalogError) {
       return _OrderingEmptyState(
         icon: Icons.sync_problem_rounded,
@@ -559,7 +588,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   itemCount: products.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 2),
                   itemBuilder: (context, index) =>
-                      _buildProductCard(products[index]),
+                      _buildProductCard(products[index], rowHeight),
                 ),
         ),
       ],
@@ -576,11 +605,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     return label;
   }
 
-  Widget _buildProductCard(_OrderingProduct product) {
-    final textScale = MediaQuery.textScalerOf(context).scale(16) / 16;
-    final contentHeight =
-        MediaQuery.sizeOf(context).width * 240 / 750 +
-        (textScale - 1).clamp(0, 2) * 100;
+  Widget _buildProductCard(_OrderingProduct product, double rowHeight) {
+    final contentHeight = rowHeight - 30;
     final quantity = _quantities[product.id] ?? 0;
     final soldOut =
         _scenario == ScanOrderingScenario.soldOut && product.id == 'chivas-12';
@@ -589,7 +615,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       container: true,
       label: '${product.name}，价格 ${product.price} 元，已选 $quantity 件',
       child: SizedBox(
-        height: contentHeight + 36,
+        height: rowHeight,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 15),
           child: Row(
@@ -597,8 +623,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
             children: [
               Image.asset(
                 product.asset,
+                key: ValueKey('ordering-image-${product.id}'),
                 width: MediaQuery.sizeOf(context).width * 190 / 750,
-                height: MediaQuery.sizeOf(context).width * 240 / 750,
+                height: contentHeight,
                 fit: BoxFit.contain,
                 color: soldOut ? const Color(0x77000000) : null,
                 colorBlendMode: soldOut ? BlendMode.darken : null,
@@ -721,13 +748,18 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     final enabled = _canEdit && _itemCount > 0 && !_quoting;
     return Container(
       key: const ValueKey('ordering-cart-bar'),
-      height: 80,
-      padding: const EdgeInsets.fromLTRB(22, 10, 18, 10),
+      height: 80 + MediaQuery.paddingOf(context).bottom,
+      padding: EdgeInsets.fromLTRB(
+        22,
+        10,
+        18,
+        10 + MediaQuery.paddingOf(context).bottom,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xEE000000), Color(0xFF000000)],
+          colors: [Color(0x99000000), Color(0xE6000000), Color(0xFF000000)],
         ),
         border: Border(top: BorderSide(color: Color(0xFF302820))),
       ),

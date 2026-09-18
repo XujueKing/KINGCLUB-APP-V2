@@ -1,5 +1,9 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-18 扫码点单生产目标
+
+用户明确启动目标模式，要求扫码点单整栏完成到可生产，包括微信直连/服务商支付，覆盖此前仅 UI/Mock 或不允许支付接入的阶段限制。允许独立 worktree 内推进真实接口、支付集成与必要验证；不得把 Mock、签名测试或安装成功宣称生产验收，不自动执行未明确金额的真实交易，不导入旧数据。后端独立目录 `D:\2026-ZHUZHOU\SERVICES\ccsop-service-commerce`，分支 `feature/kingclub-commerce`，创建基线 aa6c1db；原后端和聊天主工作区保留。生产计划及实际状态见 feature_scan_ordering/PRODUCTION_GOAL.md。
+
 ## 2026-09-18 B 手机扫码安装授权
 
 用户最新明确允许安装 B 手机并由用户实扫，覆盖此前本会话禁止全部 ADB 操作的范围。B 为 PKL110 / TOHYQSINONBMJN6H；设备操作必须显式指定此序列号，A 不操作。使用独立 commerce flavor（com.lingmei.kingclub.commerce，KingClub 商务测试），不覆盖原聊天预览版、不清数据。只安装和启动供用户扫码，不代执行核销/付款。安装成功与实际扫码验收分别记录。

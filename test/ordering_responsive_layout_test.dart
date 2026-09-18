@@ -30,6 +30,22 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.textContaining('界面预览'), findsNothing);
+        final cart = tester.getRect(
+          find.byKey(const ValueKey('ordering-cart-bar')),
+        );
+        final fourth = tester.getRect(
+          find.byKey(const ValueKey('ordering-image-absolut-vodka')),
+        );
+        expect(fourth.top, lessThan(cart.top));
+        expect(fourth.bottom, greaterThan(cart.top));
+        final backdrop =
+            tester
+                    .widget<Container>(
+                      find.byKey(const ValueKey('ordering-cart-bar')),
+                    )
+                    .decoration!
+                as BoxDecoration;
+        expect(backdrop.gradient!.colors.first.a, lessThan(1));
         final checkout = find.byKey(const ValueKey('ordering-confirm'));
         final before = tester.getRect(checkout);
         await tester.drag(
