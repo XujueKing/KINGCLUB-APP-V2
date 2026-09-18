@@ -552,8 +552,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           !_catalogController.hasClients ||
-          _categoryAnchorIndex != index)
+          _categoryAnchorIndex != index) {
         return;
+      }
       _catalogController.animateTo(
         (index * (rowHeight + 2)).clamp(
           0.0,
