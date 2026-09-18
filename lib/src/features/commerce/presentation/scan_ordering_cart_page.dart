@@ -286,6 +286,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                 style: const TextStyle(color: Color(0xFFD8D3CD), fontSize: 14),
                 decoration: InputDecoration(
                   isDense: true,
+                  constraints: BoxConstraints.tightFor(height: _rpx(76)),
                   prefixIconConstraints: BoxConstraints(
                     minWidth: _rpx(76),
                     minHeight: _rpx(36),
@@ -318,7 +319,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                         ),
                   filled: true,
                   fillColor: const Color(0xFF191919),
-                  contentPadding: EdgeInsets.zero,
+                  contentPadding: EdgeInsets.symmetric(vertical: _rpx(20)),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(7),
                     borderSide: BorderSide.none,
