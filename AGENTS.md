@@ -1,5 +1,9 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-18 B 手机扫码安装授权
+
+用户最新明确允许安装 B 手机并由用户实扫，覆盖此前本会话禁止全部 ADB 操作的范围。B 为 PKL110 / TOHYQSINONBMJN6H；设备操作必须显式指定此序列号，A 不操作。使用独立 commerce flavor（com.lingmei.kingclub.commerce，KingClub 商务测试），不覆盖原聊天预览版、不清数据。只安装和启动供用户扫码，不代执行核销/付款。安装成功与实际扫码验收分别记录。
+
 ## 2026-09-18 桌卡关联
 
 用户提供 V1 桌卡，要求沿旧小程序识别桌号，新增关联酒吧 ID 和城市。沿旧 type=9/tableId 兼容，酒吧对应 storeRef，城市使用 cityId；旧 shopId 可作为定位提示。最终由桌台档案解析归属，不因扫码创建酒吧/城市，不要求重印已能唯一定位的旧卡。桌名 V1 不是全平台唯一键。详见 feature_scan_ordering/table_card_resolution.md。

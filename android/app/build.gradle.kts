@@ -41,6 +41,11 @@ android {
     }
 
     productFlavors {
+        create("commerce") {
+            dimension = "distribution"
+            applicationIdSuffix = ".commerce"
+            versionNameSuffix = "-commerce"
+        }
         create("preview") {
             dimension = "distribution"
             applicationIdSuffix = ".v2preview"
