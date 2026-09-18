@@ -78,7 +78,9 @@ void main() {
           find.byKey(const ValueKey('ordering-image-absolut-vodka')),
         );
         expect(vodka.top, greaterThanOrEqualTo(listTop));
-        expect(cart.top - vodka.bottom, inInclusiveRange(0, 40));
+        expect(vodka.top, lessThan(listTop + 40));
+        final position = tester.widget<ListView>(list).controller!.offset;
+        expect(position, greaterThan(0));
         expect(
           tester
               .getRect(find.byKey(const ValueKey('ordering-add-absolut-vodka')))

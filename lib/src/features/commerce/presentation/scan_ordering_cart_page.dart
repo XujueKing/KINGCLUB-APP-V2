@@ -124,6 +124,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
 
   final _searchController = TextEditingController();
   final _catalogController = ScrollController();
+  int? _categoryAnchorIndex;
   final Map<String, int> _quantities = {'hennessy-xo': 1, 'chivas-12': 1};
   ScanOrderingScenario _scenario = ScanOrderingScenario.ready;
   String _category = '酒水';
@@ -236,6 +237,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                               : _rpx(196),
                           220,
                         ),
+                        constraints.maxHeight,
                       );
                     },
                   ),
@@ -533,6 +535,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   }
 
   void _resetCatalogScroll() {
+    _categoryAnchorIndex = null;
     if (_catalogController.hasClients) _catalogController.jumpTo(0);
   }
 
@@ -540,19 +543,29 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     final index = _visibleProducts.indexWhere(
       (product) => label == '全部' || product.subcategory == label,
     );
-    setState(() => _subcategory = label);
-    if (index < 0 || !_catalogController.hasClients) return;
-    _catalogController.animateTo(
-      (index * (rowHeight + 2)).clamp(
-        0.0,
-        _catalogController.position.maxScrollExtent,
-      ),
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-    );
+    setState(() {
+      _subcategory = label;
+      if (index >= 0) _categoryAnchorIndex = index;
+    });
+    if (index < 0) return;
+    // Rebuild the tail space first so even the final category can align at top.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !_catalogController.hasClients ||
+          _categoryAnchorIndex != index)
+        return;
+      _catalogController.animateTo(
+        (index * (rowHeight + 2)).clamp(
+          0.0,
+          _catalogController.position.maxScrollExtent,
+        ),
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
-  Widget _buildCatalog(double rowHeight) {
+  Widget _buildCatalog(double rowHeight, double viewportHeight) {
     if (_scenario == ScanOrderingScenario.catalogError) {
       return _OrderingEmptyState(
         icon: Icons.sync_problem_rounded,
@@ -563,6 +576,13 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       );
     }
     final products = _visibleProducts;
+    final minimumTail = 80 + MediaQuery.paddingOf(context).bottom + _rpx(12);
+    final tail = _categoryAnchorIndex == null
+        ? minimumTail
+        : (viewportHeight -
+                  (products.length - _categoryAnchorIndex!) * (rowHeight + 2) +
+                  2)
+              .clamp(minimumTail, double.infinity);
     final subcategories = switch (_category) {
       '酒水' => const ['畅饮套餐', '威士忌', '白兰地', '伏特加', '香槟', '红葡萄酒', '清酒', '鸡尾酒'],
       '饮料' => const ['全部', '软饮', '果汁'],
@@ -641,14 +661,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               : ListView.separated(
                   key: const ValueKey('ordering-product-list'),
                   controller: _catalogController,
-                  // Only clear the checkout overlay plus a small visual gap.
-                  // The last category stops at the natural scroll limit.
-                  padding: EdgeInsets.fromLTRB(
-                    8,
-                    5,
-                    10,
-                    80 + MediaQuery.paddingOf(context).bottom + _rpx(12),
-                  ),
+                  // Default: small end gap. Category click: enough room to
+                  // align its first item, without filtering other products.
+                  padding: EdgeInsets.fromLTRB(8, 5, 10, tail),
                   itemCount: products.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 2),
                   itemBuilder: (context, index) =>
