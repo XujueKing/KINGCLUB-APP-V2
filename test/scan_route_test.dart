@@ -2,6 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/scanner/data/scan_route.dart';
 
 void main() {
+  test('实际 V1 印刷码进入点单而不是无效码', () {
+    final route = ScanRoute.parse(
+      'https://www.wuyexin.cn/view/static/kingclubaddfriend/?type=9&tableld=K24000000001&shopld=0&tableName=V1',
+    );
+    expect(route.kind, ScanRouteKind.tableOrdering);
+    expect(route.location, '/commerce/ordering?tableId=K24000000001');
+  });
   test('换域名与路径仍按 type=9 和 tableId 路由', () {
     for (final prefix in [
       'https://old.example/card',

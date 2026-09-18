@@ -1,5 +1,9 @@
 # B 手机扫码测试包
 
+## V1 实扫失败后的更新
+
+首包用户反馈“无效”，真实链接证明旧印刷码使用 `tableld/shopld`。兼容修复及真实链接回归已完成，16 项测试、3 文件 analyze 通过。修复包 Gradle 108.8 秒，158.4 MB，SHA256 `CF5310B6177DA2AD97725F942D2E1181AB033C996ECEDF127741839891B16FE3`。已仅向 B 更新 commerce 包（install -r Success），启动 Status ok，前台 Activity 核对正确，保留应用数据。等待用户再次实扫；以下为首包历史记录。
+
 用户授权仅 B 手机安装，并由用户实扫。B：PKL110，序列号 `TOHYQSINONBMJN6H`。A 不操作。
 
 为与聊天开发并存，新增 Android `commerce` flavor，包名 `com.lingmei.kingclub.commerce`，桌面名称“KingClub 商务测试”。独立数据目录，不覆盖或清除 `com.lingmei.kingclub.v2preview`。首次使用需单独登录。

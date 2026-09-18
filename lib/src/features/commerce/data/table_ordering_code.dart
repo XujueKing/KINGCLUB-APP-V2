@@ -43,7 +43,9 @@ class TableOrderingCode {
       const keys = [
         'type',
         'tableId',
+        'tableld',
         'shopId',
+        'shopld',
         'barId',
         'cityId',
         'tableName',
@@ -61,11 +63,21 @@ class TableOrderingCode {
         return value;
       }
 
-      final tableId = read('tableId');
+      String? readAlias(String canonical, String legacy) {
+        final primary = read(canonical);
+        final alias = read(legacy);
+        if (primary != null && alias != null && primary != alias) {
+          throw const FormatException('Conflicting table locator aliases');
+        }
+        return primary ?? alias;
+      }
+
+      // Existing printed cards use lowercase l, not uppercase I, in "ld".
+      final tableId = readAlias('tableId', 'tableld');
       if (tableId == null) return null;
       return TableOrderingCode(
         tableId: tableId,
-        legacyShopId: read('shopId'),
+        legacyShopId: readAlias('shopId', 'shopld'),
         barId: read('barId'),
         cityId: read('cityId'),
         tableName: read('tableName'),

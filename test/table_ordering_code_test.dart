@@ -2,6 +2,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/commerce/data/table_ordering_code.dart';
 
 void main() {
+  test('用户 V1 实际桌卡使用小写 l 的 tableld 和 shopld', () {
+    final code = TableOrderingCode.tryParse(
+      'https://www.wuyexin.cn/view/static/kingclubaddfriend/?type=9&tableld=K24000000001&shopld=0&tableName=V1',
+    )!;
+    expect(code.tableId, 'K24000000001');
+    expect(code.legacyShopId, '0');
+    expect(code.tableName, 'V1');
+    expect(code.orderingLocation, '/commerce/ordering?tableId=K24000000001');
+  });
+  test('别名冲突或重复时不猜测桌台，相同别名允许', () {
+    for (final query in [
+      'tableId=A&tableld=B',
+      'tableld=A&tableld=B',
+      'tableld=A&shopId=1&shopld=2',
+      'tableld=A&shopld=1&shopld=1',
+    ]) {
+      expect(TableOrderingCode.tryParse('type=9&$query'), isNull);
+    }
+    expect(
+      TableOrderingCode.tryParse('type=9&tableId=A&tableld=A')!.tableId,
+      'A',
+    );
+  });
   test('type 决定点单入口，路由仅携带编码后的 tableId', () {
     final code = TableOrderingCode.tryParse(
       'type=9&tableId=T%26A&barId=B1&cityId=C1',

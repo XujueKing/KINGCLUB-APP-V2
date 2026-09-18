@@ -1,5 +1,11 @@
 # 旧桌卡兼容与酒吧、城市关联
 
+## V1 实扫修正（2026-09-18）
+
+用户实扫首包报无效后提供真实链接：`https://www.wuyexin.cn/view/static/kingclubaddfriend/?type=9&tableld=K24000000001&shopld=0&tableName=V1`。实际字段是小写 l 的 `tableld/shopld`，不是大写 I 的 `tableId/shopId`。此前只根据旧页面的内部变量名推定外部参数，合成测试没有覆盖印刷码，导致首包拒绝该码。
+
+现已兼容两种字段名，内部归一到 tableId/legacyShopId；同一字段两种写法值冲突或重复参数时拒绝，避免猜测桌台。旧小程序按位置截取不受该拼写差异影响。用户提供的实际链接已纳入解析和统一路由回归，16 项相关测试通过。无需换码，网址不需要访问才能解析。后端桌台查询仍未接通。
+
 2026-09-18。用户提供 V1 桌卡，要求沿旧小程序识别方法，识别桌号后关联酒吧 ID 和城市。图片可确认用途/显示桌号；本轮未对图片解码，不声称其真实字符串内容。
 
 旧 index.js:831 起 decodeURIComponent 后判类型，case 9 读取 tableId/shopId/tableName。新版 TableOrderingCode 兼容 type=9、tableId，旧 shopId/tableName 可选；新增 barId/cityId 可选，缺少这两个字段的旧卡仍可被解析。不按参数固定顺序截字符串，拒绝重复关键字段/畸形输入。解析器不访问码内网址，也不授予消费或入座权限。
