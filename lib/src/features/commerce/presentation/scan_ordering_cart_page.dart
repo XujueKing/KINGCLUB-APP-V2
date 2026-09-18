@@ -202,7 +202,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(
         textScaler: TextScaler.linear(
-          (MediaQuery.sizeOf(context).width / 393).clamp(.78, 1.15),
+          (MediaQuery.sizeOf(context).width / 375).clamp(.8, 1.2),
         ),
       ),
       child: Builder(builder: _buildOrderingPage),
@@ -234,7 +234,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                           MediaQuery.paddingOf(context).bottom;
                       return _buildCatalog(
                         (unobscuredHeight / 3.6).clamp(
-                          MediaQuery.sizeOf(context).width > 480 ? 132 : 108,
+                          MediaQuery.sizeOf(context).width > 480
+                              ? 132
+                              : _rpx(196),
                           220,
                         ),
                       );
@@ -250,6 +252,11 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       ),
     );
   }
+
+  // Legacy WXSS uses a 750-rpx design width. Keep spacing and controls on
+  // the same scale as the typography instead of mixing fixed dp and rpx.
+  double _rpx(double value) =>
+      value * (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6);
 
   Widget _buildSearchHeader() {
     return Padding(
@@ -326,7 +333,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       behavior: HitTestBehavior.opaque,
       onLongPress: _showScenarioPicker,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(23, 10, 26, 8),
+        padding: EdgeInsets.fromLTRB(_rpx(45), _rpx(30), _rpx(45), 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -335,8 +342,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               children: [
                 Image.asset(
                   'assets/legacy/home/logo_2.png',
-                  width: 52,
-                  height: 34,
+                  width: _rpx(100),
+                  height: _rpx(50),
                   fit: BoxFit.contain,
                   alignment: Alignment.centerLeft,
                 ),
@@ -387,7 +394,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   ),
               ],
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: _rpx(8)),
             Text(
               widget.orderingContext?.storeAddress ?? '株洲市天元区金华路瀚水栗源1栋102',
               maxLines: 1,
@@ -406,18 +413,18 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
 
   Widget _buildCategoryTabs() {
     return Container(
-      height: 56,
+      height: _rpx(88),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFF312F2D), width: .7)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          const SizedBox(width: 4),
+          SizedBox(width: _rpx(5)),
           ...['酒水', '饮料', '小吃'].map((label) {
             final selected = _category == label;
             return SizedBox(
-              width: 80,
+              width: _rpx(144),
               child: InkWell(
                 key: ValueKey('ordering-category-$label'),
                 onTap: () => setState(() {
@@ -437,11 +444,11 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                         fontWeight: FontWeight.w400,
                       ),
                     ),
-                    const SizedBox(height: 9),
+                    SizedBox(height: _rpx(14)),
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      width: selected ? 36 : 0,
-                      height: 3,
+                      width: selected ? _rpx(64) : 0,
+                      height: _rpx(6),
                       color: const Color(0xFFFFB400),
                     ),
                   ],
@@ -606,7 +613,12 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   }
 
   Widget _buildProductCard(_OrderingProduct product, double rowHeight) {
-    final contentHeight = rowHeight - 30;
+    final textScale = (MediaQuery.sizeOf(context).width / 375).clamp(.8, 1.2);
+    final verticalInset = ((rowHeight - 90 * textScale) / 2).clamp(
+      2.0,
+      _rpx(28),
+    );
+    final contentHeight = rowHeight - verticalInset * 2;
     final quantity = _quantities[product.id] ?? 0;
     final soldOut =
         _scenario == ScanOrderingScenario.soldOut && product.id == 'chivas-12';
@@ -617,7 +629,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       child: SizedBox(
         height: rowHeight,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 15),
+          padding: EdgeInsets.symmetric(vertical: verticalInset),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -649,7 +661,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             style: const TextStyle(
                               color: Color(0xFFEEEEEE),
                               fontSize: 16,
-                              height: 1.12,
+                              height: 1.4,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -660,7 +672,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             style: const TextStyle(
                               color: Color(0xFFC9B69E),
                               fontSize: 14,
-                              height: 1.22,
+                              height: 1.4,
                             ),
                           ),
                           Text(
@@ -668,7 +680,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             style: const TextStyle(
                               color: Color(0xFFC9B69E),
                               fontSize: 14,
-                              height: 1.18,
+                              height: 1.4,
                             ),
                           ),
                         ],
@@ -694,8 +706,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                                       text: '${product.price}',
                                       style: const TextStyle(
                                         color: Color(0xFFE8E3DD),
-                                        fontSize: 21,
-                                        height: 1,
+                                        fontSize: 18,
+                                        height: 1.2,
                                         fontWeight: FontWeight.w400,
                                       ),
                                     ),
@@ -704,7 +716,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 4),
+                          SizedBox(width: _rpx(5)),
                           if (soldOut)
                             const Text(
                               '已售罄',
@@ -759,7 +771,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0x99000000), Color(0xE6000000), Color(0xFF000000)],
+          // WXSS: linear-gradient(to top, #000 60rpx, #000, #000000CC).
+          colors: [Color(0xCC000000), Color(0xFF000000), Color(0xFF000000)],
+          stops: [0, .324, 1],
         ),
         border: Border(top: BorderSide(color: Color(0xFF302820))),
       ),
@@ -1378,6 +1392,7 @@ class _RoundQuantityButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unit = (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6);
     return Semantics(
       button: true,
       enabled: enabled,
@@ -1385,8 +1400,8 @@ class _RoundQuantityButton extends StatelessWidget {
         onTap: enabled ? onTap : null,
         customBorder: const CircleBorder(),
         child: Container(
-          width: filled ? 25 : 23,
-          height: filled ? 25 : 23,
+          width: (filled ? 40 : 36) * unit,
+          height: (filled ? 40 : 36) * unit,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: filled
@@ -1402,7 +1417,7 @@ class _RoundQuantityButton extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            size: 16,
+            size: 20 * unit,
             color: filled
                 ? (enabled ? Colors.black : const Color(0xFF6D655E))
                 : (enabled ? const Color(0xFFFFB400) : const Color(0xFF6D655E)),

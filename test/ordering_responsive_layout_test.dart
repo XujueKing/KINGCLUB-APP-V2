@@ -4,11 +4,19 @@ import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/features/commerce/presentation/table_ordering_entry_page.dart';
 
 void main() {
-  for (final width in [320.0, 393.0, 430.0]) {
+  for (final viewport in [
+    const Size(320, 694),
+    const Size(360, 640),
+    const Size(393, 852),
+    const Size(430, 932),
+  ]) {
+    final width = viewport.width;
     for (final scale in [1.0, 1.35]) {
       testWidgets('点单布局宽 $width 字号 $scale 无溢出且结算固定', (tester) async {
         tester.view.devicePixelRatio = 1;
-        tester.view.physicalSize = Size(width, 760);
+        tester.view.physicalSize = viewport;
+        tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+        addTearDown(tester.view.resetPadding);
         addTearDown(tester.view.resetDevicePixelRatio);
         addTearDown(tester.view.resetPhysicalSize);
         await tester.pumpWidget(
@@ -45,7 +53,8 @@ void main() {
                     )
                     .decoration!
                 as BoxDecoration;
-        expect(backdrop.gradient!.colors.first.a, lessThan(1));
+        expect(backdrop.gradient!.colors.first.a, closeTo(.8, .001));
+        expect(backdrop.gradient!.colors.last.a, 1);
         final checkout = find.byKey(const ValueKey('ordering-confirm'));
         final before = tester.getRect(checkout);
         await tester.drag(
