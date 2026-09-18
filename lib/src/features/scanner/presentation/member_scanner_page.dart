@@ -5,7 +5,7 @@ import '../../../core/session/secure_session_store.dart';
 import 'package:uuid/uuid.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../commerce/data/table_ordering_code.dart';
+import '../data/scan_route.dart';
 
 import '../../messaging/data/messaging_repository.dart';
 import '../../../core/design_system/king_notice.dart';
@@ -85,14 +85,18 @@ class _MemberScannerPageState extends State<MemberScannerPage>
     try {
       await _controller.stop();
       if (!mounted || !_active || _invalid || generation != _generation) return;
-      final tableCode = TableOrderingCode.tryParse(code);
-      if (tableCode != null) {
-        await context.push<void>(tableCode.orderingLocation);
+      final route = ScanRoute.parse(code);
+      if (route.kind == ScanRouteKind.unsupported) {
+        setState(() => _error = '此二维码无效或对应业务尚未接通');
+        return;
+      }
+      if (route.kind == ScanRouteKind.tableOrdering) {
+        await context.push<void>(route.location!);
         return;
       }
       final messaging = await MessagingRepository.open();
       if (!mounted || !_active || _invalid || generation != _generation) return;
-      if (code.startsWith('KC:G:')) {
+      if (route.kind == ScanRouteKind.group) {
         await Navigator.push(
           context,
           MaterialPageRoute<void>(
@@ -168,7 +172,7 @@ class _MemberScannerPageState extends State<MemberScannerPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(_error ?? (_busy ? '正在读取二维码…' : '请扫描 KINGCLUB 个人或群二维码')),
+                  Text(_error ?? (_busy ? '正在读取二维码…' : '请扫描桌卡、个人或群二维码')),
                   if (_error != null && !_invalid)
                     TextButton(
                       onPressed: () {
