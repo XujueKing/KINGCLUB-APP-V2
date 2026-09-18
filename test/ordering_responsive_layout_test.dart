@@ -38,6 +38,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.textContaining('界面预览'), findsNothing);
+        expect(
+          tester.getSize(find.byKey(const ValueKey('ordering-search'))).height,
+          closeTo(width * 76 / 750, .01),
+        );
         final cart = tester.getRect(
           find.byKey(const ValueKey('ordering-cart-bar')),
         );
@@ -63,6 +67,29 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(tester.getRect(checkout), before);
+        expect(tester.takeException(), isNull);
+        final list = find.byKey(const ValueKey('ordering-product-list'));
+        final listTop = tester.getRect(list).top;
+        await tester.tap(
+          find.byKey(const ValueKey('ordering-subcategory-伏特加')),
+        );
+        await tester.pumpAndSettle();
+        final vodka = tester.getRect(
+          find.byKey(const ValueKey('ordering-image-absolut-vodka')),
+        );
+        expect(vodka.top, greaterThanOrEqualTo(listTop));
+        expect(vodka.top, lessThan(listTop + 40));
+        expect(
+          tester
+              .getRect(find.byKey(const ValueKey('ordering-add-absolut-vodka')))
+              .bottom,
+          lessThan(cart.top),
+        );
+        // Category navigation preserves other goods in the same scroll list.
+        await tester.drag(list, const Offset(0, 1200));
+        await tester.pumpAndSettle();
+        expect(find.text('轩尼诗XO').hitTestable(), findsOneWidget);
+        expect(find.text('芝华士12年').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }

@@ -123,6 +123,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   ];
 
   final _searchController = TextEditingController();
+  final _catalogController = ScrollController();
   final Map<String, int> _quantities = {'hennessy-xo': 1, 'chivas-12': 1};
   ScanOrderingScenario _scenario = ScanOrderingScenario.ready;
   String _category = '酒水';
@@ -157,6 +158,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _catalogController.dispose();
     super.dispose();
   }
 
@@ -181,17 +183,12 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     final query = _searchController.text.trim().toLowerCase();
     return _products.where((product) {
       final matchesCategory = product.category == _category;
-      final matchesSubcategory =
-          _subcategory == '全部' || product.subcategory == _subcategory;
       final matchesQuery =
           query.isEmpty ||
           product.name.toLowerCase().contains(query) ||
           product.englishName.toLowerCase().contains(query) ||
           product.specs.toLowerCase().contains(query);
-      final showLegacyInitialList = _category == '酒水' && _subcategory == '畅饮套餐';
-      return matchesCategory &&
-          (showLegacyInitialList || matchesSubcategory) &&
-          matchesQuery;
+      return matchesCategory && matchesQuery;
     }).toList();
   }
 
@@ -239,6 +236,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                               : _rpx(196),
                           220,
                         ),
+                        constraints.maxHeight,
                       );
                     },
                   ),
@@ -275,18 +273,32 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
           const SizedBox(width: 8),
           Expanded(
             child: SizedBox(
-              height: 48,
+              // Legacy input: 36rpx content + 20rpx padding per side.
+              height: _rpx(76),
               child: TextField(
                 key: const ValueKey('ordering-search'),
                 controller: _searchController,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) {
+                  _resetCatalogScroll();
+                  setState(() {});
+                },
+                textAlignVertical: TextAlignVertical.center,
                 style: const TextStyle(color: Color(0xFFD8D3CD), fontSize: 14),
                 decoration: InputDecoration(
+                  isDense: true,
+                  prefixIconConstraints: BoxConstraints(
+                    minWidth: _rpx(76),
+                    minHeight: _rpx(36),
+                  ),
+                  suffixIconConstraints: BoxConstraints(
+                    minWidth: _rpx(60),
+                    minHeight: _rpx(36),
+                  ),
                   hintText: '搜一搜你想要的饮品',
                   hintStyle: const TextStyle(color: Color(0xFF5D5A57)),
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.search_rounded,
-                    size: 21,
+                    size: _rpx(26),
                     color: Color(0xFF575653),
                   ),
                   suffixIcon: _searchController.text.isEmpty
@@ -295,6 +307,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                           tooltip: '清空搜索',
                           onPressed: () {
                             _searchController.clear();
+                            _resetCatalogScroll();
                             setState(() {});
                           },
                           icon: const Icon(
@@ -428,6 +441,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               child: InkWell(
                 key: ValueKey('ordering-category-$label'),
                 onTap: () => setState(() {
+                  _resetCatalogScroll();
                   _category = label;
                   _subcategory = label == '酒水' ? '畅饮套餐' : '全部';
                 }),
@@ -506,7 +520,27 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     );
   }
 
-  Widget _buildCatalog(double rowHeight) {
+  void _resetCatalogScroll() {
+    if (_catalogController.hasClients) _catalogController.jumpTo(0);
+  }
+
+  void _scrollToSubcategory(String label, double rowHeight) {
+    final index = _visibleProducts.indexWhere(
+      (product) => label == '全部' || product.subcategory == label,
+    );
+    setState(() => _subcategory = label);
+    if (index < 0 || !_catalogController.hasClients) return;
+    _catalogController.animateTo(
+      (index * (rowHeight + 2)).clamp(
+        0.0,
+        _catalogController.position.maxScrollExtent,
+      ),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Widget _buildCatalog(double rowHeight, double viewportHeight) {
     if (_scenario == ScanOrderingScenario.catalogError) {
       return _OrderingEmptyState(
         icon: Icons.sync_problem_rounded,
@@ -534,14 +568,16 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
             ),
           ),
           child: ListView.builder(
-            padding: EdgeInsets.zero,
+            padding: EdgeInsets.only(
+              bottom: 80 + MediaQuery.paddingOf(context).bottom + _rpx(30),
+            ),
             itemCount: subcategories.length,
             itemBuilder: (context, index) {
               final label = subcategories[index];
               final selected = _subcategory == label;
               return InkWell(
                 key: ValueKey('ordering-subcategory-$label'),
-                onTap: () => setState(() => _subcategory = label),
+                onTap: () => _scrollToSubcategory(label, rowHeight),
                 child: Container(
                   constraints: BoxConstraints(
                     minHeight: MediaQuery.sizeOf(context).width * 132 / 750,
@@ -591,7 +627,19 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   subtitle: '可切换分类或修改搜索词',
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(8, 5, 10, 80),
+                  key: const ValueKey('ordering-product-list'),
+                  controller: _catalogController,
+                  // Allow the final category to reach the top, and keep its
+                  // price / add button clear of the overlaid checkout bar.
+                  padding: EdgeInsets.fromLTRB(
+                    8,
+                    5,
+                    10,
+                    (viewportHeight - rowHeight).clamp(
+                      80 + MediaQuery.paddingOf(context).bottom + _rpx(30),
+                      double.infinity,
+                    ),
+                  ),
                   itemCount: products.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 2),
                   itemBuilder: (context, index) =>
