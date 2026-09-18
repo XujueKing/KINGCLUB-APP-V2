@@ -43,3 +43,10 @@ verified by these observations. A was left on the existing friend's profile.
   B untouched, no new test message or call sent. No additional APK installed.
 
 Local settings screenshot: build/a-confirm-group-settings.png (not committed).
+## User confirmation: offline voice
+
+After the A-only batch, the user explicitly confirmed offline voice playback.
+A offline voice playback is therefore accepted for the observed scenario,
+combining the device test above with the user's audible confirmation. This
+supersedes the pending audible-confirmation status above. It does not establish
+B playback, all historic recordings, or every cache/cleanup/network scenario.
