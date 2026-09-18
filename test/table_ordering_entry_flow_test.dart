@@ -33,7 +33,7 @@ void main() {
       ),
     );
     expect(find.text('V1'), findsOneWidget);
-    expect(find.textContaining('门店、商品和价格为演示数据'), findsOneWidget);
+    expect(find.textContaining('门店、商品和价格为演示数据'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('ordering-confirm')));
     await tester.pumpAndSettle();
     expect(find.text('已选商品仅供预览，真实下单尚未开放'), findsNothing);

@@ -297,7 +297,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       behavior: HitTestBehavior.opaque,
       onLongPress: _showScenarioPicker,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(28, 10, 26, 12),
+        padding: const EdgeInsets.fromLTRB(23, 10, 26, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -336,15 +336,23 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                     alignment: Alignment.centerRight,
                   )
                 else
-                  Flexible(
-                    child: Text(
-                      widget.orderingContext!.tableName,
-                      key: const ValueKey('ordering-table-name'),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFF1EEEA),
-                        fontSize: 18,
+                  SizedBox(
+                    width: 52,
+                    height: 42,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        widget.orderingContext!.tableName,
+                        key: const ValueKey('ordering-table-name'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFFC9B69E),
+                          fontSize: 42,
+                          height: 1,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -482,7 +490,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          width: 75,
+          width: MediaQuery.sizeOf(context).width * 130 / 750,
           decoration: const BoxDecoration(
             color: Colors.black,
             border: Border(
@@ -499,7 +507,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                 key: ValueKey('ordering-subcategory-$label'),
                 onTap: () => setState(() => _subcategory = label),
                 child: Container(
-                  constraints: const BoxConstraints(minHeight: 74),
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.sizeOf(context).width * 132 / 750,
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
@@ -508,7 +518,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                         : Colors.transparent,
                     borderRadius: selected
                         ? const BorderRadius.horizontal(
-                            right: Radius.circular(5),
+                            left: Radius.circular(5),
                           )
                         : BorderRadius.zero,
                     border: Border(
@@ -527,7 +537,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                       color: selected
                           ? const Color(0xFF1B1510)
                           : const Color(0xFFDDD8D2),
-                      fontSize: selected ? 16 : 15,
+                      fontSize: selected ? 15 : 14,
                       height: 1.2,
                       fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
                     ),
@@ -567,6 +577,10 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   }
 
   Widget _buildProductCard(_OrderingProduct product) {
+    final textScale = MediaQuery.textScalerOf(context).scale(16) / 16;
+    final contentHeight =
+        MediaQuery.sizeOf(context).width * 240 / 750 +
+        (textScale - 1).clamp(0, 2) * 100;
     final quantity = _quantities[product.id] ?? 0;
     final soldOut =
         _scenario == ScanOrderingScenario.soldOut && product.id == 'chivas-12';
@@ -575,16 +589,16 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       container: true,
       label: '${product.name}，价格 ${product.price} 元，已选 $quantity 件',
       child: SizedBox(
-        height: 176,
+        height: contentHeight + 36,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 17),
+          padding: const EdgeInsets.symmetric(vertical: 15),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Image.asset(
                 product.asset,
-                width: 109,
-                height: 138,
+                width: MediaQuery.sizeOf(context).width * 190 / 750,
+                height: MediaQuery.sizeOf(context).width * 240 / 750,
                 fit: BoxFit.contain,
                 color: soldOut ? const Color(0x77000000) : null,
                 colorBlendMode: soldOut ? BlendMode.darken : null,
@@ -592,7 +606,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: SizedBox(
-                  height: 138,
+                  height: contentHeight,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -606,8 +620,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Color(0xFFE8DED1),
-                              fontSize: 18,
+                              color: Color(0xFFEEEEEE),
+                              fontSize: 16,
                               height: 1.12,
                               fontWeight: FontWeight.w400,
                             ),
@@ -618,7 +632,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Color(0xFFC9B69E),
-                              fontSize: 16,
+                              fontSize: 14,
                               height: 1.22,
                             ),
                           ),
@@ -626,7 +640,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             product.specs,
                             style: const TextStyle(
                               color: Color(0xFFC9B69E),
-                              fontSize: 16,
+                              fontSize: 14,
                               height: 1.18,
                             ),
                           ),
@@ -635,29 +649,35 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text.rich(
-                            TextSpan(
-                              children: [
-                                const TextSpan(
-                                  text: '¥ ',
-                                  style: TextStyle(
-                                    color: Color(0xFFC9B69E),
-                                    fontSize: 14,
-                                  ),
-                                ),
+                          Expanded(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text.rich(
                                 TextSpan(
-                                  text: '${product.price}',
-                                  style: const TextStyle(
-                                    color: Color(0xFFE8E3DD),
-                                    fontSize: 21,
-                                    height: 1,
-                                    fontWeight: FontWeight.w400,
-                                  ),
+                                  children: [
+                                    const TextSpan(
+                                      text: '¥ ',
+                                      style: TextStyle(
+                                        color: Color(0xFFC9B69E),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: '${product.price}',
+                                      style: const TextStyle(
+                                        color: Color(0xFFE8E3DD),
+                                        fontSize: 21,
+                                        height: 1,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 4),
                           if (soldOut)
                             const Text(
                               '已售罄',
@@ -707,7 +727,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF181512), Color(0xFF080706)],
+          colors: [Color(0xEE000000), Color(0xFF000000)],
         ),
         border: Border(top: BorderSide(color: Color(0xFF302820))),
       ),
@@ -728,84 +748,88 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                     fit: BoxFit.contain,
                   ),
                 ),
-                if (_itemCount > 0)
-                  Positioned(
-                    right: -4,
-                    top: 6,
-                    child: Container(
-                      key: const ValueKey('ordering-cart-badge'),
-                      constraints: const BoxConstraints(minWidth: 25),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 4,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFB400),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$_itemCount',
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
+                Positioned(
+                  right: -4,
+                  bottom: 0,
+                  child: Container(
+                    key: const ValueKey('ordering-cart-badge'),
+                    constraints: const BoxConstraints(minWidth: 25),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _itemCount > 0
+                          ? const Color(0xFFFFB400)
+                          : const Color(0xFF6C4C00),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$_itemCount',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
+                ),
               ],
             ),
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text.rich(
-              key: const ValueKey('ordering-estimate'),
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: '合计 ¥ ',
-                    style: TextStyle(
-                      color: _itemCount > 0
-                          ? const Color(0xFF8E867E)
-                          : const Color(0xFF56514C),
-                      fontSize: 14,
+            child: Opacity(
+              opacity: _itemCount > 0 ? 1 : 0,
+              child: Text.rich(
+                key: const ValueKey('ordering-estimate'),
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '合计 ¥ ',
+                      style: TextStyle(
+                        color: _itemCount > 0
+                            ? const Color(0xFF8E867E)
+                            : const Color(0xFF56514C),
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                  TextSpan(
-                    text: _itemCount > 0 ? _total.toStringAsFixed(0) : '0',
-                    style: TextStyle(
-                      color: _itemCount > 0
-                          ? const Color(0xFFE1D3C1)
-                          : const Color(0xFF5A554F),
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
+                    TextSpan(
+                      text: _itemCount > 0 ? _total.toStringAsFixed(0) : '0',
+                      style: TextStyle(
+                        color: _itemCount > 0
+                            ? const Color(0xFFE1D3C1)
+                            : const Color(0xFF5A554F),
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  TextSpan(
-                    text: '.00',
-                    style: TextStyle(
-                      color: _itemCount > 0
-                          ? const Color(0xFF8E867E)
-                          : const Color(0xFF56514C),
-                      fontSize: 14,
+                    TextSpan(
+                      text: '.00',
+                      style: TextStyle(
+                        color: _itemCount > 0
+                            ? const Color(0xFF8E867E)
+                            : const Color(0xFF56514C),
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
           SizedBox(
-            width: 112,
-            height: 50,
+            width: 100,
+            height: 42,
             child: FilledButton(
               key: const ValueKey('ordering-confirm'),
               onPressed: enabled ? _requestFakeQuote : null,
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFC9B69E),
                 foregroundColor: const Color(0xFF1C150E),
-                disabledBackgroundColor: const Color(0xFF332E28),
-                disabledForegroundColor: const Color(0xFF756B61),
+                disabledBackgroundColor: const Color(0xFF262626),
+                disabledForegroundColor: const Color(0xFF363636),
                 shape: const StadiumBorder(),
               ),
               child: _quoting

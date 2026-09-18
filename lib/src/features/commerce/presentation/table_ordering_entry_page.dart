@@ -89,29 +89,12 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
         tableName: widget.tableName ?? widget.tableId,
         businessDate: '界面预览',
       );
-      return Scaffold(
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Text('界面预览 · 门店、商品和价格为演示数据，暂不下单'),
-              ),
-              Expanded(
-                child: ScanOrderingCartPage(
-                  key: ValueKey(preview.contextRef),
-                  orderingContext: preview,
-                  onBack: widget.onBack,
-                  onQuoteReady: (_) => ScaffoldMessenger.of(context)
-                      .showSnackBar(
-                        const SnackBar(content: Text('已选商品仅供预览，真实下单尚未开放')),
-                      ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      return ScanOrderingCartPage(
+        key: ValueKey(preview.contextRef),
+        orderingContext: preview,
+        onBack: widget.onBack,
+        onQuoteReady: (_) => ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('已选商品仅供预览，真实下单尚未开放'))),
       );
     }
     final resolved = _context;
