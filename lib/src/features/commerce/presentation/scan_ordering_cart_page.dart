@@ -236,7 +236,6 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                               : _rpx(196),
                           220,
                         ),
-                        constraints.maxHeight,
                       );
                     },
                   ),
@@ -352,7 +351,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Image.asset(
                   'assets/legacy/home/logo_2.png',
@@ -408,7 +407,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   ),
               ],
             ),
-            SizedBox(height: _rpx(8)),
+            SizedBox(height: _rpx(4)),
             Text(
               widget.orderingContext?.storeAddress ?? '株洲市天元区金华路瀚水栗源1栋102',
               maxLines: 1,
@@ -541,7 +540,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     );
   }
 
-  Widget _buildCatalog(double rowHeight, double viewportHeight) {
+  Widget _buildCatalog(double rowHeight) {
     if (_scenario == ScanOrderingScenario.catalogError) {
       return _OrderingEmptyState(
         icon: Icons.sync_problem_rounded,
@@ -630,16 +629,13 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               : ListView.separated(
                   key: const ValueKey('ordering-product-list'),
                   controller: _catalogController,
-                  // Allow the final category to reach the top, and keep its
-                  // price / add button clear of the overlaid checkout bar.
+                  // Only clear the checkout overlay plus a small visual gap.
+                  // The last category stops at the natural scroll limit.
                   padding: EdgeInsets.fromLTRB(
                     8,
                     5,
                     10,
-                    (viewportHeight - rowHeight).clamp(
-                      80 + MediaQuery.paddingOf(context).bottom + _rpx(30),
-                      double.infinity,
-                    ),
+                    80 + MediaQuery.paddingOf(context).bottom + _rpx(12),
                   ),
                   itemCount: products.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 2),
