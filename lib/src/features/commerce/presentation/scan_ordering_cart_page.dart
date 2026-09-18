@@ -351,7 +351,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Image.asset(
                   'assets/legacy/home/logo_2.png',
@@ -408,14 +408,26 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               ],
             ),
             SizedBox(height: _rpx(4)),
-            Text(
-              widget.orderingContext?.storeAddress ?? '株洲市天元区金华路瀚水栗源1栋102',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Color(0xFF4B4947),
-                fontSize: 12,
-                height: 1.1,
+            // Keep the logo/name row fixed; lift only the address through the
+            // space introduced by the taller table label.
+            Transform.translate(
+              offset: Offset(
+                0,
+                -((widget.orderingContext == null ? 34 : 42) - _rpx(50)).clamp(
+                      0,
+                      double.infinity,
+                    ) /
+                    2,
+              ),
+              child: Text(
+                widget.orderingContext?.storeAddress ?? '株洲市天元区金华路瀚水栗源1栋102',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Color(0xFF4B4947),
+                  fontSize: 12,
+                  height: 1.1,
+                ),
               ),
             ),
           ],
