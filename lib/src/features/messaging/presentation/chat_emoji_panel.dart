@@ -411,7 +411,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
         builder: (context) => AlertDialog(
           backgroundColor: const Color(0xFF202020),
           title: Text(path == null ? '删除表情包' : '删除表情'),
-          content: const Text('从本机收藏中删除，已发送的消息不受影响。'),
+          content: const Text('从收藏中删除，联网后同步到云端。已发送的消息不受影响。'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -723,13 +723,18 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
                   onTap: (_importing || _invalid)
                       ? null
                       : () => _add(pack: false),
-                  child: CustomPaint(
-                    painter: _DashedAddBorder(),
-                    child: const Center(
-                      child: Icon(
-                        Icons.add,
-                        size: 34,
-                        color: Color(0xFFAAAAAA),
+                  child: Semantics(
+                    label: '添加单个表情',
+                    button: true,
+                    enabled: !_importing && !_invalid,
+                    child: CustomPaint(
+                      painter: _DashedAddBorder(),
+                      child: const Center(
+                        child: Icon(
+                          Icons.add,
+                          size: 34,
+                          color: Color(0xFFAAAAAA),
+                        ),
                       ),
                     ),
                   ),
@@ -738,11 +743,17 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
               final path = images[item - (index == 0 ? 1 : 0)];
               return InkWell(
                 key: ValueKey('saved-sticker-$path'),
-                onLongPress: _importing
+                onLongPress: (_importing || _invalid)
                     ? null
                     : () => _remove(index, path: path),
                 onTap: _invalid ? null : () => widget.onSticker(path),
-                child: _image(path),
+                child: Semantics(
+                  label: '发送表情 ${item + (index == 0 ? 0 : 1)}',
+                  hint: '长按删除',
+                  button: true,
+                  enabled: !_invalid,
+                  child: _image(path),
+                ),
               );
             },
           ),
