@@ -5,10 +5,28 @@ import 'dart:io';
 import 'novorudp_frame.dart';
 import 'novorudp_secure_packet.dart';
 import 'novorudp_secure_session.dart';
+import 'novorudp_stun_binding.dart';
+
+typedef _Endpoint = ({InternetAddress address, int port});
 
 /// An optional local-network carriage for an already authenticated channel.
 /// Addresses arrive only through that channel; they never establish identity.
 class NovoRudpLanRoute {
+  static const stunHost = String.fromEnvironment('KINGCLUB_NOVORUDP_STUN_HOST');
+  static const stunPort = int.fromEnvironment(
+    'KINGCLUB_NOVORUDP_STUN_PORT',
+    defaultValue: 3478,
+  );
+  static bool _public(InternetAddress ip) {
+    if (ip.type != InternetAddressType.IPv4 || _private(ip)) return false;
+    final b = ip.rawAddress;
+    return b[0] != 0 &&
+        b[0] != 127 &&
+        b[0] < 224 &&
+        !(b[0] == 169 && b[1] == 254) &&
+        !(b[0] == 100 && b[1] >= 64 && b[1] <= 127);
+  }
+
   static final controlStream = BigInt.from(0x4b434c4e);
   static bool _private(InternetAddress ip) {
     if (ip.type != InternetAddressType.IPv4) return false;
@@ -37,10 +55,20 @@ class NovoRudpLanRoute {
     required NovoRudpSecureChannel channel,
     required Future<void> Function(NovoRudpFrame) sendControl,
     required Future<void> Function(NovoRudpFrame) deliver,
+    String observerHost = stunHost,
+    int observerPort = stunPort,
   }) async {
     final addresses = await _localAddresses();
     final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
-    return NovoRudpLanRoute._(socket, channel, addresses, sendControl, deliver);
+    return NovoRudpLanRoute._(
+      socket,
+      channel,
+      addresses,
+      sendControl,
+      deliver,
+      observerHost,
+      observerPort,
+    );
   }
 
   NovoRudpLanRoute._(
@@ -49,6 +77,8 @@ class NovoRudpLanRoute {
     this.addresses,
     this.sendControl,
     this.deliver,
+    this.observerHost,
+    this.observerPort,
   ) {
     _socket.writeEventsEnabled = false;
     _events = _socket.listen(
@@ -63,6 +93,7 @@ class NovoRudpLanRoute {
       const Duration(seconds: 2),
       (_) => unawaited(_tick()),
     );
+    unawaited(_discover());
   }
 
   final RawDatagramSocket _socket;
@@ -71,9 +102,14 @@ class NovoRudpLanRoute {
   final Future<void> Function(NovoRudpFrame) sendControl, deliver;
   late final StreamSubscription<RawSocketEvent> _events;
   late final Timer _timer;
-  InternetAddress? _peer;
-  List<InternetAddress> _candidates = [];
-  int? _port;
+  _Endpoint? _peer, _mapped;
+  List<_Endpoint> _candidates = [];
+  final String observerHost;
+  final int observerPort;
+  InternetAddress? _observer;
+  NovoRudpStunBinding? _binding;
+  Stopwatch? _bindingAge, _mappedAge;
+  bool _discovering = false;
   Stopwatch? _confirmed;
   bool _closed = false, _reading = false, _ticking = false;
   int _advertisements = 0;
@@ -102,6 +138,11 @@ class NovoRudpLanRoute {
         'op': 'endpoint',
         'addresses': addresses,
         'port': _socket.port,
+        if (_mapped != null)
+          'public': {
+            'address': _mapped!.address.address,
+            'port': _mapped!.port,
+          },
       }),
     );
   }
@@ -111,6 +152,7 @@ class NovoRudpLanRoute {
     NovoRudpFrame frame, {
     bool datagram = false,
     InternetAddress? source,
+    int? sourcePort,
   }) async {
     if (_closed ||
         frame.streamId != controlStream ||
@@ -129,7 +171,7 @@ class NovoRudpLanRoute {
             port > 65535) {
           return;
         }
-        final candidates = <InternetAddress>[];
+        final candidates = <_Endpoint>[];
         for (final value in raw) {
           if (value is! String) continue;
           final ip = InternetAddress.tryParse(value);
@@ -141,27 +183,50 @@ class NovoRudpLanRoute {
           )) {
             continue;
           }
-          if (!candidates.any((a) => a.address == ip.address)) {
-            candidates.add(ip);
+          if (!candidates.any((a) => a.address.address == ip.address)) {
+            candidates.add((address: ip, port: port));
+          }
+        }
+        final external = body['public'];
+        if (observerHost.isNotEmpty && external is Map) {
+          final host = external['address'], mappedPort = external['port'];
+          final ip = host is String ? InternetAddress.tryParse(host) : null;
+          if (ip != null &&
+              _public(ip) &&
+              mappedPort is int &&
+              mappedPort > 0 &&
+              mappedPort <= 65535) {
+            candidates.add((address: ip, port: mappedPort));
           }
         }
         final unchanged =
-            port == _port &&
-            candidates.map((a) => a.address).join(',') ==
-                _candidates.map((a) => a.address).join(',');
+            candidates.map((a) => '${a.address.address}:${a.port}').join(',') ==
+            _candidates.map((a) => '${a.address.address}:${a.port}').join(',');
         if (!unchanged) {
           _endpointEpoch++;
           _confirmed = null;
           _peer = null;
           _candidates = candidates;
-          _port = candidates.isEmpty ? null : port;
         }
         await _probe();
-      } else if (datagram && source != null && body['op'] == 'ping') {
-        await _send(_control({'op': 'pong'}), target: source);
-      } else if (datagram && source != null && body['op'] == 'pong') {
-        if (ready && _peer?.address != source.address) return;
-        _peer = source;
+      } else if (datagram &&
+          source != null &&
+          sourcePort != null &&
+          body['op'] == 'ping') {
+        await _send(
+          _control({'op': 'pong'}),
+          target: (address: source, port: sourcePort),
+        );
+      } else if (datagram &&
+          source != null &&
+          sourcePort != null &&
+          body['op'] == 'pong') {
+        if (ready &&
+            (_peer?.address.address != source.address ||
+                _peer?.port != sourcePort)) {
+          return;
+        }
+        _peer = (address: source, port: sourcePort);
         _confirmed = Stopwatch()..start();
       }
     } on FormatException {
@@ -184,10 +249,12 @@ class NovoRudpLanRoute {
             ..addAll(current);
           _peer = null;
           _candidates = [];
-          _port = null;
+          _mapped = null;
+          _binding = null;
           _confirmed = null;
         }
       }
+      unawaited(_discover());
       // Refresh after joining/changing Wi-Fi, including routes opened on cellular.
       if (tick < 4 || tick % 15 == 0) await advertise();
       await _probe();
@@ -209,16 +276,17 @@ class NovoRudpLanRoute {
     }
   }
 
-  Future<void> _send(NovoRudpFrame frame, {InternetAddress? target}) async {
+  Future<void> _send(NovoRudpFrame frame, {_Endpoint? target}) async {
     final destination = target ?? _peer;
-    if (_closed || destination == null || _port == null) {
+    if (_closed || destination == null) {
       throw StateError('LAN route unavailable');
     }
     final epoch = _endpointEpoch;
     final wire = NovoRudpSecurePacket.encode(await channel.seal(frame));
     if (_closed ||
         epoch != _endpointEpoch ||
-        _socket.send(wire, destination, _port!) != wire.length) {
+        _socket.send(wire, destination.address, destination.port) !=
+            wire.length) {
       throw const SocketException('LAN send unavailable');
     }
   }
@@ -242,8 +310,25 @@ class NovoRudpLanRoute {
       for (var i = 0; i < 64 && !_closed; i++) {
         final packet = _socket.receive();
         if (packet == null) break;
-        if (!_candidates.any((a) => a.address == packet.address.address) ||
-            packet.port != _port) {
+        if (_binding != null &&
+            packet.address.address == _observer?.address &&
+            packet.port == observerPort) {
+          final mapped = _binding!.parseResponse(packet.data);
+          if (mapped != null &&
+              _public(mapped.address) &&
+              _bindingAge!.elapsed < const Duration(seconds: 8)) {
+            _mapped = mapped;
+            _mappedAge = Stopwatch()..start();
+            _binding = null;
+            unawaited(advertise().catchError((Object _) {}));
+          }
+          continue;
+        }
+        if (!_candidates.any(
+          (a) =>
+              a.address.address == packet.address.address &&
+              a.port == packet.port,
+        )) {
           continue;
         }
         try {
@@ -254,7 +339,12 @@ class NovoRudpLanRoute {
           if (_closed) return;
           if (epoch != _endpointEpoch) continue;
           if (frame.streamId == controlStream) {
-            await acceptControl(frame, datagram: true, source: packet.address);
+            await acceptControl(
+              frame,
+              datagram: true,
+              source: packet.address,
+              sourcePort: packet.port,
+            );
           } else if (ready) {
             // Both peers may select different advertised interfaces on a
             // multi-homed host. Source candidate/port, endpoint epoch and AEAD
@@ -281,5 +371,44 @@ class NovoRudpLanRoute {
     _timer.cancel();
     _socket.close();
     return _closing ??= _events.cancel();
+  }
+
+  Future<void> _discover() async {
+    if (_closed ||
+        _discovering ||
+        observerHost.isEmpty ||
+        observerPort < 1 ||
+        observerPort > 65535) {
+      return;
+    }
+    _discovering = true;
+    try {
+      if (_mappedAge != null &&
+          _mappedAge!.elapsed >= const Duration(seconds: 60)) {
+        _mapped = null;
+      }
+      if (_binding == null &&
+          _mapped != null &&
+          _mappedAge!.elapsed < const Duration(seconds: 30)) {
+        return;
+      }
+      if (_binding == null ||
+          _bindingAge!.elapsed >= const Duration(seconds: 30)) {
+        final servers = await InternetAddress.lookup(
+          observerHost,
+          type: InternetAddressType.IPv4,
+        ).timeout(const Duration(seconds: 2));
+        if (_closed || servers.isEmpty) return;
+        _observer = servers.first;
+        _binding = NovoRudpStunBinding();
+        _bindingAge = Stopwatch()..start();
+      }
+      if (_closed || _bindingAge!.elapsed >= const Duration(seconds: 8)) return;
+      _socket.send(_binding!.request, _observer!, observerPort);
+    } catch (_) {
+      // Discovery never blocks the existing authenticated relay route.
+    } finally {
+      _discovering = false;
+    }
   }
 }

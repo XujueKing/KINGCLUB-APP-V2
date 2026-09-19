@@ -77,7 +77,9 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
     _session = SecureSessionStore.changes.stream.listen(
       (_) => unawaited(close()),
     );
-    if (enableLan) unawaited(_openLan());
+    if (enableLan || NovoRudpLanRoute.stunHost.isNotEmpty) {
+      unawaited(_openLan());
+    }
     if (authorize != null) {
       _authorizationTimer = Timer.periodic(const Duration(seconds: 15), (_) {
         unawaited(Future<void>.sync(revalidate).catchError((Object _) {}));
