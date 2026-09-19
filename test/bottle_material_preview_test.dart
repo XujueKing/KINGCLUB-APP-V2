@@ -42,6 +42,8 @@ void main() {
           find.byKey(const ValueKey('shell-bottom-bar')),
         );
         expect(grid.height, closeTo(grid.width, .01));
+        expect(grid.width, closeTo(screen.width * .84, .01));
+        expect(grid.left, closeTo(screen.width * .08, .01));
         expect(grid.bottom, lessThan(dots.top));
         expect(dots.bottom, lessThan(nav.top));
         expect(

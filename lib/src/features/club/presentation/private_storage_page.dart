@@ -345,12 +345,14 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
             // extendBody supplies the whole bottom navigation obstruction as
             // MediaQuery padding. Reserve it BEFORE fitting the legacy layout.
             final bottom = MediaQuery.paddingOf(context).bottom;
-            final u = math.min(
-              screenUnit,
-              math.max(0.0, c.maxHeight - bottom - 58) / 1275,
-            );
+            // Legacy .box_style is 630rpx on a 750rpx viewport. Never
+            // shrink its horizontal footprint to solve vertical pressure.
+            final u = screenUnit;
             final width = 630 * u;
-            final heroHeight = 490 * u;
+            final heroHeight = math.min(
+              490 * u,
+              math.max(0.0, c.maxHeight - bottom - 58 - 785 * u),
+            );
             final content = Column(
               children: [
                 SizedBox(
