@@ -6,6 +6,7 @@ import 'novorudp_frame.dart';
 import 'novorudp_secure_packet.dart';
 import 'novorudp_secure_session.dart';
 import 'novorudp_stun_binding.dart';
+import 'novorudp_route_probe.dart';
 
 typedef _Endpoint = ({InternetAddress address, int port});
 
@@ -114,6 +115,7 @@ class NovoRudpLanRoute {
   bool _closed = false, _reading = false, _ticking = false;
   int _advertisements = 0;
   int _endpointEpoch = 0;
+  final _probes = NovoRudpRouteProbe();
   Future<void>? _closing;
 
   bool get ready =>
@@ -204,6 +206,7 @@ class NovoRudpLanRoute {
             _candidates.map((a) => '${a.address.address}:${a.port}').join(',');
         if (!unchanged) {
           _endpointEpoch++;
+          _probes.clear();
           _confirmed = null;
           _peer = null;
           _candidates = candidates;
@@ -213,14 +216,18 @@ class NovoRudpLanRoute {
           source != null &&
           sourcePort != null &&
           body['op'] == 'ping') {
+        if (!NovoRudpRouteProbe.validNonce(body['nonce'])) return;
         await _send(
-          _control({'op': 'pong'}),
+          _control({'op': 'pong', 'nonce': body['nonce']}),
           target: (address: source, port: sourcePort),
         );
       } else if (datagram &&
           source != null &&
           sourcePort != null &&
           body['op'] == 'pong') {
+        if (!_probes.accept('${source.address}:$sourcePort', body['nonce'])) {
+          return;
+        }
         if (ready &&
             (_peer?.address.address != source.address ||
                 _peer?.port != sourcePort)) {
@@ -244,6 +251,7 @@ class NovoRudpLanRoute {
         if (_closed) return;
         if (jsonEncode(current) != jsonEncode(addresses)) {
           _endpointEpoch++;
+          _probes.clear();
           addresses
             ..clear()
             ..addAll(current);
@@ -269,7 +277,13 @@ class NovoRudpLanRoute {
     final candidates = ready ? [_peer!] : List.of(_candidates);
     for (final candidate in candidates) {
       try {
-        await _send(_control({'op': 'ping'}), target: candidate);
+        final nonce = _probes.issue(
+          '${candidate.address.address}:${candidate.port}',
+        );
+        await _send(
+          _control({'op': 'ping', 'nonce': nonce}),
+          target: candidate,
+        );
       } on SocketException {
         // One unavailable interface must not prevent probing the others.
       }
@@ -368,6 +382,7 @@ class NovoRudpLanRoute {
 
   Future<void> close() {
     _closed = true;
+    _probes.clear();
     _timer.cancel();
     _socket.close();
     return _closing ??= _events.cancel();

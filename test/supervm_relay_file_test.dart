@@ -161,7 +161,7 @@ void main() {
       }
       expect(delivered.single.payload, [7, 8, 9]);
     },
-    skip: !enabled,
+    skip: !env.containsKey('NOVORUDP_NATIVE_LIBRARY'),
     timeout: const Timeout(Duration(seconds: 20)),
   );
   for (final mode in [
