@@ -31,8 +31,9 @@ class NovoRudpStunBinding {
     if (data.getUint16(0) != 0x0101 ||
         data.getUint32(4) != cookie ||
         length % 4 != 0 ||
-        length + 20 != bytes.length)
+        length + 20 != bytes.length) {
       return null;
+    }
     for (var i = 0; i < 12; i++) {
       if (bytes[i + 8] != _transaction[i]) return null;
     }
