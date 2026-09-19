@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../../../core/session/secure_session_store.dart';
 import 'novorudp_file_receiver.dart';
@@ -107,6 +108,14 @@ class NovoRudpFileDownload {
   bool _closed = false;
   bool _sendingAck = false;
   int _queued = 0;
+  Future<void> Function(int, Uint8List)? _resumeWriter;
+
+  /// The owner supplies its message-scoped encrypted cache, never a public path.
+  /// Cached blocks do not imply file verification or receiver completion.
+  void preserveBlocksOnClose(Future<void> Function(int, Uint8List) write) {
+    _check();
+    _resumeWriter = write;
+  }
 
   Future<File> get completed => _done.future;
   int get receivedBytes => _receiver.receivedBytes;
@@ -185,8 +194,17 @@ class NovoRudpFileDownload {
   Future<void> _close() async {
     _timer.cancel();
     _idleTimer?.cancel();
+    // Enqueue the snapshot before the owner invalidates the peer attempt.
+    // The writer independently checks session/cancellation/deletion on each block.
+    final writer = _resumeWriter;
+    final checkpoint = writer != null && _canReceive()
+        ? _receiver
+              .checkpointBlocks(1024 * 1024, writer)
+              .catchError((Object _) {})
+        : Future<void>.value();
     await _subscription.cancel();
     await _session.cancel();
+    await checkpoint;
     await _receiver.close();
   }
 }

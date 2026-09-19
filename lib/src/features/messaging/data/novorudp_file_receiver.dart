@@ -187,6 +187,43 @@ class NovoRudpFileReceiver {
     return _file;
   });
 
+  /// Export only fully received byte ranges. These are authenticated transport
+  /// bytes, not a verified complete file: consumers must still check sha256.
+  Future<void> checkpointBlocks(
+    int blockSize,
+    Future<void> Function(int index, Uint8List bytes) write,
+  ) => _serial(() async {
+    _check();
+    if (blockSize < chunkSize || blockSize > 1024 * 1024) {
+      throw ArgumentError('Invalid checkpoint block size');
+    }
+    await _output.flush();
+    final reader = await _file.open();
+    try {
+      for (var offset = 0; offset < size; offset += blockSize) {
+        _check();
+        final length = math.min(blockSize, size - offset);
+        final first = offset ~/ chunkSize;
+        final last = (offset + length - 1) ~/ chunkSize;
+        var complete = true;
+        for (var i = first; i <= last; i++) {
+          if (_received[i] == 0) {
+            complete = false;
+            break;
+          }
+        }
+        if (!complete) continue;
+        await reader.setPosition(offset);
+        final bytes = await reader.read(length);
+        _check();
+        if (bytes.length != length) throw StateError('Incomplete checkpoint');
+        await write(offset ~/ blockSize, bytes);
+      }
+    } finally {
+      await reader.close();
+    }
+  });
+
   /// The sender uses an empty DONE frame as a request for current ACK state,
   /// including after a lost final ACK. It is not permission to finalize a file.
   Future<NovoRudpFrame?> receiveAuthenticated(NovoRudpFrame frame) async {

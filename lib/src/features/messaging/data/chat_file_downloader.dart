@@ -263,6 +263,16 @@ class ChatFileDownloader {
       await _check();
       final peer = _peer;
       if (peer == null) return false;
+      final cache = resumeCache;
+      if (cache != null) {
+        final identity = _identity(ref);
+        peer.preserveBlocksOnClose((index, bytes) async {
+          await _check();
+          await cache.ensureNotDeleted(identity);
+          await cache.write(identity, index, bytes);
+          await _check();
+        });
+      }
       var reported = -1;
       void reportProgress() {
         if (!active() || onProgress == null || ref.size == 0) return;
@@ -477,7 +487,7 @@ class ChatFileDownloader {
       final file = File('${working.path}/content.bin');
       // HTTP blocks arrive in order. Reuse an authenticated first block rather
       // than starting a whole-file peer transfer on every resumed download.
-      final firstBlock = await resumeCache?.read(
+      var firstBlock = await resumeCache?.read(
         identity,
         0,
         ref.size.clamp(0, chunkBytes),
@@ -519,6 +529,12 @@ class ChatFileDownloader {
       if (firstBlock == null && peerDownload != null) {
         // The peer attempt may outlive a grant or a membership change.
         media = await _grant(ref);
+        // Closing the failed peer snapshots complete ranges into this cache.
+        firstBlock = await resumeCache?.read(
+          identity,
+          0,
+          ref.size.clamp(0, chunkBytes),
+        );
         onProgress?.call(0, ref.size);
       }
       output = await file.open(mode: FileMode.write);
