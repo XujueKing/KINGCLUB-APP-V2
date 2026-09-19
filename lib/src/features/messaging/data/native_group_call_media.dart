@@ -70,6 +70,8 @@ class NativeGroupCallMedia {
   bool _opened = false;
   Timer? _renewRelay, _recoverNetwork;
   Timer? _recoveryDeadline;
+  Timer? _relayRetryTimer;
+  Completer<void>? _relayRetryWait;
   final _unhealthyDirections = <String>{};
   Future<void>? _refreshingNetwork;
   bool get isClosed => _closed;
@@ -466,7 +468,7 @@ class NativeGroupCallMedia {
     if (send == null || receive == null) {
       throw StateError('Media transports not ready');
     }
-    final configuration = await repository.readRelay();
+    final configuration = await _readRenewedRelay();
     _check();
     configuration.requireUsable(repository.call.id);
     final servers = configuration.iceServers
@@ -487,6 +489,27 @@ class NativeGroupCallMedia {
       transport.restartIce(parameters);
     }
     _scheduleRelay(configuration);
+  }
+
+  Future<CallRelayConfiguration> _readRenewedRelay() async {
+    for (var attempt = 0; ; attempt++) {
+      _check();
+      try {
+        return await repository.readRelay();
+      } on AuthFailure catch (error) {
+        // Retry only this read, before any ICE mutation. Initial capture and
+        // authorization errors retain their immediate failure behavior.
+        if (!_opened || error.code != 'NETWORK_ERROR' || attempt >= 2) {
+          rethrow;
+        }
+        _check();
+        final wait = _relayRetryWait = Completer<void>();
+        _relayRetryTimer = Timer(const Duration(seconds: 1), wait.complete);
+        await wait.future;
+        _relayRetryTimer = null;
+        _relayRetryWait = null;
+      }
+    }
   }
 
   void _fail(Object error) {
@@ -544,6 +567,9 @@ class NativeGroupCallMedia {
     _renewRelay?.cancel();
     _recoverNetwork?.cancel();
     _recoveryDeadline?.cancel();
+    _relayRetryTimer?.cancel();
+    final relayWait = _relayRetryWait;
+    if (relayWait != null && !relayWait.isCompleted) relayWait.complete();
     for (final pending in _publishing.values) {
       if (!pending.isCompleted) {
         pending.completeError(StateError('Group media closed'));

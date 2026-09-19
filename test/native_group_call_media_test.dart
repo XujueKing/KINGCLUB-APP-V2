@@ -217,8 +217,10 @@ class Repo extends GroupCallMediaRepository {
   }
 
   Object? relayFailure;
+  int relayReads = 0;
   @override
   Future<CallRelayConfiguration> readRelay() async {
+    relayReads++;
     if (relayFailure != null) throw relayFailure!;
     final expiry = (DateTime.now().millisecondsSinceEpoch ~/ 1000 + 600) * 1000;
     return CallRelayConfiguration.parse(callId, {
@@ -401,6 +403,44 @@ void main() {
     });
   }
 
+  for (final mode in ['recover', 'exhausted', 'denied', 'hangup']) {
+    testWidgets('ICE relay read retry $mode', (tester) async {
+      final repo = Repo(), device = DeviceFixture(), stream = StreamFixture();
+      final errors = <Object>[];
+      final media = NativeGroupCallMedia(
+        repository: repo,
+        device: device,
+        capture: (_) async => stream,
+        onError: errors.add,
+      );
+      await media.open();
+      repo.relayFailure = AuthFailure(
+        mode == 'denied' ? 'SESSION_CHANGED' : 'NETWORK_ERROR',
+        'test',
+      );
+      device.send.events['connectionstatechange']!({
+        'connectionState': 'disconnected',
+      });
+      await tester.pump(const Duration(seconds: 2));
+      expect(repo.relayReads, 2);
+      expect(repo.restarts, 0);
+      expect(media.isClosed, mode == 'denied');
+      if (mode == 'recover') repo.relayFailure = null;
+      if (mode == 'hangup') await media.close();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+      expect(repo.relayReads, switch (mode) {
+        'recover' => 3,
+        'exhausted' => 4,
+        _ => 2,
+      });
+      expect(repo.restarts, mode == 'recover' ? 2 : 0);
+      expect(media.isClosed, mode != 'recover');
+      expect(stream.track.stops, mode == 'recover' ? 0 : 1);
+      expect(errors.length, mode == 'denied' || mode == 'exhausted' ? 1 : 0);
+      await media.close();
+    });
+  }
   for (final recovers in [true, false]) {
     testWidgets(
       'automatic ICE recovery ${recovers ? "cancels expiry on recovery" : "stops capture on timeout"}',
