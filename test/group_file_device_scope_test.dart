@@ -31,6 +31,21 @@ void main() {
       expect(first.samePermission(parse({...valid, ...changed})), isFalse);
     }
   });
+  test('media variants cannot reuse file or other encoding scope', () {
+    GroupFileDeviceScope media(String type) => GroupFileDeviceScope.parse(
+      {...valid, 'media': type},
+      messageId: message,
+      groupId: group,
+      account: 'me',
+      peer: 'peer',
+      media: type,
+    );
+    expect(media('video').samePermission(media('hevc')), false);
+    expect(media('image').samePermission(media('image-thumbnail')), false);
+    expect(media('voice').samePermission(parse(valid)), false);
+    expect(() => parse({...valid, 'media': 'voice'}), throwsFormatException);
+    expect(() => media('unknown'), throwsFormatException);
+  });
   test('rejects other message, group, member or malformed membership', () {
     for (final change in [
       {'kind': 'direct'},

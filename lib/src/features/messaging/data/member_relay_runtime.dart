@@ -207,7 +207,7 @@ class MemberRelayRuntime with WidgetsBindingObserver {
   static String _laneId(String peer, GroupFileDeviceScope? scope) =>
       scope == null
       ? peer
-      : '$peer/${scope.groupId}/${scope.messageId}/${scope.senderVersion}/${scope.recipientVersion}';
+      : '$peer/${scope.groupId}/${scope.messageId}/${scope.senderVersion}/${scope.recipientVersion}/${scope.media ?? ''}';
 
   Future<NovoRudpRelayFrameLink> _connectPeer(
     String peer,
@@ -250,6 +250,7 @@ class MemberRelayRuntime with WidgetsBindingObserver {
                     peer,
                     messageId: scope.messageId,
                     groupId: scope.groupId,
+                    media: scope.media,
                   )
                   .timeout(const Duration(seconds: 5)))
               .keys;

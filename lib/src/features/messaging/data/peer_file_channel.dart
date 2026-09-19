@@ -186,6 +186,7 @@ class PeerFileChannel {
     final scope = groupScope;
     if (scope != null &&
         (value.groupId != scope.groupId ||
+            value.media != scope.media ||
             value.messageId != scope.messageId ||
             value.sender != scope.sender ||
             value.recipient != scope.recipient ||

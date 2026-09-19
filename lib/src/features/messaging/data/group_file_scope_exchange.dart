@@ -22,6 +22,7 @@ class GroupFileScopeExchange {
       scope.recipient,
       scope.senderVersion,
       scope.recipientVersion,
+      if (scope.media != null) scope.media,
     ]);
     final result = Completer<void>();
     Timer? retry, deadline;

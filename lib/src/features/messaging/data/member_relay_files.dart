@@ -57,7 +57,7 @@ class MemberRelayFiles {
     GroupFileDeviceScope? scope,
   ]) {
     final id =
-        '${link.expectedPeer}/${scope?.groupId ?? ''}/${scope?.messageId ?? ''}';
+        '${link.expectedPeer}/${scope?.groupId ?? ''}/${scope?.messageId ?? ''}/${scope?.media ?? ''}';
     final old = _channels[id];
     if (old != null && identical(old.link, link)) return old;
     if (old != null) _release(old);
@@ -121,6 +121,7 @@ class MemberRelayFiles {
         peer,
         messageId: messageId,
         groupId: groupId,
+        media: media,
       );
       scope = directory.scope;
       keys = directory.keys;

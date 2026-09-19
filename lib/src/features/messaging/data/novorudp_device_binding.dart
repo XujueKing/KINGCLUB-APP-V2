@@ -195,6 +195,7 @@ class NovoRudpDeviceBinding {
     String peer, {
     required String messageId,
     required String groupId,
+    String? media,
   }) async {
     if (peer == messaging.account) {
       throw ArgumentError('Peer must be another member');
@@ -202,6 +203,7 @@ class NovoRudpDeviceBinding {
     final result = await _call('K260915000672', {
       'peer': peer,
       'groupFileMessageId': messageId,
+      'media': ?media,
     });
     if (result['peer'] != peer) {
       throw const FormatException('Group file owner mismatch');
@@ -210,6 +212,7 @@ class NovoRudpDeviceBinding {
       result['scope'],
       messageId: messageId,
       groupId: groupId,
+      media: media,
       account: messaging.account,
       peer: peer,
     );
@@ -229,6 +232,7 @@ class NovoRudpDeviceBinding {
       peer,
       messageId: scope.messageId,
       groupId: scope.groupId,
+      media: scope.media,
     );
     if (!scope.samePermission(current.scope)) {
       throw const AuthFailure(
@@ -320,6 +324,7 @@ class NovoRudpDeviceBinding {
       'ownBindingId': own.bindingId,
       'peerBindingId': key.bindingId,
       'messageId': scope.messageId,
+      'media': ?scope.media,
       'nativeSessionId': session,
     });
     if (result['published'] != true) {
@@ -364,6 +369,7 @@ class NovoRudpDeviceBinding {
       raw,
       messageId: raw['messageId'],
       groupId: raw['groupId'],
+      media: raw['media'] as String?,
       account: messaging.account,
       peer: peer,
     );
