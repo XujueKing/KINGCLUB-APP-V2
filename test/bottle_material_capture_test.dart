@@ -68,7 +68,14 @@ void main() {
       });
     }
 
-    for (final ref in ['legacy-vodka', 'bottle_01']) {
+    for (final ref in ['legacy-vodka', 'bottle_01', 'bottle_11']) {
+      if (ref == 'bottle_11') {
+        await tester.drag(
+          find.byKey(const PageStorageKey('storage-vertical-0')),
+          const Offset(0, -300),
+        );
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.byKey(ValueKey('storage-select-$ref')));
       await tester.pumpAndSettle();
       await capture('$ref-front');

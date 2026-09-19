@@ -27,6 +27,7 @@ class BottlePreviewItem extends StorageItem {
     'bottle_08': 0.299801003891,
     'bottle_09': 0.324523409647,
     'bottle_10': 0.344334056564,
+    'bottle_11': 0.288803606238,
   }[assetKey]!;
   double get imageAspectRatio => const <String, double>{
     'bottle_01': 0.237829209896,
@@ -39,6 +40,7 @@ class BottlePreviewItem extends StorageItem {
     'bottle_08': 0.243785084202,
     'bottle_09': 0.270485282418,
     'bottle_10': 0.291880781089,
+    'bottle_11': 0.231907894737,
   }[assetKey]!;
   String get mask => '$directory/${assetKey}_mask.svg';
   String get outline => '$directory/${assetKey}_outline.svg';
@@ -91,5 +93,6 @@ class BottleMaterialPreviewRepository extends PreviewStorageRepository {
         BottlePreviewItem('bottle_08', '麦卡伦12年'),
         BottlePreviewItem('bottle_09', '麦卡伦LITHA'),
         BottlePreviewItem('bottle_10', '黑桃A黄金香槟'),
+        BottlePreviewItem('bottle_11', 'ROOM NO1 草莓利口酒'),
       ]);
 }
