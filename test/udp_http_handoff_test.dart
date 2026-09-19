@@ -38,9 +38,15 @@ class _Link implements NovoRudpFrameLink {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  for (final scenario in [(false, false), (true, false), (false, true)]) {
-    final (corrupt, reverse) = scenario;
-    test('cross-route handoff corrupt=$corrupt reverse=$reverse', () async {
+  for (final scenario in [
+    (false, false, null),
+    (true, false, null),
+    (false, true, null),
+    for (final media in ['image', 'voice', 'video'])
+      for (final reverse in [false, true]) (false, reverse, media),
+  ]) {
+    final (corrupt, reverse, media) = scenario;
+    test('cross-route handoff corrupt=$corrupt reverse=$reverse media=$media', () async {
       final root = await Directory.systemTemp.createTemp('udp-http-');
       final staging = await Directory('${root.path}/staging').create();
       final cache = ChatDownloadCache(
@@ -60,6 +66,8 @@ void main() {
         fileName: 'handoff.bin',
         size: bytes.length,
         sha256: hash,
+        media: media,
+        fileId: media == null ? null : assetId,
       );
       final requested = <int>[];
       var peerAttempts = 0;
@@ -67,7 +75,13 @@ void main() {
       Future<void>? feeding;
       final dio = Dio(BaseOptions(baseUrl: 'https://test.invalid'))
         ..httpClientAdapter = DownloadTransport((options) async {
-          final index = int.parse(options.path.split('/').last);
+          final index = media == null
+              ? int.parse(options.path.split('/').last)
+              : int.parse(
+                      RegExp(r'^bytes=(\d+)-')
+                          .firstMatch(options.headers['range'] as String)![1]!,
+                    ) ~/
+                    blockSize;
           requested.add(index);
           if (reverse && index == 1) {
             throw DioException(
@@ -82,9 +96,21 @@ void main() {
           );
           return ResponseBody.fromBytes(
             part,
-            200,
+            media == null ? 200 : 206,
             headers: {
-              'content-type': ['application/octet-stream'],
+              'content-type': [
+                media == 'image'
+                    ? 'image/webp'
+                    : media == 'voice'
+                    ? 'audio/mp4'
+                    : media == 'video'
+                    ? 'video/mp4'
+                    : 'application/octet-stream',
+              ],
+              if (media != null)
+                'content-range': [
+                  'bytes $start-${start + part.length - 1}/${bytes.length}',
+                ],
               'content-length': ['${part.length}'],
             },
           );
@@ -94,15 +120,18 @@ void main() {
           account: 'me',
           call: (_, _) async => {
             'messageId': messageId,
-            'file': {
+            media ?? 'file': {
               'assetId': assetId,
+              if (media != null) 'fileId': assetId,
               'fileName': ref.fileName,
               'size': bytes.length,
               'sha256': hash,
               'chunkBytes': blockSize,
               'chunkCount': 3,
               'contentType': 'application/octet-stream',
-              'path': '/kingclub/chat-file/$messageId',
+              'path': media == null
+                  ? '/kingclub/chat-file/$messageId'
+                  : '/kingclub/chat-$media/$messageId${media == 'voice' ? '' : '/$media'}',
               'headers': {'authorization': 'Bearer test-only'},
             },
           },

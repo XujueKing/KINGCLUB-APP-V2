@@ -29,11 +29,14 @@ class ChatFileReference {
     required this.sha256,
     this.group = false,
     this.sender,
+    this.media,
+    this.fileId,
   });
   final String messageId, assetId, fileName, sha256;
   final int size;
   final bool group;
   final String? sender;
+  final String? media, fileId;
 }
 
 /// Owns private temporary files until dispose. Export is an explicit UI action.
@@ -137,6 +140,7 @@ class ChatFileDownloader {
                 account: repository.account,
                 sender: sender,
                 group: reference.group,
+                media: reference.media,
                 messageId: reference.messageId,
                 assetId: reference.assetId,
                 fileName: reference.fileName,
@@ -182,6 +186,8 @@ class ChatFileDownloader {
     ref.size,
     ref.sha256,
     ref.fileName,
+    if (ref.media != null) ref.media,
+    if (ref.media != null) ref.fileId,
   ]);
 
   Future<bool> _restoreLocal(
@@ -345,8 +351,10 @@ class ChatFileDownloader {
           ref.messageId,
           sending: false,
           group: ref.group,
+          media: ref.media,
         );
         if (authority.assetId != ref.assetId ||
+            authority.fileId != ref.fileId ||
             authority.fileName != ref.fileName ||
             authority.size != ref.size ||
             authority.sha256 != ref.sha256) {
@@ -382,6 +390,7 @@ class ChatFileDownloader {
       throw StateError('文件所属聊天记录已删除');
     }
     await _check();
+    if (ref.media != null) return _mediaGrant(ref);
     final result = await repository.fileMedia(ref.messageId, group: ref.group);
     await _check();
     final raw = result['file'];
@@ -412,6 +421,67 @@ class ChatFileDownloader {
     return media;
   }
 
+  Future<Map<String, dynamic>> _mediaGrant(ChatFileReference ref) async {
+    final type = ref.media!;
+    final image = type == 'image' || type == 'image-thumbnail';
+    final voice = type == 'voice';
+    final result = image
+        ? await repository.imageMedia(ref.messageId, group: ref.group)
+        : voice
+        ? await repository.voiceMedia(ref.messageId, group: ref.group)
+        : await repository.videoMedia(
+            ref.messageId,
+            group: ref.group,
+            preferHevc: type == 'hevc',
+          );
+    await _check();
+    if (_deleted.contains((ref.group, ref.messageId))) {
+      throw StateError('媒体所属聊天记录已删除');
+    }
+    final slot = type.endsWith('thumbnail')
+        ? 'thumbnail'
+        : image
+        ? 'image'
+        : voice
+        ? 'voice'
+        : 'video';
+    final raw = result[slot];
+    if (raw is! Map) throw const FormatException('媒体授权无效');
+    final media = Map<String, dynamic>.from(raw);
+    final token = (media['headers'] as Map?)?['authorization'];
+    final routeType = image
+        ? 'image'
+        : voice
+        ? 'voice'
+        : 'video';
+    final path =
+        '/kingclub/${ref.group ? 'group-' : ''}chat-$routeType/${ref.messageId}${voice ? '' : '/${type == 'hevc' ? 'hevc' : slot}'}';
+    if (result['messageId'] != ref.messageId ||
+        media['fileId'] != ref.fileId ||
+        media['size'] != ref.size ||
+        media['sha256'] != ref.sha256 ||
+        media['path'] != path ||
+        token is! String ||
+        !token.startsWith('Bearer ') ||
+        token.length <= 7 ||
+        token.length > 4103 ||
+        token.contains('\r') ||
+        token.contains('\n')) {
+      throw const FormatException('媒体授权与对象不匹配');
+    }
+    return {
+      ...media,
+      'chunkCount': (ref.size + chunkBytes - 1) ~/ chunkBytes,
+      'contentType': image
+          ? 'image/webp'
+          : voice
+          ? 'audio/mp4'
+          : slot == 'thumbnail'
+          ? 'image/jpeg'
+          : 'video/mp4',
+    };
+  }
+
   Future<File> download(
     ChatFileReference ref, {
     void Function(int received, int total)? onProgress,
@@ -437,6 +507,12 @@ class ChatFileDownloader {
       );
       if (!uuid.hasMatch(ref.messageId) ||
           !uuid.hasMatch(ref.assetId) ||
+          (ref.media != null &&
+              (!PeerFileAuthority.mediaKinds.contains(ref.media) ||
+                  ref.fileId == null ||
+                  !uuid.hasMatch(ref.fileId!) ||
+                  ref.size < 1 ||
+                  ref.size > 32 * 1024 * 1024)) ||
           ref.size < 0 ||
           ref.size > maxBytes ||
           ref.fileName.isEmpty ||
@@ -696,19 +772,25 @@ class ChatFileDownloader {
     for (var attempt = 0; attempt < 2; attempt++) {
       await _check();
       response = await _dio.get<ResponseBody>(
-        '${media['path']}/$index',
+        ref.media == null ? '${media['path']}/$index' : media['path'] as String,
         cancelToken: _cancel,
         options: Options(
           responseType: ResponseType.stream,
           followRedirects: false,
-          validateStatus: (code) => code == 200 || code == 401 || code == 403,
+          validateStatus: (code) =>
+              code == (ref.media == null ? 200 : 206) ||
+              code == 401 ||
+              code == 403,
           headers: {
             'authorization': (media['headers'] as Map)['authorization'],
             'accept-encoding': 'identity',
+            if (ref.media != null)
+              'range':
+                  'bytes=${index * chunkBytes}-${index * chunkBytes + expected - 1}',
           },
         ),
       );
-      if (response.statusCode == 200) break;
+      if (response.statusCode == (ref.media == null ? 200 : 206)) break;
       await response.data?.stream.listen((_) {}).cancel();
       if (attempt == 1) {
         throw const AuthFailure('FILE_ACCESS_DENIED', '文件下载授权已失效');
@@ -725,9 +807,12 @@ class ChatFileDownloader {
     final length = response.headers.value('content-length');
     final encoding = response.headers.value('content-encoding');
     if ((length != null && int.tryParse(length) != expected) ||
+        (ref.media != null &&
+            response.headers.value('content-range') !=
+                'bytes ${index * chunkBytes}-${index * chunkBytes + expected - 1}/${ref.size}') ||
         (encoding != null && encoding != 'identity') ||
         response.headers.value('content-type')?.split(';').first.trim() !=
-            'application/octet-stream') {
+            media['contentType']) {
       await body.stream.listen((_) {}).cancel();
       throw const FormatException('文件分块响应无效');
     }
