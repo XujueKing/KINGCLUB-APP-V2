@@ -475,7 +475,16 @@ class ChatFileDownloader {
       await _check();
       working = await parent.createTemp('kingclub-chat-download-');
       final file = File('${working.path}/content.bin');
-      if (await _tryPeer(ref, file, onProgress)) {
+      // HTTP blocks arrive in order. Reuse an authenticated first block rather
+      // than starting a whole-file peer transfer on every resumed download.
+      final firstBlock = await resumeCache?.read(
+        identity,
+        0,
+        ref.size.clamp(0, chunkBytes),
+      );
+      await _check();
+      await resumeCache?.ensureNotDeleted(identity);
+      if (firstBlock == null && await _tryPeer(ref, file, onProgress)) {
         await _grant(ref);
         await _check();
         await resumeCache?.ensureNotDeleted(identity);
@@ -507,7 +516,7 @@ class ChatFileDownloader {
         onProgress?.call(ref.size, ref.size);
         return file;
       }
-      if (peerDownload != null) {
+      if (firstBlock == null && peerDownload != null) {
         // The peer attempt may outlive a grant or a membership change.
         media = await _grant(ref);
         onProgress?.call(0, ref.size);
@@ -519,7 +528,9 @@ class ChatFileDownloader {
         await _check();
         await resumeCache?.ensureNotDeleted(identity);
         final expected = (ref.size - index * chunkBytes).clamp(0, chunkBytes);
-        Uint8List? block = await resumeCache?.read(identity, index, expected);
+        Uint8List? block = index == 0
+            ? firstBlock
+            : await resumeCache?.read(identity, index, expected);
         await _check();
         final cached = block != null;
         for (var networkAttempt = 0; block == null; networkAttempt++) {

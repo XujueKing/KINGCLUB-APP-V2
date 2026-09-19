@@ -24,6 +24,8 @@ void main() {
     'leave-page',
     'socket-resume',
     'group-resume',
+    'peer-resume',
+    'peer-corrupt-cache',
   ]) {
     test('encrypted file resume across downloader recreation: $scenario', () async {
       final root = await Directory.systemTemp.createTemp('chat-resume-test-');
@@ -49,6 +51,7 @@ void main() {
       var first = true;
       var grants = 0;
       var offline = false;
+      var peerAttempts = 0;
       final requested = <int>[];
       HttpServer? server;
       if (scenario == 'socket-resume') {
@@ -150,6 +153,12 @@ void main() {
           dio: dio,
           temporaryDirectory: () async => temp,
           resumeCache: cache(),
+          peerDownload: !first && scenario.startsWith('peer-')
+              ? (_, _) async {
+                  peerAttempts++;
+                  return null;
+                }
+              : null,
         );
       }
 
@@ -174,7 +183,7 @@ void main() {
       final encrypted = await blocks.single.readAsBytes();
       expect(encrypted.length, 1024 * 1024 + 28);
       expect(encrypted.sublist(0, 100), isNot(bytes.sublist(0, 100)));
-      if (scenario == 'corrupt-cache') {
+      if (scenario.endsWith('corrupt-cache')) {
         encrypted[30] ^= 1;
         await blocks.single.writeAsBytes(encrypted);
       }
@@ -187,9 +196,17 @@ void main() {
       } else {
         final result = await download.download(ref);
         expect(await result.readAsBytes(), bytes);
-        expect(requested, scenario == 'corrupt-cache' ? [0, 1] : [1]);
+        expect(requested, scenario.endsWith('corrupt-cache') ? [0, 1] : [1]);
       }
-      expect(grants, scenario == 'revoked' ? 2 : 3);
+      expect(peerAttempts, scenario == 'peer-corrupt-cache' ? 1 : 0);
+      expect(
+        grants,
+        scenario == 'revoked'
+            ? 2
+            : scenario == 'peer-corrupt-cache'
+            ? 4
+            : 3,
+      );
       final retained = await cacheRoot
           .list(recursive: true)
           .where((e) => e is File)
