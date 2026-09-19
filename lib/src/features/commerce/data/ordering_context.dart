@@ -14,6 +14,12 @@ class OrderingContext {
     required this.businessDate,
     this.cityId,
     this.cityName,
+    this.tableId,
+    this.tenantRef,
+    this.brandRef,
+    this.currency,
+    this.timeZone,
+    this.paymentTiming,
   });
 
   final String contextRef;
@@ -28,12 +34,24 @@ class OrderingContext {
   String get barId => storeRef;
   final String? cityId;
   final String? cityName;
+  final String? tableId;
+  final String? tenantRef;
+  final String? brandRef;
+  final String? currency;
+  final String? timeZone;
+  final String? paymentTiming;
 
   bool hasSameScope(OrderingContext other) =>
       contextRef == other.contextRef &&
       memberRef == other.memberRef &&
       storeRef == other.storeRef &&
       cityId == other.cityId &&
+      tableId == other.tableId &&
+      tenantRef == other.tenantRef &&
+      brandRef == other.brandRef &&
+      currency == other.currency &&
+      timeZone == other.timeZone &&
+      paymentTiming == other.paymentTiming &&
       tableSessionRef == other.tableSessionRef &&
       businessDate == other.businessDate;
 }
