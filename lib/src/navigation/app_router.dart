@@ -1374,30 +1374,32 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
       );
 
   @override
-  Widget build(BuildContext context, GoRouterState state) => SettingsPage(
-    onBack: () =>
-        context.canPop() ? context.pop() : const AppShellRoute().go(context),
-    onOpenPaymentSecurity: () =>
-        const PaymentSecurityRoute().push<void>(context),
-    onOpenAccountDeletion: () =>
-        const AccountDeletionRoute().push<void>(context),
-    onOpenAboutLegal: () => const AboutLegalRoute().push<void>(context),
-    onOpenTableManagement:
-        const bool.fromEnvironment('KINGCLUB_TABLE_MANAGEMENT_ENABLED') &&
-            kingclubCommerceApiBaseUrl.isNotEmpty
-        ? () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => ManagedTablesPage(
-                repository: TableManagementRepository.secure(
-                  kingclubCommerceApiBaseUrl,
+  Widget build(BuildContext context, GoRouterState state) => Builder(
+    builder: (pageContext) => SettingsPage(
+      onBack: () =>
+          context.canPop() ? context.pop() : const AppShellRoute().go(context),
+      onOpenPaymentSecurity: () =>
+          const PaymentSecurityRoute().push<void>(context),
+      onOpenAccountDeletion: () =>
+          const AccountDeletionRoute().push<void>(context),
+      onOpenAboutLegal: () => const AboutLegalRoute().push<void>(context),
+      onOpenTableManagement:
+          const bool.fromEnvironment('KINGCLUB_TABLE_MANAGEMENT_ENABLED') &&
+              kingclubCommerceApiBaseUrl.isNotEmpty
+          ? () => Navigator.of(pageContext).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ManagedTablesPage(
+                  repository: TableManagementRepository.secure(
+                    kingclubCommerceApiBaseUrl,
+                  ),
+                  locale: Localizations.localeOf(pageContext),
                 ),
-                locale: Localizations.localeOf(context),
               ),
-            ),
-          )
-        : null,
-    onLogoutCompleted: () => _clearCommerceAndLogin(context),
-    onSessionResetRequested: () => _clearCommerceAndLogin(context),
+            )
+          : null,
+      onLogoutCompleted: () => _clearCommerceAndLogin(context),
+      onSessionResetRequested: () => _clearCommerceAndLogin(context),
+    ),
   );
 }
 
