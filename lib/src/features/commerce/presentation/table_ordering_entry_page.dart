@@ -2,6 +2,8 @@ import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 
 import '../data/ordering_context.dart';
+import '../../auth/domain/auth_repository.dart';
+import 'ordering_entry_status.dart';
 import 'scan_ordering_cart_page.dart';
 
 typedef ResolveOrderingTable = Future<OrderingContext> Function(String tableId);
@@ -17,6 +19,8 @@ class TableOrderingEntryPage extends StatefulWidget {
     this.onOpenOrders,
     this.previewEnabled = false,
     this.tableName,
+    this.onSignIn,
+    this.locale = const Locale('zh'),
   });
 
   final String tableId;
@@ -26,6 +30,8 @@ class TableOrderingEntryPage extends StatefulWidget {
   final VoidCallback? onOpenOrders;
   final bool previewEnabled;
   final String? tableName;
+  final VoidCallback? onSignIn;
+  final Locale locale;
 
   @override
   State<TableOrderingEntryPage> createState() => _TableOrderingEntryPageState();
@@ -34,7 +40,7 @@ class TableOrderingEntryPage extends StatefulWidget {
 class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
   OrderingContext? _context;
   bool _loading = false;
-  String? _error;
+  OrderingEntryStatus? _error;
   int _generation = 0;
 
   @override
@@ -57,7 +63,9 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
     setState(() {
       _context = null;
       _loading = widget.resolveTable != null;
-      _error = widget.resolveTable == null ? '桌台点单服务尚未接通' : null;
+      _error = widget.resolveTable == null
+          ? const OrderingEntryStatus('ORDERING_SERVICE_UNAVAILABLE')
+          : null;
     });
     final resolver = widget.resolveTable;
     if (resolver == null) return;
@@ -68,11 +76,13 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
         _context = result;
         _loading = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted || generation != _generation) return;
       setState(() {
         _loading = false;
-        _error = '暂时无法读取桌台信息，请重试';
+        _error = OrderingEntryStatus(
+          error is AuthFailure ? error.code : 'UNKNOWN',
+        );
       });
     }
   }
@@ -111,19 +121,58 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
     return Scaffold(
       appBar: kingAppBar(
         context: context,
-        title: const Text('桌台点单'),
+        title: Text(
+          OrderingEntryStatus.text(widget.locale, [
+            '桌台点单',
+            'Table ordering',
+            '桌台點單',
+            'สั่งอาหารที่โต๊ะ',
+          ]),
+        ),
         leading: KingBackButton(onPressed: widget.onBack),
       ),
       body: Center(
         child: _loading
             ? const CircularProgressIndicator()
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(_error ?? '正在读取桌台信息'),
-                  if (widget.resolveTable != null)
-                    TextButton(onPressed: _resolve, child: const Text('重试')),
-                ],
+            : SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _error?.message(widget.locale) ?? '',
+                        textAlign: TextAlign.center,
+                      ),
+                      if (widget.resolveTable != null &&
+                          (_error?.canRefresh ?? false))
+                        TextButton(
+                          onPressed: _resolve,
+                          child: Text(
+                            OrderingEntryStatus.text(widget.locale, [
+                              '重试',
+                              'Refresh',
+                              '重試',
+                              'รีเฟรช',
+                            ]),
+                          ),
+                        ),
+                      if ((_error?.requiresLogin ?? false) &&
+                          widget.onSignIn != null)
+                        TextButton(
+                          onPressed: widget.onSignIn,
+                          child: Text(
+                            OrderingEntryStatus.text(widget.locale, [
+                              '重新登录',
+                              'Sign in',
+                              '重新登入',
+                              'เข้าสู่ระบบ',
+                            ]),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
       ),
     );

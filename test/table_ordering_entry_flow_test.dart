@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/commerce/data/ordering_context.dart';
 import 'package:kingclub/src/features/commerce/presentation/scan_ordering_cart_page.dart';
 import 'package:kingclub/src/features/commerce/presentation/table_ordering_entry_page.dart';
@@ -19,6 +20,78 @@ OrderingContext scope(String id) => OrderingContext(
 );
 
 void main() {
+  testWidgets('未开台和清台中保留明确状态，员工处理后可刷新', (tester) async {
+    var attempts = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TableOrderingEntryPage(
+          tableId: 'T1',
+          onBack: () {},
+          resolveTable: (_) async {
+            attempts++;
+            throw AuthFailure(
+              attempts == 1
+                  ? 'ORDERING_TABLE_NOT_OPEN'
+                  : 'ORDERING_TABLE_CLEARING',
+              'private server details',
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('确认预约或开台'), findsOneWidget);
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('正在清台'), findsOneWidget);
+    expect(find.textContaining('private server details'), findsNothing);
+    expect(find.byType(ScanOrderingCartPage), findsNothing);
+    expect(attempts, 2);
+  });
+
+  testWidgets('登录失效提供登录回调，不继续重试桌台接口', (tester) async {
+    var signIns = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TableOrderingEntryPage(
+          tableId: 'T1',
+          onBack: () {},
+          onSignIn: () => signIns++,
+          resolveTable: (_) async =>
+              throw const AuthFailure('SESSION_CHANGED', 'hidden'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('重试'), findsNothing);
+    await tester.tap(find.text('重新登录'));
+    expect(signIns, 1);
+    expect(find.byType(ScanOrderingCartPage), findsNothing);
+  });
+
+  for (final entry in <Locale, String>{
+    const Locale('zh'): '桌台正在清台，请稍候再刷新',
+    const Locale('en'): 'This table is being cleared. Please refresh later.',
+    const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'):
+        '桌台正在清台，請稍候再重新整理',
+    const Locale('th'): 'กำลังเคลียร์โต๊ะ กรุณารอสักครู่แล้วรีเฟรช',
+  }.entries) {
+    testWidgets('清台状态支持 ${entry.key}', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TableOrderingEntryPage(
+            locale: entry.key,
+            tableId: 'T1',
+            onBack: () {},
+            resolveTable: (_) async =>
+                throw const AuthFailure('ORDERING_TABLE_CLEARING', 'hidden'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(entry.value), findsOneWidget);
+    });
+  }
   testWidgets('商务预览展示扫码桌名、空购物袋，结算不进入真实订单', (tester) async {
     var quotes = 0;
     await tester.pumpWidget(
