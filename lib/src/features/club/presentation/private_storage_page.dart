@@ -341,24 +341,16 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
         bottom: false,
         child: LayoutBuilder(
           builder: (context, c) {
-            final u = c.maxWidth / 750;
-            final width = math.min(
-              c.maxWidth * .84,
-              math.max(
-                0.0,
-                (c.maxHeight -
-                        58 -
-                        100 * u -
-                        MediaQuery.paddingOf(context).bottom -
-                        95 * u) *
-                    .64,
-              ),
+            final screenUnit = c.maxWidth / 750;
+            // extendBody supplies the whole bottom navigation obstruction as
+            // MediaQuery padding. Reserve it BEFORE fitting the legacy layout.
+            final bottom = MediaQuery.paddingOf(context).bottom;
+            final u = math.min(
+              screenUnit,
+              math.max(0.0, c.maxHeight - bottom - 58) / 1275,
             );
-            final bottom = 100 * u + MediaQuery.paddingOf(context).bottom;
-            final heroHeight = math.max(
-              0.0,
-              c.maxHeight - bottom - width - 58 - 95 * u,
-            );
+            final width = 630 * u;
+            final heroHeight = 490 * u;
             final content = Column(
               children: [
                 SizedBox(
@@ -438,15 +430,18 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   ),
                 ),
                 SizedBox(
-                  height: _materialPreview ? 490 * u : heroHeight,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      top: _materialPreview ? 0 : 48 * u,
+                  height: heroHeight,
+                  width: 750 * u,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(
+                      width: c.maxWidth,
+                      height: 490 * screenUnit,
+                      child: _hero(screenUnit),
                     ),
-                    child: _hero(u),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 28 * u),
                 SizedBox(
                   width: width,
                   height: 48 * u,
@@ -561,6 +556,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                 ),
                 SizedBox(height: 20 * u),
                 Row(
+                  key: const ValueKey('storage-category-dots'),
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     3,
@@ -577,19 +573,10 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: _materialPreview
-                      ? 12 * u
-                      : math.max(0.0, bottom - 24),
-                ),
+                SizedBox(height: 32 * u),
               ],
             );
-            return _materialPreview
-                ? SingleChildScrollView(
-                    key: const ValueKey('storage-material-scroll'),
-                    child: content,
-                  )
-                : content;
+            return content;
           },
         ),
       ),

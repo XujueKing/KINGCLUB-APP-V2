@@ -1,3 +1,4 @@
+import 'package:kingclub/src/features/shell/presentation/app_shell_page.dart';
 import 'package:kingclub/src/features/club/presentation/bottle_material_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +7,52 @@ import 'package:kingclub/src/features/club/presentation/private_storage_page.dar
 import 'package:kingclub/src/features/club/presentation/storage_liquid_bottle.dart';
 
 void main() {
+  for (final screen in [
+    const Size(320, 568),
+    const Size(360, 640),
+    const Size(393, 852),
+    const Size(430, 932),
+  ]) {
+    testWidgets(
+      'complete storage grid and category dots stay above navigation on $screen',
+      (tester) async {
+        tester.view.physicalSize = screen;
+        tester.view.devicePixelRatio = 1;
+        tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: AppShellPage(
+              initialIndex: 3,
+              storageRepository: BottleMaterialPreviewRepository(),
+              onOpenScanner: (_, _) async => null,
+              onOpenTogether: () {},
+              onOpenParty: () {},
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final grid = tester.getRect(
+          find.byKey(const ValueKey('storage-grid-酒-1')),
+        );
+        final dots = tester.getRect(
+          find.byKey(const ValueKey('storage-category-dots')),
+        );
+        final nav = tester.getRect(
+          find.byKey(const ValueKey('shell-bottom-bar')),
+        );
+        expect(grid.height, closeTo(grid.width, .01));
+        expect(grid.bottom, lessThan(dots.top));
+        expect(dots.bottom, lessThan(nav.top));
+        expect(
+          find.byKey(const ValueKey('storage-category-dots')).hitTestable(),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
   testWidgets(
     'all ten bottles keep the same canvas and shadow after flipping',
     (tester) async {
