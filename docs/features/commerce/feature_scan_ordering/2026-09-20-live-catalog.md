@@ -1,5 +1,9 @@
 # 真实商品目录读取适配
 
+## 独立服务已部署
+
+后续节点已完成：新服务器商业只读实例和独立网关入口已上线，原聊天容器 ID 保持不变。APP 桌台/目录地址默认使用现有 API 根路径加 /commerce（可通过 KINGCLUB_COMMERCE_API_BASE_URL 覆盖），登录和聊天不变。5 项地址及目录页面测试、变更文件静态分析通过。真实加密握手及未登录拒绝已验证；尚未安装 B 手机、未用真实会员查询商品，不能称为扫码全流程验收。后台部署详见独立后端 docs/commerce/READONLY_RUNTIME.md。下方“独立服务待部署”为较早节点状态。
+
 ## 最新页面接线状态
 
 正式 type=9 桌卡路由已注入 OrderingTableRepository 和 OrderingCatalogRepository，使用已有 KINGCLUB_API_BASE_URL；不再依据 commerce flavor 自动展示预览。先查询桌台，再查询目录；缺少 API 地址、目录错误或换桌时不回退假商品。shopId 仅作为归属提示，0 仍由桌台解析器处理。

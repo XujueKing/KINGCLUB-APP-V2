@@ -1,3 +1,4 @@
+import '../features/commerce/data/commerce_endpoint.dart';
 import '../features/commerce/data/ordering_table_repository.dart';
 import '../features/commerce/data/ordering_catalog_repository.dart';
 
@@ -1093,14 +1094,14 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
       return TableOrderingEntryPage(
         tableId: tableId,
         tableName: state.uri.queryParameters['tableName'],
-        resolveTable: kingclubApiBaseUrl.isEmpty
+        resolveTable: kingclubCommerceApiBaseUrl.isEmpty
             ? null
             : (id) =>
-                  OrderingTableRepository.secure(kingclubApiBaseUrl)
+                  OrderingTableRepository.secure(kingclubCommerceApiBaseUrl)
                       .resolve(id, shopId: state.uri.queryParameters['shopId']),
-        readCatalog: kingclubApiBaseUrl.isEmpty
+        readCatalog: kingclubCommerceApiBaseUrl.isEmpty
             ? null
-            : OrderingCatalogRepository.secure(kingclubApiBaseUrl).read,
+            : OrderingCatalogRepository.secure(kingclubCommerceApiBaseUrl).read,
         locale: Localizations.localeOf(context),
         onBack: () => context.canPop()
             ? context.pop()
