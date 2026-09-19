@@ -348,7 +348,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       behavior: HitTestBehavior.opaque,
       onLongPress: _showScenarioPicker,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(_rpx(45), _rpx(30), _rpx(45), 0),
+        padding: EdgeInsets.fromLTRB(_rpx(45), _rpx(10), _rpx(45), 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
