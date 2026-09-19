@@ -17,6 +17,7 @@ import '../../../core/design_system/king_theme.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../data/storage_repository.dart';
 import 'storage_liquid_bottle.dart';
+import 'bottle_material_image.dart';
 import 'real_storage_pickup_page.dart';
 
 const _gold = Color(0xFFC9B69E);
@@ -358,7 +359,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
               0.0,
               c.maxHeight - bottom - width - 58 - 95 * u,
             );
-            return Column(
+            final content = Column(
               children: [
                 SizedBox(
                   height: 58,
@@ -437,9 +438,11 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   ),
                 ),
                 SizedBox(
-                  height: heroHeight,
+                  height: _materialPreview ? 490 * u : heroHeight,
                   child: Padding(
-                    padding: EdgeInsets.only(top: 48 * u),
+                    padding: EdgeInsets.only(
+                      top: _materialPreview ? 0 : 48 * u,
+                    ),
                     child: _hero(u),
                   ),
                 ),
@@ -574,9 +577,19 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                     ),
                   ),
                 ),
-                SizedBox(height: math.max(0.0, bottom - 24)),
+                SizedBox(
+                  height: _materialPreview
+                      ? 12 * u
+                      : math.max(0.0, bottom - 24),
+                ),
               ],
             );
+            return _materialPreview
+                ? SingleChildScrollView(
+                    key: const ValueKey('storage-material-scroll'),
+                    child: content,
+                  )
+                : content;
           },
         ),
       ),
@@ -621,11 +634,12 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
               : Stack(
                   children: [
                     Center(
-                      child: Image.asset(
-                        item.thumbnail,
+                      child: SizedBox(
                         width: 160 * u,
                         height: 160 * u,
-                        fit: BoxFit.contain,
+                        child: item is BottlePreviewItem
+                            ? BottleMaterialImage(item: item, thumbnail: true)
+                            : Image.asset(item.thumbnail, fit: BoxFit.contain),
                       ),
                     ),
                     if (item.category == 'wine')
@@ -721,7 +735,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                         ..setEntry(3, 2, .0015)
                         ..rotateY(angle),
                       child: SizedBox(
-                        height: 460 * u,
+                        height: _materialPreview ? 490 * u : 460 * u,
                         child: item.category == 'wine'
                             ? (back ? _backFace(item, u) : _frontFace(item, u))
                             : LayoutBuilder(
@@ -762,7 +776,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   }
 
   Widget _frontFace(StorageItem item, double u) => item.category == 'wine'
-      ? Image.asset(item.image, fit: BoxFit.contain)
+      ? (item is BottlePreviewItem
+            ? BottleMaterialImage(item: item)
+            : Image.asset(item.image, fit: BoxFit.contain))
       : Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -798,7 +814,11 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   Widget _backFace(StorageItem item, double u) => item.category == 'wine'
       ? StorageLiquidBottle(
           key: ValueKey(item.ref),
-          item: item is BottlePreviewItem ? item.atLevel(_previewLevel) : item,
+          item: switch (item) {
+            BottlePreviewItem() => item.atLevel(_previewLevel),
+            LegacyBottleComparisonItem() => item.atLevel(_previewLevel),
+            _ => item,
+          },
           active: widget.active && _back,
         )
       : Column(

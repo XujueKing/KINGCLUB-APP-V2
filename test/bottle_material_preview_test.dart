@@ -5,17 +5,15 @@ import 'package:kingclub/src/features/club/presentation/private_storage_page.dar
 import 'package:kingclub/src/features/club/presentation/storage_liquid_bottle.dart';
 
 void main() {
-  test(
-    'material fixtures cannot issue pickup codes and exclude Chivas',
-    () async {
-      final repo = BottleMaterialPreviewRepository();
-      final items = await repo.list();
-      expect(items.length, 10);
-      expect(items.every((item) => !item.canPickup), isTrue);
-      expect(items.any((item) => item.name.contains('芝华士')), isFalse);
-      await expectLater(repo.issue(items.first.ref), throwsA(anything));
-    },
-  );
+  test('material fixtures cannot issue pickup codes and include four legacy comparisons', () async {
+    final repo = BottleMaterialPreviewRepository();
+    final items = await repo.list();
+    expect(items.length, 14);
+    expect(items.every((item) => !item.canPickup), isTrue);
+    expect(items.whereType<LegacyBottleComparisonItem>().length, 4);
+    expect(items.whereType<BottlePreviewItem>().length, 10);
+    await expectLater(repo.issue(items.first.ref), throwsA(anything));
+  });
   for (final size in [const Size(360, 640), const Size(393, 852)]) {
     testWidgets('bag renders both material pages and liquid at $size', (
       tester,
@@ -53,7 +51,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        find.byKey(const ValueKey('storage-select-bottle_10')).hitTestable(),
+        find.byKey(const ValueKey('storage-select-bottle_06')).hitTestable(),
         findsOneWidget,
       );
       await tester.tap(find.byKey(const ValueKey('storage-flip')));
