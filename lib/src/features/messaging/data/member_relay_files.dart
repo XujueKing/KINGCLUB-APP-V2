@@ -84,6 +84,7 @@ class MemberRelayFiles {
     required int size,
     required String sha256,
     required bool Function() stillActive,
+    Future<void> Function(NovoRudpFileDownload)? prepare,
   }) async {
     bool active() => _active && stillActive();
     if (!active() ||
@@ -130,7 +131,11 @@ class MemberRelayFiles {
             authority.sha256 != sha256) {
           throw StateError('Message file changed');
         }
-        final download = await channel.receive(authority, active);
+        final download = await channel.receive(
+          authority,
+          active,
+          prepare: prepare,
+        );
         if (!active()) {
           await download.close();
           return null;

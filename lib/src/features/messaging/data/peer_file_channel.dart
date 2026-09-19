@@ -242,8 +242,9 @@ class PeerFileChannel {
 
   Future<NovoRudpFileDownload> receive(
     PeerFileAuthority expected,
-    bool Function() stillActive,
-  ) async {
+    bool Function() stillActive, {
+    Future<void> Function(NovoRudpFileDownload)? prepare,
+  }) async {
     _check();
     if (_receiving != null) throw StateError('Peer file receive busy');
     final random = Random.secure();
@@ -272,6 +273,11 @@ class PeerFileChannel {
       );
       _download = download;
       final owned = download;
+      // Seed the bitmap before REQUEST: the sender's first DONE must observe
+      // cached fragments rather than launch an unnecessary full initial send.
+      await prepare?.call(owned);
+      _check();
+      if (!stillActive()) throw StateError('Peer file cancelled');
       var renewing = false;
       _renewReceive = Timer.periodic(const Duration(seconds: 5), (_) async {
         if (renewing) return;

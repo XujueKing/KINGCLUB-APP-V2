@@ -122,7 +122,8 @@ class ChatFileDownloader {
     try {
       sent = await ChatDownloadCache.openSentFiles(repository.account);
     } catch (_) {}
-    return ChatFileDownloader(
+    late final ChatFileDownloader downloader;
+    downloader = ChatFileDownloader(
       repository: repository,
       resumeCache: cache,
       sentCache: sent,
@@ -142,6 +143,7 @@ class ChatFileDownloader {
                 size: reference.size,
                 sha256: reference.sha256,
                 stillActive: active,
+                prepare: (peer) => downloader._preparePeer(reference, peer),
               );
             }
           : null,
@@ -156,6 +158,7 @@ class ChatFileDownloader {
         }
       },
     );
+    return downloader;
   }
 
   Future<void> authorizeExport(ChatFileReference reference) async {
@@ -230,6 +233,31 @@ class ChatFileDownloader {
     unawaited(_peer?.close());
   }
 
+  final _preparedPeers = Expando<bool>();
+  Future<void> _preparePeer(
+    ChatFileReference ref,
+    NovoRudpFileDownload peer,
+  ) async {
+    if (_preparedPeers[peer] == true) return;
+    final cache = resumeCache;
+    if (cache != null) {
+      final identity = _identity(ref);
+      peer.preserveBlocksOnClose((index, bytes) async {
+        await _check();
+        await cache.ensureNotDeleted(identity);
+        await cache.write(identity, index, bytes);
+        await _check();
+      });
+      await peer.restoreBlocks((index, length) async {
+        await _check();
+        await cache.ensureNotDeleted(identity);
+        return cache.read(identity, index, length);
+      });
+    }
+    await _check();
+    _preparedPeers[peer] = true;
+  }
+
   Future<bool> _tryPeer(
     ChatFileReference ref,
     File destination,
@@ -263,21 +291,7 @@ class ChatFileDownloader {
       await _check();
       final peer = _peer;
       if (peer == null) return false;
-      final cache = resumeCache;
-      if (cache != null) {
-        final identity = _identity(ref);
-        peer.preserveBlocksOnClose((index, bytes) async {
-          await _check();
-          await cache.ensureNotDeleted(identity);
-          await cache.write(identity, index, bytes);
-          await _check();
-        });
-        await peer.restoreBlocks((index, length) async {
-          await _check();
-          await cache.ensureNotDeleted(identity);
-          return cache.read(identity, index, length);
-        });
-      }
+      await _preparePeer(ref, peer);
       var reported = -1;
       void reportProgress() {
         if (!active() || onProgress == null || ref.size == 0) return;

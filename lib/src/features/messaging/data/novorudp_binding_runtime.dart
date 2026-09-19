@@ -41,6 +41,7 @@ class NovoRudpBindingRuntime {
     required int size,
     required String sha256,
     required bool Function() stillActive,
+    Future<void> Function(NovoRudpFileDownload)? prepare,
   }) async {
     final files = _files;
     if (!fileTransferEnabled ||
@@ -57,6 +58,7 @@ class NovoRudpBindingRuntime {
       fileName: fileName,
       size: size,
       sha256: sha256,
+      prepare: prepare,
       stillActive: () =>
           stillActive() &&
           generation == MemberQrMemory.generation &&
