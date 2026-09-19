@@ -102,7 +102,10 @@ class MemberRelayText {
     if (!_active || stillActive?.call() == false) {
       throw StateError('Relay text inactive');
     }
-    await _attach(peer, link).sendText(text, messageId: messageId);
+    await _attach(
+      peer,
+      link,
+    ).sendText(text, messageId: messageId, stillActive: stillActive);
   }
 
   void _clearChannels() {

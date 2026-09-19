@@ -128,8 +128,19 @@ class NearbyTextChannel {
     _check();
   }
 
-  Future<void> sendText(String text, {String? messageId}) async {
-    _check();
+  Future<void> sendText(
+    String text, {
+    String? messageId,
+    bool Function()? stillActive,
+  }) async {
+    void checkSend() {
+      _check();
+      if (stillActive?.call() == false) {
+        throw StateError('Peer send attempt expired');
+      }
+    }
+
+    checkSend();
     if (_pending.length >= 8) throw StateError('Nearby send queue full');
     final id = messageId ?? const Uuid().v4();
     await history.persistNearbyText(
@@ -139,13 +150,13 @@ class NearbyTextChannel {
       text: text,
       outgoing: true,
     );
-    _check();
+    checkSend();
     final existing = _pending[id];
     if (existing != null) return existing.done.future;
     if (_pending.length >= 8) throw StateError('Nearby send queue full');
     final bytes = utf8.encode(text);
     final hash = await _hash(bytes);
-    _check();
+    checkSend();
     if (_pending[id] != null) return _pending[id]!.done.future;
     if (_pending.length >= 8) throw StateError('Nearby send queue full');
     final count = (bytes.length + 511) ~/ 512;
@@ -175,6 +186,9 @@ class NearbyTextChannel {
       try {
         for (final packet in state.packets) {
           if (state.done.isCompleted) break;
+          // A service fallback may have invalidated this device attempt while
+          // a previous packet was in flight. Do not keep retrying that attempt.
+          checkSend();
           await _send(packet, NovoRudpFrameKind.data);
         }
       } catch (error) {
