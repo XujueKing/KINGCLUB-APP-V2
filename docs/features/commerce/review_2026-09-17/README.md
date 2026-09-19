@@ -1,5 +1,7 @@
 # KINGCLUB 五项经营功能：分析与重新设计
 
+最新：[克洛泽清吧入驻至下单模拟](../feature_storefront/MERCHANT_ONBOARDING_SIMULATION.md)与[本次执行报告](../feature_storefront/KLUOZE_SIMULATION_REPORT.md)。用户已要求模拟商家入驻和门店官方推广账号，覆盖下面相关“入驻暂缓”历史限制。模拟不代表生产上线或真实证照已上传。
+
 2026-09-19 最新：[各店先付费/后付费、开台清台与已点清单](../feature_scan_ordering/2026-09-19-payment-timing-and-table-lifecycle.md)。扫码点单已获用户单独授权进入真实功能开发，覆盖本页下方历史“仅文档”对该模块的限制；其余评审状态不据此改写。当前数据库增量和桌台接口仍在独立分支验证，尚未部署。
 
 最新 [新旧表复用审查](database/REUSE_REVIEW.md)：已找到现有现金余额/金币/钻石、储物、审计和外部回调实现，修正此前名称搜索不足；候选 SQL 不能全部当新增执行。附 [86 个源码建表名称清单](database/EXISTING_TABLE_INVENTORY.md)，实际运行库仍待只读结构核验。
