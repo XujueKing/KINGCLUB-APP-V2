@@ -1,6 +1,7 @@
 import 'features/messaging/data/chat_outbox_recovery.dart';
 import 'features/messaging/data/chat_outbox.dart';
 import 'core/design_system/king_text_scale.dart';
+import 'core/design_system/king_localizations.dart';
 import 'features/messaging/data/call_presentation_lease.dart';
 import 'features/messaging/data/foreground_call_inbox.dart';
 import 'features/messaging/data/call_launch_coordinator.dart';
@@ -376,6 +377,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
+      supportedLocales: kingSupportedLocales,
+      localizationsDelegates: kingLocalizationDelegates,
       title: 'KingClub',
       scaffoldMessengerKey: _messenger,
       debugShowCheckedModeBanner: false,
