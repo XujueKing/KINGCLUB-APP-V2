@@ -105,6 +105,7 @@ class NovoRudpFileDownload {
   int _progress = 0;
   Future<void>? _closing;
   bool _closed = false;
+  bool _sendingAck = false;
   int _queued = 0;
 
   Future<File> get completed => _done.future;
@@ -140,11 +141,9 @@ class NovoRudpFileDownload {
         // Normal partial receipt: send missing ranges, not completion.
       }
       _check();
-      try {
-        await _link.send(ack);
-      } on SocketException {
-        // A dropped local ACK is retried by the sender's next DONE request.
-      }
+      // Local verified data must not wait for a blocked outgoing transport.
+      // Keep just one ACK in flight on this shared lane.
+      if (!_sendingAck) unawaited(_sendAck(ack));
       _check();
       if (file != null && !_done.isCompleted) {
         _timer.cancel();
@@ -153,6 +152,20 @@ class NovoRudpFileDownload {
       }
     } catch (error) {
       _fail(error);
+    }
+  }
+
+  Future<void> _sendAck(NovoRudpFrame ack) async {
+    _sendingAck = true;
+    try {
+      _check();
+      await _link.send(ack);
+    } on SocketException {
+      // A dropped local ACK is retried by the sender's next DONE request.
+    } catch (error) {
+      if (!_closed) _fail(error);
+    } finally {
+      _sendingAck = false;
     }
   }
 
