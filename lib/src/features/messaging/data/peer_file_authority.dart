@@ -16,10 +16,11 @@ class PeerFileAuthority {
     this.recipientMembershipVersion,
     this.media,
     this.fileId,
+    this.clientMessageId,
   );
   final String messageId, sender, recipient, assetId, fileName, sha256;
   final String? groupId;
-  final String? media, fileId;
+  final String? media, fileId, clientMessageId;
   static const mediaKinds = {
     'image',
     'image-thumbnail',
@@ -81,7 +82,11 @@ class PeerFileAuthority {
         : data['media'] == media &&
               data['fileId'] is String &&
               _uuid.hasMatch(data['fileId']);
-    if (!validScope ||
+    if ((data.containsKey('clientMessageId') &&
+            (media == null ||
+                data['clientMessageId'] is! String ||
+                !_uuid.hasMatch(data['clientMessageId']))) ||
+        !validScope ||
         !validMedia ||
         !_uuid.hasMatch(messageId) ||
         data['messageId'] != messageId ||
@@ -117,6 +122,7 @@ class PeerFileAuthority {
       recipientVersion as int?,
       media,
       data['fileId'] as String?,
+      data['clientMessageId'] as String?,
     );
   }
 
@@ -124,6 +130,7 @@ class PeerFileAuthority {
       value is int && value >= 0 && value <= 4294967295;
 
   bool sameFile(PeerFileAuthority other) =>
+      clientMessageId == other.clientMessageId &&
       media == other.media &&
       fileId == other.fileId &&
       groupId == other.groupId &&

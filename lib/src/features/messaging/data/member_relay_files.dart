@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import '../../../core/session/member_qr_memory.dart';
-import '../../../core/media/media_cache.dart';
+import 'peer_media_source.dart';
 import 'peer_file_authority.dart';
 import 'chat_sent_file_cache.dart';
 import 'member_relay_runtime.dart';
@@ -78,38 +78,12 @@ class MemberRelayFiles {
     return channel;
   }
 
-  Future<File?> _mediaSource(PeerFileAuthority authority) async {
-    if (!_active || !authority.valid) return null;
-    final group = authority.groupId != null;
-    final id = authority.messageId;
-    final (kind, key) = switch (authority.media) {
-      'image' => (MediaKind.image, 'chat-image-message:$group:$id:image'),
-      'image-thumbnail' => (
-        MediaKind.image,
-        'chat-image-message:$group:$id:thumbnail',
-      ),
-      'voice' => (MediaKind.audio, 'chat-voice-asset:${authority.assetId}'),
-      'video' ||
-      'hevc' => (MediaKind.video, 'chat-video-message:$group:$id:video'),
-      'video-thumbnail' => (
-        MediaKind.image,
-        'chat-video-message:$group:$id:poster',
-      ),
-      _ => throw const FormatException('Unsupported media source'),
-    };
-    try {
-      // Use the existing retained media; do not create a second persistent copy
-      // that could outlive message deletion. Sender verifies size/hash before data.
-      final file = await MediaCache.shared.cached(
-        scope: 'member:${runtime.binding.messaging.account}',
-        contentKey: key,
-        kind: kind,
+  Future<File?> _mediaSource(PeerFileAuthority authority) =>
+      readPeerMediaSource(
+        authority,
+        account: runtime.binding.messaging.account,
+        active: () => _active,
       );
-      return _active && authority.valid ? file : null;
-    } on StateError {
-      return null;
-    }
-  }
 
   Future<NovoRudpFileDownload?> receive({
     required String peer,
