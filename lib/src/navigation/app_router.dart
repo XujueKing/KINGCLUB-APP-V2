@@ -1,3 +1,4 @@
+import '../features/commerce/presentation/managed_tables_page.dart';
 import '../features/commerce/presentation/daily_table_settings_page.dart';
 import '../features/commerce/data/table_management_repository.dart';
 import '../features/commerce/data/commerce_endpoint.dart';
@@ -1129,7 +1130,7 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
                   OrderingTableRepository.secure(kingclubCommerceApiBaseUrl)
                       .resolve(id, shopId: state.uri.queryParameters['shopId']),
         tableManagement:
-            const bool.fromEnvironment('KINGCLUB_TABLE_MANAGEMENT_ENABLED') &&
+            const bool.fromEnvironment('KINGCLUB_GUEST_COUNT_ENABLED') &&
                 kingclubCommerceApiBaseUrl.isNotEmpty
             ? TableManagementRepository.secure(kingclubCommerceApiBaseUrl)
             : null,
@@ -1381,6 +1382,20 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
     onOpenAccountDeletion: () =>
         const AccountDeletionRoute().push<void>(context),
     onOpenAboutLegal: () => const AboutLegalRoute().push<void>(context),
+    onOpenTableManagement:
+        const bool.fromEnvironment('KINGCLUB_TABLE_MANAGEMENT_ENABLED') &&
+            kingclubCommerceApiBaseUrl.isNotEmpty
+        ? () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ManagedTablesPage(
+                repository: TableManagementRepository.secure(
+                  kingclubCommerceApiBaseUrl,
+                ),
+                locale: Localizations.localeOf(context),
+              ),
+            ),
+          )
+        : null,
     onLogoutCompleted: () => _clearCommerceAndLogin(context),
     onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );

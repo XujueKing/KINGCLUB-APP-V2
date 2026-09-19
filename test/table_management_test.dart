@@ -4,6 +4,7 @@ import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/commerce/data/table_management_repository.dart';
 import 'package:kingclub/src/features/commerce/presentation/table_party_page.dart';
 import 'package:kingclub/src/features/commerce/presentation/daily_table_settings_page.dart';
+import 'package:kingclub/src/features/commerce/presentation/managed_tables_page.dart';
 import 'package:kingclub/src/features/commerce/presentation/table_ordering_entry_page.dart';
 import 'package:kingclub/src/features/commerce/presentation/scan_ordering_cart_page.dart';
 import 'package:kingclub/src/features/commerce/data/ordering_catalog_repository.dart';
@@ -22,6 +23,55 @@ Map<String, dynamic> partyPayload() => {
   },
 };
 void main() {
+  testWidgets(
+    'management menu opens a disabled table using the server business date',
+    (tester) async {
+      final repo = TableManagementRepository(
+        readSession: () async => credentials(),
+        request: (id, params, _) async {
+          if (id == 'K260920000820')
+            return {
+              'result': {
+                'tables': [
+                  {
+                    'tableId': 'table',
+                    'tableName': 'T',
+                    'storeRef': 'store',
+                    'storeName': 'Test store',
+                    'cityName': 'City',
+                    'tableStatus': 'disabled',
+                    'storeStatus': 'disabled',
+                    'businessDate': '2026-09-20',
+                    'maximumSeats': 10,
+                  },
+                ],
+                'nextAfterTable': null,
+              },
+            };
+          expect(params['businessDate'], '2026-09-20');
+          return {
+            'result': {
+              'tableId': 'table',
+              'storeRef': 'store',
+              'businessDate': '2026-09-20',
+              'entries': [],
+              'nextBeforeRevision': null,
+            },
+          };
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ManagedTablesPage(repository: repo, locale: const Locale('zh')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('停用，可先配置'), findsOneWidget);
+      await tester.tap(find.text('Test store · T'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DailyTableSettingsPage), findsOneWidget);
+    },
+  );
   testWidgets(
     'scanned table waits for guest count before presenting the cart',
     (tester) async {

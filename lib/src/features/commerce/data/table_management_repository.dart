@@ -24,6 +24,43 @@ class TableManagementRepository {
   }
   final OrderingSessionReader readSession;
   final OrderingContextRequest request;
+  Future<Map<String, dynamic>> managedTables({String? after}) async {
+    final result = await _call('K260920000820', {'afterTable': ?after});
+    final rows = result['tables'];
+    if (rows is! List || rows.length > 100) _invalid();
+    for (final row in rows) {
+      if (row is! Map) _invalid();
+      for (final key in [
+        'tableId',
+        'tableName',
+        'storeRef',
+        'storeName',
+        'cityName',
+        'tableStatus',
+        'storeStatus',
+        'businessDate',
+      ]) {
+        if (row[key] is! String) _invalid();
+      }
+      final date = row['businessDate'] as String,
+          parsed = DateTime.tryParse(row['businessDate'] as String);
+      if (parsed == null ||
+          !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date) ||
+          parsed.toIso8601String().substring(0, 10) != date ||
+          row['maximumSeats'] is! int) {
+        _invalid();
+      }
+    }
+    final next = result['nextAfterTable'];
+    if (next != null &&
+        (next is! String ||
+            rows.isEmpty ||
+            next != rows.last['tableId'] ||
+            next == after)) {
+      _invalid();
+    }
+    return result;
+  }
 
   List<String>? _identity(Map<String, dynamic>? session) {
     final account = session?['account'];

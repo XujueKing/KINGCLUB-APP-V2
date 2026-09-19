@@ -30,6 +30,7 @@ class SettingsPage extends StatefulWidget {
     this.onOpenPaymentSecurity,
     this.onOpenAccountDeletion,
     this.onOpenAboutLegal,
+    this.onOpenTableManagement,
     this.onLogoutCompleted,
     this.onSessionResetRequested,
     this.mediaCache,
@@ -41,6 +42,7 @@ class SettingsPage extends StatefulWidget {
   final VoidCallback? onOpenPaymentSecurity;
   final VoidCallback? onOpenAccountDeletion;
   final VoidCallback? onOpenAboutLegal;
+  final VoidCallback? onOpenTableManagement;
   final VoidCallback? onLogoutCompleted;
   final VoidCallback? onSessionResetRequested;
 
@@ -123,6 +125,25 @@ class _SettingsPageState extends State<SettingsPage> {
                       text: '部分能力状态暂时无法读取，固定安全入口仍可使用。',
                     ),
                   ..._entries.map(_settingRow),
+                  if (widget.onOpenTableManagement != null)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.table_bar_outlined),
+                      title: Text(switch (Localizations.localeOf(context)
+                          .languageCode) {
+                        'en' => 'Store tables',
+                        'th' => 'ตั้งค่าโต๊ะของร้าน',
+                        'zh'
+                            when Localizations.localeOf(context).scriptCode ==
+                                    'Hant' ||
+                                const ['TW', 'HK', 'MO'].contains(
+                                  Localizations.localeOf(context).countryCode,
+                                ) =>
+                          '門店桌台設定',
+                        _ => '门店桌台设置',
+                      }),
+                      onTap: widget.onOpenTableManagement,
+                    ),
                 ],
               ),
             ),
