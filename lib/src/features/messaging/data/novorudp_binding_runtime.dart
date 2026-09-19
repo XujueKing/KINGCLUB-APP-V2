@@ -8,6 +8,7 @@ import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
+import 'adaptive_peer_text_route.dart';
 import 'member_relay_runtime.dart';
 import 'member_relay_text.dart';
 import 'chat_history_store.dart';
@@ -131,51 +132,55 @@ class NovoRudpBindingRuntime {
     };
   }
 
+  static final _textRoutes = <String, AdaptivePeerTextRoute>{};
+
   static Future<bool> Function(String, String) textSender(
     String account,
     String peer,
   ) {
     final generation = MemberQrMemory.generation;
-    return (text, id) async {
-      final channel = _text;
-      final binding = _binding;
-      if (generation != MemberQrMemory.generation ||
-          channel == null ||
-          binding == null ||
-          binding.messaging.account != account ||
-          _relay?.connection == null) {
-        return false;
-      }
-      final keys = await binding
-          .directory(peer)
-          .timeout(const Duration(seconds: 3));
-      if (generation != MemberQrMemory.generation ||
-          !identical(channel, _text)) {
-        return false;
-      }
-      // The current directory is authorization; cached keys never grant access.
-      // Try a bounded set, retaining the original ID on every attempt.
-      for (final key in keys.take(2)) {
-        try {
-          await channel
-              .sendText(
-                peer: peer,
-                bindingId: key.bindingId,
-                text: text,
-                messageId: id,
-              )
-              .timeout(const Duration(seconds: 3));
-          return generation == MemberQrMemory.generation &&
-              identical(channel, _text);
-        } catch (_) {
-          if (generation != MemberQrMemory.generation ||
-              !identical(channel, _text)) {
-            return false;
+    // A reopened page and the background outbox share the same cooldown.
+    final route = _textRoutes.putIfAbsent('$generation:$account:$peer', () {
+      bool active() =>
+          generation == MemberQrMemory.generation &&
+          _binding?.messaging.account == account &&
+          _text != null &&
+          _relay?.connection != null;
+      return AdaptivePeerTextRoute(
+        isActive: active,
+        deliver: (text, id, current) async {
+          final channel = _text!;
+          final binding = _binding!;
+          bool valid() => current() && identical(channel, _text);
+          final keys = await binding.directory(peer);
+          if (!valid()) return false;
+          // Fresh directory authorization, never cached keys. All devices use
+          // the same message ID and share one overall peer-route time budget.
+          for (final key in keys.take(2)) {
+            if (!valid()) return false;
+            var laneActive = true;
+            try {
+              await channel
+                  .sendText(
+                    peer: peer,
+                    bindingId: key.bindingId,
+                    text: text,
+                    messageId: id,
+                    stillActive: () => laneActive && valid(),
+                  )
+                  .timeout(const Duration(milliseconds: 1200));
+              return valid();
+            } catch (_) {
+              if (!valid()) return false;
+            } finally {
+              laneActive = false;
+            }
           }
-        }
-      }
-      return false;
-    };
+          return false;
+        },
+      );
+    });
+    return route.send;
   }
 
   static Stopwatch? _failedAt;
@@ -207,6 +212,7 @@ class NovoRudpBindingRuntime {
   }
 
   static void _clear() {
+    _textRoutes.clear();
     unawaited(_files?.close());
     _files = null;
     unawaited(_textEvents?.cancel());

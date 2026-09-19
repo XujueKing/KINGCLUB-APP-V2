@@ -93,10 +93,15 @@ class MemberRelayText {
     required String bindingId,
     required String text,
     required String messageId,
+    bool Function()? stillActive,
   }) async {
-    if (!_active) throw StateError('Relay text inactive');
+    if (!_active || stillActive?.call() == false) {
+      throw StateError('Relay text inactive');
+    }
     final link = await runtime.connectPeer(peer, bindingId);
-    if (!_active) throw StateError('Relay text inactive');
+    if (!_active || stillActive?.call() == false) {
+      throw StateError('Relay text inactive');
+    }
     await _attach(peer, link).sendText(text, messageId: messageId);
   }
 
