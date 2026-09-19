@@ -9,6 +9,14 @@ import 'package:flutter/painting.dart';
 
 enum MediaKind { image, video, audio }
 
+typedef MediaTransfer = Future<bool> Function({
+  required String url,
+  required String scope,
+  required File destination,
+  required Directory resumeDirectory,
+  required CancelToken cancel,
+});
+
 /// Persistent media store. URLs (including signed query strings) are
 /// never written to disk. Private media must use an account-specific scope.
 class MediaCache {
@@ -34,6 +42,9 @@ class MediaCache {
       await FileImage(file).evict();
     },
   );
+
+  /// Optional application transport. False delegates to normal HTTP.
+  MediaTransfer? transfer;
   static Future<Directory>? _openingDirectory;
   static Future<Directory> _persistentDirectory() =>
       _openingDirectory ??= (() async {
@@ -98,6 +109,7 @@ class MediaCache {
     await marker.parent.create(recursive: true);
     await marker.writeAsBytes([1], flush: true);
     await evict(scope: scope, contentKey: contentKey, kind: kind);
+    await _removeResume(key);
   }
 
   /// Stop a message-owned transfer before deletion listeners wait for it.
@@ -116,6 +128,11 @@ class MediaCache {
       (await Sha256().hash(utf8.encode(value))).bytes
           .map((b) => b.toRadixString(16).padLeft(2, '0'))
           .join();
+
+  Future<void> _removeResume(String key) async {
+    final directory = Directory('${(await _directory()).path}/private/resume/$key');
+    if (await directory.exists()) await directory.delete(recursive: true);
+  }
 
   Future<File> get(
     String url, {
@@ -375,15 +392,26 @@ class MediaCache {
         : 200 * 1024 * 1024;
     try {
       await _checkDeleted(key);
-      await _dio.download(
-        url,
-        temp.path,
-        cancelToken: cancel,
-        options: Options(headers: headers, followRedirects: false),
-        onReceiveProgress: (received, total) {
-          if (received > limit || total > limit) cancel.cancel('媒体超出缓存单文件上限');
-        },
-      );
+      final handled =
+          await transfer?.call(
+            url: url,
+            scope: scope,
+            destination: temp,
+            resumeDirectory: Directory('${root.path}/private/resume/$key'),
+            cancel: cancel,
+          ) ??
+          false;
+      if (!handled) {
+        await _dio.download(
+          url,
+          temp.path,
+          cancelToken: cancel,
+          options: Options(headers: headers, followRedirects: false),
+          onReceiveProgress: (received, total) {
+            if (received > limit || total > limit) cancel.cancel('媒体超出缓存单文件上限');
+          },
+        );
+      }
       await _checkDeleted(key);
       if (generation != _generation ||
           !await temp.exists() ||
@@ -395,6 +423,7 @@ class MediaCache {
       }
       await temp.rename(file.path);
       await _checkPublishedFile(key, file);
+      await _removeResume(key);
       if (!retainMedia) await _trim(root, kind, except: file.path);
       return file;
     } on DioException {
@@ -405,6 +434,9 @@ class MediaCache {
       _downloads.remove(cancel);
       if (identical(_keyDownloads[key], cancel)) _keyDownloads.remove(key);
       if (await temp.exists()) await temp.delete();
+      if (cancel.isCancelled || _deleted.contains(key)) {
+        await _removeResume(key);
+      }
     }
   }
 

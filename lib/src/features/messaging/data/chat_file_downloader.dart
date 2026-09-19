@@ -109,7 +109,10 @@ class ChatFileDownloader {
   bool get lastReadWasLocal => _lastReadWasLocal;
   bool _sessionChanged = false;
 
-  static Future<ChatFileDownloader> open(MessagingRepository repository) async {
+  static Future<ChatFileDownloader> open(
+    MessagingRepository repository, {
+    Directory? mediaResumeDirectory,
+  }) async {
     final store = SecureSessionStore(), generation = MemberQrMemory.generation;
     final initial = await store.readSession();
     if (initial == null ||
@@ -119,6 +122,9 @@ class ChatFileDownloader {
     ChatDownloadCache? cache, sent;
     try {
       cache = await ChatDownloadCache.open(repository.account);
+      if (mediaResumeDirectory != null) {
+        cache = ChatDownloadCache(root: mediaResumeDirectory, key: cache.key);
+      }
     } catch (_) {
       // Unavailable cache must not prevent an authorized fresh download.
     }

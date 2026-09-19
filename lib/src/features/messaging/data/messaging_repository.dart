@@ -2,6 +2,8 @@ import 'chat_video.dart';
 
 import 'dart:async';
 
+import 'chat_media_transfer.dart';
+
 import 'chat_read_outbox.dart';
 import 'conversation_read_projection.dart';
 import 'chat_avatar_snapshot.dart';
@@ -98,6 +100,7 @@ class MessagingRepository {
       ).call,
     );
     NovoRudpBindingRuntime.start(repository);
+    ChatMediaTransfer.install(repository);
     return repository;
   }
 
