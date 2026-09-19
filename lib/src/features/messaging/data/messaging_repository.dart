@@ -184,10 +184,12 @@ class MessagingRepository {
     String messageId,
     String peer, {
     bool group = false,
+    String? media,
   }) => call('K260916000686', {
     'messageId': messageId,
     'peer': peer,
     if (group) 'group': true,
+    'media': ?media,
   });
 
   Future<Map<String, dynamic>> voiceMedia(

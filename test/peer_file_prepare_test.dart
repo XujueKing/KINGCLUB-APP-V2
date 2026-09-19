@@ -9,6 +9,7 @@ import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
 import 'package:kingclub/src/features/messaging/data/chat_sent_file_cache.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/data/peer_file_channel.dart';
+import 'package:kingclub/src/features/messaging/data/peer_file_authority.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame_link.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_secure_session.dart';
@@ -21,6 +22,8 @@ class _Channel implements NovoRudpSecureChannel {
 }
 
 class _Link implements NovoRudpFrameLink {
+  _Link(this.media);
+  final String? media;
   @override
   final channel = _Channel();
   final incoming = StreamController<NovoRudpFrame>.broadcast();
@@ -32,6 +35,8 @@ class _Link implements NovoRudpFrameLink {
   Future<void> send(NovoRudpFrame frame) async {
     final body = jsonDecode(utf8.decode(frame.payload)) as Map<String, dynamic>;
     if (body['op'] != 'request') return;
+    expect(body['media'], media);
+    expect(body['v'], media == null ? 1 : 3);
     expect(prepared, true);
     requests++;
     body['op'] = 'ready';
@@ -53,72 +58,91 @@ class _Link implements NovoRudpFrameLink {
 }
 
 void main() {
-  for (final cancel in [false, true]) {
-    test('file REQUEST waits for cache preparation, cancel=$cancel', () async {
-      final root = await Directory.systemTemp.createTemp('peer-prepare-');
-      final link = _Link();
-      const id = '11111111-1111-4111-8111-111111111111';
-      final repo = MessagingRepository(
-        account: 'receiver',
-        call: (_, _) async => {
-          'messageId': id,
-          'assetId': id,
-          'sender': 'sender',
-          'recipient': 'receiver',
-          'fileName': 'test.bin',
-          'size': 3,
-          'sha256': 'a' * 64,
-          'expiresAt': DateTime.now()
-              .toUtc()
-              .add(const Duration(seconds: 15))
-              .toIso8601String(),
-        },
-      );
-      final channel = PeerFileChannel(
-        link: link,
-        repository: repo,
-        peer: 'sender',
-        privateDirectory: root,
-        canExchange: () => true,
-        cache: ChatSentFileCache(
-          cache: ChatDownloadCache(
-            root: Directory('${root.path}/cache'),
-            key: await AesGcm.with256bits().newSecretKey(),
-          ),
-          checkSession: () async {},
-        ),
-      );
-      final entered = Completer<void>(), release = Completer<void>();
-      var active = true;
-      try {
-        final authority = await channel.authorize(id, sending: false);
-        final receiving = channel.receive(
-          authority,
-          () => active,
-          prepare: (_) async {
-            entered.complete();
-            await release.future;
-            link.prepared = true;
+  for (final scenario in [
+    (null, false),
+    (null, true),
+    for (final media in PeerFileAuthority.mediaKinds) (media, false),
+  ]) {
+    final (media, cancel) = scenario;
+    test(
+      'REQUEST waits for cache preparation, media=$media cancel=$cancel',
+      () async {
+        final root = await Directory.systemTemp.createTemp('peer-prepare-');
+        final link = _Link(media);
+        const id = '11111111-1111-4111-8111-111111111111';
+        final repo = MessagingRepository(
+          account: 'receiver',
+          call: (_, params) async {
+            expect(params['media'], media);
+            return {
+              'messageId': id,
+              'assetId': id,
+              'media': ?media,
+              if (media != null) 'fileId': id,
+              'sender': 'sender',
+              'recipient': 'receiver',
+              'fileName': 'test.bin',
+              'size': 3,
+              'sha256': 'a' * 64,
+              'expiresAt': DateTime.now()
+                  .toUtc()
+                  .add(const Duration(seconds: 15))
+                  .toIso8601String(),
+            };
           },
         );
-        await entered.future.timeout(const Duration(seconds: 2));
-        expect(link.requests, 0);
-        if (cancel) active = false;
-        release.complete();
-        if (cancel) {
-          await expectLater(receiving, throwsStateError);
+        final channel = PeerFileChannel(
+          link: link,
+          repository: repo,
+          peer: 'sender',
+          privateDirectory: root,
+          canExchange: () => true,
+          cache: ChatSentFileCache(
+            cache: ChatDownloadCache(
+              root: Directory('${root.path}/cache'),
+              key: await AesGcm.with256bits().newSecretKey(),
+            ),
+            checkSession: () async {},
+          ),
+        );
+        final entered = Completer<void>(), release = Completer<void>();
+        var active = true;
+        try {
+          final authority = await channel.authorize(
+            id,
+            sending: false,
+            media: media,
+          );
+          final receiving = channel.receive(
+            authority,
+            () => active,
+            prepare: (_) async {
+              entered.complete();
+              await release.future;
+              link.prepared = true;
+            },
+          );
+          await entered.future.timeout(const Duration(seconds: 2));
           expect(link.requests, 0);
-        } else {
-          final download = await receiving.timeout(const Duration(seconds: 2));
-          expect(link.requests, 1);
-          await download.close();
+          if (cancel) active = false;
+          release.complete();
+          if (cancel) {
+            await expectLater(receiving, throwsStateError);
+            expect(link.requests, 0);
+          } else {
+            final download = await receiving.timeout(
+              const Duration(seconds: 2),
+            );
+            expect(link.requests, 1);
+            await download.close();
+          }
+        } finally {
+          await channel.close();
+          await link.close();
+          expect(await root.list().toList(), isEmpty);
+          await root.delete(recursive: true);
         }
-      } finally {
-        await channel.close();
-        await link.close();
-        expect(await root.list().toList(), isEmpty);
-        await root.delete(recursive: true);
-      }
-    });
+      },
+    );
   }
 }

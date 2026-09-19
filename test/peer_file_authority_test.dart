@@ -5,6 +5,49 @@ import 'package:kingclub/src/features/messaging/data/peer_file_authority.dart';
 void main() {
   const message = '00000000-0000-4000-8000-000000000001';
   const asset = '00000000-0000-4000-8000-000000000002';
+  test('media authority binds requested encoding and exact object', () async {
+    Future<PeerFileAuthority> load(
+      String requested,
+      String returned,
+      String? fileId,
+    ) => PeerFileAuthority.read(
+      MessagingRepository(
+        account: 'me',
+        call: (_, params) async {
+          expect(params['media'], requested);
+          return {
+            'messageId': message,
+            'sender': 'me',
+            'recipient': 'peer',
+            'assetId': asset,
+            'fileName': 'test.mp4',
+            'size': 3,
+            'sha256': 'a' * 64,
+            'media': returned,
+            'fileId': ?fileId,
+            'expiresAt': DateTime.now()
+                .toUtc()
+                .add(const Duration(seconds: 15))
+                .toIso8601String(),
+          };
+        },
+      ),
+      'peer',
+      message,
+      sending: true,
+      media: requested,
+    );
+    final h264 = await load('video', 'video', asset);
+    final hevc = await load('hevc', 'hevc', asset);
+    expect(h264.sameFile(hevc), false);
+    expect(h264.sameFile(await load('video', 'video', message)), false);
+    await expectLater(load('video', 'hevc', asset), throwsFormatException);
+    await expectLater(load('voice', 'voice', null), throwsFormatException);
+    await expectLater(
+      load('image', 'image', '../other'),
+      throwsFormatException,
+    );
+  });
   Map<String, dynamic> manifest() => {
     'messageId': message,
     'sender': 'me',

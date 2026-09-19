@@ -23,6 +23,7 @@ class PeerFileChannel {
     required this.cache,
     required this.privateDirectory,
     required this.canExchange,
+    this.mediaSource,
   }) {
     _subscription = link.frames.listen(
       (frame) {
@@ -34,9 +35,15 @@ class PeerFileChannel {
         }
         try {
           final packet = jsonDecode(utf8.decode(frame.payload));
+          final media = packet is Map ? packet['media'] : null;
+          if (media != null && !PeerFileAuthority.mediaKinds.contains(media)) {
+            return;
+          }
           if (packet is! Map ||
-              packet.length != (groupId == null ? 3 : 4) ||
-              packet['v'] != (groupId == null ? 1 : 2) ||
+              packet.length !=
+                  (groupId == null ? 3 : 4) + (media == null ? 0 : 1) ||
+              packet['v'] !=
+                  (groupId == null ? 1 : 2) + (media == null ? 0 : 2) ||
               (groupId != null && packet['groupId'] != groupId) ||
               packet['messageId'] is! String ||
               frame.objectId == BigInt.zero) {
@@ -52,30 +59,35 @@ class PeerFileChannel {
               if (_sending != null) {
                 if (_sending == frame.objectId &&
                     _sendingMessage == messageId &&
+                    _sendingMedia == media &&
                     _ready) {
                   unawaited(
                     _control(
                       'ready',
                       messageId,
                       frame.objectId,
+                      media: media as String?,
                     ).catchError((Object _) {}),
                   );
                 }
               } else {
                 _sending = frame.objectId;
                 _sendingMessage = messageId;
-                _serving = _serve(messageId, frame.objectId);
+                _sendingMedia = media as String?;
+                _serving = _serve(messageId, frame.objectId, media: media);
                 unawaited(_serving);
               }
             case 'ready':
               if (_receiving == frame.objectId &&
                   _receivingMessage == messageId &&
+                  _receivingMedia == media &&
                   _accepted?.isCompleted == false) {
                 _accepted!.complete();
               }
             case 'reject':
               if (_receiving == frame.objectId &&
-                  _receivingMessage == messageId) {
+                  _receivingMessage == messageId &&
+                  _receivingMedia == media) {
                 if (_accepted?.isCompleted == false) {
                   _accepted!.completeError(StateError('Peer file unavailable'));
                 }
@@ -100,6 +112,7 @@ class PeerFileChannel {
   final ChatSentFileCache cache;
   final Directory privateDirectory;
   final bool Function() canExchange;
+  final Future<File?> Function(PeerFileAuthority)? mediaSource;
   static final controlStream = BigInt.from(0x4b434643);
   static final dataStream = BigInt.from(0x4b434644);
   static final _uuid = RegExp(r'^[0-9a-fA-F-]{36}$');
@@ -108,6 +121,7 @@ class PeerFileChannel {
   bool _closed = false, _ready = false;
   BigInt? _sending, _receiving;
   String? _sendingMessage, _receivingMessage;
+  String? _sendingMedia, _receivingMedia;
   Completer<void>? _accepted;
   NovoRudpFileSender? _sender;
   NovoRudpFileDownload? _download;
@@ -121,7 +135,12 @@ class PeerFileChannel {
     if (!_active) throw StateError('Peer file lane unavailable');
   }
 
-  Future<void> _control(String op, String messageId, BigInt object) async {
+  Future<void> _control(
+    String op,
+    String messageId,
+    BigInt object, {
+    String? media,
+  }) async {
     _check();
     await link
         .send(
@@ -134,10 +153,11 @@ class PeerFileChannel {
             ackEpoch: BigInt.zero,
             payload: utf8.encode(
               jsonEncode({
-                'v': groupId == null ? 1 : 2,
+                'v': (groupId == null ? 1 : 2) + (media == null ? 0 : 2),
                 'op': op,
                 'messageId': messageId,
                 if (groupId != null) 'groupId': groupId,
+                'media': ?media,
               }),
             ),
           ),
@@ -148,6 +168,7 @@ class PeerFileChannel {
   Future<PeerFileAuthority> authorize(
     String messageId, {
     required bool sending,
+    String? media,
   }) async {
     _check();
     if (scopedMessageId != null && messageId != scopedMessageId) {
@@ -159,6 +180,7 @@ class PeerFileChannel {
       messageId,
       sending: sending,
       groupId: groupId,
+      media: media,
     );
     _check();
     final scope = groupScope;
@@ -174,61 +196,79 @@ class PeerFileChannel {
     return value;
   }
 
-  Future<void> _serve(String messageId, BigInt object) async {
+  Future<void> _serve(String messageId, BigInt object, {String? media}) async {
     try {
-      var authority = await authorize(messageId, sending: true);
-      final sent = await cache.use<bool>(
-        assetId: authority.assetId,
-        size: authority.size,
-        sha256: authority.sha256,
-        send: (source) async {
-          final refreshed = await authorize(messageId, sending: true);
-          if (!authority.sameFile(refreshed)) {
-            throw StateError('Peer file changed');
-          }
-          authority = refreshed;
-          final sender = _sender = NovoRudpFileSender(
-            link: link,
-            file: source,
-            streamId: dataStream,
-            objectId: object,
-            size: authority.size,
-            sha256: authority.sha256,
-            canSend: () => _active && authority.valid,
-          );
-          var renewing = false;
-          _renewSend = Timer.periodic(const Duration(seconds: 5), (_) async {
-            if (renewing) return;
-            renewing = true;
-            try {
-              final current = await authorize(
-                messageId,
-                sending: true,
-              ).timeout(const Duration(seconds: 5));
-              if (!authority.sameFile(current)) {
-                throw StateError('Peer file changed');
-              }
-              authority = current;
-            } catch (_) {
-              sender.cancel();
-            } finally {
-              renewing = false;
+      var authority = await authorize(messageId, sending: true, media: media);
+      Future<bool> sendSource(File source) async {
+        final refreshed = await authorize(
+          messageId,
+          sending: true,
+          media: media,
+        );
+        if (!authority.sameFile(refreshed)) {
+          throw StateError('Peer file changed');
+        }
+        authority = refreshed;
+        final sender = _sender = NovoRudpFileSender(
+          link: link,
+          file: source,
+          streamId: dataStream,
+          objectId: object,
+          size: authority.size,
+          sha256: authority.sha256,
+          canSend: () => _active && authority.valid,
+        );
+        var renewing = false;
+        _renewSend = Timer.periodic(const Duration(seconds: 5), (_) async {
+          if (renewing) return;
+          renewing = true;
+          try {
+            final current = await authorize(
+              messageId,
+              sending: true,
+              media: media,
+            ).timeout(const Duration(seconds: 5));
+            if (!authority.sameFile(current)) {
+              throw StateError('Peer file changed');
             }
-          });
-          _ready = true;
-          await _control('ready', messageId, object);
-          await sender.run();
-          final completed = await authorize(messageId, sending: true);
-          if (!authority.sameFile(completed)) {
-            throw StateError('Peer file changed');
+            authority = current;
+          } catch (_) {
+            sender.cancel();
+          } finally {
+            renewing = false;
           }
-          return true;
-        },
-      );
+        });
+        _ready = true;
+        await _control('ready', messageId, object, media: media);
+        await sender.run();
+        final completed = await authorize(
+          messageId,
+          sending: true,
+          media: media,
+        );
+        if (!authority.sameFile(completed)) {
+          throw StateError('Peer file changed');
+        }
+        return true;
+      }
+
+      final bool? sent;
+      if (media != null) {
+        final source = await mediaSource?.call(authority);
+        _check();
+        sent = source == null ? null : await sendSource(source);
+      } else {
+        sent = await cache.use<bool>(
+          assetId: authority.assetId,
+          size: authority.size,
+          sha256: authority.sha256,
+          send: sendSource,
+        );
+      }
       if (sent != true) throw StateError('Peer file cache miss');
     } catch (_) {
       try {
-        await _control('reject', messageId, object);
+        await _control('reject', messageId, object, media: media);
       } catch (_) {}
     } finally {
       _renewSend?.cancel();
@@ -236,6 +276,7 @@ class PeerFileChannel {
       _sender = null;
       _sending = null;
       _sendingMessage = null;
+      _sendingMedia = null;
       _ready = false;
     }
   }
@@ -254,11 +295,16 @@ class PeerFileChannel {
     if (object == BigInt.zero) throw StateError('Invalid transfer identity');
     _receiving = object;
     _receivingMessage = expected.messageId;
+    _receivingMedia = expected.media;
     final accepted = _accepted = Completer<void>();
     unawaited(accepted.future.then<void>((_) {}, onError: (Object _) {}));
     NovoRudpFileDownload? download;
     try {
-      var authority = await authorize(expected.messageId, sending: false);
+      var authority = await authorize(
+        expected.messageId,
+        sending: false,
+        media: expected.media,
+      );
       if (!authority.sameFile(expected) || !stillActive()) {
         throw StateError('Peer file changed');
       }
@@ -286,6 +332,7 @@ class PeerFileChannel {
           final current = await authorize(
             expected.messageId,
             sending: false,
+            media: expected.media,
           ).timeout(const Duration(seconds: 5));
           if (!authority.sameFile(current) || !stillActive()) {
             throw StateError('Peer file changed');
@@ -318,10 +365,16 @@ class PeerFileChannel {
             'request',
             expected.messageId,
             object,
+            media: expected.media,
           ).catchError((Object _) {}),
         );
       });
-      await _control('request', expected.messageId, object);
+      await _control(
+        'request',
+        expected.messageId,
+        object,
+        media: expected.media,
+      );
       await accepted.future.timeout(const Duration(seconds: 3));
       _retry?.cancel();
       _retry = null;
@@ -344,6 +397,7 @@ class PeerFileChannel {
     _download = null;
     _receiving = null;
     _receivingMessage = null;
+    _receivingMedia = null;
     _accepted = null;
   }
 

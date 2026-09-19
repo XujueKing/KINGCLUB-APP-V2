@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import '../../../core/session/member_qr_memory.dart';
+import '../../../core/media/media_cache.dart';
+import 'peer_file_authority.dart';
 import 'chat_sent_file_cache.dart';
 import 'member_relay_runtime.dart';
 import 'novorudp_file_download.dart';
@@ -70,14 +72,49 @@ class MemberRelayFiles {
       cache: cache,
       privateDirectory: privateDirectory,
       canExchange: () => _active,
+      mediaSource: _mediaSource,
     );
     _channels[id] = channel;
     return channel;
   }
 
+  Future<File?> _mediaSource(PeerFileAuthority authority) async {
+    if (!_active || !authority.valid) return null;
+    final group = authority.groupId != null;
+    final id = authority.messageId;
+    final (kind, key) = switch (authority.media) {
+      'image' => (MediaKind.image, 'chat-image-message:$group:$id:image'),
+      'image-thumbnail' => (
+        MediaKind.image,
+        'chat-image-message:$group:$id:thumbnail',
+      ),
+      'voice' => (MediaKind.audio, 'chat-voice-asset:${authority.assetId}'),
+      'video' ||
+      'hevc' => (MediaKind.video, 'chat-video-message:$group:$id:video'),
+      'video-thumbnail' => (
+        MediaKind.image,
+        'chat-video-message:$group:$id:poster',
+      ),
+      _ => throw const FormatException('Unsupported media source'),
+    };
+    try {
+      // Use the existing retained media; do not create a second persistent copy
+      // that could outlive message deletion. Sender verifies size/hash before data.
+      final file = await MediaCache.shared.cached(
+        scope: 'member:${runtime.binding.messaging.account}',
+        contentKey: key,
+        kind: kind,
+      );
+      return _active && authority.valid ? file : null;
+    } on StateError {
+      return null;
+    }
+  }
+
   Future<NovoRudpFileDownload?> receive({
     required String peer,
     bool group = false,
+    String? media,
     required String messageId,
     required String assetId,
     required String fileName,
@@ -100,6 +137,7 @@ class MemberRelayFiles {
         messageId,
         peer,
         group: true,
+        media: media,
       );
       final groupId = manifest['groupId'];
       if (groupId is! String) {
@@ -123,7 +161,11 @@ class MemberRelayFiles {
             : await runtime.connectGroupFilePeer(peer, key.bindingId, scope);
         if (!active()) return null;
         final channel = _attach(peer, link, scope);
-        final authority = await channel.authorize(messageId, sending: false);
+        final authority = await channel.authorize(
+          messageId,
+          sending: false,
+          media: media,
+        );
         if (!active()) return null;
         if (authority.assetId != assetId ||
             authority.fileName != fileName ||

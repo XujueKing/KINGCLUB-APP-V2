@@ -35,6 +35,7 @@ class NovoRudpBindingRuntime {
     required String account,
     required String sender,
     bool group = false,
+    String? media,
     required String messageId,
     required String assetId,
     required String fileName,
@@ -53,6 +54,7 @@ class NovoRudpBindingRuntime {
     return files.receive(
       peer: sender,
       group: group,
+      media: media,
       messageId: messageId,
       assetId: assetId,
       fileName: fileName,

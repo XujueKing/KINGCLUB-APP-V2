@@ -14,9 +14,20 @@ class PeerFileAuthority {
     this.groupId,
     this.senderMembershipVersion,
     this.recipientMembershipVersion,
+    this.media,
+    this.fileId,
   );
   final String messageId, sender, recipient, assetId, fileName, sha256;
   final String? groupId;
+  final String? media, fileId;
+  static const mediaKinds = {
+    'image',
+    'image-thumbnail',
+    'voice',
+    'video',
+    'video-thumbnail',
+    'hevc',
+  };
   final int? senderMembershipVersion, recipientMembershipVersion;
   final int size;
   final DateTime expiresAt;
@@ -31,7 +42,11 @@ class PeerFileAuthority {
     required bool sending,
     String? groupId,
     bool group = false,
+    String? media,
   }) async {
+    if (media != null && !mediaKinds.contains(media)) {
+      throw const FormatException('Invalid peer media kind');
+    }
     if (groupId != null && !_uuid.hasMatch(groupId)) {
       throw const FormatException('Invalid peer file group');
     }
@@ -39,6 +54,7 @@ class PeerFileAuthority {
       messageId,
       peer,
       group: group || groupId != null,
+      media: media,
     );
     if (group && groupId == null) {
       final actualGroup = data['groupId'];
@@ -60,7 +76,13 @@ class PeerFileAuthority {
       data['expiresAt'] is String ? data['expiresAt'] : '',
     );
     final now = DateTime.now().toUtc();
+    final validMedia = media == null
+        ? !data.containsKey('media') && !data.containsKey('fileId')
+        : data['media'] == media &&
+              data['fileId'] is String &&
+              _uuid.hasMatch(data['fileId']);
     if (!validScope ||
+        !validMedia ||
         !_uuid.hasMatch(messageId) ||
         data['messageId'] != messageId ||
         data['sender'] != (sending ? repository.account : peer) ||
@@ -93,6 +115,8 @@ class PeerFileAuthority {
       groupId,
       senderVersion as int?,
       recipientVersion as int?,
+      media,
+      data['fileId'] as String?,
     );
   }
 
@@ -100,6 +124,8 @@ class PeerFileAuthority {
       value is int && value >= 0 && value <= 4294967295;
 
   bool sameFile(PeerFileAuthority other) =>
+      media == other.media &&
+      fileId == other.fileId &&
       groupId == other.groupId &&
       senderMembershipVersion == other.senderMembershipVersion &&
       recipientMembershipVersion == other.recipientMembershipVersion &&
