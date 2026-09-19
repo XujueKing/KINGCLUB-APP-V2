@@ -1,3 +1,6 @@
+import '../data/table_management_repository.dart';
+import 'table_party_page.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 
@@ -17,6 +20,7 @@ class TableOrderingEntryPage extends StatefulWidget {
     required this.onBack,
     this.resolveTable,
     this.readCatalog,
+    this.tableManagement,
     this.onQuoteReady,
     this.onOpenOrders,
     this.previewEnabled = false,
@@ -25,6 +29,7 @@ class TableOrderingEntryPage extends StatefulWidget {
     this.locale = const Locale('zh'),
   });
 
+  final TableManagementRepository? tableManagement;
   final String tableId;
   final VoidCallback onBack;
   final ResolveOrderingTable? resolveTable;
@@ -46,6 +51,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
   bool _loading = false;
   OrderingEntryStatus? _error;
   int _generation = 0;
+  bool _partyReady = false;
 
   @override
   void initState() {
@@ -66,6 +72,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
   Future<void> _resolve() async {
     final generation = ++_generation;
     setState(() {
+      _partyReady = false;
       _context = null;
       _catalog = null;
       _loading = widget.resolveTable != null;
@@ -126,6 +133,21 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
     }
     final resolved = _context;
     if (resolved != null) {
+      final management = widget.tableManagement;
+      if (management != null && !_partyReady) {
+        return TablePartyPage(
+          key: ValueKey('party:${resolved.contextRef}'),
+          tableName: resolved.tableName,
+          locale: widget.locale,
+          onBack: widget.onBack,
+          read: () => management.readParty(resolved),
+          save: (count, revision, requestId) =>
+              management.saveParty(resolved, count, revision, requestId),
+          onReady: () {
+            if (mounted) setState(() => _partyReady = true);
+          },
+        );
+      }
       return ScanOrderingCartPage(
         key: ValueKey(resolved.contextRef),
         orderingContext: resolved,

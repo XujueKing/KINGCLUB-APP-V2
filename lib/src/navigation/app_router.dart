@@ -1,3 +1,5 @@
+import '../features/commerce/presentation/daily_table_settings_page.dart';
+import '../features/commerce/data/table_management_repository.dart';
 import '../features/commerce/data/commerce_endpoint.dart';
 import '../features/commerce/data/ordering_table_repository.dart';
 import '../features/commerce/data/ordering_catalog_repository.dart';
@@ -1090,6 +1092,33 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) {
     final tableId = state.uri.queryParameters['tableId'];
+    if (state.uri.queryParameters['manage'] == '1' &&
+        tableId != null &&
+        const bool.fromEnvironment('KINGCLUB_TABLE_MANAGEMENT_ENABLED')) {
+      final store = state.uri.queryParameters['storeRef'];
+      final date = state.uri.queryParameters['businessDate'];
+      final parsed = date == null ? null : DateTime.tryParse(date);
+      if (store != null &&
+          RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(store) &&
+          date != null &&
+          RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date) &&
+          parsed != null &&
+          parsed.toIso8601String().substring(0, 10) == date &&
+          kingclubCommerceApiBaseUrl.isNotEmpty) {
+        return DailyTableSettingsPage(
+          tableId: tableId,
+          storeRef: store,
+          businessDate: date,
+          repository: TableManagementRepository.secure(
+            kingclubCommerceApiBaseUrl,
+          ),
+          locale: Localizations.localeOf(context),
+          onBack: () => context.canPop()
+              ? context.pop()
+              : const AppShellRoute().go(context),
+        );
+      }
+    }
     if (tableId != null) {
       return TableOrderingEntryPage(
         tableId: tableId,
@@ -1099,6 +1128,11 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
             : (id) =>
                   OrderingTableRepository.secure(kingclubCommerceApiBaseUrl)
                       .resolve(id, shopId: state.uri.queryParameters['shopId']),
+        tableManagement:
+            const bool.fromEnvironment('KINGCLUB_TABLE_MANAGEMENT_ENABLED') &&
+                kingclubCommerceApiBaseUrl.isNotEmpty
+            ? TableManagementRepository.secure(kingclubCommerceApiBaseUrl)
+            : null,
         readCatalog: kingclubCommerceApiBaseUrl.isEmpty
             ? null
             : OrderingCatalogRepository.secure(kingclubCommerceApiBaseUrl).read,
