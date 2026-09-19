@@ -272,6 +272,11 @@ class ChatFileDownloader {
           await cache.write(identity, index, bytes);
           await _check();
         });
+        await peer.restoreBlocks((index, length) async {
+          await _check();
+          await cache.ensureNotDeleted(identity);
+          return cache.read(identity, index, length);
+        });
       }
       var reported = -1;
       void reportProgress() {
@@ -494,12 +499,12 @@ class ChatFileDownloader {
       );
       await _check();
       await resumeCache?.ensureNotDeleted(identity);
-      if (firstBlock == null && await _tryPeer(ref, file, onProgress)) {
+      Future<File> finishPeer(File peerFile) async {
         await _grant(ref);
         await _check();
         await resumeCache?.ensureNotDeleted(identity);
         if (resumeCache != null) {
-          final reader = await file.open();
+          final reader = await peerFile.open();
           try {
             final count = ref.size == 0
                 ? 1
@@ -520,11 +525,15 @@ class ChatFileDownloader {
           }
         }
         await _check();
-        _completed.add(working);
+        _completed.add(working!);
         _completedMessages[working] = (ref.group, ref.messageId);
         completed = true;
         onProgress?.call(ref.size, ref.size);
-        return file;
+        return peerFile;
+      }
+
+      if (firstBlock == null && await _tryPeer(ref, file, onProgress)) {
+        return await finishPeer(file);
       }
       if (firstBlock == null && peerDownload != null) {
         // The peer attempt may outlive a grant or a membership change.
@@ -537,7 +546,8 @@ class ChatFileDownloader {
         );
         onProgress?.call(0, ref.size);
       }
-      output = await file.open(mode: FileMode.write);
+      final httpOutput = await file.open(mode: FileMode.write);
+      output = httpOutput;
       final digest = const DartSha256().newHashSink();
       var received = 0;
       for (var index = 0; index < (media['chunkCount'] as int); index++) {
@@ -557,7 +567,23 @@ class ChatFileDownloader {
             break;
           } catch (error) {
             await _check();
-            if (networkAttempt >= 2 || !_retryable(error)) rethrow;
+            if (!_retryable(error)) rethrow;
+            if (networkAttempt >= 2) {
+              // HTTP is exhausted. The peer imports the same cached blocks,
+              // advertises only missing fragments, and verifies the whole file.
+              if (peerDownload != null) {
+                await _grant(ref);
+                final recovered = File('${working.path}/peer-recovered.bin');
+                if (await _tryPeer(ref, recovered, onProgress)) {
+                  await httpOutput.close();
+                  output = null;
+                  digest.close();
+                  await file.delete();
+                  return await finishPeer(recovered);
+                }
+              }
+              rethrow;
+            }
             onProgress?.call(received, ref.size);
             await Future<void>.delayed(
               Duration(milliseconds: 250 * (networkAttempt + 1)),
@@ -568,7 +594,7 @@ class ChatFileDownloader {
         // Commit only a complete block, so retry cannot double-hash or append
         // a partially received block. Memory is bounded by one 1 MiB block.
         digest.add(block);
-        await output.writeFrom(block);
+        await httpOutput.writeFrom(block);
         received += block.length;
         if (!cached) {
           try {
@@ -584,8 +610,8 @@ class ChatFileDownloader {
       if (received != ref.size || hash != ref.sha256) {
         throw const FormatException('文件完整性校验失败');
       }
-      await output.flush();
-      await output.close();
+      await httpOutput.flush();
+      await httpOutput.close();
       output = null;
       // Recheck permissions after network and disk I/O, including empty files.
       await _grant(ref);

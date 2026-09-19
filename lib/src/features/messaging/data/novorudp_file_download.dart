@@ -117,6 +117,19 @@ class NovoRudpFileDownload {
     _resumeWriter = write;
   }
 
+  Future<void> restoreBlocks(Future<Uint8List?> Function(int, int) read) async {
+    _check();
+    await _receiver.restoreBlocks(1024 * 1024, (index, length) async {
+      _check();
+      final bytes = await read(index, length);
+      _check();
+      return bytes;
+    });
+    _check();
+    _progress = _receiver.receivedFragments;
+    _armIdle();
+  }
+
   Future<File> get completed => _done.future;
   int get receivedBytes => _receiver.receivedBytes;
 

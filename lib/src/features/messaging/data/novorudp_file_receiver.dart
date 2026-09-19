@@ -224,6 +224,56 @@ class NovoRudpFileReceiver {
     }
   });
 
+  /// Seed the same fragment bitmap from message-scoped authenticated cache
+  /// blocks. Boundary fragments need both adjacent blocks; holes stay missing.
+  Future<void> restoreBlocks(
+    int blockSize,
+    Future<Uint8List?> Function(int index, int length) read,
+  ) async {
+    _check();
+    if (blockSize < chunkSize || blockSize > 1024 * 1024) {
+      throw ArgumentError('Invalid restore block size');
+    }
+    final blocks = <int, Uint8List?>{};
+    for (var index = 0; index < fragments; index++) {
+      _check();
+      if (_received[index] != 0) continue;
+      final offset = index * chunkSize;
+      final length = math.min(chunkSize, size - offset);
+      if (length == 0) continue;
+      final first = offset ~/ blockSize;
+      final last = (offset + length - 1) ~/ blockSize;
+      blocks.removeWhere((key, _) => key < first);
+      var available = true;
+      for (var block = first; block <= last; block++) {
+        if (!blocks.containsKey(block)) {
+          final expected = math.min(blockSize, size - block * blockSize);
+          final bytes = await read(block, expected);
+          _check();
+          blocks[block] = bytes?.length == expected ? bytes : null;
+        }
+        if (blocks[block] == null) available = false;
+      }
+      if (!available) continue;
+      final payload = Uint8List(length);
+      for (var byte = 0; byte < length; byte++) {
+        final absolute = offset + byte;
+        payload[byte] = blocks[absolute ~/ blockSize]![absolute % blockSize];
+      }
+      await acceptAuthenticated(
+        NovoRudpFrame(
+          kind: NovoRudpFrameKind.data,
+          sessionId: _scope.sessionId,
+          streamId: _scope.streamId,
+          objectId: _scope.objectId,
+          sequence: BigInt.from(index),
+          ackEpoch: BigInt.zero,
+          payload: payload,
+        ),
+      );
+    }
+  }
+
   /// The sender uses an empty DONE frame as a request for current ACK state,
   /// including after a lost final ACK. It is not permission to finalize a file.
   Future<NovoRudpFrame?> receiveAuthenticated(NovoRudpFrame frame) async {
