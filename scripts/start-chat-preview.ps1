@@ -21,7 +21,11 @@ for ($attempt = 1; $attempt -le 2; $attempt++) {
   for ($sample = 0; $sample -lt 10; $sample++) {
     $activities = & $AdbCommand -s $Serial shell dumpsys activity activities
     if ($LASTEXITCODE -ne 0) { throw 'Could not verify the foreground activity.' }
-    $foreground = @($activities | Where-Object { $_ -match 'mResumedActivity:' })
+    # Newer Android reports topResumedActivity; older builds use mResumedActivity.
+    $foreground = @($activities | Where-Object { $_ -match '^\s*topResumedActivity=' })
+    if ($foreground.Count -eq 0) {
+      $foreground = @($activities | Where-Object { $_ -match '^\s*mResumedActivity:' })
+    }
     if ($foreground.Count -eq 1 -and $foreground[0].Contains($component)) {
       $stable++
       if ($stable -ge 3) {
