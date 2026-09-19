@@ -148,6 +148,7 @@ class NovoRudpBindingRuntime {
           _relay?.connection != null;
       return AdaptivePeerTextRoute(
         isActive: active,
+        connectionKey: () => _relay?.connection,
         deliver: (text, id, current) async {
           final channel = _text!;
           final binding = _binding!;
