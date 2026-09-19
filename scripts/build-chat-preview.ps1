@@ -5,6 +5,8 @@ param(
   [string]$RelayPeer,
   [string]$RelayCertificatePath,
   [string]$NovoRudpSourceRoot,
+  [string]$StunHost,
+  [ValidateRange(1,65535)][int]$StunPort = 3478,
   [switch]$SkipNovoRudp,
   [switch]$EnablePeerFiles,
   [switch]$EnableGroupFiles,
@@ -18,6 +20,23 @@ Push-Location (Split-Path -Parent $PSScriptRoot)
 $previousJni = $env:KINGCLUB_NOVORUDP_JNI_DIR
 try {
   $relayArguments = @()
+  if ($StunHost) {
+    if ($SkipNovoRudp -or !$RelayUrl -or !$RelayPeer) {
+      throw 'Public UDP discovery requires the configured authenticated NovoRUDP relay.'
+    }
+    # Host only: never embed credentials, a URL, whitespace or shell arguments.
+    # The current route implements IPv4 STUN; IPv6 endpoints are not supported.
+    $hostKind = [Uri]::CheckHostName($StunHost)
+    if ($StunHost.Length -gt 253 -or
+        $StunHost -cnotmatch '^[A-Za-z0-9][A-Za-z0-9.-]*$' -or
+        $hostKind -notin @([UriHostNameType]::Dns, [UriHostNameType]::IPv4)) {
+      throw 'StunHost must be an IPv4 address or DNS hostname without a scheme or port.'
+    }
+    $relayArguments += "--dart-define=KINGCLUB_NOVORUDP_STUN_HOST=$StunHost"
+    $relayArguments += "--dart-define=KINGCLUB_NOVORUDP_STUN_PORT=$StunPort"
+  } elseif ($PSBoundParameters.ContainsKey('StunPort')) {
+    throw 'StunPort requires StunHost.'
+  }
   if ($EnableGroupFiles -and !$EnablePeerFiles) {
     throw 'Group peer files require EnablePeerFiles and the deployed group-file authorization interfaces.'
   }
