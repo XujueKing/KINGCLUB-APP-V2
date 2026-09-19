@@ -48,6 +48,9 @@ void main() {
           reference ??= rect;
           expect(rect, reference);
           expect(rect.size, const Size(48, 48));
+          final glyph = find.descendant(of: back, matching: find.byType(Image));
+          // Original chat had x=-2 + 20dp glyph inset, y=safeArea+4+16.
+          expect(tester.getTopLeft(glyph), const Offset(18, 44));
           await tester.tap(back);
           await tester.pump();
           expect(tester.takeException(), isNull);

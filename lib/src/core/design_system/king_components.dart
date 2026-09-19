@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'king_theme.dart';
 
-/// Shared inner-page toolbar; matches registration's safe-area geometry.
+/// Shared inner-page toolbar; follows the original conversation back position.
 AppBar kingAppBar({
   required BuildContext context,
   Widget? title,
@@ -54,9 +54,9 @@ class KingBackButton extends StatelessWidget {
   static double contentWidth(BuildContext context) =>
       (MediaQuery.sizeOf(context).width * .8).clamp(0.0, 480.0).toDouble();
 
-  // Center the 8 dp glyph in its 48 dp touch target on the content edge.
-  static double leftOffset(BuildContext context) =>
-      (MediaQuery.sizeOf(context).width - contentWidth(context)) / 2 - 20;
+  // Original conversation: a 48dp button at x=-2 placed the glyph at x=18.
+  // Preserve that visible position with the full touch target inside the screen.
+  static double leftOffset(BuildContext context) => 0;
   static const glyphSize = Size(8, 16);
 
   @override
@@ -66,12 +66,15 @@ class KingBackButton extends StatelessWidget {
       padding: EdgeInsets.zero,
       onPressed: onPressed,
       tooltip: tooltip,
-      icon: Image.asset(
-        'assets/legacy/friendship/back.png',
-        width: glyphSize.width,
-        height: glyphSize.height,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
+      icon: Transform.translate(
+        offset: const Offset(-2, 0),
+        child: Image.asset(
+          'assets/legacy/friendship/back.png',
+          width: glyphSize.width,
+          height: glyphSize.height,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+        ),
       ),
     );
   }
