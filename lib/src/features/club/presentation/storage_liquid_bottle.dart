@@ -221,41 +221,58 @@ class _StorageLiquidBottleState extends State<StorageLiquidBottle>
   Widget _previewBottle(BottlePreviewItem item) {
     final u = MediaQuery.sizeOf(context).width / 750;
     return LayoutBuilder(
-      builder: (context, box) => Stack(
-        alignment: Alignment.center,
-        fit: StackFit.expand,
-        clipBehavior: Clip.none,
-        children: [
-          BottleMaterialBacking(
-            item: item,
-            reverse: true,
-            bodyHeight:
-                math.min(box.maxHeight, box.maxWidth / item.aspectRatio) *
-                1000 /
-                1080,
-            bodyWidth:
-                math.min(box.maxHeight, box.maxWidth / item.aspectRatio) *
-                (item.aspectRatio * 1080 - 80) /
-                1080,
-          ),
-          _materialLiquid(item.mask, item.remainingPercent, u),
-          SvgPicture.asset(item.outline, fit: BoxFit.contain),
-          Positioned(
-            top: box.maxHeight * .66,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: SizedBox(
-                width: math.max(1, box.maxHeight * item.aspectRatio - 52 * u),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: _bottleLabels(item, u),
+      builder: (context, box) {
+        final imageHeight = math.min(
+          box.maxHeight,
+          box.maxWidth / item.imageAspectRatio,
+        );
+        final imageWidth = imageHeight * item.imageAspectRatio;
+        return Stack(
+          alignment: Alignment.center,
+          fit: StackFit.expand,
+          clipBehavior: Clip.none,
+          children: [
+            BottleMaterialBacking(
+              item: item,
+              reverse: true,
+              bodyHeight: imageHeight,
+              bodyWidth: imageWidth,
+            ),
+            Center(
+              child: OverflowBox(
+                maxHeight: imageHeight * 1.08,
+                maxWidth: imageHeight * 1.08 * item.aspectRatio,
+                child: SizedBox(
+                  key: ValueKey('bottle-reverse-canvas-${item.ref}'),
+                  height: imageHeight * 1.08,
+                  width: imageHeight * 1.08 * item.aspectRatio,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _materialLiquid(item.mask, item.remainingPercent, u),
+                      SvgPicture.asset(item.outline, fit: BoxFit.contain),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+            Positioned(
+              top: (box.maxHeight - imageHeight) / 2 + imageHeight * .66,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: SizedBox(
+                  width: math.max(1, imageWidth - 32 * u),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _bottleLabels(item, u),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -1,3 +1,4 @@
+import 'package:kingclub/src/features/club/presentation/bottle_material_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/club/data/bottle_material_preview.dart';
@@ -5,6 +6,53 @@ import 'package:kingclub/src/features/club/presentation/private_storage_page.dar
 import 'package:kingclub/src/features/club/presentation/storage_liquid_bottle.dart';
 
 void main() {
+  testWidgets(
+    'all ten bottles keep the same canvas and shadow after flipping',
+    (tester) async {
+      for (final size in [const Size(180, 235), const Size(70, 235)]) {
+        for (final item
+            in BottleMaterialPreviewRepository().items
+                .whereType<BottlePreviewItem>()) {
+          Widget host(Widget child) => MaterialApp(
+            home: Center(
+              child: SizedBox(
+                width: size.width,
+                height: size.height,
+                child: child,
+              ),
+            ),
+          );
+          await tester.pumpWidget(host(BottleMaterialImage(item: item)));
+          await tester.pumpAndSettle();
+          final front = tester.getRect(
+            find.byKey(ValueKey('bottle-backing-${item.ref}')),
+          );
+          final ground = tester.getRect(
+            find.byKey(ValueKey('bottle-ground-${item.ref}')),
+          );
+          await tester.pumpWidget(
+            host(StorageLiquidBottle(item: item, active: false)),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            tester.getRect(
+              find.byKey(ValueKey('bottle-reverse-canvas-${item.ref}')),
+            ),
+            rectMoreOrLessEquals(front, epsilon: 0.001),
+          );
+          expect(
+            tester.getRect(find.byKey(ValueKey('bottle-backing-${item.ref}'))),
+            rectMoreOrLessEquals(front, epsilon: 0.001),
+          );
+          expect(
+            tester.getRect(find.byKey(ValueKey('bottle-ground-${item.ref}'))),
+            rectMoreOrLessEquals(ground, epsilon: 0.001),
+          );
+          expect(tester.takeException(), isNull);
+        }
+      }
+    },
+  );
   test('material fixtures cannot issue pickup codes and include four legacy comparisons', () async {
     final repo = BottleMaterialPreviewRepository();
     final items = await repo.list();

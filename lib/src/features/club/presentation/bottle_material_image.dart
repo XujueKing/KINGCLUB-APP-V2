@@ -81,7 +81,7 @@ class BottleMaterialImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
-      final rawAspect = (item.aspectRatio * 1080 - 80) / 1000;
+      final rawAspect = item.imageAspectRatio;
       final imageHeight = math.min(box.maxHeight, box.maxWidth / rawAspect);
       return Stack(
         clipBehavior: Clip.none,

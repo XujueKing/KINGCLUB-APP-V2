@@ -17,16 +17,28 @@ class BottlePreviewItem extends StorageItem {
   @override
   String get thumbnail => '$directory/${assetKey}_thumb.png';
   double get aspectRatio => const <String, double>{
-    'bottle_01': 0.294287,
-    'bottle_02': 0.328648,
-    'bottle_03': 0.319417,
-    'bottle_04': 0.367694,
-    'bottle_05': 0.340565,
-    'bottle_06': 0.385352,
-    'bottle_07': 0.339056,
-    'bottle_08': 0.302546,
-    'bottle_09': 0.324926,
-    'bottle_10': 0.344611,
+    'bottle_01': 0.294286305459,
+    'bottle_02': 0.328432284881,
+    'bottle_03': 0.318480917466,
+    'bottle_04': 0.364955935718,
+    'bottle_05': 0.339786345643,
+    'bottle_06': 0.385058682971,
+    'bottle_07': 0.338841717642,
+    'bottle_08': 0.299801003891,
+    'bottle_09': 0.324523409647,
+    'bottle_10': 0.344334056564,
+  }[assetKey]!;
+  double get imageAspectRatio => const <String, double>{
+    'bottle_01': 0.237829209896,
+    'bottle_02': 0.274706867672,
+    'bottle_03': 0.263959390863,
+    'bottle_04': 0.314152410575,
+    'bottle_05': 0.286969253294,
+    'bottle_06': 0.335863377609,
+    'bottle_07': 0.285949055053,
+    'bottle_08': 0.243785084202,
+    'bottle_09': 0.270485282418,
+    'bottle_10': 0.291880781089,
   }[assetKey]!;
   String get mask => '$directory/${assetKey}_mask.svg';
   String get outline => '$directory/${assetKey}_outline.svg';
