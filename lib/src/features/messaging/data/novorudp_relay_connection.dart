@@ -20,7 +20,7 @@ class NovoRudpRelayConnection {
         endpoint.userInfo.isNotEmpty ||
         endpoint.hasQuery ||
         endpoint.hasFragment ||
-        endpoint.path != '/novovm' ||
+        !const {'/novovm', '/supervm/relay'}.contains(endpoint.path) ||
         !_peer.hasMatch(expectedRelay)) {
       throw ArgumentError('Invalid trusted relay endpoint');
     }

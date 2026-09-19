@@ -58,8 +58,8 @@ try {
   if ($RelayUrl -or $RelayPeer -or $RelayCertificatePath) {
     if ($SkipNovoRudp -or !$RelayUrl -or $RelayUrl.Scheme -ne 'wss' -or
         !$RelayUrl.Host -or $RelayUrl.UserInfo -or $RelayUrl.Query -or $RelayUrl.Fragment -or
-        $RelayUrl.AbsolutePath -ne '/novovm' -or $RelayPeer -cnotmatch '^novovm-ed25519:[0-9a-f]{64}$') {
-      throw 'Relay requires NovoRUDP, a credential-free WSS /novovm URL and a pinned Ed25519 peer ID.'
+        $RelayUrl.AbsolutePath -cnotin @('/novovm', '/supervm/relay') -or $RelayPeer -cnotmatch '^novovm-ed25519:[0-9a-f]{64}$') {
+      throw 'Relay requires NovoRUDP, a credential-free WSS /novovm or /supervm/relay URL and a pinned Ed25519 peer ID.'
     }
     $relayArguments += "--dart-define=KINGCLUB_NOVORUDP_RELAY_URL=$($RelayUrl.AbsoluteUri)"
     $relayArguments += "--dart-define=KINGCLUB_NOVORUDP_RELAY_PEER=$RelayPeer"

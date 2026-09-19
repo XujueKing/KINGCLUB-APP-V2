@@ -24,14 +24,20 @@ try {
   $env:NOVORUDP_SOURCE_ROOT = $source.Replace('\', '/')
   # Always build before loading: an old DLL can pass same-host tests while
   # missing the reviewed cross-host clock-skew validation used by Android.
+  $ErrorActionPreference = 'Continue'
   & $CargoCommand build --offline --locked --manifest-path native/novorudp/Cargo.toml --target-dir build/novorudp-host
-  if ($LASTEXITCODE -ne 0) { throw 'NovoRUDP host native build failed.' }
+  $buildExit = $LASTEXITCODE
+  $ErrorActionPreference = 'Stop'
+  if ($buildExit -ne 0) { throw 'NovoRUDP host native build failed.' }
   $env:NOVORUDP_NATIVE_LIBRARY = Join-Path $projectRoot 'build/novorudp-host/debug/kingclub_novorudp.dll'
   $env:SUPERVM_TEST_RELAY_URL = $RelayUrl
   $env:SUPERVM_TEST_RELAY_PEER = $RelayPeer
   $env:SUPERVM_TEST_RELAY_CERT = $certificate
+  $ErrorActionPreference = 'Continue'
   & $FlutterCommand test test/supervm_relay_file_test.dart --reporter expanded
-  if ($LASTEXITCODE -ne 0) { throw 'SuperVM relay integration failed.' }
+  $testExit = $LASTEXITCODE
+  $ErrorActionPreference = 'Stop'
+  if ($testExit -ne 0) { throw 'SuperVM relay integration failed.' }
 } finally {
   Pop-Location
   foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }
