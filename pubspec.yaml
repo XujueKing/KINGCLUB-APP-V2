@@ -93,6 +93,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/commerce/bottle_preview/
     - assets/legacy/home/
     - assets/legacy/onboarding/
     - assets/legacy/navigation/

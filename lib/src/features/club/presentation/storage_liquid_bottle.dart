@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../data/storage_repository.dart';
+import '../data/bottle_material_preview.dart';
 
 /// Original bottle silhouettes; only the liquid surface is procedurally animated.
 class StorageLiquidBottle extends StatefulWidget {
@@ -69,6 +70,8 @@ class _StorageLiquidBottleState extends State<StorageLiquidBottle>
 
   @override
   Widget build(BuildContext context) {
+    final preview = widget.item;
+    if (preview is BottlePreviewItem) return _previewBottle(preview);
     final key = ['vodka', 'chivas', 'hennessy'].contains(widget.item.assetKey)
         ? widget.item.assetKey
         : 'vodka';
@@ -152,6 +155,38 @@ class _StorageLiquidBottleState extends State<StorageLiquidBottle>
       ],
     );
   }
+
+  Widget _previewBottle(BottlePreviewItem item) => Stack(
+    alignment: Alignment.center,
+    fit: StackFit.expand,
+    children: [
+      SvgPicture.asset(item.frame, fit: BoxFit.contain),
+      AnimatedBuilder(
+        animation: _wave,
+        builder: (context, _) => ClipPath(
+          key: const ValueKey('storage-liquid-surface'),
+          clipper: _LiquidClipper(item.remainingPercent / 100, _wave.value),
+          child: ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: (bounds) => const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFC9B69E), Color(0xFF443626)],
+            ).createShader(bounds),
+            child: SvgPicture.asset(item.mask, fit: BoxFit.contain),
+          ),
+        ),
+      ),
+      SvgPicture.asset(item.outline, fit: BoxFit.contain),
+      Positioned(
+        bottom: 40,
+        child: Text(
+          '${item.remainingPercent.toStringAsFixed(0)}%',
+          style: const TextStyle(color: Color(0xFFC9B69E), fontSize: 21),
+        ),
+      ),
+    ],
+  );
 }
 
 class _LiquidClipper extends CustomClipper<Path> {

@@ -1,3 +1,8 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show appFlavor;
+
+import '../data/bottle_material_preview.dart';
+
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:async';
@@ -28,9 +33,17 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     with SingleTickerProviderStateMixin {
   late final StorageRepository _repository =
       widget.repository ??
-      (kingclubApiBaseUrl.isEmpty
+      (_materialPreviewEnabled
+          ? BottleMaterialPreviewRepository()
+          : kingclubApiBaseUrl.isEmpty
           ? PreviewStorageRepository()
           : RealStorageRepository());
+  static final _materialPreviewEnabled =
+      !kReleaseMode &&
+      appFlavor == 'commerce' &&
+      const bool.fromEnvironment('KINGCLUB_BOTTLE_MATERIAL_PREVIEW');
+  bool get _materialPreview => _repository is BottleMaterialPreviewRepository;
+  double _previewLevel = 50;
   final _pages = PageController();
   static const _categories = ['wine', 'coupon', 'item'];
   static const _labels = ['酒', '券', '物'];
@@ -85,6 +98,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   void initState() {
     super.initState();
     _load();
+    if (_materialPreview) return;
     _realtime = KingclubRealtime.shared.events.listen((event) {
       if (event['eventType'] == 'connection.ready' ||
           event['eventType'] == 'storage.changed') {
@@ -185,6 +199,10 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   Future<void> _pickup() async {
     final item = _item;
     if (item == null) return;
+    if (_materialPreview) {
+      KingNotice.of(context).show('素材测试不签发取酒码');
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         allowSnapshotting: false,
@@ -193,6 +211,47 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
       ),
     );
     if (mounted) _load();
+  }
+
+  Future<void> _adjustPreviewLevel() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF211C14),
+      builder: (context) => StatefulBuilder(
+        builder: (context, updateSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${_item?.name ?? ''} · ${_previewLevel.round()}%',
+                  style: const TextStyle(color: _gold),
+                ),
+                Slider(
+                  value: _previewLevel,
+                  min: 0,
+                  max: 100,
+                  divisions: 100,
+                  onChanged: (value) {
+                    setState(() {
+                      _previewLevel = value;
+                      _back = true;
+                      _flip.value = 1;
+                    });
+                    updateSheet(() {});
+                  },
+                ),
+                const Text(
+                  '仅调节展示比例，不改变实际存酒余量',
+                  style: TextStyle(color: _gold, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _showExpiredStorage() async {
@@ -314,9 +373,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                           crossAxisAlignment: CrossAxisAlignment.baseline,
                           textBaseline: TextBaseline.alphabetic,
                           children: [
-                            const Flexible(
+                            Flexible(
                               child: Text(
-                                '储物袋',
+                                _materialPreview ? '储物袋 · 素材测试' : '储物袋',
                                 style: kingSectionTitleStyle,
                                 maxLines: 1,
                               ),
@@ -351,7 +410,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                           key: const ValueKey('storage-expired-items'),
                           onPressed: _loading || _error != null
                               ? null
-                              : _showExpiredStorage,
+                              : (_materialPreview
+                                    ? _adjustPreviewLevel
+                                    : _showExpiredStorage),
                           style:
                               TextButton.styleFrom(
                                 foregroundColor: const Color(0xB3C9B69E),
@@ -369,7 +430,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                   Colors.transparent,
                                 ),
                               ),
-                          child: const Text('过期储物'),
+                          child: Text(_materialPreview ? '测试余量' : '过期储物'),
                         ),
                       ),
                     ],
@@ -737,7 +798,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   Widget _backFace(StorageItem item, double u) => item.category == 'wine'
       ? StorageLiquidBottle(
           key: ValueKey(item.ref),
-          item: item,
+          item: item is BottlePreviewItem ? item.atLevel(_previewLevel) : item,
           active: widget.active && _back,
         )
       : Column(
