@@ -58,6 +58,11 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(StorageLiquidBottle), findsOneWidget);
+      // Both thumbnail and reverse face retain their ground shadow.
+      expect(
+        find.byKey(const ValueKey('bottle-ground-bottle_06')),
+        findsNWidgets(2),
+      );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     });

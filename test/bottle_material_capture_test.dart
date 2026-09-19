@@ -68,7 +68,7 @@ void main() {
       });
     }
 
-    for (final ref in ['legacy-chivas', 'bottle_01']) {
+    for (final ref in ['legacy-vodka', 'bottle_01']) {
       await tester.tap(find.byKey(ValueKey('storage-select-$ref')));
       await tester.pumpAndSettle();
       await capture('$ref-front');

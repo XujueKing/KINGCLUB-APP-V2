@@ -31,6 +31,7 @@ class BottlePreviewItem extends StorageItem {
   String get mask => '$directory/${assetKey}_mask.svg';
   String get outline => '$directory/${assetKey}_outline.svg';
   String get frame => '$directory/${assetKey}_frame.svg';
+  String get backFrame => '$directory/${assetKey}_back_frame.svg';
   BottlePreviewItem atLevel(double value) =>
       BottlePreviewItem(assetKey, name, level: value.clamp(0, 100));
 }

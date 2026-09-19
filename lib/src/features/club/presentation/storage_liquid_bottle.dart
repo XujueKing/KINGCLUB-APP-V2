@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../data/storage_repository.dart';
 import '../data/bottle_material_preview.dart';
+import 'bottle_material_image.dart';
 
 /// Original bottle silhouettes; only the liquid surface is procedurally animated.
 class StorageLiquidBottle extends StatefulWidget {
@@ -223,8 +224,20 @@ class _StorageLiquidBottleState extends State<StorageLiquidBottle>
       builder: (context, box) => Stack(
         alignment: Alignment.center,
         fit: StackFit.expand,
+        clipBehavior: Clip.none,
         children: [
-          SvgPicture.asset(item.frame, fit: BoxFit.contain),
+          BottleMaterialBacking(
+            item: item,
+            reverse: true,
+            bodyHeight:
+                math.min(box.maxHeight, box.maxWidth / item.aspectRatio) *
+                1000 /
+                1080,
+            bodyWidth:
+                math.min(box.maxHeight, box.maxWidth / item.aspectRatio) *
+                (item.aspectRatio * 1080 - 80) /
+                1080,
+          ),
           _materialLiquid(item.mask, item.remainingPercent, u),
           SvgPicture.asset(item.outline, fit: BoxFit.contain),
           Positioned(
