@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/widgets.dart';
 
@@ -28,15 +29,23 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     required this.endpoint,
     required this.expectedRelay,
     this.securityContext,
+    this.connectionFactory,
+    double Function()? retryJitter,
     this.enableGroupFiles = const bool.fromEnvironment(
       'KINGCLUB_NOVORUDP_GROUP_FILES',
     ),
-  });
+  }) : _retryJitter = retryJitter ?? Random().nextDouble;
   final NovoRudpDeviceBinding binding;
   final Uri endpoint;
   final String expectedRelay;
   final SecurityContext? securityContext;
   final bool enableGroupFiles;
+  @visibleForTesting
+  final NovoRudpRelayConnection Function()? connectionFactory;
+  final double Function() _retryJitter;
+  int _failures = 0;
+  Timer? _stableConnection;
+
   final _groupChannels = StreamController<GroupFileRelayArrival>.broadcast();
   Stream<GroupFileRelayArrival> get groupFileChannels => _groupChannels.stream;
   final int _generation = MemberQrMemory.generation;
@@ -108,12 +117,14 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     try {
       await binding.ensureRegistered().timeout(const Duration(seconds: 5));
       if (!_current(attempt)) return;
-      socket = NovoRudpRelayConnection(
-        identity: binding.identity,
-        endpoint: endpoint,
-        expectedRelay: expectedRelay,
-        securityContext: securityContext,
-      );
+      socket =
+          connectionFactory?.call() ??
+          NovoRudpRelayConnection(
+            identity: binding.identity,
+            endpoint: endpoint,
+            expectedRelay: expectedRelay,
+            securityContext: securityContext,
+          );
       _opening = socket;
       _receiver = socket.messages.listen(
         (event) {
@@ -136,6 +147,9 @@ class MemberRelayRuntime with WidgetsBindingObserver {
         return;
       }
       _ready = socket;
+      _stableConnection = Timer(const Duration(seconds: 30), () {
+        if (_current(attempt) && identical(_ready, socket)) _failures = 0;
+      });
       _connections.add(socket);
     } catch (error) {
       debugPrint('NOVORUDP_RELAY_CONNECT_FAILURE ${error.runtimeType}');
@@ -156,7 +170,16 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     if (!_current(attempt)) return;
     _disconnect();
     if (_foreground && !_closed) {
-      _retry = Timer(const Duration(seconds: 30), () {
+      // Recover short interruptions quickly, but avoid a reconnect storm when
+      // a relay accepts authentication and then repeatedly drops the socket.
+      final seconds = min(30, 1 << min(_failures++, 5));
+      final delay = Duration(
+        milliseconds: min(
+          30000,
+          (seconds * 1000 * (1 + _retryJitter().clamp(0.0, 1.0) * 0.2)).round(),
+        ),
+      );
+      _retry = Timer(delay, () {
         if (_closed || !_foreground) return;
         if (_generation != MemberQrMemory.generation) {
           close();
@@ -404,6 +427,8 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     }
     _peerSubscriptions.clear();
     _retry?.cancel();
+    _stableConnection?.cancel();
+    _stableConnection = null;
     _opening?.close();
     _opening = null;
     unawaited(_receiver?.cancel());
