@@ -123,6 +123,16 @@ class NovoRudpLanRoute {
       _confirmed != null &&
       _confirmed!.elapsed < const Duration(seconds: 6);
 
+  /// A transfer has missed consecutive receipts. Stop trusting the old path
+  /// immediately; the caller can use relay while a fresh nonce probe runs.
+  /// A late response to an earlier heartbeat cannot reinstate the route.
+  void reprobeAfterStall() {
+    if (_closed || !ready) return;
+    _confirmed = null;
+    _probes.clear();
+    unawaited(_probe().catchError((Object _) {}));
+  }
+
   NovoRudpFrame _control(Map<String, dynamic> body) => NovoRudpFrame(
     kind: NovoRudpFrameKind.data,
     sessionId: channel.sessionId,

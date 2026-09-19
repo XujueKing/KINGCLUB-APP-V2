@@ -17,7 +17,8 @@ typedef NovoRudpLanRouteFactory = Future<NovoRudpLanRoute?> Function({
 
 /// Owns one authenticated peer channel, not the shared relay connection.
 /// Relay acceptance never substitutes for the upper layer's durable receipt.
-class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
+class NovoRudpRelayFrameLink
+    implements NovoRudpFrameLink, NovoRudpRouteRecovery {
   NovoRudpRelayFrameLink({
     required this.relay,
     required this.channel,
@@ -93,6 +94,11 @@ class NovoRudpRelayFrameLink implements NovoRudpFrameLink {
   final NovoRudpLanRouteFactory openLanRoute;
   NovoRudpLanRoute? _lan;
   bool get directLanReady => _lan?.ready ?? false;
+
+  @override
+  void reportDeliveryStall() {
+    if (!_closed) _lan?.reprobeAfterStall();
+  }
 
   Future<void> _openLan() async {
     try {

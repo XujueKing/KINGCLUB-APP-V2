@@ -90,6 +90,14 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 100));
       }
       expect(left.ready && right.ready, isTrue);
+      left.reprobeAfterStall();
+      expect(left.ready, isFalse);
+      wait.reset();
+      while (!left.ready && wait.elapsed < const Duration(seconds: 2)) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      // A healthy route recovers only after a fresh authenticated UDP probe.
+      expect(left.ready, isTrue);
       await right.close();
       await Future<void>.delayed(const Duration(milliseconds: 6500));
       expect(left.ready, isFalse);
@@ -160,6 +168,10 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 20));
       }
       expect(delivered.single.payload, [7, 8, 9]);
+      await right.close();
+      left.reprobeAfterStall();
+      // Receipt feedback can stop the dead route before the heartbeat expires.
+      expect(left.ready, isFalse);
     },
     skip: !env.containsKey('NOVORUDP_NATIVE_LIBRARY'),
     timeout: const Timeout(Duration(seconds: 20)),

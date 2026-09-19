@@ -48,6 +48,22 @@ class HeldSendLink implements NovoRudpFrameLink {
   }
 }
 
+class MissingReceiptLink implements NovoRudpFrameLink, NovoRudpRouteRecovery {
+  MissingReceiptLink(this.delegate);
+  final NovoRudpFrameLink delegate;
+  int recoveryHints = 0;
+  @override
+  NovoRudpSecureChannel get channel => delegate.channel;
+  @override
+  Stream<NovoRudpFrame> get frames => delegate.frames;
+  @override
+  Future<void> send(NovoRudpFrame frame) async {}
+  @override
+  Future<void> close() async {}
+  @override
+  void reportDeliveryStall() => recoveryHints++;
+}
+
 void main() {
   final path = Platform.environment['NOVORUDP_NATIVE_LIBRARY'];
   group('real encrypted UDP file transfer', () {
@@ -125,6 +141,30 @@ void main() {
           .map((b) => b.toRadixString(16).padLeft(2, '0'))
           .join();
       return (file: file, hash: hash);
+    }
+
+    for (final attempts in [1, 4]) {
+      test(
+        'missing receipts request bounded route recovery: $attempts',
+        () async {
+          final input = await source([1, 2, 3]);
+          final link = MissingReceiptLink(left);
+          await expectLater(
+            NovoRudpFileSender(
+              link: link,
+              file: input.file,
+              streamId: BigInt.one,
+              objectId: BigInt.one,
+              size: 3,
+              sha256: input.hash,
+              ackWait: const Duration(milliseconds: 20),
+              maxStalls: attempts,
+            ).run(),
+            throwsA(isA<TimeoutException>()),
+          );
+          expect(link.recoveryHints, attempts == 1 ? 0 : 1);
+        },
+      );
     }
 
     test(

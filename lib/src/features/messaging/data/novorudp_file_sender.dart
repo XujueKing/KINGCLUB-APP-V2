@@ -47,6 +47,7 @@ class NovoRudpFileSender {
   bool _started = false, _cancelled = false, _timedOut = false;
   Object? _failure;
   NovoRudpFrame? _latest;
+  int _missedReceipts = 0;
   Completer<void>? _wake;
   final _interrupted = Completer<void>();
 
@@ -130,6 +131,13 @@ class NovoRudpFileSender {
     _check();
     final value = _latest;
     _latest = null;
+    if (value == null) {
+      if (++_missedReceipts == 2 && link is NovoRudpRouteRecovery) {
+        (link as NovoRudpRouteRecovery).reportDeliveryStall();
+      }
+    } else {
+      _missedReceipts = 0;
+    }
     return value;
   }
 

@@ -8,3 +8,8 @@ abstract interface class NovoRudpFrameLink {
   Future<void> send(NovoRudpFrame frame);
   Future<void> close();
 }
+
+/// Optional route feedback; missing application receipts are not delivery proof.
+abstract interface class NovoRudpRouteRecovery {
+  void reportDeliveryStall();
+}
