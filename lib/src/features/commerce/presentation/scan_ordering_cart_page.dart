@@ -7,6 +7,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../club/presentation/legacy_club_components.dart';
 import '../data/ordering_context.dart';
+import '../data/ordering_catalog_repository.dart';
+import 'ordering_entry_status.dart';
 
 enum ScanOrderingScenario {
   ready,
@@ -59,8 +61,12 @@ class ScanOrderingCartPage extends StatefulWidget {
     this.onQuoteReady,
     this.onOpenOrders,
     this.orderingContext,
+    this.catalog,
+    this.locale = const Locale('zh'),
   });
 
+  final OrderingCatalog? catalog;
+  final Locale locale;
   final VoidCallback onBack;
   final ValueChanged<FakeOrderingQuote>? onQuoteReady;
   final VoidCallback? onOpenOrders;
@@ -71,7 +77,7 @@ class ScanOrderingCartPage extends StatefulWidget {
 }
 
 class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
-  static const _products = <_OrderingProduct>[
+  static const _demoProducts = <_OrderingProduct>[
     _OrderingProduct(
       id: 'hennessy-xo',
       category: '酒水',
@@ -122,6 +128,45 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     ),
   ];
 
+  bool get _live => widget.catalog != null;
+  String _localized(Map<String, String> names) => OrderingEntryStatus.text(
+    widget.locale,
+    [names['zh-CN']!, names['en']!, names['zh-TW']!, names['th']!],
+  );
+  String _major(String value) =>
+      const {'liquor': '酒水', 'drinks': '饮料', 'snacks': '小吃'}[value]!;
+  String _money(int amount) => _live
+      ? '${amount ~/ 100}.${(amount % 100).toString().padLeft(2, '0')}'
+      : '$amount';
+  String _categoryLabel(String id) {
+    if (!_live) return _legacyCategoryLabel(id);
+    return _localized(
+      widget.catalog!.categories.firstWhere((c) => c.reference == id).names,
+    );
+  }
+
+  List<_OrderingProduct> get _products {
+    final catalog = widget.catalog;
+    if (catalog == null) return _demoProducts;
+    final categories = {for (final c in catalog.categories) c.reference: c};
+    return catalog.products
+        .map(
+          (p) => _OrderingProduct(
+            id: p.reference,
+            category: _major(categories[p.categoryRef]!.majorCategory),
+            subcategory: p.categoryRef,
+            name: _localized(p.names),
+            englishName: p.names['en']!,
+            specs: _localized(p.specifications),
+            price: p.priceCents,
+            originalPrice: p.priceCents,
+            asset: '',
+            limit: p.available,
+          ),
+        )
+        .toList();
+  }
+
   final _searchController = TextEditingController();
   final _catalogController = ScrollController();
   int? _categoryAnchorIndex;
@@ -137,7 +182,11 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   void initState() {
     super.initState();
     // Existing no-context route remains the legacy UI demonstration.
-    if (widget.orderingContext != null) _quantities.clear();
+    if (widget.orderingContext != null || _live) _quantities.clear();
+    if (_live && widget.catalog!.categories.isNotEmpty) {
+      _category = _major(widget.catalog!.categories.first.majorCategory);
+      _subcategory = widget.catalog!.categories.first.reference;
+    }
   }
 
   @override
@@ -146,7 +195,10 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     final previous = oldWidget.orderingContext;
     final current = widget.orderingContext;
     if (previous == null && current == null) return;
-    if (previous != null && current != null && previous.hasSameScope(current)) {
+    if (previous != null &&
+        current != null &&
+        previous.hasSameScope(current) &&
+        oldWidget.catalog == widget.catalog) {
       return;
     }
     _scopeGeneration++;
@@ -353,7 +405,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     return GestureDetector(
       key: const ValueKey('ordering-store-header'),
       behavior: HitTestBehavior.opaque,
-      onLongPress: _showScenarioPicker,
+      onLongPress: _live ? null : _showScenarioPicker,
       child: Padding(
         padding: EdgeInsets.fromLTRB(_rpx(45), _rpx(10), _rpx(45), 0),
         child: Column(
@@ -592,11 +644,25 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   (products.length - _categoryAnchorIndex!) * (rowHeight + 2) +
                   2)
               .clamp(minimumTail, double.infinity);
-    final subcategories = switch (_category) {
-      '酒水' => const ['畅饮套餐', '威士忌', '白兰地', '伏特加', '香槟', '红葡萄酒', '清酒', '鸡尾酒'],
-      '饮料' => const ['全部', '软饮', '果汁'],
-      _ => const ['全部', '果盘', '热食'],
-    };
+    final subcategories = _live
+        ? widget.catalog!.categories
+              .where((c) => _major(c.majorCategory) == _category)
+              .map((c) => c.reference)
+              .toList()
+        : switch (_category) {
+            '酒水' => const [
+              '畅饮套餐',
+              '威士忌',
+              '白兰地',
+              '伏特加',
+              '香槟',
+              '红葡萄酒',
+              '清酒',
+              '鸡尾酒',
+            ],
+            '饮料' => const ['全部', '软饮', '果汁'],
+            _ => const ['全部', '果盘', '热食'],
+          };
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -647,7 +713,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                     ),
                   ),
                   child: Text(
-                    _legacyCategoryLabel(label),
+                    _categoryLabel(label),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: selected
@@ -705,11 +771,13 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     final contentHeight = rowHeight - verticalInset * 2;
     final quantity = _quantities[product.id] ?? 0;
     final soldOut =
-        _scenario == ScanOrderingScenario.soldOut && product.id == 'chivas-12';
+        product.limit == 0 ||
+        (_scenario == ScanOrderingScenario.soldOut &&
+            product.id == 'chivas-12');
     final limitReached = quantity >= product.limit;
     return Semantics(
       container: true,
-      label: '${product.name}，价格 ${product.price} 元，已选 $quantity 件',
+      label: '${product.name}，价格 ${_money(product.price)} 元，已选 $quantity 件',
       child: SizedBox(
         height: rowHeight,
         child: Padding(
@@ -717,15 +785,25 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset(
-                product.asset,
-                key: ValueKey('ordering-image-${product.id}'),
-                width: MediaQuery.sizeOf(context).width * 190 / 750,
-                height: contentHeight,
-                fit: BoxFit.contain,
-                color: soldOut ? const Color(0x77000000) : null,
-                colorBlendMode: soldOut ? BlendMode.darken : null,
-              ),
+              if (product.asset.isEmpty)
+                SizedBox(
+                  width: MediaQuery.sizeOf(context).width * 190 / 750,
+                  height: contentHeight,
+                  child: const Icon(
+                    Icons.local_bar_outlined,
+                    color: Color(0xFF8E867E),
+                  ),
+                )
+              else
+                Image.asset(
+                  product.asset,
+                  key: ValueKey('ordering-image-${product.id}'),
+                  width: MediaQuery.sizeOf(context).width * 190 / 750,
+                  height: contentHeight,
+                  fit: BoxFit.contain,
+                  color: soldOut ? const Color(0x77000000) : null,
+                  colorBlendMode: soldOut ? BlendMode.darken : null,
+                ),
               const SizedBox(width: 10),
               Expanded(
                 child: SizedBox(
@@ -787,7 +865,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                                       ),
                                     ),
                                     TextSpan(
-                                      text: '${product.price}',
+                                      text: _money(product.price),
                                       style: const TextStyle(
                                         color: Color(0xFFE8E3DD),
                                         fontSize: 18,
@@ -818,11 +896,18 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             ),
                         ],
                       ),
-                      if (limitReached ||
+                      if ((!soldOut && limitReached) ||
                           (_scenario == ScanOrderingScenario.limitReached &&
                               product.id == 'hennessy-xo'))
                         Text(
-                          '每桌限购 ${product.limit} 份',
+                          _live
+                              ? OrderingEntryStatus.text(widget.locale, [
+                                  '可选库存 ${product.limit} 份',
+                                  '${product.limit} available',
+                                  '可選庫存 ${product.limit} 份',
+                                  'คงเหลือ ${product.limit}',
+                                ])
+                              : '每桌限购 ${product.limit} 份',
                           key: const ValueKey('ordering-limit-message'),
                           style: const TextStyle(
                             color: Color(0xFFFFC96E),
@@ -926,7 +1011,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                       ),
                     ),
                     TextSpan(
-                      text: _itemCount > 0 ? _total.toStringAsFixed(0) : '0',
+                      text: _live
+                          ? _money(_total)
+                          : (_itemCount > 0 ? _total.toStringAsFixed(0) : '0'),
                       style: TextStyle(
                         color: _itemCount > 0
                             ? const Color(0xFFE1D3C1)
@@ -936,7 +1023,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                       ),
                     ),
                     TextSpan(
-                      text: '.00',
+                      text: _live ? '' : '.00',
                       style: TextStyle(
                         color: _itemCount > 0
                             ? const Color(0xFF8E867E)
@@ -1004,6 +1091,21 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   }
 
   Future<void> _requestFakeQuote() async {
+    if (_live) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            OrderingEntryStatus.text(widget.locale, [
+              '结算暂未开放',
+              'Checkout is not available yet',
+              '結算暫未開放',
+              'ยังไม่เปิดให้ชำระเงิน',
+            ]),
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _quoting = true);
     final generation = _scopeGeneration;
     await Future<void>.delayed(const Duration(milliseconds: 450));
@@ -1181,7 +1283,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                         ),
                         const Spacer(),
                         Text(
-                          '¥ ${_total.toStringAsFixed(0)}.00',
+                          '¥ ${_live ? _money(_total) : '${_total.toStringAsFixed(0)}.00'}',
                           style: const TextStyle(
                             color: Color(0xFF181205),
                             fontSize: 18,
@@ -1218,12 +1320,19 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
         children: [
           const _LegacySelectionMark(selected: true),
           const SizedBox(width: 8),
-          Image.asset(
-            product.asset,
-            width: 58,
-            height: 88,
-            fit: BoxFit.contain,
-          ),
+          if (product.asset.isEmpty)
+            const SizedBox(
+              width: 58,
+              height: 88,
+              child: Icon(Icons.local_bar_outlined, color: Color(0xFF8E867E)),
+            )
+          else
+            Image.asset(
+              product.asset,
+              width: 58,
+              height: 88,
+              fit: BoxFit.contain,
+            ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -1259,7 +1368,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   ),
                 ),
                 Text(
-                  '¥ ${product.price}',
+                  '¥ ${_money(product.price)}',
                   style: const TextStyle(
                     color: Color(0xFFE2D7C8),
                     fontSize: 16,

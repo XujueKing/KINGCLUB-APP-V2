@@ -2,6 +2,7 @@ import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 
 import '../data/ordering_context.dart';
+import '../data/ordering_catalog_repository.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'ordering_entry_status.dart';
 import 'scan_ordering_cart_page.dart';
@@ -15,6 +16,7 @@ class TableOrderingEntryPage extends StatefulWidget {
     required this.tableId,
     required this.onBack,
     this.resolveTable,
+    this.readCatalog,
     this.onQuoteReady,
     this.onOpenOrders,
     this.previewEnabled = false,
@@ -26,6 +28,7 @@ class TableOrderingEntryPage extends StatefulWidget {
   final String tableId;
   final VoidCallback onBack;
   final ResolveOrderingTable? resolveTable;
+  final Future<OrderingCatalog> Function(OrderingContext)? readCatalog;
   final ValueChanged<FakeOrderingQuote>? onQuoteReady;
   final VoidCallback? onOpenOrders;
   final bool previewEnabled;
@@ -39,6 +42,7 @@ class TableOrderingEntryPage extends StatefulWidget {
 
 class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
   OrderingContext? _context;
+  OrderingCatalog? _catalog;
   bool _loading = false;
   OrderingEntryStatus? _error;
   int _generation = 0;
@@ -53,7 +57,8 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
   void didUpdateWidget(covariant TableOrderingEntryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tableId != widget.tableId ||
-        oldWidget.resolveTable != widget.resolveTable) {
+        oldWidget.resolveTable != widget.resolveTable ||
+        oldWidget.readCatalog != widget.readCatalog) {
       _resolve();
     }
   }
@@ -62,6 +67,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
     final generation = ++_generation;
     setState(() {
       _context = null;
+      _catalog = null;
       _loading = widget.resolveTable != null;
       _error = widget.resolveTable == null
           ? const OrderingEntryStatus('ORDERING_SERVICE_UNAVAILABLE')
@@ -72,8 +78,18 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
     try {
       final result = await resolver(widget.tableId);
       if (!mounted || generation != _generation) return;
+      final reader = widget.readCatalog;
+      if (reader == null) {
+        throw const AuthFailure('CATALOG_NOT_ENABLED', '商品目录尚未开放');
+      }
+      final catalog = await reader(result);
+      if (!catalog.context.hasSameScope(result)) {
+        throw const AuthFailure('ORDERING_SESSION_CHANGED', '桌台已变化');
+      }
+      if (!mounted || generation != _generation) return;
       setState(() {
         _context = result;
+        _catalog = catalog;
         _loading = false;
       });
     } catch (error) {
@@ -113,9 +129,9 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
       return ScanOrderingCartPage(
         key: ValueKey(resolved.contextRef),
         orderingContext: resolved,
+        catalog: _catalog,
+        locale: widget.locale,
         onBack: widget.onBack,
-        onQuoteReady: widget.onQuoteReady,
-        onOpenOrders: widget.onOpenOrders,
       );
     }
     return Scaffold(

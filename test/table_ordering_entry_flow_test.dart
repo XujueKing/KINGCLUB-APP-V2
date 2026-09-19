@@ -1,3 +1,5 @@
+import 'package:kingclub/src/features/commerce/data/ordering_catalog_repository.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -144,6 +146,7 @@ void main() {
         tableId: id,
         onBack: () {},
         resolveTable: resolve,
+        readCatalog: (c) async => OrderingCatalog(c, const [], const []),
       ),
     );
     await tester.pumpWidget(page('A'));
@@ -168,6 +171,7 @@ void main() {
         home: TableOrderingEntryPage(
           tableId: 'T1',
           onBack: () {},
+          readCatalog: (c) async => OrderingCatalog(c, const [], const []),
           resolveTable: (id) async {
             if (++attempts == 1) throw StateError('unavailable');
             return scope(id);
