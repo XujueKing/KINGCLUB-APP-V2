@@ -166,7 +166,8 @@ class _ChatFileDetailsPageState extends State<ChatFileDetailsPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
-    appBar: AppBar(
+    appBar: kingAppBar(
+      context: context,
       backgroundColor: Colors.black,
       leading: KingBackButton(onPressed: () => Navigator.of(context).pop()),
       title: const Text('文件'),

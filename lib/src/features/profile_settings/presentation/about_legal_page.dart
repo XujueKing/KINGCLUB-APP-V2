@@ -477,6 +477,7 @@ class _AboutHeader extends StatelessWidget {
       height: 56,
       child: Row(
         children: [
+          SizedBox(width: KingBackButton.leftOffset(context)),
           KingBackButton(onPressed: onBack),
           Expanded(
             child: GestureDetector(

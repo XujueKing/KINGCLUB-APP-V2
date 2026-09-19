@@ -227,7 +227,11 @@ class _SettingsPageState extends State<SettingsPage> {
       _push(
         Scaffold(
           backgroundColor: Colors.black,
-          appBar: AppBar(title: const Text('安全中心'), centerTitle: true),
+          appBar: kingAppBar(
+            context: context,
+            title: const Text('安全中心'),
+            centerTitle: true,
+          ),
           body: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
             child: Column(

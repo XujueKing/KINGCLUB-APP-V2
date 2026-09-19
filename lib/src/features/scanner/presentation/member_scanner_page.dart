@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import '../../messaging/data/group_chat_repository.dart';
 import '../../messaging/presentation/group_qr_preview_page.dart';
 import '../../../core/session/secure_session_store.dart';
@@ -144,7 +146,7 @@ class _MemberScannerPageState extends State<MemberScannerPage>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('扫一扫')),
+    appBar: kingAppBar(context: context, title: const Text('扫一扫')),
     body: Stack(
       children: [
         MobileScanner(
@@ -256,7 +258,7 @@ class _MemberCardPreviewState extends State<MemberCardPreview> {
   );
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('会员资料')),
+    appBar: kingAppBar(context: context, title: const Text('会员资料')),
     body: Center(
       child: Padding(
         padding: const EdgeInsets.all(28),

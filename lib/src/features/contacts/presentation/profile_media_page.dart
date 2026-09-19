@@ -54,7 +54,8 @@ class _ProfileMediaPageState extends State<ProfileMediaPage> {
     final url = "${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}$path";
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
+      appBar: kingAppBar(
+        context: context,
         backgroundColor: Colors.black,
         leading: KingBackButton(onPressed: () => Navigator.of(context).pop()),
       ),

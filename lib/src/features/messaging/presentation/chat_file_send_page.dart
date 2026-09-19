@@ -155,7 +155,8 @@ class _ChatFileSendPageState extends State<ChatFileSendPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
-    appBar: AppBar(
+    appBar: kingAppBar(
+      context: context,
       backgroundColor: Colors.black,
       leading: KingBackButton(onPressed: () => Navigator.of(context).pop()),
       title: const Text('发送文件'),

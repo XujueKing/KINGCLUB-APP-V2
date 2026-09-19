@@ -368,7 +368,11 @@ class _LegacyBackButton extends StatelessWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
-        padding: EdgeInsets.only(left: KingBackButton.leftOffset(context)),
+        padding: EdgeInsets.only(
+          left: KingBackButton.leftOffset(context),
+          top: 4,
+          bottom: 4,
+        ),
         child: KingBackButton(
           key: const ValueKey('user-profile-back'),
           tooltip: '返回',

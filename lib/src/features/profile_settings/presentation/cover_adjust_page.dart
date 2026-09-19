@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:io';
@@ -33,7 +34,8 @@ class _CoverAdjustPageState extends State<CoverAdjustPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
+      appBar: kingAppBar(
+        context: context,
         backgroundColor: Colors.black,
         foregroundColor: _gold,
         centerTitle: true,

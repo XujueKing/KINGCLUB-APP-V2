@@ -420,9 +420,11 @@ class _LegacyBlacklistHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 78,
+      height: 56,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22),
+        padding: EdgeInsets.symmetric(
+          horizontal: KingBackButton.leftOffset(context),
+        ),
         child: Row(
           children: [
             SizedBox.square(

@@ -159,7 +159,8 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
-    appBar: AppBar(
+    appBar: kingAppBar(
+      context: context,
       backgroundColor: Colors.black,
       leading: KingBackButton(onPressed: () => Navigator.of(context).pop()),
       title: Text(widget.title),

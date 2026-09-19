@@ -128,7 +128,8 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
 
   Widget _preview(Widget content, String title) => Scaffold(
     backgroundColor: Colors.black,
-    appBar: AppBar(
+    appBar: kingAppBar(
+      context: context,
       backgroundColor: Colors.black,
       title: Text(title),
       leading: KingBackButton(onPressed: () => Navigator.of(context).pop()),

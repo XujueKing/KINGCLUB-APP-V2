@@ -228,7 +228,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                     builder: (context, constraints) {
                       final unobscuredHeight =
                           constraints.maxHeight -
-                          80 -
+                          _cartContentHeight -
                           MediaQuery.paddingOf(context).bottom;
                       return _buildCatalog(
                         (unobscuredHeight / 3.6).clamp(
@@ -257,13 +257,20 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   double _rpx(double value) =>
       value * (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6);
 
+  double get _cartContentHeight => _rpx(120);
+
   Widget _buildSearchHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 24, 8),
+      padding: EdgeInsets.fromLTRB(
+        KingBackButton.leftOffset(context),
+        4,
+        _rpx(20),
+        4,
+      ),
       child: Row(
         children: [
           SizedBox(
-            width: 42,
+            width: 48,
             height: 48,
             child: KingBackButton(
               key: const ValueKey('ordering-back'),
@@ -271,7 +278,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               onPressed: widget.onBack,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 2),
           Expanded(
             child: SizedBox(
               // Legacy input: 36rpx content + 20rpx padding per side.
@@ -577,7 +584,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       );
     }
     final products = _visibleProducts;
-    final minimumTail = 80 + MediaQuery.paddingOf(context).bottom + _rpx(12);
+    final minimumTail =
+        _cartContentHeight + MediaQuery.paddingOf(context).bottom + _rpx(12);
     final tail = _categoryAnchorIndex == null
         ? minimumTail
         : (viewportHeight -
@@ -602,7 +610,10 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
           ),
           child: ListView.builder(
             padding: EdgeInsets.only(
-              bottom: 80 + MediaQuery.paddingOf(context).bottom + _rpx(30),
+              bottom:
+                  _cartContentHeight +
+                  MediaQuery.paddingOf(context).bottom +
+                  _rpx(30),
             ),
             itemCount: subcategories.length,
             itemBuilder: (context, index) {
@@ -833,12 +844,12 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     final enabled = _canEdit && _itemCount > 0 && !_quoting;
     return Container(
       key: const ValueKey('ordering-cart-bar'),
-      height: 80 + MediaQuery.paddingOf(context).bottom,
+      height: _cartContentHeight + MediaQuery.paddingOf(context).bottom,
       padding: EdgeInsets.fromLTRB(
-        22,
-        10,
-        18,
-        10 + MediaQuery.paddingOf(context).bottom,
+        _rpx(40),
+        _rpx(12),
+        _rpx(24),
+        _rpx(12) + MediaQuery.paddingOf(context).bottom,
       ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -862,8 +873,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   opacity: _itemCount > 0 ? 1 : .4,
                   child: Image.asset(
                     'assets/legacy/ordering/shopping_bag.png',
-                    width: 54,
-                    height: 48,
+                    width: _rpx(80),
+                    height: _rpx(64),
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -872,10 +883,10 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   bottom: 0,
                   child: Container(
                     key: const ValueKey('ordering-cart-badge'),
-                    constraints: const BoxConstraints(minWidth: 25),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 4,
+                    constraints: BoxConstraints(minWidth: _rpx(36)),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: _rpx(6),
+                      vertical: _rpx(4),
                     ),
                     decoration: BoxDecoration(
                       color: _itemCount > 0
@@ -939,8 +950,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
             ),
           ),
           SizedBox(
-            width: 100,
-            height: 42,
+            width: _rpx(180),
+            height: _rpx(68),
             child: FilledButton(
               key: const ValueKey('ordering-confirm'),
               onPressed: enabled ? _requestFakeQuote : null,
@@ -950,6 +961,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                 disabledBackgroundColor: const Color(0xFF262626),
                 disabledForegroundColor: const Color(0xFF363636),
                 shape: const StadiumBorder(),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: _quoting
                   ? const SizedBox.square(
@@ -962,7 +976,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   : const Text(
                       '去结算',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

@@ -1247,7 +1247,8 @@ class _DirectChatPageState extends State<DirectChatPage>
                                       MaterialPageRoute(
                                         builder: (_) => Scaffold(
                                           backgroundColor: Colors.black,
-                                          appBar: AppBar(
+                                          appBar: kingAppBar(
+                                            context: context,
                                             backgroundColor: Colors.black,
                                             leading: KingBackButton(
                                               onPressed: () =>
@@ -3178,7 +3179,8 @@ class _DirectChatPageState extends State<DirectChatPage>
         MaterialPageRoute(
           builder: (_) => Scaffold(
             backgroundColor: Colors.black,
-            appBar: AppBar(
+            appBar: kingAppBar(
+              context: context,
               backgroundColor: Colors.black,
               leading: KingBackButton(
                 onPressed: () => Navigator.of(context).pop(),

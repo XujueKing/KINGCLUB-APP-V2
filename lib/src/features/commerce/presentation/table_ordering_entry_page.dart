@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 
 import '../data/ordering_context.dart';
@@ -108,9 +109,10 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
       );
     }
     return Scaffold(
-      appBar: AppBar(
+      appBar: kingAppBar(
+        context: context,
         title: const Text('桌台点单'),
-        leading: BackButton(onPressed: widget.onBack),
+        leading: KingBackButton(onPressed: widget.onBack),
       ),
       body: Center(
         child: _loading

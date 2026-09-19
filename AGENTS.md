@@ -1,5 +1,9 @@
 # KINGCLUB APP V2 Agent Instructions
 
+## 2026-09-19 全部内页返回按钮统一
+
+用户明确要求所有内页（包括扫一扫）统一返回按钮。允许本独立 worktree 修改跨模块公共 UI 与内页标题栏，以注册页为几何基准：48dp 点击区、8×16dp 图标、安全区下 4dp、KingBackButton.leftOffset。保留各页面原有返回/取消/通话结束/未保存确认行为。此授权不涉及聊天主工作目录或 A 手机；B 商务独立包继续安装验收。
+
 ## 2026-09-18 扫码点单生产目标
 
 用户明确启动目标模式，要求扫码点单整栏完成到可生产，包括微信直连/服务商支付，覆盖此前仅 UI/Mock 或不允许支付接入的阶段限制。允许独立 worktree 内推进真实接口、支付集成与必要验证；不得把 Mock、签名测试或安装成功宣称生产验收，不自动执行未明确金额的真实交易，不导入旧数据。后端独立目录 `D:\2026-ZHUZHOU\SERVICES\ccsop-service-commerce`，分支 `feature/kingclub-commerce`，创建基线 aa6c1db；原后端和聊天主工作区保留。生产计划及实际状态见 feature_scan_ordering/PRODUCTION_GOAL.md。

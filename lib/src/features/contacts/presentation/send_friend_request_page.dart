@@ -386,7 +386,7 @@ class _LegacyRequestHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 70,
+      height: 56,
       child: Stack(
         alignment: Alignment.center,
         children: [

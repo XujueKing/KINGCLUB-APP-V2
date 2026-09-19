@@ -134,9 +134,10 @@ class _StoragePickupCodePageState extends State<StoragePickupCodePage>
 
   Widget _header() {
     return SizedBox(
-      height: 62,
+      height: 56,
       child: Row(
         children: [
+          SizedBox(width: KingBackButton.leftOffset(context)),
           KingBackButton(
             key: const ValueKey('storage-pickup-back'),
             onPressed: () => Navigator.pop(context),

@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -73,7 +75,11 @@ class _ProfileInterestsPageState extends State<ProfileInterestsPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
-    appBar: AppBar(title: const Text('兴趣偏好'), centerTitle: true),
+    appBar: kingAppBar(
+      context: context,
+      title: const Text('兴趣偏好'),
+      centerTitle: true,
+    ),
     body: SafeArea(
       child: Column(
         children: [
@@ -130,7 +136,11 @@ class _ProfileCityPageState extends State<ProfileCityPage> {
   String query = '';
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('选择城市'), centerTitle: true),
+    appBar: kingAppBar(
+      context: context,
+      title: const Text('选择城市'),
+      centerTitle: true,
+    ),
     body: SafeArea(
       child: Column(
         children: [

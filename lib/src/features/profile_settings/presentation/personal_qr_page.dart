@@ -619,9 +619,10 @@ class _QrHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 58),
+      constraints: const BoxConstraints(minHeight: 56),
       child: Row(
         children: [
+          SizedBox(width: KingBackButton.leftOffset(context)),
           KingBackButton(
             key: const ValueKey('personal-qr-back'),
             onPressed: onBack,

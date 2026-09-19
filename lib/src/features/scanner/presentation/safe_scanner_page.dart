@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -202,12 +204,9 @@ class _SafeScannerPageState extends State<SafeScannerPage>
     final cameraActive = _state == _ScannerViewState.cameraActive;
     return Scaffold(
       backgroundColor: KingColors.canvas,
-      appBar: AppBar(
-        leading: IconButton(
-          onPressed: _close,
-          tooltip: '关闭扫码',
-          icon: const Icon(Icons.close),
-        ),
+      appBar: kingAppBar(
+        context: context,
+        leading: KingBackButton(onPressed: _close, tooltip: '关闭扫码'),
         title: const Text('扫一扫'),
         actions: [
           IconButton(

@@ -2,6 +2,43 @@ import 'package:flutter/material.dart';
 
 import 'king_theme.dart';
 
+/// Shared inner-page toolbar; matches registration's safe-area geometry.
+AppBar kingAppBar({
+  required BuildContext context,
+  Widget? title,
+  Widget? leading,
+  List<Widget>? actions,
+  Color? backgroundColor,
+  Color? foregroundColor,
+  bool? centerTitle,
+}) {
+  final back =
+      leading ??
+      (ModalRoute.of(context)?.canPop == true
+          ? KingBackButton(onPressed: () => Navigator.maybePop(context))
+          : null);
+  return AppBar(
+    toolbarHeight: 56,
+    automaticallyImplyLeading: false,
+    leadingWidth: KingBackButton.leftOffset(context) + 48,
+    leading: back == null
+        ? null
+        : Padding(
+            padding: EdgeInsets.only(
+              left: KingBackButton.leftOffset(context),
+              top: 4,
+              bottom: 4,
+            ),
+            child: back,
+          ),
+    title: title,
+    actions: actions,
+    backgroundColor: backgroundColor,
+    foregroundColor: foregroundColor,
+    centerTitle: centerTitle,
+  );
+}
+
 class KingBackButton extends StatelessWidget {
   const KingBackButton({
     super.key,
