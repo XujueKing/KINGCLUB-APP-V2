@@ -13,3 +13,9 @@
 本次请求日志只有视频封面下载，没有完整视频 HTTP 下载，支持完整视频从 peer 通道取得。测试 relay 运行中，不能据此区分 UDP 直连和加密中继；没有人工听音确认，不计入声音验收。HEVC 实机和跨网络中断续传仍待验收。
 
 补充回归：下载续传、下载器、peer 文件准备及自适应文字路由共 56 项通过；服务端完整 verify 105 文件、496 项通过。
+
+## 认证入口区分 UDP 的手机验证
+
+2026-09-21，A/B 使用 a131c4fe profile（APK SHA-256 `969fde77bb89ceb11114051ce7ad58e91938b0415c5f80336b144993dd43a09d`）。B 经聊天“照片→选择视频”重新发送 `test/fixtures/chat-video-synthetic.mp4`，新消息 `9bf6fb23-423f-48e1-943b-f0730c11803d`。A 点击新视频卡片后，06:58:36 下载记录为 **udpFrames=53、udpBytes=51373、relayFrames=0、relayBytes=0**。两份新增本地视频文件时间为 06:58，长度 51373，SHA-256 均为 `c34ac97fad8cda46a3046bcd75e4dfccc63bdd59b63e0b0bd3b09ad693342c48`，与测试源一致。
+
+A 视频页实际显示合成画面的 1.958 秒末帧，支持完整文件解码播放。服务端该新消息仅有 thumbnail GET，没有完整视频 GET。封面阶段另观察到 relayFrames=10、relayBytes=9348，且有 HTTP 封面请求；因此仅将**完整 H.264 视频的本轮 LAN UDP 获取**记为通过，不声称封面纯 UDP。无人工听音确认，不新增声音验收结论；HEVC、跨公网及长视频中断仍待验证。
