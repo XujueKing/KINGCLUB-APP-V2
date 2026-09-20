@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
@@ -53,7 +54,18 @@ class NovoRudpRelayFrameLink
                 _check();
                 if (frame.payload.length <=
                     NovoRudpSecurePacket.maxFramePayload) {
-                  if (frame.streamId == NovoRudpLanRoute.controlStream) {
+                  if (frame.streamId == _livenessStream) {
+                    if (frame.payload.length == 1 &&
+                        frame.payload.single == 0) {
+                      await send(_livenessFrame(frame.objectId, 1));
+                    } else if (frame.payload.length == 1 &&
+                        frame.payload.single == 1 &&
+                        frame.objectId == _probeId) {
+                      if (!(_probeReply?.isCompleted ?? true)) {
+                        _probeReply!.complete();
+                      }
+                    }
+                  } else if (frame.streamId == NovoRudpLanRoute.controlStream) {
                     await _lan?.acceptControl(frame);
                   } else {
                     _frames.add(frame);
@@ -94,6 +106,45 @@ class NovoRudpRelayFrameLink
   final NovoRudpLanRouteFactory openLanRoute;
   NovoRudpLanRoute? _lan;
   bool get directLanReady => _lan?.ready ?? false;
+
+  static final _livenessStream = BigInt.from(0x4b434c56);
+  Future<void>? _probe;
+  Completer<void>? _probeReply;
+  BigInt? _probeId;
+
+  NovoRudpFrame _livenessFrame(BigInt id, int operation) => NovoRudpFrame(
+    kind: NovoRudpFrameKind.endpoint,
+    sessionId: channel.sessionId,
+    streamId: _livenessStream,
+    objectId: id,
+    sequence: BigInt.zero,
+    ackEpoch: BigInt.zero,
+    payload: [operation],
+  );
+
+  /// Authority alone cannot prove the other process still owns this session.
+  /// Probe over relay so an obsolete UDP mapping cannot hide a live session.
+  Future<void> ensureRemoteSession() => _probe ??= _probeRemoteSession();
+
+  Future<void> _probeRemoteSession() async {
+    final random = Random.secure();
+    final id =
+        (BigInt.from(random.nextInt(1 << 30)) << 30) |
+        BigInt.from(random.nextInt(1 << 30));
+    final reply = Completer<void>();
+    _probeId = id;
+    _probeReply = reply;
+    try {
+      await (() async {
+        await send(_livenessFrame(id, 0));
+        await reply.future;
+      })().timeout(const Duration(milliseconds: 900));
+    } finally {
+      _probeReply = null;
+      _probeId = null;
+      _probe = null;
+    }
+  }
 
   @override
   void reportDeliveryStall() {
@@ -176,6 +227,7 @@ class NovoRudpRelayFrameLink
       throw ArgumentError('Split payload before relay transmission');
     }
     if (frame.streamId != NovoRudpLanRoute.controlStream &&
+        frame.streamId != _livenessStream &&
         await _lan?.trySend(frame) == true) {
       return;
     }

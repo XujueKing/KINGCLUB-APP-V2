@@ -261,7 +261,24 @@ class MemberRelayRuntime with WidgetsBindingObserver {
     if (existing != null) {
       await existing.revalidate();
       if (!_current(attempt)) throw StateError('Relay changed');
-      return existing;
+      try {
+        await existing.ensureRemoteSession();
+        if (!_current(attempt)) throw StateError('Relay changed');
+        return existing;
+      } on TimeoutException {
+        // A restarted peer may retain its identity but lose its session keys.
+        // Re-handshake only this lane; keep the shared relay and other peers.
+        if (identical(_peerLinks[laneId], existing)) {
+          _peerLinks.remove(laneId);
+          await _peerSubscriptions.remove(laneId)?.cancel();
+        }
+        await existing.close();
+        if (!_current(attempt)) throw StateError('Relay changed');
+        if (_peerLinks.containsKey(laneId)) {
+          // A simultaneous authenticated offer may already have replaced it.
+          return _openPeer(socket, peer, bindingId, attempt, scope);
+        }
+      }
     }
     if (_pendingPeers.contains(key.peerId) ||
         _pendingPeers.length + _peerLinks.length >= 8) {

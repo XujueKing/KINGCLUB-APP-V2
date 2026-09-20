@@ -571,6 +571,36 @@ void main() {
         );
         final ended = accepted.link.frames.drain<void>();
         expect(await receiveText.messages('friend'), isEmpty);
+        // Only the remote process loses its session. Local authority still
+        // succeeds, but the cached lane must not be reused with obsolete keys.
+        final remotePaused = runtime.connections.firstWhere((v) => v == null);
+        runtime.didChangeAppLifecycleState(AppLifecycleState.paused);
+        await remotePaused;
+        final remoteReady = runtime.connections.firstWhere((v) => v != null);
+        runtime.didChangeAppLifecycleState(AppLifecycleState.resumed);
+        await remoteReady.timeout(const Duration(seconds: 5));
+        final recoveredArrival = runtime.incomingChannels.first;
+        final recovered = await caller
+            .connectPeer('runtime-member', targetBinding)
+            .timeout(const Duration(seconds: 5));
+        expect(identical(recovered, sender), isFalse);
+        final remoteRecovered = await recoveredArrival;
+        final recoveredFrame = remoteRecovered.link.frames.first;
+        await recovered.send(
+          NovoRudpFrame(
+            kind: NovoRudpFrameKind.data,
+            sessionId: recovered.channel.sessionId,
+            streamId: BigInt.one,
+            objectId: BigInt.one,
+            sequence: BigInt.one,
+            ackEpoch: BigInt.zero,
+            payload: [7, 8, 9],
+          ),
+        );
+        expect(
+          (await recoveredFrame.timeout(const Duration(seconds: 2))).payload,
+          [7, 8, 9],
+        );
         final readsBeforePause = reads;
         caller.close();
         await expectLater(sender.send(frame), throwsStateError);
