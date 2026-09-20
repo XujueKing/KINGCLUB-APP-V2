@@ -71,3 +71,7 @@ KC-AUTO-0921.bin 的实际下载在 06:21:29 已出现 receive TimeoutException�
 复用 peer lane 原先仅 revalidate 权限。设备身份未变而对端进程已重启时，权限通过并不证明旧加密会话仍存在。现复用前通过加密 relay 帧交换随机探测标识，绕开可能失效的 UDP 映射；900ms 无响应后关闭该 lane，重新执行授权握手。保留其他好友和共享 relay，不改变 SuperVM 共识或服务端协议。并发打开仍合并，若此时收到新的合法握手则复用新 lane。
 
 真实本地 SuperVM WSS 回归新增仅远端暂停/恢复场景：原身份不变，本端重新 connectPeer 获得新 lane，并验证新加密会话成功传输数据。原健康 lane 复用断言仍通过。运行 runtime、reconnect、live_relay、peer_file_prepare 共 18 项全部通过（没有跳过），三文件静态分析通过。该证据为桌面进程加真实 relay；尚未安装到 A/B，不能替代手机重启和公网跨网验收。当前手机静默超时与此问题是否同一原因仍未得到设备日志直接证明。
+
+### 安装更新
+
+随后从干净聊天 worktree 的 `3ecb00ab` 构建 profile 预览 APK，SHA-256 `9ac7f98ca29d9cfecaec8d254c657af8bfc5a8a243a2eb2df42a631cb9872c59`。A/B 均 `adb install -r` 返回 Success，已发起应用启动，未卸载或清除数据。初次构建因 D 盘空间不足失败；将旧动画 APK 和失败中间产物归档至 C 盘后重新构建成功。安装完成不等于真机恢复验收完成，下一步仍需实际下载、对端重启和途中断开检查。
