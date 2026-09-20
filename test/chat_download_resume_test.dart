@@ -198,12 +198,12 @@ void main() {
         expect(await result.readAsBytes(), bytes);
         expect(requested, scenario.endsWith('corrupt-cache') ? [0, 1] : [1]);
       }
-      expect(peerAttempts, scenario == 'peer-corrupt-cache' ? 1 : 0);
+      expect(peerAttempts, scenario.startsWith('peer-') ? 1 : 0);
       expect(
         grants,
         scenario == 'revoked'
             ? 2
-            : scenario == 'peer-corrupt-cache'
+            : scenario.startsWith('peer-')
             ? 4
             : 3,
       );

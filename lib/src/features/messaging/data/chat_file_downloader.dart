@@ -607,8 +607,8 @@ class ChatFileDownloader {
       await _check();
       working = await parent.createTemp('kingclub-chat-download-');
       final file = File('${working.path}/content.bin');
-      // HTTP blocks arrive in order. Reuse an authenticated first block rather
-      // than starting a whole-file peer transfer on every resumed download.
+      // Both transports import these authenticated blocks. A partial HTTP
+      // cache must not pin a new attempt to HTTP when the peer has recovered.
       var firstBlock = await resumeCache?.read(
         identity,
         0,
@@ -649,10 +649,10 @@ class ChatFileDownloader {
         return peerFile;
       }
 
-      if (firstBlock == null && await _tryPeer(ref, file, onProgress)) {
+      if (await _tryPeer(ref, file, onProgress)) {
         return await finishPeer(file);
       }
-      if (firstBlock == null && peerDownload != null) {
+      if (peerDownload != null) {
         // The peer attempt may outlive a grant or a membership change.
         media = await _grant(ref);
         // Closing the failed peer snapshots complete ranges into this cache.
