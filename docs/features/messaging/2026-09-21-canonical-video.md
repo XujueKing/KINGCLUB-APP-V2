@@ -25,3 +25,13 @@ A 视频页实际显示合成画面的 1.958 秒末帧，支持完整文件解�
 随后在同一 a131c4fe profile 上，B 经实际照片入口选择 `test/fixtures/chat-video-hevc-synthetic.mp4`（1 秒、21664 字节）发送，新消息 `94ea45d9-91fc-4416-8345-b74820c1c8f1`。A 07:14:12 接收计数为 udpFrames=23、udpBytes=21664、relayFrames=0、relayBytes=0。B 发送缓存和 A 两份新持久化文件的 SHA-256 均为 `fee8f958626fd05cf6b3d22102f892ffe9a0dd420902f5dc73fa105af3b0e437`，与 `chat_video_canonical_source_test.dart` 的 HEVC 清理黄金哈希一致。原始 fixture 的哈希不同，不能把规范化后的数据与原始元数据未清理版本直接作相等断言。
 
 A 日志实际使用 OMX.qcom.video.decoder.hevc，截图显示 0.958 秒末帧。服务端本轮仅 thumbnail GET，无完整 video/hevc GET。封面另走 6 个 relay 帧、4890 字节，不混入完整视频计数。该结果验证本机型 HEVC 完整视频 LAN UDP 获取和解码；不代表不支持 HEVC 设备的自动兼容回退、公网跨网、长视频中断或声音听感已全部验收。
+
+## 20 秒视频实际 UDP → HTTP Range 自动续传
+
+同一 a131c4fe 安装包，使用 FFmpeg testsrc2 生成的 640×360、24fps、20 秒无声 H.264 视频，3483766 字节，不使用私人相册素材。B 经实际照片/视频入口发送，A 点击视频卡片。第一次新消息 `fe632d7f-6e6c-4674-bb59-d6cfe566c881` 于 07:23:39 完成：udpFrames=3580、udpBytes=3493526、relayFrames=0；计数包含重传，不能当作唯一有效字节数。此轮停止 B 晚于下载完成，不算中断证据。
+
+第二次新消息 `28bb531b-82ad-4fa0-a6bb-f5e783fc6a48` 的接收文件 `cache/novorudp-WAEWQT/receiving.part` 达 1125328 字节后，07:25:22.276 立即 force-stop B。此后未触碰 A、未点击重试。A 于 07:25:31.217 记录 receive TimeoutException（本次下载已运行 14569ms），认证入口统计 udpFrames=1188、udpBytes=1159488、relayFrames=0。
+
+服务端该新消息完整视频仅出现三次 HTTP 206：07:25:32 两次各 1048576 字节，07:25:33 一次 338038 字节，合计 2435190，恰好是完整文件减去已保留的首个 1048576 字节块。当前 access log 不记录 Range 请求头，不能声称从日志直接看到了具体偏移；结合下载器逐块验证 Content-Range 的实现、仅这三次响应以及最终哈希，支持复用首块、只通过 HTTP 取剩余块的结论。
+
+A 在 07:25 新增两份持久化视频，与 B 本次发送缓存均为 3483766 字节，SHA-256 均为 `1633d6463f046e564ebf42f6eea7d633f0dafad4adce7f087006fc384d56d6ba`。A 实际画面停在 19.958 秒/479 帧末帧（本机证据 `build/kc-video-range.png`）。本轮验证同局域网实际视频 UDP 中断后自动 HTTP Range 续传与解码，不替代跨运营商验证；停止发送方到回退仍约 9 秒，切换等待体验尚需优化。无声合成源不计入听音验收。
