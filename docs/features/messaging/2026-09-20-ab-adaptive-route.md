@@ -42,7 +42,8 @@ acceptance of this deadline correction are recorded separately when completed.
 
 ## Remaining external acceptance
 
-Public STUN ingress and the staged public WSS proxy remain pending approval.
+Public STUN UDP 3478 ingress was approved and verified from the PC and both
+phones on 2026-09-21. The staged public WSS proxy remains pending approval.
 The current relay is LAN-only; these results do not establish cross-carrier
 punching, public relay deployment, decentralized discovery or untraceability.
 B has no usable cellular connection in this session. Media-route selection and
