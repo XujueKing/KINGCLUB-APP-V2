@@ -99,6 +99,7 @@ class NovoRudpFileReceiver {
   /// Unique fragments written to disk; duplicates and ACK polls are not progress.
   int get receivedFragments => _count;
   int _receivedBytes = 0;
+  int _writeOffset = 0;
   int get receivedBytes => _receivedBytes;
 
   void _check() {
@@ -149,9 +150,11 @@ class NovoRudpFileReceiver {
       throw const FormatException('Wrong fragment length');
     }
     if (_received[index] != 0) return;
-    await _output.setPosition(index * chunkSize);
+    final offset = index * chunkSize;
+    if (_writeOffset != offset) await _output.setPosition(offset);
     _check();
     await _output.writeFrom(frame.payload);
+    _writeOffset = offset + frame.payload.length;
     _check();
     _received[index] = 1;
     _count++;

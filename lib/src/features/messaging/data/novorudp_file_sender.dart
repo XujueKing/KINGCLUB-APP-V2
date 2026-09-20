@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:cryptography/dart.dart';
 
@@ -228,18 +229,39 @@ class NovoRudpFileSender {
         // not for delivering every byte through small repeated repair windows.
         // Keep conservative pacing while transport congestion control is pending.
         await source.setPosition(0);
-        for (var index = 0; index < fragments; index++) {
+        for (var start = 0; start < fragments; start += 16) {
           _check();
           final length = math.min(
-            NovoRudpFileReceiver.chunkSize,
-            size - index * NovoRudpFileReceiver.chunkSize,
+            16 * NovoRudpFileReceiver.chunkSize,
+            size - start * NovoRudpFileReceiver.chunkSize,
           );
+          // One bounded disk read per paced batch, rather than one OS request
+          // per datagram. Wire fragments and authenticated nonces stay unchanged.
           final bytes = await source.read(length);
           if (bytes.length != length) {
             throw const FormatException('Source truncated');
           }
-          await _send(_frame(NovoRudpFrameKind.data, index, bytes));
-          if ((index + 1) % 16 == 0) {
+          if (length == 0) {
+            await _send(_frame(NovoRudpFrameKind.data, start, const []));
+          }
+          for (
+            var offset = 0;
+            offset < length;
+            offset += NovoRudpFileReceiver.chunkSize
+          ) {
+            final end = math.min(
+              length,
+              offset + NovoRudpFileReceiver.chunkSize,
+            );
+            await _send(
+              _frame(
+                NovoRudpFrameKind.data,
+                start + offset ~/ NovoRudpFileReceiver.chunkSize,
+                Uint8List.sublistView(bytes, offset, end),
+              ),
+            );
+          }
+          if (start + 16 <= fragments) {
             await _waitTransport(
               Future<void>.delayed(const Duration(milliseconds: 10)),
             );

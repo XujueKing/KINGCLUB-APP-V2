@@ -788,6 +788,8 @@ void main() {
     }
 
     for (final transferBytes in [
+      0,
+      16 * NovoRudpFileReceiver.chunkSize,
       70 * NovoRudpFileReceiver.chunkSize + 21,
       18 * 1024 * 1024,
     ]) {
@@ -841,7 +843,14 @@ void main() {
             deadline: const Duration(seconds: 90),
           );
           final elapsed = Stopwatch()..start();
+          final progress = Timer.periodic(const Duration(seconds: 10), (_) {
+            debugPrint(
+              'NOVORUDP_LOOPBACK_PROGRESS bytes=$transferBytes received=${receiver.receivedBytes} packets=$packets dropped=$dropped finalAcks=$finalAcks elapsedMs=${elapsed.elapsedMilliseconds}',
+            );
+          });
+          addTearDown(progress.cancel);
           await sender.run();
+          progress.cancel();
           debugPrint(
             'NOVORUDP_LOOPBACK_FILE bytes=$transferBytes elapsedMs=${elapsed.elapsedMilliseconds} packets=$packets dropped=$dropped',
           );
