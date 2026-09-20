@@ -55,14 +55,28 @@ class _ChatImageSendPageState extends State<ChatImageSendPage> {
     });
   }
 
-  Future<void> _retainImage() => (widget.mediaStore ?? MediaCache.shared)
-      .importBytes(
-        widget.bytes,
-        scope: 'member:${widget.chat.messaging.account}',
-        contentKey: 'chat-image-sent:$_clientMessageId',
-        kind: MediaKind.image,
-      )
-      .then((_) {});
+  Future<void> _retainImage() async {
+    final store = widget.mediaStore ?? MediaCache.shared;
+    if (_uploaded == null) {
+      try {
+        await store.cached(
+          scope: 'member:${widget.chat.messaging.account}',
+          contentKey: 'chat-image-sent:$_clientMessageId',
+          kind: MediaKind.image,
+        );
+        return;
+      } on StateError {
+        // A recovered draft must not replace an already retained upload.
+      }
+    }
+    await store.importBytes(
+      _uploaded?.sourceBytes ?? widget.bytes,
+      scope: 'member:${widget.chat.messaging.account}',
+      contentKey: 'chat-image-sent:$_clientMessageId',
+      kind: MediaKind.image,
+    );
+  }
+
   bool _busy = false;
   String? _error;
   double? _progress;

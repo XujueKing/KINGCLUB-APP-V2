@@ -100,26 +100,30 @@ void main() {
               type: DioExceptionType.connectionError,
             );
           });
+    final original = Uint8List.fromList([99, 98]);
     final first = ChatImageUploader(
       repository: repository,
       checkSession: () async {},
       dio: transport(),
+      prepareSource: (_) async => source,
     );
-    await expectLater(first.upload(source), throwsA(isA<AuthFailure>()));
+    await expectLater(first.upload(original), throwsA(isA<AuthFailure>()));
     first.dispose();
     final second = ChatImageUploader(
       repository: repository,
       checkSession: () async {},
       dio: transport(),
+      prepareSource: (_) async => source,
     );
-    final image = await second.upload(source);
+    final image = await second.upload(original);
     expect(image.assetId, asset);
+    expect(image.sourceBytes, source);
     expect(posts, 1);
     expect(requests[0]['clientUploadId'], requests[1]['clientUploadId']);
-    await second.upload(source);
+    await second.upload(original);
     expect(requests[2]['clientUploadId'], requests[1]['clientUploadId']);
     await second.acknowledgeQueued(image);
-    await second.upload(source);
+    await second.upload(original);
     expect(requests[3]['clientUploadId'], isNot(requests[2]['clientUploadId']));
     second.dispose();
   });

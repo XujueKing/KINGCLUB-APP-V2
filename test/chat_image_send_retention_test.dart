@@ -19,6 +19,7 @@ class RetainingStore extends MediaCache {
     required MediaKind kind,
   }) async {
     expect(scope, 'member:me');
+    expect(bytes, [9, 8, 7]);
     keys.add(contentKey);
     if (keys.length == 1) throw StateError('disk full');
     return File('retained');
@@ -35,7 +36,14 @@ class Upload extends ChatImageUploader {
     void Function(int, int)? onProgress,
   }) async {
     calls++;
-    return const UploadedChatImage('asset', 100, 100, 'fingerprint', 'request');
+    return UploadedChatImage(
+      'asset',
+      100,
+      100,
+      'fingerprint',
+      'request',
+      sourceBytes: Uint8List.fromList([9, 8, 7]),
+    );
   }
 
   @override

@@ -71,12 +71,13 @@ void main() {
         upload: (bytes) async {
           uploads++;
           expect(bytes, [1, 2, 3]);
-          return const UploadedChatImage(
+          return UploadedChatImage(
             'owned-copy',
             2,
             2,
             'fingerprint',
             'request',
+            sourceBytes: Uint8List.fromList([9, 8]),
           );
         },
       );
@@ -92,7 +93,7 @@ void main() {
         contentKey: 'chat-image-sent:new-client',
         kind: MediaKind.image,
       );
-      expect(await local.readAsBytes(), [1, 2, 3]);
+      expect(await local.readAsBytes(), [9, 8]);
       await ChatMediaCleanup(media: reopened).remove(
         account: 'me',
         group: group,

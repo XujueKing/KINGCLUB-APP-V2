@@ -11,6 +11,7 @@ import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
 import 'group_request_store.dart';
+import 'chat_image_source.dart';
 
 class UploadedChatImage {
   const UploadedChatImage(
@@ -18,11 +19,13 @@ class UploadedChatImage {
     this.width,
     this.height,
     this._fingerprint,
-    this._requestId,
-  );
+    this._requestId, {
+    this.sourceBytes,
+  });
   final String assetId;
   final int width, height;
   final String _fingerprint, _requestId;
+  final Uint8List? sourceBytes;
 }
 
 class ChatImageUploader {
@@ -31,6 +34,7 @@ class ChatImageUploader {
     required this.checkSession,
     Dio? dio,
     GroupRequestStore? requests,
+    this.prepareSource,
   }) : _dio =
            dio ??
            Dio(
@@ -53,6 +57,7 @@ class ChatImageUploader {
   final Future<void> Function() checkSession;
   final Dio _dio;
   final GroupRequestStore _requests;
+  final Future<Uint8List> Function(Uint8List)? prepareSource;
   StreamSubscription<void>? _session;
   CancelToken? _cancel;
   bool _invalid = false, _busy = false;
@@ -65,6 +70,7 @@ class ChatImageUploader {
     }
     return ChatImageUploader(
       repository: repository,
+      prepareSource: prepareChatImageSource,
       checkSession: () async {
         final current = await store.readSession();
         if (generation != MemberQrMemory.generation ||
@@ -93,11 +99,17 @@ class ChatImageUploader {
       throw ArgumentError('图片须小于20MB');
     }
     _busy = true;
-    final owned = Uint8List.fromList(input);
     try {
+      final owned = Uint8List.fromList(input);
+      final prepared =
+          await (prepareSource?.call(owned) ?? Future.value(owned));
+      if (prepared.isEmpty || prepared.length > 20 * 1024 * 1024) {
+        throw ArgumentError('压缩后的图片须小于20MB');
+      }
+      await _check();
       for (var attempt = 0; ; attempt++) {
         try {
-          return await _uploadAttempt(owned, onProgress: onProgress);
+          return await _uploadAttempt(prepared, onProgress: onProgress);
         } on AuthFailure catch (error) {
           if (attempt != 0 || error.code != 'CHAT_IMAGE_UPLOAD_DENIED') {
             rethrow;
@@ -211,6 +223,7 @@ class ChatImageUploader {
         result['height'] as int,
         fingerprint,
         requestId,
+        sourceBytes: Uint8List.fromList(input),
       );
     } on DioException catch (e) {
       if (_invalid) throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');

@@ -113,7 +113,7 @@ class ChatImageForwarder {
         _prepared = await uploader.upload(data);
       }
       _check();
-      _sourceBytes = data;
+      _sourceBytes = _prepared?.sourceBytes ?? data;
       return _prepared!;
     } finally {
       _busy = false;
