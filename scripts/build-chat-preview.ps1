@@ -6,6 +6,7 @@ param(
   [string]$RelayCertificatePath,
   [string]$NovoRudpSourceRoot,
   [string]$StunHost,
+  [string[]]$StunFallbacks = @(),
   [ValidateRange(1,65535)][int]$StunPort = 3478,
   [switch]$SkipNovoRudp,
   [switch]$EnablePeerFiles,
@@ -20,6 +21,23 @@ Push-Location (Split-Path -Parent $PSScriptRoot)
 $previousJni = $env:KINGCLUB_NOVORUDP_JNI_DIR
 try {
   $relayArguments = @()
+  if ($StunFallbacks.Count -gt 3 -or ($StunFallbacks.Count -gt 0 -and !$StunHost)) {
+    throw 'Up to three STUN fallbacks require a primary StunHost.'
+  }
+  foreach ($endpoint in $StunFallbacks) {
+    if ($endpoint -cnotmatch '^([A-Za-z0-9][A-Za-z0-9.-]{0,252}):([0-9]{1,5})$') {
+      throw 'Each STUN fallback must be an IPv4/DNS host:port without credentials.'
+    }
+    $fallbackHost = $Matches[1]
+    $fallbackPort = [int]$Matches[2]
+    if ([Uri]::CheckHostName($fallbackHost) -notin @([UriHostNameType]::Dns, [UriHostNameType]::IPv4) -or
+        $fallbackPort -lt 1 -or $fallbackPort -gt 65535) {
+      throw 'Invalid STUN fallback host or port.'
+    }
+  }
+  if ($StunFallbacks.Count -gt 0) {
+    $relayArguments += "--dart-define=KINGCLUB_NOVORUDP_STUN_FALLBACKS=$($StunFallbacks -join ',')"
+  }
   if ($StunHost) {
     if ($SkipNovoRudp -or !$RelayUrl -or !$RelayPeer) {
       throw 'Public UDP discovery requires the configured authenticated NovoRUDP relay.'

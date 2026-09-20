@@ -95,7 +95,9 @@ class NovoRudpRelayFrameLink
     _session = SecureSessionStore.changes.stream.listen(
       (_) => unawaited(close()),
     );
-    if (enableLan || NovoRudpLanRoute.stunHost.isNotEmpty) {
+    if (enableLan ||
+        NovoRudpLanRoute.stunHost.isNotEmpty ||
+        NovoRudpLanRoute.stunFallbacks.isNotEmpty) {
       unawaited(_openLan());
     }
     if (authorize != null) {

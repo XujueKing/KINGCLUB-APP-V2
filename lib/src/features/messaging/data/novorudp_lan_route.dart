@@ -14,6 +14,9 @@ typedef _Endpoint = ({InternetAddress address, int port});
 /// Addresses arrive only through that channel; they never establish identity.
 class NovoRudpLanRoute {
   static const stunHost = String.fromEnvironment('KINGCLUB_NOVORUDP_STUN_HOST');
+  static const stunFallbacks = String.fromEnvironment(
+    'KINGCLUB_NOVORUDP_STUN_FALLBACKS',
+  );
   static const stunPort = int.fromEnvironment(
     'KINGCLUB_NOVORUDP_STUN_PORT',
     defaultValue: 3478,
@@ -58,7 +61,13 @@ class NovoRudpLanRoute {
     required Future<void> Function(NovoRudpFrame) deliver,
     String observerHost = stunHost,
     int observerPort = stunPort,
+    String observerFallbacks = stunFallbacks,
   }) async {
+    final observers = parseObservers(
+      observerHost,
+      observerPort,
+      observerFallbacks,
+    );
     final addresses = await _localAddresses();
     final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
     return NovoRudpLanRoute._(
@@ -69,6 +78,7 @@ class NovoRudpLanRoute {
       deliver,
       observerHost,
       observerPort,
+      observers,
     );
   }
 
@@ -80,6 +90,7 @@ class NovoRudpLanRoute {
     this.deliver,
     this.observerHost,
     this.observerPort,
+    this._observers,
   ) {
     _socket.writeEventsEnabled = false;
     _events = _socket.listen(
@@ -107,6 +118,9 @@ class NovoRudpLanRoute {
   List<_Endpoint> _candidates = [];
   final String observerHost;
   final int observerPort;
+  final List<({String host, int port})> _observers;
+  int _observerIndex = 0;
+  int? _activeObserverPort;
   InternetAddress? _observer;
   NovoRudpStunBinding? _binding;
   Stopwatch? _bindingAge, _mappedAge;
@@ -200,7 +214,7 @@ class NovoRudpLanRoute {
           }
         }
         final external = body['public'];
-        if (observerHost.isNotEmpty && external is Map) {
+        if (_observers.isNotEmpty && external is Map) {
           final host = external['address'], mappedPort = external['port'];
           final ip = host is String ? InternetAddress.tryParse(host) : null;
           if (ip != null &&
@@ -336,7 +350,7 @@ class NovoRudpLanRoute {
         if (packet == null) break;
         if (_binding != null &&
             packet.address.address == _observer?.address &&
-            packet.port == observerPort) {
+            packet.port == _activeObserverPort) {
           final mapped = _binding!.parseResponse(packet.data);
           if (mapped != null &&
               _public(mapped.address) &&
@@ -399,11 +413,7 @@ class NovoRudpLanRoute {
   }
 
   Future<void> _discover() async {
-    if (_closed ||
-        _discovering ||
-        observerHost.isEmpty ||
-        observerPort < 1 ||
-        observerPort > 65535) {
+    if (_closed || _discovering || _observers.isEmpty) {
       return;
     }
     _discovering = true;
@@ -417,23 +427,68 @@ class NovoRudpLanRoute {
           _mappedAge!.elapsed < const Duration(seconds: 30)) {
         return;
       }
-      if (_binding == null ||
-          _bindingAge!.elapsed >= const Duration(seconds: 30)) {
+      if (_binding != null &&
+          _bindingAge!.elapsed >= const Duration(seconds: 4)) {
+        _binding = null;
+        _observerIndex = (_observerIndex + 1) % _observers.length;
+      }
+      if (_binding == null) {
+        final endpoint = _observers[_observerIndex];
+        final epoch = _endpointEpoch;
         final servers = await InternetAddress.lookup(
-          observerHost,
+          endpoint.host,
           type: InternetAddressType.IPv4,
         ).timeout(const Duration(seconds: 2));
-        if (_closed || servers.isEmpty) return;
+        if (_closed || epoch != _endpointEpoch) return;
+        if (servers.isEmpty) throw const SocketException('No STUN address');
         _observer = servers.first;
+        _activeObserverPort = endpoint.port;
         _binding = NovoRudpStunBinding();
         _bindingAge = Stopwatch()..start();
       }
       if (_closed || _bindingAge!.elapsed >= const Duration(seconds: 8)) return;
-      _socket.send(_binding!.request, _observer!, observerPort);
+      _socket.send(_binding!.request, _observer!, _activeObserverPort!);
     } catch (_) {
+      _binding = null;
+      _observerIndex = (_observerIndex + 1) % _observers.length;
       // Discovery never blocks the existing authenticated relay route.
     } finally {
       _discovering = false;
     }
+  }
+
+  /// Deployment-owned IPv4/DNS endpoints only; never learned from peer payloads.
+  static List<({String host, int port})> parseObservers(
+    String host,
+    int port,
+    String fallbacks,
+  ) {
+    final result = <({String host, int port})>[];
+    void add(String host, int port) {
+      if (host.length > 253 ||
+          !RegExp(r'^[A-Za-z0-9][A-Za-z0-9.-]*$').hasMatch(host) ||
+          port < 1 ||
+          port > 65535) {
+        throw const FormatException('Invalid STUN endpoint');
+      }
+      final endpoint = (host: host.toLowerCase(), port: port);
+      if (!result.contains(endpoint)) result.add(endpoint);
+    }
+
+    if (host.isNotEmpty) add(host, port);
+    if (fallbacks.isNotEmpty) {
+      final entries = fallbacks.split(',');
+      if (entries.length > 3) {
+        throw const FormatException('Too many STUN fallbacks');
+      }
+      for (final entry in entries) {
+        final parts = entry.split(':');
+        if (parts.length != 2) {
+          throw const FormatException('Invalid STUN fallback');
+        }
+        add(parts[0], int.tryParse(parts[1]) ?? 0);
+      }
+    }
+    return List.unmodifiable(result);
   }
 }
