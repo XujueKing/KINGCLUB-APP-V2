@@ -70,6 +70,62 @@ Matcher failure(String code) =>
 
 void main() {
   test(
+    'server material uses commerce base and stable digest cache key',
+    () async {
+      final body = payload();
+      final row = (body['result']['products'] as List).first as Map;
+      final material = <String, dynamic>{
+        'storeRef': 'store',
+        'version': 'png-contour-v1',
+        'sourceSha256': 'a' * 64,
+        'files': {
+          'thumbnail':
+              '/attachments/00000000-0000-4000-8000-000000000001?token=first',
+        },
+      };
+      row['bottleMaterial'] = material;
+      final repo = OrderingCatalogRepository(
+        mediaBaseUrl: 'https://api.example.test/kingclub-v2/commerce/',
+        readSession: () async => credentials(),
+        request: (_, _, _) async => body,
+      );
+      final first = (await repo.read(scope)).products.single;
+      expect(
+        first.thumbnailUrl,
+        'https://api.example.test/kingclub-v2/commerce/attachments/00000000-0000-4000-8000-000000000001?token=first',
+      );
+      material['files'] = {
+        'thumbnail':
+            '/attachments/00000000-0000-4000-8000-000000000001?token=refreshed',
+      };
+      final second = (await repo.read(scope)).products.single;
+      expect(second.imageCacheKey, first.imageCacheKey);
+      material['sourceSha256'] = 'b' * 64;
+      expect(
+        (await repo.read(scope)).products.single.imageCacheKey,
+        isNot(first.imageCacheKey),
+      );
+      for (final link in [
+        'https://other.example/image.png',
+        '//other.example/image.png',
+        '/attachments/../private?token=x',
+        '/attachments/00000000-0000-4000-8000-000000000001?token=x&other=y',
+      ]) {
+        material['files'] = {'thumbnail': link};
+        await expectLater(
+          repo.read(scope),
+          throwsA(failure('CATALOG_RESPONSE_INVALID')),
+        );
+      }
+      material['storeRef'] = 'other-store';
+      await expectLater(
+        repo.read(scope),
+        throwsA(failure('CATALOG_RESPONSE_INVALID')),
+      );
+    },
+  );
+
+  test(
     'reads scoped server catalog preserving cents and four languages',
     () async {
       final repo = OrderingCatalogRepository(
@@ -150,9 +206,7 @@ void main() {
         case 'soldOut':
           product['soldOut'] = true;
         case 'duplicate':
-          p['result']['products'].add(
-            product,
-          );
+          p['result']['products'].add(product);
         case 'orphan':
           product['categoryRef'] = 'missing';
         case 'locale':

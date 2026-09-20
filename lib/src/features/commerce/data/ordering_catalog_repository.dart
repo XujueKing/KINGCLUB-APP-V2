@@ -19,8 +19,10 @@ class OrderingCatalogProduct {
     this.specifications,
     this.priceCents,
     this.revision,
-    this.available,
-  );
+    this.available, {
+    this.thumbnailUrl,
+    this.imageCacheKey,
+  });
   final String reference;
   final String categoryRef;
   final Map<String, String> names;
@@ -28,6 +30,8 @@ class OrderingCatalogProduct {
   final int priceCents;
   final int revision;
   final int available;
+  final String? thumbnailUrl;
+  final String? imageCacheKey;
   bool get soldOut => available == 0;
   String get priceText =>
       '${priceCents ~/ 100}.${(priceCents % 100).toString().padLeft(2, '0')}';
@@ -41,16 +45,22 @@ class OrderingCatalog {
 }
 
 class OrderingCatalogRepository {
-  OrderingCatalogRepository({required this.readSession, required this.request});
+  OrderingCatalogRepository({
+    required this.readSession,
+    required this.request,
+    this.mediaBaseUrl,
+  });
   factory OrderingCatalogRepository.secure(String baseUrl) {
     final client = KingclubSecureClient(baseUrl);
     final sessions = SecureSessionStore();
     return OrderingCatalogRepository(
+      mediaBaseUrl: baseUrl,
       readSession: sessions.readSession,
       request: (id, params, session) =>
           client.call(id, params, session: session),
     );
   }
+  final String? mediaBaseUrl;
   final OrderingSessionReader readSession;
   final OrderingContextRequest request;
   static final _ref = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
@@ -96,6 +106,42 @@ class OrderingCatalogRepository {
     ];
     if (values.any((value) => value is! String || value.isEmpty)) return null;
     return values.cast<String>();
+  }
+
+  (String, String)? _image(dynamic raw, String storeRef) {
+    if (raw == null) return null;
+    final material = _map(raw);
+    if (material['storeRef'] != storeRef) _invalid();
+    final digest = material['sourceSha256'];
+    final version = material['version'];
+    if (digest is! String ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(digest) ||
+        version != 'png-contour-v1') {
+      _invalid();
+    }
+    final link = _map(material['files'])['thumbnail'];
+    if (link is! String) _invalid();
+    final uri = Uri.tryParse(link);
+    final base = Uri.tryParse(mediaBaseUrl ?? '');
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.hasAuthority ||
+        uri.hasFragment ||
+        !RegExp(r'^/attachments/[a-fA-F0-9-]{36}$').hasMatch(uri.path) ||
+        !_uuid.hasMatch(uri.pathSegments.last) ||
+        uri.queryParametersAll.length != 1 ||
+        uri.queryParametersAll['token']?.length != 1 ||
+        (uri.queryParameters['token']?.isEmpty ?? true) ||
+        base == null ||
+        base.scheme != 'https' ||
+        base.host.isEmpty ||
+        base.hasQuery ||
+        base.hasFragment ||
+        base.userInfo.isNotEmpty) {
+      _invalid();
+    }
+    final root = mediaBaseUrl!.replaceFirst(RegExp(r'/+$'), '');
+    return ('$root$link', 'bottle:$storeRef:$version:$digest:thumbnail');
   }
 
   Future<OrderingCatalog> read(OrderingContext context) async {
@@ -174,6 +220,7 @@ class OrderingCatalogRepository {
       if (row['soldOut'] is! bool || row['soldOut'] != (available == 0)) {
         _invalid();
       }
+      final image = _image(row['bottleMaterial'], context.storeRef);
       products.add(
         OrderingCatalogProduct(
           id,
@@ -183,6 +230,8 @@ class OrderingCatalogRepository {
           _integer(row['priceCents'], 1, 100000000),
           _integer(row['revision'], 1, 1000001),
           available,
+          thumbnailUrl: image?.$1,
+          imageCacheKey: image?.$2,
         ),
       );
     }

@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/media/cached_media_image.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -8,7 +10,10 @@ import 'package:kingclub/src/features/commerce/presentation/table_ordering_entry
 
 import 'ordering_catalog_repository_test.dart' as fixture;
 
-OrderingCatalog catalog({int available = 2}) => OrderingCatalog(
+OrderingCatalog catalog({
+  int available = 2,
+  bool remoteImage = false,
+}) => OrderingCatalog(
   fixture.scope,
   [OrderingCatalogCategory('c', 'liquor', fixture.names())],
   [
@@ -20,11 +25,50 @@ OrderingCatalog catalog({int available = 2}) => OrderingCatalog(
       1999,
       1,
       available,
+      thumbnailUrl: remoteImage
+          ? 'https://api.example.test/commerce/attachments/fixture?token=test'
+          : null,
+      imageCacheKey: remoteImage ? 'bottle:store:digest:thumbnail' : null,
     ),
   ],
 );
 
 void main() {
+  testWidgets(
+    'remote material is shared by menu and cart with private stable caching',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScanOrderingCartPage(
+            onBack: () {},
+            orderingContext: fixture.scope,
+            catalog: catalog(remoteImage: true),
+          ),
+        ),
+      );
+      final menu = tester.widget<CachedMediaImage>(
+        find.byType(CachedMediaImage),
+      );
+      expect(menu.private, isTrue);
+      expect(menu.fit, BoxFit.contain);
+      expect(menu.contentKey, 'bottle:store:digest:thumbnail');
+      await tester.tap(find.byKey(const ValueKey('ordering-add-real-sku')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('ordering-cart-bag')));
+      await tester.pumpAndSettle();
+      final images = tester
+          .widgetList<CachedMediaImage>(find.byType(CachedMediaImage))
+          .toList();
+      expect(images.length, 2);
+      expect(
+        images.every((image) => image.contentKey == menu.contentKey),
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   testWidgets(
     'real catalog replaces demo stock and retains decimal cart price',
     (tester) async {

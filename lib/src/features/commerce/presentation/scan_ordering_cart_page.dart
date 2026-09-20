@@ -1,3 +1,5 @@
+import '../../../core/media/cached_media_image.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 
 import 'dart:async';
@@ -161,6 +163,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
             price: p.priceCents,
             originalPrice: p.priceCents,
             asset: '',
+            thumbnailUrl: p.thumbnailUrl,
+            imageCacheKey: p.imageCacheKey,
             limit: p.available,
           ),
         )
@@ -785,25 +789,12 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (product.asset.isEmpty)
-                SizedBox(
-                  width: MediaQuery.sizeOf(context).width * 190 / 750,
-                  height: contentHeight,
-                  child: const Icon(
-                    Icons.local_bar_outlined,
-                    color: Color(0xFF8E867E),
-                  ),
-                )
-              else
-                Image.asset(
-                  product.asset,
-                  key: ValueKey('ordering-image-${product.id}'),
-                  width: MediaQuery.sizeOf(context).width * 190 / 750,
-                  height: contentHeight,
-                  fit: BoxFit.contain,
-                  color: soldOut ? const Color(0x77000000) : null,
-                  colorBlendMode: soldOut ? BlendMode.darken : null,
-                ),
+              _OrderingProductImage(
+                product: product,
+                width: MediaQuery.sizeOf(context).width * 190 / 750,
+                height: contentHeight,
+                soldOut: soldOut,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: SizedBox(
@@ -1320,19 +1311,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
         children: [
           const _LegacySelectionMark(selected: true),
           const SizedBox(width: 8),
-          if (product.asset.isEmpty)
-            const SizedBox(
-              width: 58,
-              height: 88,
-              child: Icon(Icons.local_bar_outlined, color: Color(0xFF8E867E)),
-            )
-          else
-            Image.asset(
-              product.asset,
-              width: 58,
-              height: 88,
-              fit: BoxFit.contain,
-            ),
+          _OrderingProductImage(product: product, width: 58, height: 88),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -1508,6 +1487,8 @@ class _OrderingProduct {
     required this.originalPrice,
     required this.asset,
     required this.limit,
+    this.thumbnailUrl,
+    this.imageCacheKey,
   });
 
   final String id;
@@ -1520,6 +1501,7 @@ class _OrderingProduct {
   final int originalPrice;
   final String asset;
   final int limit;
+  final String? thumbnailUrl, imageCacheKey;
 }
 
 class _QuantityControl extends StatelessWidget {
@@ -1671,5 +1653,58 @@ class _OrderingEmptyState extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _OrderingProductImage extends StatelessWidget {
+  const _OrderingProductImage({
+    required this.product,
+    required this.width,
+    required this.height,
+    this.soldOut = false,
+  });
+  final _OrderingProduct product;
+  final double width, height;
+  final bool soldOut;
+  @override
+  Widget build(BuildContext context) {
+    final placeholder = SizedBox(
+      width: width,
+      height: height,
+      child: const Icon(Icons.local_bar_outlined, color: Color(0xFF8E867E)),
+    );
+    final Widget image;
+    if (product.thumbnailUrl != null) {
+      image = CachedMediaImage(
+        product.thumbnailUrl!,
+        key: ValueKey('ordering-remote-image-${product.id}'),
+        contentKey: product.imageCacheKey,
+        private: true,
+        width: width,
+        height: height,
+        fit: BoxFit.contain,
+        placeholder: placeholder,
+        errorBuilder: (_, _, _) => placeholder,
+      );
+    } else if (product.asset.isNotEmpty) {
+      image = Image.asset(
+        product.asset,
+        key: ValueKey('ordering-image-${product.id}'),
+        width: width,
+        height: height,
+        fit: BoxFit.contain,
+      );
+    } else {
+      image = placeholder;
+    }
+    return soldOut
+        ? ColorFiltered(
+            colorFilter: const ColorFilter.mode(
+              Color(0x77000000),
+              BlendMode.darken,
+            ),
+            child: image,
+          )
+        : image;
   }
 }
