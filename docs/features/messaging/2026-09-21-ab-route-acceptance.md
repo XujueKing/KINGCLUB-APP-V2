@@ -37,10 +37,29 @@ settings were unchanged.
 
 This accepts the tested text recovery scenario on the current same-LAN A/B pair.
 It is not a cross-carrier, public-STUN, prolonged-loss or mobile-background test.
-The public relay/STUN changes remain staged and pending approval.
+UDP 3478 has since been approved and opened, with STUN responses verified.
+The public WSS relay entry remains pending approval; opening STUN alone is not
+evidence of cross-network peer connectivity.
 
 The next attachment test staged only the repository's `positioningCard.png` on B.
 Before selecting or sending it, B's foreground changed to the separate Commerce
 package. Its welcome screen is not evidence that the chat session was revoked.
-Attachment routing verification was paused to avoid two sessions competing for
+At that earlier checkpoint, attachment verification was paused to avoid two sessions competing for
 the same phone. No private gallery image was selected or sent.
+
+## Subsequent attachment evidence (2026-09-21)
+
+B was subsequently assigned to chat testing. See the linked records for hashes,
+timestamps and limits; these checks do not replace public-network acceptance.
+
+| Actual path | Verified result | Remaining scope |
+| --- | --- | --- |
+| File | 8 MiB automatic peer→HTTP missing-block resume; next file after B restart completed via peer; 2 MiB authenticated ingress includes UDP and relay | Public network, sustained-loss performance |
+| H.264 video | Full 51,373-byte video received as 53 UDP frames, relay=0; checksum and final playback frame match | HEVC, long-video interruption, human audio confirmation |
+| Voice | Actual 3-second recording received as 20 UDP frames, relay=0; both devices' persistent hashes match | Cross-network/background paths; this run did not assess listening quality |
+| Image | Full 3618-byte image received via encrypted peer relay; display and hash match | Explicit image UDP, larger-image interruption |
+
+Detailed records: [file resume](2026-09-21-peer-cancel-resume.md),
+[video](2026-09-21-canonical-video.md), [voice](2026-09-21-canonical-voice.md),
+[image](2026-09-21-canonical-image-fix.md). The installed observation build is
+a131c4fe; all later commits so far update evidence only.
