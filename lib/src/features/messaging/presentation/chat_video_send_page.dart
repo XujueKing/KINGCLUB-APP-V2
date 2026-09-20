@@ -57,7 +57,19 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
   ChatVideo? _prepared;
   File? _uploadInput;
   late final String _clientMessageId = widget.draft?.id ?? const Uuid().v4();
-  Future<void> _retainVideo(File file) async {
+  Future<void> _retainVideo(File file, {bool preserveExisting = false}) async {
+    if (preserveExisting) {
+      try {
+        await (widget.mediaStore ?? MediaCache.shared).cached(
+          scope: 'member:${widget.chat.messaging.account}',
+          contentKey: 'chat-video-sent:$_clientMessageId',
+          kind: MediaKind.video,
+        );
+        return;
+      } on StateError {
+        /* Recover only a missing retained file. */
+      }
+    }
     await (widget.mediaStore ?? MediaCache.shared).importFile(
       file,
       scope: 'member:${widget.chat.messaging.account}',
@@ -173,7 +185,7 @@ class _ChatVideoSendPageState extends State<ChatVideoSendPage>
     });
     try {
       if (_alreadyQueued) {
-        await _retainVideo(widget.file);
+        await _retainVideo(widget.file, preserveExisting: true);
         if (!_usable) return;
         try {
           await widget.drafts?.remove(widget.draft!.id);

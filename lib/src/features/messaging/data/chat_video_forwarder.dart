@@ -11,6 +11,7 @@ import 'chat_file_uploader.dart';
 import 'chat_video.dart';
 import 'chat_video_grant.dart';
 import 'messaging_repository.dart';
+import 'chat_video_canonical_source.dart';
 
 class ChatVideoForwarder {
   ChatVideoForwarder({
@@ -35,6 +36,7 @@ class ChatVideoForwarder {
   UploadedChatFile? _uploaded;
   ChatVideo? _prepared;
   ChatVideoGrant? _source;
+  final _canonical = ChatVideoCanonicalSource();
   bool _closed = false, _busy = false;
   void _check() {
     if (_closed) throw StateError('视频转发已结束');
@@ -92,13 +94,20 @@ class ChatVideoForwarder {
           _check();
         }
         _uploader = uploader;
-        final uploaded = await uploader.upload(file, fileName: 'video.mp4');
+        final uploadFile = await _canonical.prepare(file);
         _check();
-        if (uploaded.size != grant.size || uploaded.sha256 != grant.sha256) {
+        final uploadSize = await uploadFile.length();
+        final uploadHash = await _forwardDigest(uploadFile.path, uploadSize);
+        final uploaded = await uploader.upload(
+          uploadFile,
+          fileName: 'video.mp4',
+        );
+        _check();
+        if (uploaded.size != uploadSize || uploaded.sha256 != uploadHash) {
           throw StateError('上传视频校验失败');
         }
         _uploaded = uploaded;
-        _sourceFile = file;
+        _sourceFile = uploadFile;
       }
       final video = await repository.prepareVideo(_uploaded!.assetId);
       _check();
@@ -132,6 +141,7 @@ class ChatVideoForwarder {
     _sourceFile = null;
     final file = _uploaded;
     if (file != null) await _uploader?.acknowledgeQueued(file);
+    await _canonical.close();
   }
 
   void dispose() {
@@ -139,6 +149,7 @@ class ChatVideoForwarder {
     _closed = true;
     _session?.cancel();
     _uploader?.dispose();
+    unawaited(_canonical.close().catchError((Object _) {}));
     _uploaded = null;
     _prepared = null;
     _sourceFile = null;

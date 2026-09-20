@@ -3,10 +3,20 @@ import 'dart:typed_data';
 /// Strip M4A metadata in place without changing AAC packets or chunk offsets.
 /// Unsupported containers use the existing server normalization path.
 Uint8List? canonicalVoiceContainer(Uint8List input) {
-  if (input.length < 16 || input.length > 2 * 1024 * 1024) return null;
+  return _canonicalContainer(input, false);
+}
+
+Uint8List? canonicalVideoContainer(Uint8List input) {
+  return _canonicalContainer(input, true);
+}
+
+Uint8List? _canonicalContainer(Uint8List input, bool video) {
+  if (input.length < 16 || input.length > (video ? 32 : 2) * 1024 * 1024) {
+    return null;
+  }
   final out = Uint8List.fromList(input), data = ByteData.sublistView(input);
-  var boxes = 0, tracks = 0, media = 0, types = 0;
-  const layouts = <String, List<String>>{
+  var boxes = 0, tracks = 0, media = 0, types = 0, videos = 0, audios = 0;
+  final layouts = <String, List<String>>{
     'root': ['ftyp', 'moov', 'mdat'],
     'moov': ['mvhd', 'trak'],
     'trak': ['tkhd', 'edts', 'mdia'],
@@ -30,6 +40,14 @@ Uint8List? canonicalVoiceContainer(Uint8List input) {
     'mp4a': ['esds', 'btrt'],
     'dref': ['url '],
   };
+  if (video) {
+    layouts['minf']!.add('vmhd');
+    layouts['stsd']!.addAll(['avc1', 'hvc1', 'hev1']);
+    layouts['stbl']!.add('sdtp');
+    for (final type in ['avc1', 'hvc1', 'hev1']) {
+      layouts[type] = ['avcC', 'hvcC', 'btrt', 'pasp', 'colr', 'fiel'];
+    }
+  }
   String tag(int offset) =>
       String.fromCharCodes(input.sublist(offset, offset + 4));
   void walk(int start, int end, String parent, int depth) {
@@ -73,6 +91,7 @@ Uint8List? canonicalVoiceContainer(Uint8List input) {
               'mp42',
               '3gp4',
               '3gp5',
+              if (video) ...['avc1', 'iso6', 'hvc1', 'hev1'],
             ].contains(tag(p))) {
               throw const FormatException();
             }
@@ -83,7 +102,13 @@ Uint8List? canonicalVoiceContainer(Uint8List input) {
           if (length < 4 + n) throw const FormatException();
           out.fillRange(body + 4, body + 4 + n, 0);
         } else if (type == 'hdlr') {
-          if (length < 24 || tag(body + 8) != 'soun') {
+          if (length < 24) throw const FormatException();
+          final handler = tag(body + 8);
+          if (handler == 'soun') {
+            audios++;
+          } else if (video && handler == 'vide') {
+            videos++;
+          } else {
             throw const FormatException();
           }
           out.fillRange(body + 24, stop, 0);
@@ -103,6 +128,18 @@ Uint8List? canonicalVoiceContainer(Uint8List input) {
             throw const FormatException();
           }
           walk(body + 28, stop, type, depth + 1);
+        } else if (['avc1', 'hvc1', 'hev1'].contains(type)) {
+          if (length < 78) throw const FormatException();
+          out.fillRange(body + 42, body + 74, 0);
+          walk(body + 78, stop, type, depth + 1);
+        } else if (type == 'colr') {
+          if (length != 11 || tag(body) != 'nclx') {
+            throw const FormatException();
+          }
+        } else if (type == 'pasp') {
+          if (length != 8) throw const FormatException();
+        } else if (type == 'fiel') {
+          if (length != 2) throw const FormatException();
         } else if (layouts.containsKey(type)) {
           walk(body, stop, type, depth + 1);
         }
@@ -113,7 +150,10 @@ Uint8List? canonicalVoiceContainer(Uint8List input) {
 
   try {
     walk(0, out.length, 'root', 0);
-    return types == 1 && tracks == 1 && media == 1 ? out : null;
+    final validTracks = video
+        ? videos == 1 && audios <= 1 && tracks == videos + audios
+        : tracks == 1 && audios == 1;
+    return types == 1 && media == 1 && validTracks ? out : null;
   } on FormatException {
     return null;
   }

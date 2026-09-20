@@ -7,6 +7,8 @@ import 'package:cryptography/dart.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
+import 'chat_video_canonical_source.dart';
+
 /// Produces a private upload copy. Original bytes remain the retry source.
 class ChatVideoOptimizer {
   ChatVideoOptimizer({
@@ -26,8 +28,19 @@ class ChatVideoOptimizer {
   File? _prepared;
   bool _disposed = false;
   Timer? _progressTimer;
+  final _canonical = ChatVideoCanonicalSource();
 
   Future<File> prepare(File source, {void Function(double)? onProgress}) async {
+    final optimized = await _optimize(source, onProgress: onProgress);
+    final result = await _canonical.prepare(optimized);
+    _check();
+    return result;
+  }
+
+  Future<File> _optimize(
+    File source, {
+    void Function(double)? onProgress,
+  }) async {
     _check();
     if (!_supported) return source;
     final sourceLength = await source.length();
@@ -111,6 +124,7 @@ class ChatVideoOptimizer {
   }
 
   Future<void> acknowledgeQueued() async {
+    await _canonical.close();
     if (_key != null) {
       try {
         await _invoke('release', {'key': _key});
@@ -127,6 +141,7 @@ class ChatVideoOptimizer {
     _disposed = true;
     _progressTimer?.cancel();
     _progressTimer = null;
+    unawaited(_canonical.close().catchError((Object _) {}));
     if (_supported) _invoke('cancel', {'id': _id}).catchError((_) => null);
   }
 }
