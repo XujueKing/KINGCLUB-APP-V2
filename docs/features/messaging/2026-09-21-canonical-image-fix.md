@@ -9,3 +9,9 @@ Android 的 JPEG/静态 PNG 在上传前由原生插件压缩为最长边 2560�
 实机：A/B 覆盖安装 46153fbd profile，APK SHA256 为 d3a317862aeb7260d717eefb9ceb4e286b9795b81c1e2f3d53ac848dd61503a6，登录态保留。B 发送项目 POSITIONING CARD 测试素材，消息 72a9ec09-d645-41cb-a5f9-e45b4d45d937：原 PNG 5340 字节，Android 压缩 WebP 3618 字节。上传、服务器文件、A 本地两份媒体缓存的 SHA256 均为 f87605a764437b327d2bcc0619e5241a1d8b576fcd285500eea600ef4a4d0bc8。A 正常展示，Nginx 仅记录此消息 thumbnail 的 GET，未出现完整 image GET，支持完整图片由 peer 获取；不据此区分 UDP 直连和加密中继。
 
 范围：缩略图仍由服务端生成，动画、非 Android 输入和语音/视频规范化不在本次保证范围内。不能据此宣称所有媒体已经脱离服务器。
+
+## 带路径计数的再次发送
+
+2026-09-21 使用 a131c4fe profile，B 从系统照片选择器发送项目 POSITIONING CARD 素材，新消息 `95c6e5ea-a001-46ad-984b-56d131694caa`。A 07:03:01 的完整图片下载计数为 udpFrames=0、udpBytes=0、relayFrames=4、relayBytes=3618。新增两份 07:03 本地图片均 3618 字节，SHA-256 `f87605a764437b327d2bcc0619e5241a1d8b576fcd285500eea600ef4a4d0bc8` 与之前验证的上传规范化结果一致，截图确认消息内正常显示素材。
+
+服务器新消息仅 thumbnail GET，没有完整 image GET。本轮明确记录为**完整图片通过加密 peer 中继完成**，不是 UDP 图片验收。可能小图片在 UDP 准备好前已完成，但没有足够连接时序证据确认该原因。封面/缩略图 HTTP 请求也可能由发送端获取服务端生成版本产生，仅凭同一公网出口的访问日志不能认定接收端重复下载。
