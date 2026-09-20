@@ -42,10 +42,47 @@ void main() {
     (false, false, null),
     (true, false, null),
     (false, true, null),
-    for (final media in ['image', 'voice', 'video'])
+    for (final media in [
+      'image',
+      'image-thumbnail',
+      'voice',
+      'video',
+      'video-thumbnail',
+      'hevc',
+    ])
       for (final reverse in [false, true]) (false, reverse, media),
+    for (final media in [
+      'image',
+      'image-thumbnail',
+      'voice',
+      'video',
+      'video-thumbnail',
+      'hevc',
+    ])
+      (true, false, media),
   ]) {
     final (corrupt, reverse, media) = scenario;
+    final routeType = media == null
+        ? 'file'
+        : media.startsWith('image')
+        ? 'image'
+        : media == 'voice'
+        ? 'voice'
+        : 'video';
+    final slot = media == null
+        ? 'file'
+        : media.endsWith('thumbnail')
+        ? 'thumbnail'
+        : routeType;
+    final contentType = routeType == 'image'
+        ? 'image/webp'
+        : routeType == 'voice'
+        ? 'audio/mp4'
+        : slot == 'thumbnail'
+        ? 'image/jpeg'
+        : routeType == 'video'
+        ? 'video/mp4'
+        : 'application/octet-stream';
     test('cross-route handoff corrupt=$corrupt reverse=$reverse media=$media', () async {
       final root = await Directory.systemTemp.createTemp('udp-http-');
       final staging = await Directory('${root.path}/staging').create();
@@ -98,15 +135,7 @@ void main() {
             part,
             media == null ? 200 : 206,
             headers: {
-              'content-type': [
-                media == 'image'
-                    ? 'image/webp'
-                    : media == 'voice'
-                    ? 'audio/mp4'
-                    : media == 'video'
-                    ? 'video/mp4'
-                    : 'application/octet-stream',
-              ],
+              'content-type': [contentType],
               if (media != null)
                 'content-range': [
                   'bytes $start-${start + part.length - 1}/${bytes.length}',
@@ -120,7 +149,7 @@ void main() {
           account: 'me',
           call: (_, _) async => {
             'messageId': messageId,
-            media ?? 'file': {
+            slot: {
               'assetId': assetId,
               if (media != null) 'fileId': assetId,
               'fileName': ref.fileName,
@@ -131,7 +160,7 @@ void main() {
               'contentType': 'application/octet-stream',
               'path': media == null
                   ? '/kingclub/chat-file/$messageId'
-                  : '/kingclub/chat-$media/$messageId${media == 'voice' ? '' : '/$media'}',
+                  : '/kingclub/chat-$routeType/$messageId${media == 'voice' ? '' : '/${media == 'hevc' ? 'hevc' : slot}'}',
               'headers': {'authorization': 'Bearer test-only'},
             },
           },

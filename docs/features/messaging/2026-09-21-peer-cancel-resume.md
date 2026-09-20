@@ -101,3 +101,11 @@ B 重启恢复后通过系统文件选择器发送 `KC-ONLINE-0921.bin`（8 MiB�
 A/B 覆盖安装 a131c4fe profile，APK SHA-256 `969fde77bb89ceb11114051ce7ad58e91938b0415c5f80336b144993dd43a09d`，两端 install -r Success。B 从聊天文件入口发送新 2 MiB `KC-PATH-0921.bin`，A 打开读取。B 06:54:17 source-ready（742ms），A 06:54:34 报认证入口计数：udpFrames=2596、udpBytes=2533424、relayFrames=145、relayBytes=141520。计数包括修复和重复数据，不能将总字节当作唯一文件进度。
 
 A 最终显示“保存到文件”，输出 `cache/kingclub-chat-download-AQWUKW/content.bin` 的 SHA-256 `7c05b57c3ea79036b2c023d5043e6dd173524412e0b6bfa803c00ac723f9588b` 与源一致。服务端 chat-file GET 的最后记录仍为前轮 06:40:40，无本轮 HTTP 文件下载。该证据明确证明实际手机聊天下载使用 UDP 数据路径，同时存在少量 relay 数据；记录为 LAN UDP/relay 混合完成，不标为全程纯 UDP、公网穿透或所有媒体通过。路径稳定性、传输耗时及修复开销仍需继续评估。
+
+## 所有媒体清单类型的分块互通回归
+
+`udp_http_handoff_test.dart` 扩展到 image、image-thumbnail、voice、video、video-thumbnail、hevc，分别覆盖 peer→HTTP、HTTP→peer，以及 peer 坏块导致最终 SHA 校验失败并清理缓存。使用各自实际授权槽位、路径、Content-Type 与 HTTP Range，断开后只补缺块；逆向场景在新 peer receiver 中导入已经完成的缓存块。
+
+总计 21 项（含原普通文件场景）通过，静态分析通过。这些测试使用合成二进制载荷、注入的 peer 帧和 HTTP adapter，验证实际下载器/磁盘缓存协议逻辑，不是视频解码、真实公网 UDP 或全部媒体双机中断验收。
+
+外部条件复核：云端 supervm-relay active；公网站点配置仍未加入 /supervm/relay，原配置 SHA 未变。B 的 mobile_data 当前为 0，已询问可用独立网络，未自行把同 Wi-Fi 结果作为跨网通过。
