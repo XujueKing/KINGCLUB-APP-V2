@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/dart.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/session/member_qr_memory.dart';
@@ -290,6 +291,8 @@ class ChatFileDownloader {
     final token = _cancel;
     var opening = true;
     var peerAttemptActive = true;
+    final elapsed = Stopwatch()..start();
+    var phase = 'connect';
     Timer? progressTimer;
     bool active() =>
         peerAttemptActive &&
@@ -313,6 +316,7 @@ class ChatFileDownloader {
       await _check();
       final peer = _peer;
       if (peer == null) return false;
+      phase = 'prepare';
       await _preparePeer(ref, peer);
       var reported = -1;
       void reportProgress() {
@@ -329,7 +333,9 @@ class ChatFileDownloader {
         const Duration(milliseconds: 250),
         (_) => reportProgress(),
       );
+      phase = 'receive';
       final source = await peer.completed;
+      phase = 'verify';
       await _check();
       // Independently validate and copy: callers never receive a peer-owned
       // temporary path, and a failed lane cannot append to the HTTP fallback.
@@ -379,7 +385,12 @@ class ChatFileDownloader {
       }
       await _check();
       return true;
-    } catch (_) {
+    } catch (error) {
+      if (!kReleaseMode) {
+        debugPrint(
+          'PeerDownload failure phase=$phase elapsedMs=${elapsed.elapsedMilliseconds} type=${error.runtimeType}',
+        );
+      }
       // Cancellation/logout must not silently start another network transfer.
       await _check();
       return false;

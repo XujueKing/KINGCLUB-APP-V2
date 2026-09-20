@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -198,9 +201,17 @@ class PeerFileChannel {
   }
 
   Future<void> _serve(String messageId, BigInt object, {String? media}) async {
+    final elapsed = Stopwatch()..start();
+    var phase = 'authorize';
     try {
       var authority = await authorize(messageId, sending: true, media: media);
       Future<bool> sendSource(File source) async {
+        phase = 'source-ready';
+        if (!kReleaseMode) {
+          debugPrint(
+            'PeerServe source-ready elapsedMs=${elapsed.elapsedMilliseconds}',
+          );
+        }
         final refreshed = await authorize(
           messageId,
           sending: true,
@@ -241,6 +252,7 @@ class PeerFileChannel {
         });
         _ready = true;
         await _control('ready', messageId, object, media: media);
+        phase = 'send';
         await sender.run();
         final completed = await authorize(
           messageId,
@@ -254,6 +266,7 @@ class PeerFileChannel {
       }
 
       final bool? sent;
+      phase = 'source';
       if (media != null) {
         final source = await mediaSource?.call(authority);
         _check();
@@ -267,7 +280,12 @@ class PeerFileChannel {
         );
       }
       if (sent != true) throw StateError('Peer file cache miss');
-    } catch (_) {
+    } catch (error) {
+      if (!kReleaseMode) {
+        debugPrint(
+          'PeerServe failure phase=$phase elapsedMs=${elapsed.elapsedMilliseconds} type=${error.runtimeType}',
+        );
+      }
       try {
         await _control('reject', messageId, object, media: media);
       } catch (_) {}
