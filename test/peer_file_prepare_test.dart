@@ -21,13 +21,18 @@ class _Channel implements NovoRudpSecureChannel {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _Link implements NovoRudpFrameLink {
+class _Link implements NovoRudpFrameLink, NovoRudpRouteRecovery {
   _Link(this.media);
   final String? media;
   @override
   final channel = _Channel();
   final incoming = StreamController<NovoRudpFrame>.broadcast();
   int requests = 0;
+  int stalls = 0;
+  bool dropUntilRecovery = false;
+  final acknowledged = Completer<void>();
+  @override
+  void reportDeliveryStall() => stalls++;
   bool prepared = false;
   Completer<void>? readyGate;
   @override
@@ -40,6 +45,8 @@ class _Link implements NovoRudpFrameLink {
     expect(body['v'], media == null ? 1 : 3);
     expect(prepared, true);
     requests++;
+    if (dropUntilRecovery && stalls == 0) return;
+    if (!acknowledged.isCompleted) acknowledged.complete();
     body['op'] = 'ready';
     void ready() => incoming.add(
       NovoRudpFrame(
@@ -66,17 +73,19 @@ class _Link implements NovoRudpFrameLink {
 
 void main() {
   for (final scenario in [
-    (null, false, false),
-    (null, true, false),
-    (null, false, true),
-    for (final media in PeerFileAuthority.mediaKinds) (media, false, false),
+    (null, false, false, false),
+    (null, true, false, false),
+    (null, false, true, false),
+    (null, false, false, true),
+    for (final media in PeerFileAuthority.mediaKinds) (media, false, false, false),
   ]) {
-    final (media, cancel, delayedReady) = scenario;
+    final (media, cancel, delayedReady, staleRoute) = scenario;
     test(
-      'REQUEST waits for cache preparation, media=$media cancel=$cancel delayedReady=$delayedReady',
+      'REQUEST waits for cache preparation, media=$media cancel=$cancel delayedReady=$delayedReady staleRoute=$staleRoute',
       () async {
         final root = await Directory.systemTemp.createTemp('peer-prepare-');
         final link = _Link(media);
+        link.dropUntilRecovery = staleRoute;
         if (delayedReady) link.readyGate = Completer<void>();
         const id = '11111111-1111-4111-8111-111111111111';
         final repo = MessagingRepository(
@@ -143,6 +152,14 @@ void main() {
               const Duration(seconds: 2),
             );
             expect(link.requests, 1);
+            if (staleRoute) {
+              await link.acknowledged.future.timeout(const Duration(seconds: 2));
+              expect(link.stalls, 1);
+              final requests = link.requests;
+              await Future<void>.delayed(const Duration(milliseconds: 1000));
+              expect(link.requests, requests);
+              expect(link.stalls, 1);
+            }
             if (delayedReady) {
               var ended = false;
               unawaited(
@@ -158,6 +175,7 @@ void main() {
               await Future<void>.delayed(const Duration(milliseconds: 3200));
               expect(ended, false);
               expect(link.requests, greaterThan(1));
+              expect(link.stalls, 1);
               link.readyGate!.complete();
               await Future<void>.delayed(const Duration(milliseconds: 20));
               expect(ended, false);

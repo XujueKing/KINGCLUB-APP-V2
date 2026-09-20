@@ -377,8 +377,15 @@ class PeerFileChannel {
           },
         ),
       );
+      var unansweredRequests = 0;
       _retry = Timer.periodic(const Duration(milliseconds: 450), (_) {
         if (accepted.isCompleted) return;
+        // REQUEST can be lost on a stale direct route before the sender has
+        // started DATA/ACK recovery. Give the lane the same bounded feedback
+        // here; source preparation may also be slow, so do not close it.
+        if (++unansweredRequests == 2 && link is NovoRudpRouteRecovery) {
+          (link as NovoRudpRouteRecovery).reportDeliveryStall();
+        }
         unawaited(
           _control(
             'request',
