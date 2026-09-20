@@ -11,14 +11,17 @@ import '../../auth/data/auth_repository_provider.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'messaging_repository.dart';
 import 'group_request_store.dart';
+import 'canonical_voice_container.dart';
 
 class UploadedChatVoice {
   const UploadedChatVoice(
     this.assetId,
     this.durationMs,
     this._fingerprint,
-    this._requestId,
-  );
+    this._requestId, {
+    this.sourceBytes,
+  });
+  final Uint8List? sourceBytes;
   final String assetId;
   final int durationMs;
   final String _fingerprint, _requestId;
@@ -92,7 +95,7 @@ class ChatVoiceUploader {
       throw ArgumentError('录音须小于2MB');
     }
     _busy = true;
-    final owned = Uint8List.fromList(input);
+    final owned = canonicalVoiceContainer(input) ?? Uint8List.fromList(input);
     try {
       for (var attempt = 0; ; attempt++) {
         try {
@@ -209,6 +212,7 @@ class ChatVoiceUploader {
         result['durationMs'] as int,
         fingerprint,
         requestId,
+        sourceBytes: Uint8List.fromList(input),
       );
     } on DioException catch (e) {
       if (_invalid) throw const AuthFailure('SESSION_CHANGED', '登录状态已变化');

@@ -133,7 +133,7 @@ class ChatVoiceForwarder {
             'voiceAssetId': _prepared!.assetId,
           });
       _check();
-      _sourceBytes = data;
+      _sourceBytes = _prepared?.sourceBytes ?? data;
       return _prepared!;
     } finally {
       _busy = false;

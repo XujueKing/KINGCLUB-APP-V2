@@ -10,6 +10,7 @@ import 'messaging_repository.dart';
 import 'chat_voice_uploader.dart';
 import 'voice_capture.dart';
 import 'voice_draft_store.dart';
+import 'canonical_voice_container.dart';
 
 /// Keep local audio until the server asset is durably queued for this chat.
 class VoiceDraftSender {
@@ -85,7 +86,16 @@ class VoiceDraftSender {
         'messageType': 'voice',
         'voiceAssetId': voice.assetId,
       });
-      await _retain(file, store.account, voice.assetId);
+      if (voice.sourceBytes case final bytes?) {
+        await _mediaStore.importBytes(
+          bytes,
+          scope: 'member:${store.account}',
+          contentKey: 'chat-voice-asset:${voice.assetId}',
+          kind: MediaKind.audio,
+        );
+      } else {
+        await _retain(file, store.account, voice.assetId);
+      }
       if (_disposed || generation != MemberQrMemory.generation) {
         throw StateError('登录状态已变化');
       }
@@ -136,11 +146,22 @@ class VoiceDraftSender {
     _uploads.clear();
   }
 
-  Future<File> _retain(File file, String account, String asset) =>
-      _mediaStore.importFile(
-        file,
+  Future<File> _retain(File file, String account, String asset) async {
+    try {
+      return await _mediaStore.cached(
         scope: 'member:$account',
         contentKey: 'chat-voice-asset:$asset',
         kind: MediaKind.audio,
       );
+    } on StateError {
+      // Recover a leftover draft without replacing an already retained asset.
+    }
+    final bytes = await file.readAsBytes();
+    return _mediaStore.importBytes(
+      canonicalVoiceContainer(bytes) ?? bytes,
+      scope: 'member:$account',
+      contentKey: 'chat-voice-asset:$asset',
+      kind: MediaKind.audio,
+    );
+  }
 }

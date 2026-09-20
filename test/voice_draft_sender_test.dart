@@ -20,6 +20,7 @@ class Upload extends ChatVoiceUploader {
   Upload(MessagingRepository repo)
     : super(repository: repo, checkSession: () async {}, dio: Dio());
   bool fail = false, acknowledged = false;
+  Uint8List? sourceBytes;
   Completer<void>? paused, started;
   @override
   Future<UploadedChatVoice> upload(
@@ -29,11 +30,12 @@ class Upload extends ChatVoiceUploader {
     started?.complete();
     if (paused != null) await paused!.future;
     if (fail) throw StateError('upload failed');
-    return const UploadedChatVoice(
+    return UploadedChatVoice(
       '12345678-1234-1234-1234-123456789012',
       2000,
       'fingerprint',
       'request',
+      sourceBytes: sourceBytes,
     );
   }
 
@@ -62,7 +64,7 @@ void main() {
           return network.future;
         },
       );
-      final upload = Upload(repo);
+      final upload = Upload(repo)..sourceBytes = Uint8List.fromList([9, 8]);
       final queue = MemoryOutbox();
       final chat = DirectChatController(
         repository: repo,
@@ -90,7 +92,7 @@ void main() {
         contentKey: 'chat-voice-asset:12345678-1234-1234-1234-123456789012',
         kind: MediaKind.audio,
       );
-      expect(await retained.readAsBytes(), [1, 2, 3]);
+      expect(await retained.readAsBytes(), [9, 8]);
       network.completeError(const AuthFailure('NETWORK_ERROR', 'offline'));
       await Future<void>.delayed(Duration.zero);
       expect(queue.items, hasLength(1));

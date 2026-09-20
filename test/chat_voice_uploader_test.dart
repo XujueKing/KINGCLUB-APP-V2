@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:kingclub/src/features/messaging/data/canonical_voice_container.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -35,7 +37,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   test('uploader transmits authenticated binary bytes and retains upload identity until message is queued', () async {
-    final source = Uint8List.fromList([1, 2, 3, 4, 5]),
+    final original = File('test/fixtures/chat-voice-synthetic.m4a').readAsBytesSync();
+    final source = canonicalVoiceContainer(original)!,
         key = List<int>.generate(32, (i) => i);
     final requests = <Map<String, dynamic>>[];
     String aad = '';
@@ -107,21 +110,22 @@ void main() {
       checkSession: () async {},
       dio: transport(),
     );
-    await expectLater(first.upload(source), throwsA(isA<AuthFailure>()));
+    await expectLater(first.upload(original), throwsA(isA<AuthFailure>()));
     first.dispose();
     final second = ChatVoiceUploader(
       repository: repository,
       checkSession: () async {},
       dio: transport(),
     );
-    final image = await second.upload(source);
+    final image = await second.upload(original);
     expect(image.assetId, asset);
+    expect(image.sourceBytes, source);
     expect(posts, 1);
     expect(requests[0]['clientUploadId'], requests[1]['clientUploadId']);
-    await second.upload(source);
+    await second.upload(original);
     expect(requests[2]['clientUploadId'], requests[1]['clientUploadId']);
     await second.acknowledgeQueued(image);
-    await second.upload(source);
+    await second.upload(original);
     expect(requests[3]['clientUploadId'], isNot(requests[2]['clientUploadId']));
     second.dispose();
   });

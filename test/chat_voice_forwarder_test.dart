@@ -73,11 +73,12 @@ void main() {
         upload: (bytes) async {
           uploads++;
           expect(bytes, [1, 2, 3]);
-          return const UploadedChatVoice(
+          return UploadedChatVoice(
             'owned-copy',
             2000,
             'fingerprint',
             'request',
+            sourceBytes: Uint8List.fromList([9, 8]),
           );
         },
       );
@@ -93,7 +94,7 @@ void main() {
         contentKey: 'chat-voice-asset:owned-copy',
         kind: MediaKind.audio,
       );
-      expect(await local.readAsBytes(), [1, 2, 3]);
+      expect(await local.readAsBytes(), [9, 8]);
       await ChatMediaCleanup(media: reopened).remove(
         account: 'me',
         group: group,
