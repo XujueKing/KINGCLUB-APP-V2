@@ -22,6 +22,7 @@ class NovoRudpRelayFrameLink
     implements
         NovoRudpFrameLink,
         NovoRudpRouteRecovery,
+        NovoRudpRemoteLiveness,
         NovoRudpRouteObservations {
   NovoRudpRelayFrameLink({
     required this.relay,
@@ -128,6 +129,7 @@ class NovoRudpRelayFrameLink
 
   /// Authority alone cannot prove the other process still owns this session.
   /// Probe over relay so an obsolete UDP mapping cannot hide a live session.
+  @override
   Future<void> ensureRemoteSession() => _probe ??= _probeRemoteSession();
 
   Future<void> _probeRemoteSession() async {

@@ -132,6 +132,8 @@ class NovoRudpFileDownload {
   late final Timer _timer;
   final Duration _idleTimeout;
   Timer? _idleTimer;
+  Timer? _stallProbeTimer;
+  bool _probingStall = false;
   int _progress = 0;
   Future<void>? _closing;
   bool _closed = false;
@@ -171,10 +173,44 @@ class NovoRudpFileDownload {
 
   void _armIdle() {
     _idleTimer?.cancel();
+    _stallProbeTimer?.cancel();
     _idleTimer = Timer(
       _idleTimeout,
       () => _fail(TimeoutException('File receive stalled')),
     );
+    // Only probe an established transfer. Slow source preparation and imported
+    // resume blocks do not demonstrate that the remote sender started sending.
+    if (_hasRemoteProgress &&
+        _link is NovoRudpRemoteLiveness &&
+        _idleTimeout > const Duration(seconds: 3)) {
+      final progress = _progress;
+      _stallProbeTimer = Timer(const Duration(seconds: 2), () {
+        unawaited(_probeStall(progress));
+      });
+    }
+  }
+
+  bool _hasRemoteProgress = false;
+
+  Future<void> _probeStall(int progress) async {
+    if (_closed || _done.isCompleted || _probingStall) return;
+    _probingStall = true;
+    try {
+      if (_link is NovoRudpRouteRecovery) {
+        (_link as NovoRudpRouteRecovery).reportDeliveryStall();
+      }
+      await (_link as NovoRudpRemoteLiveness).ensureRemoteSession().timeout(
+        const Duration(seconds: 1),
+      );
+      // A live but slow sender retains the original idle budget.
+    } catch (_) {
+      // Late probe failures must not cancel a recovered transfer or its cache.
+      if (!_closed && !_done.isCompleted && _progress == progress) {
+        _fail(TimeoutException('File sender unreachable after progress'));
+      }
+    } finally {
+      _probingStall = false;
+    }
   }
 
   void _check() {
@@ -188,6 +224,7 @@ class NovoRudpFileDownload {
       _check();
       if (!_done.isCompleted && _receiver.receivedFragments > _progress) {
         _progress = _receiver.receivedFragments;
+        _hasRemoteProgress = true;
         _armIdle();
       }
       if (ack == null) return;
@@ -206,6 +243,7 @@ class NovoRudpFileDownload {
       if (file != null && !_done.isCompleted) {
         _timer.cancel();
         _idleTimer?.cancel();
+        _stallProbeTimer?.cancel();
         _done.complete(file);
       }
     } catch (error) {
@@ -243,6 +281,7 @@ class NovoRudpFileDownload {
   Future<void> _close() async {
     _timer.cancel();
     _idleTimer?.cancel();
+    _stallProbeTimer?.cancel();
     // Enqueue the snapshot before the owner invalidates the peer attempt.
     // The writer independently checks session/deletion on each block.
     final writer = _resumeWriter;

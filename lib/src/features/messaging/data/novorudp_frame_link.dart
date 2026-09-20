@@ -14,6 +14,11 @@ abstract interface class NovoRudpRouteRecovery {
   void reportDeliveryStall();
 }
 
+/// Optional authenticated endpoint probe, independent of file preparation.
+abstract interface class NovoRudpRemoteLiveness {
+  Future<void> ensureRemoteSession();
+}
+
 /// Authenticated ingress metadata, not application delivery or unique progress.
 typedef NovoRudpReceivedRoute = ({
   BigInt streamId,
