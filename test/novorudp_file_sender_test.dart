@@ -370,7 +370,7 @@ void main() {
           expect(senderChecks, greaterThanOrEqualTo(2));
         } else {
           await expectLater(
-            receiving.receive(authority, () => true),
+            receiving.receive(authority, () => true).then((d) => d.completed),
             throwsStateError,
           );
           expect(senderChecks, scenario == 'group-rejoined' ? 0 : 1);

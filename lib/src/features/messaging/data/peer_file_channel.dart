@@ -394,9 +394,18 @@ class PeerFileChannel {
         object,
         media: expected.media,
       );
-      await accepted.future.timeout(const Duration(seconds: 3));
-      _retry?.cancel();
-      _retry = null;
+      // The secure lane and local receiver are now established. Source cache
+      // decryption belongs to transfer startup, not the caller's connection
+      // deadline. The receiver's bounded idle/deadline timers still close a
+      // silent peer; rejection closes it immediately. Keep REQUEST retries
+      // until READY, without making the whole connection wait for that READY.
+      unawaited(
+        accepted.future.then<void>((_) {
+          if (_receiving != object) return;
+          _retry?.cancel();
+          _retry = null;
+        }, onError: (Object _) {}),
+      );
       _check();
       if (!stillActive()) throw StateError('Peer file cancelled');
       return owned;

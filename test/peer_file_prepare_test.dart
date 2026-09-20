@@ -29,6 +29,7 @@ class _Link implements NovoRudpFrameLink {
   final incoming = StreamController<NovoRudpFrame>.broadcast();
   int requests = 0;
   bool prepared = false;
+  Completer<void>? readyGate;
   @override
   Stream<NovoRudpFrame> get frames => incoming.stream;
   @override
@@ -40,7 +41,7 @@ class _Link implements NovoRudpFrameLink {
     expect(prepared, true);
     requests++;
     body['op'] = 'ready';
-    incoming.add(
+    void ready() => incoming.add(
       NovoRudpFrame(
         kind: frame.kind,
         sessionId: frame.sessionId,
@@ -51,6 +52,12 @@ class _Link implements NovoRudpFrameLink {
         payload: utf8.encode(jsonEncode(body)),
       ),
     );
+    final gate = readyGate;
+    if (gate == null) {
+      ready();
+    } else {
+      unawaited(gate.future.then((_) => ready()));
+    }
   }
 
   @override
@@ -59,16 +66,18 @@ class _Link implements NovoRudpFrameLink {
 
 void main() {
   for (final scenario in [
-    (null, false),
-    (null, true),
-    for (final media in PeerFileAuthority.mediaKinds) (media, false),
+    (null, false, false),
+    (null, true, false),
+    (null, false, true),
+    for (final media in PeerFileAuthority.mediaKinds) (media, false, false),
   ]) {
-    final (media, cancel) = scenario;
+    final (media, cancel, delayedReady) = scenario;
     test(
-      'REQUEST waits for cache preparation, media=$media cancel=$cancel',
+      'REQUEST waits for cache preparation, media=$media cancel=$cancel delayedReady=$delayedReady',
       () async {
         final root = await Directory.systemTemp.createTemp('peer-prepare-');
         final link = _Link(media);
+        if (delayedReady) link.readyGate = Completer<void>();
         const id = '11111111-1111-4111-8111-111111111111';
         final repo = MessagingRepository(
           account: 'receiver',
@@ -134,6 +143,25 @@ void main() {
               const Duration(seconds: 2),
             );
             expect(link.requests, 1);
+            if (delayedReady) {
+              var ended = false;
+              unawaited(
+                download.completed.then<void>(
+                  (_) => ended = true,
+                  onError: (Object _) {
+                    ended = true;
+                  },
+                ),
+              );
+              // A real source can need >3s to restore its encrypted blocks.
+              // The connection has returned; that must not abort the transfer.
+              await Future<void>.delayed(const Duration(milliseconds: 3200));
+              expect(ended, false);
+              expect(link.requests, greaterThan(1));
+              link.readyGate!.complete();
+              await Future<void>.delayed(const Duration(milliseconds: 20));
+              expect(ended, false);
+            }
             await download.close();
           }
         } finally {
