@@ -4,6 +4,34 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/adaptive_peer_text_route.dart';
 
 void main() {
+  testWidgets('receipt within total budget preserves the next peer attempt', (
+    tester,
+  ) async {
+    var calls = 0;
+    final route = AdaptivePeerTextRoute(
+      isActive: () => true,
+      deliver: (_, _, current) async {
+        calls++;
+        await Future<void>.delayed(const Duration(milliseconds: 1800));
+        return current();
+      },
+    );
+    bool? first;
+    unawaited(route.send('first', 'first').then((value) => first = value));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1200));
+    expect(first, isNull);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(first, isTrue);
+
+    bool? next;
+    unawaited(route.send('next', 'next').then((value) => next = value));
+    await tester.pump();
+    expect(calls, 2);
+    await tester.pump(const Duration(milliseconds: 1800));
+    expect(next, isTrue);
+  });
+
   test('new connection immediately escapes old cooldown', () async {
     Object connection = Object();
     var calls = 0;

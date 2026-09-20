@@ -165,15 +165,17 @@ class NovoRudpBindingRuntime {
             if (!valid()) return false;
             var laneActive = true;
             try {
-              await channel
-                  .sendText(
-                    peer: peer,
-                    bindingId: key.bindingId,
-                    text: text,
-                    messageId: id,
-                    stillActive: () => laneActive && valid(),
-                  )
-                  .timeout(const Duration(milliseconds: 1200));
+              // The route owns the overall deadline, including directory,
+              // authorization and handshake work. A second, shorter deadline
+              // can classify a successful durable receipt as a failed route
+              // and unnecessarily suppress subsequent peer sends.
+              await channel.sendText(
+                peer: peer,
+                bindingId: key.bindingId,
+                text: text,
+                messageId: id,
+                stillActive: () => laneActive && valid(),
+              );
               return valid();
             } catch (_) {
               if (!valid()) return false;
