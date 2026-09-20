@@ -62,5 +62,6 @@ timestamps and limits; these checks do not replace public-network acceptance.
 Detailed records: [file resume](2026-09-21-peer-cancel-resume.md),
 [video](2026-09-21-canonical-video.md), [voice](2026-09-21-canonical-voice.md),
 [image](2026-09-21-canonical-image-fix.md). The installed observation build is
-cfbbe494; see [stall probe and phone verification](2026-09-21-peer-stall-probe.md)
-for the newer APK hash and measured recovery timing.
+d3ff0aab; see [stall probe and phone verification](2026-09-21-peer-stall-probe.md)
+and [prefix repair verification](2026-09-21-prefix-repair.md) for APK hashes,
+measured recovery timing and the latest 2 MiB cache reuse result.
