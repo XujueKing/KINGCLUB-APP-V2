@@ -95,3 +95,9 @@ B 重启恢复后通过系统文件选择器发送 `KC-ONLINE-0921.bin`（8 MiB�
 传输层新增仅含 stream/object、帧类型、载荷长度及 UDP/relay 标志的观察流。在各入口解密认证及权限检查之后记数，文件下载按自身 stream/object 过滤，排除 ACK、DONE 和控制帧。关闭下载时仅 debug/profile 输出四项计数，不输出身份、地址、路径、聊天内容或密钥；不持久化或上报。计数包含重复数据和修复载荷，是入口流量证据，不等于唯一下载进度。
 
 真实本机 SuperVM 集成分别运行 relay-only 与启用 LAN 的两组 runtime 测试：前者文件为 relayFrames=5、relayBytes=4097、UDP=0；后者等待两端直连就绪后，文件为 udpFrames=5、udpBytes=4097、relay=0。两种文本路由策略各通过，共 4 项真实集成测试。额外取消续传、准备、接收回执 18 项回归通过，四文件静态分析通过。该增量尚未安装到手机；此前短暂停 relay 的手机记录不因此追溯升级为纯 UDP 通过。
+
+## 手机路径计数实测
+
+A/B 覆盖安装 a131c4fe profile，APK SHA-256 `969fde77bb89ceb11114051ce7ad58e91938b0415c5f80336b144993dd43a09d`，两端 install -r Success。B 从聊天文件入口发送新 2 MiB `KC-PATH-0921.bin`，A 打开读取。B 06:54:17 source-ready（742ms），A 06:54:34 报认证入口计数：udpFrames=2596、udpBytes=2533424、relayFrames=145、relayBytes=141520。计数包括修复和重复数据，不能将总字节当作唯一文件进度。
+
+A 最终显示“保存到文件”，输出 `cache/kingclub-chat-download-AQWUKW/content.bin` 的 SHA-256 `7c05b57c3ea79036b2c023d5043e6dd173524412e0b6bfa803c00ac723f9588b` 与源一致。服务端 chat-file GET 的最后记录仍为前轮 06:40:40，无本轮 HTTP 文件下载。该证据明确证明实际手机聊天下载使用 UDP 数据路径，同时存在少量 relay 数据；记录为 LAN UDP/relay 混合完成，不标为全程纯 UDP、公网穿透或所有媒体通过。路径稳定性、传输耗时及修复开销仍需继续评估。
