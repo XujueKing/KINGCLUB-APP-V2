@@ -109,12 +109,19 @@ class NovoRudpFileDownload {
   bool _sendingAck = false;
   int _queued = 0;
   Future<void> Function(int, Uint8List)? _resumeWriter;
+  bool Function()? _canPreserve;
 
   /// The owner supplies its message-scoped encrypted cache, never a public path.
   /// Cached blocks do not imply file verification or receiver completion.
-  void preserveBlocksOnClose(Future<void> Function(int, Uint8List) write) {
+  /// A separate preservation check can survive user cancellation; the writer
+  /// must still validate account ownership and deletion before every write.
+  void preserveBlocksOnClose(
+    Future<void> Function(int, Uint8List) write, {
+    bool Function()? canPreserve,
+  }) {
     _check();
     _resumeWriter = write;
+    _canPreserve = canPreserve;
   }
 
   Future<void> restoreBlocks(Future<Uint8List?> Function(int, int) read) async {
@@ -208,9 +215,9 @@ class NovoRudpFileDownload {
     _timer.cancel();
     _idleTimer?.cancel();
     // Enqueue the snapshot before the owner invalidates the peer attempt.
-    // The writer independently checks session/cancellation/deletion on each block.
+    // The writer independently checks session/deletion on each block.
     final writer = _resumeWriter;
-    final checkpoint = writer != null && _canReceive()
+    final checkpoint = writer != null && (_canPreserve ?? _canReceive)()
         ? _receiver
               .checkpointBlocks(1024 * 1024, writer)
               .catchError((Object _) {})

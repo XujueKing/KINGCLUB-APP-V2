@@ -254,12 +254,22 @@ class ChatFileDownloader {
     final cache = resumeCache;
     if (cache != null) {
       final identity = _identity(ref);
-      peer.preserveBlocksOnClose((index, bytes) async {
-        await _check();
+      bool canPreserve() =>
+          !_sessionChanged && !_deleted.contains((ref.group, ref.messageId));
+      Future<void> checkPreservation() async {
+        if (!canPreserve()) throw StateError('Resume access removed');
+        await checkSession();
+        if (!canPreserve()) throw StateError('Resume access removed');
         await cache.ensureNotDeleted(identity);
+      }
+
+      peer.preserveBlocksOnClose((index, bytes) async {
+        // Cancelling network work or closing its page must not discard complete
+        // encrypted blocks. Logout and message deletion still invalidate them.
+        await checkPreservation();
         await cache.write(identity, index, bytes);
-        await _check();
-      });
+        await checkPreservation();
+      }, canPreserve: canPreserve);
       await peer.restoreBlocks((index, length) async {
         await _check();
         await cache.ensureNotDeleted(identity);
