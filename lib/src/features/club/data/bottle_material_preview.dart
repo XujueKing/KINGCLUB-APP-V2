@@ -17,28 +17,28 @@ class BottlePreviewItem extends StorageItem {
   @override
   String get thumbnail => '$directory/${assetKey}_thumb.png';
   double get aspectRatio => const <String, double>{
-    'bottle_01': 0.294286305459,
+    'bottle_01': 0.294215674674,
     'bottle_02': 0.328432284881,
-    'bottle_03': 0.318480917466,
+    'bottle_03': 0.318525037211,
     'bottle_04': 0.364955935718,
     'bottle_05': 0.339786345643,
     'bottle_06': 0.385058682971,
-    'bottle_07': 0.338841717642,
-    'bottle_08': 0.299801003891,
-    'bottle_09': 0.324523409647,
+    'bottle_07': 0.338733087705,
+    'bottle_08': 0.299982165151,
+    'bottle_09': 0.324344238137,
     'bottle_10': 0.344334056564,
     'bottle_11': 0.288803606238,
   }[assetKey]!;
   double get imageAspectRatio => const <String, double>{
-    'bottle_01': 0.237829209896,
+    'bottle_01': 0.237752928647,
     'bottle_02': 0.274706867672,
-    'bottle_03': 0.263959390863,
+    'bottle_03': 0.264007040188,
     'bottle_04': 0.314152410575,
     'bottle_05': 0.286969253294,
     'bottle_06': 0.335863377609,
-    'bottle_07': 0.285949055053,
-    'bottle_08': 0.243785084202,
-    'bottle_09': 0.270485282418,
+    'bottle_07': 0.285831734722,
+    'bottle_08': 0.243980738363,
+    'bottle_09': 0.270291777188,
     'bottle_10': 0.291880781089,
     'bottle_11': 0.231907894737,
   }[assetKey]!;
