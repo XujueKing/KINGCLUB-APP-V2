@@ -266,6 +266,54 @@ class NovoRudpFileSender {
               Future<void>.delayed(const Duration(milliseconds: 10)),
             );
           }
+          // Repair the already-sent prefix before streaming much more data.
+          // Waiting until the whole file ends leaves early holes in otherwise
+          // reusable HTTP cache blocks. Never send the unsent tail as repair.
+          final sentUntil = math.min(start + 16, fragments);
+          if (sentUntil % 256 == 0 && sentUntil < fragments) {
+            final position = await source.position();
+            for (var round = 0; round < 4; round++) {
+              await _send(_frame(NovoRudpFrameKind.done, 0, const []));
+              final ack = await _nextAck();
+              if (ack == null) break;
+              final decision = await planner.acceptAuthenticatedAck(ack);
+              _check();
+              if (decision == 'ReceiverDone') return;
+              if (decision is! Map || !decision.containsKey('Repair')) break;
+              final plan = decision['Repair'] as Map;
+              var repaired = 0;
+              for (final range in plan['window']['missing_ranges'] as List) {
+                final end = math.min(
+                  range['end_inclusive'] as int,
+                  sentUntil - 1,
+                );
+                for (var index = range['start'] as int; index <= end; index++) {
+                  _check();
+                  await source.setPosition(
+                    index * NovoRudpFileReceiver.chunkSize,
+                  );
+                  final bytes = await source.read(
+                    NovoRudpFileReceiver.chunkSize,
+                  );
+                  if (bytes.length != NovoRudpFileReceiver.chunkSize) {
+                    throw const FormatException('Source truncated');
+                  }
+                  for (var copy = 0; copy < plan['packet_copies']; copy++) {
+                    await _send(_frame(NovoRudpFrameKind.repair, index, bytes));
+                    if (++repaired % (plan['batch_size'] as int) == 0) {
+                      await _waitTransport(
+                        Future<void>.delayed(
+                          Duration(milliseconds: plan['batch_pause_ms'] as int),
+                        ),
+                      );
+                    }
+                  }
+                }
+              }
+              if (repaired == 0) break;
+            }
+            await source.setPosition(position);
+          }
         }
         resumeAck = null;
         resumeDecision = null;

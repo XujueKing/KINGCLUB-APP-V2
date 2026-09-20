@@ -64,6 +64,41 @@ class MissingReceiptLink implements NovoRudpFrameLink, NovoRudpRouteRecovery {
   void reportDeliveryStall() => recoveryHints++;
 }
 
+class PrefixLossLink implements NovoRudpFrameLink {
+  PrefixLossLink(this.delegate);
+  final NovoRudpFrameLink delegate;
+  int highestData = -1;
+  int? repairedAt;
+  bool dropped = false;
+  @override
+  NovoRudpSecureChannel get channel => delegate.channel;
+  @override
+  Stream<NovoRudpFrame> get frames => delegate.frames;
+  @override
+  Future<void> send(NovoRudpFrame frame) async {
+    final sequence = frame.sequence.toInt();
+    if (frame.kind == NovoRudpFrameKind.data) {
+      highestData = sequence;
+      if (sequence == 3 && !dropped) {
+        dropped = true;
+        return;
+      }
+    }
+    if (frame.kind == NovoRudpFrameKind.repair) {
+      expect(
+        sequence,
+        lessThanOrEqualTo(highestData),
+        reason: 'unsent tail must remain initial data',
+      );
+      if (sequence == 3) repairedAt ??= highestData;
+    }
+    await delegate.send(frame);
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
 void main() {
   final path = Platform.environment['NOVORUDP_NATIVE_LIBRARY'];
   group('real encrypted UDP file transfer', () {
@@ -142,6 +177,49 @@ void main() {
           .join();
       return (file: file, hash: hash);
     }
+
+    test(
+      'repairs a missing prefix before sending the remaining tail',
+      () async {
+        final bytes = List.generate(
+          600 * NovoRudpFileReceiver.chunkSize + 13,
+          (i) => i % 251,
+        );
+        final input = await source(bytes);
+        final receiver = await NovoRudpFileReceiver.create(
+          privateDirectory: directory,
+          sessionId: left.channel.sessionId,
+          streamId: BigInt.one,
+          objectId: BigInt.two,
+          size: bytes.length,
+          sha256: input.hash,
+        );
+        addTearDown(receiver.close);
+        final errors = <Object>[];
+        final sub = right.frames.listen((frame) async {
+          try {
+            final ack = await receiver.receiveAuthenticated(frame);
+            if (ack != null) await right.send(ack);
+          } catch (error) {
+            errors.add(error);
+          }
+        });
+        addTearDown(sub.cancel);
+        final link = PrefixLossLink(left);
+        await NovoRudpFileSender(
+          link: link,
+          file: input.file,
+          streamId: BigInt.one,
+          objectId: BigInt.two,
+          size: bytes.length,
+          sha256: input.hash,
+        ).run();
+        expect(link.dropped, isTrue);
+        expect(link.repairedAt, 255);
+        expect(errors, isEmpty);
+        expect(await (await receiver.verifiedFile()).readAsBytes(), bytes);
+      },
+    );
 
     for (final attempts in [1, 4]) {
       test(
@@ -678,9 +756,16 @@ void main() {
             : [],
       );
       await left.send(frame(NovoRudpFrameKind.data));
+      Future<void> repeatFrame(NovoRudpFrameKind kind) async {
+        try {
+          await left.send(frame(kind));
+        } on SocketException {
+          // A locally dropped duplicate is valid loss, not new progress.
+        }
+      }
       final repeat = Timer.periodic(const Duration(milliseconds: 50), (_) {
-        unawaited(left.send(frame(NovoRudpFrameKind.data)));
-        unawaited(left.send(frame(NovoRudpFrameKind.done)));
+        unawaited(repeatFrame(NovoRudpFrameKind.data));
+        unawaited(repeatFrame(NovoRudpFrameKind.done));
       });
       try {
         await expectation.timeout(const Duration(seconds: 2));
