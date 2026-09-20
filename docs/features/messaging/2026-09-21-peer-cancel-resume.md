@@ -75,3 +75,11 @@ KC-AUTO-0921.bin 的实际下载在 06:21:29 已出现 receive TimeoutException�
 ### 安装更新
 
 随后从干净聊天 worktree 的 `3ecb00ab` 构建 profile 预览 APK，SHA-256 `9ac7f98ca29d9cfecaec8d254c657af8bfc5a8a243a2eb2df42a631cb9872c59`。A/B 均 `adb install -r` 返回 Success，已发起应用启动，未卸载或清除数据。初次构建因 D 盘空间不足失败；将旧动画 APK 和失败中间产物归档至 C 盘后重新构建成功。安装完成不等于真机恢复验收完成，下一步仍需实际下载、对端重启和途中断开检查。
+
+## 真机传输中断后自动 peer→HTTP 接续
+
+3ecb00ab 安装后，B 通过聊天文件选择器发送新的 8 MiB `KC-RECOVER-0921.bin`（消息 `e24b3755-f4ab-4bba-b3c0-37550148ea17`）。A 打开文件并点击读取。B 于 06:40:14 报 source-ready（2291ms）；A 的 `cache/novorudp-BGPRHO/receiving.part` 已增长至 2873344 字节。此长度并不代表这些范围全部连续接收，只用于确认开始写入；真正可复用完整块由后续 HTTP 范围佐证。
+
+06:40:27 force-stop B，此后不点击 A。A 于 06:40:35 报 receive TimeoutException（整个接收阶段 25112ms），随后自动请求 HTTP **1–7**，全部 200；该消息没有块 0 的 HTTP 请求。06:40:40 最后一块返回，界面显示“保存到文件”。A 输出 `cache/kingclub-chat-download-WIODAJ/content.bin` 的 SHA-256 为 `790526f743ab5de0217eda3ec6b290d5bce0ca8ef055d5072af40d18d348f941`，与 B 发送源文件一致。完成后重新启动 B。
+
+该证据验证实际聊天文件传输中的自动失败回退和完整块复用，不依赖人工重试。仍未单独区分此次 peer 数据走 UDP 还是加密 relay，不能冒充公网 UDP 验收；约 8 秒无数据等待也仍需评估体验。对端重新上线后的新传输恢复以及各媒体类型真实路径仍需继续验证。
