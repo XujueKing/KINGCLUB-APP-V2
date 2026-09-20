@@ -19,3 +19,9 @@
 2026-09-21，A/B 使用 a131c4fe profile（APK SHA-256 `969fde77bb89ceb11114051ce7ad58e91938b0415c5f80336b144993dd43a09d`）。B 经聊天“照片→选择视频”重新发送 `test/fixtures/chat-video-synthetic.mp4`，新消息 `9bf6fb23-423f-48e1-943b-f0730c11803d`。A 点击新视频卡片后，06:58:36 下载记录为 **udpFrames=53、udpBytes=51373、relayFrames=0、relayBytes=0**。两份新增本地视频文件时间为 06:58，长度 51373，SHA-256 均为 `c34ac97fad8cda46a3046bcd75e4dfccc63bdd59b63e0b0bd3b09ad693342c48`，与测试源一致。
 
 A 视频页实际显示合成画面的 1.958 秒末帧，支持完整文件解码播放。服务端该新消息仅有 thumbnail GET，没有完整视频 GET。封面阶段另观察到 relayFrames=10、relayBytes=9348，且有 HTTP 封面请求；因此仅将**完整 H.264 视频的本轮 LAN UDP 获取**记为通过，不声称封面纯 UDP。无人工听音确认，不新增声音验收结论；HEVC、跨公网及长视频中断仍待验证。
+
+## HEVC 手机 UDP 实测
+
+随后在同一 a131c4fe profile 上，B 经实际照片入口选择 `test/fixtures/chat-video-hevc-synthetic.mp4`（1 秒、21664 字节）发送，新消息 `94ea45d9-91fc-4416-8345-b74820c1c8f1`。A 07:14:12 接收计数为 udpFrames=23、udpBytes=21664、relayFrames=0、relayBytes=0。B 发送缓存和 A 两份新持久化文件的 SHA-256 均为 `fee8f958626fd05cf6b3d22102f892ffe9a0dd420902f5dc73fa105af3b0e437`，与 `chat_video_canonical_source_test.dart` 的 HEVC 清理黄金哈希一致。原始 fixture 的哈希不同，不能把规范化后的数据与原始元数据未清理版本直接作相等断言。
+
+A 日志实际使用 OMX.qcom.video.decoder.hevc，截图显示 0.958 秒末帧。服务端本轮仅 thumbnail GET，无完整 video/hevc GET。封面另走 6 个 relay 帧、4890 字节，不混入完整视频计数。该结果验证本机型 HEVC 完整视频 LAN UDP 获取和解码；不代表不支持 HEVC 设备的自动兼容回退、公网跨网、长视频中断或声音听感已全部验收。

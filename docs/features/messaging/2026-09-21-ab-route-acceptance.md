@@ -55,7 +55,7 @@ timestamps and limits; these checks do not replace public-network acceptance.
 | Actual path | Verified result | Remaining scope |
 | --- | --- | --- |
 | File | 8 MiB automatic peer→HTTP missing-block resume; next file after B restart completed via peer; 2 MiB authenticated ingress includes UDP and relay | Public network, sustained-loss performance |
-| H.264 video | Full 51,373-byte video received as 53 UDP frames, relay=0; checksum and final playback frame match | HEVC, long-video interruption, human audio confirmation |
+| H.264 / HEVC video | H.264 51,373 bytes / 53 UDP frames; HEVC 21,664 bytes / 23 UDP frames, both relay=0; persistent hashes and final playback frames match | Unsupported-HEVC device fallback, long-video interruption, human audio confirmation |
 | Voice | Actual 3-second recording received as 20 UDP frames, relay=0; both devices' persistent hashes match | Cross-network/background paths; this run did not assess listening quality |
 | Image | Full 3618-byte image received via encrypted peer relay; display and hash match | Explicit image UDP, larger-image interruption |
 
