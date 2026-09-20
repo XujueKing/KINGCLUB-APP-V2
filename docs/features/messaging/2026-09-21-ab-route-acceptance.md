@@ -55,11 +55,12 @@ timestamps and limits; these checks do not replace public-network acceptance.
 | Actual path | Verified result | Remaining scope |
 | --- | --- | --- |
 | File | 8 MiB automatic peer→HTTP missing-block resume; next file after B restart completed via peer; 2 MiB authenticated ingress includes UDP and relay | Public network, sustained-loss performance |
-| H.264 / HEVC video | Both codecs received over UDP with matching persistent hashes and decoded end frames; 20-second / 3,483,766-byte H.264 automatically resumed through HTTP after B stopped, reusing the first 1 MiB | Public-network interruption, faster stall recovery, unsupported-HEVC device fallback, human audio confirmation |
+| H.264 / HEVC video | Both codecs received over UDP with matching persistent hashes and decoded end frames; 20-second H.264 automatically resumed through HTTP after B stopped; cfbbe494 reduced observed handoff from ~9s to ~4s and reused 1 MiB in the second run | Public-network interruption, incomplete-block repair efficiency, unsupported-HEVC device fallback, human audio confirmation |
 | Voice | Actual 3-second recording received as 20 UDP frames, relay=0; both devices' persistent hashes match | Cross-network/background paths; this run did not assess listening quality |
 | Image | Full 3618-byte image received via encrypted peer relay; display and hash match | Explicit image UDP, larger-image interruption |
 
 Detailed records: [file resume](2026-09-21-peer-cancel-resume.md),
 [video](2026-09-21-canonical-video.md), [voice](2026-09-21-canonical-voice.md),
 [image](2026-09-21-canonical-image-fix.md). The installed observation build is
-a131c4fe; all later commits so far update evidence only.
+cfbbe494; see [stall probe and phone verification](2026-09-21-peer-stall-probe.md)
+for the newer APK hash and measured recovery timing.
