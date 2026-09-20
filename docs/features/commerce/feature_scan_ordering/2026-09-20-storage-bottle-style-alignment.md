@@ -79,3 +79,8 @@
 用户提供“酒/酒”目录，明确为修正之前图片，不新增商品。将目录十张 PNG 一一覆盖 bottle_01 至 bottle_10 原资源路径；商品 ID、名称、顺序、总数 15 均不变，旧四款和 ROOM NO1 不变。原图逐字节复制，按修订透明轮廓重新派生同名 SVG，重新生成最大 384×768 缩略图。来源文件名、尺寸和 SHA256 记录在 assets/commerce/bottle_preview/revised_sources_20260920.json。保留用户来源文件不修改。
 
 替换后 9 项素材/布局/截图测试通过。commerce APK 构建成功，B 手机覆盖安装及启动成功。
+
+
+## 服务端自动处理进度（2026-09-20）
+
+新服务器商业分支已实现并部署 PNG 上传自动生成：POST /commerce/attachments，x-file-purpose=merchant-bottle，x-store-ref 指定门店；返回 materialFileId 和含短期链接的 preview，商品保存 808 可关联 materialFileId，目录 809 返回 bottleMaterial。生成算法与当前素材几何一致。详见服务器 docs/commerce/BOTTLE_MATERIAL_UPLOAD.md。服务器完整验证 672 项及实际 11 张 PNG 生成验证通过。线上管理员账号确认及真实上传验收仍待完成；APP 商家商品编辑页暂无上传按钮，本地储物袋测试素材仍保留，不能将此次服务端发布描述成手机商家上架全流程完成。
