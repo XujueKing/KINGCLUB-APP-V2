@@ -19,7 +19,10 @@ typedef NovoRudpLanRouteFactory = Future<NovoRudpLanRoute?> Function({
 /// Owns one authenticated peer channel, not the shared relay connection.
 /// Relay acceptance never substitutes for the upper layer's durable receipt.
 class NovoRudpRelayFrameLink
-    implements NovoRudpFrameLink, NovoRudpRouteRecovery {
+    implements
+        NovoRudpFrameLink,
+        NovoRudpRouteRecovery,
+        NovoRudpRouteObservations {
   NovoRudpRelayFrameLink({
     required this.relay,
     required this.channel,
@@ -68,6 +71,7 @@ class NovoRudpRelayFrameLink
                   } else if (frame.streamId == NovoRudpLanRoute.controlStream) {
                     await _lan?.acceptControl(frame);
                   } else {
+                    _recordRoute(frame, false);
                     _frames.add(frame);
                   }
                 }
@@ -159,6 +163,7 @@ class NovoRudpRelayFrameLink
         deliver: (frame) async {
           await _authorization;
           _check();
+          _recordRoute(frame, true);
           _frames.add(frame);
         },
       );
@@ -182,6 +187,21 @@ class NovoRudpRelayFrameLink
   @override
   final NovoRudpSecureChannel channel;
   final _frames = StreamController<NovoRudpFrame>.broadcast();
+  final _routes = StreamController<NovoRudpReceivedRoute>.broadcast();
+  @override
+  Stream<NovoRudpReceivedRoute> get receivedRoutes => _routes.stream;
+
+  void _recordRoute(NovoRudpFrame frame, bool direct) {
+    if (!_routes.hasListener) return;
+    _routes.add((
+      streamId: frame.streamId,
+      objectId: frame.objectId,
+      kind: frame.kind,
+      bytes: frame.payload.length,
+      direct: direct,
+    ));
+  }
+
   final _generation = MemberQrMemory.generation;
   late final StreamSubscription<Map<String, dynamic>> _incoming;
   late final StreamSubscription<void> _session;
@@ -253,6 +273,7 @@ class NovoRudpRelayFrameLink
     channel.close();
     await _incoming.cancel();
     await _session.cancel();
+    await _routes.close();
     await _frames.close();
   }
 }

@@ -366,6 +366,14 @@ void main() {
         ]);
         // The receiver reuses a lane originally opened by the sender's text
         // path. File listeners must also attach to locally initiated lanes.
+        const direct = bool.fromEnvironment('KINGCLUB_NOVORUDP_LAN');
+        if (direct) {
+          await (() async {
+            while (!sender.directLanReady || !accepted.link.directLanReady) {
+              await Future<void>.delayed(const Duration(milliseconds: 50));
+            }
+          })().timeout(const Duration(seconds: 6));
+        }
         final download = await receiveFiles.receive(
           peer: 'friend',
           messageId: fileMessage,
@@ -378,6 +386,16 @@ void main() {
         expect(download, isNotNull);
         try {
           expect(await (await download!.completed).readAsBytes(), fileBytes);
+          final routes = download.receivedRouteStats;
+          expect(direct ? routes.relayFrames : routes.udpFrames, 0);
+          expect(
+            direct ? routes.udpFrames : routes.relayFrames,
+            greaterThan(0),
+          );
+          expect(
+            direct ? routes.udpBytes : routes.relayBytes,
+            greaterThanOrEqualTo(fileBytes.length),
+          );
         } finally {
           await download?.close();
         }

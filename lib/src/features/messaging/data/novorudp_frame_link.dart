@@ -13,3 +13,16 @@ abstract interface class NovoRudpFrameLink {
 abstract interface class NovoRudpRouteRecovery {
   void reportDeliveryStall();
 }
+
+/// Authenticated ingress metadata, not application delivery or unique progress.
+typedef NovoRudpReceivedRoute = ({
+  BigInt streamId,
+  BigInt objectId,
+  NovoRudpFrameKind kind,
+  int bytes,
+  bool direct,
+});
+
+abstract interface class NovoRudpRouteObservations {
+  Stream<NovoRudpReceivedRoute> get receivedRoutes;
+}

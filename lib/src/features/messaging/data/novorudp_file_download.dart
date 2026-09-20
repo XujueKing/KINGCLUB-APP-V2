@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import '../../../core/session/secure_session_store.dart';
 import 'novorudp_file_receiver.dart';
@@ -60,6 +61,25 @@ class NovoRudpFileDownload {
     Duration deadline,
     this._idleTimeout,
   ) {
+    if (_link is NovoRudpRouteObservations) {
+      _routeSubscription = (_link as NovoRudpRouteObservations).receivedRoutes
+          .listen((event) {
+            if (_closed ||
+                event.streamId != _streamId ||
+                event.objectId != _objectId ||
+                (event.kind != NovoRudpFrameKind.data &&
+                    event.kind != NovoRudpFrameKind.repair)) {
+              return;
+            }
+            if (event.direct) {
+              _udpFrames++;
+              _udpBytes += event.bytes;
+            } else {
+              _relayFrames++;
+              _relayBytes += event.bytes;
+            }
+          });
+    }
     _subscription = _link.frames.listen(
       (frame) {
         if (_closed ||
@@ -98,6 +118,15 @@ class NovoRudpFileDownload {
   final BigInt _streamId, _objectId;
   final bool Function() _canReceive;
   final _done = Completer<File>();
+  StreamSubscription<NovoRudpReceivedRoute>? _routeSubscription;
+  int _udpFrames = 0, _udpBytes = 0, _relayFrames = 0, _relayBytes = 0;
+  ({int udpFrames, int udpBytes, int relayFrames, int relayBytes})
+  get receivedRouteStats => (
+    udpFrames: _udpFrames,
+    udpBytes: _udpBytes,
+    relayFrames: _relayFrames,
+    relayBytes: _relayBytes,
+  );
   late final StreamSubscription<NovoRudpFrame> _subscription;
   late final StreamSubscription<void> _session;
   late final Timer _timer;
@@ -223,6 +252,12 @@ class NovoRudpFileDownload {
               .catchError((Object _) {})
         : Future<void>.value();
     await _subscription.cancel();
+    await _routeSubscription?.cancel();
+    if (!kReleaseMode && _routeSubscription != null) {
+      debugPrint(
+        'PeerReceive routes udpFrames=$_udpFrames udpBytes=$_udpBytes relayFrames=$_relayFrames relayBytes=$_relayBytes',
+      );
+    }
     await _session.cancel();
     await checkpoint;
     await _receiver.close();
