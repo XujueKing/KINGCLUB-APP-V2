@@ -8,8 +8,11 @@ import java.util.*;
 /** Reachability experiment only, not an encrypted production transport. */
 public final class PoolPunchProbe {
   public static void main(String[] args) throws Exception {
-    boolean pool=args.length==2 && args[1].equals("pool");
-    if(args.length!=2 || (!pool && !args[1].equals("single"))) throw new IllegalArgumentException();
+    boolean pool=args.length>=2 && args[1].equals("pool");
+    if((args.length!=2 && args.length!=3) || (!pool && !args[1].equals("single"))) throw new IllegalArgumentException();
+    InetAddress first=NatMappingProbe.ipv4(args[0]);
+    InetAddress second=args.length==3?NatMappingProbe.ipv4(args[2]):null;
+    if(second!=null && first.equals(second)) throw new IllegalArgumentException("Observers must differ");
     ArrayList<DatagramChannel> channels=new ArrayList<>();
     try(Selector selector=Selector.open()) {
       StringBuilder report=new StringBuilder("POOL_READY");
@@ -17,10 +20,16 @@ public final class PoolPunchProbe {
         DatagramChannel c=DatagramChannel.open(); channels.add(c);
         c.socket().bind(new InetSocketAddress(InetAddress.getByName("0.0.0.0"),0));
         if(i<(pool?4:1)) {
-          byte[] mapped=NatMappingProbe.query(c.socket(),NatMappingProbe.ipv4(args[0]),3478);
+          byte[] mapped=NatMappingProbe.query(c.socket(),first,3478);
           if(mapped==null) throw new IOException("Mapping unavailable");
           report.append(' ');
           for(byte value:mapped) report.append(String.format("%02x",value&255));
+          if(pool && second!=null) {
+            byte[] alternate=NatMappingProbe.query(c.socket(),second,3478);
+            if(alternate==null) throw new IOException("Second mapping unavailable");
+            report.append(' ');
+            for(byte value:alternate) report.append(String.format("%02x",value&255));
+          }
         }
         c.configureBlocking(false); c.register(selector,SelectionKey.OP_READ);
       }

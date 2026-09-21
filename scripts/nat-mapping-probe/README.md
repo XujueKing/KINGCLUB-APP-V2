@@ -102,3 +102,11 @@ an unsuccessful probabilistic search; do not expand the budget automatically.
 `pool_punch_local_check.py` is a positive control using the compiled JVM classes
 and a local STUN stub. It needs a private IPv4 interface and free loopback UDP
 3478. It confirms both roles receive ping and pong, not internet NAT traversal.
+
+Optional `--second-observer HOST` samples each of the pool role's first four
+sockets against a second, independently resolved STUN observer. Both must reply
+and must resolve to different IPv4 addresses. Up to eight mapping observations
+are reported privately; only four distinct candidate IPs are used at most.
+The total probe budget is unchanged and is shared across candidate IPs. The host
+deadline is 55 seconds including discovery. The local positive control exercises
+two separate loopback STUN addresses and verifies eight pool mapping results.

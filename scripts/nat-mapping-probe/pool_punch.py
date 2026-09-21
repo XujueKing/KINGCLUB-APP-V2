@@ -11,8 +11,11 @@ p.add_argument('--adb', required=True)
 p.add_argument('--pool-device', required=True)
 p.add_argument('--single-device', required=True)
 p.add_argument('--observer', required=True)
+p.add_argument('--second-observer')
 args = p.parse_args()
 observer = str(ipaddress.IPv4Address(args.observer))
+if args.second_observer and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.-]{0,252}', args.second_observer):
+    raise ValueError('Invalid second observer')
 if args.pool_device == args.single_device:
     raise ValueError('Two different authorized devices required')
 processes = []
@@ -20,18 +23,19 @@ def stop():
     for process in processes:
         if process.poll() is None:
             process.kill()
-deadline = threading.Timer(40, stop)
+deadline = threading.Timer(55, stop)
 deadline.start()
 try:
     for serial, role in [(args.pool_device, 'pool'), (args.single_device, 'single')]:
+        extra = [args.second_observer] if args.second_observer and role == 'pool' else []
         processes.append(subprocess.Popen([args.adb, '-s', serial, 'shell', '-T',
             'CLASSPATH=/data/local/tmp/kc-nat-mapping.dex', 'app_process',
-            '/system/bin', 'PoolPunchProbe', observer, role], stdin=subprocess.PIPE,
+            '/system/bin', 'PoolPunchProbe', observer, role, *extra], stdin=subprocess.PIPE,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True))
     mappings = []
     for process in processes:
         line = process.stdout.readline().strip()
-        if not re.fullmatch(r'POOL_READY(?: [0-9a-f]{12}){1,4}', line):
+        if not re.fullmatch(r'POOL_READY(?: [0-9a-f]{12}){1,8}', line):
             raise RuntimeError('Phone mapping failed; private output withheld')
         endpoints = []
         for item in line.split()[1:]:
@@ -47,6 +51,8 @@ try:
     processes[0].stdin.write(f'{host} {port} {token}\n')
     processes[0].stdin.flush()
     hosts = list(dict.fromkeys(host for host, _ in mappings[0]))
+    print('OBSERVED_ADDRESS_COUNT', len(hosts))
+    hosts = hosts[:4]
     processes[1].stdin.write(f'{",".join(hosts)} {mappings[0][0][1]} {token}\n')
     processes[1].stdin.flush()
     print('CANDIDATE_ADDRESS_COUNT', len(hosts))
