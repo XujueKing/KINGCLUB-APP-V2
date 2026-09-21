@@ -22,6 +22,46 @@ class _Channel implements NovoRudpSecureChannel {
 }
 
 void main() {
+  for (final failure in ['bind', 'close']) {
+    test('IPv6 $failure failure preserves IPv4 advertisements', () async {
+      final socket = failure == 'close'
+          ? await RawDatagramSocket.bind(InternetAddress.anyIPv6, 0)
+          : null;
+      final advertisements = <Map>[];
+      final route = (await NovoRudpLanRoute.open(
+        channel: _Channel(),
+        bindIpv6: () async {
+          if (socket == null) throw const SocketException('IPv6 unavailable');
+          return socket;
+        },
+        sendControl: (frame) async {
+          advertisements.add(jsonDecode(utf8.decode(frame.payload)) as Map);
+        },
+        deliver: (_) async {},
+      ))!;
+      addTearDown(route.close);
+      await route.advertise();
+      final port = advertisements.last['port'];
+      if (socket != null) {
+        socket.close();
+        final wait = Stopwatch()..start();
+        while (advertisements.length == 1 &&
+            wait.elapsed < const Duration(seconds: 2)) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        expect(
+          advertisements.length,
+          greaterThan(1),
+          reason: 'closed IPv6 is withdrawn',
+        );
+      }
+      final before = advertisements.length;
+      await route.advertise();
+      expect(advertisements.length, before + 1);
+      expect(advertisements.last['port'], port);
+      expect(advertisements.last.containsKey('ipv6'), isFalse);
+    });
+  }
   test('IPv6 excludes non-global and documentation addresses', () {
     for (final value in [
       '::',
