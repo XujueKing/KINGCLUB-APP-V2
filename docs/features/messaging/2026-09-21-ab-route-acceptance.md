@@ -172,3 +172,39 @@ Actual message `eef047cb-144e-4ef1-a1ab-02315487bf6c` is present in both peer jo
 - Public direct acceptance remains open. B's current Wi-Fi lacks a global IPv6 address; operator availability of B cellular data was requested for an alternate topology. No network switch was performed without an answer.
 
 Historical router-access and IPv4-only implementation limitations above are superseded by the gateway inspection and IPv6 implementation records. No claim of fully completed public peer-to-peer transport is made.
+
+## Current installed checkpoint: 90b51803 (19:58)
+
+This supersedes the earlier installed checkpoints, not their test scope.
+Both A and B successfully received an in-place profile APK update; no app data
+was cleared. APK SHA-256:
+`376e990c1f9d52b1f5abed4d4dad9bd61a955295f3b0709b4e16b37078acfeb3`.
+App processes observed after launch: A 5747, B 4188.
+
+Message `5b0fac66-113c-4b9f-b752-b7bcd105ce8a` exists in both actual SQLite
+message journals, with A outgoing=1 and delivered=1, B outgoing=0. The UI
+composer was empty before the authorized A-to-B test message was entered.
+This verifies upgraded real messaging and durable acknowledgement; it does
+not distinguish service delivery from peer relay by the journal alone.
+
+At 19:58, both fresh processes reported mapped=true, one public candidate,
+pingReceives=0, pongReceives=0, unknownAddresses=0, ready=false. A had two local
+global IPv6 candidates, B none. Public direct carriage is still not accepted.
+
+One consolidated test run at this code revision passed all 57 tests across
+`udp_http_handoff`, `peer_cancel_resume`, `novorudp_download_stall`,
+`novorudp_download_receipt`, `novorudp_route_probe`, `novorudp_public_discovery`,
+`novorudp_carrier_isolation`, and `novorudp_native_route_reopen`.
+It includes corrupt/retry/timeout/slow-route media handoff scenarios, native
+encrypted UDP route rebuilding and carrier-independent heartbeat continuity.
+These are host tests and do not replace the unresolved public phone path.
+
+Recent evidence further narrows the network condition:
+
+- [Mapping comparison](2026-09-21-nat-mapping-observation.md): A's mappings differ
+  for two observer destinations; B's were the same in those observations.
+- [Active outbound comparison](2026-09-21-active-outbound-observation.md): B
+  receives alternate-port replies after sending to that port, but not before.
+  This does not mean arbitrary peer mappings are discoverable.
+- [Carrier isolation](2026-09-21-carrier-heartbeat-isolation.md): relay candidate
+  signaling cannot block UDP heartbeat work; now included in the installed APK.
