@@ -92,3 +92,19 @@ loosening the source check as a fix for this trial.
 Continue with fallback/recovery under this unreachable direct-path topology and
 the observed slow relay attachment path. Direct UDP on this topology remains
 unaccepted; encrypted relay success must not be relabeled direct success.
+
+## Public automatic HTTP fallback
+
+Synthetic image message `110e8158-09e3-440b-84a0-fe6ce58d3959` hit a
+3,001 ms peer connection timeout at 14:13:19.701. The service then returned
+three 1,048,576-byte image ranges and the final 165,120 bytes between
+14:13:20 and 14:13:24. The two persistent full-image entries on A are
+3,310,848 bytes and match the canonical SHA-256 above. No retry tap was needed.
+The thumbnail separately reported unavailable source and used HTTP.
+
+The planned background interruption was NOT executed: the monitoring script
+never observed a qualifying partial peer file and left B active. This evidence
+proves automatic connection-timeout fallback and integrity, not public
+mid-transfer block resumption. The roughly five-second HTTP result versus the
+earlier 53-second relay result is an observation across different attempts,
+not a controlled benchmark.

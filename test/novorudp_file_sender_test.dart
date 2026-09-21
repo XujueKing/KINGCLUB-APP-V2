@@ -308,6 +308,7 @@ void main() {
 
     for (final scenario in [
       'success',
+      'cancel',
       'missing',
       'wrong-member',
       'group-success',
@@ -321,7 +322,10 @@ void main() {
         final groupId = scenario.startsWith('group-')
             ? '00000000-0000-4000-8000-000000000003'
             : null;
-        final bytes = List.generate(70000, (i) => i % 251);
+        final bytes = List.generate(
+          scenario == 'cancel' ? 2 * 1024 * 1024 : 70000,
+          (i) => i % 251,
+        );
         final input = await source(bytes);
         final cache = ChatSentFileCache(
           cache: ChatDownloadCache(
@@ -438,7 +442,30 @@ void main() {
           return;
         }
         final authority = await receiving.authorize(messageId, sending: false);
-        if (scenario == 'success' || scenario == 'group-success') {
+        if (scenario == 'cancel') {
+          final transfer = await receiving.receive(authority, () => true);
+          final stopped = right.frames.firstWhere(
+            (frame) =>
+                frame.kind == NovoRudpFrameKind.endpoint &&
+                jsonDecode(utf8.decode(frame.payload))['op'] == 'reject',
+          );
+          final deadline = DateTime.now().add(const Duration(seconds: 3));
+          while (transfer.receivedBytes == 0 &&
+              DateTime.now().isBefore(deadline)) {
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+          }
+          expect(transfer.receivedBytes, greaterThan(0));
+          expect(transfer.receivedBytes, lessThan(bytes.length));
+          await transfer.close();
+          await stopped.timeout(const Duration(seconds: 2));
+          // The cancellation stops the active sender, not the shared secure lane.
+          final retry = await receiving.receive(authority, () => true);
+          try {
+            expect(await (await retry.completed).readAsBytes(), bytes);
+          } finally {
+            await retry.close();
+          }
+        } else if (scenario == 'success' || scenario == 'group-success') {
           final transfer = await receiving.receive(authority, () => true);
           try {
             expect(await (await transfer.completed).readAsBytes(), bytes);
@@ -453,7 +480,10 @@ void main() {
           );
           expect(senderChecks, scenario == 'group-rejoined' ? 0 : 1);
         }
-        expect(receiverChecks, 2);
+        expect(
+          receiverChecks,
+          scenario == 'cancel' ? greaterThanOrEqualTo(3) : equals(2),
+        );
         await sending.close();
         await receiving.close();
         expect(
@@ -763,6 +793,7 @@ void main() {
           // A locally dropped duplicate is valid loss, not new progress.
         }
       }
+
       final repeat = Timer.periodic(const Duration(milliseconds: 50), (_) {
         unawaited(repeatFrame(NovoRudpFrameKind.data));
         unawaited(repeatFrame(NovoRudpFrameKind.done));

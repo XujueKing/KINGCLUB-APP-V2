@@ -59,6 +59,13 @@ class PeerFileChannel {
           }
           switch (packet['op']) {
             case 'request':
+              if (_cancelledSends.contains((
+                frame.objectId,
+                messageId,
+                media,
+              ))) {
+                return;
+              }
               if (_sending != null) {
                 if (_sending == frame.objectId &&
                     _sendingMessage == messageId &&
@@ -86,6 +93,20 @@ class PeerFileChannel {
                   _receivingMedia == media &&
                   _accepted?.isCompleted == false) {
                 _accepted!.complete();
+              }
+            case 'cancel':
+              if (_sending == frame.objectId &&
+                  _sendingMessage == messageId &&
+                  _sendingMedia == media) {
+                _cancelledSends.add((
+                  frame.objectId,
+                  messageId,
+                  media as String?,
+                ));
+                if (_cancelledSends.length > 64) {
+                  _cancelledSends.remove(_cancelledSends.first);
+                }
+                _sender?.cancel();
               }
             case 'reject':
               if (_receiving == frame.objectId &&
@@ -133,6 +154,9 @@ class PeerFileChannel {
   Timer? _renewSend, _renewReceive, _retry;
   Future<void>? _closing;
   Future<void>? _serving;
+  // Keep late REQUEST retries from restarting an abandoned transfer. IDs are
+  // random per attempt and this bounded history is scoped to the secure lane.
+  final _cancelledSends = <(BigInt, String, String?)>{};
 
   bool get _active =>
       !_closed && _generation == MemberQrMemory.generation && canExchange();
@@ -205,9 +229,17 @@ class PeerFileChannel {
   Future<void> _serve(String messageId, BigInt object, {String? media}) async {
     final elapsed = Stopwatch()..start();
     var phase = 'authorize';
+    bool canSend() =>
+        _active && !_cancelledSends.contains((object, messageId, media));
+    void checkSend() {
+      if (!canSend()) throw StateError('Peer send cancelled');
+    }
+
     try {
       var authority = await authorize(messageId, sending: true, media: media);
+      checkSend();
       Future<bool> sendSource(File source) async {
+        checkSend();
         phase = 'source-ready';
         if (!kReleaseMode) {
           debugPrint(
@@ -219,6 +251,7 @@ class PeerFileChannel {
           sending: true,
           media: media,
         );
+        checkSend();
         if (!authority.sameFile(refreshed)) {
           throw StateError('Peer file changed');
         }
@@ -230,7 +263,7 @@ class PeerFileChannel {
           objectId: object,
           size: authority.size,
           sha256: authority.sha256,
-          canSend: () => _active && authority.valid,
+          canSend: () => canSend() && authority.valid,
         );
         var renewing = false;
         _renewSend = Timer.periodic(const Duration(seconds: 5), (_) async {
@@ -388,6 +421,16 @@ class PeerFileChannel {
             if (!accepted.isCompleted) {
               accepted.completeError(StateError('Peer receive ended'));
             }
+            // Closing the local receiver alone leaves the remote sender
+            // retrying DATA. Stop that exact attempt before HTTP takes over.
+            unawaited(
+              _control(
+                'cancel',
+                expected.messageId,
+                object,
+                media: expected.media,
+              ).catchError((Object _) {}),
+            );
             _finishReceive(object);
           },
         ),

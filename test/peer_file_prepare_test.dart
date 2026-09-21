@@ -28,6 +28,7 @@ class _Link implements NovoRudpFrameLink, NovoRudpRouteRecovery {
   final channel = _Channel();
   final incoming = StreamController<NovoRudpFrame>.broadcast();
   int requests = 0;
+  int cancellations = 0;
   int stalls = 0;
   bool dropUntilRecovery = false;
   final acknowledged = Completer<void>();
@@ -40,6 +41,7 @@ class _Link implements NovoRudpFrameLink, NovoRudpRouteRecovery {
   @override
   Future<void> send(NovoRudpFrame frame) async {
     final body = jsonDecode(utf8.decode(frame.payload)) as Map<String, dynamic>;
+    if (body['op'] == 'cancel') cancellations++;
     if (body['op'] != 'request') return;
     expect(body['media'], media);
     expect(body['v'], media == null ? 1 : 3);
@@ -275,6 +277,8 @@ void main() {
               expect(ended, false);
             }
             await download.close();
+            await Future<void>.delayed(Duration.zero);
+            expect(link.cancellations, 1);
           }
         } finally {
           await channel.close();
