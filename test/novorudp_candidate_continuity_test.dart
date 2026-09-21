@@ -182,6 +182,10 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
       expect(peer.route.ready, isTrue);
+      peer.ipv4Socket.failNextReceive = true;
+      peer.ipv4Socket.errors.add(RawSocketEvent.read);
+      await _until(() => !peer.ipv4Socket.failNextReceive);
+      expect(peer.route.ready, isTrue);
       expect(await peer.route.trySend(peer.data([24])), isTrue);
       await _until(() => peer.outbound.isNotEmpty);
     },
@@ -527,6 +531,7 @@ class _ErrorInjectingSocket implements RawDatagramSocket {
   final RawDatagramSocket inner;
   final errors = StreamController<RawSocketEvent>();
   late final StreamSubscription<RawSocketEvent> subscription;
+  bool failNextReceive = false;
   @override
   InternetAddress get address => inner.address;
   @override
@@ -536,7 +541,14 @@ class _ErrorInjectingSocket implements RawDatagramSocket {
   @override
   set readEventsEnabled(bool value) => inner.readEventsEnabled = value;
   @override
-  Datagram? receive() => inner.receive();
+  Datagram? receive() {
+    if (failNextReceive) {
+      failNextReceive = false;
+      throw const SocketException('ICMP unreachable during receive');
+    }
+    return inner.receive();
+  }
+
   @override
   int send(List<int> buffer, InternetAddress address, int port) =>
       inner.send(buffer, address, port);

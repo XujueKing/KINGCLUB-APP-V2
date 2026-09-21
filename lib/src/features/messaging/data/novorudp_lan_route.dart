@@ -754,8 +754,12 @@ class NovoRudpLanRoute {
           /* Ignore unauthenticated or replayed packets. */
         }
       }
+    } on SocketException {
+      // Some platforms surface unattributed ICMP errors from receive(), or
+      // while answering another candidate's ping. Heartbeat expiry and
+      // application delivery feedback decide whether the selected path failed.
     } catch (_) {
-      _confirmed = null;
+      if (_peer?.address.type == socket.address.type) _confirmed = null;
     } finally {
       _readingSockets.remove(socket);
       if (!_closed && _events.containsKey(socket)) {
