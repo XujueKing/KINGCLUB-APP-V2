@@ -70,3 +70,25 @@ member ID, nonce, key or chat payload is logged; release emits no snapshots.
 Routing and authentication decisions are unchanged. Static analysis and five
 discovery/failover/nonce regression checks passed. The counters are intended to
 locate the current direct-route failure before changing its trust boundaries.
+
+## Route observations on both actual devices
+
+Both independent phone STUN probes returned valid 40-byte binding responses.
+Installed 4501c248 on A/B, both install-r Success; APK SHA-256
+`9a3210360f1d2418f94586e5b9818ac43d111e6e93cf6bcfeb9cf1717662bc9d`.
+Public relay, existing accounts and A-cellular/B-Wi-Fi topology were retained.
+New text peer ID `a4e76888-e409-4dc5-ac4a-a2cdfd4a4791` matched both journals
+and B persisted delivered=1.
+
+At 14:08:23 both route snapshots reported mapped=true, stunReplies=1,
+candidates=1, publicCandidates=1, ready=false. A had sent 20 probes and B 18.
+Both reported pingReceives=0, pongReceives=0, portMismatches=0 and
+invalidPackets=0. This establishes that mapping and authenticated candidate
+exchange succeeded, but no valid incoming probe was observed on either endpoint.
+It does not prove a particular NAT type or deliberate carrier blocking. In
+particular, there is no observed same-IP/different-port packet to justify
+loosening the source check as a fix for this trial.
+
+Continue with fallback/recovery under this unreachable direct-path topology and
+the observed slow relay attachment path. Direct UDP on this topology remains
+unaccepted; encrypted relay success must not be relabeled direct success.
