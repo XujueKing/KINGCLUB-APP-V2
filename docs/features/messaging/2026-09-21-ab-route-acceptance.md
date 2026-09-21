@@ -72,3 +72,22 @@ Actual larger-image interruption evidence: [automatic image resume](2026-09-21-i
 Actual short foreground/background transitions, service fallback and subsequent
 peer recovery: [background route recovery](2026-09-21-background-route-recovery.md).
 This does not cover OS eviction, prolonged suspension or background push.
+
+## Public-network prerequisites rechecked
+
+After installation of f2fc5b70, both authorized USB devices remain connected.
+Both report `gsm.sim.state=ABSENT,ABSENT`. A's mobile-data setting is enabled,
+but that setting alone does not establish an available cellular connection.
+Neither phone currently provides the required independent-carrier test path.
+
+The cloud SuperVM service is active, and `nginx -t` succeeds. The active site
+configuration still has no `/supervm/relay` location; its SHA-256 remains
+`d0cf6dc519caf8c9d2cf1f8fe78c98bf583233fe19d774ebe50904281bddd67e`.
+The prepared location uses the existing 443 listener and verifies the private
+relay's TLS certificate. Its activation remains pending the requested operator
+confirmation, distinct from the already approved UDP 3478 ingress.
+
+The operator has been asked to confirm this exact WSS path and provide an
+independent mobile hotspot for B while A remains on the current Wi-Fi.
+Without those conditions, no public cross-network peer, interruption or recovery
+acceptance is claimed. Repeating same-LAN checks cannot close this requirement.
