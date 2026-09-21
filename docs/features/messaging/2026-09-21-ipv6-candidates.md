@@ -31,3 +31,12 @@ A 报告 ipv6Socket=true、localIpv6=2；B 报告 ipv6Socket=false、localIpv6=0
 检查当前 Dart SDK `_RawDatagramSocket` 发现其 error handler 在 addError 后主动关闭底层 socket。因此单纯应用 onError 不关闭并不能阻止 SDK 关闭；原来的注入测试只覆盖应用回调，没有覆盖 SDK 生命周期。
 
 修正为无本机全球 IPv6 时不探测远端 IPv6；全局地址重新出现时，按已有接口刷新周期重新绑定失败的 IPv6 socket 并通报新端口。旧 socket 订阅及时移除，迟到回调不会复活旧路径。新增真实 IPv6 socket 关闭→重新绑定测试，保留 IPv4 端口不变；地址发现由测试注入，不宣称具有公网 IPv6。相关七项测试通过，仍待双机新构建验证。
+
+## 0d341d99 实机验证
+
+A、B 已覆盖安装 profile 构建，APK SHA-256：`ca7e99cd8e2544251a8d41a861bbac0d67338d292159a0425d4f818be5af9c4b`。
+测试消息 `3865ef39-9f5f-4302-bc41-89d6dc956213` 同时存在于两端 peer journal，发送方 delivered=1。
+18:12:15、18:12:45、18:13:15 连续三次诊断均显示两端 ipv6Socket=true；A localIpv6=2，B localIpv6=0。B 没有本机全球 IPv6 时不再探测远端 IPv6，之前实机 socket 被关闭的问题未再出现。此结果只验证当前网络下的 socket 保持；真实全球 IPv6 传输及网络切换后的重新绑定仍未实机验收。
+两端 mapped=true、stunReplies 持续增长，但 pingReceives=0、pongReceives=0、ready=false。因此消息送达不构成公网 UDP 直连证据，当前跨网络直连仍未通过。共享公网 IPv4 本身不能证明打洞不可能。
+
+后续定位使用现有 WebRTC/ICE 路径作同网络对照，必须记录实际选中的 candidate pair 类型及传输计数，不能用通话成功推断直连，也不能将候选收集成功当作连接成功。
