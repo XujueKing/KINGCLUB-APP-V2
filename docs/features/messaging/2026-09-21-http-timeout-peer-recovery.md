@@ -19,3 +19,11 @@ early recovery requests HTTP blocks [0, 1] instead of [0, 1, 1, 1], retains the
 first complete block and verifies the resulting file. Static analysis and diff
 checks passed. These tests inject transport failures, not a measured carrier
 outage; device installation and real timeout acceptance are still outstanding.
+
+## Device installation
+
+Built the isolated clean preview at f2fc5b70 (69.5-second Gradle build). APK SHA-256:
+`b73916ac71a834d4342613913cf22f8661b59786b0686396994d02d0b55f634d`.
+A and B both returned Success for install -r and reopened to authenticated home
+tabs. Neither app data nor existing drafts/history were cleared. This supersedes
+the installation-pending statement above; real timeout acceptance remains open.
