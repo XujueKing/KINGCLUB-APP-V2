@@ -118,6 +118,9 @@ class NovoRudpLanRoute {
   late final Timer _timer;
   _Endpoint? _peer, _mapped;
   List<_Endpoint> _candidates = [];
+  final List<_Endpoint> _reflexive = [];
+  final _unknownPortWindow = Stopwatch()..start();
+  int _unknownPortAttempts = 0;
   final String observerHost;
   final int observerPort;
   final List<({String host, int port})> _observers;
@@ -137,6 +140,7 @@ class NovoRudpLanRoute {
       _pingReceives = 0,
       _pongReceives = 0,
       _portMismatches = 0,
+      _unknownAddresses = 0,
       _invalidPackets = 0;
   Future<void>? _closing;
 
@@ -242,6 +246,7 @@ class NovoRudpLanRoute {
           _confirmed = null;
           _peer = null;
           _candidates = candidates;
+          _reflexive.clear();
         }
         await _probe();
       } else if (datagram &&
@@ -254,6 +259,15 @@ class NovoRudpLanRoute {
           _control({'op': 'pong', 'nonce': body['nonce']}),
           target: (address: source, port: sourcePort),
         );
+        // NAT may allocate a different port for the peer than for STUN.
+        // Authentication identifies the peer; a fresh return-path challenge
+        // proves reachability before this observed endpoint can carry data.
+        if (!_knownEndpoint(source, sourcePort) && !ready) {
+          if (_reflexive.length == 2) _reflexive.removeAt(0);
+          final endpoint = (address: source, port: sourcePort);
+          _reflexive.add(endpoint);
+          await _probeEndpoint(endpoint);
+        }
       } else if (datagram &&
           source != null &&
           sourcePort != null &&
@@ -291,6 +305,7 @@ class NovoRudpLanRoute {
             ..addAll(current);
           _peer = null;
           _candidates = [];
+          _reflexive.clear();
           _mapped = null;
           _binding = null;
           _confirmed = null;
@@ -307,6 +322,7 @@ class NovoRudpLanRoute {
           'publicCandidates=${_candidates.where((e) => _public(e.address)).length} '
           'probeSends=$_probeSends pingReceives=$_pingReceives '
           'pongReceives=$_pongReceives portMismatches=$_portMismatches '
+          'unknownAddresses=$_unknownAddresses '
           'invalidPackets=$_invalidPackets ready=$ready',
         );
       }
@@ -318,21 +334,27 @@ class NovoRudpLanRoute {
   }
 
   Future<void> _probe() async {
-    final candidates = ready ? [_peer!] : List.of(_candidates);
+    final candidates = ready ? [_peer!] : [..._candidates, ..._reflexive];
     for (final candidate in candidates) {
       try {
-        final nonce = _probes.issue(
-          '${candidate.address.address}:${candidate.port}',
-        );
-        await _send(
-          _control({'op': 'ping', 'nonce': nonce}),
-          target: candidate,
-        );
-        if (!kReleaseMode) _probeSends++;
+        await _probeEndpoint(candidate);
       } on SocketException {
         // One unavailable interface must not prevent probing the others.
       }
     }
+  }
+
+  bool _knownEndpoint(InternetAddress address, int port) => [
+    ..._candidates,
+    ..._reflexive,
+  ].any((a) => a.address.address == address.address && a.port == port);
+
+  Future<void> _probeEndpoint(_Endpoint candidate) async {
+    final nonce = _probes.issue(
+      '${candidate.address.address}:${candidate.port}',
+    );
+    await _send(_control({'op': 'ping', 'nonce': nonce}), target: candidate);
+    if (!kReleaseMode) _probeSends++;
   }
 
   Future<void> _send(NovoRudpFrame frame, {_Endpoint? target}) async {
@@ -384,18 +406,21 @@ class NovoRudpLanRoute {
           }
           continue;
         }
-        if (!_candidates.any(
-          (a) =>
-              a.address.address == packet.address.address &&
-              a.port == packet.port,
-        )) {
-          if (!kReleaseMode &&
-              _candidates.any(
-                (a) => a.address.address == packet.address.address,
-              )) {
-            _portMismatches++;
+        final known = _knownEndpoint(packet.address, packet.port);
+        if (!known) {
+          if (!_candidates.any(
+            (a) => a.address.address == packet.address.address,
+          )) {
+            if (!kReleaseMode) _unknownAddresses++;
+            continue;
           }
-          continue;
+          if (!kReleaseMode) _portMismatches++;
+          if (ready) continue;
+          if (_unknownPortWindow.elapsed >= const Duration(seconds: 1)) {
+            _unknownPortWindow.reset();
+            _unknownPortAttempts = 0;
+          }
+          if (++_unknownPortAttempts > 8) continue;
         }
         try {
           final epoch = _endpointEpoch;
@@ -411,7 +436,15 @@ class NovoRudpLanRoute {
               source: packet.address,
               sourcePort: packet.port,
             );
-          } else if (ready) {
+          } else if (known &&
+              ready &&
+              (_candidates.any(
+                    (a) =>
+                        a.address.address == packet.address.address &&
+                        a.port == packet.port,
+                  ) ||
+                  (_peer?.address.address == packet.address.address &&
+                      _peer?.port == packet.port))) {
             // Both peers may select different advertised interfaces on a
             // multi-homed host. Source candidate/port, endpoint epoch and AEAD
             // were already verified above; requiring our chosen outbound IP

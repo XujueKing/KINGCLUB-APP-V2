@@ -15,8 +15,8 @@ class NovoRudpRouteProbe {
   String issue(String endpoint) {
     final now = _clock();
     _pending.removeWhere((_, value) => now - value.sent >= lifetime);
-    // There are at most five advertised candidates per channel.
-    if (!_pending.containsKey(endpoint) && _pending.length >= 5) {
+    // Five advertised candidates plus two authenticated observed ports.
+    if (!_pending.containsKey(endpoint) && _pending.length >= 7) {
       _pending.remove(_pending.keys.first);
     }
     final nonce = List.generate(
