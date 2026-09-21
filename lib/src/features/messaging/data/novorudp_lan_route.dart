@@ -211,6 +211,33 @@ class NovoRudpLanRoute {
       _invalidPackets = 0;
   Future<void>? _closing;
   bool _announcing = false;
+  Timer? _punchTimer;
+  Stopwatch? _lastPunch;
+
+  void _startPunchBurst() {
+    if (_closed ||
+        ready ||
+        _candidates.isEmpty ||
+        (_lastPunch != null &&
+            _lastPunch!.elapsed < const Duration(seconds: 10))) {
+      return;
+    }
+    _lastPunch = Stopwatch()..start();
+    var remaining = 5;
+    void schedule() {
+      _punchTimer = Timer(const Duration(milliseconds: 200), () async {
+        if (_closed || ready) return;
+        try {
+          await _probe();
+        } catch (_) {
+          /* Keep the fallback route. */
+        }
+        if (!_closed && !ready && --remaining > 0) schedule();
+      });
+    }
+
+    schedule();
+  }
 
   // Candidate signaling must not stall or invalidate an authenticated UDP
   // path. Coalesce pending announcements instead of accumulating carrier work.
@@ -396,6 +423,7 @@ class NovoRudpLanRoute {
           // changed advertisement, rather than waiting for the 30-second tick.
           // Unchanged advertisements do not reply, preventing an echo loop.
           _announce();
+          _startPunchBurst();
         }
         await _probe();
       } else if (datagram &&
@@ -431,6 +459,7 @@ class NovoRudpLanRoute {
         }
         _peer = (address: source, port: sourcePort);
         _confirmed = Stopwatch()..start();
+        _punchTimer?.cancel();
         if (!kReleaseMode) _pongReceives++;
       }
     } on FormatException {
@@ -522,6 +551,7 @@ class NovoRudpLanRoute {
   Future<void> _probeEndpoint(_Endpoint candidate) async {
     final nonce = _probes.issue(
       '${candidate.address.address}:${candidate.port}',
+      retryPending: true,
     );
     await _send(_control({'op': 'ping', 'nonce': nonce}), target: candidate);
     if (!kReleaseMode) _probeSends++;
@@ -654,6 +684,7 @@ class NovoRudpLanRoute {
     _closed = true;
     _probes.clear();
     _timer.cancel();
+    _punchTimer?.cancel();
     _socket.close();
     _ipv6Socket?.close();
     return _closing ??= Future.wait(

@@ -2,6 +2,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_route_probe.dart';
 
 void main() {
+  test('burst retries preserve delayed replies without extending expiry', () {
+    var now = Duration.zero;
+    final probes = NovoRudpRouteProbe(clock: () => now);
+    final nonce = probes.issue('a:1', retryPending: true);
+    now = const Duration(milliseconds: 400);
+    expect(probes.issue('a:1', retryPending: true), nonce);
+    expect(probes.accept('a:2', nonce), isFalse);
+    expect(probes.accept('a:1', nonce), isTrue);
+    expect(probes.accept('a:1', nonce), isFalse);
+    final next = probes.issue('a:1', retryPending: true);
+    expect(next, isNot(nonce));
+    now = const Duration(milliseconds: 3399);
+    expect(probes.issue('a:1', retryPending: true), next);
+    now = const Duration(milliseconds: 3400);
+    expect(probes.accept('a:1', next), isFalse);
+    expect(probes.issue('a:1', retryPending: true), isNot(next));
+  });
   test('only current endpoint challenge can refresh liveness once', () {
     var now = Duration.zero;
     final probes = NovoRudpRouteProbe(clock: () => now);

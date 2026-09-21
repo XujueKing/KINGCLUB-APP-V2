@@ -12,9 +12,14 @@ class NovoRudpRouteProbe {
   final _pending = <String, ({String nonce, Duration sent})>{};
   static const lifetime = Duration(seconds: 3);
 
-  String issue(String endpoint) {
+  String issue(String endpoint, {bool retryPending = false}) {
     final now = _clock();
     _pending.removeWhere((_, value) => now - value.sent >= lifetime);
+    // A retransmission must neither invalidate a delayed reply nor extend its
+    // original expiry. A consumed/expired challenge always gets a fresh nonce.
+    if (retryPending && _pending.containsKey(endpoint)) {
+      return _pending[endpoint]!.nonce;
+    }
     // Five IPv4 and two IPv6 candidates plus two authenticated observed ports.
     if (!_pending.containsKey(endpoint) && _pending.length >= 9) {
       _pending.remove(_pending.keys.first);
