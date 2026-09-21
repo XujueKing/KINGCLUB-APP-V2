@@ -43,6 +43,10 @@ with socket.socket(socket.AF_PACKET,socket.SOCK_RAW,socket.htons(0x0800)) as s:
   found=True
   print('OBSERVED sameAddress='+str(socket.inet_ntoa(data[12:16])==v['host'])+
    ' samePort='+str(int.from_bytes(udp[:2],'big')==v['port']),flush=True)
+  distance=abs(int.from_bytes(udp[:2],'big')-v['port'])
+  print('OBSERVED portDistanceBucket='+('zero' if distance==0 else
+   'within8' if distance<=8 else 'within64' if distance<=64 else
+   'within1024' if distance<=1024 else 'over1024'),flush=True)
   break
  print('OBSERVED received='+str(found),flush=True)
 '''

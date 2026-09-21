@@ -75,3 +75,8 @@ Requires `sudo -n python3`; remote lifetime is bounded to 12 seconds. No packets
 are saved. `--destination-port 3478` is a positive capture control; another
 already reachable port compares the same phone socket's destination mappings.
 Always remove the temporary dex. A missing observation is inconclusive.
+
+The report also groups absolute source-port distance into zero, within8,
+within64, within1024 or over1024. It exposes neither port value. Independent
+socket samples can reject a small-neighborhood assumption for those samples;
+they cannot prove random allocation or predict the mapping toward another IP.
