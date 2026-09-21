@@ -99,7 +99,7 @@ data. The WSS path is active; A cellular/B Wi-Fi was verified on both devices.
 The earlier missing-authorization/missing-independent-network blockers above no
 longer apply. See [deployment](2026-09-21-public-wss-deployment.md).
 
-Current installed code is e8175015 on both devices. Public encrypted-relay text
+The earlier e8175015 installation evidence is retained below; see the latest checkpoint at the end for current builds. Public encrypted-relay text
 and images, automatic image HTTP fallback with matching persistent digest,
 slow-relay handoff, and text reception on an attachment-initiated lane have
 actual device evidence. See [slow relay](2026-09-21-slow-relay-handoff.md) and
@@ -158,5 +158,17 @@ proof of its filtering policy. Existing direct probes remain unaccepted.
 
 No router settings were changed. A controlled public IPv4 entry needs carrier
 provisioning/upstream mapping; an IPv6 alternative needs LAN delegation and a
-client IPv6 transport implementation (the current UDP route binds IPv4).
+client global IPv6 addresses. The route now supports optional IPv6; B still lacks a global IPv6 address.
 Reference: https://www.rfc-editor.org/rfc/rfc6598.html
+
+## Latest checkpoint: bf74a7fd
+
+Both phones installed bf74a7fd profile APK, SHA-256 `f127d32417d138041656879fc650f75e028e1595f2547bd6a10fac3dd4f821d9`.
+Actual message `eef047cb-144e-4ef1-a1ab-02315487bf6c` is present in both peer journals with sender delivered=1. This is post-install messaging evidence, not forced socket-closure recovery evidence.
+
+- Optional global IPv6 discovery and closed-socket handling: [IPv6 evidence](2026-09-21-ipv6-candidates.md).
+- The actual WebRTC call on the same A cellular/B Wi-Fi topology selected UDP relay, with increasing bidirectional counters: [ICE comparison](2026-09-21-ice-comparison.md). This does not prove all direct traversal impossible.
+- The parent peer lane now retries missing/closed UDP routes while preserving its secure relay session: [route reopening](2026-09-21-udp-route-reopen.md). Twelve targeted tests passed; the existing native encrypted LAN unreachable-candidate/rebound-socket regression also passed. Phone-level forced IPv4 socket closure recovery remains unverified.
+- Public direct acceptance remains open. B's current Wi-Fi lacks a global IPv6 address; operator availability of B cellular data was requested for an alternate topology. No network switch was performed without an answer.
+
+Historical router-access and IPv4-only implementation limitations above are superseded by the gateway inspection and IPv6 implementation records. No claim of fully completed public peer-to-peer transport is made.
