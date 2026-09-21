@@ -42,6 +42,7 @@ public final class NatMappingProbe {
     throw new IllegalStateException("No IPv4 observer");
   }
   public static void main(String[] args) throws Exception {
+    if(args.length==2 && args[1].equals("--observe-mapping")) { observeMapping(ipv4(args[0])); return; }
     if(args.length==2 && args[1].equals("--active-filter")) { activeFilter(ipv4(args[0])); return; }
     if(args.length==2 && args[1].equals("--filter")) { filter(ipv4(args[0])); return; }
     if(args.length!=2) throw new IllegalArgumentException("Two observer hosts required");
@@ -94,6 +95,24 @@ public final class NatMappingProbe {
           && Arrays.equals(token,Arrays.copyOf(packet.getData(),packet.getLength()))) return true;
     }
     return false;
+  }
+  static void observeMapping(InetAddress server) throws Exception {
+    try(DatagramSocket socket=new DatagramSocket(0,InetAddress.getByName("0.0.0.0"))) {
+      byte[] mapped=query(socket,server,3478);
+      if(mapped==null) { System.out.println("OBSERVE baseline=false"); return; }
+      byte[] token=new byte[16]; new SecureRandom().nextBytes(token);
+      StringBuilder line=new StringBuilder("FILTER_READY ");
+      for(byte value:mapped) line.append(String.format("%02x",value&255));
+      line.append(' ');
+      for(byte value:token) line.append(String.format("%02x",value&255));
+      System.out.println(line); System.out.flush();
+      int port=Integer.parseInt(new BufferedReader(new InputStreamReader(System.in)).readLine());
+      if(port<1 || port>65535) throw new IllegalArgumentException("Invalid port");
+      for(int i=0;i<3;i++) socket.send(new DatagramPacket(token,token.length,server,port));
+      byte[] repeat=query(socket,server,3478);
+      System.out.println("OBSERVE baseline=true baselineAfter="+(repeat!=null)
+        +" mappingStable="+(repeat!=null && Arrays.equals(mapped,repeat)));
+    }
   }
   static void activeFilter(InetAddress server) throws Exception {
     try(DatagramSocket socket=new DatagramSocket(0,InetAddress.getByName("0.0.0.0"))) {

@@ -63,3 +63,15 @@ return path for this particular endpoint. It does not prove arbitrary peer
 reachability, the observer receiving the outbound probe, or production chat
 socket success. The observer sends to the original mapped endpoint in both
 phases; there is no new inbound firewall rule or permanent service.
+
+## Observe mapping at an existing UDP destination
+
+`observe_mapping.py` takes the same arguments plus `--destination-port PORT`.
+Use only an authorized existing service that can safely discard three random
+16-byte datagrams. It does not bind or open that service port. A bounded Linux
+AF_PACKET capture checks exact random token and UDP length, ignoring Ethernet
+padding, and prints only whether observed source IP/port equal the STUN mapping.
+Requires `sudo -n python3`; remote lifetime is bounded to 12 seconds. No packets
+are saved. `--destination-port 3478` is a positive capture control; another
+already reachable port compares the same phone socket's destination mappings.
+Always remove the temporary dex. A missing observation is inconclusive.
