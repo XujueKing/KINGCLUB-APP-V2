@@ -111,7 +111,9 @@ class NovoRudpLanRoute {
       ipv6Socket?.close();
       ipv6Socket = null;
       if (!kReleaseMode) {
-        debugPrint('NovoRoute ipv6Unavailable code=${error.osError?.errorCode}');
+        debugPrint(
+          'NovoRoute ipv6Unavailable code=${error.osError?.errorCode}',
+        );
       }
       // IPv6 being unavailable must never disable IPv4/relay.
     }
@@ -149,7 +151,7 @@ class NovoRudpLanRoute {
             if (event == RawSocketEvent.read) unawaited(_read(socket));
             if (event == RawSocketEvent.closed) _socketEnded(socket);
           },
-          onError: (Object _) => _socketEnded(socket),
+          onError: (Object error) => _socketError(socket, error),
           onDone: () => _socketEnded(socket),
         ),
       );
@@ -198,6 +200,21 @@ class NovoRudpLanRoute {
       _unknownAddresses = 0,
       _invalidPackets = 0;
   Future<void>? _closing;
+
+  void _socketError(RawDatagramSocket socket, Object error) {
+    if (_closed) return;
+    if (error is SocketException) {
+      // UDP can report ICMP unreachable for one candidate while the socket is
+      // still usable. Only closed/done events retire an address family.
+      if (_peer != null &&
+          (_peer!.address.type == InternetAddressType.IPv6) ==
+              identical(socket, _ipv6Socket)) {
+        _confirmed = null;
+      }
+      return;
+    }
+    _socketEnded(socket);
+  }
 
   void _socketEnded(RawDatagramSocket socket) {
     if (_closed) return;

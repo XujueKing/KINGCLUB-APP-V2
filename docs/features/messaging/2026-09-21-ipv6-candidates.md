@@ -15,3 +15,10 @@
 A、B 覆盖安装成功，profile APK SHA-256 为 `7eac9a30811dd34d95578e656ba9646d4ad9b04b5ec41bf794118cd629bbdb0c`。
 双向实际消息 `398de3f3-0e4b-44c6-a157-9f8bb1aa6d6a` 与 `2adc5ec3-416c-4a23-8ef3-529b6029878d` 均进入两端 peer journal，A 界面显示两条测试标记。
 两端直连 ready=false，不能算 UDP 验收。B 仍只有链路本地 IPv6；A 系统网卡有全球 IPv6，但 B 的候选诊断 ipv6Candidates=0，客户端 IPv6 发现/通报是否生效仍待定位。新增 profile 诊断只输出 socket 可用性、本地候选数量和错误码，不输出地址或内容。
+
+## cb8f7fc7 诊断结果与 UDP 错误处理
+
+两端已安装诊断版。实际消息 `d2065e94-0bc0-4730-aaf4-9d3eb8967079` 两端 peer journal 一致，发送端 delivered=1。
+A 报告 ipv6Socket=true、localIpv6=2；B 报告 ipv6Socket=false、localIpv6=0。这排除了 A 未发现地址的猜测，但并不证明 IPv6 直连。
+
+代码检查发现 RawDatagramSocket 的所有 onError 都会退役 socket，而 UDP 的 SocketException 也可能仅表示某个目的地 ICMP 不可达。改为保留 socket，必要时使当前路径不再被视为健康，按既有定时器重新探测；仅 closed/onDone 或非 socket 错误退役。增加注入 network-unreachable 错误后仍会探测新 IPv6 候选的回归，连同四项原有 IPv6 测试通过。B 实机恢复候选仍待新构建验证，不能仅由上述计数断言已捕获其具体系统错误。

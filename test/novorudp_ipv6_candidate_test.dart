@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -21,7 +22,78 @@ class _Channel implements NovoRudpSecureChannel {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _ErrorSocket implements RawDatagramSocket {
+  final events = StreamController<RawSocketEvent>();
+  bool closed = false;
+  @override
+  int get port => 12001;
+  @override
+  set writeEventsEnabled(bool value) {}
+  @override
+  set readEventsEnabled(bool value) {}
+  @override
+  StreamSubscription<RawSocketEvent> listen(
+    void Function(RawSocketEvent)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) => events.stream.listen(
+    onData,
+    onError: onError,
+    onDone: onDone,
+    cancelOnError: cancelOnError,
+  );
+  @override
+  void close() {
+    closed = true;
+    unawaited(events.close());
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
+  test('unreachable IPv6 candidate does not retire a usable socket', () async {
+    final socket = _ErrorSocket();
+    final channel = _Channel();
+    final route = (await NovoRudpLanRoute.open(
+      channel: channel,
+      bindIpv6: () async => socket,
+      sendControl: (_) async {},
+      deliver: (_) async {},
+    ))!;
+    addTearDown(route.close);
+    socket.events.addError(const SocketException('network unreachable'));
+    await Future<void>.delayed(Duration.zero);
+    expect(socket.closed, isFalse);
+    await route.acceptControl(
+      NovoRudpFrame(
+        kind: NovoRudpFrameKind.data,
+        sessionId: channel.sessionId,
+        streamId: NovoRudpLanRoute.controlStream,
+        objectId: BigInt.zero,
+        sequence: BigInt.zero,
+        ackEpoch: BigInt.zero,
+        payload: utf8.encode(
+          jsonEncode({
+            'op': 'endpoint',
+            'addresses': [],
+            'port': 12000,
+            'ipv6': {
+              'addresses': ['240e::1234'],
+              'port': 12000,
+            },
+          }),
+        ),
+      ),
+    );
+    expect(
+      channel.probes,
+      1,
+      reason: 'future IPv6 candidates still receive probes',
+    );
+  });
   for (final failure in ['bind', 'close']) {
     test('IPv6 $failure failure preserves IPv4 advertisements', () async {
       final socket = failure == 'close'
