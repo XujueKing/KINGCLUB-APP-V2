@@ -111,5 +111,7 @@ process-stop/reopen evidence for reuse of two complete cached blocks, and video
 has actual sender-interruption automatic HTTP fallback plus full decoding.
 See [public interruption](2026-09-21-public-interruption.md). The file test
 includes a manual reopen; the video interruption had no complete block to reuse.
-Cross-network voice and prolonged background/OS-eviction behavior remain
-unaccepted. LAN and automatic tests do not replace these device checks.
+Cross-network voice now has peer-relay delivery, sender-offline HTTP fallback,
+and receiver-offline local player evidence; see [public voice](2026-09-21-public-voice.md).
+Human audio quality, prolonged background/OS-eviction behavior and public UDP
+direct carriage remain unaccepted. LAN and automatic tests do not replace them.
