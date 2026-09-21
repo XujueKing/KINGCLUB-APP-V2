@@ -576,9 +576,17 @@ class NovoRudpLanRoute {
             (a) => a.address.address == packet.address.address,
           )) {
             if (!kReleaseMode) _unknownAddresses++;
-            continue;
+            // A carrier NAT can change both address and port by destination.
+            // Only a bounded authenticated control exchange may learn this
+            // endpoint; no app data or route readiness is accepted here.
+            if (!_private(packet.address) &&
+                !_public(packet.address) &&
+                !isGlobalIpv6(packet.address)) {
+              continue;
+            }
+          } else {
+            if (!kReleaseMode) _portMismatches++;
           }
-          if (!kReleaseMode) _portMismatches++;
           if (ready) continue;
           if (_unknownPortWindow.elapsed >= const Duration(seconds: 1)) {
             _unknownPortWindow.reset();
