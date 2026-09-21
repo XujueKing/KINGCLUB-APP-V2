@@ -21,3 +21,9 @@
 ## 安装
 
 Commerce profile APK 构建成功，已通过 adb install -r 安装并启动 B 手机 TOHYQSINONBMJN6H 的 com.lingmei.kingclub.commerce。未操作 A 手机。安装成功不代表门店真实商品图片已完成实扫验收。
+
+## 下一段：服务端核价提交适配
+
+新增 `OrderingOrderRepository`，对应服务端 `K260919000814`。提交请求只携带已解析的 `tableId`、`tableSessionRef`、幂等 `requestId`，以及商品编号、数量、目录版本和客户端看到的分价格；客户端总价、门店、付款状态均不作为权限或金额依据。响应会再次校验当前登录会话、门店、桌台场次、币种、订单状态和截止时间。
+
+本适配层暂未接入页面结算按钮，因为服务端当前明确返回 `ORDERING_PAYMENT_NOT_READY`，微信查单/关单和库存付款闭环尚未生产就绪。这样可以先固定客户端与可信报价接口的边界，避免把本地购物车金额当成真实订单或付款成功。新增订单契约测试与原扫码点单回归合计 39 项通过。
