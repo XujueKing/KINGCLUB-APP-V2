@@ -106,7 +106,10 @@ actual device evidence. See [slow relay](2026-09-21-slow-relay-handoff.md) and
 [text after attachment](2026-09-21-text-after-attachment.md).
 
 Public UDP probes still receive no incoming peer packets on this topology;
-do not relabel relay delivery as direct UDP. Public mid-transfer reuse of an
-already complete block, cross-network voice/video interruption, and prolonged
-background/OS-eviction behavior remain unaccepted. Existing LAN and automatic
-regression results do not substitute for these broader device checks.
+do not relabel relay delivery as direct UDP. Public file transfer now has
+process-stop/reopen evidence for reuse of two complete cached blocks, and video
+has actual sender-interruption automatic HTTP fallback plus full decoding.
+See [public interruption](2026-09-21-public-interruption.md). The file test
+includes a manual reopen; the video interruption had no complete block to reuse.
+Cross-network voice and prolonged background/OS-eviction behavior remain
+unaccepted. LAN and automatic tests do not replace these device checks.
