@@ -16,3 +16,21 @@
 
 这是丢包及时序鲁棒性增强，不能解决未知的目标相关公网映射；不宣称当前
 A 移动网络 / B 家庭 Wi-Fi 已经直连。B 没有移动数据，后续维持原测试拓扑。
+
+## 00:54 双机实测
+
+已在隔离 worktree 构建 8324bdc5 profile APK，并覆盖安装到 A、B，均返回
+Success，未清应用数据、未改网络设置。APK SHA-256：
+`66f6f916412731c7795946151b624580e87c2e53c17bf4040b97c08d63c2dd65`。
+新进程 A 17409 / B 25008；安装前两端输入框均为空。
+
+实际发送测试消息 `b0d7eb87-8c3e-4a98-800f-6d9d54c3cdc7`，两端 SQLite
+记录一致，A outgoing=1、delivered=1，B outgoing=0。
+
+新进程首轮路由日志：两端 mapped=true、一个公网候选；A probeSends=15、
+B=16，pingReceives/pongReceives/unknownAddresses 均为 0，ready=false。
+A localIpv6=2，B=0。快速重试进入实际路径，但没有收到对端探测；不能把
+消息回执当作直连证据，亦不能靠进一步加大发包频率宣称解决映射问题。
+
+当前仍需解决目标相关映射下的有效候选发现；这次实测没有证实具体过滤
+设备，也没有证明所有穿透方法必然失败。保留中继，不要求 B 更换网络。
