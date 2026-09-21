@@ -47,3 +47,19 @@ Failure to receive with successful egress and stable baseline is evidence of
 failure on this alternate-source-port path. It does not locate which network
 device filtered the traffic, rule out protocol filtering, or establish a full
 RFC 5780 NAT classification. This still uses a separate shell-UID socket.
+
+## Active outbound comparison
+
+`active_filter_probe.py` takes the same arguments. With the updated dex it
+first waits four seconds for the alternate source port, then sends one token
+to that exact endpoint and waits seven seconds for replies. The observer keeps
+the same ephemeral socket across both phases. Phase two changes the token to
+exclude late phase-one packets. Host pipes coordinate each phase; only summary
+booleans are printed. A 25-second host deadline and 20-second remote deadline
+bound execution. Remove the temporary dex afterwards.
+
+A false/true before/after result demonstrates an outbound-triggered reachable
+return path for this particular endpoint. It does not prove arbitrary peer
+reachability, the observer receiving the outbound probe, or production chat
+socket success. The observer sends to the original mapped endpoint in both
+phases; there is no new inbound firewall rule or permanent service.

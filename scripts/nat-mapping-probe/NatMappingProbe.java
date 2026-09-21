@@ -2,6 +2,8 @@ import java.net.*;
 import java.nio.*;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 /** Bounded diagnostic; filter mode requires a private coordinator pipe. */
 public final class NatMappingProbe {
@@ -40,6 +42,7 @@ public final class NatMappingProbe {
     throw new IllegalStateException("No IPv4 observer");
   }
   public static void main(String[] args) throws Exception {
+    if(args.length==2 && args[1].equals("--active-filter")) { activeFilter(ipv4(args[0])); return; }
     if(args.length==2 && args[1].equals("--filter")) { filter(ipv4(args[0])); return; }
     if(args.length!=2) throw new IllegalArgumentException("Two observer hosts required");
     InetAddress first=ipv4(args[0]), second=ipv4(args[1]);
@@ -78,6 +81,41 @@ public final class NatMappingProbe {
       byte[] after=query(socket,server,3478);
       System.out.println("FILTER baseline=true alternatePortReceived="+received
         +" baselineAfter="+(after!=null)+" mappingStable="+(after!=null && Arrays.equals(mapped,after)));
+    }
+  }
+  static boolean receiveToken(DatagramSocket socket, InetAddress server, int port,
+      byte[] token, int seconds) throws Exception {
+    long until=System.nanoTime()+seconds*1000000000L;
+    while(System.nanoTime()<until) {
+      socket.setSoTimeout(Math.max(1,(int)((until-System.nanoTime())/1000000L)));
+      DatagramPacket packet=new DatagramPacket(new byte[1024],1024);
+      try { socket.receive(packet); } catch(SocketTimeoutException ex) { break; }
+      if(packet.getAddress().equals(server) && packet.getPort()==port
+          && Arrays.equals(token,Arrays.copyOf(packet.getData(),packet.getLength()))) return true;
+    }
+    return false;
+  }
+  static void activeFilter(InetAddress server) throws Exception {
+    try(DatagramSocket socket=new DatagramSocket(0,InetAddress.getByName("0.0.0.0"))) {
+      byte[] mapped=query(socket,server,3478);
+      if(mapped==null) { System.out.println("FILTER baseline=false"); return; }
+      byte[] token=new byte[16]; new SecureRandom().nextBytes(token);
+      StringBuilder line=new StringBuilder("FILTER_READY ");
+      for(byte value:mapped) line.append(String.format("%02x",value&255));
+      line.append(' ');
+      for(byte value:token) line.append(String.format("%02x",value&255));
+      System.out.println(line); System.out.flush();
+      int port=Integer.parseInt(new BufferedReader(new InputStreamReader(System.in)).readLine());
+      if(port<1 || port>65535 || port==3478) throw new IllegalArgumentException("Invalid alternate port");
+      boolean before=receiveToken(socket,server,port,token,4);
+      // Phase two uses a different token so queued phase-one replies cannot count.
+      token[0]^=1;
+      socket.send(new DatagramPacket(token,token.length,server,port));
+      System.out.println("FILTER_OUTBOUND"); System.out.flush();
+      boolean after=receiveToken(socket,server,port,token,7);
+      byte[] repeat=query(socket,server,3478);
+      System.out.println("FILTER baseline=true beforeOutbound="+before+" afterOutbound="+after
+        +" baselineAfter="+(repeat!=null)+" mappingStable="+(repeat!=null && Arrays.equals(mapped,repeat)));
     }
   }
 }
