@@ -20,8 +20,8 @@ class NovoRudpRouteProbe {
     if (retryPending && _pending.containsKey(endpoint)) {
       return _pending[endpoint]!.nonce;
     }
-    // Five IPv4 and two IPv6 candidates plus two authenticated observed ports.
-    if (!_pending.containsKey(endpoint) && _pending.length >= 9) {
+    // Four LAN, four public IPv4, two IPv6 and two authenticated observed ports.
+    if (!_pending.containsKey(endpoint) && _pending.length >= 12) {
       _pending.remove(_pending.keys.first);
     }
     final nonce = List.generate(

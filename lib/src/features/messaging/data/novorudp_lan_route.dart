@@ -93,6 +93,7 @@ class NovoRudpLanRoute {
     String observerFallbacks = stunFallbacks,
     @visibleForTesting Future<RawDatagramSocket> Function()? bindIpv6,
     @visibleForTesting Future<List<String>> Function()? discoverIpv6,
+    @visibleForTesting Duration Function()? discoveryClock,
   }) async {
     final observers = parseObservers(
       observerHost,
@@ -119,6 +120,7 @@ class NovoRudpLanRoute {
       }
       // IPv6 being unavailable must never disable IPv4/relay.
     }
+    final discoveryWatch = Stopwatch()..start();
     return NovoRudpLanRoute._(
       socket,
       ipv6Socket,
@@ -132,6 +134,7 @@ class NovoRudpLanRoute {
       observerHost,
       observerPort,
       observers,
+      discoveryClock ?? (() => discoveryWatch.elapsed),
     );
   }
 
@@ -148,6 +151,7 @@ class NovoRudpLanRoute {
     this.observerHost,
     this.observerPort,
     this._observers,
+    this._discoveryClock,
   ) {
     for (final socket in [_socket, ?_ipv6Socket]) {
       _listen(socket);
@@ -183,7 +187,9 @@ class NovoRudpLanRoute {
   final _events = <RawDatagramSocket, StreamSubscription<RawSocketEvent>>{};
   final _readingSockets = <RawDatagramSocket>{};
   late final Timer _timer;
-  _Endpoint? _peer, _mapped;
+  _Endpoint? _peer;
+  final _mapped = <int, ({_Endpoint endpoint, Duration observed})>{};
+  final Duration Function() _discoveryClock;
   List<_Endpoint> _candidates = [];
   final List<_Endpoint> _reflexive = [];
   final _unknownPortWindow = Stopwatch()..start();
@@ -195,7 +201,7 @@ class NovoRudpLanRoute {
   int? _activeObserverPort;
   InternetAddress? _observer;
   NovoRudpStunBinding? _binding;
-  Stopwatch? _bindingAge, _mappedAge;
+  Stopwatch? _bindingAge;
   bool _discovering = false;
   Stopwatch? _confirmed;
   bool _closed = false, _ticking = false;
@@ -211,6 +217,7 @@ class NovoRudpLanRoute {
       _invalidPackets = 0;
   Future<void>? _closing;
   bool _announcing = false;
+  bool _announcementPending = false;
   Timer? _punchTimer;
   Stopwatch? _lastPunch;
 
@@ -242,11 +249,17 @@ class NovoRudpLanRoute {
   // Candidate signaling must not stall or invalidate an authenticated UDP
   // path. Coalesce pending announcements instead of accumulating carrier work.
   void _announce() {
-    if (_closed || _announcing) return;
+    if (_closed) return;
+    if (_announcing) {
+      _announcementPending = true;
+      return;
+    }
+    _announcementPending = false;
     _announcing = true;
     unawaited(
       advertise().catchError((Object _) {}).whenComplete(() {
         _announcing = false;
+        if (_announcementPending) _announce();
       }),
     );
   }
@@ -318,6 +331,7 @@ class NovoRudpLanRoute {
 
   Future<void> advertise() async {
     if (_closed) return;
+    final public = _publicEndpoints;
     await sendControl(
       _control({
         'op': 'endpoint',
@@ -325,11 +339,16 @@ class NovoRudpLanRoute {
         'port': _socket.port,
         if (_ipv6Socket != null && _ipv6Addresses.isNotEmpty)
           'ipv6': {'addresses': _ipv6Addresses, 'port': _ipv6Socket!.port},
-        if (_mapped != null)
+        if (public.isNotEmpty) ...{
           'public': {
-            'address': _mapped!.address.address,
-            'port': _mapped!.port,
+            'address': public.first.address.address,
+            'port': public.first.port,
           },
+          'publicCandidates': [
+            for (final endpoint in public)
+              {'address': endpoint.address.address, 'port': endpoint.port},
+          ],
+        },
       }),
     );
   }
@@ -374,17 +393,27 @@ class NovoRudpLanRoute {
             candidates.add((address: ip, port: port));
           }
         }
-        final external = body['public'];
-        if (_observers.isNotEmpty && external is Map) {
-          final host = external['address'], mappedPort = external['port'];
-          final ip = host is String ? InternetAddress.tryParse(host) : null;
-          if (ip != null &&
-              _public(ip) &&
-              mappedPort is int &&
-              mappedPort > 0 &&
-              mappedPort <= 65535) {
-            candidates.add((address: ip, port: mappedPort));
+        final externals = body['publicCandidates'];
+        if (externals != null && (externals is! List || externals.length > 4)) {
+          return;
+        }
+        if (_observers.isNotEmpty) {
+          final public = <_Endpoint>[];
+          for (final external in [body['public'], ...?externals as List?]) {
+            if (external is! Map) continue;
+            final host = external['address'], mappedPort = external['port'];
+            final ip = host is String ? InternetAddress.tryParse(host) : null;
+            if (ip != null &&
+                _public(ip) &&
+                mappedPort is int &&
+                mappedPort > 0 &&
+                mappedPort <= 65535 &&
+                public.length < 4 &&
+                !public.any((a) => a.address == ip && a.port == mappedPort)) {
+              public.add((address: ip, port: mappedPort));
+            }
           }
+          candidates.addAll(public);
         }
         final v6 = body['ipv6'];
         if (_ipv6Socket != null &&
@@ -409,14 +438,21 @@ class NovoRudpLanRoute {
             }
           }
         }
+        candidates.sort((a, b) {
+          final address = a.address.address.compareTo(b.address.address);
+          return address != 0 ? address : a.port.compareTo(b.port);
+        });
         final unchanged =
             candidates.map((a) => '${a.address.address}:${a.port}').join(',') ==
             _candidates.map((a) => '${a.address.address}:${a.port}').join(',');
         if (!unchanged) {
+          final keepPeer = ready && candidates.any((a) => a == _peer);
           _endpointEpoch++;
           _probes.clear();
-          _confirmed = null;
-          _peer = null;
+          if (!keepPeer) {
+            _confirmed = null;
+            _peer = null;
+          }
           _candidates = candidates;
           _reflexive.clear();
           // A replaced peer socket has lost our candidates. Reply once to a
@@ -503,7 +539,7 @@ class NovoRudpLanRoute {
           _peer = null;
           _candidates = [];
           _reflexive.clear();
-          _mapped = null;
+          _mapped.clear();
           _binding = null;
           _confirmed = null;
         }
@@ -514,7 +550,7 @@ class NovoRudpLanRoute {
       await _probe();
       if (!kReleaseMode && (tick == 4 || tick % 15 == 14)) {
         debugPrint(
-          'NovoRoute mapped=${_mapped != null} stunReplies=$_stunReplies '
+          'NovoRoute mapped=${_publicEndpoints.isNotEmpty} stunReplies=$_stunReplies '
           'candidates=${_candidates.length} '
           'publicCandidates=${_candidates.where((e) => _public(e.address)).length} '
           'ipv6Candidates=${_candidates.where((e) => isGlobalIpv6(e.address)).length} '
@@ -601,10 +637,13 @@ class NovoRudpLanRoute {
           if (mapped != null &&
               _public(mapped.address) &&
               _bindingAge!.elapsed < const Duration(seconds: 8)) {
-            _mapped = mapped;
+            _mapped[_observerIndex] = (
+              endpoint: mapped,
+              observed: _discoveryClock(),
+            );
             if (!kReleaseMode) _stunReplies++;
-            _mappedAge = Stopwatch()..start();
             _binding = null;
+            _observerIndex = (_observerIndex + 1) % _observers.length;
             _announce();
           }
           continue;
@@ -698,14 +737,13 @@ class NovoRudpLanRoute {
     }
     _discovering = true;
     try {
-      if (_mappedAge != null &&
-          _mappedAge!.elapsed >= const Duration(seconds: 60)) {
-        _mapped = null;
-      }
-      if (_binding == null &&
-          _mapped != null &&
-          _mappedAge!.elapsed < const Duration(seconds: 30)) {
-        return;
+      final now = _discoveryClock();
+      final before = _mapped.length;
+      _mapped.removeWhere(
+        (_, value) => now - value.observed >= const Duration(seconds: 60),
+      );
+      if (_mapped.length != before) {
+        _announce();
       }
       if (_binding != null &&
           _bindingAge!.elapsed >= const Duration(seconds: 4)) {
@@ -713,6 +751,17 @@ class NovoRudpLanRoute {
         _observerIndex = (_observerIndex + 1) % _observers.length;
       }
       if (_binding == null) {
+        var checked = 0;
+        while (checked < _observers.length) {
+          final mapped = _mapped[_observerIndex];
+          if (mapped == null ||
+              now - mapped.observed >= const Duration(seconds: 30)) {
+            break;
+          }
+          _observerIndex = (_observerIndex + 1) % _observers.length;
+          checked++;
+        }
+        if (checked == _observers.length) return;
         final endpoint = _observers[_observerIndex];
         final epoch = _endpointEpoch;
         final servers = await InternetAddress.lookup(
@@ -735,6 +784,22 @@ class NovoRudpLanRoute {
     } finally {
       _discovering = false;
     }
+  }
+
+  // Keep configured-observer order for the legacy first candidate. Observers
+  // can report the same mapping; each keeps its own freshness independently.
+  List<_Endpoint> get _publicEndpoints {
+    final now = _discoveryClock();
+    final result = <_Endpoint>[];
+    for (var i = 0; i < _observers.length; i++) {
+      final mapped = _mapped[i];
+      if (mapped != null &&
+          now - mapped.observed < const Duration(seconds: 60) &&
+          !result.contains(mapped.endpoint)) {
+        result.add(mapped.endpoint);
+      }
+    }
+    return result;
   }
 
   /// Deployment-owned IPv4/DNS endpoints only; never learned from peer payloads.

@@ -46,4 +46,22 @@ void main() {
     final fresh = probes.issue('a:1');
     expect(probes.accept('a:1', fresh), isTrue);
   });
+
+  test('all twelve bounded route candidates keep their challenges', () {
+    final probes = NovoRudpRouteProbe(clock: () => Duration.zero);
+    final nonces = <String>[];
+    for (var index = 0; index < 12; index++) {
+      nonces.add(probes.issue('candidate:$index'));
+    }
+    for (var index = 0; index < 12; index++) {
+      expect(probes.accept('candidate:$index', nonces[index]), isTrue);
+    }
+
+    final overflow = NovoRudpRouteProbe(clock: () => Duration.zero);
+    final first = overflow.issue('candidate:0');
+    for (var index = 1; index <= 12; index++) {
+      overflow.issue('candidate:$index');
+    }
+    expect(overflow.accept('candidate:0', first), isFalse);
+  });
 }
