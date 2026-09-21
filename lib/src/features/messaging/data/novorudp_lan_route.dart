@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'novorudp_frame.dart';
 import 'novorudp_secure_packet.dart';
 import 'novorudp_secure_session.dart';
@@ -130,6 +132,12 @@ class NovoRudpLanRoute {
   int _advertisements = 0;
   int _endpointEpoch = 0;
   final _probes = NovoRudpRouteProbe();
+  int _stunReplies = 0,
+      _probeSends = 0,
+      _pingReceives = 0,
+      _pongReceives = 0,
+      _portMismatches = 0,
+      _invalidPackets = 0;
   Future<void>? _closing;
 
   bool get ready =>
@@ -241,6 +249,7 @@ class NovoRudpLanRoute {
           sourcePort != null &&
           body['op'] == 'ping') {
         if (!NovoRudpRouteProbe.validNonce(body['nonce'])) return;
+        if (!kReleaseMode) _pingReceives++;
         await _send(
           _control({'op': 'pong', 'nonce': body['nonce']}),
           target: (address: source, port: sourcePort),
@@ -259,6 +268,7 @@ class NovoRudpLanRoute {
         }
         _peer = (address: source, port: sourcePort);
         _confirmed = Stopwatch()..start();
+        if (!kReleaseMode) _pongReceives++;
       }
     } on FormatException {
       /* Unrecognized controls are not app data. */
@@ -290,6 +300,16 @@ class NovoRudpLanRoute {
       // Refresh after joining/changing Wi-Fi, including routes opened on cellular.
       if (tick < 4 || tick % 15 == 0) await advertise();
       await _probe();
+      if (!kReleaseMode && (tick == 4 || tick % 15 == 14)) {
+        debugPrint(
+          'NovoRoute mapped=${_mapped != null} stunReplies=$_stunReplies '
+          'candidates=${_candidates.length} '
+          'publicCandidates=${_candidates.where((e) => _public(e.address)).length} '
+          'probeSends=$_probeSends pingReceives=$_pingReceives '
+          'pongReceives=$_pongReceives portMismatches=$_portMismatches '
+          'invalidPackets=$_invalidPackets ready=$ready',
+        );
+      }
     } catch (_) {
       _confirmed = null;
     } finally {
@@ -308,6 +328,7 @@ class NovoRudpLanRoute {
           _control({'op': 'ping', 'nonce': nonce}),
           target: candidate,
         );
+        if (!kReleaseMode) _probeSends++;
       } on SocketException {
         // One unavailable interface must not prevent probing the others.
       }
@@ -356,6 +377,7 @@ class NovoRudpLanRoute {
               _public(mapped.address) &&
               _bindingAge!.elapsed < const Duration(seconds: 8)) {
             _mapped = mapped;
+            if (!kReleaseMode) _stunReplies++;
             _mappedAge = Stopwatch()..start();
             _binding = null;
             unawaited(advertise().catchError((Object _) {}));
@@ -367,6 +389,12 @@ class NovoRudpLanRoute {
               a.address.address == packet.address.address &&
               a.port == packet.port,
         )) {
+          if (!kReleaseMode &&
+              _candidates.any(
+                (a) => a.address.address == packet.address.address,
+              )) {
+            _portMismatches++;
+          }
           continue;
         }
         try {
@@ -391,8 +419,10 @@ class NovoRudpLanRoute {
             await deliver(frame);
           }
         } on FormatException {
+          if (!kReleaseMode) _invalidPackets++;
           /* Ignore invalid packets. */
         } on StateError {
+          if (!kReleaseMode) _invalidPackets++;
           /* Ignore unauthenticated or replayed packets. */
         }
       }

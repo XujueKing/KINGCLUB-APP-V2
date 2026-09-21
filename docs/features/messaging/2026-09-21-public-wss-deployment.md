@@ -54,3 +54,19 @@ Public encrypted-relay delivery passes this check. Public UDP direct carriage
 does not: its count is zero. The roughly 53-second image transfer is not accepted
 as a performance target. Next work is to diagnose candidate/mapping/probe behavior
 and carrier NAT restrictions, then verify recovery/interruption on this topology.
+
+## UDP investigation
+
+At 14:01 the cloud interface observed one 20-byte STUN request from each of
+the two distinct test exits and sent a 40-byte response to each. The bounded
+capture ended by timeout; it did not observe arbitrary chat traffic. This
+establishes server-side STUN ingress/egress, not phone-side response acceptance.
+
+Added non-release aggregate NovoRoute counters: accepted STUN replies, mapping
+presence, candidate counts, sent probes, authenticated pings, nonce-accepted
+pongs, rejected same-IP/different-port packets and invalid packets. A snapshot
+is logged after roughly ten seconds and then every thirty seconds. No IP,
+member ID, nonce, key or chat payload is logged; release emits no snapshots.
+Routing and authentication decisions are unchanged. Static analysis and five
+discovery/failover/nonce regression checks passed. The counters are intended to
+locate the current direct-route failure before changing its trust boundaries.
