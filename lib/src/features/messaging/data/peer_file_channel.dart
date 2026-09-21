@@ -126,6 +126,8 @@ class PeerFileChannel {
   String? _sendingMessage, _receivingMessage;
   String? _sendingMedia, _receivingMedia;
   Completer<void>? _accepted;
+  Completer<void>? _receiveReleased;
+  bool _waitingReceive = false;
   NovoRudpFileSender? _sender;
   NovoRudpFileDownload? _download;
   Timer? _renewSend, _renewReceive, _retry;
@@ -209,7 +211,7 @@ class PeerFileChannel {
         phase = 'source-ready';
         if (!kReleaseMode) {
           debugPrint(
-            'PeerServe source-ready elapsedMs=${elapsed.elapsedMilliseconds}',
+            'PeerServe source-ready media=${media ?? 'file'} elapsedMs=${elapsed.elapsedMilliseconds}',
           );
         }
         final refreshed = await authorize(
@@ -283,7 +285,7 @@ class PeerFileChannel {
     } catch (error) {
       if (!kReleaseMode) {
         debugPrint(
-          'PeerServe failure phase=$phase elapsedMs=${elapsed.elapsedMilliseconds} type=${error.runtimeType}',
+          'PeerServe failure media=${media ?? 'file'} phase=$phase elapsedMs=${elapsed.elapsedMilliseconds} type=${error.runtimeType}',
         );
       }
       try {
@@ -306,6 +308,18 @@ class PeerFileChannel {
     Future<void> Function(NovoRudpFileDownload)? prepare,
   }) async {
     _check();
+    // Thumbnail and full-media retention can start together. Permit one bounded
+    // waiter instead of immediately forcing the second asset onto HTTP.
+    if (_receiving != null && !_waitingReceive) {
+      _waitingReceive = true;
+      try {
+        await _receiveReleased!.future.timeout(const Duration(seconds: 2));
+      } finally {
+        _waitingReceive = false;
+      }
+      _check();
+      if (!stillActive()) throw StateError('Peer file cancelled');
+    }
     if (_receiving != null) throw StateError('Peer file receive busy');
     final random = Random.secure();
     final object =
@@ -313,6 +327,7 @@ class PeerFileChannel {
         BigInt.from(random.nextInt(1 << 32));
     if (object == BigInt.zero) throw StateError('Invalid transfer identity');
     _receiving = object;
+    _receiveReleased = Completer<void>();
     _receivingMessage = expected.messageId;
     _receivingMedia = expected.media;
     final accepted = _accepted = Completer<void>();
@@ -431,6 +446,8 @@ class PeerFileChannel {
     _retry = null;
     _download = null;
     _receiving = null;
+    if (_receiveReleased?.isCompleted == false) _receiveReleased!.complete();
+    _receiveReleased = null;
     _receivingMessage = null;
     _receivingMedia = null;
     _accepted = null;
@@ -438,6 +455,7 @@ class PeerFileChannel {
 
   Future<void> close() {
     _closed = true;
+    if (_receiveReleased?.isCompleted == false) _receiveReleased!.complete();
     _sender?.cancel();
     _renewSend?.cancel();
     _renewReceive?.cancel();

@@ -23,7 +23,7 @@ class _Channel implements NovoRudpSecureChannel {
 
 class _Link implements NovoRudpFrameLink, NovoRudpRouteRecovery {
   _Link(this.media);
-  final String? media;
+  String? media;
   @override
   final channel = _Channel();
   final incoming = StreamController<NovoRudpFrame>.broadcast();
@@ -72,12 +72,104 @@ class _Link implements NovoRudpFrameLink, NovoRudpRouteRecovery {
 }
 
 void main() {
+  for (final ending in ['release', 'timeout', 'cancel', 'close']) {
+    test('thumbnail lane bounded wait: $ending', () async {
+      final root = await Directory.systemTemp.createTemp('peer-lane-wait-');
+      final link = _Link('image-thumbnail')..prepared = true;
+      const id = '11111111-1111-4111-8111-111111111111';
+      final repo = MessagingRepository(
+        account: 'receiver',
+        call: (_, params) async => {
+          'messageId': id,
+          'assetId': id,
+          'media': params['media'],
+          'fileId': id,
+          'sender': 'sender',
+          'recipient': 'receiver',
+          'fileName': 'test.webp',
+          'size': 3,
+          'sha256': 'a' * 64,
+          'expiresAt': DateTime.now()
+              .toUtc()
+              .add(const Duration(seconds: 15))
+              .toIso8601String(),
+        },
+      );
+      final channel = PeerFileChannel(
+        link: link,
+        repository: repo,
+        peer: 'sender',
+        privateDirectory: root,
+        canExchange: () => true,
+        cache: ChatSentFileCache(
+          cache: ChatDownloadCache(
+            root: Directory('${root.path}/cache'),
+            key: await AesGcm.with256bits().newSecretKey(),
+          ),
+          checkSession: () async {},
+        ),
+      );
+      try {
+        final thumbnail = await channel.authorize(
+          id,
+          sending: false,
+          media: 'image-thumbnail',
+        );
+        final image = await channel.authorize(
+          id,
+          sending: false,
+          media: 'image',
+        );
+        final first = await channel.receive(thumbnail, () => true);
+        var active = true;
+        final next = channel.receive(image, () => active);
+        final failed = ending == 'release'
+            ? null
+            : expectLater(
+                next,
+                ending == 'timeout'
+                    ? throwsA(isA<TimeoutException>())
+                    : throwsStateError,
+              );
+        await expectLater(
+          channel.receive(image, () => true),
+          throwsStateError,
+          reason: 'only one pending waiter is retained',
+        );
+        if (ending == 'timeout') {
+          await failed;
+          expect(link.requests, greaterThanOrEqualTo(1));
+        } else if (ending == 'close') {
+          await channel.close();
+          await failed;
+        } else {
+          if (ending == 'cancel') active = false;
+          link.media = 'image';
+          await first.close();
+          if (ending == 'release') {
+            final second = await next.timeout(const Duration(seconds: 1));
+            expect(link.requests, 2);
+            await second.close();
+          } else {
+            await failed;
+            expect(link.requests, 1);
+          }
+        }
+        await first.close();
+      } finally {
+        await channel.close();
+        await link.close();
+        await root.delete(recursive: true);
+      }
+    });
+  }
   for (final scenario in [
     (null, false, false, false),
     (null, true, false, false),
     (null, false, true, false),
     (null, false, false, true),
-    for (final media in PeerFileAuthority.mediaKinds) (media, false, false, false),
+    for (final media in PeerFileAuthority.mediaKinds)
+      (media, false, false, false),
   ]) {
     final (media, cancel, delayedReady, staleRoute) = scenario;
     test(
@@ -153,7 +245,9 @@ void main() {
             );
             expect(link.requests, 1);
             if (staleRoute) {
-              await link.acknowledged.future.timeout(const Duration(seconds: 2));
+              await link.acknowledged.future.timeout(
+                const Duration(seconds: 2),
+              );
               expect(link.stalls, 1);
               final requests = link.requests;
               await Future<void>.delayed(const Duration(milliseconds: 1000));
