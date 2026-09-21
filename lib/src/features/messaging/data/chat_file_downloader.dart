@@ -284,8 +284,9 @@ class ChatFileDownloader {
   Future<bool> _tryPeer(
     ChatFileReference ref,
     File destination,
-    void Function(int, int)? onProgress,
-  ) async {
+    void Function(int, int)? onProgress, {
+    bool allowSlowRelayFallback = true,
+  }) async {
     final connect = peerDownload;
     if (connect == null) return false;
     final token = _cancel;
@@ -318,6 +319,58 @@ class ChatFileDownloader {
       if (peer == null) return false;
       phase = 'prepare';
       await _preparePeer(ref, peer);
+      // Count unique newly received bytes, not retransmitted frames or restored
+      // cache. Give the direct route time to establish before choosing HTTP.
+      final transferClock = Stopwatch();
+      var sampledBytes = peer.receivedBytes;
+      var sampledAt = 0;
+      var sampledUdp = peer.receivedRouteStats.udpFrames;
+      var sampledRelay = peer.receivedRouteStats.relayFrames;
+      var slowWindows = 0;
+      var yieldingRelay = false;
+      void checkSlowRelay() {
+        if (!allowSlowRelayFallback ||
+            !active() ||
+            yieldingRelay ||
+            ref.size <= chunkBytes) {
+          return;
+        }
+        final bytes = peer.receivedBytes;
+        if (!transferClock.isRunning) {
+          if (bytes <= sampledBytes) return;
+          transferClock.start();
+          sampledBytes = bytes;
+          sampledUdp = peer.receivedRouteStats.udpFrames;
+          sampledRelay = peer.receivedRouteStats.relayFrames;
+          return;
+        }
+        final now = transferClock.elapsedMilliseconds;
+        final interval = now - sampledAt;
+        if (interval < 2000) return;
+        final routes = peer.receivedRouteStats;
+        final gained = bytes - sampledBytes;
+        final remaining = ref.size - bytes;
+        final relayOnly =
+            routes.udpFrames == sampledUdp && routes.relayFrames > sampledRelay;
+        final slow =
+            relayOnly &&
+            gained * 1000 < 128 * 1024 * interval &&
+            remaining > chunkBytes ~/ 2 &&
+            remaining * interval > gained * 8000;
+        slowWindows = slow ? slowWindows + 1 : 0;
+        sampledBytes = bytes;
+        sampledAt = now;
+        sampledUdp = routes.udpFrames;
+        sampledRelay = routes.relayFrames;
+        if (now >= 8000 && slowWindows >= 2) {
+          yieldingRelay = true;
+          if (!kReleaseMode) debugPrint('PeerDownload slow-relay HTTP handoff');
+          // close checkpoints complete blocks; the owning channel also cancels
+          // the remote attempt. The usual grant/hash checks still apply.
+          unawaited(peer.close());
+        }
+      }
+
       var reported = -1;
       void reportProgress() {
         if (!active() || onProgress == null || ref.size == 0) return;
@@ -329,10 +382,10 @@ class ChatFileDownloader {
       }
 
       reportProgress();
-      progressTimer = Timer.periodic(
-        const Duration(milliseconds: 250),
-        (_) => reportProgress(),
-      );
+      progressTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+        reportProgress();
+        checkSlowRelay();
+      });
       phase = 'receive';
       final source = await peer.completed;
       phase = 'verify';
@@ -703,7 +756,12 @@ class ChatFileDownloader {
               if (earlyRecovery) triedEarlyPeerRecovery = true;
               await _grant(ref);
               final recovered = File('${working.path}/peer-recovered.bin');
-              if (await _tryPeer(ref, recovered, onProgress)) {
+              if (await _tryPeer(
+                ref,
+                recovered,
+                onProgress,
+                allowSlowRelayFallback: false,
+              )) {
                 await httpOutput.close();
                 output = null;
                 digest.close();

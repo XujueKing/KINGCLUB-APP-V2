@@ -24,16 +24,22 @@ class _Channel implements NovoRudpSecureChannel {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _Link implements NovoRudpFrameLink {
+class _Link implements NovoRudpFrameLink, NovoRudpRouteObservations {
   @override
   final channel = _Channel();
-  final incoming = StreamController<NovoRudpFrame>();
+  final incoming = StreamController<NovoRudpFrame>.broadcast();
+  final routes = StreamController<NovoRudpReceivedRoute>.broadcast();
+  @override
+  Stream<NovoRudpReceivedRoute> get receivedRoutes => routes.stream;
   @override
   Stream<NovoRudpFrame> get frames => incoming.stream;
   @override
   Future<void> send(NovoRudpFrame frame) async {}
   @override
-  Future<void> close() => incoming.close();
+  Future<void> close() async {
+    await incoming.close();
+    await routes.close();
+  }
 }
 
 void main() {
@@ -63,7 +69,12 @@ void main() {
   ]) {
     final (corrupt, reverse, media) = scenario;
     for (final recovery
-        in reverse ? ['retry', 'timeout', 'timeout-unavailable'] : ['retry']) {
+        in reverse
+            ? ['retry', 'timeout', 'timeout-unavailable']
+            : !corrupt && media == null
+            ? ['retry', 'slow-relay', 'slow-direct', 'slow-relay-recovery']
+            : ['retry']) {
+      final slowRoute = recovery.startsWith('slow-');
       final routeType = media == null
           ? 'file'
           : media.startsWith('image')
@@ -96,7 +107,7 @@ void main() {
           );
           const blockSize = ChatFileDownloader.chunkBytes;
           final bytes = Uint8List.fromList(
-            List.generate(blockSize * 2 + 3, (i) => i % 251),
+            List.generate(blockSize * (slowRoute ? 3 : 2) + 3, (i) => i % 251),
           );
           final hash = (await Sha256().hash(bytes)).bytes
               .map((b) => b.toRadixString(16).padLeft(2, '0'))
@@ -125,7 +136,10 @@ void main() {
                         ) ~/
                         blockSize;
               requested.add(index);
-              if (reverse && index == 1) {
+              if ((reverse && index == 1) ||
+                  (recovery == 'slow-relay-recovery' &&
+                      peerAttempts == 1 &&
+                      index == 1)) {
                 throw DioException(
                   requestOptions: options,
                   type: recovery == 'retry'
@@ -163,7 +177,7 @@ void main() {
                   'size': bytes.length,
                   'sha256': hash,
                   'chunkBytes': blockSize,
-                  'chunkCount': 3,
+                  'chunkCount': slowRoute ? 4 : 3,
                   'contentType': 'application/octet-stream',
                   'path': media == null
                       ? '/kingclub/chat-file/$messageId'
@@ -177,7 +191,8 @@ void main() {
             resumeCache: cache,
             temporaryDirectory: () async => staging,
             peerDownload: (_, active) async {
-              if (reverse && ++peerAttempts == 1) return null;
+              peerAttempts++;
+              if (reverse && peerAttempts == 1) return null;
               if (recovery == 'timeout-unavailable' && peerAttempts == 2) {
                 return null;
               }
@@ -194,8 +209,12 @@ void main() {
                 await Future<void>.delayed(Duration.zero);
                 const chunk = NovoRudpFileReceiver.chunkSize;
                 final count =
-                    ((reverse ? bytes.length : blockSize) + chunk - 1) ~/ chunk;
+                    ((reverse || slowRoute ? bytes.length : blockSize) +
+                        chunk -
+                        1) ~/
+                    chunk;
                 final start = reverse ? blockSize ~/ chunk : 0;
+                final pace = Stopwatch()..start();
                 if (reverse) {
                   final imported = Stopwatch()..start();
                   while (peer.receivedBytes < start * chunk) {
@@ -206,11 +225,28 @@ void main() {
                   }
                 }
                 for (var i = start; i < count; i++) {
+                  if (slowRoute &&
+                      i * chunk >= blockSize &&
+                      pace.elapsed < const Duration(seconds: 10)) {
+                    await Future<void>.delayed(
+                      const Duration(milliseconds: 30),
+                    );
+                  }
+                  if (!active()) return;
                   final part = bytes.sublist(
                     i * chunk,
                     ((i + 1) * chunk).clamp(0, bytes.length),
                   );
                   if (corrupt && i == 0) part[0] ^= 1;
+                  if (slowRoute) {
+                    link.routes.add((
+                      streamId: BigInt.one,
+                      objectId: BigInt.two,
+                      kind: NovoRudpFrameKind.data,
+                      bytes: part.length,
+                      direct: recovery == 'slow-direct',
+                    ));
+                  }
                   link.incoming.add(
                     NovoRudpFrame(
                       kind: NovoRudpFrameKind.data,
@@ -225,13 +261,14 @@ void main() {
                   final timer = Stopwatch()..start();
                   while (peer.receivedBytes <
                       ((i + 1) * chunk).clamp(0, bytes.length)) {
+                    if (!active()) return;
                     if (timer.elapsed > const Duration(seconds: 3)) {
                       throw StateError('Receive stalled');
                     }
                     await Future<void>.delayed(const Duration(milliseconds: 1));
                   }
                 }
-                if (reverse) {
+                if (reverse || slowRoute) {
                   link.incoming.add(
                     NovoRudpFrame(
                       kind: NovoRudpFrameKind.done,
@@ -268,7 +305,7 @@ void main() {
             } else {
               final file = await downloader
                   .download(ref)
-                  .timeout(const Duration(seconds: 15));
+                  .timeout(Duration(seconds: slowRoute ? 40 : 15));
               expect(await file.readAsBytes(), bytes);
               expect(await staging.list().toList(), hasLength(1));
             }
@@ -279,11 +316,18 @@ void main() {
                   ? recovery == 'timeout'
                         ? [0, 1]
                         : [0, 1, 1, 1]
+                  : recovery == 'slow-direct'
+                  ? <int>[]
+                  : recovery == 'slow-relay-recovery'
+                  ? [1]
+                  : recovery == 'slow-relay'
+                  ? [1, 2, 3]
                   : [1, 2],
             );
             if (reverse) {
               expect(peerAttempts, recovery == 'timeout-unavailable' ? 3 : 2);
             }
+            if (recovery == 'slow-relay-recovery') expect(peerAttempts, 2);
           } finally {
             await downloader.dispose();
             await link.close();
