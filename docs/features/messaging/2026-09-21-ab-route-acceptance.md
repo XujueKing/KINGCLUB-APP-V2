@@ -57,11 +57,12 @@ timestamps and limits; these checks do not replace public-network acceptance.
 | File | 8 MiB automatic peer→HTTP missing-block resume; next file after B restart completed via peer; 2 MiB authenticated ingress includes UDP and relay | Public network, sustained-loss performance |
 | H.264 / HEVC video | Both codecs received over UDP with matching persistent hashes and decoded end frames; 20-second H.264 automatically resumed through HTTP after B stopped; cfbbe494 reduced observed handoff from ~9s to ~4s and reused 1 MiB in the second run | Public-network interruption, incomplete-block repair efficiency, unsupported-HEVC device fallback, human audio confirmation |
 | Voice | Actual 3-second recording received as 20 UDP frames, relay=0; both devices' persistent hashes match | Cross-network/background paths; this run did not assess listening quality |
-| Image | Full 3618-byte image received via encrypted peer relay; display and hash match | Explicit image UDP, larger-image interruption |
+| Image | 3618-byte small image via encrypted peer relay; 1,057,476-byte synthetic full image via authenticated UDP + relay, persistent hashes match, no full-image HTTP GET | Larger-image interruption, cross-network paths |
 
 Detailed records: [file resume](2026-09-21-peer-cancel-resume.md),
 [video](2026-09-21-canonical-video.md), [voice](2026-09-21-canonical-voice.md),
 [image](2026-09-21-canonical-image-fix.md). The installed observation build is
-d3ff0aab; see [stall probe and phone verification](2026-09-21-peer-stall-probe.md)
+882e422b; see [image lane phone verification](2026-09-21-media-lane-contention.md),
+[stall probe and phone verification](2026-09-21-peer-stall-probe.md)
 and [prefix repair verification](2026-09-21-prefix-repair.md) for APK hashes,
 measured recovery timing and the latest 2 MiB cache reuse result.
