@@ -210,6 +210,19 @@ class NovoRudpLanRoute {
       _unknownAddresses = 0,
       _invalidPackets = 0;
   Future<void>? _closing;
+  bool _announcing = false;
+
+  // Candidate signaling must not stall or invalidate an authenticated UDP
+  // path. Coalesce pending announcements instead of accumulating carrier work.
+  void _announce() {
+    if (_closed || _announcing) return;
+    _announcing = true;
+    unawaited(
+      advertise().catchError((Object _) {}).whenComplete(() {
+        _announcing = false;
+      }),
+    );
+  }
 
   void _socketError(RawDatagramSocket socket, Object error) {
     if (_closed || !_events.containsKey(socket)) return;
@@ -245,7 +258,7 @@ class NovoRudpLanRoute {
     }
     socket.close();
     unawaited(_events.remove(socket)?.cancel());
-    unawaited(advertise().catchError((Object _) {}));
+    _announce();
     unawaited(_probe().catchError((Object _) {}));
   }
 
@@ -382,11 +395,7 @@ class NovoRudpLanRoute {
           // A replaced peer socket has lost our candidates. Reply once to a
           // changed advertisement, rather than waiting for the 30-second tick.
           // Unchanged advertisements do not reply, preventing an echo loop.
-          try {
-            await advertise();
-          } catch (_) {
-            // Control-carrier failure must not suppress existing UDP probes.
-          }
+          _announce();
         }
         await _probe();
       } else if (datagram &&
@@ -472,7 +481,7 @@ class NovoRudpLanRoute {
       }
       unawaited(_discover());
       // Refresh after joining/changing Wi-Fi, including routes opened on cellular.
-      if (tick < 4 || tick % 15 == 0) await advertise();
+      if (tick < 4 || tick % 15 == 0) _announce();
       await _probe();
       if (!kReleaseMode && (tick == 4 || tick % 15 == 14)) {
         debugPrint(
@@ -566,7 +575,7 @@ class NovoRudpLanRoute {
             if (!kReleaseMode) _stunReplies++;
             _mappedAge = Stopwatch()..start();
             _binding = null;
-            unawaited(advertise().catchError((Object _) {}));
+            _announce();
           }
           continue;
         }
