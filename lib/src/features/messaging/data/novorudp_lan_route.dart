@@ -107,9 +107,12 @@ class NovoRudpLanRoute {
           await (bindIpv6?.call() ??
               RawDatagramSocket.bind(InternetAddress.anyIPv6, 0));
       ipv6Addresses = await _globalIpv6Addresses();
-    } on SocketException {
+    } on SocketException catch (error) {
       ipv6Socket?.close();
       ipv6Socket = null;
+      if (!kReleaseMode) {
+        debugPrint('NovoRoute ipv6Unavailable code=${error.osError?.errorCode}');
+      }
       // IPv6 being unavailable must never disable IPv4/relay.
     }
     return NovoRudpLanRoute._(
@@ -424,6 +427,7 @@ class NovoRudpLanRoute {
           'candidates=${_candidates.length} '
           'publicCandidates=${_candidates.where((e) => _public(e.address)).length} '
           'ipv6Candidates=${_candidates.where((e) => isGlobalIpv6(e.address)).length} '
+          'ipv6Socket=${_ipv6Socket != null && !_ipv6Failed} localIpv6=${_ipv6Addresses.length} '
           'probeSends=$_probeSends pingReceives=$_pingReceives '
           'pongReceives=$_pongReceives portMismatches=$_portMismatches '
           'unknownAddresses=$_unknownAddresses '

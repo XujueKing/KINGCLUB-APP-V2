@@ -9,3 +9,9 @@
 后续仍需验证实际双端 IPv6 加密数据传输与网络接口切换；本次新增候选不能关闭公网直连验收项。
 
 故障隔离补充：IPv6 socket 运行中关闭/报错，只撤回 IPv6 候选并使旧探测失效，继续保持 IPv4 socket 和成员安全会话；后续探测可恢复 IPv4。初始绑定失败和运行中关闭均有真实 socket 生命周期回归，不能因为可选 IPv6 故障关闭整个直连通道。
+
+## 464b709b 双机安装
+
+A、B 覆盖安装成功，profile APK SHA-256 为 `7eac9a30811dd34d95578e656ba9646d4ad9b04b5ec41bf794118cd629bbdb0c`。
+双向实际消息 `398de3f3-0e4b-44c6-a157-9f8bb1aa6d6a` 与 `2adc5ec3-416c-4a23-8ef3-529b6029878d` 均进入两端 peer journal，A 界面显示两条测试标记。
+两端直连 ready=false，不能算 UDP 验收。B 仍只有链路本地 IPv6；A 系统网卡有全球 IPv6，但 B 的候选诊断 ipv6Candidates=0，客户端 IPv6 发现/通报是否生效仍待定位。新增 profile 诊断只输出 socket 可用性、本地候选数量和错误码，不输出地址或内容。
