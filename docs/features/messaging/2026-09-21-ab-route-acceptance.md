@@ -68,3 +68,7 @@ and [prefix repair verification](2026-09-21-prefix-repair.md) for APK hashes,
 measured recovery timing and the latest 2 MiB cache reuse result.
 
 Actual larger-image interruption evidence: [automatic image resume](2026-09-21-image-auto-resume.md).
+
+Actual short foreground/background transitions, service fallback and subsequent
+peer recovery: [background route recovery](2026-09-21-background-route-recovery.md).
+This does not cover OS eviction, prolonged suspension or background push.
