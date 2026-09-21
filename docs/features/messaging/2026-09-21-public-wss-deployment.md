@@ -24,3 +24,33 @@ using the original Wi-Fi despite a connected mobile network. Disabled A Wi-Fi
 for the authorized cross-network test; default network changed to validated
 MOBILE[NR]/cmnet. B remains on the original Wi-Fi. These supersede the previous
 no-SIM and WSS-approval blockers, but do not themselves prove peer connectivity.
+
+## Installed build and first cross-network checks
+
+A/B both installed the f2fc5b70 public-endpoint profile build successfully.
+APK SHA-256: `c314f6bbf4d976460657d9e5babe14710f411615ed84ca6a3d7bfb081872abc5`.
+Build took 124.0 seconds; both existing test accounts remained signed in.
+
+At 13:53:37 B sent a synthetic text. Both peer journals acquired
+`118b7ee6-4b8e-4bab-999f-6fe2a6130e14`; B stored delivered=1 and A displayed it.
+This confirms authenticated cross-network peer carriage, not its UDP subtype.
+
+The first image selection returned to chat without showing the preview and
+coincided with a device-binding AuthFailure/retry. Reselecting succeeded.
+No cause is asserted from this coincidence; selector/session behavior remains
+an observation to investigate if reproduced.
+
+Synthetic image message `e88bd077-8f1e-4e2d-b78c-1aab4d07cbe2` used the same
+3,310,848-byte canonical WebP as the earlier interruption test. B logged image
+source-ready at 13:57:42.528; A completed at 13:58:35.854 with UDP=0 and relay
+5,070 frames / 4,947,600 bytes (including retransmissions). Its two persistent
+full-image entries match SHA-256
+`d862c9b89320beabd7a3bf8d8d135517861ca39ef7ea593d9eb6d05f21b2e773`.
+Server access logs for this message contain only the 3,860-byte thumbnail GET,
+not the full image. Logs also establish different public client exits for A/B;
+the addresses are not recorded here.
+
+Public encrypted-relay delivery passes this check. Public UDP direct carriage
+does not: its count is zero. The roughly 53-second image transfer is not accepted
+as a performance target. Next work is to diagnose candidate/mapping/probe behavior
+and carrier NAT restrictions, then verify recovery/interruption on this topology.
