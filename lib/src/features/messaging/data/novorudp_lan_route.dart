@@ -446,15 +446,21 @@ class NovoRudpLanRoute {
             candidates.map((a) => '${a.address.address}:${a.port}').join(',') ==
             _candidates.map((a) => '${a.address.address}:${a.port}').join(',');
         if (!unchanged) {
-          final keepPeer = ready && candidates.any((a) => a == _peer);
-          _endpointEpoch++;
-          _probes.clear();
-          if (!keepPeer) {
+          // STUN discoveries arrive incrementally. Adding another candidate
+          // does not revoke an existing endpoint, pending challenge or an
+          // authenticated observed NAT mapping. Keep in-flight encryption and
+          // decryption valid too; advancing the epoch would discard them.
+          final onlyAdded = _candidates.every(candidates.contains);
+          if (!onlyAdded) {
+            // A withdrawal/replacement may represent a peer network change.
+            // Require a fresh return-path check, including observed mappings.
+            _endpointEpoch++;
+            _probes.clear();
             _confirmed = null;
             _peer = null;
+            _reflexive.clear();
           }
           _candidates = candidates;
-          _reflexive.clear();
           // A replaced peer socket has lost our candidates. Reply once to a
           // changed advertisement, rather than waiting for the 30-second tick.
           // Unchanged advertisements do not reply, preventing an echo loop.
