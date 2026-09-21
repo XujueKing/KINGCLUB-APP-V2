@@ -80,3 +80,25 @@ The report also groups absolute source-port distance into zero, within8,
 within64, within1024 or over1024. It exposes neither port value. Independent
 socket samples can reject a small-neighborhood assumption for those samples;
 they cannot prove random allocation or predict the mapping toward another IP.
+
+## Bounded multi-socket reachability experiment
+
+Compile `PoolPunchProbe.java` together with `NatMappingProbe.java` and include
+both classes in the dex. `pool_punch.py --adb PATH --pool-device A --single-device B
+--observer IPV4` coordinates an explicitly authorized pair over private pipes.
+A opens 128 sockets, samples four STUN mappings, then sends up to eight rounds
+to B's single observed endpoint (1024 probes). B considers only those observed
+IPs (at most four), probes random unprivileged ports with a maximum of 2048
+packets over 4.5 seconds, and both stop after eight seconds. Each limits token
+replies to 64. Results contain only candidate count and counters. Remove both
+temporary dex files after execution. This is not installed in the chat app.
+
+The shared one-run random token prevents unrelated packets counting as a result;
+it is plaintext, is not an authenticated/encrypted production peer protocol,
+and does not prove message delivery. No firewall setting or network switch is
+performed. Failure cannot distinguish candidate-IP mismatch from filtering or
+an unsuccessful probabilistic search; do not expand the budget automatically.
+
+`pool_punch_local_check.py` is a positive control using the compiled JVM classes
+and a local STUN stub. It needs a private IPv4 interface and free loopback UDP
+3478. It confirms both roles receive ping and pong, not internet NAT traversal.
