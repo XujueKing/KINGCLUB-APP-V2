@@ -99,6 +99,11 @@ class NovoRudpRelayFrameLink
         NovoRudpLanRoute.stunHost.isNotEmpty ||
         NovoRudpLanRoute.stunFallbacks.isNotEmpty) {
       unawaited(_openLan());
+      _lanRecoveryTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        if (!_closed && (_lan == null || _lan!.isClosed)) {
+          unawaited(_openLan());
+        }
+      });
     }
     if (authorize != null) {
       _authorizationTimer = Timer.periodic(const Duration(seconds: 15), (_) {
@@ -160,7 +165,13 @@ class NovoRudpRelayFrameLink
   }
 
   Future<void> _openLan() async {
+    if (_closed || _openingLan) return;
+    _openingLan = true;
     try {
+      _check();
+      await _lan?.close();
+      _lan = null;
+      _check();
       final route = await openLanRoute(
         channel: channel,
         sendControl: send,
@@ -183,9 +194,13 @@ class NovoRudpRelayFrameLink
     } catch (_) {
       await _lan?.close();
       _lan = null;
+    } finally {
+      _openingLan = false;
     }
   }
 
+  bool _openingLan = false;
+  Timer? _lanRecoveryTimer;
   Timer? _authorizationTimer;
   Future<void>? _authorization;
   @override
@@ -269,6 +284,7 @@ class NovoRudpRelayFrameLink
   Future<void> close() {
     _closed = true;
     _authorizationTimer?.cancel();
+    _lanRecoveryTimer?.cancel();
     return _closing ??= _close();
   }
 

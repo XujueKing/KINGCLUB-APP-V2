@@ -249,6 +249,8 @@ class NovoRudpLanRoute {
     unawaited(_probe().catchError((Object _) {}));
   }
 
+  bool get isClosed => _closed;
+
   bool get ready =>
       !_closed &&
       _confirmed != null &&
