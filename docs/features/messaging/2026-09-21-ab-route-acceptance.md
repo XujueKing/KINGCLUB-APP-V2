@@ -140,3 +140,23 @@ Neither observation proves a particular NAT type or that the WAN lacks a public
 address. No router settings were changed. The operator was asked for the WAN
 address category, without credentials. There is no reason to reinstall the same
 build or repeat already accepted LAN media tests while that prerequisite is unknown.
+
+## Gateway inspected after operator reopened the page
+
+Browser access recovered. The authenticated gateway information page shows a
+WAN IPv4 in `100.64.0.0/10`, a globally scoped WAN IPv6, and model HN8141N
+(no built-in Wi-Fi). Do not publish the complete WAN addresses or device serial.
+The mapping list has no entries. The available LAN settings expose IPv4 address,
+mask and DHCP range only; no IPv6 delegation/RA control was visible.
+
+At the same checkpoint, B's actual `wlan0` has only a `fe80::/64` link-local
+IPv6 address. Thus the gateway's WAN IPv6 does not establish an IPv6 path for B.
+The shared IPv4 WAN is not directly globally routable (RFC 6598); adding a
+mapping on this gateway alone does not configure the upstream carrier NAT.
+This is not proof that all UDP punching through the carrier is impossible, nor
+proof of its filtering policy. Existing direct probes remain unaccepted.
+
+No router settings were changed. A controlled public IPv4 entry needs carrier
+provisioning/upstream mapping; an IPv6 alternative needs LAN delegation and a
+client IPv6 transport implementation (the current UDP route binds IPv4).
+Reference: https://www.rfc-editor.org/rfc/rfc6598.html
