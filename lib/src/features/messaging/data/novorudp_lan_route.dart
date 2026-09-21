@@ -92,6 +92,7 @@ class NovoRudpLanRoute {
     int observerPort = stunPort,
     String observerFallbacks = stunFallbacks,
     @visibleForTesting Future<RawDatagramSocket> Function()? bindIpv6,
+    @visibleForTesting Future<List<String>> Function()? discoverIpv6,
   }) async {
     final observers = parseObservers(
       observerHost,
@@ -102,11 +103,12 @@ class NovoRudpLanRoute {
     final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
     RawDatagramSocket? ipv6Socket;
     var ipv6Addresses = <String>[];
+    final bind6 =
+        bindIpv6 ?? () => RawDatagramSocket.bind(InternetAddress.anyIPv6, 0);
+    final discover6 = discoverIpv6 ?? _globalIpv6Addresses;
     try {
-      ipv6Socket =
-          await (bindIpv6?.call() ??
-              RawDatagramSocket.bind(InternetAddress.anyIPv6, 0));
-      ipv6Addresses = await _globalIpv6Addresses();
+      ipv6Socket = await bind6();
+      ipv6Addresses = await discover6();
     } on SocketException catch (error) {
       ipv6Socket?.close();
       ipv6Socket = null;
@@ -121,6 +123,8 @@ class NovoRudpLanRoute {
       socket,
       ipv6Socket,
       ipv6Addresses,
+      bind6,
+      discover6,
       channel,
       addresses,
       sendControl,
@@ -135,6 +139,8 @@ class NovoRudpLanRoute {
     this._socket,
     this._ipv6Socket,
     this._ipv6Addresses,
+    this._bindIpv6,
+    this._discoverIpv6,
     this.channel,
     this.addresses,
     this.sendControl,
@@ -144,17 +150,7 @@ class NovoRudpLanRoute {
     this._observers,
   ) {
     for (final socket in [_socket, ?_ipv6Socket]) {
-      socket.writeEventsEnabled = false;
-      _events.add(
-        socket.listen(
-          (event) {
-            if (event == RawSocketEvent.read) unawaited(_read(socket));
-            if (event == RawSocketEvent.closed) _socketEnded(socket);
-          },
-          onError: (Object error) => _socketError(socket, error),
-          onDone: () => _socketEnded(socket),
-        ),
-      );
+      _listen(socket);
     }
     _timer = Timer.periodic(
       const Duration(seconds: 2),
@@ -163,14 +159,28 @@ class NovoRudpLanRoute {
     unawaited(_discover());
   }
 
+  void _listen(RawDatagramSocket socket) {
+    socket.writeEventsEnabled = false;
+    _events[socket] = socket.listen(
+      (event) {
+        if (event == RawSocketEvent.read) unawaited(_read(socket));
+        if (event == RawSocketEvent.closed) _socketEnded(socket);
+      },
+      onError: (Object error) => _socketError(socket, error),
+      onDone: () => _socketEnded(socket),
+    );
+  }
+
   final RawDatagramSocket _socket;
-  final RawDatagramSocket? _ipv6Socket;
+  RawDatagramSocket? _ipv6Socket;
+  final Future<RawDatagramSocket> Function() _bindIpv6;
+  final Future<List<String>> Function() _discoverIpv6;
   bool _ipv6Failed = false;
   final List<String> _ipv6Addresses;
   final NovoRudpSecureChannel channel;
   final List<String> addresses;
   final Future<void> Function(NovoRudpFrame) sendControl, deliver;
-  final _events = <StreamSubscription<RawSocketEvent>>[];
+  final _events = <RawDatagramSocket, StreamSubscription<RawSocketEvent>>{};
   final _readingSockets = <RawDatagramSocket>{};
   late final Timer _timer;
   _Endpoint? _peer, _mapped;
@@ -202,7 +212,7 @@ class NovoRudpLanRoute {
   Future<void>? _closing;
 
   void _socketError(RawDatagramSocket socket, Object error) {
-    if (_closed) return;
+    if (_closed || !_events.containsKey(socket)) return;
     if (error is SocketException) {
       // UDP can report ICMP unreachable for one candidate while the socket is
       // still usable. Only closed/done events retire an address family.
@@ -222,7 +232,7 @@ class NovoRudpLanRoute {
       unawaited(close());
       return;
     }
-    if (_ipv6Failed) return;
+    if (!identical(socket, _ipv6Socket) || _ipv6Failed) return;
     _ipv6Failed = true;
     _endpointEpoch++;
     _probes.clear();
@@ -234,6 +244,7 @@ class NovoRudpLanRoute {
       _confirmed = null;
     }
     socket.close();
+    unawaited(_events.remove(socket)?.cancel());
     unawaited(advertise().catchError((Object _) {}));
     unawaited(_probe().catchError((Object _) {}));
   }
@@ -271,7 +282,7 @@ class NovoRudpLanRoute {
         'addresses': addresses,
         'port': _socket.port,
         if (_ipv6Socket != null && _ipv6Addresses.isNotEmpty)
-          'ipv6': {'addresses': _ipv6Addresses, 'port': _ipv6Socket.port},
+          'ipv6': {'addresses': _ipv6Addresses, 'port': _ipv6Socket!.port},
         if (_mapped != null)
           'public': {
             'address': _mapped!.address.address,
@@ -334,7 +345,10 @@ class NovoRudpLanRoute {
           }
         }
         final v6 = body['ipv6'];
-        if (_ipv6Socket != null && !_ipv6Failed && v6 is Map) {
+        if (_ipv6Socket != null &&
+            !_ipv6Failed &&
+            _ipv6Addresses.isNotEmpty &&
+            v6 is Map) {
           final hosts = v6['addresses'], port6 = v6['port'];
           if (hosts is List &&
               hosts.length <= 2 &&
@@ -412,10 +426,22 @@ class NovoRudpLanRoute {
       final tick = _advertisements++;
       if (tick % 15 == 0) {
         final current = await _localAddresses();
-        final current6 = _ipv6Socket == null || _ipv6Failed
-            ? <String>[]
-            : await _globalIpv6Addresses();
+        var current6 = await _discoverIpv6();
         if (_closed) return;
+        if (current6.isNotEmpty && (_ipv6Socket == null || _ipv6Failed)) {
+          try {
+            final restored = await _bindIpv6();
+            if (_closed) {
+              restored.close();
+              return;
+            }
+            _ipv6Socket = restored;
+            _ipv6Failed = false;
+            _listen(restored);
+          } on SocketException {
+            current6 = [];
+          }
+        }
         if (jsonEncode(current) != jsonEncode(addresses) ||
             jsonEncode(current6) != jsonEncode(_ipv6Addresses)) {
           _endpointEpoch++;
@@ -591,7 +617,7 @@ class NovoRudpLanRoute {
       _confirmed = null;
     } finally {
       _readingSockets.remove(socket);
-      if (!_closed && !(identical(socket, _ipv6Socket) && _ipv6Failed)) {
+      if (!_closed && _events.containsKey(socket)) {
         socket.readEventsEnabled = true;
       }
     }
@@ -603,8 +629,9 @@ class NovoRudpLanRoute {
     _timer.cancel();
     _socket.close();
     _ipv6Socket?.close();
-    return _closing ??= Future.wait(_events.map((event) => event.cancel()))
-        .then((_) {});
+    return _closing ??= Future.wait(
+      _events.values.map((event) => event.cancel()),
+    ).then((_) {});
   }
 
   Future<void> _discover() async {

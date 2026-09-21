@@ -22,3 +22,12 @@ A、B 覆盖安装成功，profile APK SHA-256 为 `7eac9a30811dd34d95578e656ba9
 A 报告 ipv6Socket=true、localIpv6=2；B 报告 ipv6Socket=false、localIpv6=0。这排除了 A 未发现地址的猜测，但并不证明 IPv6 直连。
 
 代码检查发现 RawDatagramSocket 的所有 onError 都会退役 socket，而 UDP 的 SocketException 也可能仅表示某个目的地 ICMP 不可达。改为保留 socket，必要时使当前路径不再被视为健康，按既有定时器重新探测；仅 closed/onDone 或非 socket 错误退役。增加注入 network-unreachable 错误后仍会探测新 IPv6 候选的回归，连同四项原有 IPv6 测试通过。B 实机恢复候选仍待新构建验证，不能仅由上述计数断言已捕获其具体系统错误。
+
+## bcfb0f9b 实机纠正
+
+两端安装 APK `245e294ec45d1c2e75a0cf0b8cfe1bc4fab885d64007036d7cc406a638f92115`。
+双向消息 `30e13fa7-73bb-4254-8e1b-95d9d65a9ab0`、`a427b9c6-c597-48c1-8bd4-ac07f94a3c15` 两端 journal 一致，发送方 delivered=1。B 仍显示 ipv6Socket=false，上一版不能视为实机恢复通过。
+
+检查当前 Dart SDK `_RawDatagramSocket` 发现其 error handler 在 addError 后主动关闭底层 socket。因此单纯应用 onError 不关闭并不能阻止 SDK 关闭；原来的注入测试只覆盖应用回调，没有覆盖 SDK 生命周期。
+
+修正为无本机全球 IPv6 时不探测远端 IPv6；全局地址重新出现时，按已有接口刷新周期重新绑定失败的 IPv6 socket 并通报新端口。旧 socket 订阅及时移除，迟到回调不会复活旧路径。新增真实 IPv6 socket 关闭→重新绑定测试，保留 IPv4 端口不变；地址发现由测试注入，不宣称具有公网 IPv6。相关七项测试通过，仍待双机新构建验证。

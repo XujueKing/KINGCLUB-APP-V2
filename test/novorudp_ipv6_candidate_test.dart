@@ -54,12 +54,74 @@ class _ErrorSocket implements RawDatagramSocket {
 }
 
 void main() {
+  test('closed IPv6 socket rebinds when global address is available', () async {
+    final sockets = <RawDatagramSocket>[];
+    final ads = <Map>[];
+    final route = (await NovoRudpLanRoute.open(
+      channel: _Channel(),
+      bindIpv6: () async {
+        final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv6, 0);
+        sockets.add(socket);
+        return socket;
+      },
+      discoverIpv6: () async => ['240e::5'],
+      sendControl: (frame) async {
+        ads.add(jsonDecode(utf8.decode(frame.payload)) as Map);
+      },
+      deliver: (_) async {},
+    ))!;
+    addTearDown(route.close);
+    await route.advertise();
+    sockets.first.close();
+    final wait = Stopwatch()..start();
+    while (sockets.length < 2 && wait.elapsed < const Duration(seconds: 4)) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(sockets.length, 2);
+    await route.advertise();
+    expect((ads.last['ipv6'] as Map)['port'], sockets.last.port);
+    expect(ads.last['port'], ads.first['port'], reason: 'IPv4 socket retained');
+  });
+  test('no local global IPv6 means no unreachable remote IPv6 probe', () async {
+    final channel = _Channel();
+    final route = (await NovoRudpLanRoute.open(
+      channel: channel,
+      bindIpv6: () async => _ErrorSocket(),
+      discoverIpv6: () async => [],
+      sendControl: (_) async {},
+      deliver: (_) async {},
+    ))!;
+    addTearDown(route.close);
+    await route.acceptControl(
+      NovoRudpFrame(
+        kind: NovoRudpFrameKind.data,
+        sessionId: channel.sessionId,
+        streamId: NovoRudpLanRoute.controlStream,
+        objectId: BigInt.zero,
+        sequence: BigInt.zero,
+        ackEpoch: BigInt.zero,
+        payload: utf8.encode(
+          jsonEncode({
+            'op': 'endpoint',
+            'addresses': [],
+            'port': 12000,
+            'ipv6': {
+              'addresses': ['240e::1234'],
+              'port': 12000,
+            },
+          }),
+        ),
+      ),
+    );
+    expect(channel.probes, 0);
+  });
   test('unreachable IPv6 candidate does not retire a usable socket', () async {
     final socket = _ErrorSocket();
     final channel = _Channel();
     final route = (await NovoRudpLanRoute.open(
       channel: channel,
       bindIpv6: () async => socket,
+      discoverIpv6: () async => ['240e::5'],
       sendControl: (_) async {},
       deliver: (_) async {},
     ))!;
@@ -167,6 +229,7 @@ void main() {
       final channel = _Channel();
       final route = (await NovoRudpLanRoute.open(
         channel: channel,
+        discoverIpv6: () async => ['240e::5'],
         sendControl: (_) async {},
         deliver: (_) async {},
       ))!;
