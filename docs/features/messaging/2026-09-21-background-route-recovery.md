@@ -31,3 +31,29 @@ authenticated peer transport, but do not distinguish UDP from encrypted relay
 carriage. This does not accept prolonged OS suspension, process eviction,
 background push, public cross-network NAT traversal, or independent-carrier
 recovery. Those scopes remain outstanding.
+
+## Public-network follow-up, 15:27–15:33
+
+Both phones ran a6cd895d. A used cellular data and B used Wi-Fi, with the
+approved public WSS relay. A was sent to Android Home at 15:27:08 and brought
+back at 15:29:08. Its PID remained 19739 at 0, 30, 60, 90 and 120 seconds.
+B sent the synthetic `KC-BACKGROUND-PUBLIC-1527` marker during this interval.
+After return, A's conversation displayed it without a refresh action; the
+peer journal counts were unchanged (A 19, B 20). This is service synchronization
+after backgrounding, not a claim of background peer delivery.
+
+A then sent `KC-RETURN-PUBLIC-1530`. Both journals acquired
+`c1382ce8-1bd1-42f1-9efc-65eb5a7dbedc`, A outgoing delivered=1, and B's actual
+conversation displayed the marker. Peer communication recovered without
+restarting or logging in again. A's route diagnostics still reported ready=false,
+one public candidate, zero accepted ping/pong and zero port mismatches, so this
+does not establish public UDP direct connectivity.
+
+This extends the earlier foreground recovery check to different networks and
+a two-minute retained process. It does not cover Doze, OS eviction or background
+notifications. No application code or server configuration was changed.
+
+Diagnostic limitation found during review: the current UDP receive filter counts
+same-address/different-port packets, but discards unknown source addresses before
+authentication without a counter. Zero accepted probes therefore cannot establish
+that no UDP datagrams arrived at all, nor identify the NAT or carrier policy.
