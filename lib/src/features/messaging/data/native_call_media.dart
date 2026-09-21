@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'call_audio_constraints.dart';
+import 'call_route_diagnostics.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -79,6 +82,8 @@ class NativeCallMedia {
   final void Function(MediaStream)? onRemoteStream;
   MediaStream? _local, _remote;
   RTCPeerConnection? _peer;
+  Timer? _routeDiagnostics;
+  bool _readingRouteStats = false;
   Future<void>? _opening, _closing;
   Future<RTCSessionDescription>? _restarting;
   bool _closed = false, _remoteReady = false;
@@ -128,6 +133,12 @@ class NativeCallMedia {
       _peer!.onConnectionState = (state) {
         if (!_closed) onConnection?.call(state);
       };
+      if (kProfileMode) {
+        _routeDiagnostics = Timer.periodic(
+          const Duration(seconds: 5),
+          (_) => unawaited(_reportRoute()),
+        );
+      }
       _peer!.onTrack = (event) {
         if (_closed || event.streams.isEmpty) return;
         _remote = event.streams.first;
@@ -141,6 +152,23 @@ class NativeCallMedia {
       _closed = true;
       await _release();
       rethrow;
+    }
+  }
+
+  Future<void> _reportRoute() async {
+    final peer = _peer;
+    if (_closed || peer == null || _readingRouteStats) return;
+    _readingRouteStats = true;
+    try {
+      final reports = await peer.getStats();
+      if (_closed || !identical(peer, _peer)) return;
+      for (final summary in callRouteDiagnostics(reports)) {
+        debugPrint('CallRoute $summary');
+      }
+    } catch (_) {
+      // Diagnostics never interrupt capture, negotiation or cleanup.
+    } finally {
+      _readingRouteStats = false;
     }
   }
 
@@ -358,6 +386,8 @@ class NativeCallMedia {
   }
 
   Future<void> _release() async {
+    _routeDiagnostics?.cancel();
+    _routeDiagnostics = null;
     final peer = _peer;
     _peer = null;
     final streams = {?_local, ?_remote};
