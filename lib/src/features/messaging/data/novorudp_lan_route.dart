@@ -379,6 +379,14 @@ class NovoRudpLanRoute {
           _peer = null;
           _candidates = candidates;
           _reflexive.clear();
+          // A replaced peer socket has lost our candidates. Reply once to a
+          // changed advertisement, rather than waiting for the 30-second tick.
+          // Unchanged advertisements do not reply, preventing an echo loop.
+          try {
+            await advertise();
+          } catch (_) {
+            // Control-carrier failure must not suppress existing UDP probes.
+          }
         }
         await _probe();
       } else if (datagram &&
