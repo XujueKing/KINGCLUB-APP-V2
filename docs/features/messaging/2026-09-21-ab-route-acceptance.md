@@ -73,7 +73,7 @@ Actual short foreground/background transitions, service fallback and subsequent
 peer recovery: [background route recovery](2026-09-21-background-route-recovery.md).
 This does not cover OS eviction, prolonged suspension or background push.
 
-## Public-network prerequisites rechecked
+## Earlier public-network prerequisite checkpoint (superseded below)
 
 After installation of f2fc5b70, both authorized USB devices remain connected.
 Both report `gsm.sim.state=ABSENT,ABSENT`. A's mobile-data setting is enabled,
@@ -91,3 +91,22 @@ The operator has been asked to confirm this exact WSS path and provide an
 independent mobile hotspot for B while A remains on the current Wi-Fi.
 Without those conditions, no public cross-network peer, interruption or recovery
 acceptance is claimed. Repeating same-LAN checks cannot close this requirement.
+
+## Current public-network checkpoint
+
+The operator subsequently authorized public WSS and connected A through cellular
+data. The WSS path is active; A cellular/B Wi-Fi was verified on both devices.
+The earlier missing-authorization/missing-independent-network blockers above no
+longer apply. See [deployment](2026-09-21-public-wss-deployment.md).
+
+Current installed code is a6cd895d on both devices. Public encrypted-relay text
+and images, automatic image HTTP fallback with matching persistent digest,
+slow-relay handoff, and text reception on an attachment-initiated lane have
+actual device evidence. See [slow relay](2026-09-21-slow-relay-handoff.md) and
+[text after attachment](2026-09-21-text-after-attachment.md).
+
+Public UDP probes still receive no incoming peer packets on this topology;
+do not relabel relay delivery as direct UDP. Public mid-transfer reuse of an
+already complete block, cross-network voice/video interruption, and prolonged
+background/OS-eviction behavior remain unaccepted. Existing LAN and automatic
+regression results do not substitute for these broader device checks.
