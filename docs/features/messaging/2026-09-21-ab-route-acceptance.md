@@ -99,7 +99,7 @@ data. The WSS path is active; A cellular/B Wi-Fi was verified on both devices.
 The earlier missing-authorization/missing-independent-network blockers above no
 longer apply. See [deployment](2026-09-21-public-wss-deployment.md).
 
-Current installed code is a6cd895d on both devices. Public encrypted-relay text
+Current installed code is e8175015 on both devices. Public encrypted-relay text
 and images, automatic image HTTP fallback with matching persistent digest,
 slow-relay handoff, and text reception on an attachment-initiated lane have
 actual device evidence. See [slow relay](2026-09-21-slow-relay-handoff.md) and
@@ -115,3 +115,28 @@ Cross-network voice now has peer-relay delivery, sender-offline HTTP fallback,
 and receiver-offline local player evidence; see [public voice](2026-09-21-public-voice.md).
 Human audio quality, prolonged background/OS-eviction behavior and public UDP
 direct carriage remain unaccepted. LAN and automatic tests do not replace them.
+
+## Consolidated current evidence
+
+| Goal requirement | Current evidence | Limit |
+| --- | --- | --- |
+| Peer-first text, fallback and recovery | Actual A/B LAN UDP with relay suspended; service fallback while relay stopped; durable peer receipts after restart; public WSS text | Public phone-to-phone UDP remains unaccepted |
+| Shared UDP/HTTP media blocks and resume | Actual LAN image/video/file interrupted transfer reuses verified complete blocks; public 8 MiB file reopens after process stop and requests only missing blocks | Public file process-stop case requires reopening; not automatic background restart |
+| Images | Canonical complete image digests match; public slow-relay handoff to HTTP | Public UDP image unavailable in current topology |
+| Voice | Actual LAN UDP; public encrypted relay; sender-offline HTTP; receiver-offline local playback | New runs verify transport/player execution, not human audio quality |
+| Video | Actual LAN H.264/HEVC UDP and decoding; public sender-interruption automatic HTTP recovery and decoding | Public interruption had no complete cached block; unsupported-HEVC hardware not tested |
+| Stable return from background | Actual public two-minute retained-process return, service sync, next peer message acknowledged | Not Doze, process eviction or background push |
+| NAT port changes | Real sockets with native authenticated channel: observed port requires nonce return probe; 10 related checks passed | Actual phones see no inbound probe to trigger learning; does not guarantee traversal of all NATs |
+| GitHub delivery | Code e8175015 and device evidence 8bcb4af9 pushed | This matrix is a later documentation update |
+
+See [observed UDP port](2026-09-21-observed-udp-port.md) and the public follow-up
+in [background recovery](2026-09-21-background-route-recovery.md).
+
+The remaining public-direct investigation currently needs the Wi-Fi gateway's
+WAN/reachability state. Gateway HTTP responds, but the browser control channel
+times out reading its existing tab. Explicit WLAN-interface IGD discovery returned
+no response; the NAT-PMP address-query attempt encountered a UDP socket reset.
+Neither observation proves a particular NAT type or that the WAN lacks a public
+address. No router settings were changed. The operator was asked for the WAN
+address category, without credentials. There is no reason to reinstall the same
+build or repeat already accepted LAN media tests while that prerequisite is unknown.
