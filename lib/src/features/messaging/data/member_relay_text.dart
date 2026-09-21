@@ -14,7 +14,9 @@ class MemberRelayText {
     if (history.account != runtime.binding.messaging.account) {
       throw ArgumentError('Relay history belongs to another account');
     }
-    _incoming = runtime.incomingChannels.listen((arrival) {
+    // Files can initiate a shared lane before this member sends any text.
+    // Attach text on both directions so the other member can reply immediately.
+    _incoming = runtime.channels.listen((arrival) {
       try {
         _attach(arrival.peer, arrival.link);
       } catch (_) {
