@@ -62,211 +62,236 @@ void main() {
       (true, false, media),
   ]) {
     final (corrupt, reverse, media) = scenario;
-    final routeType = media == null
-        ? 'file'
-        : media.startsWith('image')
-        ? 'image'
-        : media == 'voice'
-        ? 'voice'
-        : 'video';
-    final slot = media == null
-        ? 'file'
-        : media.endsWith('thumbnail')
-        ? 'thumbnail'
-        : routeType;
-    final contentType = routeType == 'image'
-        ? 'image/webp'
-        : routeType == 'voice'
-        ? 'audio/mp4'
-        : slot == 'thumbnail'
-        ? 'image/jpeg'
-        : routeType == 'video'
-        ? 'video/mp4'
-        : 'application/octet-stream';
-    test('cross-route handoff corrupt=$corrupt reverse=$reverse media=$media', () async {
-      final root = await Directory.systemTemp.createTemp('udp-http-');
-      final staging = await Directory('${root.path}/staging').create();
-      final cache = ChatDownloadCache(
-        root: Directory('${root.path}/cache'),
-        key: await AesGcm.with256bits().newSecretKey(),
-      );
-      const blockSize = ChatFileDownloader.chunkBytes;
-      final bytes = Uint8List.fromList(
-        List.generate(blockSize * 2 + 3, (i) => i % 251),
-      );
-      final hash = (await Sha256().hash(bytes)).bytes
-          .map((b) => b.toRadixString(16).padLeft(2, '0'))
-          .join();
-      final ref = ChatFileReference(
-        messageId: messageId,
-        assetId: assetId,
-        fileName: 'handoff.bin',
-        size: bytes.length,
-        sha256: hash,
-        media: media,
-        fileId: media == null ? null : assetId,
-      );
-      final requested = <int>[];
-      var peerAttempts = 0;
-      final link = _Link();
-      Future<void>? feeding;
-      final dio = Dio(BaseOptions(baseUrl: 'https://test.invalid'))
-        ..httpClientAdapter = DownloadTransport((options) async {
-          final index = media == null
-              ? int.parse(options.path.split('/').last)
-              : int.parse(
-                      RegExp(r'^bytes=(\d+)-')
-                          .firstMatch(options.headers['range'] as String)![1]!,
-                    ) ~/
-                    blockSize;
-          requested.add(index);
-          if (reverse && index == 1) {
-            throw DioException(
-              requestOptions: options,
-              type: DioExceptionType.connectionError,
-            );
-          }
-          final start = index * blockSize;
-          final part = bytes.sublist(
-            start,
-            (start + blockSize).clamp(0, bytes.length),
+    for (final recovery
+        in reverse ? ['retry', 'timeout', 'timeout-unavailable'] : ['retry']) {
+      final routeType = media == null
+          ? 'file'
+          : media.startsWith('image')
+          ? 'image'
+          : media == 'voice'
+          ? 'voice'
+          : 'video';
+      final slot = media == null
+          ? 'file'
+          : media.endsWith('thumbnail')
+          ? 'thumbnail'
+          : routeType;
+      final contentType = routeType == 'image'
+          ? 'image/webp'
+          : routeType == 'voice'
+          ? 'audio/mp4'
+          : slot == 'thumbnail'
+          ? 'image/jpeg'
+          : routeType == 'video'
+          ? 'video/mp4'
+          : 'application/octet-stream';
+      test(
+        'cross-route handoff corrupt=$corrupt reverse=$reverse media=$media recovery=$recovery',
+        () async {
+          final root = await Directory.systemTemp.createTemp('udp-http-');
+          final staging = await Directory('${root.path}/staging').create();
+          final cache = ChatDownloadCache(
+            root: Directory('${root.path}/cache'),
+            key: await AesGcm.with256bits().newSecretKey(),
           );
-          return ResponseBody.fromBytes(
-            part,
-            media == null ? 200 : 206,
-            headers: {
-              'content-type': [contentType],
-              if (media != null)
-                'content-range': [
-                  'bytes $start-${start + part.length - 1}/${bytes.length}',
-                ],
-              'content-length': ['${part.length}'],
-            },
+          const blockSize = ChatFileDownloader.chunkBytes;
+          final bytes = Uint8List.fromList(
+            List.generate(blockSize * 2 + 3, (i) => i % 251),
           );
-        });
-      final downloader = ChatFileDownloader(
-        repository: MessagingRepository(
-          account: 'me',
-          call: (_, _) async => {
-            'messageId': messageId,
-            slot: {
-              'assetId': assetId,
-              if (media != null) 'fileId': assetId,
-              'fileName': ref.fileName,
-              'size': bytes.length,
-              'sha256': hash,
-              'chunkBytes': blockSize,
-              'chunkCount': 3,
-              'contentType': 'application/octet-stream',
-              'path': media == null
-                  ? '/kingclub/chat-file/$messageId'
-                  : '/kingclub/chat-$routeType/$messageId${media == 'voice' ? '' : '/${media == 'hevc' ? 'hevc' : slot}'}',
-              'headers': {'authorization': 'Bearer test-only'},
-            },
-          },
-        ),
-        checkSession: () async {},
-        dio: dio,
-        resumeCache: cache,
-        temporaryDirectory: () async => staging,
-        peerDownload: (_, active) async {
-          if (reverse && ++peerAttempts == 1) return null;
-          final peer = await NovoRudpFileDownload.open(
-            link: link,
-            privateDirectory: staging,
-            streamId: BigInt.one,
-            objectId: BigInt.two,
+          final hash = (await Sha256().hash(bytes)).bytes
+              .map((b) => b.toRadixString(16).padLeft(2, '0'))
+              .join();
+          final ref = ChatFileReference(
+            messageId: messageId,
+            assetId: assetId,
+            fileName: 'handoff.bin',
             size: bytes.length,
             sha256: hash,
-            canReceive: active,
+            media: media,
+            fileId: media == null ? null : assetId,
           );
-          feeding = () async {
-            await Future<void>.delayed(Duration.zero);
-            const chunk = NovoRudpFileReceiver.chunkSize;
-            final count =
-                ((reverse ? bytes.length : blockSize) + chunk - 1) ~/ chunk;
-            final start = reverse ? blockSize ~/ chunk : 0;
-            if (reverse) {
-              final imported = Stopwatch()..start();
-              while (peer.receivedBytes < start * chunk) {
-                if (imported.elapsed > const Duration(seconds: 5)) {
-                  throw StateError('Cache was not imported');
-                }
-                await Future<void>.delayed(const Duration(milliseconds: 1));
+          final requested = <int>[];
+          var peerAttempts = 0;
+          final link = _Link();
+          Future<void>? feeding;
+          final dio = Dio(BaseOptions(baseUrl: 'https://test.invalid'))
+            ..httpClientAdapter = DownloadTransport((options) async {
+              final index = media == null
+                  ? int.parse(options.path.split('/').last)
+                  : int.parse(
+                          RegExp(
+                            r'^bytes=(\d+)-',
+                          ).firstMatch(options.headers['range'] as String)![1]!,
+                        ) ~/
+                        blockSize;
+              requested.add(index);
+              if (reverse && index == 1) {
+                throw DioException(
+                  requestOptions: options,
+                  type: recovery == 'retry'
+                      ? DioExceptionType.connectionError
+                      : DioExceptionType.receiveTimeout,
+                );
               }
-            }
-            for (var i = start; i < count; i++) {
+              final start = index * blockSize;
               final part = bytes.sublist(
-                i * chunk,
-                ((i + 1) * chunk).clamp(0, bytes.length),
+                start,
+                (start + blockSize).clamp(0, bytes.length),
               );
-              if (corrupt && i == 0) part[0] ^= 1;
-              link.incoming.add(
-                NovoRudpFrame(
-                  kind: NovoRudpFrameKind.data,
-                  sessionId: link.channel.sessionId,
-                  streamId: BigInt.one,
-                  objectId: BigInt.two,
-                  sequence: BigInt.from(i),
-                  ackEpoch: BigInt.zero,
-                  payload: part,
-                ),
+              return ResponseBody.fromBytes(
+                part,
+                media == null ? 200 : 206,
+                headers: {
+                  'content-type': [contentType],
+                  if (media != null)
+                    'content-range': [
+                      'bytes $start-${start + part.length - 1}/${bytes.length}',
+                    ],
+                  'content-length': ['${part.length}'],
+                },
               );
-              final timer = Stopwatch()..start();
-              while (peer.receivedBytes <
-                  ((i + 1) * chunk).clamp(0, bytes.length)) {
-                if (timer.elapsed > const Duration(seconds: 3)) {
-                  throw StateError('Receive stalled');
-                }
-                await Future<void>.delayed(const Duration(milliseconds: 1));
+            });
+          final downloader = ChatFileDownloader(
+            repository: MessagingRepository(
+              account: 'me',
+              call: (_, _) async => {
+                'messageId': messageId,
+                slot: {
+                  'assetId': assetId,
+                  if (media != null) 'fileId': assetId,
+                  'fileName': ref.fileName,
+                  'size': bytes.length,
+                  'sha256': hash,
+                  'chunkBytes': blockSize,
+                  'chunkCount': 3,
+                  'contentType': 'application/octet-stream',
+                  'path': media == null
+                      ? '/kingclub/chat-file/$messageId'
+                      : '/kingclub/chat-$routeType/$messageId${media == 'voice' ? '' : '/${media == 'hevc' ? 'hevc' : slot}'}',
+                  'headers': {'authorization': 'Bearer test-only'},
+                },
+              },
+            ),
+            checkSession: () async {},
+            dio: dio,
+            resumeCache: cache,
+            temporaryDirectory: () async => staging,
+            peerDownload: (_, active) async {
+              if (reverse && ++peerAttempts == 1) return null;
+              if (recovery == 'timeout-unavailable' && peerAttempts == 2) {
+                return null;
               }
-            }
-            if (reverse) {
-              link.incoming.add(
-                NovoRudpFrame(
-                  kind: NovoRudpFrameKind.done,
-                  sessionId: link.channel.sessionId,
-                  streamId: BigInt.one,
-                  objectId: BigInt.two,
-                  sequence: BigInt.zero,
-                  ackEpoch: BigInt.zero,
-                  payload: const [],
-                ),
+              final peer = await NovoRudpFileDownload.open(
+                link: link,
+                privateDirectory: staging,
+                streamId: BigInt.one,
+                objectId: BigInt.two,
+                size: bytes.length,
+                sha256: hash,
+                canReceive: active,
+              );
+              feeding = () async {
+                await Future<void>.delayed(Duration.zero);
+                const chunk = NovoRudpFileReceiver.chunkSize;
+                final count =
+                    ((reverse ? bytes.length : blockSize) + chunk - 1) ~/ chunk;
+                final start = reverse ? blockSize ~/ chunk : 0;
+                if (reverse) {
+                  final imported = Stopwatch()..start();
+                  while (peer.receivedBytes < start * chunk) {
+                    if (imported.elapsed > const Duration(seconds: 5)) {
+                      throw StateError('Cache was not imported');
+                    }
+                    await Future<void>.delayed(const Duration(milliseconds: 1));
+                  }
+                }
+                for (var i = start; i < count; i++) {
+                  final part = bytes.sublist(
+                    i * chunk,
+                    ((i + 1) * chunk).clamp(0, bytes.length),
+                  );
+                  if (corrupt && i == 0) part[0] ^= 1;
+                  link.incoming.add(
+                    NovoRudpFrame(
+                      kind: NovoRudpFrameKind.data,
+                      sessionId: link.channel.sessionId,
+                      streamId: BigInt.one,
+                      objectId: BigInt.two,
+                      sequence: BigInt.from(i),
+                      ackEpoch: BigInt.zero,
+                      payload: part,
+                    ),
+                  );
+                  final timer = Stopwatch()..start();
+                  while (peer.receivedBytes <
+                      ((i + 1) * chunk).clamp(0, bytes.length)) {
+                    if (timer.elapsed > const Duration(seconds: 3)) {
+                      throw StateError('Receive stalled');
+                    }
+                    await Future<void>.delayed(const Duration(milliseconds: 1));
+                  }
+                }
+                if (reverse) {
+                  link.incoming.add(
+                    NovoRudpFrame(
+                      kind: NovoRudpFrameKind.done,
+                      sessionId: link.channel.sessionId,
+                      streamId: BigInt.one,
+                      objectId: BigInt.two,
+                      sequence: BigInt.zero,
+                      ackEpoch: BigInt.zero,
+                      payload: const [],
+                    ),
+                  );
+                } else {
+                  link.incoming.addError(
+                    const SocketException('peer disconnected'),
+                  );
+                }
+              }();
+              return peer;
+            },
+          );
+          try {
+            if (corrupt) {
+              await expectLater(
+                downloader.download(ref),
+                throwsFormatException,
+              );
+              expect(
+                await cache.root
+                    .list(recursive: true)
+                    .where((f) => f is File)
+                    .toList(),
+                isEmpty,
               );
             } else {
-              link.incoming.addError(
-                const SocketException('peer disconnected'),
-              );
+              final file = await downloader
+                  .download(ref)
+                  .timeout(const Duration(seconds: 15));
+              expect(await file.readAsBytes(), bytes);
+              expect(await staging.list().toList(), hasLength(1));
             }
-          }();
-          return peer;
+            await feeding?.timeout(const Duration(seconds: 10));
+            expect(
+              requested,
+              reverse
+                  ? recovery == 'timeout'
+                        ? [0, 1]
+                        : [0, 1, 1, 1]
+                  : [1, 2],
+            );
+            if (reverse) {
+              expect(peerAttempts, recovery == 'timeout-unavailable' ? 3 : 2);
+            }
+          } finally {
+            await downloader.dispose();
+            await link.close();
+            expect(await staging.list().toList(), isEmpty);
+            await root.delete(recursive: true);
+          }
         },
       );
-      try {
-        if (corrupt) {
-          await expectLater(downloader.download(ref), throwsFormatException);
-          expect(
-            await cache.root
-                .list(recursive: true)
-                .where((f) => f is File)
-                .toList(),
-            isEmpty,
-          );
-        } else {
-          final file = await downloader
-              .download(ref)
-              .timeout(const Duration(seconds: 15));
-          expect(await file.readAsBytes(), bytes);
-          expect(await staging.list().toList(), hasLength(1));
-        }
-        await feeding?.timeout(const Duration(seconds: 10));
-        expect(requested, reverse ? [0, 1, 1, 1] : [1, 2]);
-      } finally {
-        await downloader.dispose();
-        await link.close();
-        expect(await staging.list().toList(), isEmpty);
-        await root.delete(recursive: true);
-      }
-    });
+    }
   }
 }

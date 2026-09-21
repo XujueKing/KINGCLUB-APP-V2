@@ -667,6 +667,7 @@ class ChatFileDownloader {
       output = httpOutput;
       final digest = const DartSha256().newHashSink();
       var received = 0;
+      var triedEarlyPeerRecovery = false;
       for (var index = 0; index < (media['chunkCount'] as int); index++) {
         await _check();
         await resumeCache?.ensureNotDeleted(identity);
@@ -685,20 +686,32 @@ class ChatFileDownloader {
           } catch (error) {
             await _check();
             if (!_retryable(error)) rethrow;
-            if (networkAttempt >= 2) {
-              // HTTP is exhausted. The peer imports the same cached blocks,
-              // advertises only missing fragments, and verifies the whole file.
-              if (peerDownload != null) {
-                await _grant(ref);
-                final recovered = File('${working.path}/peer-recovered.bin');
-                if (await _tryPeer(ref, recovered, onProgress)) {
-                  await httpOutput.close();
-                  output = null;
-                  digest.close();
-                  await file.delete();
-                  return await finishPeer(recovered);
-                }
+            final earlyRecovery =
+                !triedEarlyPeerRecovery &&
+                (error is TimeoutException ||
+                    error is DioException &&
+                        [
+                          DioExceptionType.connectionTimeout,
+                          DioExceptionType.receiveTimeout,
+                          DioExceptionType.sendTimeout,
+                        ].contains(error.type));
+            if (peerDownload != null &&
+                (earlyRecovery || networkAttempt >= 2)) {
+              // Do not repeat a long HTTP timeout before checking whether the
+              // sender recovered. Import only complete cached blocks; if peer
+              // recovery fails, the original HTTP retry budget still applies.
+              if (earlyRecovery) triedEarlyPeerRecovery = true;
+              await _grant(ref);
+              final recovered = File('${working.path}/peer-recovered.bin');
+              if (await _tryPeer(ref, recovered, onProgress)) {
+                await httpOutput.close();
+                output = null;
+                digest.close();
+                await file.delete();
+                return await finishPeer(recovered);
               }
+            }
+            if (networkAttempt >= 2) {
               rethrow;
             }
             onProgress?.call(received, ref.size);
