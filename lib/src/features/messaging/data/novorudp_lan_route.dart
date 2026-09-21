@@ -12,7 +12,7 @@ import 'novorudp_route_probe.dart';
 
 typedef _Endpoint = ({InternetAddress address, int port});
 
-/// An optional local-network carriage for an already authenticated channel.
+/// Optional IPv4 LAN/NAT and global IPv6 carriage for an authenticated channel.
 /// Addresses arrive only through that channel; they never establish identity.
 class NovoRudpLanRoute {
   static const stunHost = String.fromEnvironment('KINGCLUB_NOVORUDP_STUN_HOST');
@@ -40,6 +40,33 @@ class NovoRudpLanRoute {
     return b[0] == 10 ||
         (b[0] == 172 && b[1] >= 16 && b[1] <= 31) ||
         (b[0] == 192 && b[1] == 168);
+  }
+
+  /// Only global unicast candidates; never advertise scoped/link-local, ULA,
+  /// multicast, IPv4-mapped or documentation addresses to a remote peer.
+  static bool isGlobalIpv6(InternetAddress ip) {
+    if (ip.type != InternetAddressType.IPv6) return false;
+    final bytes = ip.rawAddress;
+    return (bytes[0] & 0xe0) == 0x20 &&
+        !(bytes[0] == 0x20 &&
+            bytes[1] == 1 &&
+            bytes[2] == 0x0d &&
+            bytes[3] == 0xb8);
+  }
+
+  static Future<List<String>> _globalIpv6Addresses() async {
+    final interfaces = await NetworkInterface.list(
+      type: InternetAddressType.IPv6,
+    );
+    final values =
+        interfaces
+            .expand((i) => i.addresses)
+            .where(isGlobalIpv6)
+            .map((a) => a.address)
+            .toSet()
+            .toList()
+          ..sort();
+    return values.take(2).toList();
   }
 
   static Future<List<String>> _localAddresses() async {
@@ -72,8 +99,20 @@ class NovoRudpLanRoute {
     );
     final addresses = await _localAddresses();
     final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+    RawDatagramSocket? ipv6Socket;
+    var ipv6Addresses = <String>[];
+    try {
+      ipv6Socket = await RawDatagramSocket.bind(InternetAddress.anyIPv6, 0);
+      ipv6Addresses = await _globalIpv6Addresses();
+    } on SocketException {
+      ipv6Socket?.close();
+      ipv6Socket = null;
+      // IPv6 being unavailable must never disable IPv4/relay.
+    }
     return NovoRudpLanRoute._(
       socket,
+      ipv6Socket,
+      ipv6Addresses,
       channel,
       addresses,
       sendControl,
@@ -86,6 +125,8 @@ class NovoRudpLanRoute {
 
   NovoRudpLanRoute._(
     this._socket,
+    this._ipv6Socket,
+    this._ipv6Addresses,
     this.channel,
     this.addresses,
     this.sendControl,
@@ -94,15 +135,19 @@ class NovoRudpLanRoute {
     this.observerPort,
     this._observers,
   ) {
-    _socket.writeEventsEnabled = false;
-    _events = _socket.listen(
-      (event) {
-        if (event == RawSocketEvent.read) unawaited(_read());
-        if (event == RawSocketEvent.closed) unawaited(close());
-      },
-      onError: (Object _) => unawaited(close()),
-      onDone: () => unawaited(close()),
-    );
+    for (final socket in [_socket, ?_ipv6Socket]) {
+      socket.writeEventsEnabled = false;
+      _events.add(
+        socket.listen(
+          (event) {
+            if (event == RawSocketEvent.read) unawaited(_read(socket));
+            if (event == RawSocketEvent.closed) unawaited(close());
+          },
+          onError: (Object _) => unawaited(close()),
+          onDone: () => unawaited(close()),
+        ),
+      );
+    }
     _timer = Timer.periodic(
       const Duration(seconds: 2),
       (_) => unawaited(_tick()),
@@ -111,10 +156,13 @@ class NovoRudpLanRoute {
   }
 
   final RawDatagramSocket _socket;
+  final RawDatagramSocket? _ipv6Socket;
+  final List<String> _ipv6Addresses;
   final NovoRudpSecureChannel channel;
   final List<String> addresses;
   final Future<void> Function(NovoRudpFrame) sendControl, deliver;
-  late final StreamSubscription<RawSocketEvent> _events;
+  final _events = <StreamSubscription<RawSocketEvent>>[];
+  final _readingSockets = <RawDatagramSocket>{};
   late final Timer _timer;
   _Endpoint? _peer, _mapped;
   List<_Endpoint> _candidates = [];
@@ -131,7 +179,7 @@ class NovoRudpLanRoute {
   Stopwatch? _bindingAge, _mappedAge;
   bool _discovering = false;
   Stopwatch? _confirmed;
-  bool _closed = false, _reading = false, _ticking = false;
+  bool _closed = false, _ticking = false;
   int _advertisements = 0;
   int _endpointEpoch = 0;
   final _probes = NovoRudpRouteProbe();
@@ -176,6 +224,8 @@ class NovoRudpLanRoute {
         'op': 'endpoint',
         'addresses': addresses,
         'port': _socket.port,
+        if (_ipv6Socket != null && _ipv6Addresses.isNotEmpty)
+          'ipv6': {'addresses': _ipv6Addresses, 'port': _ipv6Socket.port},
         if (_mapped != null)
           'public': {
             'address': _mapped!.address.address,
@@ -237,6 +287,26 @@ class NovoRudpLanRoute {
             candidates.add((address: ip, port: mappedPort));
           }
         }
+        final v6 = body['ipv6'];
+        if (_ipv6Socket != null && v6 is Map) {
+          final hosts = v6['addresses'], port6 = v6['port'];
+          if (hosts is List &&
+              hosts.length <= 2 &&
+              port6 is int &&
+              port6 > 0 &&
+              port6 <= 65535) {
+            for (final host in hosts) {
+              final ip = host is String ? InternetAddress.tryParse(host) : null;
+              if (ip != null &&
+                  isGlobalIpv6(ip) &&
+                  !candidates.any(
+                    (a) => a.address.address == ip.address && a.port == port6,
+                  )) {
+                candidates.add((address: ip, port: port6));
+              }
+            }
+          }
+        }
         final unchanged =
             candidates.map((a) => '${a.address.address}:${a.port}').join(',') ==
             _candidates.map((a) => '${a.address.address}:${a.port}').join(',');
@@ -296,13 +366,20 @@ class NovoRudpLanRoute {
       final tick = _advertisements++;
       if (tick % 15 == 0) {
         final current = await _localAddresses();
+        final current6 = _ipv6Socket == null
+            ? <String>[]
+            : await _globalIpv6Addresses();
         if (_closed) return;
-        if (jsonEncode(current) != jsonEncode(addresses)) {
+        if (jsonEncode(current) != jsonEncode(addresses) ||
+            jsonEncode(current6) != jsonEncode(_ipv6Addresses)) {
           _endpointEpoch++;
           _probes.clear();
           addresses
             ..clear()
             ..addAll(current);
+          _ipv6Addresses
+            ..clear()
+            ..addAll(current6);
           _peer = null;
           _candidates = [];
           _reflexive.clear();
@@ -320,6 +397,7 @@ class NovoRudpLanRoute {
           'NovoRoute mapped=${_mapped != null} stunReplies=$_stunReplies '
           'candidates=${_candidates.length} '
           'publicCandidates=${_candidates.where((e) => _public(e.address)).length} '
+          'ipv6Candidates=${_candidates.where((e) => isGlobalIpv6(e.address)).length} '
           'probeSends=$_probeSends pingReceives=$_pingReceives '
           'pongReceives=$_pongReceives portMismatches=$_portMismatches '
           'unknownAddresses=$_unknownAddresses '
@@ -364,9 +442,13 @@ class NovoRudpLanRoute {
     }
     final epoch = _endpointEpoch;
     final wire = NovoRudpSecurePacket.encode(await channel.seal(frame));
+    final socket = destination.address.type == InternetAddressType.IPv6
+        ? _ipv6Socket
+        : _socket;
     if (_closed ||
         epoch != _endpointEpoch ||
-        _socket.send(wire, destination.address, destination.port) !=
+        socket == null ||
+        socket.send(wire, destination.address, destination.port) !=
             wire.length) {
       throw const SocketException('LAN send unavailable');
     }
@@ -383,13 +465,12 @@ class NovoRudpLanRoute {
     }
   }
 
-  Future<void> _read() async {
-    if (_closed || _reading) return;
-    _reading = true;
-    _socket.readEventsEnabled = false;
+  Future<void> _read(RawDatagramSocket socket) async {
+    if (_closed || !_readingSockets.add(socket)) return;
+    socket.readEventsEnabled = false;
     try {
       for (var i = 0; i < 64 && !_closed; i++) {
-        final packet = _socket.receive();
+        final packet = socket.receive();
         if (packet == null) break;
         if (_binding != null &&
             packet.address.address == _observer?.address &&
@@ -462,8 +543,8 @@ class NovoRudpLanRoute {
     } catch (_) {
       _confirmed = null;
     } finally {
-      _reading = false;
-      if (!_closed) _socket.readEventsEnabled = true;
+      _readingSockets.remove(socket);
+      if (!_closed) socket.readEventsEnabled = true;
     }
   }
 
@@ -472,7 +553,9 @@ class NovoRudpLanRoute {
     _probes.clear();
     _timer.cancel();
     _socket.close();
-    return _closing ??= _events.cancel();
+    _ipv6Socket?.close();
+    return _closing ??= Future.wait(_events.map((event) => event.cancel()))
+        .then((_) {});
   }
 
   Future<void> _discover() async {
