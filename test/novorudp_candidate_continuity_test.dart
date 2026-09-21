@@ -103,11 +103,170 @@ void main() {
     expect(peer.route.ready, isFalse);
     expect(await peer.route.trySend(peer.data([13])), isFalse);
   }, skip: nativeUnavailable);
+
+  for (final sending in [true, false]) {
+    test('IPv6 loss preserves in-flight IPv4 sending=$sending', () async {
+      final peer = await _Peer.open(globalIpv6: true);
+      await peer.connect();
+      final gate = _Gate();
+      Future<bool>? sent;
+      if (sending) {
+        peer.channel.pauseSend = gate;
+        sent = peer.route.trySend(peer.data([21]));
+      } else {
+        peer.channel.pauseReceive = gate;
+        await peer.send(peer.data([22]));
+      }
+      await gate.entered.future.timeout(const Duration(seconds: 2));
+      await peer.loseIpv6();
+      gate.release.complete();
+      if (sending) {
+        expect(await sent, isTrue);
+        await _until(() => peer.outbound.isNotEmpty);
+        expect(peer.outbound.single.payload, [21]);
+      } else {
+        await _until(() => peer.inbound.isNotEmpty);
+        expect(peer.inbound.single.payload, [22]);
+      }
+      expect(peer.route.ready, isTrue);
+    }, skip: nativeUnavailable);
+  }
+
+  test('IPv6 loss preserves outstanding IPv4 return-path proof', () async {
+    final peer = await _Peer.open(globalIpv6: true);
+    await peer.advertise();
+    await _until(() => peer.challenges.isNotEmpty);
+    final nonce = peer.challenges.first;
+    await peer.loseIpv6();
+    await peer.send(peer.control({'op': 'pong', 'nonce': nonce}));
+    await _until(() => peer.route.ready);
+  }, skip: nativeUnavailable);
+
+  test('peer withdrawing IPv6 keeps our in-flight IPv4 send', () async {
+    final peer = await _Peer.open(globalIpv6: true);
+    await peer.connect();
+    await peer.advertise(ipv6: true);
+    final gate = peer.channel.pauseSend = _Gate();
+    final sending = peer.route.trySend(peer.data([28]));
+    await gate.entered.future.timeout(const Duration(seconds: 2));
+    await peer.advertise();
+    gate.release.complete();
+    expect(await sending, isTrue);
+    expect(peer.route.ready, isTrue);
+    await _until(() => peer.outbound.isNotEmpty);
+    expect(peer.outbound.single.payload, [28]);
+  }, skip: nativeUnavailable);
+
+  test('IPv6 restoration keeps healthy IPv4 selected', () async {
+    final peer = await _Peer.open(globalIpv6: true);
+    await peer.connect();
+    await peer.loseIpv6();
+    await _until(
+      () => peer.ipv6Sockets.length == 2,
+      timeout: const Duration(seconds: 4),
+    );
+    await _until(() => peer.latestAdvertisement?['ipv6'] != null);
+    expect(peer.route.ready, isTrue);
+    expect(await peer.route.trySend(peer.data([23])), isTrue);
+    await _until(() => peer.outbound.isNotEmpty);
+    expect(peer.outbound.single.payload, [23]);
+  }, skip: nativeUnavailable);
+
+  test(
+    'unattributed UDP error does not revoke healthy same-family route',
+    () async {
+      final peer = await _Peer.open();
+      await peer.connect();
+      peer.ipv4Socket.errors.addError(
+        const SocketException('ICMP unreachable'),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(peer.route.ready, isTrue);
+      expect(await peer.route.trySend(peer.data([24])), isTrue);
+      await _until(() => peer.outbound.isNotEmpty);
+    },
+    skip: nativeUnavailable,
+  );
+
+  test(
+    'working heartbeat cannot reclaim stalled data path before cooldown',
+    () async {
+      var now = Duration.zero;
+      final peer = await _Peer.open(clock: () => now);
+      await peer.connect();
+      final old = peer.challenges.first;
+      peer.route.reprobeAfterStall();
+      expect(peer.route.ready, isFalse);
+      await peer.send(peer.control({'op': 'ping', 'nonce': 'b' * 32}));
+      await _until(() => peer.pongs > 0);
+      await peer.send(peer.control({'op': 'pong', 'nonce': old}));
+      now = const Duration(milliseconds: 29999);
+      await peer.advertise();
+      expect(peer.route.ready, isFalse);
+      expect(await peer.route.trySend(peer.data([25])), isFalse);
+      expect(peer.challenges.toSet(), {old});
+
+      now = const Duration(seconds: 30);
+      await peer.advertise();
+      await _until(() => peer.challenges.any((nonce) => nonce != old));
+      expect(peer.route.ready, isFalse);
+      await peer.send(
+        peer.control({'op': 'pong', 'nonce': peer.challenges.last}),
+      );
+      await _until(() => peer.route.ready);
+      expect(await peer.route.trySend(peer.data([26])), isTrue);
+      await _until(() => peer.outbound.isNotEmpty);
+      expect(peer.outbound.single.payload, [26]);
+    },
+    skip: nativeUnavailable,
+  );
+
+  test(
+    'stalled endpoint cooldown does not prevent switching to an alternative',
+    () async {
+      final peer = await _Peer.open();
+      await peer.connect(reflexive: true);
+      peer.answerAlternate = true;
+      peer.route.reprobeAfterStall();
+      expect(peer.route.ready, isFalse);
+      await _until(() => peer.route.ready);
+      expect(await peer.route.trySend(peer.data([27])), isTrue);
+      await _until(() => peer.alternateOutbound.isNotEmpty);
+      expect(peer.alternateOutbound.single.payload, [27]);
+      expect(peer.outbound, isEmpty);
+    },
+    skip: nativeUnavailable,
+  );
+
+  test(
+    'late send failure cannot revoke a newly verified alternative',
+    () async {
+      final peer = await _Peer.open();
+      await peer.connect();
+      final gate = peer.channel.pauseSend = _Gate();
+      final oldSend = peer.route.trySend(peer.data([29]));
+      await gate.entered.future.timeout(const Duration(seconds: 2));
+      peer.answerAlternate = true;
+      await peer.advertise(reflexive: true);
+      await _until(() => peer.route.ready);
+      gate.release.complete();
+      expect(await oldSend, isFalse);
+      expect(peer.route.ready, isTrue);
+      expect(await peer.route.trySend(peer.data([30])), isTrue);
+      await _until(() => peer.alternateOutbound.isNotEmpty);
+      expect(peer.alternateOutbound.single.payload, [30]);
+      expect(peer.outbound, isEmpty);
+    },
+    skip: nativeUnavailable,
+  );
 }
 
-Future<void> _until(bool Function() condition) async {
+Future<void> _until(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 2),
+}) async {
   final watch = Stopwatch()..start();
-  while (!condition() && watch.elapsed < const Duration(seconds: 2)) {
+  while (!condition() && watch.elapsed < timeout) {
     await Future<void>.delayed(const Duration(milliseconds: 5));
   }
   expect(condition(), isTrue, reason: 'real UDP exchange did not complete');
@@ -169,8 +328,17 @@ class _Peer {
   late final int port;
   final challenges = <String>[];
   final inbound = <NovoRudpFrame>[], outbound = <NovoRudpFrame>[];
+  final alternateOutbound = <NovoRudpFrame>[];
+  final ipv6Sockets = <RawDatagramSocket>[];
+  late _ErrorInjectingSocket ipv4Socket;
+  Map? latestAdvertisement;
+  int pongs = 0;
+  bool answerAlternate = false;
 
-  static Future<_Peer> open() async {
+  static Future<_Peer> open({
+    bool globalIpv6 = false,
+    Duration Function()? clock,
+  }) async {
     final library = DynamicLibrary.open(
       Platform.environment['NOVORUDP_NATIVE_LIBRARY']!,
     );
@@ -199,9 +367,37 @@ class _Peer {
     );
     actual.writeEventsEnabled = false;
     advertised.writeEventsEnabled = false;
-    final discarded = advertised.listen((event) {
+    final discarded = advertised.listen((event) async {
       if (event == RawSocketEvent.read) {
-        while (advertised.receive() != null) {}
+        for (
+          var packet = advertised.receive();
+          packet != null;
+          packet = advertised.receive()
+        ) {
+          if (!peer.answerAlternate || packet.address.isLoopback) continue;
+          final frame = await peer.remote.open(
+            NovoRudpSecurePacket.decode(packet.data),
+          );
+          if (frame.streamId == NovoRudpLanRoute.controlStream) {
+            final body = jsonDecode(utf8.decode(frame.payload)) as Map;
+            if (body['op'] == 'ping') {
+              advertised.send(
+                NovoRudpSecurePacket.encode(
+                  await peer.remote.seal(
+                    peer.control({
+                      'op': 'pong',
+                      'nonce': body['nonce'] as String,
+                    }),
+                  ),
+                ),
+                packet.address,
+                packet.port,
+              );
+            }
+          } else {
+            peer.alternateOutbound.add(frame);
+          }
+        }
       }
     });
     final incoming = actual.listen((event) async {
@@ -214,6 +410,7 @@ class _Peer {
       if (frame.streamId == NovoRudpLanRoute.controlStream) {
         final body = jsonDecode(utf8.decode(frame.payload)) as Map;
         if (body['op'] == 'ping') peer.challenges.add(body['nonce'] as String);
+        if (body['op'] == 'pong') peer.pongs++;
       } else {
         peer.outbound.add(frame);
       }
@@ -229,6 +426,7 @@ class _Peer {
       channel: peer.channel,
       sendControl: (frame) async {
         local = jsonDecode(utf8.decode(frame.payload)) as Map;
+        peer.latestAdvertisement = local;
       },
       deliver: (frame) async {
         peer.inbound.add(frame);
@@ -237,7 +435,16 @@ class _Peer {
       observerHost: '127.0.0.1',
       observerPort: advertised.port,
       observerFallbacks: '',
-      discoverIpv6: () async => [],
+      bindIpv4: () async => peer.ipv4Socket = _ErrorInjectingSocket(
+        await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0),
+      ),
+      bindIpv6: () async {
+        final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv6, 0);
+        peer.ipv6Sockets.add(socket);
+        return socket;
+      },
+      discoverIpv6: () async => globalIpv6 ? ['240e::5'] : [],
+      discoveryClock: clock,
     ))!;
     addTearDown(peer.route.close);
     await peer.route.advertise();
@@ -248,8 +455,14 @@ class _Peer {
     return peer;
   }
 
+  Future<void> loseIpv6() async {
+    ipv6Sockets.last.close();
+    await _until(() => latestAdvertisement?['ipv6'] == null);
+  }
+
   Future<void> advertise({
     bool extra = false,
+    bool ipv6 = false,
     bool reflexive = false,
     bool withdraw = false,
   }) => route.acceptControl(
@@ -257,6 +470,11 @@ class _Peer {
       'op': 'endpoint',
       'addresses': withdraw ? <String>[] : [address.address],
       'port': reflexive ? advertised.port : actual.port,
+      if (ipv6)
+        'ipv6': {
+          'addresses': ['240e::6'],
+          'port': 40001,
+        },
       if (extra)
         'publicCandidates': [
           {'address': '198.51.100.77', 'port': 40000},
@@ -294,4 +512,53 @@ class _Peer {
     ackEpoch: BigInt.zero,
     payload: payload,
   );
+}
+
+// Real IPv4 UDP, with an independent asynchronous error source to represent
+// ICMP errors that provide no destination information to the route.
+class _ErrorInjectingSocket implements RawDatagramSocket {
+  _ErrorInjectingSocket(this.inner) {
+    subscription = inner.listen(
+      errors.add,
+      onError: errors.addError,
+      onDone: () => unawaited(errors.close()),
+    );
+  }
+  final RawDatagramSocket inner;
+  final errors = StreamController<RawSocketEvent>();
+  late final StreamSubscription<RawSocketEvent> subscription;
+  @override
+  InternetAddress get address => inner.address;
+  @override
+  int get port => inner.port;
+  @override
+  set writeEventsEnabled(bool value) => inner.writeEventsEnabled = value;
+  @override
+  set readEventsEnabled(bool value) => inner.readEventsEnabled = value;
+  @override
+  Datagram? receive() => inner.receive();
+  @override
+  int send(List<int> buffer, InternetAddress address, int port) =>
+      inner.send(buffer, address, port);
+  @override
+  StreamSubscription<RawSocketEvent> listen(
+    void Function(RawSocketEvent)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) => errors.stream.listen(
+    onData,
+    onError: onError,
+    onDone: onDone,
+    cancelOnError: cancelOnError,
+  );
+  @override
+  void close() {
+    inner.close();
+    unawaited(subscription.cancel());
+    unawaited(errors.close());
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

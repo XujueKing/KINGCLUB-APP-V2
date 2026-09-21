@@ -44,4 +44,6 @@ class NovoRudpRouteProbe {
   }
 
   void clear() => _pending.clear();
+
+  void discard(String endpoint) => _pending.remove(endpoint);
 }

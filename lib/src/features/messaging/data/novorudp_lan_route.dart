@@ -91,6 +91,7 @@ class NovoRudpLanRoute {
     String observerHost = stunHost,
     int observerPort = stunPort,
     String observerFallbacks = stunFallbacks,
+    @visibleForTesting Future<RawDatagramSocket> Function()? bindIpv4,
     @visibleForTesting Future<RawDatagramSocket> Function()? bindIpv6,
     @visibleForTesting Future<List<String>> Function()? discoverIpv6,
     @visibleForTesting Duration Function()? discoveryClock,
@@ -101,7 +102,9 @@ class NovoRudpLanRoute {
       observerFallbacks,
     );
     final addresses = await _localAddresses();
-    final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+    final socket =
+        await (bindIpv4?.call() ??
+            RawDatagramSocket.bind(InternetAddress.anyIPv4, 0));
     RawDatagramSocket? ipv6Socket;
     var ipv6Addresses = <String>[];
     final bind6 =
@@ -151,7 +154,7 @@ class NovoRudpLanRoute {
     this.observerHost,
     this.observerPort,
     this._observers,
-    this._discoveryClock,
+    this._clock,
   ) {
     for (final socket in [_socket, ?_ipv6Socket]) {
       _listen(socket);
@@ -189,7 +192,7 @@ class NovoRudpLanRoute {
   late final Timer _timer;
   _Endpoint? _peer;
   final _mapped = <int, ({_Endpoint endpoint, Duration observed})>{};
-  final Duration Function() _discoveryClock;
+  final Duration Function() _clock;
   List<_Endpoint> _candidates = [];
   final List<_Endpoint> _reflexive = [];
   final _unknownPortWindow = Stopwatch()..start();
@@ -206,7 +209,8 @@ class NovoRudpLanRoute {
   Stopwatch? _confirmed;
   bool _closed = false, _ticking = false;
   int _advertisements = 0;
-  int _endpointEpoch = 0;
+  int _ipv4Epoch = 0, _ipv6Epoch = 0;
+  final _cooldowns = <_Endpoint, Duration>{};
   final _probes = NovoRudpRouteProbe();
   int _stunReplies = 0,
       _probeSends = 0,
@@ -268,12 +272,9 @@ class NovoRudpLanRoute {
     if (_closed || !_events.containsKey(socket)) return;
     if (error is SocketException) {
       // UDP can report ICMP unreachable for one candidate while the socket is
-      // still usable. Only closed/done events retire an address family.
-      if (_peer != null &&
-          (_peer!.address.type == InternetAddressType.IPv6) ==
-              identical(socket, _ipv6Socket)) {
-        _confirmed = null;
-      }
+      // still usable. This event carries no destination: it may concern STUN,
+      // not the selected peer. Use authenticated heartbeat expiry, failed
+      // targeted sends and delivery stalls to invalidate that peer instead.
       return;
     }
     _socketEnded(socket);
@@ -287,19 +288,44 @@ class NovoRudpLanRoute {
     }
     if (!identical(socket, _ipv6Socket) || _ipv6Failed) return;
     _ipv6Failed = true;
-    _endpointEpoch++;
-    _probes.clear();
+    _invalidateFamily(InternetAddressType.IPv6);
     _ipv6Addresses.clear();
-    _candidates.removeWhere((e) => e.address.type == InternetAddressType.IPv6);
-    _reflexive.removeWhere((e) => e.address.type == InternetAddressType.IPv6);
-    if (_peer?.address.type == InternetAddressType.IPv6) {
-      _peer = null;
-      _confirmed = null;
-    }
     socket.close();
     unawaited(_events.remove(socket)?.cancel());
     _announce();
     unawaited(_probe().catchError((Object _) {}));
+  }
+
+  int _familyEpoch(InternetAddressType type) =>
+      type == InternetAddressType.IPv6 ? _ipv6Epoch : _ipv4Epoch;
+
+  void _invalidateFamily(InternetAddressType type, {bool localChange = true}) {
+    if (type == InternetAddressType.IPv6) {
+      _ipv6Epoch++;
+    } else {
+      _ipv4Epoch++;
+      if (localChange) {
+        _mapped.clear();
+        _binding = null;
+      }
+    }
+    for (final endpoint in [..._candidates, ..._reflexive]) {
+      if (endpoint.address.type == type) {
+        _probes.discard('${endpoint.address.address}:${endpoint.port}');
+      }
+    }
+    _candidates.removeWhere((e) => e.address.type == type);
+    _reflexive.removeWhere((e) => e.address.type == type);
+    if (localChange) _cooldowns.removeWhere((e, _) => e.address.type == type);
+    if (_peer?.address.type == type) {
+      _peer = null;
+      _confirmed = null;
+    }
+  }
+
+  bool _cooling(_Endpoint endpoint) {
+    final until = _cooldowns[endpoint];
+    return until != null && _clock() < until;
   }
 
   bool get isClosed => _closed;
@@ -310,10 +336,17 @@ class NovoRudpLanRoute {
       _confirmed!.elapsed < const Duration(seconds: 6);
 
   /// A transfer has missed consecutive receipts. Stop trusting the old path
-  /// immediately; the caller can use relay while a fresh nonce probe runs.
-  /// A late response to an earlier heartbeat cannot reinstate the route.
+  /// immediately. Small heartbeats can still work on a path dropping data, so
+  /// cool down that endpoint before probing it again; try alternatives/relay.
   void reprobeAfterStall() {
     if (_closed || !ready) return;
+    final failed = _peer!;
+    final now = _clock();
+    _cooldowns.removeWhere((_, until) => now >= until);
+    if (!_cooldowns.containsKey(failed) && _cooldowns.length >= 12) {
+      _cooldowns.remove(_cooldowns.keys.first);
+    }
+    _cooldowns[failed] = now + const Duration(seconds: 30);
     _confirmed = null;
     _probes.clear();
     unawaited(_probe().catchError((Object _) {}));
@@ -450,15 +483,14 @@ class NovoRudpLanRoute {
           // does not revoke an existing endpoint, pending challenge or an
           // authenticated observed NAT mapping. Keep in-flight encryption and
           // decryption valid too; advancing the epoch would discard them.
-          final onlyAdded = _candidates.every(candidates.contains);
-          if (!onlyAdded) {
-            // A withdrawal/replacement may represent a peer network change.
-            // Require a fresh return-path check, including observed mappings.
-            _endpointEpoch++;
-            _probes.clear();
-            _confirmed = null;
-            _peer = null;
-            _reflexive.clear();
+          final withdrawnFamilies = _candidates
+              .where((e) => !candidates.contains(e))
+              .map((e) => e.address.type)
+              .toSet();
+          for (final type in withdrawnFamilies) {
+            // Revalidate the changed family (including observed NAT mappings),
+            // without revoking the other family's route or our STUN mappings.
+            _invalidateFamily(type, localChange: false);
           }
           _candidates = candidates;
           // A replaced peer socket has lost our candidates. Reply once to a
@@ -491,6 +523,7 @@ class NovoRudpLanRoute {
           source != null &&
           sourcePort != null &&
           body['op'] == 'pong') {
+        if (_cooling((address: source, port: sourcePort))) return;
         if (!_probes.accept('${source.address}:$sourcePort', body['nonce'])) {
           return;
         }
@@ -532,22 +565,19 @@ class NovoRudpLanRoute {
             current6 = [];
           }
         }
-        if (jsonEncode(current) != jsonEncode(addresses) ||
-            jsonEncode(current6) != jsonEncode(_ipv6Addresses)) {
-          _endpointEpoch++;
-          _probes.clear();
+        // An IPv6 address appearing/disappearing must not interrupt IPv4
+        // packets already being encrypted, nor erase its STUN mappings.
+        if (jsonEncode(current) != jsonEncode(addresses)) {
+          _invalidateFamily(InternetAddressType.IPv4);
           addresses
             ..clear()
             ..addAll(current);
+        }
+        if (jsonEncode(current6) != jsonEncode(_ipv6Addresses)) {
+          _invalidateFamily(InternetAddressType.IPv6);
           _ipv6Addresses
             ..clear()
             ..addAll(current6);
-          _peer = null;
-          _candidates = [];
-          _reflexive.clear();
-          _mapped.clear();
-          _binding = null;
-          _confirmed = null;
         }
       }
       unawaited(_discover());
@@ -591,6 +621,10 @@ class NovoRudpLanRoute {
   ].any((a) => a.address.address == address.address && a.port == port);
 
   Future<void> _probeEndpoint(_Endpoint candidate) async {
+    if (_cooling(candidate) ||
+        !_knownEndpoint(candidate.address, candidate.port)) {
+      return;
+    }
     final nonce = _probes.issue(
       '${candidate.address.address}:${candidate.port}',
       retryPending: true,
@@ -604,13 +638,13 @@ class NovoRudpLanRoute {
     if (_closed || destination == null) {
       throw StateError('LAN route unavailable');
     }
-    final epoch = _endpointEpoch;
+    final familyEpoch = _familyEpoch(destination.address.type);
     final wire = NovoRudpSecurePacket.encode(await channel.seal(frame));
     final socket = destination.address.type == InternetAddressType.IPv6
         ? (_ipv6Failed ? null : _ipv6Socket)
         : _socket;
     if (_closed ||
-        epoch != _endpointEpoch ||
+        familyEpoch != _familyEpoch(destination.address.type) ||
         socket == null ||
         socket.send(wire, destination.address, destination.port) !=
             wire.length) {
@@ -620,11 +654,17 @@ class NovoRudpLanRoute {
 
   Future<bool> trySend(NovoRudpFrame frame) async {
     if (!ready) return false;
+    final destination = _peer!;
+    final familyEpoch = _familyEpoch(destination.address.type);
     try {
       await _send(frame);
       return true;
     } catch (_) {
-      _confirmed = null;
+      // An old send can fail after another family/endpoint has taken over.
+      if (_peer == destination &&
+          familyEpoch == _familyEpoch(destination.address.type)) {
+        _confirmed = null;
+      }
       return false;
     }
   }
@@ -643,10 +683,7 @@ class NovoRudpLanRoute {
           if (mapped != null &&
               _public(mapped.address) &&
               _bindingAge!.elapsed < const Duration(seconds: 8)) {
-            _mapped[_observerIndex] = (
-              endpoint: mapped,
-              observed: _discoveryClock(),
-            );
+            _mapped[_observerIndex] = (endpoint: mapped, observed: _clock());
             if (!kReleaseMode) _stunReplies++;
             _binding = null;
             _observerIndex = (_observerIndex + 1) % _observers.length;
@@ -679,12 +716,14 @@ class NovoRudpLanRoute {
           if (++_unknownPortAttempts > 8) continue;
         }
         try {
-          final epoch = _endpointEpoch;
+          final familyEpoch = _familyEpoch(socket.address.type);
           final frame = await channel.open(
             NovoRudpSecurePacket.decode(packet.data),
           );
           if (_closed) return;
-          if (epoch != _endpointEpoch) continue;
+          if (familyEpoch != _familyEpoch(socket.address.type)) {
+            continue;
+          }
           if (frame.streamId == controlStream) {
             await acceptControl(
               frame,
@@ -743,7 +782,7 @@ class NovoRudpLanRoute {
     }
     _discovering = true;
     try {
-      final now = _discoveryClock();
+      final now = _clock();
       final before = _mapped.length;
       _mapped.removeWhere(
         (_, value) => now - value.observed >= const Duration(seconds: 60),
@@ -769,12 +808,12 @@ class NovoRudpLanRoute {
         }
         if (checked == _observers.length) return;
         final endpoint = _observers[_observerIndex];
-        final epoch = _endpointEpoch;
+        final ipv4Epoch = _ipv4Epoch;
         final servers = await InternetAddress.lookup(
           endpoint.host,
           type: InternetAddressType.IPv4,
         ).timeout(const Duration(seconds: 2));
-        if (_closed || epoch != _endpointEpoch) return;
+        if (_closed || ipv4Epoch != _ipv4Epoch) return;
         if (servers.isEmpty) throw const SocketException('No STUN address');
         _observer = servers.first;
         _activeObserverPort = endpoint.port;
@@ -795,7 +834,7 @@ class NovoRudpLanRoute {
   // Keep configured-observer order for the legacy first candidate. Observers
   // can report the same mapping; each keeps its own freshness independently.
   List<_Endpoint> get _publicEndpoints {
-    final now = _discoveryClock();
+    final now = _clock();
     final result = <_Endpoint>[];
     for (var i = 0; i < _observers.length; i++) {
       final mapped = _mapped[i];
