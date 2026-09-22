@@ -44,6 +44,9 @@ class OrderingOrderRepository {
   static final _uuid = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
+  static final _sessionReference = RegExp(
+    r'^(?:H[0-9]{11}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$',
+  );
   static final _ref = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
 
   Future<OrderingOrderReceipt> submit({
@@ -53,7 +56,7 @@ class OrderingOrderRepository {
   }) async {
     if (context.tableId == null ||
         !_ref.hasMatch(context.tableId!) ||
-        !_uuid.hasMatch(context.tableSessionRef) ||
+        !_sessionReference.hasMatch(context.tableSessionRef) ||
         context.paymentTiming != 'prepay' ||
         !_uuid.hasMatch(requestId) ||
         lines.isEmpty ||
@@ -108,7 +111,9 @@ class OrderingOrderRepository {
     final currency = text('currency');
     final totalCents = result['totalCents'];
     final expiresAt = DateTime.tryParse(text('expiresAt'));
-    if (!_uuid.hasMatch(orderRef) ||
+    if (!RegExp(
+          r'^(?:D[0-9]{11}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$',
+        ).hasMatch(orderRef) ||
         storeRef != context.storeRef ||
         tableId != context.tableId ||
         tableSessionRef != context.tableSessionRef ||

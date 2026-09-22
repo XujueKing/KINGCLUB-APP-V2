@@ -67,6 +67,9 @@ class OrderingCatalogRepository {
   static final _uuid = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
+  static final _sessionReference = RegExp(
+    r'^(?:H[0-9]{11}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$',
+  );
   static Never _invalid() =>
       throw const AuthFailure('CATALOG_RESPONSE_INVALID', '商品资料异常，请刷新');
   static Map _map(dynamic value) {
@@ -147,7 +150,7 @@ class OrderingCatalogRepository {
   Future<OrderingCatalog> read(OrderingContext context) async {
     if (context.tableId == null ||
         !_ref.hasMatch(context.tableId!) ||
-        !_uuid.hasMatch(context.tableSessionRef)) {
+        !_sessionReference.hasMatch(context.tableSessionRef)) {
       _invalid();
     }
     final session = await readSession(), before = <String>[];
