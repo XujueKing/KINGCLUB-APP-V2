@@ -366,7 +366,7 @@
 
 - 接续先读 `docs/migration/SESSION_RECOVERY_2026-09-10.md`。已对照两份导出聊天、App `b35c33e` 与后端 `390632b` 恢复进度。
 - 用户已明确授权真实短信登录、新 `kingclubMember` 表及直接部署 IDC 测试服务器，不再额外搭隔离测试环境，也不再要求短信接入重复通过 Module UI Accepted。
-- 真实短信登录、安卓安装、旧版短信正文恢复已完成；当前测试入口 `https://test.wuyexin.cn/kingclub-v2`。`api.sh-kingclub.cn` 备案处理中，不重复部署、改短信或办理备案。
+- 真实短信登录、安卓安装、旧版短信正文恢复已完成；当前统一超级接口入口为 `https://api.wuyexin.cn`（`/supper-handshake`、`/supper-interface`）。`test.wuyexin.cn/kingclub-v2` 仅保留为旧记录，不作为现行入口；`api.sh-kingclub.cn` 备案处理中，不重复部署、改短信或办理备案。
 - 照片实名、两图评分与审核真实接入仍未完成；真实会话目前仅保存，新会员仍接 Mock 注册流程，应先补真实状态衔接。保留腾讯照片实名认证，不接新增 App 活体 SDK。
 - 小改动做必要定向验证，不反复全量测试/打包。后端既有 `.gitignore` 修改须保留。其他模块全局验收、真实数据迁移与生产切换没有因短信部署自动批准。
 

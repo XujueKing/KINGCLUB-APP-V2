@@ -1,5 +1,5 @@
 param(
-  [uri]$ApiBaseUrl = 'https://test.wuyexin.cn/kingclub-v2',
+  [uri]$ApiBaseUrl = 'https://api.wuyexin.cn',
   [uri]$CommerceApiBaseUrl = 'https://api.wuyexin.cn',
   [string]$FlutterCommand = 'D:/SDK/flutter/bin/flutter.bat'
 )
