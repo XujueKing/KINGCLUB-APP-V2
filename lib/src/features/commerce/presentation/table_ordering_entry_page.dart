@@ -154,6 +154,8 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
         catalog: _catalog,
         locale: widget.locale,
         onBack: widget.onBack,
+        onQuoteReady: widget.onQuoteReady,
+        onOpenOrders: widget.onOpenOrders,
       );
     }
     return Scaffold(

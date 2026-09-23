@@ -87,6 +87,8 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   CommerceOrder? _createdOrder;
   bool _emitted = false;
 
+  bool get _liveQuote => _quote.orderingContext != null;
+
   List<CommerceLine> get _lines => _quote.items
       .map(
         (item) => CommerceLine(
@@ -99,9 +101,12 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
       )
       .toList();
 
-  int get _subtotal => _quote.items.fold(0, (sum, item) => sum + item.subtotal);
-  int get _discount => FakeCommerceRepository.discountFor(_lines);
-  int get _changedAmount => _subtotal - _discount + 20;
+  int get _subtotal => _liveQuote
+      ? _quote.items.fold(0, (sum, item) => sum + item.subtotalCents)
+      : _quote.items.fold(0, (sum, item) => sum + item.subtotal);
+  int get _discount =>
+      _liveQuote ? 0 : FakeCommerceRepository.discountFor(_lines);
+  int get _changedAmount => _subtotal - _discount + (_liveQuote ? 2000 : 20);
   int get _amountDue => _scenario == ScanOrderConfirmationScenario.quoteChanged
       ? _changedAmount
       : _subtotal - _discount;
@@ -110,6 +115,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
       !_submitting &&
       !_reconciling &&
       !_emitted &&
+      !_liveQuote &&
       _quote.items.isNotEmpty &&
       _quote.items.every((item) => item.quantity > 0 && item.unitPrice >= 0) &&
       !{
@@ -173,6 +179,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
             final banner? => [banner],
             null => const <Widget>[],
           },
+          if (_liveQuote) _buildPaymentDeferredBanner(),
           Expanded(
             child: SingleChildScrollView(
               key: const ValueKey('order-confirm-scroll'),
@@ -323,7 +330,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
                     style: const TextStyle(fontSize: 11, height: 1.25),
                   ),
                 Text(
-                  '单价 ¥${item.unitPrice}.00',
+                  '单价 ¥${_amountText(item.usesCents ? item.unitPriceCents! : item.unitPrice)}',
                   style: const TextStyle(fontSize: 11, height: 1.25),
                 ),
               ],
@@ -339,7 +346,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
               ),
               const SizedBox(height: 7),
               Text(
-                '小计 ¥${item.subtotal}',
+                '小计 ¥${_amountText(item.usesCents ? item.subtotalCents : item.subtotal)}',
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w400,
@@ -393,7 +400,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '新应付¥$_changedAmount，比原报价增加¥20。确认后才能提交。',
+                    '新应付¥${_amountText(_changedAmount)}，比原报价增加¥${_amountText(_liveQuote ? 2000 : 20)}。确认后才能提交。',
                     style: const TextStyle(
                       color: Color(0xFF7A2117),
                       fontSize: 12,
@@ -431,31 +438,53 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   Widget _buildPaymentNoticeCard() {
     return _LegacyConfirmationCard(
       key: const ValueKey('order-payment-notice'),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.account_balance_wallet_outlined,
             color: Color(0xFF423528),
             size: 21,
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   '支付方式',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w400),
                 ),
-                Text('订单创建后选择', style: TextStyle(fontSize: 11, height: 1.25)),
+                Text(
+                  _liveQuote ? '微信支付接口明天接入，今天仅可核对订单' : '订单创建后选择',
+                  style: const TextStyle(fontSize: 11, height: 1.25),
+                ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: Color(0x66181205)),
+          const Icon(Icons.chevron_right_rounded, color: Color(0x66181205)),
         ],
       ),
     );
   }
+
+  Widget _buildPaymentDeferredBanner() => Container(
+    key: const ValueKey('ordering-payment-deferred'),
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+    color: const Color(0xFF33291D),
+    child: const Row(
+      children: [
+        Icon(Icons.schedule_rounded, color: legacyGold, size: 18),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '商品、桌位和金额已读取；支付回调将在明天接入，暂不提交订单。',
+            style: TextStyle(color: legacyGold, fontSize: 12),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildFooter() {
     return SafeArea(
@@ -483,15 +512,15 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
                       style: TextStyle(color: Color(0x88DDCBB5), fontSize: 14),
                     ),
                     TextSpan(
-                      text: '$_amountDue',
+                      text: _amountText(_amountDue),
                       style: const TextStyle(
                         color: Color(0xFFDDCBB5),
                         fontSize: 24,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const TextSpan(
-                      text: '.00',
+                    TextSpan(
+                      text: _liveQuote ? '' : '.00',
                       style: TextStyle(color: Color(0x88DDCBB5), fontSize: 14),
                     ),
                   ],
@@ -519,8 +548,8 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
                           color: Colors.black,
                         ),
                       )
-                    : const Text(
-                        '提交订单',
+                    : Text(
+                        _liveQuote ? '支付待接入' : '提交订单',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
               ),
@@ -650,7 +679,9 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
     bool emphasized = false,
     bool strike = false,
   }) {
-    final amountText = amount < 0 ? '-¥${amount.abs()}' : '¥$amount';
+    final amountText = amount < 0
+        ? '-¥${_amountText(amount.abs())}'
+        : '¥${_amountText(amount)}';
     return Padding(
       padding: EdgeInsets.symmetric(vertical: compact ? 3 : 6),
       child: Row(
@@ -675,6 +706,13 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
         ],
       ),
     );
+  }
+
+  String _amountText(int amount) {
+    if (!_liveQuote) return '$amount';
+    final whole = amount ~/ 100;
+    final cents = (amount % 100).toString().padLeft(2, '0');
+    return '$whole.$cents';
   }
 
   String _formatDuration(int seconds) {

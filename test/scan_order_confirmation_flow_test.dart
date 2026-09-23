@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/commerce/data/ordering_context.dart';
 import 'package:kingclub/src/features/commerce/presentation/scan_order_confirmation_page.dart';
 import 'package:kingclub/src/features/commerce/presentation/scan_ordering_cart_page.dart';
 
@@ -162,5 +163,54 @@ void main() {
     expect(find.text('订单已创建，请前往订单中心继续完成支付。'), findsOneWidget);
     expect(find.textContaining('fake-order'), findsNothing);
     expect(find.textContaining('Fake'), findsNothing);
+  });
+
+  testWidgets('真实扫码报价在支付回调接入前只读，不创建本地假订单', (tester) async {
+    const context = OrderingContext(
+      contextRef: 'ctx-v1',
+      memberRef: 'member',
+      storeRef: 'store',
+      tableSessionRef: 'session-v1',
+      storeName: '克洛泽清吧',
+      storeAddress: '株洲市天元区',
+      tableName: 'V1',
+      businessDate: '2026-09-24',
+    );
+    const liveQuote = FakeOrderingQuote(
+      itemCount: 1,
+      total: 338000,
+      orderingContext: context,
+      items: [
+        FakeOrderingQuoteItem(
+          name: '轩尼诗XO',
+          detail: 'Hennessy XO · 750ML',
+          asset: 'assets/legacy/ordering/hennessy_xo.png',
+          quantity: 1,
+          unitPrice: 3380,
+          unitPriceCents: 338000,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScanOrderConfirmationPage(
+          quote: liveQuote,
+          onBack: () {},
+          onModify: () {},
+        ),
+      ),
+    );
+    expect(
+      find.byKey(const ValueKey('ordering-payment-deferred')),
+      findsOneWidget,
+    );
+    expect(find.text('支付待接入'), findsOneWidget);
+    expect(find.text('¥3380.00'), findsNWidgets(3));
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const ValueKey('order-submit')))
+          .onPressed,
+      isNull,
+    );
   });
 }

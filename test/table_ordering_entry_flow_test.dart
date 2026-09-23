@@ -186,4 +186,59 @@ void main() {
     expect(find.text('店-T1'), findsOneWidget);
     expect(attempts, 2);
   });
+
+  testWidgets('真实目录结算把报价回调交给确认页，不再停在购物车提示', (tester) async {
+    FakeOrderingQuote? quote;
+    final context = scope('V1');
+    final catalog = OrderingCatalog(
+      context,
+      const [
+        OrderingCatalogCategory('cat-liquor', 'liquor', {
+          'zh-CN': '畅饮套餐',
+          'zh-TW': '暢飲套餐',
+          'en': 'Package',
+          'th': 'แพ็กเกจ',
+        }),
+      ],
+      const [
+        OrderingCatalogProduct(
+          'product-xo',
+          'cat-liquor',
+          {
+            'zh-CN': '轩尼诗XO',
+            'zh-TW': '軒尼詩XO',
+            'en': 'Hennessy XO',
+            'th': 'Hennessy XO',
+          },
+          {'zh-CN': '750ML', 'zh-TW': '750ML', 'en': '750ML', 'th': '750ML'},
+          338000,
+          1,
+          2,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TableOrderingEntryPage(
+          tableId: 'K24000000001',
+          onBack: () {},
+          resolveTable: (_) async => context,
+          readCatalog: (_) async => catalog,
+          onQuoteReady: (value) => quote = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final add = find.byKey(const ValueKey('ordering-add-product-xo'));
+    expect(add, findsOneWidget);
+    await tester.tap(add);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('ordering-confirm')));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(quote?.itemCount, 1);
+    expect(quote?.items.single.unitPrice, 3380);
+    expect(quote?.items.single.unitPriceCents, 338000);
+  });
 }

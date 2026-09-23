@@ -45,15 +45,24 @@ class FakeOrderingQuoteItem {
     required this.asset,
     required this.quantity,
     required this.unitPrice,
+    this.unitPriceCents,
   });
 
   final String name;
   final String detail;
   final String asset;
   final int quantity;
+
+  /// Whole-yuan price retained for legacy preview fixtures.
   final int unitPrice;
 
+  /// Live catalog prices are authoritative integer cents and must not be
+  /// rounded when the quote is handed to the confirmation page.
+  final int? unitPriceCents;
+
   int get subtotal => quantity * unitPrice;
+  int get subtotalCents => quantity * (unitPriceCents ?? unitPrice * 100);
+  bool get usesCents => unitPriceCents != null;
 }
 
 class ScanOrderingCartPage extends StatefulWidget {
@@ -1082,21 +1091,6 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   }
 
   Future<void> _requestFakeQuote() async {
-    if (_live) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            OrderingEntryStatus.text(widget.locale, [
-              '结算暂未开放',
-              'Checkout is not available yet',
-              '結算暫未開放',
-              'ยังไม่เปิดให้ชำระเงิน',
-            ]),
-          ),
-        ),
-      );
-      return;
-    }
     setState(() => _quoting = true);
     final generation = _scopeGeneration;
     await Future<void>.delayed(const Duration(milliseconds: 450));
@@ -1114,7 +1108,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               detail: '${product.englishName} · ${product.specs}',
               asset: product.asset,
               quantity: _quantities[product.id]!,
-              unitPrice: product.price,
+              unitPrice: _live ? product.price ~/ 100 : product.price,
+              unitPriceCents: _live ? product.price : null,
             ),
           )
           .toList(growable: false),
