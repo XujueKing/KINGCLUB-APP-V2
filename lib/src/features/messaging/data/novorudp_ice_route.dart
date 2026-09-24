@@ -57,8 +57,13 @@ class NovoRudpIceRoute {
       _connected &&
       _data?.state == RTCDataChannelState.RTCDataChannelOpen;
 
+  void _trace(String event) {
+    if (!kReleaseMode) debugPrint('NOVORUDP_ICE_EVENT $event');
+  }
+
   void start() {
     if (_closed || _timer != null) return;
+    _trace(offerer ? 'start_offerer' : 'start_answerer');
     _timer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => unawaited(_tick()),
@@ -92,6 +97,7 @@ class NovoRudpIceRoute {
       await _signal({'op': 'hello'});
       if (_peer != null &&
           _clock.elapsed - _started > const Duration(seconds: 20)) {
+        _trace('negotiation_timeout');
         await _reset();
         _retryAt = _clock.elapsed + const Duration(seconds: 30);
         return;
@@ -101,7 +107,8 @@ class NovoRudpIceRoute {
       } else if (_description != null) {
         await _signal(_description!);
       }
-    } catch (_) {
+    } catch (error) {
+      _trace('tick_error=${error.runtimeType}');
       // Optional discovery must not block or close the established carrier.
     } finally {
       _busy = false;
@@ -118,6 +125,7 @@ class NovoRudpIceRoute {
       final message = _signaling.accept(frame.payload);
       if (message == null) return;
       if (message['op'] == 'hello') {
+        if (!_remoteCapable) _trace('remote_capable');
         _remoteCapable = true;
         return;
       }
@@ -172,6 +180,7 @@ class NovoRudpIceRoute {
           sdp.contains('m=video ')) {
         return;
       }
+      _trace(op == 'offer' ? 'offer_received' : 'answer_received');
       // Serialize native SDP operations independently of relay receive delivery.
       // This method returns immediately so a large SDP cannot stall text ACKs.
       if (_pendingSignals >= 4) return;
@@ -208,6 +217,7 @@ class NovoRudpIceRoute {
         }).whenComplete(() => _pendingSignals--),
       );
     } on FormatException {
+      _trace('invalid_signal');
       /* Authenticated malformed fragments are ignored. */
     }
   }
@@ -219,7 +229,8 @@ class NovoRudpIceRoute {
       if (_closed) return;
       try {
         await action();
-      } catch (_) {
+      } catch (error) {
+        _trace('operation_error=${error.runtimeType}');
         await _reset();
         _retryAt = _clock.elapsed + const Duration(seconds: 30);
       }
@@ -274,6 +285,7 @@ class NovoRudpIceRoute {
     };
     peer.onConnectionState = (state) {
       if (!_current(peer)) return;
+      _trace('connection=${state.name}');
       _connected =
           state == RTCPeerConnectionState.RTCPeerConnectionStateConnected;
       if (!_connected) _direct = false;
@@ -352,6 +364,7 @@ class NovoRudpIceRoute {
     if (!_current(peer) || local?.sdp == null) return;
     _description = {'op': op, 'attempt': _attempt, 'sdp': local!.sdp};
     await _signal(_description!);
+    _trace(op == 'offer' ? 'offer_sent' : 'answer_sent');
     if (!_current(peer)) return;
     _published = true;
     await _flushCandidates();

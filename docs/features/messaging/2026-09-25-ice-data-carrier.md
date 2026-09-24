@@ -15,3 +15,11 @@
 本次13项检查通过：信令乱序/重复/冲突/过期/容量与非法输入，创建期间关闭后释放迟到原生对象，以及真实 NovoRUDP 原生加密信令协商、二进制业务帧、跨载体共享重放拒绝、迟到候选、发送拥堵和异常回退；包含既有路由重建、文件停滞检查。数据通道测试的 RTC 对象是可控替身，用于验证编排；没有把这些结果当作手机 WebRTC/NAT 穿透实测。最终构建与双机结果另记。
 
 参考：[W3C RTCDataChannel](https://www.w3.org/TR/webrtc/#rtcdatachannel)、[flutter_webrtc 数据通道 API](https://flutter-webrtc.org/docs/flutter-webrtc/api-docs/rtc-data-channel/)。
+
+## A/B 安装与首轮实机检查
+
+代码 d33661c5 的 arm64 profile 预览包已在隔离工作树构建，并以覆盖方式安装到 A/B；未清除用户数据。APK SHA256：`63C59849A01E1C3BEB00D14F35893756BB1F3F4886BCDD8FC82C864B570C5E1D`。启用原生 UDP、ICE、SuperVM WSS、点对点附件及群附件，沿用既有测试接口和信任公钥。
+
+B 完成原测试会员登录后，A 移动网络、B 家庭 Wi-Fi 双向发送 `ICE-A-0925-0435` / `ICE-B-0925-0436`；两端均看到对方测试消息，发送端显示已读。历史消息保留。此结果证明新版消息可用，不证明使用 ICE 直连。
+
+B 原生日志显示数据 ICE 候选收集启动，但约25秒后关闭，随后重试；没有已选成功 candidate pair 的证据。继续补充仅阶段/错误类型的预览诊断，定位协商停点；不将当前网络标为直连成功，不重复更改光猫/AP。
