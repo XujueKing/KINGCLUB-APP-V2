@@ -5,3 +5,5 @@
 门店地址是展示字段，数据库允许空字符串。APP 应允许 `storeAddress=''`，不因尚未填写街道地址否定已校验的桌号、门店和场次；字段缺失、非字符串和身份/归属不一致仍拒绝。保留现有页面布局，无虚构门店地址或默认旧店地址。
 
 验证：定向 repository 测试覆盖空地址通过及缺失/非字符串拒绝；原有桌号、会员、场次匹配检查保留。B 手机安装和实扫结果另行记录，不将单元测试当作实扫通过。
+
+验证记录：28 项 repository 测试通过，定向 analyze 无问题。profile commerce arm64 包构建成功，B 手机覆盖安装返回 Success 并已启动；保留 APP 数据。使用 api.wuyexin.cn 的现有认证及 commerce 服务路径。实扫验收等待用户反馈。Java 回环异常通过本次进程 JAVA_TOOL_OPTIONS 指定 jdk.net.unixdomain.tmpdir 为工作区 .dart_tool/java-tmp 解决，没有更改全局 Java 设置。
