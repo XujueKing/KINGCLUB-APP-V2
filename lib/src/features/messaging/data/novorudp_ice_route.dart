@@ -28,6 +28,12 @@ class NovoRudpIceRoute {
        _peerFactory = peerFactory ?? ((config) => createPeerConnection(config));
 
   static final controlStream = BigInt.from(0x4b434943);
+  // flutter_webrtc defaults both receive flags to true, even with no tracks.
+  // Data lanes must never negotiate audio/video m-lines.
+  static const _dataOnlyConstraints = <String, dynamic>{
+    'mandatory': {'OfferToReceiveAudio': false, 'OfferToReceiveVideo': false},
+    'optional': <dynamic>[],
+  };
   final NovoRudpSecureChannel channel;
   final bool offerer;
   final Future<void> Function(NovoRudpFrame) sendControl;
@@ -202,7 +208,11 @@ class NovoRudpIceRoute {
             );
             if (!_current(peer)) return;
             _remoteSet = true;
-            await _local(peer, await peer.createAnswer(), 'answer');
+            await _local(
+              peer,
+              await peer.createAnswer(_dataOnlyConstraints),
+              'answer',
+            );
           } else if (op == 'answer' &&
               offerer &&
               attempt == _attempt &&
@@ -241,7 +251,7 @@ class NovoRudpIceRoute {
     if (_closed || _peer != null || _clock.elapsed < _retryAt) return;
     _attempt++;
     final peer = await _create();
-    await _local(peer, await peer.createOffer(), 'offer');
+    await _local(peer, await peer.createOffer(_dataOnlyConstraints), 'offer');
   }
 
   bool _current(RTCPeerConnection peer) => !_closed && identical(peer, _peer);

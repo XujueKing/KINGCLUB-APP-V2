@@ -102,6 +102,10 @@ class _Peer extends Fake implements RTCPeerConnection {
   Future<RTCSessionDescription> createOffer([
     Map<String, dynamic>? options,
   ]) async {
+    expect(options?['mandatory'], {
+      'OfferToReceiveAudio': false,
+      'OfferToReceiveVideo': false,
+    });
     offers++;
     return RTCSessionDescription(
       'v=0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=x:${'a' * 3000}',
@@ -112,10 +116,16 @@ class _Peer extends Fake implements RTCPeerConnection {
   @override
   Future<RTCSessionDescription> createAnswer([
     Map<String, dynamic>? options,
-  ]) async => RTCSessionDescription(
-    'v=0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n',
-    'answer',
-  );
+  ]) async {
+    expect(options?['mandatory'], {
+      'OfferToReceiveAudio': false,
+      'OfferToReceiveVideo': false,
+    });
+    return RTCSessionDescription(
+      'v=0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n',
+      'answer',
+    );
+  }
   @override
   Future<void> setLocalDescription(RTCSessionDescription value) async {
     description = value;

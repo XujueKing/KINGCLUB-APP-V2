@@ -23,3 +23,7 @@
 B 完成原测试会员登录后，A 移动网络、B 家庭 Wi-Fi 双向发送 `ICE-A-0925-0435` / `ICE-B-0925-0436`；两端均看到对方测试消息，发送端显示已读。历史消息保留。此结果证明新版消息可用，不证明使用 ICE 直连。
 
 B 原生日志显示数据 ICE 候选收集启动，但约25秒后关闭，随后重试；没有已选成功 candidate pair 的证据。继续补充仅阶段/错误类型的预览诊断，定位协商停点；不将当前网络标为直连成功，不重复更改光猫/AP。
+
+阶段诊断版 94a7ced8 已覆盖安装 A/B（APK SHA256 `A4699E0B0B7935F7A40AF994F6176D0437E066B5EBF3863FC9275CBA33472B18`），两端登录和历史保留。B 一度前台显示商店包 `com.lingmei.kingclub.commerce` 的登录页，核对包名并切回聊天包后仍已登录，不能据此认定聊天登录失效。
+
+阶段日志确认 A 为 answerer、B 为 offerer，双方 remote_capable，B offer_sent 后超时，A 未进入 offer_received。检查固定版本 flutter_webrtc 的 `defaultSdpConstraints` 发现其默认启用 OfferToReceiveAudio/Video，与本通道拒绝音视频 m-line 的校验冲突。修复为 offer/answer 均显式关闭两个接收标记；不放宽纯数据校验。补充约束回归断言，ICE 信令/编排6项测试通过。手机重新验证仍需以修复包的实际结果为准。
