@@ -65,9 +65,9 @@ class OrderingTableRepository {
     }
     final result = response['result'];
     if (result is! Map) _invalid();
-    String field(String key) {
+    String field(String key, {bool allowEmpty = false}) {
       final value = result[key];
-      if (value is! String || value.trim().isEmpty) _invalid();
+      if (value is! String || (!allowEmpty && value.trim().isEmpty)) _invalid();
       return value;
     }
 
@@ -101,7 +101,7 @@ class OrderingTableRepository {
       cityId: field('cityId'),
       cityName: field('cityName'),
       storeName: field('storeName'),
-      storeAddress: field('storeAddress'),
+      storeAddress: field('storeAddress', allowEmpty: true),
       tableName: field('tableName'),
       tableSessionRef: tableSessionRef,
       businessDate: businessDate,

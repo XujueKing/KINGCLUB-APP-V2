@@ -32,6 +32,25 @@ Matcher failure(String code) =>
     isA<AuthFailure>().having((error) => error.code, 'code', code);
 
 void main() {
+  test('an empty display address does not invalidate verified table scope', () async {
+    final repository = OrderingTableRepository(
+      readSession: () async => session(),
+      request: (_, _, _) async => {'result': {...result(), 'storeAddress': ''}},
+    );
+    final context = await repository.resolve('table-a');
+    expect(context.storeAddress, '');
+    expect(context.tableId, 'table-a');
+  });
+
+  test('missing or non-text address remains an invalid response', () async {
+    for (final value in [null, 42]) {
+      final repository = OrderingTableRepository(
+        readSession: () async => session(),
+        request: (_, _, _) async => {'result': {...result(), 'storeAddress': value}},
+      );
+      await expectLater(repository.resolve('table-a'), throwsA(failure('ORDERING_CONTEXT_INVALID')));
+    }
+  });
   test(
     'sends normalized locator and uses only verified server scope',
     () async {
