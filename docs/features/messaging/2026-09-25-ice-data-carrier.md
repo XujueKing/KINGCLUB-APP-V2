@@ -41,3 +41,18 @@ eec28ef9 已构建并覆盖安装两端，APK SHA256 `F77ECF1B39EB2A28A3258CBB79
 预览版增加连接中及 FAILED 时的 getStats 采样，按候选类型、地址族、协议、状态聚合；输出 requestsSent/responsesReceived/requestsReceived/responsesSent。每个计数附有效上报数/候选对数，缺失字段不冒充真实零值。仅在汇总变化时输出，最多32组；不记录候选地址、端口、ID、URL或SDP。不把成功但未选中的候选对当作已建立直连。
 
 统计遵循 [W3C RTCIceCandidatePairStats](https://www.w3.org/TR/webrtc-stats/#dom-rtcicecandidatepairstats)。覆盖失败计数聚合、缺失/非法数值、敏感信息过滤，以及既有路由诊断和真实加密数据通道编排，共7项测试通过。该统计补齐证据，尚不是网络连通修复。
+
+### 05:59 双机结果
+
+4adb3159 已构建并覆盖安装 A/B，APK SHA256 `E1E6641CB63179EA156CB479D2797CB6A70B8447DB6E23A817568CA196813E41`，静态分析通过。原账号与消息保留。A 仍为移动网络，B 家庭 Wi-Fi。
+
+纯数据 offer/answer 正常交换。失败前最后一个完整检查快照：
+
+| 端 | 候选检查组数 | host v4 → host v4 请求 | host v4 → srflx v4 请求 | host v6 → host v6 请求 | 收到请求 / 收到回应 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| A | 8 | 138 | 69 | 69 | 0 / 0 |
+| B | 10 | 111 | 109 | 56 | 0 / 0 |
+
+上表请求为各分类内 requestsSent 累计之和，所有相关计数字段均实际上报，非缺省补零。A 有2个本地 srflx/v4 候选，B有1个；远端也收到相应映射候选。v6 类型统计不区分全球/链路本地地址，因此不能据此声称 B 获得可跨网使用的公网 IPv6。A FAILED 后原生统计清除了远端候选/候选对，诊断依据是此前完整快照，不能把清理后的 pairs=0 当成从未获得候选。
+
+证据把停点定位到端到端 UDP 检查无收到请求/回应，未到成功选路或后续数据通道阶段；尚不能确定具体哪个 NAT/防火墙层或映射行为造成，也不声称所有公网直连均不可行。`ICE-check-0925` 在 A 到达，B显示已读，现有回退交付仍可用。安全汇总日志保存在本地 build/ice-check-a-safe.log 与 build/ice-check-b-safe.log，不含原始地址/SDP。
