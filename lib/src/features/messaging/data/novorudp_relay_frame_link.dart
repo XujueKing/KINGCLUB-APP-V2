@@ -9,6 +9,7 @@ import 'novorudp_relay_connection.dart';
 import 'novorudp_secure_packet.dart';
 import 'novorudp_secure_session.dart';
 import 'novorudp_lan_route.dart';
+import 'novorudp_ice_route.dart';
 
 typedef NovoRudpLanRouteFactory = Future<NovoRudpLanRoute?> Function({
   required NovoRudpSecureChannel channel,
@@ -31,6 +32,8 @@ class NovoRudpRelayFrameLink
     this.authorize,
     this.openLanRoute = NovoRudpLanRoute.open,
     bool enableLan = const bool.fromEnvironment('KINGCLUB_NOVORUDP_LAN'),
+    bool enableIce = const bool.fromEnvironment('KINGCLUB_NOVORUDP_ICE'),
+    NovoIcePeerFactory? icePeerFactory,
   }) : _localPeer = relay.identity.peerId {
     if (!RegExp(r'^novovm-ed25519:[0-9a-f]{64}$').hasMatch(expectedPeer) ||
         expectedPeer == _localPeer) {
@@ -71,6 +74,8 @@ class NovoRudpRelayFrameLink
                     }
                   } else if (frame.streamId == NovoRudpLanRoute.controlStream) {
                     await _lan?.acceptControl(frame);
+                  } else if (frame.streamId == NovoRudpIceRoute.controlStream) {
+                    await _ice?.acceptControl(frame);
                   } else {
                     _recordRoute(frame, false);
                     _frames.add(frame);
@@ -95,6 +100,30 @@ class NovoRudpRelayFrameLink
     _session = SecureSessionStore.changes.stream.listen(
       (_) => unawaited(close()),
     );
+    if (enableIce) {
+      _ice = NovoRudpIceRoute(
+        channel: channel,
+        offerer: _localPeer.compareTo(expectedPeer) < 0,
+        sendControl: send,
+        deliver: (frame, direct) async {
+          await _authorization;
+          _check();
+          if (frame.streamId == NovoRudpLanRoute.controlStream ||
+              frame.streamId == _livenessStream) {
+            return;
+          }
+          _recordRoute(frame, direct);
+          _frames.add(frame);
+        },
+        stunUrls: [
+          if (NovoRudpLanRoute.stunHost.isNotEmpty)
+            'stun:${NovoRudpLanRoute.stunHost}:${NovoRudpLanRoute.stunPort}',
+          for (final host in NovoRudpLanRoute.stunFallbacks.split(','))
+            if (host.isNotEmpty) 'stun:$host',
+        ],
+        peerFactory: icePeerFactory,
+      )..start();
+    }
     if (enableLan ||
         NovoRudpLanRoute.stunHost.isNotEmpty ||
         NovoRudpLanRoute.stunFallbacks.isNotEmpty) {
@@ -117,6 +146,8 @@ class NovoRudpRelayFrameLink
   final Future<void> Function()? authorize;
   final NovoRudpLanRouteFactory openLanRoute;
   NovoRudpLanRoute? _lan;
+  NovoRudpIceRoute? _ice;
+  bool get iceReady => _ice?.ready ?? false;
   bool get directLanReady => _lan?.ready ?? false;
 
   static final _livenessStream = BigInt.from(0x4b434c56);
@@ -161,7 +192,10 @@ class NovoRudpRelayFrameLink
 
   @override
   void reportDeliveryStall() {
-    if (!_closed) _lan?.reprobeAfterStall();
+    if (!_closed) {
+      _lan?.reprobeAfterStall();
+      _ice?.reportDeliveryStall();
+    }
   }
 
   Future<void> _openLan() async {
@@ -266,8 +300,10 @@ class NovoRudpRelayFrameLink
       throw ArgumentError('Split payload before relay transmission');
     }
     if (frame.streamId != NovoRudpLanRoute.controlStream &&
+        frame.streamId != NovoRudpIceRoute.controlStream &&
         frame.streamId != _livenessStream &&
-        await _lan?.trySend(frame) == true) {
+        (await _lan?.trySend(frame) == true ||
+            await _ice?.trySend(frame) == true)) {
       return;
     }
     _check();
@@ -289,6 +325,7 @@ class NovoRudpRelayFrameLink
   }
 
   Future<void> _close() async {
+    await _ice?.close();
     await _lan?.close();
     channel.close();
     await _incoming.cancel();

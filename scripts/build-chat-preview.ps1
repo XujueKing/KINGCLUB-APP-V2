@@ -11,7 +11,8 @@ param(
   [switch]$SkipNovoRudp,
   [switch]$EnablePeerFiles,
   [switch]$EnableGroupFiles,
-  [switch]$EnableLan
+  [switch]$EnableLan,
+  [switch]$EnableIce
 )
 $ErrorActionPreference = 'Stop'
 if ($ApiBaseUrl.Scheme -ne 'https' -or $ApiBaseUrl.UserInfo -or $ApiBaseUrl.Query -or $ApiBaseUrl.Fragment) {
@@ -21,6 +22,12 @@ Push-Location (Split-Path -Parent $PSScriptRoot)
 $previousJni = $env:KINGCLUB_NOVORUDP_JNI_DIR
 try {
   $relayArguments = @()
+  if ($EnableIce) {
+    if ($SkipNovoRudp -or !$RelayUrl -or !$RelayPeer) {
+      throw 'ICE data requires the configured authenticated NovoRUDP relay.'
+    }
+    $relayArguments += '--dart-define=KINGCLUB_NOVORUDP_ICE=true'
+  }
   if ($StunFallbacks.Count -gt 3 -or ($StunFallbacks.Count -gt 0 -and !$StunHost)) {
     throw 'Up to three STUN fallbacks require a primary StunHost.'
   }
