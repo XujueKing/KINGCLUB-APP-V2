@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import 'call_route_diagnostics.dart';
+import 'ice_check_diagnostics.dart';
 import 'novorudp_frame.dart';
 import 'novorudp_ice_signaling.dart';
 import 'novorudp_secure_packet.dart';
@@ -58,6 +59,8 @@ class NovoRudpIceRoute {
   Map<String, dynamic>? _description;
   Future<void> _operations = Future.value(), _receiving = Future.value();
   Future<void>? _closing;
+  bool _sampling = false;
+  String? _lastCheckSummary;
   bool get ready =>
       !_closed &&
       _connected &&
@@ -82,6 +85,7 @@ class NovoRudpIceRoute {
     _busy = true;
     try {
       await _flushCandidates();
+      if (!ready && !kReleaseMode) await _sampleChecks();
       if (ready) {
         final peer = _peer;
         final reports = await peer!.getStats().timeout(
@@ -234,6 +238,27 @@ class NovoRudpIceRoute {
 
   int _pendingSignals = 0;
 
+  Future<void> _sampleChecks() async {
+    final peer = _peer;
+    if (kReleaseMode || _closed || peer == null || _sampling) return;
+    _sampling = true;
+    try {
+      final reports = await peer.getStats().timeout(const Duration(seconds: 1));
+      if (!_current(peer)) return;
+      final rows = iceCheckDiagnostics(reports);
+      final summary = rows.join('\n');
+      if (summary == _lastCheckSummary) return;
+      _lastCheckSummary = summary;
+      for (final row in rows) {
+        debugPrint('NOVORUDP_ICE_CHECK $row');
+      }
+    } catch (_) {
+      // Diagnostics must not alter fallback, negotiation or retry timing.
+    } finally {
+      _sampling = false;
+    }
+  }
+
   Future<void> _enqueue(Future<void> Function() action) {
     return _operations = _operations.then((_) async {
       if (_closed) return;
@@ -271,6 +296,7 @@ class NovoRudpIceRoute {
       throw StateError('ICE route expired');
     }
     _peer = peer;
+    _lastCheckSummary = null;
     _started = _clock.elapsed;
     peer.onIceCandidate = (candidate) {
       if (!_current(peer) ||
@@ -299,6 +325,9 @@ class NovoRudpIceRoute {
       _connected =
           state == RTCPeerConnectionState.RTCPeerConnectionStateConnected;
       if (!_connected) _direct = false;
+      if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+        unawaited(_sampleChecks());
+      }
     };
     final data = await peer.createDataChannel(
       'novorudp-v1',

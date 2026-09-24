@@ -35,3 +35,9 @@ eec28ef9 已构建并覆盖安装两端，APK SHA256 `F77ECF1B39EB2A28A3258CBB79
 修复后 A 明确出现 `offer_received`、`answer_sent`，B 出现 `answer_received`，双方原生 WebRTC 进入 CONNECTING，证明此前描述协商冲突已解决。此轮随后 A 进入 FAILED，B 协商超时关闭；没有成功选中候选对，没有数据 ICE 直连成功的证据。这是本轮 A 移动网络/B 家庭 Wi-Fi 的实际结果，不推断所有网络都不能直连，也未确定具体哪层过滤。
 
 该轮 `ICE-data-only-0925` 测试文字在 A 收到、B 显示已读，ICE 失败未阻止消息交付。现有回退路径仍可交付；本轮未通过逐帧统计区分该文字最终走 SuperVM WSS 或 HTTP，不作无证据归因。后续继续核对候选对检查及数据通道成功传输，不重复此前光猫端口和随机发包试验。
+
+## 失败候选检查统计
+
+预览版增加连接中及 FAILED 时的 getStats 采样，按候选类型、地址族、协议、状态聚合；输出 requestsSent/responsesReceived/requestsReceived/responsesSent。每个计数附有效上报数/候选对数，缺失字段不冒充真实零值。仅在汇总变化时输出，最多32组；不记录候选地址、端口、ID、URL或SDP。不把成功但未选中的候选对当作已建立直连。
+
+统计遵循 [W3C RTCIceCandidatePairStats](https://www.w3.org/TR/webrtc-stats/#dom-rtcicecandidatepairstats)。覆盖失败计数聚合、缺失/非法数值、敏感信息过滤，以及既有路由诊断和真实加密数据通道编排，共7项测试通过。该统计补齐证据，尚不是网络连通修复。
