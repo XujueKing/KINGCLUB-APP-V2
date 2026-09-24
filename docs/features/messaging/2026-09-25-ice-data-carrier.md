@@ -27,3 +27,11 @@ B 原生日志显示数据 ICE 候选收集启动，但约25秒后关闭，随�
 阶段诊断版 94a7ced8 已覆盖安装 A/B（APK SHA256 `A4699E0B0B7935F7A40AF994F6176D0437E066B5EBF3863FC9275CBA33472B18`），两端登录和历史保留。B 一度前台显示商店包 `com.lingmei.kingclub.commerce` 的登录页，核对包名并切回聊天包后仍已登录，不能据此认定聊天登录失效。
 
 阶段日志确认 A 为 answerer、B 为 offerer，双方 remote_capable，B offer_sent 后超时，A 未进入 offer_received。检查固定版本 flutter_webrtc 的 `defaultSdpConstraints` 发现其默认启用 OfferToReceiveAudio/Video，与本通道拒绝音视频 m-line 的校验冲突。修复为 offer/answer 均显式关闭两个接收标记；不放宽纯数据校验。补充约束回归断言，ICE 信令/编排6项测试通过。手机重新验证仍需以修复包的实际结果为准。
+
+## 纯数据修复包实机结果
+
+eec28ef9 已构建并覆盖安装两端，APK SHA256 `F77ECF1B39EB2A28A3258CBB793477A5D3079011DBB49EBD5FFFAAFB17C6D642`。静态分析无问题。A/B 登录及历史保留，未操作路由器或 AP。
+
+修复后 A 明确出现 `offer_received`、`answer_sent`，B 出现 `answer_received`，双方原生 WebRTC 进入 CONNECTING，证明此前描述协商冲突已解决。此轮随后 A 进入 FAILED，B 协商超时关闭；没有成功选中候选对，没有数据 ICE 直连成功的证据。这是本轮 A 移动网络/B 家庭 Wi-Fi 的实际结果，不推断所有网络都不能直连，也未确定具体哪层过滤。
+
+该轮 `ICE-data-only-0925` 测试文字在 A 收到、B 显示已读，ICE 失败未阻止消息交付。现有回退路径仍可交付；本轮未通过逐帧统计区分该文字最终走 SuperVM WSS 或 HTTP，不作无证据归因。后续继续核对候选对检查及数据通道成功传输，不重复此前光猫端口和随机发包试验。
