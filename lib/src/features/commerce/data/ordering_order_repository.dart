@@ -1,3 +1,5 @@
+import '../../../core/networking/kingclub_secure_client.dart';
+import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'ordering_catalog_repository.dart';
 import 'ordering_context.dart';
@@ -20,6 +22,7 @@ class OrderingOrderReceipt {
     required this.totalCents,
     required this.currency,
     required this.expiresAt,
+    this.payment,
   });
 
   final String orderRef;
@@ -30,6 +33,7 @@ class OrderingOrderReceipt {
   final int totalCents;
   final String currency;
   final DateTime expiresAt;
+  final Map<String, String>? payment;
 }
 
 typedef OrderingOrderSessionReader = OrderingSessionReader;
@@ -39,6 +43,15 @@ typedef OrderingOrderRequest = OrderingContextRequest;
 class OrderingOrderRepository {
   OrderingOrderRepository({required this.readSession, required this.request});
 
+  factory OrderingOrderRepository.secure(String baseUrl) {
+    final client = KingclubSecureClient(baseUrl);
+    final sessions = SecureSessionStore();
+    return OrderingOrderRepository(
+      readSession: sessions.readSession,
+      request: (id, params, session) =>
+          client.call(id, params, session: session),
+    );
+  }
   final OrderingOrderSessionReader readSession;
   final OrderingOrderRequest request;
   static final _uuid = RegExp(
@@ -95,6 +108,51 @@ class OrderingOrderRepository {
     if (!_sameIdentity(_identity(current), identity)) {
       throw const AuthFailure('SESSION_CHANGED', '登录状态已变更，请重试');
     }
+    return _parse(response, context);
+  }
+
+  Future<OrderingOrderReceipt> owned({
+    required OrderingContext context,
+    required String orderRef,
+  }) async {
+    if (!_ref.hasMatch(orderRef)) _invalid();
+    final session = await readSession();
+    final identity = _identity(session);
+    if (identity == null) throw const AuthFailure('SESSION_EXPIRED', '请重新登录');
+    final response = await request('K260919000815', {
+      'orderRef': orderRef,
+    }, session!);
+    if (!_sameIdentity(_identity(await readSession()), identity)) {
+      throw const AuthFailure('SESSION_CHANGED', '登录状态已变更，请重试');
+    }
+    final receipt = _parse(response, context);
+    if (receipt.orderRef != orderRef) _invalid();
+    return receipt;
+  }
+
+  Future<OrderingOrderReceipt?> findByRequest({
+    required OrderingContext context,
+    required String requestId,
+  }) async {
+    if (!_uuid.hasMatch(requestId)) _invalid();
+    final session = await readSession();
+    final identity = _identity(session);
+    if (identity == null) throw const AuthFailure('SESSION_EXPIRED', '请重新登录');
+    final response = await request('K260919000815', {
+      'requestId': requestId,
+    }, session!);
+    if (!_sameIdentity(_identity(await readSession()), identity)) {
+      throw const AuthFailure('SESSION_CHANGED', '登录状态已变更，请重试');
+    }
+    final result = response['result'];
+    if (result is Map && result['notFound'] == true) return null;
+    return _parse(response, context);
+  }
+
+  OrderingOrderReceipt _parse(
+    Map<String, dynamic> response,
+    OrderingContext context,
+  ) {
     final result = response['result'];
     if (result is! Map) _invalid();
     String text(String key) {
@@ -117,12 +175,43 @@ class OrderingOrderRepository {
         storeRef != context.storeRef ||
         tableId != context.tableId ||
         tableSessionRef != context.tableSessionRef ||
-        !{'awaitingPayment', 'paid', 'paymentPending'}.contains(status) ||
+        !{
+          'awaitingPayment',
+          'paid',
+          'paymentPending',
+          'pending',
+          'expired',
+        }.contains(status) ||
         currency != context.currency ||
         totalCents is! int ||
         totalCents < 0 ||
         expiresAt == null) {
       _invalid();
+    }
+    Map<String, String>? payment;
+    if (result['payment'] != null) {
+      final raw = result['payment'];
+      const keys = [
+        'appId',
+        'partnerId',
+        'prepayId',
+        'packageValue',
+        'nonceStr',
+        'timeStamp',
+        'sign',
+      ];
+      if (raw is! Map ||
+          keys.any(
+            (key) => raw[key] is! String || (raw[key] as String).isEmpty,
+          )) {
+        _invalid();
+      }
+      payment = {for (final key in keys) key: raw[key] as String};
+      if (payment['packageValue'] != 'Sign=WXPay' ||
+          !RegExp(r'^wx[a-zA-Z0-9]+$').hasMatch(payment['appId']!) ||
+          int.tryParse(payment['timeStamp']!) == null) {
+        _invalid();
+      }
     }
     return OrderingOrderReceipt(
       orderRef: orderRef,
@@ -133,6 +222,7 @@ class OrderingOrderRepository {
       totalCents: totalCents,
       currency: currency,
       expiresAt: expiresAt,
+      payment: payment,
     );
   }
 

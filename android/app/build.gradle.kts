@@ -82,6 +82,7 @@ flutter {
 
 // Keep aligned with video_player_android's ExoPlayer version.
 dependencies {
+    implementation("com.tencent.mm.opensdk:wechat-sdk-android:6.8.40")
     implementation("androidx.media3:media3-transformer:1.9.2")
     implementation("androidx.media3:media3-effect:1.9.2")
 }

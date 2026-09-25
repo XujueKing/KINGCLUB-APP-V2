@@ -1,3 +1,5 @@
+import '../features/commerce/presentation/live_order_payment_page.dart';
+import '../features/commerce/data/ordering_order_repository.dart';
 import '../features/commerce/presentation/managed_tables_page.dart';
 import '../features/commerce/presentation/daily_table_settings_page.dart';
 import '../features/commerce/data/table_management_repository.dart';
@@ -1134,11 +1136,18 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
                 kingclubCommerceApiBaseUrl.isNotEmpty
             ? TableManagementRepository.secure(kingclubCommerceApiBaseUrl)
             : null,
-        openWalkIn: kingclubCommerceApiBaseUrl.isEmpty ? null : (entry, count, requestId) =>
-          OrderingTableRepository.secure(kingclubCommerceApiBaseUrl).resolve(tableId,
-            shopId: state.uri.queryParameters['shopId'], partySize: count,
-            requestId: requestId, expectedBusinessDate: entry.businessDate,
-            expectedRuleRevision: entry.revision),
+        openWalkIn: kingclubCommerceApiBaseUrl.isEmpty
+            ? null
+            : (entry, count, requestId) =>
+                  OrderingTableRepository.secure(kingclubCommerceApiBaseUrl)
+                      .resolve(
+                        tableId,
+                        shopId: state.uri.queryParameters['shopId'],
+                        partySize: count,
+                        requestId: requestId,
+                        expectedBusinessDate: entry.businessDate,
+                        expectedRuleRevision: entry.revision,
+                      ),
         readCatalog: kingclubCommerceApiBaseUrl.isEmpty
             ? null
             : OrderingCatalogRepository.secure(kingclubCommerceApiBaseUrl).read,
@@ -1178,21 +1187,29 @@ class ScanOrderConfirmationRoute extends GoRouteData
 
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      ScanOrderConfirmationPage(
-        repository: _commerce(context),
-        quote: $extra,
-        onBack: () => context.canPop()
-            ? context.pop()
-            : const ScanOrderingCartRoute().go(context),
-        onModify: () => context.canPop()
-            ? context.pop()
-            : const ScanOrderingCartRoute().go(context),
-        onOrderCreated: (intent) =>
-            PaymentResultRoute(FakePaymentIntentRef(intent.paymentIntentId))
-                .go(context),
-        onSessionResetRequested: () => _clearCommerceAndLogin(context),
-        onOpenOrders: () => const OrderCenterRoute().go(context),
-      );
+      $extra?.orderingContext != null
+      ? LiveOrderPaymentPage(
+          quote: $extra!,
+          repository: OrderingOrderRepository.secure(
+            kingclubCommerceApiBaseUrl,
+          ),
+          onBack: () => context.pop(),
+        )
+      : ScanOrderConfirmationPage(
+          repository: _commerce(context),
+          quote: $extra,
+          onBack: () => context.canPop()
+              ? context.pop()
+              : const ScanOrderingCartRoute().go(context),
+          onModify: () => context.canPop()
+              ? context.pop()
+              : const ScanOrderingCartRoute().go(context),
+          onOrderCreated: (intent) =>
+              PaymentResultRoute(FakePaymentIntentRef(intent.paymentIntentId))
+                  .go(context),
+          onSessionResetRequested: () => _clearCommerceAndLogin(context),
+          onOpenOrders: () => const OrderCenterRoute().go(context),
+        );
 }
 
 @TypedGoRoute<OrderCenterRoute>(

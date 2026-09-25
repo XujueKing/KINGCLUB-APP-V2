@@ -101,4 +101,53 @@ void main() {
     );
     expect(called, isFalse);
   });
+  test('owned payment requires the same order and scope and accepts authoritative cents', () async {
+    var wrong = false;
+    final repo = OrderingOrderRepository(
+      readSession: () async => session,
+      request: (id, params, _) async {
+        expect(id, 'K260919000815');
+        expect(params, {'orderRef': 'D00000000001'});
+        return {
+          'result': {
+            'orderRef': wrong ? 'D00000000002' : 'D00000000001',
+            'storeRef': 'store',
+            'tableId': context.tableId,
+            'tableSessionRef': context.tableSessionRef,
+            'status': 'paid',
+            'totalCents': 10,
+            'currency': 'CNY',
+            'expiresAt': '2026-09-25T12:00:00Z',
+          },
+        };
+      },
+    );
+    final receipt = await repo.owned(
+      context: context,
+      orderRef: 'D00000000001',
+    );
+    expect(receipt.totalCents, 10);
+    expect(receipt.status, 'paid');
+    wrong = true;
+    await expectLater(
+      repo.owned(context: context, orderRef: 'D00000000001'),
+      throwsA(isA<AuthFailure>()),
+    );
+  });
+  test(
+    'does not accept a payment result after switching login sessions',
+    () async {
+      var reads = 0;
+      final repo = OrderingOrderRepository(
+        readSession: () async => reads++ == 0 ? session : null,
+        request: (_, _, _) async => {'result': {}},
+      );
+      await expectLater(
+        repo.owned(context: context, orderRef: 'D00000000001'),
+        throwsA(
+          isA<AuthFailure>().having((e) => e.code, 'code', 'SESSION_CHANGED'),
+        ),
+      );
+    },
+  );
 }

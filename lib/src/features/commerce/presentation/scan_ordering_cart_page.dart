@@ -30,12 +30,14 @@ class FakeOrderingQuote {
     required this.total,
     required this.items,
     this.orderingContext,
+    this.onPaymentConfirmed,
   });
 
   final int itemCount;
   final int total;
   final List<FakeOrderingQuoteItem> items;
   final OrderingContext? orderingContext;
+  final VoidCallback? onPaymentConfirmed;
 }
 
 class FakeOrderingQuoteItem {
@@ -46,6 +48,7 @@ class FakeOrderingQuoteItem {
     required this.quantity,
     required this.unitPrice,
     this.unitPriceCents,
+    this.catalogProduct,
   });
 
   final String name;
@@ -59,6 +62,7 @@ class FakeOrderingQuoteItem {
   /// Live catalog prices are authoritative integer cents and must not be
   /// rounded when the quote is handed to the confirmation page.
   final int? unitPriceCents;
+  final OrderingCatalogProduct? catalogProduct;
 
   int get subtotal => quantity * unitPrice;
   int get subtotalCents => quantity * (unitPriceCents ?? unitPrice * 100);
@@ -1097,6 +1101,11 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     if (!mounted || generation != _scopeGeneration) return;
     setState(() => _quoting = false);
     final quote = FakeOrderingQuote(
+      onPaymentConfirmed: _live
+          ? () {
+              if (mounted) setState(() => _quantities.clear());
+            }
+          : null,
       orderingContext: widget.orderingContext,
       itemCount: _itemCount,
       total: _total,
@@ -1110,6 +1119,11 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               quantity: _quantities[product.id]!,
               unitPrice: _live ? product.price ~/ 100 : product.price,
               unitPriceCents: _live ? product.price : null,
+              catalogProduct: _live
+                  ? widget.catalog!.products.firstWhere(
+                      (p) => p.reference == product.id,
+                    )
+                  : null,
             ),
           )
           .toList(growable: false),
