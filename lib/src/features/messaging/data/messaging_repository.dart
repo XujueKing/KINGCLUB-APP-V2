@@ -2,6 +2,8 @@ import 'chat_video.dart';
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'chat_media_transfer.dart';
 
 import 'chat_read_outbox.dart';
@@ -109,12 +111,19 @@ class MessagingRepository {
     required String clientMessageId,
     required String text,
     String? replyToMessageId,
-  }) => call('K260913000601', {
-    'recipient': peer,
-    'clientMessageId': clientMessageId,
-    'text': text,
-    'replyToMessageId': ?replyToMessageId,
-  });
+  }) async {
+    final result = await call('K260913000601', {
+      'recipient': peer,
+      'clientMessageId': clientMessageId,
+      'text': text,
+      'replyToMessageId': ?replyToMessageId,
+    });
+    if (!kReleaseMode) {
+      debugPrint('CHAT_DELIVERY phase=service_response carrier=ccsop');
+    }
+    return result;
+  }
+
   Future<Map<String, dynamic>> sendImage({
     required String peer,
     required String clientMessageId,

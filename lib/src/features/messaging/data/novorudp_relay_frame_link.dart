@@ -24,7 +24,8 @@ class NovoRudpRelayFrameLink
         NovoRudpFrameLink,
         NovoRudpRouteRecovery,
         NovoRudpRemoteLiveness,
-        NovoRudpRouteObservations {
+        NovoRudpRouteObservations,
+        NovoRudpCarrierObservations {
   NovoRudpRelayFrameLink({
     required this.relay,
     required this.channel,
@@ -77,7 +78,7 @@ class NovoRudpRelayFrameLink
                   } else if (frame.streamId == NovoRudpIceRoute.controlStream) {
                     await _ice?.acceptControl(frame);
                   } else {
-                    _recordRoute(frame, false);
+                    _recordRoute(frame, NovoRudpCarrier.supervmRelay);
                     _frames.add(frame);
                   }
                 }
@@ -112,7 +113,12 @@ class NovoRudpRelayFrameLink
               frame.streamId == _livenessStream) {
             return;
           }
-          _recordRoute(frame, direct);
+          _recordRoute(
+            frame,
+            direct
+                ? NovoRudpCarrier.iceDirect
+                : NovoRudpCarrier.iceUnclassified,
+          );
           _frames.add(frame);
         },
         stunUrls: [
@@ -212,7 +218,7 @@ class NovoRudpRelayFrameLink
         deliver: (frame) async {
           await _authorization;
           _check();
-          _recordRoute(frame, true);
+          _recordRoute(frame, NovoRudpCarrier.udpDirect);
           _frames.add(frame);
         },
       );
@@ -244,14 +250,21 @@ class NovoRudpRelayFrameLink
   @override
   Stream<NovoRudpReceivedRoute> get receivedRoutes => _routes.stream;
 
-  void _recordRoute(NovoRudpFrame frame, bool direct) {
+  final _carriers = Expando<NovoRudpCarrier>();
+  @override
+  NovoRudpCarrier? receivedCarrier(NovoRudpFrame frame) => _carriers[frame];
+
+  void _recordRoute(NovoRudpFrame frame, NovoRudpCarrier carrier) {
+    _carriers[frame] = carrier;
     if (!_routes.hasListener) return;
     _routes.add((
       streamId: frame.streamId,
       objectId: frame.objectId,
       kind: frame.kind,
       bytes: frame.payload.length,
-      direct: direct,
+      direct:
+          carrier == NovoRudpCarrier.udpDirect ||
+          carrier == NovoRudpCarrier.iceDirect,
     ));
   }
 

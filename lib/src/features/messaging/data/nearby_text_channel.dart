@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/session/member_qr_memory.dart';
 import 'chat_history_store.dart';
@@ -23,6 +24,7 @@ class _TextParts {
   final String hash;
   final int count;
   final parts = <int, List<int>>{};
+  final carriers = <int, NovoRudpCarrier?>{};
   final age = Stopwatch()..start();
 }
 
@@ -281,6 +283,12 @@ class NearbyTextChannel {
       if (state == null || state.hash != hash) return;
       if (await history.confirmNearbyReceipt(peerId: peerId, id: id)) {
         _check();
+        // This is the receipt carrier, not proof of the forward data route.
+        if (!kReleaseMode) {
+          debugPrint(
+            'CHAT_DELIVERY phase=durable_receipt carrier=${_carrier(frame)?.name ?? "unknown"}',
+          );
+        }
         _finish(id);
         _changes.add(id);
       }
@@ -312,6 +320,7 @@ class NearbyTextChannel {
     final parts = _assembling.putIfAbsent(id, () => _TextParts(hash, count));
     if (parts.hash != hash || parts.count != count) return;
     parts.parts[index] = bytes;
+    parts.carriers[index] = _carrier(frame);
     if (parts.parts.length != count) return;
     final all = [for (var i = 0; i < count; i++) ...parts.parts[i]!];
     _assembling.remove(id);
@@ -333,9 +342,25 @@ class NearbyTextChannel {
       outgoing: false,
     );
     _check();
+    if (!kReleaseMode) {
+      final carriers =
+          parts.carriers.values
+              .map((c) => c?.name ?? 'unknown')
+              .toSet()
+              .toList()
+            ..sort();
+      debugPrint(
+        'CHAT_DELIVERY phase=received_persisted carriers=${carriers.join(",")}',
+      );
+    }
     await _send({'v': 1, 'id': id, 'hash': hash}, NovoRudpFrameKind.ack);
     _changes.add(id);
   }
+
+  NovoRudpCarrier? _carrier(NovoRudpFrame frame) =>
+      link is NovoRudpCarrierObservations
+      ? (link as NovoRudpCarrierObservations).receivedCarrier(frame)
+      : null;
 
   void _finish(String id, [Object? error]) {
     final state = _pending.remove(id);

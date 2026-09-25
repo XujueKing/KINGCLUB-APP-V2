@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_frame.dart';
+import 'package:kingclub/src/features/messaging/data/novorudp_frame_link.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_lan_route.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_relay_connection.dart';
 import 'package:kingclub/src/features/messaging/data/novorudp_relay_frame_link.dart';
@@ -130,6 +131,10 @@ void main() {
       await left.send(frame(1));
       await until(() => deliveries.isNotEmpty);
       expect(direct, 0, reason: 'closed route falls back to carrier');
+      expect(
+        right.receivedCarrier(deliveries.single),
+        NovoRudpCarrier.supervmRelay,
+      );
       await until(
         () =>
             created.length == 2 && left.directLanReady && right.directLanReady,
@@ -137,6 +142,11 @@ void main() {
       await left.send(frame(2));
       await until(() => deliveries.length == 2);
       expect(deliveries.last.payload, [2]);
+      expect(right.receivedCarrier(deliveries.last), NovoRudpCarrier.udpDirect);
+      expect(
+        right.receivedCarrier(deliveries.first),
+        NovoRudpCarrier.supervmRelay,
+      );
       expect(direct, 1, reason: 'rebuilt route really carried UDP');
     },
     skip: !Platform.environment.containsKey('NOVORUDP_NATIVE_LIBRARY'),

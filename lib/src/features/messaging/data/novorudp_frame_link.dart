@@ -31,3 +31,10 @@ typedef NovoRudpReceivedRoute = ({
 abstract interface class NovoRudpRouteObservations {
   Stream<NovoRudpReceivedRoute> get receivedRoutes;
 }
+
+/// The carrier of an authenticated received frame; never inferred from its ACK.
+enum NovoRudpCarrier { udpDirect, iceDirect, iceUnclassified, supervmRelay }
+
+abstract interface class NovoRudpCarrierObservations {
+  NovoRudpCarrier? receivedCarrier(NovoRudpFrame frame);
+}
