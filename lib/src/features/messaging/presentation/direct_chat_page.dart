@@ -645,6 +645,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                       widget.peerAccount!,
                     )
                   : null,
+              transportReady: repository.persistHistory
+                  ? NovoRudpBindingRuntime.transportReady(repository.account)
+                  : null,
               relayChanges: repository.persistHistory
                   ? NovoRudpBindingRuntime.textChanges(repository.account)
                   : null,

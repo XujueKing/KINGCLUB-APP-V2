@@ -18,6 +18,7 @@ class ChatOutboxRecovery {
     this.relaySenderFor,
     this.openHistory,
     this.recoverTransport,
+    this.transportReady,
   });
   final Future<ChatHistoryStore> Function()? openHistory;
   Future<ChatHistoryStore> Function()? get _historyFactory =>
@@ -32,6 +33,8 @@ class ChatOutboxRecovery {
 
   /// Starts optional native recovery without holding up service delivery.
   final void Function()? recoverTransport;
+  final Stream<void>? transportReady;
+  StreamSubscription<void>? _transportEvents;
   static final _visible = <String, int>{};
   static final _workers = <ChatOutboxRecovery>{};
   final _running = <String, ChatSessionController>{};
@@ -72,6 +75,12 @@ class ChatOutboxRecovery {
   void start() {
     if (_closed) return;
     _workers.add(this);
+    _transportEvents ??=
+        (transportReady ??
+                (repository.persistHistory
+                    ? NovoRudpBindingRuntime.transportReady(repository.account)
+                    : null))
+            ?.listen((_) => unawaited(notify()));
     _timer ??= Timer.periodic(const Duration(seconds: 15), (_) => notify());
     notify();
   }
@@ -178,6 +187,7 @@ class ChatOutboxRecovery {
     if (_closed) return;
     _closed = true;
     _timer?.cancel();
+    unawaited(_transportEvents?.cancel());
     _workers.remove(this);
     for (final chat in _running.values) {
       chat.dispose();

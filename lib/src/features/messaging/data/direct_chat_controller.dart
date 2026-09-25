@@ -26,7 +26,15 @@ class DirectChatController extends ChatSessionController {
     this.preferRelayText,
     this.markRelayRead,
     Stream<String>? relayChanges,
+    Stream<void>? transportReady,
   }) {
+    _transportEvents = transportReady?.listen((_) {
+      unawaited(
+        retryQueued().catchError((Object _) {
+          // Durable queue remains available after storage or transport errors.
+        }),
+      );
+    });
     _relayEvents = relayChanges?.listen((member) {
       if (member == peer) unawaited(_refreshRelay());
     });
@@ -56,6 +64,7 @@ class DirectChatController extends ChatSessionController {
   }
 
   StreamSubscription<String>? _relayEvents;
+  StreamSubscription<void>? _transportEvents;
   List<Map<String, dynamic>> _relayMessages = [];
   Set<String> _relayPeerRead = {};
   int _relayRead = 0;
@@ -285,6 +294,7 @@ class DirectChatController extends ChatSessionController {
   void dispose() {
     _disposed = true;
     unawaited(_relayEvents?.cancel());
+    unawaited(_transportEvents?.cancel());
     super.dispose();
   }
 

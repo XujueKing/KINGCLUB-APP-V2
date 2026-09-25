@@ -80,6 +80,23 @@ class NovoRudpBindingRuntime {
   static const enabled = bool.fromEnvironment(
     'KINGCLUB_NOVORUDP_DEVICE_BINDING',
   );
+  static final _transportReady =
+      StreamController<({String account, int generation})>.broadcast();
+  static StreamSubscription? _connectionEvents;
+
+  /// Only a newly authenticated current-account connection wakes delivery.
+  static Stream<void> transportReady(String account) {
+    final generation = MemberQrMemory.generation;
+    return _transportReady.stream
+        .where(
+          (event) =>
+              event.account == account &&
+              event.generation == generation &&
+              generation == MemberQrMemory.generation,
+        )
+        .map((_) {});
+  }
+
   static StreamSubscription<void>? _sessionEvents;
   static Future<void>? _work;
   static NovoRudpDeviceBinding? _binding;
@@ -219,6 +236,8 @@ class NovoRudpBindingRuntime {
   }
 
   static void _clear() {
+    unawaited(_connectionEvents?.cancel());
+    _connectionEvents = null;
     _textRoutes.clear();
     unawaited(_files?.close());
     _files = null;
@@ -324,6 +343,17 @@ class NovoRudpBindingRuntime {
           runtime.close();
           return;
         }
+        final activeRuntime = runtime;
+        _connectionEvents = runtime.connections.listen((connection) {
+          if (connection != null &&
+              generation == MemberQrMemory.generation &&
+              identical(_relay, activeRuntime)) {
+            _transportReady.add((
+              account: messaging.account,
+              generation: generation,
+            ));
+          }
+        });
         runtime.start();
       }
     } catch (error) {
