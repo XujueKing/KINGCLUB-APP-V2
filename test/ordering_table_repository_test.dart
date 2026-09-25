@@ -32,6 +32,24 @@ Matcher failure(String code) =>
     isA<AuthFailure>().having((error) => error.code, 'code', code);
 
 void main() {
+  test('pending entry requires explicit confirmation and sends rule snapshot', () async {
+    final calls = <Map<String, dynamic>>[];
+    final repository = OrderingTableRepository(readSession: () async => session(),
+      request: (_, params, _) async {
+        calls.add(params);
+        return {'result': params.containsKey('partySize') ? result() : {
+          'entryState': 'choose_party', 'tableId': 'table-a', 'memberRef': 'member-a',
+          'storeRef': 'store-a', 'tableName': 'T1', 'businessDate': '2026-09-25',
+          'ruleRevision': 2, 'minimumPeople': 1,
+        }};
+      });
+    await expectLater(repository.resolve('table-a'), throwsA(isA<OrderingEntryRequired>()));
+    expect(calls.single, {'tableId': 'table-a'});
+    await repository.resolve('table-a', partySize: 3, requestId: 'request-fixture',
+      expectedBusinessDate: '2026-09-25', expectedRuleRevision: 2);
+    expect(calls.last['partySize'], 3);
+    expect(calls.last['expectedRuleRevision'], 2);
+  });
   test('an empty display address does not invalidate verified table scope', () async {
     final repository = OrderingTableRepository(
       readSession: () async => session(),

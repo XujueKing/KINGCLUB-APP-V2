@@ -10,12 +10,22 @@ typedef OrderingContextRequest = Future<Map<String, dynamic>> Function(
   Map<String, dynamic> session,
 );
 
+class OrderingEntryRequired extends AuthFailure {
+  const OrderingEntryRequired({
+    required this.tableName,
+    required this.businessDate,
+    required this.revision,
+    required this.minimumPeople,
+    required this.staffRequired,
+  }) : super('ORDERING_ENTRY_REQUIRED', '请选择人数或联系预订人员');
+  final String tableName, businessDate;
+  final int revision, minimumPeople;
+  final bool staffRequired;
+}
+
 /// Reads verified table scope only; never authorizes seating or payment.
 class OrderingTableRepository {
-  OrderingTableRepository({
-    required this.readSession,
-    required this.request,
-  });
+  OrderingTableRepository({required this.readSession, required this.request});
 
   factory OrderingTableRepository.secure(String baseUrl) {
     final client = KingclubSecureClient(baseUrl);
@@ -31,7 +41,14 @@ class OrderingTableRepository {
   final OrderingContextRequest request;
   static final _reference = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
 
-  Future<OrderingContext> resolve(String tableId, {String? shopId}) async {
+  Future<OrderingContext> resolve(
+    String tableId, {
+    String? shopId,
+    int? partySize,
+    String? requestId,
+    String? expectedBusinessDate,
+    int? expectedRuleRevision,
+  }) async {
     if (!_reference.hasMatch(tableId) ||
         (shopId != null && !_reference.hasMatch(shopId))) {
       throw const AuthFailure('ORDERING_CODE_INVALID', '桌卡信息无效');
@@ -50,6 +67,12 @@ class OrderingTableRepository {
     final response = await request('K260919000801', {
       'tableId': tableId,
       'shopId': ?shopId,
+      if (partySize != null) ...{
+        'partySize': partySize,
+        'requestId': requestId,
+        'expectedBusinessDate': expectedBusinessDate,
+        'expectedRuleRevision': expectedRuleRevision,
+      },
     }, session);
     final current = await readSession();
     final currentAccount = current?['account'];
@@ -73,6 +96,30 @@ class OrderingTableRepository {
 
     final resolvedTable = field('tableId');
     final resolvedMember = field('memberRef');
+    if (result['entryState'] != null) {
+      final state = field('entryState');
+      final date = field('businessDate');
+      final revision = result['ruleRevision'],
+          minimum = result['minimumPeople'];
+      if (resolvedTable != tableId ||
+          resolvedMember != member ||
+          (shopId != null && shopId != '0' && shopId != field('storeRef')) ||
+          !['choose_party', 'staff_required'].contains(state) ||
+          revision is! int ||
+          revision < 0 ||
+          minimum is! int ||
+          minimum < 1 ||
+          DateTime.tryParse(date) == null) {
+        _invalid();
+      }
+      throw OrderingEntryRequired(
+        tableName: field('tableName'),
+        businessDate: date,
+        revision: revision,
+        minimumPeople: minimum,
+        staffRequired: state == 'staff_required',
+      );
+    }
     final contextRef = field('contextRef');
     final tableSessionRef = field('tableSessionRef');
     final storeRef = field('storeRef');

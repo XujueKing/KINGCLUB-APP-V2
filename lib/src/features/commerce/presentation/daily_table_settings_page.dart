@@ -28,6 +28,7 @@ class _DailyTableSettingsPageState extends State<DailyTableSettingsPage> {
   late String _date = widget.businessDate;
   final _value = TextEditingController();
   String _mode = 'manual';
+  bool _reserved = false;
   int? _revision, _next;
   List<dynamic> _history = [];
   bool _busy = false;
@@ -81,6 +82,7 @@ class _DailyTableSettingsPageState extends State<DailyTableSettingsPage> {
               ? <String, dynamic>{'mode': 'manual'}
               : rows.first['rule'] as Map;
           _mode = rule['mode'] as String;
+          _reserved = rule['reservationRequired'] == true;
           _value.text = _mode == 'minimum_people'
               ? '${rule['minimumPeople']}'
               : _mode == 'minimum_spend'
@@ -109,6 +111,7 @@ class _DailyTableSettingsPageState extends State<DailyTableSettingsPage> {
   Future<void> _save() async {
     if (_revision == null) return;
     final rule = <String, dynamic>{'mode': _mode};
+    if (_reserved) rule['reservationRequired'] = true;
     final text = _value.text.trim();
     if (_mode == 'minimum_people') {
       final number = int.tryParse(text);
@@ -229,6 +232,21 @@ class _DailyTableSettingsPageState extends State<DailyTableSettingsPage> {
                         _mode = value!;
                         _value.clear();
                       }),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  t([
+                    '本日已预约（员工开台）',
+                    'Reserved today (staff opening)',
+                    '本日已預約（員工開台）',
+                    'จองแล้ววันนี้ (พนักงานเปิดโต๊ะ)',
+                  ]),
+                ),
+                value: _reserved,
+                onChanged: _busy || _revision == null
+                    ? null
+                    : (value) => setState(() => _reserved = value),
               ),
               if (_mode == 'minimum_people' || _mode == 'minimum_spend')
                 TextField(

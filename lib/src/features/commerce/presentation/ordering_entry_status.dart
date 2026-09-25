@@ -34,6 +34,18 @@ class OrderingEntryStatus {
   }
 
   String message(Locale locale) => text(locale, switch (code) {
+    'ORDERING_RULE_CHANGED' => [
+      '桌台规则已更新，请刷新后重新选择人数',
+      'Table rules changed. Refresh and select guests again.',
+      '桌台規則已更新，請重新整理後選擇人數',
+      'กฎโต๊ะเปลี่ยนแล้ว กรุณารีเฟรชและเลือกจำนวนคนใหม่',
+    ],
+    'ORDERING_PARTY_SIZE_INVALID' => [
+      '人数不符合本桌今日设置，请重新选择',
+      'Guest count does not match today’s table rules.',
+      '人數不符合本桌今日設定，請重新選擇',
+      'จำนวนคนไม่ตรงตามกฎโต๊ะวันนี้ กรุณาเลือกใหม่',
+    ],
     'ORDERING_SERVICE_UNAVAILABLE' => [
       '桌台点单服务尚未接通',
       'Table ordering is not available yet.',

@@ -1134,6 +1134,11 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
                 kingclubCommerceApiBaseUrl.isNotEmpty
             ? TableManagementRepository.secure(kingclubCommerceApiBaseUrl)
             : null,
+        openWalkIn: kingclubCommerceApiBaseUrl.isEmpty ? null : (entry, count, requestId) =>
+          OrderingTableRepository.secure(kingclubCommerceApiBaseUrl).resolve(tableId,
+            shopId: state.uri.queryParameters['shopId'], partySize: count,
+            requestId: requestId, expectedBusinessDate: entry.businessDate,
+            expectedRuleRevision: entry.revision),
         readCatalog: kingclubCommerceApiBaseUrl.isEmpty
             ? null
             : OrderingCatalogRepository.secure(kingclubCommerceApiBaseUrl).read,

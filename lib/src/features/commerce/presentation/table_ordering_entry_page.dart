@@ -1,5 +1,9 @@
 import '../data/table_management_repository.dart';
 import 'table_party_page.dart';
+import 'walk_in_party_page.dart';
+import '../data/ordering_table_repository.dart';
+
+import 'package:uuid/uuid.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +25,7 @@ class TableOrderingEntryPage extends StatefulWidget {
     this.resolveTable,
     this.readCatalog,
     this.tableManagement,
+    this.openWalkIn,
     this.onQuoteReady,
     this.onOpenOrders,
     this.previewEnabled = false,
@@ -30,6 +35,12 @@ class TableOrderingEntryPage extends StatefulWidget {
   });
 
   final TableManagementRepository? tableManagement;
+  final Future<OrderingContext> Function(
+    OrderingEntryRequired entry,
+    int count,
+    String requestId,
+  )?
+  openWalkIn;
   final String tableId;
   final VoidCallback onBack;
   final ResolveOrderingTable? resolveTable;
@@ -52,6 +63,9 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
   OrderingEntryStatus? _error;
   int _generation = 0;
   bool _partyReady = false;
+  OrderingEntryRequired? _entry;
+  String? _openingRequest;
+  int? _openingCount;
 
   @override
   void initState() {
@@ -62,6 +76,10 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
   @override
   void didUpdateWidget(covariant TableOrderingEntryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.tableId != widget.tableId) {
+      _openingRequest = null;
+      _openingCount = null;
+    }
     if (oldWidget.tableId != widget.tableId ||
         oldWidget.resolveTable != widget.resolveTable ||
         oldWidget.readCatalog != widget.readCatalog) {
@@ -69,10 +87,13 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
     }
   }
 
-  Future<void> _resolve() async {
+  Future<void> _resolve([
+    Future<OrderingContext> Function()? confirmation,
+  ]) async {
     final generation = ++_generation;
     setState(() {
       _partyReady = false;
+      _entry = null;
       _context = null;
       _catalog = null;
       _loading = widget.resolveTable != null;
@@ -83,7 +104,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
     final resolver = widget.resolveTable;
     if (resolver == null) return;
     try {
-      final result = await resolver(widget.tableId);
+      final result = await (confirmation?.call() ?? resolver(widget.tableId));
       if (!mounted || generation != _generation) return;
       final reader = widget.readCatalog;
       if (reader == null) {
@@ -103,6 +124,11 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
       if (!mounted || generation != _generation) return;
       setState(() {
         _loading = false;
+        if (error is OrderingEntryRequired) {
+          _entry = error;
+          _error = null;
+          return;
+        }
         _error = OrderingEntryStatus(
           error is AuthFailure ? error.code : 'UNKNOWN',
         );
@@ -112,6 +138,24 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final entry = _entry;
+    if (entry != null && widget.openWalkIn != null) {
+      return WalkInPartyPage(
+        entry: entry,
+        locale: widget.locale,
+        onBack: widget.onBack,
+        onRefresh: () => _resolve(),
+        onConfirm: (count) async {
+          if (_openingCount != count || _openingRequest == null) {
+            _openingCount = count;
+            _openingRequest = const Uuid().v4();
+          }
+          await _resolve(
+            () => widget.openWalkIn!(entry, count, _openingRequest!),
+          );
+        },
+      );
+    }
     if (widget.previewEnabled && widget.resolveTable == null) {
       final preview = OrderingContext(
         contextRef: 'preview:${widget.tableId}',
@@ -134,7 +178,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
     final resolved = _context;
     if (resolved != null) {
       final management = widget.tableManagement;
-      if (management != null && !_partyReady) {
+      if (management != null && widget.openWalkIn == null && !_partyReady) {
         return TablePartyPage(
           key: ValueKey('party:${resolved.contextRef}'),
           tableName: resolved.tableName,
