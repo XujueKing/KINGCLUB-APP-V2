@@ -98,8 +98,8 @@ class NovoRudpFileDownload {
         _queued++;
         unawaited(_receive(frame).whenComplete(() => _queued--));
       },
-      onError: (Object error) => _fail(error),
-      onDone: () => _fail(StateError('File lane closed')),
+      onError: (Object error) => _transportFailed(error),
+      onDone: () => _transportFailed(StateError('File lane closed')),
     );
     _session = SecureSessionStore.changes.stream.listen(
       (_) => _fail(StateError('File session changed')),
@@ -236,16 +236,16 @@ class NovoRudpFileDownload {
         // Normal partial receipt: send missing ranges, not completion.
       }
       _check();
-      // Local verified data must not wait for a blocked outgoing transport.
-      // Keep just one ACK in flight on this shared lane.
-      if (!_sendingAck) unawaited(_sendAck(ack));
-      _check();
       if (file != null && !_done.isCompleted) {
         _timer.cancel();
         _idleTimer?.cancel();
         _stallProbeTimer?.cancel();
         _done.complete(file);
       }
+      // Transfer ownership before sending the final ACK: even a synchronous
+      // carrier failure must not delete verified data before its owner copies it.
+      // Keep just one ACK in flight on this shared lane.
+      if (!_sendingAck) unawaited(_sendAck(ack));
     } catch (error) {
       _fail(error);
     }
@@ -259,10 +259,17 @@ class NovoRudpFileDownload {
     } on SocketException {
       // A dropped local ACK is retried by the sender's next DONE request.
     } catch (error) {
-      if (!_closed) _fail(error);
+      if (!_closed) _transportFailed(error);
     } finally {
       _sendingAck = false;
     }
+  }
+
+  void _transportFailed(Object error) {
+    // Completion does not depend on the return route. Session revocation and
+    // explicit owner cancellation still use _fail/close and delete the file.
+    if (_done.isCompleted) return;
+    _fail(error);
   }
 
   void _fail(Object error) {
