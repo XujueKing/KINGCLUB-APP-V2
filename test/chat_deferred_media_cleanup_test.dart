@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
@@ -7,6 +8,7 @@ import 'package:kingclub/src/core/media/media_cache.dart';
 import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_media_cleanup.dart';
 import 'package:kingclub/src/features/messaging/data/chat_outbox.dart';
+import 'package:kingclub/src/features/messaging/data/chat_download_cache.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class PendingReferences implements ChatOutbox {
@@ -23,6 +25,106 @@ class PendingReferences implements ChatOutbox {
 void main() {
   sqfliteFfiInit();
   for (final group in [false, true]) {
+    test(
+      'shared file source survives restart until its last reference ($group)',
+      () async {
+        final root = await Directory.systemTemp.createTemp(
+          'chat-file-deferred-',
+        );
+        final key = await AesGcm.with256bits().newSecretKey();
+        final queue = PendingReferences();
+        final sent = ChatDownloadCache(
+          root: Directory('${root.path}/sent'),
+          key: key,
+        );
+        final downloaded = ChatDownloadCache(
+          root: Directory('${root.path}/download'),
+          key: key,
+        );
+        final cleanup = ChatMediaCleanup(
+          downloadCache: (_) async => downloaded,
+          sentFileCache: (_) async => sent,
+        );
+        final bytes = Uint8List.fromList([1, 2, 3, 4]);
+        final digest = (await Sha256().hash(bytes)).bytes
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join();
+        const asset = '11111111-1111-4111-8111-111111111111';
+        final identity = jsonEncode([
+          'sent-file-v1',
+          asset,
+          bytes.length,
+          digest,
+        ]);
+        final message = <String, dynamic>{
+          'sequence': 1,
+          'messageId': 'file1',
+          'clientMessageId': 'client1',
+          'sender': 'me',
+          'messageType': 'file',
+          'fileAssetId': asset,
+          'fileSize': bytes.length,
+          'fileSha256': digest,
+          'fileName': 'private-name.txt',
+          'text': '',
+        };
+        final ownDownload = jsonEncode([
+          'me',
+          group,
+          'file1',
+          asset,
+          bytes.length,
+          digest,
+          'private-name.txt',
+        ]);
+        final conversation = group ? 'group:g' : 'direct:peer';
+        Future<ChatHistoryStore> open() => ChatHistoryStore.openDatabaseWithKey(
+          factory: databaseFactoryFfi,
+          file: '${root.path}/history.db',
+          key: key,
+          account: 'me',
+          outbox: queue,
+        );
+        var store = await open();
+        try {
+          await sent.write(identity, 0, bytes);
+          await sent.retainCompleted(identity);
+          await downloaded.write(ownDownload, 0, bytes);
+          await downloaded.retainCompleted(ownDownload);
+          await store.commit(conversation, [message], expectedEpoch: 0);
+          await queue.put({...message, 'clientMessageId': 'pending'});
+          await store.clear(conversation, mediaCleanup: cleanup);
+          await expectLater(
+            downloaded.ensureNotDeleted(ownDownload),
+            throwsStateError,
+          );
+          expect(await sent.read(identity, 0, bytes.length), bytes);
+          await store.close();
+          store = await open();
+          await store.collectDeferredMedia(mediaCleanup: cleanup);
+          expect(await sent.read(identity, 0, bytes.length), bytes);
+          // A received reference to the same asset must also retain our source.
+          await store.commit('direct:other', [
+            {
+              ...message,
+              'messageId': 'file2',
+              'clientMessageId': 'client2',
+              'sender': 'peer',
+            },
+          ], expectedEpoch: 0);
+          await queue.remove('pending');
+          await store.collectDeferredMedia(mediaCleanup: cleanup);
+          expect(await sent.read(identity, 0, bytes.length), bytes);
+          await store.clear('direct:other', mediaCleanup: cleanup);
+          await store.collectDeferredMedia(mediaCleanup: cleanup);
+          expect(await sent.read(identity, 0, bytes.length), isNull);
+          expect(await sent.isRetained(identity), isFalse);
+        } finally {
+          await store.close();
+          await root.delete(recursive: true);
+        }
+      },
+    );
     test(
       'deferred voice source survives restart and waits for all references ($group)',
       () async {
