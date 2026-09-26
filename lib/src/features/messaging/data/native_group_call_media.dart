@@ -25,6 +25,10 @@ class NativeGroupRemote {
 /// Creates no native resources until open, which the call owner invokes only
 /// after explicit start/accept. This object never accepts or renews a call.
 class NativeGroupCallMedia {
+  static const _networkRecoveryWindow = Duration(seconds: 25);
+  static const _relayReadRetryInterval = Duration(seconds: 2);
+  static const _relayReadAttempts = 12;
+
   NativeGroupCallMedia({
     required this.repository,
     this.relay,
@@ -260,7 +264,7 @@ class NativeGroupCallMedia {
         _fail(StateError('Group media transport failed'));
       } else if (state == 'disconnected' || state == 'failed') {
         _unhealthyDirections.add(direction);
-        _recoveryDeadline ??= Timer(const Duration(seconds: 25), () {
+        _recoveryDeadline ??= Timer(_networkRecoveryWindow, () {
           if (_unhealthyDirections.isNotEmpty) {
             _fail(StateError('Group media reconnect timed out'));
           }
@@ -319,7 +323,7 @@ class NativeGroupCallMedia {
       // Retry only the read-only source listing after an established open.
       // Never hide authorization failures or retry publish/consume mutations.
       if (!_opened || _closed || error.code != 'NETWORK_ERROR') rethrow;
-      _sourceReadDeadline ??= Timer(const Duration(seconds: 8), () {
+      _sourceReadDeadline ??= Timer(_networkRecoveryWindow, () {
         _fail(error);
       });
       return;
@@ -508,12 +512,14 @@ class NativeGroupCallMedia {
       } on AuthFailure catch (error) {
         // Retry only this read, before any ICE mutation. Initial capture and
         // authorization errors retain their immediate failure behavior.
-        if (!_opened || error.code != 'NETWORK_ERROR' || attempt >= 2) {
+        if (!_opened ||
+            error.code != 'NETWORK_ERROR' ||
+            attempt >= _relayReadAttempts - 1) {
           rethrow;
         }
         _check();
         final wait = _relayRetryWait = Completer<void>();
-        _relayRetryTimer = Timer(const Duration(seconds: 1), wait.complete);
+        _relayRetryTimer = Timer(_relayReadRetryInterval, wait.complete);
         await wait.future;
         _relayRetryTimer = null;
         _relayRetryWait = null;

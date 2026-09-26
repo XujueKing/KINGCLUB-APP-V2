@@ -406,10 +406,12 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       expect(media.isClosed, mode == 'denied');
       if (mode == 'recover') {
+        await tester.pump(const Duration(seconds: 10));
+        expect(media.isClosed, false);
         repo.sourceFailure = null;
         await tester.pump(const Duration(seconds: 2));
       }
-      await tester.pump(const Duration(seconds: 9));
+      await tester.pump(const Duration(seconds: 26));
       expect(media.isClosed, mode != 'recover');
       expect(stream.track.stops, mode == 'recover' ? 0 : 1);
       expect(errors.length, mode == 'recover' ? 0 : 1);
@@ -439,13 +441,27 @@ void main() {
       expect(repo.relayReads, 2);
       expect(repo.restarts, 0);
       expect(media.isClosed, mode == 'denied');
-      if (mode == 'recover') repo.relayFailure = null;
+      if (mode == 'recover') {
+        // Wi-Fi reassociation can outlast the former two-second retry budget.
+        for (var i = 0; i < 4; i++) {
+          await tester.pump(const Duration(seconds: 2));
+        }
+        expect(media.isClosed, false);
+        expect(repo.restarts, 0);
+        repo.relayFailure = null;
+      }
       if (mode == 'hangup') await media.close();
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 1));
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(seconds: 2));
+        if (mode == 'recover' && repo.restarts == 2) {
+          device.send.events['connectionstatechange']!({
+            'connectionState': 'connected',
+          });
+        }
+      }
       expect(repo.relayReads, switch (mode) {
-        'recover' => 3,
-        'exhausted' => 4,
+        'recover' => 7,
+        'exhausted' => 13,
         _ => 2,
       });
       expect(repo.restarts, mode == 'recover' ? 2 : 0);
