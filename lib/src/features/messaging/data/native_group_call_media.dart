@@ -187,14 +187,19 @@ class NativeGroupCallMedia {
             stream: stream,
             source: track.kind == 'audio' ? 'mic' : 'camera',
             stopTracks: false,
-            encodings: [
-              rtc.RtpEncodingParameters(
-                // The pinned SDK dereferences this even for audio encodings.
-                // One spatial/temporal layer matches our single-stream sender.
-                scalabilityMode: 'L1T1',
-                maxBitrate: track.kind == 'audio' ? 64000 : 600000,
-              ),
-            ],
+            // Audio must not receive video SVC parameters. With no explicit
+            // encodings the SDK derives the audio encoding from negotiated SDP.
+            codecOptions: track.kind == 'audio'
+                ? rtc.ProducerCodecOptions(opusMaxAverageBitrate: 64000)
+                : null,
+            encodings: track.kind == 'audio'
+                ? const []
+                : [
+                    rtc.RtpEncodingParameters(
+                      scalabilityMode: 'L1T1',
+                      maxBitrate: 600000,
+                    ),
+                  ],
           );
         } catch (error, stack) {
           if (!completer.isCompleted) {

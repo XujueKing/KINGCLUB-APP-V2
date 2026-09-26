@@ -97,10 +97,20 @@ class TransportFixture implements rtc.Transport {
       return null;
     }
     if (i.memberName == #produce) {
-      // Mirror the pinned native handler's non-null scalability requirement.
       final encodings =
           i.namedArguments[#encodings] as List<rtc.RtpEncodingParameters>;
-      expect(encodings.single.scalabilityMode, 'L1T1');
+      final track = i.namedArguments[#track] as rtc.MediaStreamTrack;
+      if (track.kind == 'audio') {
+        expect(encodings, isEmpty);
+        expect(
+          (i.namedArguments[#codecOptions] as rtc.ProducerCodecOptions)
+              .opusMaxAverageBitrate,
+          64000,
+        );
+      } else {
+        expect(encodings.single.scalabilityMode, 'L1T1');
+        expect(encodings.single.maxBitrate, 600000);
+      }
       if (failProduce) {
         throw StateError('Produce failed');
       }

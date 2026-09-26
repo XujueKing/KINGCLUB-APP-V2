@@ -15,3 +15,11 @@ Transport 测试夹具增加与固定 SDK 对齐的非空编码要求。28 项 n
 重新构建 154.1 秒完成，核心库检查通过，APK SHA256 `0C64277366E648A3744215EE052E92526D5C8714B404988D691860B0020C0B92`。A/B 覆盖安装均成功；A 恢复到已登录首页，B 正式包显示首次协议入口，两个进程正常存在。PowerShell 语法检查通过，并将新增检查直接用于旧故障 APK，确认拒绝缺少 libapp.so 的产物。B 用户之前登录的是旧预览包，正式包尚待登录；群媒体和后台验收仍未完成。
 
 群通话错误展示随后改为超时、连接失败和具体控制操作的中文提示，保留 AuthFailure 已有业务提示，不向用户显示 SDK 原始异常。页面用超时和内部错误验证提示及重试 requestId 保留；页面和会话清理共 4 项测试通过，两个变更文件 analyze 通过。此提示改动尚未打入上述已安装 APK。
+
+## A 诊断复测
+
+包含失败席位释放的 profile 包在 A 单机发起测试群通话，仍出现发布超时，随后显示通话结束；服务端最新群通话 ended=1、群占用数=0。这否定了仅补充 L1T1 即解决连接问题的假设。
+
+临时诊断 debug 包实机日志定位到 `RTCPeerConnectionNative.addTransceiver` → `UnifiedPlan.send:559`：Android 原生抛出 `C++ addTransceiver failed`，失败发生于本机创建发送通道阶段，不能归为跨网打洞失败。源码此前给音频也传入视频 scalabilityMode。
+
+现将音频 encodings 留空，由协商 SDP 派生；通过 ProducerCodecOptions.opusMaxAverageBitrate 保留 64000 音频码率参数。视频仍使用 L1T1 / 600000。原生媒体与会话共 33 项测试通过、两个文件 analyze 通过。此修正需实机复测确认，未宣称群通话完成。
