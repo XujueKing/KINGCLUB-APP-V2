@@ -300,6 +300,7 @@ class ChatFileDownloader {
     final elapsed = Stopwatch()..start();
     var phase = 'connect';
     Timer? progressTimer;
+    Timer? firstDataTimer;
     bool active() =>
         peerAttemptActive &&
         !_invalid &&
@@ -323,7 +324,21 @@ class ChatFileDownloader {
       final peer = _peer;
       if (peer == null) return false;
       phase = 'prepare';
+      final alreadyReceiving = peer.receivedBytes > 0;
       await _preparePeer(ref, peer);
+      final restoredBytes = peer.receivedBytes;
+      if (allowSlowRelayFallback &&
+          !alreadyReceiving &&
+          restoredBytes < ref.size) {
+        firstDataTimer = Timer(const Duration(seconds: 3), () {
+          if (active() && peer.receivedBytes <= restoredBytes) {
+            if (!kReleaseMode) {
+              debugPrint('PeerDownload no-first-data HTTP handoff');
+            }
+            unawaited(peer.close());
+          }
+        });
+      }
       // Count unique newly received bytes, not retransmitted frames or restored
       // cache. Give the direct route time to establish before choosing HTTP.
       final transferClock = Stopwatch();
@@ -455,6 +470,7 @@ class ChatFileDownloader {
     } finally {
       peerAttemptActive = false;
       progressTimer?.cancel();
+      firstDataTimer?.cancel();
       opening = false;
       final peer = _peer;
       _peer = null;

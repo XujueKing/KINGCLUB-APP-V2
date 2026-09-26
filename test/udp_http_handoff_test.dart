@@ -72,7 +72,13 @@ void main() {
         in reverse
             ? ['retry', 'timeout', 'timeout-unavailable']
             : !corrupt && media == null
-            ? ['retry', 'slow-relay', 'slow-direct', 'slow-relay-recovery']
+            ? [
+                'retry',
+                'silent-peer',
+                'slow-relay',
+                'slow-direct',
+                'slow-relay-recovery',
+              ]
             : ['retry']) {
       final slowRoute = recovery.startsWith('slow-');
       final routeType = media == null
@@ -206,6 +212,7 @@ void main() {
                 canReceive: active,
               );
               feeding = () async {
+                if (recovery == 'silent-peer') return;
                 await Future<void>.delayed(Duration.zero);
                 const chunk = NovoRudpFileReceiver.chunkSize;
                 final count =
@@ -305,7 +312,15 @@ void main() {
             } else {
               final file = await downloader
                   .download(ref)
-                  .timeout(Duration(seconds: slowRoute ? 40 : 15));
+                  .timeout(
+                    Duration(
+                      seconds: recovery == 'silent-peer'
+                          ? 6
+                          : slowRoute
+                          ? 40
+                          : 15,
+                    ),
+                  );
               expect(await file.readAsBytes(), bytes);
               expect(await staging.list().toList(), hasLength(1));
             }
@@ -322,6 +337,8 @@ void main() {
                   ? [1]
                   : recovery == 'slow-relay'
                   ? [1, 2, 3]
+                  : recovery == 'silent-peer'
+                  ? [0, 1, 2]
                   : [1, 2],
             );
             if (reverse) {
