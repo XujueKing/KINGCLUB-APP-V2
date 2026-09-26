@@ -262,6 +262,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
   void _openMedia(Map<String, dynamic> item) {
     final media = item['media'];
     if (media is! Map || _repository == null) return;
+    final visibilityVersion = _visibility.value;
     Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => ProfileMediaPage(
@@ -270,6 +271,7 @@ class _PublicMemberPageState extends State<PublicMemberPage>
           account: _repository!.account,
           owner: widget.account,
           visibility: _visibility,
+          visibilityVersion: visibilityVersion,
         ),
       ),
     );

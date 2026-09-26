@@ -13,10 +13,12 @@ class ProfileMediaPage extends StatefulWidget {
     required this.account,
     required this.owner,
     required this.visibility,
+    required this.visibilityVersion,
   });
   final Map<String, dynamic> media;
   final String contentType, account, owner;
   final ValueNotifier<int> visibility;
+  final int visibilityVersion;
   @override
   State<ProfileMediaPage> createState() => _ProfileMediaPageState();
 }
@@ -26,6 +28,9 @@ class _ProfileMediaPageState extends State<ProfileMediaPage> {
   @override
   void initState() {
     super.initState();
+    // A route can be built after the permission event that invalidated the
+    // item the user tapped. Subscribing alone would miss that event.
+    _valid = widget.visibility.value == widget.visibilityVersion;
     widget.visibility.addListener(_invalidate);
   }
 
