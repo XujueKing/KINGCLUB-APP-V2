@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory=$true)][uri]$ApiBaseUrl,
   [string]$FlutterCommand = 'D:/SDK/flutter/bin/flutter.bat',
+  [string]$AaptCommand = 'D:/SDK/Android/build-tools/37.0.0/aapt.exe',
   [uri]$RelayUrl,
   [string]$RelayPeer,
   [string]$RelayCertificatePath,
@@ -113,6 +114,11 @@ try {
   $buildExitCode = $LASTEXITCODE
   $ErrorActionPreference = 'Stop'
   if ($buildExitCode -ne 0) { throw 'Chat preview APK build failed.' }
+  $apkPath = Join-Path (Get-Location).Path 'build/app/outputs/flutter-apk/app-preview-profile.apk'
+  $badging = & $AaptCommand dump badging $apkPath
+  if ($LASTEXITCODE -ne 0 -or !($badging -match "^package: name='com\.lingmei\.kingclub' ")) {
+    throw 'Built APK package must match the registered OPPO app: com.lingmei.kingclub.'
+  }
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   $apk = [IO.Compression.ZipFile]::OpenRead((Join-Path (Get-Location).Path 'build/app/outputs/flutter-apk/app-preview-profile.apk'))
   try {

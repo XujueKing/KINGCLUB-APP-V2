@@ -43,7 +43,8 @@ android {
     productFlavors {
         create("preview") {
             dimension = "distribution"
-            applicationIdSuffix = ".v2preview"
+            // Vendor push registration uses the same identity as the published app.
+            // Keep the build flavor, but do not change the installed package name.
             versionNameSuffix = "-preview"
         }
         create("filetest") {

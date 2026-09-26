@@ -3,7 +3,7 @@ param(
   [string]$AdbCommand = 'D:/SDK/Android/platform-tools/adb.exe'
 )
 $ErrorActionPreference = 'Stop'
-$package = 'com.lingmei.kingclub.v2preview'
+$package = 'com.lingmei.kingclub'
 $component = "$package/com.lingmei.kingclub.MainActivity"
 
 # An install can return Success before the vendor package manager finishes
