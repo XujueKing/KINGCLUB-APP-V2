@@ -607,12 +607,26 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
       final repository = _repository;
       if (id == null || repository == null || !_resolving.add(id)) return;
       try {
-        await repository.resolveRequest(id, accept: resolution == '已添加');
+        final result = await repository.resolveRequest(
+          id,
+          accept: resolution == '已添加',
+        );
         if (!mounted || _sessionInvalid) return;
         await _loadReal();
         if (mounted && !_sessionInvalid) {
-          KingNotice.of(context)
-              .show(resolution == '已添加' ? '已互相关注，可以聊天了' : '已拒绝');
+          final String message;
+          if (resolution != '已添加') {
+            message = result['status'] == 'rejected' ? '已拒绝' : '申请状态已更新';
+          } else if (result['status'] == 'accepted' &&
+              result['friends'] == true) {
+            message = '已互相关注，可以聊天了';
+          } else if (result['status'] == 'accepted' &&
+              result['friends'] == false) {
+            message = '该申请已处理，当前未互相关注，请查看对方资料';
+          } else {
+            message = '申请状态已更新，请查看当前好友关系';
+          }
+          KingNotice.of(context).show(message);
         }
       } catch (e) {
         if (mounted && !_sessionInvalid) {
