@@ -13,6 +13,7 @@ class Calls extends GroupCallRepository {
   Calls() : super(fixtures.Repo().messaging);
   final actions = <GroupCallAction>[];
   int departureConflicts = 0;
+  Object? heartbeatFailure;
   final requestIds = <String>[];
   Completer<void>? joining;
   @override
@@ -25,6 +26,9 @@ class Calls extends GroupCallRepository {
   }) async {
     actions.add(action);
     requestIds.add(requestId);
+    if (action == GroupCallAction.heartbeat && heartbeatFailure != null) {
+      throw heartbeatFailure!;
+    }
     if (action == GroupCallAction.leave && departureConflicts > 0) {
       departureConflicts--;
       throw const AuthFailure('CHAT_GROUP_CALL_VERSION_CONFLICT', 'conflict');
@@ -58,6 +62,51 @@ class FailingOpenMedia extends FailingCleanupMedia {
 }
 
 void main() {
+  for (final code in [
+    'NETWORK_ERROR',
+    'CHAT_GROUP_CALL_VERSION_CONFLICT',
+    'UNEXPECTED_FAILURE',
+  ]) {
+    testWidgets('automatic heartbeat error presentation: $code', (
+      tester,
+    ) async {
+      final calls = Calls()..heartbeatFailure = AuthFailure(code, 'failure');
+      final errors = <Object>[];
+      late void Function(String, String) connection;
+      final controller = GroupCallController(
+        repository: calls,
+        initial: fixtures.Repo().call,
+        sessionChanges: const Stream.empty(),
+        invalidations: const Stream.empty(),
+      );
+      final session = GroupCallSession(
+        controller: controller,
+        onError: errors.add,
+        createMedia: (repository, state, error) {
+          connection = state;
+          return NativeGroupCallMedia(
+            repository: fixtures.Repo(),
+            device: fixtures.DeviceFixture(),
+            capture: (_) async => fixtures.StreamFixture(),
+          );
+        },
+      );
+      await session.enter();
+      connection('send', 'connected');
+      connection('receive', 'connected');
+      await tester.pump(const Duration(seconds: 10));
+      expect(calls.actions, contains(GroupCallAction.heartbeat));
+      expect(errors, hasLength(code == 'UNEXPECTED_FAILURE' ? 1 : 0));
+      expect(session.isClosed, false);
+      calls.heartbeatFailure = null;
+      await tester.pump(const Duration(seconds: 10));
+      expect(controller.error, null);
+      expect(session.isConnected, true);
+      await session.close();
+      controller.dispose();
+    });
+  }
+
   test(
     'departure retries a reconciled version conflict with a new request',
     () async {

@@ -126,7 +126,17 @@ class GroupCallSession {
         canSend: () => !_closed && _sendConnected && _media?.isClosed == false,
       );
     } catch (error) {
-      if (!_closed) onError?.call(error);
+      // Heartbeats are automatic. A short outage is handled by the bounded
+      // media recovery window; a proven version conflict is reconciled by the
+      // controller. Neither should leave a permanent error banner on a call
+      // that recovered. Terminal media and authorization errors stay visible.
+      final recoverable =
+          error is AuthFailure &&
+          const {
+            'NETWORK_ERROR',
+            'CHAT_GROUP_CALL_VERSION_CONFLICT',
+          }.contains(error.code);
+      if (!_closed && !recoverable) onError?.call(error);
     } finally {
       _renewing = false;
     }
