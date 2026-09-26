@@ -37,6 +37,66 @@ void main() {
     await dir.delete(recursive: true);
   });
 
+  test(
+    'friend requests persist encrypted without media grants or old overwrite',
+    () async {
+      const request = {
+        'requestId': 'request-1',
+        'requester': 'friend',
+        'recipient': 'me',
+        'nickname': 'PrivateRequestNickname',
+        'note': 'PrivateRequestNote',
+        'requestStatus': 'pending',
+      };
+      await store.saveFriendRequestSnapshot([
+        {
+          ...request,
+          'avatar': {'token': 'must-not-persist'},
+        },
+      ], 2);
+      await store.saveFriendRequestSnapshot([], 1);
+      await store.close();
+      final raw = latin1.decode(
+        await File('${dir.path}/contacts.db').readAsBytes(),
+      );
+      expect(raw, isNot(contains('PrivateRequestNickname')));
+      expect(raw, isNot(contains('PrivateRequestNote')));
+      store = await open();
+      expect(await store.friendRequestSnapshot(), [request]);
+      await store.close();
+      store = await open('other');
+      await expectLater(
+        store.friendRequestSnapshot(),
+        throwsA(isA<SecretBoxAuthenticationError>()),
+      );
+      await store.close();
+      store = await open();
+      await store.saveFriendRequestSnapshot([], 3);
+      expect(await store.friendRequestSnapshot(), isEmpty);
+    },
+  );
+
+  test('version 23 adds request snapshot without losing chat data', () async {
+    await store.close();
+    final db = await databaseFactoryFfi.openDatabase('${dir.path}/contacts.db');
+    await db.execute('DROP TABLE friend_request_snapshot');
+    await db.execute(
+      "INSERT INTO conversation(id,cursor) VALUES('kept-chat',9)",
+    );
+    await db.setVersion(23);
+    await db.close();
+    store = await open();
+    expect(await store.friendRequestSnapshot(), isNull);
+    await store.close();
+    final inspected = await databaseFactoryFfi.openDatabase(
+      '${dir.path}/contacts.db',
+    );
+    expect(await inspected.getVersion(), 24);
+    expect((await inspected.query('conversation')).single['cursor'], 9);
+    await inspected.close();
+    store = await open();
+  });
+
   test('version 14 upgrades without replacing existing chat tables', () async {
     await store.close();
     final db = await databaseFactoryFfi.openDatabase('${dir.path}/contacts.db');
@@ -59,7 +119,7 @@ void main() {
     final checked = await databaseFactoryFfi.openDatabase(
       '${dir.path}/contacts.db',
     );
-    expect(await checked.getVersion(), 23);
+    expect(await checked.getVersion(), 24);
     expect((await checked.query('conversation')).single['cursor'], 7);
     await checked.close();
     store = await open();

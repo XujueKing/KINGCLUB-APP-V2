@@ -1,3 +1,5 @@
+import '../../messaging/data/chat_history_store.dart';
+import '../../messaging/data/chat_sync_failure.dart';
 import '../../../core/media/cached_media_image.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../../../core/networking/kingclub_realtime.dart';
@@ -32,6 +34,7 @@ class FriendRequestsPage extends StatefulWidget {
     required this.onOpenChat,
     this.realData = false,
     this.repository,
+    this.openHistory,
     this.initialScenario = FriendRequestsScenario.ready,
     this.events,
     this.onBack,
@@ -41,6 +44,7 @@ class FriendRequestsPage extends StatefulWidget {
   final Stream<Map<String, dynamic>>? events;
   final bool realData;
   final MessagingRepository? repository;
+  final Future<ChatHistoryStore> Function(String account)? openHistory;
   final VoidCallback onOpenAddFriend;
   final ValueChanged<String> onOpenChat;
   final FriendRequestsScenario initialScenario;
@@ -60,6 +64,12 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
   StreamSubscription<String?>? _relationshipEvents;
   MessagingRepository? _relationshipRepository;
   bool _sessionInvalid = false;
+  bool _hasSnapshot = false;
+  bool _cacheOnly = false;
+  bool _cacheRead = false;
+  Object? _refreshError;
+  Future<ChatHistoryStore> _history(String account) =>
+      widget.openHistory?.call(account) ?? ChatHistoryStore.open(account);
   BuildContext? _requestSheetContext;
   int _generation = 0;
   final _resolving = <String>{};
@@ -89,6 +99,9 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
   Future<void> _readReal() async {
     if (_sessionInvalid || !mounted) return;
     final generation = ++_generation;
+    final started = DateTime.now().microsecondsSinceEpoch;
+    _refreshError = null;
+    var networkFinished = false;
     try {
       final repository =
           _repository ?? widget.repository ?? await MessagingRepository.open();
@@ -102,6 +115,39 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
                   if (mounted && !_sessionInvalid) unawaited(_loadReal());
                 });
       }
+      _repository = repository;
+      if (!_cacheRead) {
+        _cacheRead = true;
+        unawaited(() async {
+          try {
+            final history = await _history(repository.account);
+            if (history.account != repository.account) return;
+            final saved = await history.friendRequestSnapshot();
+            if (!mounted ||
+                _sessionInvalid ||
+                generation != _generation ||
+                networkFinished ||
+                saved == null) {
+              return;
+            }
+            setState(() {
+              _hasSnapshot = true;
+              _cacheOnly = true;
+              _requests
+                ..clear()
+                ..addAll(
+                  saved.map((r) => _parseRequest(r, repository.account)),
+                );
+              _scenario = saved.isEmpty
+                  ? FriendRequestsScenario.empty
+                  : FriendRequestsScenario.ready;
+            });
+          } catch (_) {
+            /* Cache failure does not prevent the network read. */
+          }
+        }());
+      }
+      final rawRequests = <Map<String, dynamic>>[];
       final requests = <_FriendRequest>[];
       var offset = 0;
       while (true) {
@@ -109,30 +155,8 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
         if (!mounted || generation != _generation) return;
         final rows = result['items'] as List;
         for (final raw in rows) {
-          final r = Map<String, dynamic>.from(raw as Map);
-          final incoming = r['recipient'] == repository.account;
-          final peer = (incoming ? r['requester'] : r['recipient']) as String;
-          final date = DateTime.tryParse(r['createdDate'].toString())
-              ?.toLocal();
-          requests.add(
-            _FriendRequest(
-              (r['nickname'] as String?)?.trim().isNotEmpty == true
-                  ? (r['nickname'] as String).trim()
-                  : peer,
-              r['note'] as String? ?? '',
-              date == null ? '' : '${date.month}/${date.day}',
-              switch (r['requestStatus']) {
-                'accepted' => '已添加',
-                'rejected' => '已拒绝',
-                _ => incoming ? '待查看' : '等待对方确认',
-              },
-              requestId: r['requestId'] as String,
-              peer: peer,
-              avatar: r['avatar'] is Map
-                  ? Map<String, dynamic>.from(r['avatar'] as Map)
-                  : null,
-            ),
-          );
+          rawRequests.add(Map<String, dynamic>.from(raw as Map));
+          requests.add(_parseRequest(raw, repository.account));
         }
         if (result['hasMore'] != true) break;
         if (rows.isEmpty) {
@@ -140,7 +164,10 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
         }
         offset += rows.length;
       }
+      networkFinished = true;
       setState(() {
+        _hasSnapshot = true;
+        _cacheOnly = false;
         _repository = repository;
         _requests
           ..clear()
@@ -149,10 +176,51 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
             ? FriendRequestsScenario.empty
             : FriendRequestsScenario.ready;
       });
+      unawaited(() async {
+        try {
+          final history = await _history(repository.account);
+          if (mounted &&
+              !_sessionInvalid &&
+              generation == _generation &&
+              history.account == repository.account) {
+            await history.saveFriendRequestSnapshot(rawRequests, started);
+          }
+        } catch (_) {
+          /* Successful server results remain visible. */
+        }
+      }());
     } catch (e) {
       if (!mounted || generation != _generation) return;
-      setState(() => _scenario = FriendRequestsScenario.partialError);
+      networkFinished = !isChatNetworkFailure(e);
+      _refreshError = e;
+      if (!_hasSnapshot || !isChatNetworkFailure(e)) {
+        setState(() => _scenario = FriendRequestsScenario.partialError);
+      }
     }
+  }
+
+  _FriendRequest _parseRequest(Map raw, String account) {
+    final r = Map<String, dynamic>.from(raw);
+    final incoming = r['recipient'] == account;
+    final peer = (incoming ? r['requester'] : r['recipient']) as String;
+    final date = DateTime.tryParse(r['createdDate'].toString())?.toLocal();
+    return _FriendRequest(
+      (r['nickname'] as String?)?.trim().isNotEmpty == true
+          ? (r['nickname'] as String).trim()
+          : peer,
+      r['note'] as String? ?? '',
+      date == null ? '' : '${date.month}/${date.day}',
+      switch (r['requestStatus']) {
+        'accepted' => '已添加',
+        'rejected' => '已拒绝',
+        _ => incoming ? '待查看' : '等待对方确认',
+      },
+      requestId: r['requestId'] as String,
+      peer: peer,
+      avatar: r['avatar'] is Map
+          ? Map<String, dynamic>.from(r['avatar'] as Map)
+          : null,
+    );
   }
 
   void _openRequestChat(_FriendRequest request) {
@@ -268,7 +336,17 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: widget.realData ? _loadReal : () async {},
+                onRefresh: () async {
+                  if (!widget.realData) return;
+                  await _loadReal();
+                  if (mounted &&
+                      context.mounted &&
+                      !_sessionInvalid &&
+                      _refreshError != null) {
+                    KingNotice.of(context)
+                        .show(chatSyncFailureMessage(_refreshError!));
+                  }
+                },
                 child: _scenario == FriendRequestsScenario.empty
                     ? _emptyState()
                     : ListView.separated(
@@ -289,8 +367,9 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
                             ),
                             request: request,
                             onTap:
-                                _scenario ==
-                                    FriendRequestsScenario.offlineCached
+                                _cacheOnly ||
+                                    _scenario ==
+                                        FriendRequestsScenario.offlineCached
                                 ? null
                                 : () => _showRequest(
                                     index - (_hasStatusBanner ? 1 : 0),

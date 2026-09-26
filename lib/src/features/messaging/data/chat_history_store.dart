@@ -174,8 +174,9 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 23,
+        version: 24,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 24) await _createFriendRequestSnapshot(db);
           if (oldVersion < 23) {
             await db.execute(
               'ALTER TABLE conversation ADD COLUMN membershipAccessRevoked INTEGER NOT NULL DEFAULT 0',
@@ -251,6 +252,7 @@ class ChatHistoryStore {
           if (oldVersion < 20) await _sanitizeLegacyReplies(db, key, account);
         },
         onCreate: (db, _) async {
+          await _createFriendRequestSnapshot(db);
           await _createVisibilityChecks(db);
           await _createDeferredMediaCleanup(db);
           await _createContactGroupSnapshot(db);
@@ -291,6 +293,59 @@ class ChatHistoryStore {
   static Future<void> _createContactSnapshot(Database db) => db.execute(
     'CREATE TABLE contact_snapshot (id INTEGER PRIMARY KEY CHECK(id=1), started INTEGER NOT NULL, payload BLOB NOT NULL)',
   );
+
+  static Future<void> _createFriendRequestSnapshot(Database db) => db.execute(
+    'CREATE TABLE IF NOT EXISTS friend_request_snapshot (id INTEGER PRIMARY KEY CHECK(id=1), started INTEGER NOT NULL, payload BLOB NOT NULL)',
+  );
+
+  Future<List<Map<String, dynamic>>?> friendRequestSnapshot() async {
+    final rows = await _db.query('friend_request_snapshot');
+    if (rows.isEmpty) return null;
+    final row = rows.single;
+    final plain = await _cipher.decrypt(
+      SecretBox.fromConcatenation(
+        (row['payload'] as List).cast<int>(),
+        nonceLength: 12,
+        macLength: 16,
+      ),
+      secretKey: _key,
+      aad: utf8.encode('friend-requests:$account:${row['started']}'),
+    );
+    return (jsonDecode(utf8.decode(plain)) as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
+  Future<void> saveFriendRequestSnapshot(
+    List<Map<String, dynamic>> rows,
+    int started,
+  ) async {
+    final safe = rows
+        .map(
+          (row) => {
+            for (final field in [
+              'requestId',
+              'requester',
+              'recipient',
+              'nickname',
+              'note',
+              'createdDate',
+              'requestStatus',
+            ])
+              if (row.containsKey(field)) field: row[field],
+          },
+        )
+        .toList();
+    final box = await _cipher.encrypt(
+      utf8.encode(jsonEncode(safe)),
+      secretKey: _key,
+      aad: utf8.encode('friend-requests:$account:$started'),
+    );
+    await _db.rawInsert(
+      'INSERT INTO friend_request_snapshot(id,started,payload) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET started=excluded.started,payload=excluded.payload WHERE excluded.started>=friend_request_snapshot.started',
+      [started, box.concatenation()],
+    );
+  }
 
   static Future<void> _createContactGroupSnapshot(Database db) => db.execute(
     'CREATE TABLE contact_group_snapshot (id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL, payload BLOB NOT NULL)',
