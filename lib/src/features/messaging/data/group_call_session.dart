@@ -46,7 +46,7 @@ class GroupCallSession {
   final _duration = Stopwatch();
   bool get isConnected => !_closed && _sendConnected && _receiveConnected;
   Duration? get connectedDuration => _everConnected ? _duration.elapsed : null;
-  Future<void>? _opening, _closing;
+  Future<void>? _opening, _closing, _hangingUp;
   Timer? _heartbeat;
   bool get isClosed => _closed;
 
@@ -137,13 +137,22 @@ class GroupCallSession {
     onError?.call(error);
   }
 
-  Future<void> hangUp() async {
+  Future<void> hangUp() => _hangingUp ??= _hangUp();
+
+  Future<void> _hangUp() async {
     // Stop capture immediately, before waiting for any network acknowledgement.
     _closed = true;
     _duration.stop();
     _heartbeat?.cancel();
     _sendConnected = false;
-    await _media?.close();
+    Object? cleanupError;
+    try {
+      await _media?.close();
+    } catch (error) {
+      // A native cleanup failure must not leave the server seat or controller
+      // alive. Preserve the failure after attempting both remaining cleanups.
+      cleanupError = error;
+    }
     try {
       try {
         await _opening;
@@ -164,6 +173,7 @@ class GroupCallSession {
     } finally {
       await close();
     }
+    if (cleanupError != null) throw cleanupError;
   }
 
   Future<void> close() {

@@ -26,7 +26,42 @@ class Calls extends GroupCallRepository {
   }
 }
 
+class FailingCleanupMedia extends NativeGroupCallMedia {
+  FailingCleanupMedia()
+    : super(
+        repository: fixtures.Repo(),
+        device: fixtures.DeviceFixture(),
+        capture: (_) async => fixtures.StreamFixture(),
+      );
+  @override
+  Future<void> open() async {}
+  @override
+  Future<void> close() async => throw StateError('native cleanup failed');
+}
+
 void main() {
+  test(
+    'cleanup failure still leaves the server seat and closes controller',
+    () async {
+      final calls = Calls();
+      final controller = GroupCallController(
+        repository: calls,
+        initial: fixtures.Repo().call,
+        sessionChanges: const Stream.empty(),
+        invalidations: const Stream.empty(),
+      );
+      final session = GroupCallSession(
+        controller: controller,
+        createMedia: (_, _, _) => FailingCleanupMedia(),
+      );
+      await session.enter();
+      await expectLater(session.hangUp(), throwsStateError);
+      expect(calls.actions, [GroupCallAction.leave]);
+      expect(controller.isClosed, true);
+      expect(session.isClosed, true);
+      controller.dispose();
+    },
+  );
   test(
     'passive owner only renews while native send transport is connected',
     () async {
@@ -116,9 +151,12 @@ void main() {
       final assertion = expectLater(opening, throwsStateError);
       await Future<void>.delayed(Duration.zero);
       final hanging = session.hangUp();
+      final duplicate = session.hangUp();
+      expect(identical(hanging, duplicate), true);
       calls.joining!.complete();
       await assertion;
       await hanging;
+      await duplicate;
       expect(calls.actions, [GroupCallAction.join, GroupCallAction.leave]);
       expect(created, false);
       expect(session.isClosed, true);
