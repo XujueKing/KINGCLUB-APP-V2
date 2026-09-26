@@ -5,6 +5,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/session/secure_session_store.dart';
+import '../../auth/domain/auth_repository.dart';
 import '../data/call_repository.dart';
 import '../data/group_call_controller.dart';
 import '../data/group_call_repository.dart';
@@ -181,8 +182,14 @@ class _GroupCallPageState extends State<GroupCallPage>
     }
   }
 
-  void _failed(Object error) {
-    if (mounted) setState(() => _error = '$error');
+  void _failed(Object error, {String fallback = '通话连接失败，请返回后重试'}) {
+    if (!mounted) return;
+    final message = switch (error) {
+      AuthFailure() => error.message,
+      TimeoutException() => '通话连接超时，请检查网络后重试',
+      _ => fallback,
+    };
+    setState(() => _error = message);
   }
 
   Widget _avatar(String account, {double size = 48}) {
@@ -227,7 +234,7 @@ class _GroupCallPageState extends State<GroupCallPage>
     try {
       await _session?.hangUp();
     } catch (error) {
-      _failed(error);
+      _failed(error, fallback: '本机通话已停止，结束状态同步失败，请重试');
     }
     if (mounted) {
       setState(() {
@@ -252,7 +259,7 @@ class _GroupCallPageState extends State<GroupCallPage>
       await _session?.media?.setPaused('audio', !_muted);
       if (mounted) setState(() => _muted = !_muted);
     } catch (error) {
-      _failed(error);
+      _failed(error, fallback: '暂时无法切换麦克风，请重试');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -271,7 +278,7 @@ class _GroupCallPageState extends State<GroupCallPage>
         if (mounted) setState(() => _videoOff = !_videoOff);
       }
     } catch (error) {
-      _failed(error);
+      _failed(error, fallback: '暂时无法切换摄像头，请重试');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -285,7 +292,7 @@ class _GroupCallPageState extends State<GroupCallPage>
       await media.setSpeakerphone(!_speaker);
       if (mounted) setState(() => _speaker = !_speaker);
     } catch (error) {
-      _failed(error);
+      _failed(error, fallback: '暂时无法切换免提，请重试');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
@@ -11,13 +13,14 @@ void main() {
     'member selection reads real repository and retains start identity on retry',
     (tester) async {
       final starts = <Map<String, dynamic>>[];
+      Object startError = const AuthFailure('UNAVAILABLE', '暂不可用');
       final repository = GroupChatRepository(
         MessagingRepository(
           account: 'me',
           call: (id, input) async {
             if (id == 'K260915000678') {
               starts.add(Map<String, dynamic>.from(input));
-              throw const AuthFailure('UNAVAILABLE', '暂不可用');
+              throw startError;
             }
             return {
               'members': [
@@ -61,6 +64,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(starts.length, 2);
       expect(starts.first['requestId'], starts.last['requestId']);
+      startError = TimeoutException('internal transport detail');
+      await tester.tap(find.text('发起通话'));
+      await tester.pumpAndSettle();
+      expect(find.text('通话连接超时，请检查网络后重试'), findsOneWidget);
+      expect(find.textContaining('internal transport'), findsNothing);
+      startError = StateError('internal SDK failure');
+      await tester.tap(find.text('发起通话'));
+      await tester.pumpAndSettle();
+      expect(find.text('通话连接失败，请返回后重试'), findsOneWidget);
+      expect(find.textContaining('internal SDK'), findsNothing);
+      expect(starts.map((start) => start['requestId']).toSet(), hasLength(1));
       await tester.pumpWidget(const SizedBox());
     },
   );
