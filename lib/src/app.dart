@@ -1,3 +1,4 @@
+import 'features/messaging/data/push_registration_runtime.dart';
 import 'features/messaging/data/chat_outbox_recovery.dart';
 import 'features/messaging/data/chat_outbox.dart';
 import 'core/design_system/king_text_scale.dart';
@@ -40,6 +41,7 @@ class KingClubApp extends ConsumerStatefulWidget {
 class _KingClubAppState extends ConsumerState<KingClubApp>
     with WidgetsBindingObserver {
   final _messenger = GlobalKey<ScaffoldMessengerState>();
+  final _pushRegistration = PushRegistrationRuntime.configured();
   StreamSubscription<void>? _sessionChanges;
   StreamSubscription<Map<String, dynamic>>? _messages;
   bool _foreground = true;
@@ -249,6 +251,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   String? _noticeSession;
   Future<void> _notification(Map<String, dynamic> event) async {
     if (event['eventType'] == 'connection.ready') {
+      _pushRegistration?.sync();
       unawaited(_recoverOutbox());
     }
     if (event['eventType'] == 'auth.session.revoked') {
@@ -344,15 +347,18 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
+      _pushRegistration?.sync();
       _clearCallInbox();
       unawaited(_syncRealtime().catchError((Object _) {}));
     });
     _messages = KingclubRealtime.shared.events.listen(_notification);
+    _pushRegistration?.sync();
     unawaited(_syncRealtime().catchError((Object _) {}));
   }
 
   @override
   void dispose() {
+    _pushRegistration?.close();
     _clearCallInbox();
     _noticeTimer?.cancel();
     _sessionChanges?.cancel();
@@ -365,6 +371,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
+    _pushRegistration?.foreground(_foreground);
     _callInbox?.foreground(_foreground);
     _groupCallInbox?.foreground(_foreground);
     if (_foreground) {

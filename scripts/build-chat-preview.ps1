@@ -5,6 +5,7 @@ param(
   [uri]$RelayUrl,
   [string]$RelayPeer,
   [string]$RelayCertificatePath,
+  [string]$PushConfigFile,
   [string]$NovoRudpSourceRoot,
   [string]$StunHost,
   [string[]]$StunFallbacks = @(),
@@ -23,6 +24,22 @@ Push-Location (Split-Path -Parent $PSScriptRoot)
 $previousJni = $env:KINGCLUB_NOVORUDP_JNI_DIR
 try {
   $relayArguments = @()
+  if ($PushConfigFile) {
+    $pushConfigPath = (Resolve-Path -LiteralPath $PushConfigFile).Path
+    $pushConfig = Get-Content -LiteralPath $pushConfigPath -Raw | ConvertFrom-Json
+    $pushKeys = @($pushConfig.PSObject.Properties.Name)
+    if ($pushKeys.Count -ne 2 -or
+        !($pushKeys -contains 'KINGCLUB_OPPO_APP_KEY') -or
+        !($pushKeys -contains 'KINGCLUB_OPPO_APP_SECRET')) {
+      throw 'Push config must contain only the two OPPO client configuration fields. Never include MasterSecret.'
+    }
+    foreach ($pushKey in $pushKeys) {
+      if ($pushConfig.$pushKey -isnot [string] -or [string]::IsNullOrWhiteSpace($pushConfig.$pushKey)) {
+        throw 'OPPO client configuration values must be nonempty strings.'
+      }
+    }
+    $relayArguments += "--dart-define-from-file=$pushConfigPath"
+  }
   if ($EnableIce) {
     if ($SkipNovoRudp -or !$RelayUrl -or !$RelayPeer) {
       throw 'ICE data requires the configured authenticated NovoRUDP relay.'
