@@ -18,6 +18,8 @@ class CallForegroundLease {
   final Future<void> Function(String, Map<String, dynamic>) _invoke;
   final String _id = const Uuid().v4();
   bool _closed = false, _requested = false;
+  bool _started = false;
+  bool get isActive => _supported && _started && !_closed;
   Future<void>? _starting;
 
   Future<void> start({required bool video}) {
@@ -31,6 +33,7 @@ class CallForegroundLease {
     try {
       await _invoke('start', {'id': _id, 'video': video});
       if (_closed) throw StateError('Call capture closed');
+      _started = true;
     } catch (_) {
       await _invoke('stop', {'id': _id});
       rethrow;

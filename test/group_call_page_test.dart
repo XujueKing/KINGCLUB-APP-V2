@@ -42,6 +42,17 @@ void main() {
       expect(find.text('测试朋友'), findsOneWidget);
       await tester.tap(find.byType(CheckboxListTile));
       await tester.pump();
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+        await tester.pump();
+      }
       await tester.tap(find.text('发起通话'));
       await tester.pumpAndSettle();
       expect(find.text('暂不可用'), findsOneWidget);

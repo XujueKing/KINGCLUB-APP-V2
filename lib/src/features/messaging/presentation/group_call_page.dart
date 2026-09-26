@@ -74,10 +74,16 @@ class _GroupCallPageState extends State<GroupCallPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Selecting members has not opened capture and must remain usable on return.
+    if (_session == null && !_busy) return;
+    if (state == AppLifecycleState.paused &&
+        _session?.media?.canStayInBackground == true) {
+      return;
+    }
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       _invalid = true;
-      // Background calling requires native foreground-service integration.
+      // An unfinished start or an unsupported platform cannot retain capture.
       unawaited(_stop());
     }
   }

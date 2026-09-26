@@ -75,6 +75,7 @@ class NativeGroupCallMedia {
   final _unhealthyDirections = <String>{};
   Future<void>? _refreshingNetwork;
   bool get isClosed => _closed;
+  bool get canStayInBackground => !_closed && _foregroundLease.isActive;
   rtc.MediaStream? get localStream => _local;
   void _check() {
     if (_closed) {
