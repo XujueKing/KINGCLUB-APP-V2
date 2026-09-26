@@ -5,6 +5,20 @@ import 'package:flutter/services.dart';
 class NativePushRegistration {
   static const _channel = MethodChannel('kingclub/push-registration');
 
+  /// Null means the platform could not report its application-level setting.
+  Future<bool?> notificationStatus() async {
+    try {
+      return await _channel.invokeMethod<bool>('notificationStatus');
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  Future<void> openNotificationSettings() =>
+      _channel.invokeMethod<void>('openNotificationSettings');
+
   Future<String> register({
     required String appKey,
     required String appSecret,

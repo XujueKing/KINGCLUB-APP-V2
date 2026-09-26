@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kingclub/src/core/media/media_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/settings_page.dart';
@@ -71,7 +72,24 @@ void main() {
   testWidgets('notification disabled gives a formal system-settings handoff', (
     tester,
   ) async {
-    await tester.pumpWidget(_frame(SettingsScenario.notificationDisabled));
+    const channel = MethodChannel('kingclub/push-registration');
+    var enabled = false;
+    var opened = false;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      call,
+    ) async {
+      if (call.method == 'notificationStatus') return enabled;
+      if (call.method == 'openNotificationSettings') opened = true;
+      return null;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    await tester.pumpWidget(_frame(SettingsScenario.normal));
+    await tester.pumpAndSettle();
     expect(find.text('已关闭'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('settings-notification')));
@@ -79,7 +97,12 @@ void main() {
     expect(find.text('系统通知已关闭'), findsOneWidget);
     await tester.tap(find.text('打开系统设置'));
     await tester.pumpAndSettle();
-    expect(find.text('请前往手机系统设置管理通知权限'), findsOneWidget);
+    expect(opened, isTrue);
+    enabled = true;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.text('已允许'), findsOneWidget);
   });
 
   testWidgets('clear cache does not remove the session', (tester) async {

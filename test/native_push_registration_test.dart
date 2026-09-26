@@ -8,6 +8,33 @@ void main() {
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+  test('notification status preserves disabled and unknown results', () async {
+    for (final value in [true, false, null]) {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'notificationStatus');
+        return value;
+      });
+      expect(await NativePushRegistration().notificationStatus(), value);
+    }
+    messenger.setMockMethodCallHandler(
+      channel,
+      (_) async => throw PlatformException(code: 'UNAVAILABLE'),
+    );
+    expect(await NativePushRegistration().notificationStatus(), isNull);
+  });
+  test(
+    'settings launch failures reach caller instead of claiming success',
+    () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'openNotificationSettings');
+        throw PlatformException(code: 'PUSH_SETTINGS_FAILED');
+      });
+      await expectLater(
+        NativePushRegistration().openNotificationSettings(),
+        throwsA(isA<PlatformException>()),
+      );
+    },
+  );
   test(
     'registration returns token only after a matching native success',
     () async {

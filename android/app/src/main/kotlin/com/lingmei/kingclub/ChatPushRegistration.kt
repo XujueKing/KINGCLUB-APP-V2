@@ -1,6 +1,11 @@
 package com.lingmei.kingclub
 
 import android.content.Context
+import android.content.Intent
+import android.app.NotificationManager
+import android.os.Build
+import android.provider.Settings
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import com.heytap.msp.push.HeytapPushManager
@@ -16,6 +21,31 @@ class ChatPushRegistration(private val context: Context) {
     private var closed = false
 
     fun handle(call: MethodCall, result: MethodChannel.Result, foreground: Boolean) {
+        if (call.method == "notificationStatus") {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            result.success(manager.areNotificationsEnabled())
+            return
+        }
+        if (call.method == "openNotificationSettings") {
+            if (closed || !foreground) {
+                result.error("PUSH_BACKGROUND", "Open the app before changing notifications", null)
+                return
+            }
+            try {
+                val intent = if (Build.VERSION.SDK_INT >= 26) {
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                } else {
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:${context.packageName}"))
+                }
+                context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                result.success(null)
+            } catch (_: Exception) {
+                result.error("PUSH_SETTINGS_FAILED", "Unable to open notification settings", null)
+            }
+            return
+        }
         if (call.method != "register") { result.notImplemented(); return }
         if (closed || !foreground) {
             result.error("PUSH_BACKGROUND", "Open the app before registering notifications", null); return

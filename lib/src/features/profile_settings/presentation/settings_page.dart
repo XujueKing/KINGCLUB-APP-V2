@@ -4,6 +4,7 @@ import 'package:kingclub/src/core/design_system/king_notice.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/presentation/terms_consent_page.dart';
 import '../data/profile_repository.dart';
+import '../../messaging/data/native_push_registration.dart';
 import 'edit_profile_page.dart';
 
 import 'package:flutter/material.dart';
@@ -48,11 +49,29 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends State<SettingsPage>
+    with WidgetsBindingObserver {
   static const _gold = Color(0xFFC9B69E);
   static const _muted = Color(0xFF8B8174);
   String _cache = '计算中';
   late SettingsScenario _scenario;
+  bool? _notificationsEnabled;
+
+  Future<void> _readNotificationStatus() async {
+    final enabled = await NativePushRegistration().notificationStatus();
+    if (mounted) setState(() => _notificationsEnabled = enabled);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _readNotificationStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   static const _entries = [
     ('profile', '个人信息', '', Icons.account_circle_outlined),
@@ -68,6 +87,8 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _scenario = widget.initialScenario;
+    WidgetsBinding.instance.addObserver(this);
+    _readNotificationStatus();
     _readCache();
     if (_scenario == SettingsScenario.sessionInvalid) {
       WidgetsBinding.instance.addPostFrameCallback(
@@ -152,9 +173,14 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _settingRow((String, String, String, IconData) entry) {
     final info = entry.$1 == 'cache'
         ? _cache
-        : entry.$1 == 'notification' &&
-              _scenario == SettingsScenario.notificationDisabled
-        ? '已关闭'
+        : entry.$1 == 'notification'
+        ? (_scenario == SettingsScenario.notificationDisabled
+              ? '已关闭'
+              : switch (_notificationsEnabled) {
+                  true => '已允许',
+                  false => '已关闭',
+                  null => '待确认',
+                })
         : entry.$3;
     return InkWell(
       key: ValueKey('settings-${entry.$1}'),
@@ -343,7 +369,11 @@ class _SettingsPageState extends State<SettingsPage> {
             Text(
               _scenario == SettingsScenario.notificationDisabled
                   ? '系统通知已关闭'
-                  : '系统通知已允许',
+                  : switch (_notificationsEnabled) {
+                      true => '系统通知已允许',
+                      false => '系统通知已关闭',
+                      null => '暂时无法读取系统通知状态',
+                    },
             ),
             const SizedBox(height: 10),
             const Text('消息通知、活动提醒和订单状态最终由手机系统设置控制。'),
@@ -355,11 +385,16 @@ class _SettingsPageState extends State<SettingsPage> {
             child: const Text('关闭'),
           ),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(dialogContext);
-              KingNotice.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('请前往手机系统设置管理通知权限')));
+              try {
+                await NativePushRegistration().openNotificationSettings();
+              } catch (_) {
+                if (!mounted) return;
+                KingNotice.of(context).showSnackBar(
+                  const SnackBar(content: Text('无法打开系统设置，请在手机设置中管理通知权限')),
+                );
+              }
             },
             child: const Text('打开系统设置'),
           ),
