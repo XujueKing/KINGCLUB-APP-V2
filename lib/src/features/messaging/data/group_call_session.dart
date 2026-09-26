@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../auth/domain/auth_repository.dart';
+
 import 'group_call_controller.dart';
 import 'group_call_media_repository.dart';
 import 'group_call_repository.dart';
@@ -167,15 +169,25 @@ class GroupCallSession {
         // A canceled enter may already have joined on the server. Use the
         // reconciled phase below to leave instead of declining a joined seat.
       }
-      if (!controller.isClosed) {
+      for (var attempt = 0; attempt < 3 && !controller.isClosed; attempt++) {
         final self = controller.call.participants.singleWhere(
           (p) => p.account == controller.repository.messaging.account,
         );
-        await controller.act(
-          self.phase == GroupCallPhase.invited
-              ? GroupCallAction.decline
-              : GroupCallAction.leave,
-        );
+        try {
+          await controller.act(
+            self.phase == GroupCallPhase.invited
+                ? GroupCallAction.decline
+                : GroupCallAction.leave,
+          );
+          break;
+        } on AuthFailure catch (error) {
+          // The controller refreshes the snapshot after a proven conflict.
+          // Only retry departure, never join/capture or ambiguous network errors.
+          if (error.code != 'CHAT_GROUP_CALL_VERSION_CONFLICT' ||
+              attempt == 2) {
+            rethrow;
+          }
+        }
       }
     } finally {
       await close();

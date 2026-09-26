@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/messaging/data/group_call_controller.dart';
 import 'package:kingclub/src/features/messaging/data/group_call_repository.dart';
 import 'package:kingclub/src/features/messaging/data/group_call_session.dart';
@@ -11,6 +12,8 @@ import 'native_group_call_media_test.dart' as fixtures;
 class Calls extends GroupCallRepository {
   Calls() : super(fixtures.Repo().messaging);
   final actions = <GroupCallAction>[];
+  int departureConflicts = 0;
+  final requestIds = <String>[];
   Completer<void>? joining;
   @override
   Future<GroupCallSnapshot> read(String id) async => fixtures.Repo().call;
@@ -21,6 +24,11 @@ class Calls extends GroupCallRepository {
     required String requestId,
   }) async {
     actions.add(action);
+    requestIds.add(requestId);
+    if (action == GroupCallAction.leave && departureConflicts > 0) {
+      departureConflicts--;
+      throw const AuthFailure('CHAT_GROUP_CALL_VERSION_CONFLICT', 'conflict');
+    }
     if (action == GroupCallAction.join) await joining?.future;
     return GroupCallResult(fixtures.Repo().call, 1, false);
   }
@@ -50,6 +58,43 @@ class FailingOpenMedia extends FailingCleanupMedia {
 }
 
 void main() {
+  test(
+    'departure retries a reconciled version conflict with a new request',
+    () async {
+      final calls = Calls()..departureConflicts = 1;
+      final controller = GroupCallController(
+        repository: calls,
+        initial: fixtures.Repo().call,
+        sessionChanges: const Stream.empty(),
+        invalidations: const Stream.empty(),
+      );
+      final session = GroupCallSession(controller: controller);
+      await session.hangUp();
+      expect(calls.actions, [GroupCallAction.leave, GroupCallAction.leave]);
+      expect(calls.requestIds.toSet(), hasLength(2));
+      expect(controller.isClosed, true);
+      controller.dispose();
+    },
+  );
+
+  test(
+    'persistent departure conflicts are bounded and still close locally',
+    () async {
+      final calls = Calls()..departureConflicts = 10;
+      final controller = GroupCallController(
+        repository: calls,
+        initial: fixtures.Repo().call,
+        sessionChanges: const Stream.empty(),
+        invalidations: const Stream.empty(),
+      );
+      final session = GroupCallSession(controller: controller);
+      await expectLater(session.hangUp(), throwsA(isA<AuthFailure>()));
+      expect(calls.actions, hasLength(3));
+      expect(controller.isClosed, true);
+      expect(session.isClosed, true);
+      controller.dispose();
+    },
+  );
   test(
     'failed media opening releases the server seat without deadlock',
     () async {
