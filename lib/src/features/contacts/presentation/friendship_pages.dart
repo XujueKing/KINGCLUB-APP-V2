@@ -954,16 +954,25 @@ class _RequestTile extends StatelessWidget {
     );
     final media = request.avatar;
     final path = media?['path'];
+    final cacheOnly = media?['cacheOnly'] == true;
+    final fileId = media?['fileId'];
     if (media == null ||
-        path is! String ||
-        !path.startsWith('/kingclub/profile-media/') ||
-        kingclubApiBaseUrl.isEmpty) {
+        fileId is! String ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,200}$').hasMatch(fileId) ||
+        (!cacheOnly &&
+            (path is! String ||
+                !path.startsWith('/kingclub/profile-media/') ||
+                kingclubApiBaseUrl.isEmpty))) {
       return fallback;
     }
     final rawHeaders = media['headers'];
     return CachedMediaImage(
-      '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}$path',
+      cacheOnly
+          ? ''
+          : '${kingclubApiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}$path',
       private: true,
+      cacheOnly: cacheOnly,
+      keepSameImageOnRefresh: true,
       contentKey: 'profile:${request.peer}:${media['fileId']}',
       headers: rawHeaders is Map
           ? rawHeaders.map(

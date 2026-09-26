@@ -333,6 +333,14 @@ class ChatHistoryStore {
               'requestStatus',
             ])
               if (row.containsKey(field)) field: row[field],
+            if (row['avatar'] is Map &&
+                (row['avatar'] as Map)['fileId'] is String &&
+                RegExp(r'^[A-Za-z0-9_-]{1,200}$')
+                    .hasMatch((row['avatar'] as Map)['fileId'] as String))
+              'avatar': {
+                'fileId': (row['avatar'] as Map)['fileId'],
+                'cacheOnly': true,
+              },
           },
         )
         .toList();

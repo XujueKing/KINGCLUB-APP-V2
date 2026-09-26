@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/core/media/cached_media_image.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/contacts/presentation/friendship_pages.dart';
@@ -63,9 +64,20 @@ void main() {
       if (mode == 'offline') {
         response.completeError(const AuthFailure('NETWORK_ERROR', 'offline'));
         await tester.pumpAndSettle();
-        history.cacheRead.complete([row('Cached Friend')]);
+        history.cacheRead.complete([
+          {
+            ...row('Cached Friend'),
+            'avatar': {'fileId': 'avatar-1', 'cacheOnly': true},
+          },
+        ]);
         await tester.pumpAndSettle();
         expect(find.text('Cached Friend'), findsOneWidget);
+        final avatar = tester.widget<CachedMediaImage>(
+          find.byType(CachedMediaImage),
+        );
+        expect(avatar.cacheOnly, isTrue);
+        expect(avatar.url, isEmpty);
+        expect(avatar.headers, isEmpty);
         await tester.tap(find.text('Cached Friend'));
         await tester.pumpAndSettle();
         expect(

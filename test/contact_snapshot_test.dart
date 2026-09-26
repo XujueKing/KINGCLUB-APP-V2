@@ -63,6 +63,22 @@ void main() {
       expect(raw, isNot(contains('PrivateRequestNote')));
       store = await open();
       expect(await store.friendRequestSnapshot(), [request]);
+      await store.saveFriendRequestSnapshot([
+        {
+          ...request,
+          'avatar': {
+            'fileId': 'avatar-1',
+            'path': '/private',
+            'headers': {'authorization': 'must-not-persist'},
+          },
+        },
+      ], 3);
+      expect(await store.friendRequestSnapshot(), [
+        {
+          ...request,
+          'avatar': {'fileId': 'avatar-1', 'cacheOnly': true},
+        },
+      ]);
       await store.close();
       store = await open('other');
       await expectLater(
@@ -71,7 +87,7 @@ void main() {
       );
       await store.close();
       store = await open();
-      await store.saveFriendRequestSnapshot([], 3);
+      await store.saveFriendRequestSnapshot([], 4);
       expect(await store.friendRequestSnapshot(), isEmpty);
     },
   );
