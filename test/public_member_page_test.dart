@@ -5,10 +5,63 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/contacts/presentation/public_member_page.dart';
+import 'package:kingclub/src/features/contacts/presentation/profile_media_page.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
 
 void main() {
+  testWidgets(
+    'logout before a media route builds does not reuse live session',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final observer = _MediaRouteLogoutObserver();
+      final repository = MessagingRepository(
+        account: 'original-viewer',
+        call: (id, _) async => id == 'K260913000614'
+            ? {
+                'items': [
+                  {
+                    'ref': 'fixture',
+                    'contentType': 'image/png',
+                    'media': {
+                      'fileId': 'fixture',
+                      'path': '/kingclub/profile-media/fixture',
+                    },
+                  },
+                ],
+                'nextOffset': null,
+              }
+            : {'nickname': 'Friend', 'details': {}, 'contentVisible': true},
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorObservers: [observer],
+          home: PublicMemberPage(account: 'peer', repository: repository),
+        ),
+      );
+      await tester.pumpAndSettle();
+      observer.armed = true;
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byType(SliverGrid),
+              matching: find.byType(GestureDetector),
+            )
+            .first,
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(ProfileMediaPage), findsOneWidget);
+      expect(find.text('内容暂不可查看'), findsOneWidget);
+      expect(
+        tester.widget<ProfileMediaPage>(find.byType(ProfileMediaPage)).account,
+        'original-viewer',
+      );
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   testWidgets('profile tabs fit large system text on a narrow phone', (
     tester,
   ) async {
@@ -306,4 +359,16 @@ void main() {
     expect(calls.first, 'K260913000612');
     expect(tester.takeException(), isNull);
   });
+}
+
+class _MediaRouteLogoutObserver extends NavigatorObserver {
+  bool armed = false;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (armed) {
+      armed = false;
+      SecureSessionStore.changes.add(null);
+    }
+  }
 }
