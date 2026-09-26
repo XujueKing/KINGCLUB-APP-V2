@@ -111,6 +111,11 @@ flutter:
     - assets/legacy/ordering/hennessy_vsop.png
     - assets/legacy/ordering/absolut_vodka.png
     - assets/legacy/ordering/shopping_bag.png
+    - assets/legacy/ordering/add4.png
+    - assets/legacy/ordering/add4a.png
+    - assets/legacy/ordering/del2.png
+    - assets/legacy/ordering/enlarge.png
+    - assets/legacy/ordering/WEIPAY.png
     - assets/legacy/payment/
     - assets/legacy/aa/
     - assets/legacy/aa/positioningCard.png

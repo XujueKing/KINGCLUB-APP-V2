@@ -72,14 +72,14 @@ void main() {
   testWidgets(
     'real catalog replaces demo stock and retains decimal cart price',
     (tester) async {
-      var fakeQuotes = 0;
+      FakeOrderingQuote? quote;
       await tester.pumpWidget(
         MaterialApp(
           home: ScanOrderingCartPage(
             onBack: () {},
             orderingContext: fixture.scope,
             catalog: catalog(),
-            onQuoteReady: (_) => fakeQuotes++,
+            onQuoteReady: (value) => quote = value,
           ),
         ),
       );
@@ -92,9 +92,10 @@ void main() {
       await tester.pump();
       expect(find.textContaining('19.99', findRichText: true), findsWidgets);
       await tester.tap(find.byKey(const ValueKey('ordering-confirm')));
-      await tester.pump();
-      expect(find.text('结算暂未开放'), findsOneWidget);
-      expect(fakeQuotes, 0);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(quote!.items.single.catalogProduct!.reference, 'real-sku');
+      expect(quote!.items.single.unitPriceCents, 1999);
+      expect(quote!.itemCount, 1);
     },
   );
   testWidgets(

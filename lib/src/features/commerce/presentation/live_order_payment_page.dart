@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/design_system/king_components.dart';
+import '../../../core/media/cached_media_image.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../data/ordering_order_repository.dart';
 import 'scan_ordering_cart_page.dart';
@@ -235,90 +236,279 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     super.dispose();
   }
 
+  bool _expanded = false;
+
   @override
   Widget build(BuildContext context) {
+    final unit = (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6);
+    double r(double value) => value * unit;
     final status = _receipt?.status;
     final terminal = status == 'paid' || status == 'expired';
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: kingAppBar(
-        context: context,
-        title: const Text('确认订单'),
-        leading: KingBackButton(onPressed: widget.onBack),
-        backgroundColor: Colors.black,
+    final amount = _receipt?.totalCents ?? _total;
+    final allItems = widget.quote.items;
+    final items = _expanded ? allItems : allItems.take(3);
+    Widget line(String label, String value) => Padding(
+      padding: EdgeInsets.symmetric(vertical: r(6)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label),
+          SizedBox(width: r(16)),
+          Expanded(child: Text(value, textAlign: TextAlign.right)),
+        ],
       ),
-      body: SafeArea(
+    );
+    Widget card(List<Widget> children) => Container(
+      margin: EdgeInsets.symmetric(vertical: r(10)),
+      padding: EdgeInsets.symmetric(horizontal: r(30), vertical: r(20)),
+      decoration: BoxDecoration(
+        color: const Color(0xFFC9B69E),
+        borderRadius: BorderRadius.circular(r(16)),
+      ),
+      child: DefaultTextStyle(
+        style: TextStyle(
+          fontSize: r(30),
+          color: const Color(0xFF181205),
+          height: 1.35,
+        ),
         child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Text(
-                    widget.quote.orderingContext!.storeName,
-                    style: const TextStyle(fontSize: 20),
-                  ),
-                  const SizedBox(height: 20),
-                  for (final item in widget.quote.items)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text('${item.name} × ${item.quantity}'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
+      ),
+    );
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: kingAppBar(
+          context: context,
+          title: Text(
+            '确认订单',
+            style: TextStyle(color: const Color(0xFFC9B69E), fontSize: r(34)),
+          ),
+          leading: KingBackButton(onPressed: widget.onBack),
+          backgroundColor: Colors.black,
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, -.4),
+              radius: 1,
+              colors: [Color(0xEF252018), Colors.black],
+            ),
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(r(20), r(10), r(20), r(24)),
+                  children: [
+                    card([
+                      line('门店', widget.quote.orderingContext!.storeName),
+                      line('桌号', widget.quote.orderingContext!.tableName),
+                      if (_receipt != null) line('订单号', _receipt!.orderRef),
+                    ]),
+                    card([
+                      const Text('商品明细'),
+                      for (final item in items)
+                        Container(
+                          padding: EdgeInsets.symmetric(vertical: r(20)),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: Color(0x16000000)),
+                            ),
                           ),
-                          Text('¥${_money(item.subtotalCents)}'),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: r(76),
+                                height: r(120),
+                                child: item.catalogProduct?.thumbnailUrl != null
+                                    ? CachedMediaImage(
+                                        item.catalogProduct!.thumbnailUrl!,
+                                        contentKey:
+                                            item.catalogProduct!.imageCacheKey,
+                                        private: true,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, _, _) => const Icon(
+                                          Icons.local_bar_outlined,
+                                        ),
+                                      )
+                                    : item.asset.isNotEmpty
+                                    ? Image.asset(
+                                        item.asset,
+                                        fit: BoxFit.contain,
+                                      )
+                                    : const Icon(Icons.local_bar_outlined),
+                              ),
+                              SizedBox(width: r(28)),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.name,
+                                      style: TextStyle(fontSize: r(30)),
+                                    ),
+                                    Text(
+                                      item.detail,
+                                      style: TextStyle(fontSize: r(22)),
+                                    ),
+                                    Text(
+                                      '单价 ¥${_money(item.unitPriceCents ?? item.unitPrice * 100)}',
+                                      style: TextStyle(fontSize: r(22)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: r(12)),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '数量 × ${item.quantity}',
+                                    style: TextStyle(fontSize: r(24)),
+                                  ),
+                                  Text(
+                                    '¥${_money(item.subtotalCents)}',
+                                    style: TextStyle(fontSize: r(32)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (allItems.length > 3)
+                        TextButton(
+                          onPressed: () =>
+                              setState(() => _expanded = !_expanded),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0x90000000),
+                          ),
+                          child: Text(
+                            '${_expanded ? '收起' : '展开'}更多（共${widget.quote.itemCount}件商品）',
+                          ),
+                        ),
+                      SizedBox(height: r(24)),
+                      line('商品总价', '¥${_money(_total)}'),
+                    ]),
+                    card([
+                      Row(
+                        children: [
+                          Image.asset(
+                            'assets/legacy/ordering/WEIPAY.png',
+                            width: r(44),
+                            height: r(44),
+                          ),
+                          SizedBox(width: r(15)),
+                          const Expanded(child: Text('微信支付')),
+                          Icon(
+                            Icons.check_circle,
+                            color: const Color(0xFF55493C),
+                            size: r(36),
+                          ),
                         ],
                       ),
-                    ),
-                  const Divider(),
-                  Text(
-                    '应付 ¥${_money(_receipt?.totalCents ?? _total)}',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      color: Color(0xFFCAB89C),
-                    ),
-                  ),
-                  if (_receipt != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: Text('订单号：${_receipt!.orderRef}'),
-                    ),
-                  if (_message != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 20),
-                      child: Text(_message!),
-                    ),
-                  if (_receipt != null && !terminal)
-                    TextButton(
-                      onPressed: _refresh,
-                      child: const Text('刷新支付结果'),
-                    ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: FilledButton(
-                  onPressed: terminal
-                      ? widget.onBack
-                      : (_busy || !_ready ? null : _pay),
-                  child: Text(
-                    _busy
-                        ? '正在提交…'
-                        : status == 'paid'
-                        ? '支付成功 · 返回'
-                        : status == 'expired'
-                        ? '返回重新选购'
-                        : '微信支付 ¥${_money(_receipt?.totalCents ?? _total)}',
-                  ),
+                    ]),
+                    if (_message != null)
+                      Padding(
+                        padding: EdgeInsets.all(r(20)),
+                        child: Text(
+                          _message!,
+                          style: TextStyle(
+                            color: const Color(0xFFC9B69E),
+                            fontSize: r(28),
+                          ),
+                        ),
+                      ),
+                    if (_receipt != null && !terminal)
+                      TextButton(
+                        onPressed: _refresh,
+                        child: const Text('刷新支付结果'),
+                      ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              Container(
+                key: const ValueKey('payment-bottom-bar'),
+                padding: EdgeInsets.fromLTRB(
+                  r(50),
+                  r(20),
+                  r(25),
+                  r(20) + MediaQuery.paddingOf(context).bottom,
+                ),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Color(0x40C9B69E))),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xCC000000), Colors.black],
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: status == 'paid' ? '实付 ￥' : '应付 ￥',
+                                style: TextStyle(
+                                  fontSize: r(28),
+                                  color: const Color(0x80DDCBB5),
+                                ),
+                              ),
+                              TextSpan(
+                                text: _money(amount),
+                                style: TextStyle(
+                                  fontSize: r(42),
+                                  color: const Color(0xFFDDCBB5),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: r(20)),
+                    SizedBox(
+                      width: r(190),
+                      height: r(80),
+                      child: FilledButton(
+                        onPressed: terminal
+                            ? widget.onBack
+                            : (_busy || !_ready ? null : _pay),
+                        style: FilledButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          shape: const StadiumBorder(),
+                          backgroundColor: const Color(0xFFC9B69E),
+                          foregroundColor: const Color(0xFF1B1206),
+                          textStyle: TextStyle(
+                            fontSize: r(30),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        child: Text(
+                          _busy
+                              ? '正在提交…'
+                              : status == 'paid'
+                              ? '支付成功 · 返回'
+                              : status == 'expired'
+                              ? '重新选购'
+                              : '立即支付',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

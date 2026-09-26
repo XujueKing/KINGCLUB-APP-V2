@@ -91,7 +91,8 @@ class ScanOrderingCartPage extends StatefulWidget {
   State<ScanOrderingCartPage> createState() => _ScanOrderingCartPageState();
 }
 
-class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
+class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
+    with SingleTickerProviderStateMixin {
   static const _demoProducts = <_OrderingProduct>[
     _OrderingProduct(
       id: 'hennessy-xo',
@@ -193,11 +194,18 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   String _subcategory = '畅饮套餐';
   bool _quoting = false;
   bool _cartPanelOpen = false;
+  late final AnimationController _cartAnimation;
+  final _bagAnchor = GlobalKey();
+  final Set<String> _unchecked = {};
   int _scopeGeneration = 0;
 
   @override
   void initState() {
     super.initState();
+    _cartAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     // Existing no-context route remains the legacy UI demonstration.
     if (widget.orderingContext != null || _live) _quantities.clear();
     if (_live && widget.catalog!.categories.isNotEmpty) {
@@ -219,6 +227,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       return;
     }
     _scopeGeneration++;
+    _unchecked.clear();
+    _cartAnimation.value = 0;
     _quantities.clear();
     _quoting = false;
     _cartPanelOpen = false;
@@ -229,15 +239,24 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   void dispose() {
     _searchController.dispose();
     _catalogController.dispose();
+    _cartAnimation.dispose();
     super.dispose();
   }
 
   int get _itemCount =>
       _quantities.values.fold(0, (total, quantity) => total + quantity);
 
+  int get _selectedCount => _quantities.entries
+      .where((entry) => !_unchecked.contains(entry.key))
+      .fold(0, (sum, entry) => sum + entry.value);
+
   int get _total => _products.fold(
     0,
-    (total, product) => total + product.price * (_quantities[product.id] ?? 0),
+    (total, product) =>
+        total +
+        (_unchecked.contains(product.id)
+            ? 0
+            : product.price * (_quantities[product.id] ?? 0)),
   );
 
   bool get _canEdit => !{
@@ -314,8 +333,13 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               ],
             ),
           ),
+          if (_cartPanelOpen)
+            MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.noScaling),
+              child: _buildCartOverlay(),
+            ),
           Positioned(left: 0, right: 0, bottom: 0, child: _buildCartBar()),
-          if (_cartPanelOpen) _buildCartOverlay(),
         ],
       ),
     );
@@ -344,7 +368,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
             child: KingBackButton(
               key: const ValueKey('ordering-back'),
               tooltip: '返回',
-              onPressed: widget.onBack,
+              onPressed: () =>
+                  _cartPanelOpen ? _setCartOpen(false) : widget.onBack(),
             ),
           ),
           const SizedBox(width: 2),
@@ -374,10 +399,16 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   ),
                   hintText: '搜一搜你想要的饮品',
                   hintStyle: const TextStyle(color: Color(0xFF5D5A57)),
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    size: _rpx(26),
-                    color: Color(0xFF575653),
+                  prefixIcon: Center(
+                    widthFactor: 1,
+                    child: Opacity(
+                      opacity: .3,
+                      child: Image.asset(
+                        'assets/legacy/ordering/enlarge.png',
+                        width: _rpx(26),
+                        height: _rpx(26),
+                      ),
+                    ),
                   ),
                   suffixIcon: _searchController.text.isEmpty
                       ? null
@@ -891,6 +922,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             )
                           else
                             _QuantityControl(
+                              bagAnchor: _bagAnchor,
                               productId: product.id,
                               quantity: quantity,
                               canDecrease: _canEdit && quantity > 0,
@@ -930,7 +962,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   }
 
   Widget _buildCartBar() {
-    final enabled = _canEdit && _itemCount > 0 && !_quoting;
+    final enabled = _canEdit && _selectedCount > 0 && !_quoting;
     return Container(
       key: const ValueKey('ordering-cart-bar'),
       height: _cartContentHeight + MediaQuery.paddingOf(context).bottom,
@@ -954,8 +986,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
         children: [
           GestureDetector(
             key: const ValueKey('ordering-cart-bag'),
-            onTap: _itemCount == 0 ? null : _showCartSheet,
+            onTap: _itemCount == 0 ? null : () => _setCartOpen(!_cartPanelOpen),
             child: Stack(
+              key: _bagAnchor,
               clipBehavior: Clip.none,
               children: [
                 Opacity(
@@ -1085,8 +1118,10 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     setState(() {
       if (next == 0) {
         _quantities.remove(product.id);
+        _unchecked.remove(product.id);
       } else {
         _quantities[product.id] = next;
+        _unchecked.remove(product.id);
       }
     });
     if (delta > 0 && next == current) {
@@ -1100,17 +1135,37 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted || generation != _scopeGeneration) return;
     setState(() => _quoting = false);
+    final purchased = Map<String, int>.fromEntries(
+      _quantities.entries.where((entry) => !_unchecked.contains(entry.key)),
+    );
     final quote = FakeOrderingQuote(
       onPaymentConfirmed: _live
           ? () {
-              if (mounted) setState(() => _quantities.clear());
+              if (mounted && generation == _scopeGeneration) {
+                setState(() {
+                  for (final entry in purchased.entries) {
+                    final remaining =
+                        (_quantities[entry.key] ?? 0) - entry.value;
+                    if (remaining <= 0) {
+                      _quantities.remove(entry.key);
+                      _unchecked.remove(entry.key);
+                    } else {
+                      _quantities[entry.key] = remaining;
+                    }
+                  }
+                });
+              }
             }
           : null,
       orderingContext: widget.orderingContext,
-      itemCount: _itemCount,
+      itemCount: _selectedCount,
       total: _total,
       items: _products
-          .where((product) => (_quantities[product.id] ?? 0) > 0)
+          .where(
+            (product) =>
+                (_quantities[product.id] ?? 0) > 0 &&
+                !_unchecked.contains(product.id),
+          )
           .map(
             (product) => FakeOrderingQuoteItem(
               name: product.name,
@@ -1168,132 +1223,202 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     );
   }
 
-  Future<void> _showCartSheet() async {
-    setState(() => _cartPanelOpen = true);
+  Future<void> _setCartOpen(bool open) async {
+    if (open) {
+      setState(() => _cartPanelOpen = true);
+      await _cartAnimation.forward();
+    } else {
+      await _cartAnimation.reverse();
+      if (mounted && _cartAnimation.value == 0) {
+        setState(() => _cartPanelOpen = false);
+      }
+    }
   }
 
   Widget _buildCartOverlay() {
-    final selected = _products
+    final products = _products
         .where((product) => (_quantities[product.id] ?? 0) > 0)
         .toList();
+    final curve = _cartAnimation.drive(CurveTween(curve: Curves.ease));
     return Positioned.fill(
       child: Stack(
         children: [
-          GestureDetector(
-            key: const ValueKey('ordering-cart-scrim'),
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _cartPanelOpen = false),
-            child: Container(color: const Color(0xB3000000)),
+          FadeTransition(
+            opacity: curve,
+            child: GestureDetector(
+              key: const ValueKey('ordering-cart-scrim'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _setCartOpen(false),
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment(0, -.08),
+                    radius: .8,
+                    colors: [Color(0x66000000), Colors.black],
+                  ),
+                ),
+                child: SizedBox.expand(),
+              ),
+            ),
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            child: Container(
-              key: const ValueKey('ordering-cart-sheet'),
-              height: 470,
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 18),
-              decoration: const BoxDecoration(
-                color: Color(0xFF94826C),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: 54,
-                    child: Row(
-                      children: [
-                        const _LegacySelectionMark(selected: true),
-                        const SizedBox(width: 10),
-                        Text.rich(
-                          key: const ValueKey('ordering-cart-select-all'),
-                          TextSpan(
-                            children: [
-                              const TextSpan(text: '全选'),
-                              TextSpan(
-                                text: '(共$_itemCount件商品)',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
+            child: SlideTransition(
+              position: Tween(
+                begin: const Offset(0, 1),
+                end: Offset.zero,
+              ).animate(curve),
+              child: FadeTransition(
+                opacity: curve,
+                child: Container(
+                  key: const ValueKey('ordering-cart-sheet'),
+                  height: MediaQuery.sizeOf(context).height * .6,
+                  padding: EdgeInsets.fromLTRB(
+                    _rpx(20),
+                    _rpx(30),
+                    _rpx(20),
+                    _cartContentHeight + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF94826C),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(bottom: _rpx(20)),
+                        child: Row(
+                          children: [
+                            GestureDetector(
+                              key: const ValueKey('ordering-cart-select-all'),
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => setState(() {
+                                if (_unchecked.isEmpty) {
+                                  _unchecked.addAll(products.map((p) => p.id));
+                                } else {
+                                  _unchecked.clear();
+                                }
+                              }),
+                              child: Row(
+                                children: [
+                                  _LegacySelectionMark(
+                                    selected: _unchecked.isEmpty,
+                                  ),
+                                  SizedBox(width: _rpx(10)),
+                                  Text(
+                                    '全选',
+                                    style: TextStyle(
+                                      color: const Color(0xCC000000),
+                                      fontSize: _rpx(28),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                '(共$_itemCount件商品)',
+                                style: TextStyle(
+                                  fontSize: _rpx(24),
+                                  color: const Color(0xCC000000),
                                 ),
                               ),
-                            ],
-                          ),
-                          style: const TextStyle(
-                            color: Color(0xFF211910),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                            ),
+                            TextButton.icon(
+                              key: const ValueKey('ordering-clear-cart'),
+                              onPressed: () async {
+                                final clear = await _confirmClear(context);
+                                if (clear != true || !mounted) return;
+                                setState(() {
+                                  _quantities.clear();
+                                  _unchecked.clear();
+                                });
+                                _setCartOpen(false);
+                              },
+                              icon: Image.asset(
+                                'assets/legacy/ordering/del2.png',
+                                width: _rpx(30),
+                                height: _rpx(30),
+                              ),
+                              label: const Text('清空购物袋'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xCC000000),
+                                textStyle: TextStyle(fontSize: _rpx(26)),
+                                minimumSize: Size.zero,
+                                padding: EdgeInsets.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        TextButton.icon(
-                          key: const ValueKey('ordering-clear-cart'),
-                          onPressed: () async {
-                            final clear = await _confirmClear(context);
-                            if (clear != true || !mounted) return;
-                            setState(() {
-                              _quantities.clear();
-                              _cartPanelOpen = false;
-                            });
-                          },
-                          icon: const Icon(
-                            Icons.delete_outline_rounded,
-                            size: 21,
-                          ),
-                          label: const Text('清空购物袋'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF2C2218),
-                            textStyle: const TextStyle(fontSize: 15),
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                          ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          key: const ValueKey('ordering-cart-scroll'),
+                          padding: EdgeInsets.only(bottom: _rpx(24)),
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: _rpx(36),
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(_rpx(16)),
+                                gradient: const RadialGradient(
+                                  center: Alignment(-.5, 0),
+                                  radius: 1.1,
+                                  colors: [Color(0xEF252018), Colors.black],
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < products.length; i++)
+                                    _buildCartPanelItem(
+                                      products[i],
+                                      showDivider: i < products.length - 1,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              margin: EdgeInsets.only(top: _rpx(20)),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: _rpx(36),
+                                vertical: _rpx(30),
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0x60FFFFFF),
+                                borderRadius: BorderRadius.circular(_rpx(16)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '商品总价',
+                                      style: TextStyle(
+                                        fontSize: _rpx(32),
+                                        color: const Color(0xFF181205),
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '¥ ${_money(_total)}',
+                                    style: TextStyle(
+                                      fontSize: _rpx(32),
+                                      color: const Color(0xFF181205),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF090806),
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Column(
-                      children: [
-                        for (var index = 0; index < selected.length; index++)
-                          _buildCartPanelItem(
-                            selected[index],
-                            showDivider: index < selected.length - 1,
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    height: 68,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xAAC9B69E),
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text(
-                          '商品总价',
-                          style: TextStyle(
-                            color: Color(0xFF181205),
-                            fontSize: 17,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '¥ ${_live ? _money(_total) : '${_total.toStringAsFixed(0)}.00'}',
-                          style: const TextStyle(
-                            color: Color(0xFF181205),
-                            fontSize: 18,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                ],
+                ),
               ),
             ),
           ),
@@ -1308,76 +1433,105 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   }) {
     final quantity = _quantities[product.id] ?? 0;
     return Container(
-      height: 112,
+      padding: EdgeInsets.symmetric(vertical: _rpx(20)),
       decoration: BoxDecoration(
         border: showDivider
-            ? const Border(
-                bottom: BorderSide(color: Color(0xFF2A251F), width: .8),
-              )
+            ? const Border(bottom: BorderSide(color: Color(0x30C9B69E)))
             : null,
       ),
       child: Row(
         children: [
-          const _LegacySelectionMark(selected: true),
-          const SizedBox(width: 8),
-          _OrderingProductImage(product: product, width: 58, height: 88),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFE8DED1),
-                    fontSize: 16,
-                    height: 1.15,
-                  ),
-                ),
-                Text(
-                  product.englishName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF94826C),
-                    fontSize: 12,
-                    height: 1.25,
-                  ),
-                ),
-                Text(
-                  product.specs,
-                  style: const TextStyle(
-                    color: Color(0xFF94826C),
-                    fontSize: 12,
-                    height: 1.25,
-                  ),
-                ),
-                Text(
-                  '¥ ${_money(product.price)}',
-                  style: const TextStyle(
-                    color: Color(0xFFE2D7C8),
-                    fontSize: 16,
-                    height: 1.2,
-                  ),
-                ),
-              ],
+          GestureDetector(
+            key: ValueKey('ordering-cart-select-${product.id}'),
+            onTap: () => setState(() {
+              if (!_unchecked.remove(product.id)) _unchecked.add(product.id);
+            }),
+            child: _LegacySelectionMark(
+              selected: !_unchecked.contains(product.id),
             ),
           ),
-          _QuantityControl(
-            productId: 'sheet-${product.id}',
-            quantity: quantity,
-            canDecrease: _canEdit,
-            canIncrease: _canEdit && quantity < product.limit,
-            onDecrease: () {
-              _changeQuantity(product, -1);
-              if (_itemCount == 0) {
-                setState(() => _cartPanelOpen = false);
-              }
-            },
-            onIncrease: () => _changeQuantity(product, 1),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: _rpx(28)),
+            child: _OrderingProductImage(
+              product: product,
+              width: _rpx(100),
+              height: _rpx(158),
+            ),
+          ),
+          Expanded(
+            child: SizedBox(
+              height: _rpx(150),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: _rpx(30),
+                          color: const Color(0xFFEEEEEE),
+                          height: 1.2,
+                        ),
+                      ),
+                      Text(
+                        product.englishName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: _rpx(22),
+                          color: const Color(0xFF94826C),
+                          height: 1.3,
+                        ),
+                      ),
+                      Text(
+                        product.specs,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: _rpx(22),
+                          color: const Color(0xFF94826C),
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '¥ ${_money(product.price)}',
+                            style: TextStyle(
+                              fontSize: _rpx(32),
+                              color: const Color(0xFFEEEEEE),
+                            ),
+                          ),
+                        ),
+                      ),
+                      _QuantityControl(
+                        bagAnchor: _bagAnchor,
+                        productId: 'sheet-${product.id}',
+                        quantity: quantity,
+                        canDecrease: _canEdit,
+                        canIncrease: _canEdit && quantity < product.limit,
+                        onDecrease: () {
+                          _changeQuantity(product, -1);
+                          if (_itemCount == 0) _setCartOpen(false);
+                        },
+                        onIncrease: () => _changeQuantity(product, 1),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -1470,8 +1624,8 @@ class _LegacySelectionMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 22,
-      height: 22,
+      width: 36 * (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6),
+      height: 36 * (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: selected ? const Color(0xFFC9B69E) : Colors.black,
@@ -1515,6 +1669,7 @@ class _OrderingProduct {
 
 class _QuantityControl extends StatelessWidget {
   const _QuantityControl({
+    this.bagAnchor,
     required this.productId,
     required this.quantity,
     required this.canDecrease,
@@ -1523,6 +1678,7 @@ class _QuantityControl extends StatelessWidget {
     required this.onIncrease,
   });
 
+  final GlobalKey? bagAnchor;
   final String productId;
   final int quantity;
   final bool canDecrease;
@@ -1543,7 +1699,7 @@ class _QuantityControl extends StatelessWidget {
             onTap: onDecrease,
           ),
           SizedBox(
-            width: 27,
+            width: 54 * (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6),
             child: Text(
               '$quantity',
               textAlign: TextAlign.center,
@@ -1553,6 +1709,7 @@ class _QuantityControl extends StatelessWidget {
         ],
         _RoundQuantityButton(
           key: ValueKey('ordering-add-$productId'),
+          bagAnchor: bagAnchor,
           icon: Icons.add,
           enabled: canIncrease,
           filled: true,
@@ -1566,6 +1723,7 @@ class _QuantityControl extends StatelessWidget {
 class _RoundQuantityButton extends StatelessWidget {
   const _RoundQuantityButton({
     super.key,
+    this.bagAnchor,
     required this.icon,
     required this.enabled,
     required this.onTap,
@@ -1576,6 +1734,7 @@ class _RoundQuantityButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
   final bool filled;
+  final GlobalKey? bagAnchor;
 
   @override
   Widget build(BuildContext context) {
@@ -1584,7 +1743,16 @@ class _RoundQuantityButton extends StatelessWidget {
       button: true,
       enabled: enabled,
       child: InkWell(
-        onTap: enabled ? onTap : null,
+        onTap: enabled
+            ? () {
+                onTap();
+                if (filled &&
+                    bagAnchor?.currentContext != null &&
+                    !MediaQuery.disableAnimationsOf(context)) {
+                  _flyToBag(context, bagAnchor!.currentContext!);
+                }
+              }
+            : null,
         customBorder: const CircleBorder(),
         child: Container(
           width: (filled ? 40 : 36) * unit,
@@ -1602,17 +1770,72 @@ class _RoundQuantityButton extends StatelessWidget {
                         : const Color(0xFF39332D),
                   ),
           ),
-          child: Icon(
-            icon,
-            size: 20 * unit,
-            color: filled
-                ? (enabled ? Colors.black : const Color(0xFF6D655E))
-                : (enabled ? const Color(0xFFFFB400) : const Color(0xFF6D655E)),
+          child: Center(
+            child: Image.asset(
+              'assets/legacy/ordering/${filled ? 'add4' : 'add4a'}.png',
+              width: 20 * unit,
+              height: 20 * unit,
+              color: filled
+                  ? (enabled ? Colors.black : const Color(0xFF6D655E))
+                  : (enabled
+                        ? const Color(0xFFFFB400)
+                        : const Color(0xFF6D655E)),
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+void _flyToBag(BuildContext source, BuildContext target) {
+  final overlay = Overlay.of(source);
+  final overlayBox = overlay.context.findRenderObject()! as RenderBox;
+  final sourceBox = source.findRenderObject()! as RenderBox;
+  final targetBox = target.findRenderObject()! as RenderBox;
+  final start = overlayBox.globalToLocal(
+    sourceBox.localToGlobal(sourceBox.size.center(Offset.zero)),
+  );
+  final end = overlayBox.globalToLocal(
+    targetBox.localToGlobal(targetBox.size.center(Offset.zero)),
+  );
+  final size = 40 * (MediaQuery.sizeOf(source).width / 750).clamp(.4, .6);
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (_) => IgnorePointer(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.ease,
+        onEnd: () {
+          entry.remove();
+          entry.dispose();
+        },
+        builder: (_, value, child) {
+          final point = Offset.lerp(start, end, value)!;
+          return Stack(
+            children: [
+              Positioned(
+                left: point.dx - size / 2,
+                top: point.dy - size / 2,
+                child: Opacity(opacity: 1 - value * .5, child: child!),
+              ),
+            ],
+          );
+        },
+        child: Container(
+          key: const ValueKey('ordering-fly-item'),
+          width: size,
+          height: size,
+          decoration: const BoxDecoration(
+            color: Color(0xFFFFB400),
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    ),
+  );
+  overlay.insert(entry);
 }
 
 class _OrderingEmptyState extends StatelessWidget {
