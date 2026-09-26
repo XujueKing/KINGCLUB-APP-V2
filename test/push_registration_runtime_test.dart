@@ -12,6 +12,52 @@ PushSession session(String id) => {
 };
 
 void main() {
+  testWidgets(
+    'permission follows successful binding and failure does not retry binding',
+    (tester) async {
+      final events = <String>[];
+      final runtime = PushRegistrationRuntime(
+        readSession: () async => session('a'),
+        register: () async {
+          events.add('register');
+          return 'token';
+        },
+        call: (s, id, p) async {
+          events.add('bind');
+        },
+        requestNotificationPermission: () async {
+          events.add('permission');
+          throw StateError('system prompt unavailable');
+        },
+      );
+      addTearDown(runtime.close);
+      runtime.sync();
+      await tester.pump();
+      await tester.pump(const Duration(minutes: 1));
+      expect(events, ['register', 'bind', 'permission']);
+    },
+  );
+  testWidgets('background during binding never prompts for permission', (
+    tester,
+  ) async {
+    final binding = Completer<void>();
+    var prompts = 0;
+    final runtime = PushRegistrationRuntime(
+      readSession: () async => session('a'),
+      register: () async => 'token',
+      call: (s, id, p) => binding.future,
+      requestNotificationPermission: () async {
+        prompts++;
+      },
+    );
+    addTearDown(runtime.close);
+    runtime.sync();
+    await tester.pump();
+    runtime.foreground(false);
+    binding.complete();
+    await tester.pump();
+    expect(prompts, 0);
+  });
   testWidgets('unknown binding outcome is still cleaned up on logout', (
     tester,
   ) async {

@@ -3,6 +3,7 @@ package com.lingmei.kingclub
 import android.content.Context
 import android.content.Intent
 import android.app.NotificationManager
+import android.app.NotificationChannel
 import android.os.Build
 import android.provider.Settings
 import android.net.Uri
@@ -60,6 +61,14 @@ class ChatPushRegistration(private val context: Context) {
             result.error("PUSH_CONFIGURATION", "Missing client push configuration", null); return
         }
         try {
+            if (Build.VERSION.SDK_INT >= 26) {
+                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                // This ID matches the existing OPPO console legacy channel.
+                // Recreating an existing channel cannot override user settings.
+                manager.createNotificationChannel(NotificationChannel(
+                    "com_lingmei_kingclub", "聊天消息", NotificationManager.IMPORTANCE_DEFAULT
+                ).apply { description = "好友、群聊消息和通话提醒" })
+            }
             HeytapPushManager.init(context.applicationContext, false)
             if (!HeytapPushManager.isSupportPush(context)) {
                 result.error("PUSH_UNSUPPORTED", "Device does not support OPPO push", null); return

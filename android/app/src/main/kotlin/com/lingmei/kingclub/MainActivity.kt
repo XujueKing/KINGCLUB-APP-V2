@@ -21,7 +21,12 @@ class MainActivity : FlutterActivity() {
         val push = ChatPushRegistration(applicationContext)
         pushRegistration = push
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/push-registration")
-            .setMethodCallHandler { call, result -> push.handle(call, result, foreground) }
+            .setMethodCallHandler { call, result ->
+                if (call.method == "requestNotificationPermission") {
+                    requestNotificationPermission()
+                    result.success(null)
+                } else push.handle(call, result, foreground)
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/call-foreground")
             .setMethodCallHandler { call, result ->
                 val id = call.argument<String>("id") ?: ""
@@ -36,7 +41,7 @@ class MainActivity : FlutterActivity() {
                         object : MethodChannel.Result {
                             override fun success(value: Any?) {
                                 result.success(value)
-                                requestCallNotificationPermission()
+                                requestNotificationPermission()
                             }
                             override fun error(code: String, message: String?, details: Any?) {
                                 result.error(code, message, details)
@@ -80,7 +85,7 @@ class MainActivity : FlutterActivity() {
         nearby?.stop()
         super.onStop()
     }
-    private fun requestCallNotificationPermission() {
+    private fun requestNotificationPermission() {
         // Start capture's foreground service first. Notification permission is
         // optional for FGS and its dialog must not invalidate service startup.
         if (!foreground || Build.VERSION.SDK_INT < 33 ||

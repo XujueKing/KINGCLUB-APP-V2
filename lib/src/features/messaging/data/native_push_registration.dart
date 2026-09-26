@@ -19,6 +19,9 @@ class NativePushRegistration {
   Future<void> openNotificationSettings() =>
       _channel.invokeMethod<void>('openNotificationSettings');
 
+  Future<void> requestNotificationPermission() =>
+      _channel.invokeMethod<void>('requestNotificationPermission');
+
   Future<String> register({
     required String appKey,
     required String appSecret,

@@ -21,11 +21,13 @@ class PushRegistrationRuntime {
     required this.readSession,
     required this.register,
     required this.call,
+    this.requestNotificationPermission,
     this.retryDelay = const Duration(seconds: 15),
   });
   final Future<PushSession?> Function() readSession;
   final Future<String> Function() register;
   final PushCall call;
+  final Future<void> Function()? requestNotificationPermission;
   final Duration retryDelay;
   PushSession? _bound;
   Future<void>? _running;
@@ -50,6 +52,8 @@ class PushRegistrationRuntime {
       readSession: store.readSession,
       register: () =>
           NativePushRegistration().register(appKey: key, appSecret: secret),
+      requestNotificationPermission:
+          NativePushRegistration().requestNotificationPermission,
       call: (session, id, params) async {
         final response = await client.call(id, params, session: session);
         if ((response['result'] as Map?)?['registered'] !=
@@ -142,6 +146,16 @@ class PushRegistrationRuntime {
         });
         _bound = current;
         _failures = 0;
+        if (_closed) return;
+        if (revision != _generation) continue;
+        if (_foreground) {
+          try {
+            await requestNotificationPermission?.call();
+          } catch (_) {
+            // Notification permission is optional; binding remains valid.
+            // The settings page provides an explicit retry/settings entry.
+          }
+        }
         if (_closed) return;
         if (revision != _generation) continue;
         return;
