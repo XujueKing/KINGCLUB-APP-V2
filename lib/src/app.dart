@@ -252,7 +252,14 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       unawaited(_recoverOutbox());
     }
     if (event['eventType'] == 'auth.session.revoked') {
-      await SecureSessionStore().clearSession();
+      final data = event['data'];
+      final sessionId = data is Map ? data['sessionId'] : null;
+      final store = SecureSessionStore();
+      if (sessionId is! String ||
+          !await store.clearRevokedSession(sessionId) ||
+          await store.readSession() != null) {
+        return;
+      }
       if (mounted) {
         ref.read(authenticatedMemberProvider.notifier).clear();
         ref.read(appRouterProvider).go('/auth/mobile');

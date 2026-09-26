@@ -146,6 +146,16 @@ class SecureSessionStore {
 
   Future<void> clearSession() => _exclusive(_clear);
 
+  /// A delayed notification from an old socket must not revoke a newer login.
+  /// Match the session, not its token revision: rotation does not undo revocation.
+  Future<bool> clearRevokedSession(String sessionId) => _exclusive(() async {
+    if (sessionId.isEmpty || (await readSession())?['sessionId'] != sessionId) {
+      return false;
+    }
+    await _clear();
+    return true;
+  });
+
   Future<void> _clear() async {
     MemberQrMemory.clear();
     await _storage.delete(key: _sessionKey);
