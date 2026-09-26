@@ -78,6 +78,8 @@ flutter {
 
 // Keep aligned with video_player_android's ExoPlayer version.
 dependencies {
+    implementation(files("libs/heytap-push-3.7.1.aar"))
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation("androidx.media3:media3-transformer:1.9.2")
     implementation("androidx.media3:media3-effect:1.9.2")
 }

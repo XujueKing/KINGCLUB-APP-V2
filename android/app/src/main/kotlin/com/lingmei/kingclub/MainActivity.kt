@@ -15,8 +15,13 @@ class MainActivity : FlutterActivity() {
     private var export: ChatFileExport? = null
     private var videoUpload: ChatVideoUpload? = null
     private var foreground = false
+    private var pushRegistration: ChatPushRegistration? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        val push = ChatPushRegistration(applicationContext)
+        pushRegistration = push
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/push-registration")
+            .setMethodCallHandler { call, result -> push.handle(call, result, foreground) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/call-foreground")
             .setMethodCallHandler { call, result ->
                 val id = call.argument<String>("id") ?: ""
@@ -98,6 +103,7 @@ class MainActivity : FlutterActivity() {
         super.onPause()
     }
     override fun onDestroy() {
+        pushRegistration?.close()
         CallForegroundService.shutdown(this)
         nearby?.stop()
         videoUpload?.dispose()
