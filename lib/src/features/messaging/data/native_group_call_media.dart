@@ -189,6 +189,9 @@ class NativeGroupCallMedia {
             stopTracks: false,
             encodings: [
               rtc.RtpEncodingParameters(
+                // The pinned SDK dereferences this even for audio encodings.
+                // One spatial/temporal layer matches our single-stream sender.
+                scalabilityMode: 'L1T1',
                 maxBitrate: track.kind == 'audio' ? 64000 : 600000,
               ),
             ],

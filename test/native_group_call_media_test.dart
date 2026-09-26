@@ -97,6 +97,10 @@ class TransportFixture implements rtc.Transport {
       return null;
     }
     if (i.memberName == #produce) {
+      // Mirror the pinned native handler's non-null scalability requirement.
+      final encodings =
+          i.namedArguments[#encodings] as List<rtc.RtpEncodingParameters>;
+      expect(encodings.single.scalabilityMode, 'L1T1');
       if (failProduce) {
         throw StateError('Produce failed');
       }
