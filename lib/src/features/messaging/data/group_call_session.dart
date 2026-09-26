@@ -95,7 +95,10 @@ class GroupCallSession {
     } catch (error) {
       // A failed join can be retried with the controller's retained request ID.
       // Once capture has started, failure terminates its owner instead.
-      if (_media != null) await close();
+      // Do not await hangUp here: it waits for this opening future to settle
+      // before deciding whether the server seat was joined. Capture stops now,
+      // then the leave command releases the seat without waiting for its TTL.
+      if (_media != null) _terminateAfterFailure();
       rethrow;
     }
   }
@@ -133,8 +136,12 @@ class GroupCallSession {
 
   void _failed(Object error) {
     if (_closed) return;
-    unawaited(close());
+    _terminateAfterFailure();
     onError?.call(error);
+  }
+
+  void _terminateAfterFailure() {
+    unawaited(hangUp().catchError((Object error) => onError?.call(error)));
   }
 
   Future<void> hangUp() => _hangingUp ??= _hangUp();

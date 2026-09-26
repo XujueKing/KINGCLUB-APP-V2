@@ -39,7 +39,73 @@ class FailingCleanupMedia extends NativeGroupCallMedia {
   Future<void> close() async => throw StateError('native cleanup failed');
 }
 
+class FailingOpenMedia extends FailingCleanupMedia {
+  int closes = 0;
+  @override
+  Future<void> open() async => throw TimeoutException('publish timeout');
+  @override
+  Future<void> close() async {
+    closes++;
+  }
+}
+
 void main() {
+  test(
+    'failed media opening releases the server seat without deadlock',
+    () async {
+      final calls = Calls();
+      final controller = GroupCallController(
+        repository: calls,
+        initial: fixtures.Repo().call,
+        sessionChanges: const Stream.empty(),
+        invalidations: const Stream.empty(),
+      );
+      final media = FailingOpenMedia();
+      final session = GroupCallSession(
+        controller: controller,
+        createMedia: (_, _, _) => media,
+      );
+      await expectLater(session.enter(), throwsA(isA<TimeoutException>()));
+      await session.hangUp().timeout(const Duration(seconds: 1));
+      expect(calls.actions, [GroupCallAction.leave]);
+      expect(media.closes, greaterThan(0));
+      expect(session.isClosed, true);
+      expect(controller.isClosed, true);
+      controller.dispose();
+    },
+  );
+
+  test(
+    'running media failure leaves once even when native cleanup fails',
+    () async {
+      final calls = Calls();
+      final controller = GroupCallController(
+        repository: calls,
+        initial: fixtures.Repo().call,
+        sessionChanges: const Stream.empty(),
+        invalidations: const Stream.empty(),
+      );
+      late void Function(Object) fail;
+      final failures = <Object>[];
+      final session = GroupCallSession(
+        controller: controller,
+        onError: failures.add,
+        createMedia: (_, _, error) {
+          fail = error;
+          return FailingCleanupMedia();
+        },
+      );
+      await session.enter();
+      fail(StateError('transport failed'));
+      fail(StateError('duplicate failure'));
+      await expectLater(session.hangUp(), throwsStateError);
+      expect(calls.actions, [GroupCallAction.leave]);
+      expect(controller.isClosed, true);
+      expect(failures, hasLength(2));
+      controller.dispose();
+    },
+  );
+
   test(
     'cleanup failure still leaves the server seat and closes controller',
     () async {
