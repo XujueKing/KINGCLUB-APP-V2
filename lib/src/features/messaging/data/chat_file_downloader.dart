@@ -270,6 +270,11 @@ class ChatFileDownloader {
         await checkPreservation();
         await cache.write(identity, index, bytes);
         await checkPreservation();
+        if (!kReleaseMode) {
+          debugPrint(
+            'FileResume phase=peer_checkpoint block=$index bytes=${bytes.length}',
+          );
+        }
       }, canPreserve: canPreserve);
       await peer.restoreBlocks((index, length) async {
         await _check();
@@ -720,6 +725,8 @@ class ChatFileDownloader {
       output = httpOutput;
       final digest = const DartSha256().newHashSink();
       var received = 0;
+      var reusedBlocks = 0;
+      var reusedBytes = 0;
       var triedEarlyPeerRecovery = false;
       for (var index = 0; index < (media['chunkCount'] as int); index++) {
         await _check();
@@ -784,12 +791,21 @@ class ChatFileDownloader {
         digest.add(block);
         await httpOutput.writeFrom(block);
         received += block.length;
+        if (cached) {
+          reusedBlocks++;
+          reusedBytes += block.length;
+        }
         if (!cached) {
           try {
             await resumeCache?.write(identity, index, block);
           } catch (_) {}
         }
         onProgress?.call(received, ref.size);
+        if (!kReleaseMode) {
+          debugPrint(
+            'FileResume phase=http_block block=$index cached=$cached bytes=${block.length}',
+          );
+        }
       }
       digest.close();
       final hash = (await digest.hash()).bytes
@@ -809,6 +825,11 @@ class ChatFileDownloader {
       _completed.add(working);
       _completedMessages[working] = (ref.group, ref.messageId);
       completed = true;
+      if (!kReleaseMode) {
+        debugPrint(
+          'FileResume phase=verified bytes=$received reusedBlocks=$reusedBlocks reusedBytes=$reusedBytes',
+        );
+      }
       return file;
     } catch (error) {
       keepResume =
