@@ -139,6 +139,12 @@ try {
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   $apk = [IO.Compression.ZipFile]::OpenRead((Join-Path (Get-Location).Path 'build/app/outputs/flutter-apk/app-preview-profile.apk'))
   try {
+    foreach ($coreLibrary in @('libapp.so', 'libflutter.so')) {
+      $coreEntry = $apk.GetEntry("lib/arm64-v8a/$coreLibrary")
+      if (!$coreEntry -or $coreEntry.Length -lt 4096) {
+        throw "APK is missing the Flutter runtime library: $coreLibrary. Rebuild before installation."
+      }
+    }
     $entry = $apk.GetEntry('lib/arm64-v8a/libkingclub_novorudp.so')
     if ($SkipNovoRudp) {
       if ($entry) { throw 'APK unexpectedly includes a stale NovoRUDP library.' }
