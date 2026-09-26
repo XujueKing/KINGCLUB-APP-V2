@@ -23,3 +23,11 @@ Transport 测试夹具增加与固定 SDK 对齐的非空编码要求。28 项 n
 临时诊断 debug 包实机日志定位到 `RTCPeerConnectionNative.addTransceiver` → `UnifiedPlan.send:559`：Android 原生抛出 `C++ addTransceiver failed`，失败发生于本机创建发送通道阶段，不能归为跨网打洞失败。源码此前给音频也传入视频 scalabilityMode。
 
 现将音频 encodings 留空，由协商 SDP 派生；通过 ProducerCodecOptions.opusMaxAverageBitrate 保留 64000 音频码率参数。视频仍使用 L1T1 / 600000。原生媒体与会话共 33 项测试通过、两个文件 analyze 通过。此修正需实机复测确认，未宣称群通话完成。
+
+### 音频修正后 A 单端实测
+
+诊断包重新构建并覆盖 A，仍保留登录。相同测试群再次发起：A 状态由“连接中”变为“已加入”，B 为“等待接听”；本次进程日志未再见 addTransceiver/SDK 队列错误。onLocal 仅在发布 Producer 成功后执行，因此这证明 A 的本机音频发布越过原先失败点，不证明双向声音成功。
+
+A 退至桌面时 CallForegroundService 的 isForeground=true，返回原页面仍为“已加入”。点返回退出后，服务端最近群通话 version=6、ended=1，群通话占用为 0，设备不再列出 CallForegroundService。只覆盖短暂前后台切换和主动退出，未覆盖双机、锁屏长通话或断网恢复。随后构建修复 profile 包以替换临时诊断 debug 包。
+
+修复 profile 包构建和核心库检查通过，SHA256 `0CA6848DC52BB55E3E005BECD89DC59AC3703735217BCF558BF4FEFC7223B9BC`，A/B 覆盖安装均成功并启动。A 已回到原登录首页，debug 诊断包已替换；B 安装前再次确认仍是协议入口，未中断登录操作。B 正式包登录、双向群媒体验收仍待完成。
