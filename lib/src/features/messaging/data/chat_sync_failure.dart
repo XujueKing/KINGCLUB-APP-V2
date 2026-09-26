@@ -1,5 +1,8 @@
 import '../../auth/domain/auth_repository.dart';
 
+bool isChatNetworkFailure(Object error) =>
+    error is AuthFailure && error.code == 'NETWORK_ERROR';
+
 /// Safe UI copy for a failed refresh, without exposing server/internal errors.
 String chatSyncFailureMessage(Object error) {
   if (error is AuthFailure) {

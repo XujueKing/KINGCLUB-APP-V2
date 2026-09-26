@@ -466,7 +466,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     } catch (error) {
       if (mounted) {
         setState(() {
-          _showOfflineBanner = true;
+          _showOfflineBanner = !_realReady || !isChatNetworkFailure(error);
           _refreshFailure = chatSyncFailureMessage(error);
         });
       }
@@ -617,7 +617,8 @@ class _ConversationsPageState extends State<ConversationsPage>
     } catch (error) {
       if (mounted && generation == _realGeneration) {
         setState(() {
-          _showOfflineBanner = true;
+          _showOfflineBanner =
+              more || !_realReady || !isChatNetworkFailure(error);
           _refreshFailure = chatSyncFailureMessage(error);
         });
       }
@@ -1451,6 +1452,9 @@ class _ConversationsPageState extends State<ConversationsPage>
     if (widget.realData) {
       _avatarProfiles.clear();
       await _refreshReal();
+      if (mounted && _refreshFailure != null) {
+        _showFeedback(_refreshFailure!);
+      }
       return;
     }
     if (_refreshing) return;
@@ -1688,11 +1692,15 @@ class _ConversationContent extends StatelessWidget {
                           ),
                         ),
                         SizedBox(width: 10 * r),
-                        Text(
-                          date,
-                          style: TextStyle(
-                            color: const Color(0x66FFFFFF),
-                            fontSize: 24 * r,
+                        Flexible(
+                          child: Text(
+                            date,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: const Color(0x66FFFFFF),
+                              fontSize: 24 * r,
+                            ),
                           ),
                         ),
                       ],

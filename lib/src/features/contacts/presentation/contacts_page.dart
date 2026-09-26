@@ -8,6 +8,7 @@ import '../data/contact_name_index.dart';
 import '../../messaging/data/messaging_repository.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
+import '../../../core/design_system/king_notice.dart';
 import 'relationship_groups_page.dart';
 import '../../messaging/presentation/legacy_messaging_components.dart';
 
@@ -153,7 +154,9 @@ class _ContactsPageState extends State<ContactsPage>
         if (!mounted) return;
         widget.onPendingRequestsChanged?.call(controller.pendingRequests);
         setState(() {
-          _state = controller.error != null
+          _state =
+              controller.error != null &&
+                  !(controller.hasSnapshot && controller.networkFailure)
               ? ContactsDemoState.partialError
               : controller.hasSnapshot && controller.contacts.isEmpty
               ? ContactsDemoState.empty
@@ -326,6 +329,9 @@ class _ContactsPageState extends State<ContactsPage>
           _real!.refresh(afterCurrent: true),
           _real!.refreshRequests(),
         ]);
+        if (mounted && _real?.error != null) {
+          KingNotice.of(context).show(_real!.error!);
+        }
       }
       return;
     }

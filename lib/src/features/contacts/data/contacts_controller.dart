@@ -59,6 +59,7 @@ class ContactsController extends ChangeNotifier {
   bool _disposed = false;
   int _generation = 0;
   String? error;
+  bool networkFailure = false;
   bool hasSnapshot = false;
   bool _refreshAgain = false;
   int pendingRequests = 0;
@@ -162,11 +163,13 @@ class ContactsController extends ChangeNotifier {
       _contacts = List.unmodifiable(next.values);
       hasSnapshot = true;
       error = null;
+      networkFailure = false;
       notifyListeners();
       unawaited(_save(_contacts, started, generation));
     } catch (e) {
       if (_disposed || generation != _generation || _refreshAgain) return;
       error = chatSyncFailureMessage(e);
+      networkFailure = isChatNetworkFailure(e);
       notifyListeners();
     }
   }
@@ -230,6 +233,7 @@ class ContactsController extends ChangeNotifier {
     _contacts = const [];
     hasSnapshot = false;
     error = null;
+    networkFailure = false;
     if (!_disposed) notifyListeners();
   }
 
