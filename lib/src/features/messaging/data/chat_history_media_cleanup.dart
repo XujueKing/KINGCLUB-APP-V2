@@ -7,20 +7,32 @@ extension _HistoryMediaCleanup on ChatHistoryStore {
     String id,
     List<Map<String, dynamic>> incoming,
     int floor,
+    Set<int> alreadyRedacted,
     ChatMediaCleanup cleanup,
     PendingMessageReader readPending,
   ) async {
-    final tombstones = {
-      for (final message in incoming)
-        if (const {'hidden', 'recalled'}.contains(message['messageType']))
-          message['sequence'] as int,
-    }..removeWhere((sequence) => sequence <= floor);
-    if (floor == 0 && tombstones.isEmpty) return {};
+    final tombstones =
+        {
+          for (final message in incoming)
+            if (const {'hidden', 'recalled'}.contains(message['messageType']))
+              message['sequence'] as int,
+        }..removeWhere(
+          (sequence) => sequence <= floor || alreadyRedacted.contains(sequence),
+        );
     final removedIds = <String>{
       for (final message in incoming)
         if (const {'hidden', 'recalled'}.contains(message['messageType']))
           message['messageId'] as String,
     };
+    if (floor == 0 && tombstones.isEmpty) {
+      // Replayed terminal rows have already had their media removed/deferred.
+      // Avoid decrypting every conversation to collect shared references again.
+      // Draft references still need redaction, including late restored drafts.
+      if (removedIds.isNotEmpty) {
+        await _redactDraft(conversation, removedIds);
+      }
+      return {};
+    }
     final condition = tombstones.isEmpty
         ? 'sequence<=?'
         : '(sequence<=? OR sequence IN (${List.filled(tombstones.length, '?').join(',')}))';

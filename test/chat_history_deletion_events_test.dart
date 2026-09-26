@@ -6,8 +6,66 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 
+class CountingHistoryKey extends SecretKey {
+  CountingHistoryKey(this.key) : super.constructor();
+  final SecretKey key;
+  int extractions = 0;
+  @override
+  Future<SecretKeyData> extract() {
+    extractions++;
+    return key.extract();
+  }
+}
+
 void main() {
   sqfliteFfiInit();
+  test('terminal replay work does not grow with unrelated history', () async {
+    final dir = await Directory.systemTemp.createTemp('history-replay-scale-');
+    final key = CountingHistoryKey(await AesGcm.with256bits().newSecretKey());
+    final store = await ChatHistoryStore.openDatabaseWithKey(
+      factory: databaseFactoryFfi,
+      file: '${dir.path}/history.db',
+      key: key,
+      account: 'me',
+    );
+    addTearDown(() async {
+      await store.close();
+      await dir.delete(recursive: true);
+    });
+    final tombstone = <String, dynamic>{
+      'messageId': 'deleted',
+      'clientMessageId': 'deleted-client',
+      'sender': 'peer',
+      'sequence': 1,
+      'messageType': 'recalled',
+      'text': '',
+    };
+    await store.commit('group:room', [tombstone], expectedEpoch: 0);
+    key.extractions = 0;
+    await store.commit('group:room', [tombstone], expectedEpoch: 0);
+    final smallHistoryWork = key.extractions;
+    expect(smallHistoryWork, greaterThan(0));
+    await store.commit('group:other', [
+      for (var n = 1; n <= 500; n++)
+        {
+          'messageId': 'other-$n',
+          'clientMessageId': 'other-client-$n',
+          'sender': 'peer',
+          'sequence': n,
+          'messageType': 'text',
+          'text': 'unrelated $n',
+        },
+    ], expectedEpoch: 0);
+    key.extractions = 0;
+    await store.commit('group:room', [tombstone], expectedEpoch: 0);
+    expect(key.extractions, smallHistoryWork);
+    expect(
+      (await store.read('group:room')).messages.single['messageType'],
+      'recalled',
+    );
+    expect((await store.read('group:other')).messages, isNotEmpty);
+  });
+
   test(
     'large replay preserves terminal content across query batches',
     () async {

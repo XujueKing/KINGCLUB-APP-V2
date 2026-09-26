@@ -707,6 +707,7 @@ class ChatHistoryStore {
               .cast<int>();
         }
       }
+      final alreadyRedacted = <int>{};
       for (var index = 0; index < rows.length; index++) {
         final row = rows[index];
         final bytes = savedPayloads[row['sequence']];
@@ -720,6 +721,9 @@ class ChatHistoryStore {
           jsonDecode(utf8.decode(plain)) as Map,
         );
         final type = saved['messageType'];
+        if (type == 'hidden' || type == 'recalled') {
+          alreadyRedacted.add(row['sequence'] as int);
+        }
         if (type == 'hidden' ||
             (type == 'recalled' &&
                 messages[index]['messageType'] != 'hidden')) {
@@ -735,6 +739,7 @@ class ChatHistoryStore {
         id,
         messages,
         floor,
+        alreadyRedacted,
         mediaCleanup ?? ChatMediaCleanup(),
         readPending,
       );
