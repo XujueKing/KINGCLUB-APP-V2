@@ -1,4 +1,5 @@
 import '../data/chat_queue_completion.dart';
+import 'chat_route_presence.dart';
 import '../data/chat_outbox_recovery.dart';
 import '../data/chat_call_history.dart';
 import 'chat_timestamp.dart';
@@ -199,6 +200,24 @@ class DirectChatPage extends StatefulWidget {
 
 class _DirectChatPageState extends State<DirectChatPage>
     with WidgetsBindingObserver {
+  VoidCallback? _releaseRoutePresence;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _releaseRoutePresence?.call();
+    final route = ModalRoute.of(context);
+    if (route == null) return;
+    _releaseRoutePresence = ChatRoutePresence.instance.register(route, () {
+      final account = _conversationAccount;
+      final target = _realTarget;
+      if (!mounted || _leaving || account == null || target == null) {
+        return null;
+      }
+      return (account: account, target: target, group: widget.groupId != null);
+    });
+  }
+
   ChatSessionController? _chat;
   int _connectionGeneration = 0;
   String? _conversationAccount;
@@ -1085,6 +1104,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   @override
   void dispose() {
+    _releaseRoutePresence?.call();
     _stopDraftDeletion?.call();
     _remarkEvents?.cancel();
     _relationshipEvents?.cancel();

@@ -1,5 +1,6 @@
 import 'features/messaging/data/push_registration_runtime.dart';
 import 'features/messaging/data/push_open_runtime.dart';
+import 'features/messaging/presentation/chat_route_presence.dart';
 import 'features/messaging/presentation/direct_chat_page.dart';
 import 'features/messaging/data/chat_outbox_recovery.dart';
 import 'features/messaging/data/chat_outbox.dart';
@@ -104,22 +105,31 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
         .navigatorKey
         .currentState;
     if (navigator == null) return false;
+    final identity = (
+      account: expected.account,
+      target: target.target,
+      group: target.group,
+    );
+    if (ChatRoutePresence.instance.isCurrent(navigator, identity)) return true;
+    final route = MaterialPageRoute<void>(
+      allowSnapshotting: false,
+      settings: RouteSettings(
+        name: 'push-chat:${target.group}:${target.target}',
+      ),
+      builder: (_) => DirectChatPage(
+        peerName: target.group ? '群聊' : '聊天',
+        peerAccount: target.group ? null : target.target,
+        groupId: target.group ? target.target : null,
+      ),
+    );
+    // Register before push/build so another notification in the same frame
+    // cannot add a second copy while the page restores its repository.
+    final release = ChatRoutePresence.instance.register(route, () => identity);
     unawaited(
-      navigator
-          .push<void>(
-            MaterialPageRoute(
-              allowSnapshotting: false,
-              settings: RouteSettings(
-                name: 'push-chat:${target.group}:${target.target}',
-              ),
-              builder: (_) => DirectChatPage(
-                peerName: target.group ? '群聊' : '聊天',
-                peerAccount: target.group ? null : target.target,
-                groupId: target.group ? target.target : null,
-              ),
-            ),
-          )
-          .whenComplete(_schedulePushOpen),
+      navigator.push<void>(route).whenComplete(() {
+        release();
+        _schedulePushOpen();
+      }),
     );
     return true;
   }
