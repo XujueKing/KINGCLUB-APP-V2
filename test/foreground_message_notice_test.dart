@@ -137,6 +137,105 @@ void main() {
       expect(await pending, isNull);
     },
   );
+  test(
+    'reconnect and live events share watermarks across a large paged inbox',
+    () async {
+      final r = ForegroundMessageNoticeResolver();
+      Future<Map<String, dynamic>> page(int offset) async => {
+        'items': List.generate(
+          100,
+          (i) => {
+            ...row(),
+            'conversationId': 'pair${offset + i}',
+            'peer': 'peer${offset + i}',
+          },
+        ),
+        'hasMore': offset < 200,
+      };
+      expect(
+        await r.reconcile(account: 'alice', page: page, valid: () => true),
+        hasLength(300),
+      );
+      expect(
+        await r.reconcile(account: 'alice', page: page, valid: () => true),
+        isEmpty,
+      );
+      expect(
+        await r.resolve(
+          event: {
+            'eventType': 'chat.changed',
+            'data': {'conversationId': 'pair0'},
+          },
+          account: 'alice',
+          page: page,
+          valid: () => true,
+        ),
+        isNull,
+      );
+    },
+  );
+  test(
+    'reconnect filters muted/read/self rows and resolves group targets',
+    () async {
+      final r = ForegroundMessageNoticeResolver();
+      final result = await r.reconcile(
+        account: 'alice',
+        valid: () => true,
+        page: (_) async => {
+          'items': [
+            {...row(), 'conversationId': 'muted', 'muted': true},
+            {...row(), 'conversationId': 'read', 'unreadCount': 0},
+            {...row(), 'conversationId': 'self', 'sender': 'alice'},
+            {
+              ...row(),
+              'conversationId': 'group',
+              'kind': 'group',
+              'groupId': 'team',
+            },
+          ],
+        },
+      );
+      expect(result.single.target, 'team');
+      expect(result.single.group, true);
+    },
+  );
+  test(
+    'failed or invalidated reconciliation does not consume earlier pages',
+    () async {
+      final r = ForegroundMessageNoticeResolver();
+      await expectLater(
+        r.reconcile(
+          account: 'alice',
+          valid: () => true,
+          page: (offset) async {
+            if (offset > 0) throw StateError('network lost');
+            return {
+              'items': [row()],
+              'hasMore': true,
+            };
+          },
+        ),
+        throwsStateError,
+      );
+      expect(await resolve(r, row()), isNotNull);
+      r.clear();
+      var valid = true;
+      expect(
+        await r.reconcile(
+          account: 'alice',
+          valid: () => valid,
+          page: (_) async {
+            valid = false;
+            return {
+              'items': [row()],
+            };
+          },
+        ),
+        isEmpty,
+      );
+      expect(await resolve(r, row()), isNotNull);
+    },
+  );
   testWidgets(
     'legacy banner opens, dismisses and hidden overlay does not intercept',
     (tester) async {

@@ -60,7 +60,7 @@ Future<void> runBackgroundMessageReceiver() async {
       await realtime.start();
     }
     // Reconcile ringing/ended invitations even when an event was lost.
-    notifications.notify({'eventType': 'connection.ready'});
+    notifications.notify({'eventType': 'receiver.checkCalls'});
   }
 
   void schedule() {

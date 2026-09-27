@@ -67,7 +67,9 @@ class BackgroundNotifications {
     final session = await store.readSession();
     final id = session?['sessionId'];
     if (id is! String || _foreground || epoch != _epoch) return;
-    final repository = await MessagingRepository.open(installMediaRuntime: false);
+    final repository = await MessagingRepository.open(
+      installMediaRuntime: false,
+    );
     bool valid() => !_foreground && epoch == _epoch;
     Future<bool> authorized() async =>
         (await store.readSession())?['sessionId'] == id && valid();
@@ -99,6 +101,32 @@ class BackgroundNotifications {
 
     final type = event['eventType'];
     debugPrint('ChatBackground: authorized event=$type');
+    if (type == 'connection.ready') {
+      try {
+        final notices = await _messages.reconcile(
+          account: repository.account,
+          page: (offset) => repository
+              .conversations(offset: offset)
+              .timeout(const Duration(seconds: 5)),
+          valid: valid,
+        );
+        for (final notice in notices) {
+          if (!await authorized()) return;
+          await show(
+            notice.target,
+            notice.group,
+            false,
+            DateTime.now()
+                .add(const Duration(hours: 12))
+                .millisecondsSinceEpoch,
+            const Uuid().v4(),
+            unread: notice.unread,
+          );
+        }
+      } catch (_) {
+        // Message reconciliation failure must not suppress incoming calls.
+      }
+    }
     if (type == 'chat.changed' || type == 'chat.group.message') {
       final notice = await _messages.resolve(
         event: event,
@@ -122,6 +150,7 @@ class BackgroundNotifications {
     }
     if (type == 'chat.call.changed' ||
         type == 'chat.group.call.changed' ||
+        type == 'receiver.checkCalls' ||
         type == 'connection.ready') {
       // Resolve scopes independently: a failed group request must not suppress
       // a direct incoming call (or remove a still-valid group invitation).
