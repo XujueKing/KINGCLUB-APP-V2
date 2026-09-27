@@ -124,6 +124,22 @@ class MessagingRepository {
     return result;
   }
 
+  Future<Map<String, dynamic>> giftCatalog() => call('K260927000802', {});
+
+  Future<Map<String, dynamic>> sendGift({
+    required String peer,
+    required String clientMessageId,
+    required String giftId,
+    required int quantity,
+    required String expectedUnitPrice,
+  }) => call('K260927000803', {
+    'recipient': peer,
+    'clientMessageId': clientMessageId,
+    'giftId': giftId,
+    'quantity': quantity,
+    'expectedUnitPrice': expectedUnitPrice,
+  });
+
   Future<Map<String, dynamic>> sendGold({
     required String peer,
     required String clientMessageId,

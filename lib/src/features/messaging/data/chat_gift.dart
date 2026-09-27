@@ -1,5 +1,47 @@
 import 'chat_coin.dart';
 
+/// A catalog quote is consent to a price, not authority to debit an account.
+class ChatGiftQuote {
+  const ChatGiftQuote._(this.giftId, this.name, this.assetKey, this.unitPrice);
+  final String giftId, name, assetKey, unitPrice;
+
+  static ChatGiftQuote? tryParse(Object? value) {
+    if (value is! Map) return null;
+    final id = value['giftId'], name = value['name'];
+    final asset = value['assetKey'], price = value['unitPrice'];
+    final identifier = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
+    if (id is! String ||
+        !identifier.hasMatch(id) ||
+        asset is! String ||
+        !identifier.hasMatch(asset) ||
+        name is! String ||
+        name.isEmpty ||
+        name.runes.length > 100 ||
+        !ChatCoin.validAmount(price)) {
+      return null;
+    }
+    return ChatGiftQuote._(id, name, asset, price as String);
+  }
+
+  String totalFor(int quantity) {
+    if (quantity < 1 || quantity > 4294967295) {
+      throw const FormatException('请输入有效的礼物数量');
+    }
+    final total = (BigInt.parse(unitPrice) * BigInt.from(quantity)).toString();
+    if (!ChatCoin.validAmount(total)) {
+      throw const FormatException('礼物总额超过上限');
+    }
+    return total;
+  }
+
+  Map<String, dynamic> toJson() => {
+    'giftId': giftId,
+    'name': name,
+    'assetKey': assetKey,
+    'unitPrice': unitPrice,
+  };
+}
+
 /// An immutable, exact-price snapshot of a server-confirmed gift transfer.
 class ChatGift {
   const ChatGift._({

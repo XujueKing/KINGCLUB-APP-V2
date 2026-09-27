@@ -1,4 +1,5 @@
 import 'chat_video.dart';
+import 'chat_gift.dart';
 import 'chat_location.dart';
 
 import 'package:flutter/foundation.dart';
@@ -26,6 +27,11 @@ abstract class ChatSessionController extends ChangeNotifier {
   });
   Future<void> sendGold(String amount, {VoidCallback? onQueued}) =>
       Future.error(UnsupportedError('当前会话不支持金币转赠'));
+  Future<void> sendGift(
+    ChatGiftQuote quote, {
+    int quantity = 1,
+    VoidCallback? onQueued,
+  }) => Future.error(UnsupportedError('当前会话不支持礼物赠送'));
   Future<void> sendImage(
     String assetId, {
     VoidCallback? onQueued,

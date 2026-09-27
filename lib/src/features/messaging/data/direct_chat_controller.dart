@@ -1,4 +1,5 @@
 import 'chat_coin.dart';
+import 'chat_gift.dart';
 
 import 'dart:async';
 
@@ -677,6 +678,37 @@ class DirectChatController extends ChatSessionController {
   }
 
   @override
+  Future<void> sendGift(
+    ChatGiftQuote quote, {
+    int quantity = 1,
+    VoidCallback? onQueued,
+  }) async {
+    _checkNewSendPermission();
+    if (_disposed) return;
+    quote.totalFor(quantity);
+    final id = const Uuid().v4();
+    final message = <String, dynamic>{
+      'clientMessageId': id,
+      'recipient': peer,
+      'sender': repository.account,
+      'messageType': 'gift',
+      'giftId': quote.giftId,
+      'quantity': quantity,
+      'expectedUnitPrice': quote.unitPrice,
+      'giftQuote': quote.toJson(),
+      'text': '[礼物]',
+      'createdDate': DateTime.now().toUtc().toIso8601String(),
+      'status': 'queued',
+    };
+    await outbox.put(message);
+    if (_disposed) return;
+    _pending[id] = message;
+    _changed();
+    onQueued?.call();
+    await retry(id);
+  }
+
+  @override
   Future<void> sendGold(String amount, {VoidCallback? onQueued}) async {
     _checkNewSendPermission();
     if (_disposed) return;
@@ -919,10 +951,19 @@ class DirectChatController extends ChatSessionController {
           kind != 'video' &&
           kind != 'file' &&
           kind != 'location' &&
-          kind != 'gold') {
+          kind != 'gold' &&
+          kind != 'gift') {
         throw const FormatException('不支持的待发送消息类型');
       }
-      final result = kind == 'gold'
+      final result = kind == 'gift'
+          ? await repository.sendGift(
+              peer: peer,
+              clientMessageId: id,
+              giftId: pending['giftId'] as String,
+              quantity: pending['quantity'] as int,
+              expectedUnitPrice: pending['expectedUnitPrice'] as String,
+            )
+          : kind == 'gold'
           ? await repository.sendGold(
               peer: peer,
               clientMessageId: id,

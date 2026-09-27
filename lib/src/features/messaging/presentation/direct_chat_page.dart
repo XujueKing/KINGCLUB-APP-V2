@@ -1,4 +1,5 @@
 import '../data/chat_coin.dart';
+import '../data/chat_gift.dart';
 import '../data/chat_queue_completion.dart';
 import 'chat_route_presence.dart';
 import '../data/chat_outbox_recovery.dart';
@@ -466,6 +467,10 @@ class _DirectChatPageState extends State<DirectChatPage>
   int _giftCategory = 0;
   int? _selectedGift;
   int _goldBalance = 501;
+  List<ChatGiftQuote> _realGifts = const [];
+  bool _loadingGifts = false;
+  bool _confirmingGift = false;
+  String? _giftError;
   String? _quotedDraft;
   String? _quotedMessageId;
   int? _quotedMessageSequence;
@@ -774,6 +779,9 @@ class _DirectChatPageState extends State<DirectChatPage>
     _releaseOutboxRecovery?.call();
     _releaseOutboxRecovery = null;
     _chat = null;
+    _realGifts = const [];
+    _loadingGifts = false;
+    _giftError = null;
     _peerNickname = null;
     _avatarProfiles.clear();
     if (!mounted) return;
@@ -997,7 +1005,16 @@ class _DirectChatPageState extends State<DirectChatPage>
             (message) => _FakeMessage(
               message['messageType'] == 'gold'
                   ? '${ChatCoin.tryParse(message['coin'], messageId: message['messageId'] as String?)?.amount ?? (ChatCoin.validAmount(message['amount']) ? message['amount'] : '—')} 枚'
+                  : message['messageType'] == 'gift'
+                  ? _giftMessageText(message)
                   : message['text'] as String,
+              assetPath: message['messageType'] == 'gift'
+                  ? _giftAsset(
+                      ChatGift.tryParse(message['gift'])?.assetKey ??
+                          ChatGiftQuote.tryParse(message['giftQuote'])
+                              ?.assetKey,
+                    )
+                  : null,
               messageId: message['messageId'] as String?,
               system: message['messageType'] == 'recalled',
               quoted: ChatReply.tryParse(message['reply'])?.text,
@@ -1032,6 +1049,8 @@ class _DirectChatPageState extends State<DirectChatPage>
                   : null,
               kind: message['messageType'] == 'gold'
                   ? _FakeMessageKind.goldCoin
+                  : message['messageType'] == 'gift'
+                  ? _FakeMessageKind.gift
                   : message['messageType'] == 'image'
                   ? _FakeMessageKind.image
                   : _FakeMessageKind.text,
@@ -2063,6 +2082,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Widget _giftPanel() {
+    if (_realTarget != null) return _realGiftPanel();
     const categories = ['推荐', '场景特效', '爱意表达', '装饰互动'];
     final visible = _giftCategory == 0
         ? _giftItems
@@ -2318,13 +2338,242 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   void _toggleGifts() {
-    if (_requiresRealMedia()) return;
+    if (_realTarget != null && (_chat == null || widget.groupId != null)) {
+      KingNotice.of(context).show('礼物赠送请在好友会话中使用');
+      return;
+    }
     final opening = _composerPanel != _ComposerPanel.gifts;
     if (opening) _inputFocusNode.unfocus();
     setState(() {
       _composerPanel = opening ? _ComposerPanel.gifts : _ComposerPanel.none;
       _selectedGift = null;
     });
+    if (opening && _realTarget != null) unawaited(_loadGifts());
+  }
+
+  String _giftAsset(String? key) {
+    const keys = {
+      'rose',
+      'racer',
+      'transformer',
+      'anniversary',
+      'flamingo',
+      'swan',
+      'princess',
+      'horse',
+    };
+    return keys.contains(key)
+        ? 'assets/legacy/messaging/gift_$key.png'
+        : 'assets/legacy/messaging/gift.png';
+  }
+
+  String _giftMessageText(Map<String, dynamic> message) {
+    final gift = ChatGift.tryParse(
+      message['gift'],
+      messageId: message['messageId'] as String?,
+    );
+    if (gift != null) {
+      return '${gift.name} × ${gift.quantity}\n${gift.total} 金币';
+    }
+    final quote = ChatGiftQuote.tryParse(message['giftQuote']);
+    final quantity = message['quantity'];
+    if (quote != null && quantity is int) {
+      try {
+        return '${quote.name} × $quantity\n${quote.totalFor(quantity)} 金币';
+      } catch (_) {}
+    }
+    return '[礼物]';
+  }
+
+  Future<void> _loadGifts() async {
+    final chat = _chat;
+    if (chat == null || _loadingGifts) return;
+    setState(() {
+      _loadingGifts = true;
+      _giftError = null;
+    });
+    try {
+      final result = await chat.messaging.giftCatalog();
+      final values = result['gifts'];
+      if (values is! List) throw const FormatException('礼物目录暂不可用');
+      final gifts = values.map(ChatGiftQuote.tryParse).toList();
+      if (gifts.any((gift) => gift == null)) {
+        throw const FormatException('礼物目录暂不可用');
+      }
+      if (mounted && identical(chat, _chat)) {
+        setState(() => _realGifts = gifts.cast<ChatGiftQuote>());
+      }
+    } catch (error) {
+      if (mounted && identical(chat, _chat)) {
+        setState(() => _giftError = error.toString());
+      }
+    } finally {
+      if (mounted && identical(chat, _chat)) {
+        setState(() => _loadingGifts = false);
+      }
+    }
+  }
+
+  Widget _realGiftPanel() => Container(
+    key: const ValueKey('direct-chat-gift-panel'),
+    height: 326,
+    color: const Color(0xFF171513),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            const SizedBox(width: 18),
+            const Expanded(
+              child: Text('礼物', style: TextStyle(color: legacyMessageGold)),
+            ),
+            TextButton(
+              onPressed: _loadingGifts ? null : _loadGifts,
+              child: const Text('刷新'),
+            ),
+          ],
+        ),
+        Expanded(
+          child: _realGifts.isEmpty
+              ? Center(
+                  child: _loadingGifts
+                      ? const CircularProgressIndicator()
+                      : TextButton(
+                          onPressed: _loadGifts,
+                          child: Text(
+                            _giftError == null ? '暂无可赠送礼物' : '礼物目录暂不可用，点击重试',
+                          ),
+                        ),
+                )
+              : GridView.builder(
+                  key: const ValueKey('direct-chat-gift-grid'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 8,
+                  ),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    mainAxisExtent: 116,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: _realGifts.length,
+                  itemBuilder: (_, index) {
+                    final gift = _realGifts[index];
+                    return InkWell(
+                      key: ValueKey('direct-chat-gift-${gift.giftId}'),
+                      onTap: _confirmingGift
+                          ? null
+                          : () => _confirmRealGift(gift),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: Image.asset(
+                              _giftAsset(gift.assetKey),
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          Text(
+                            gift.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: legacyMessageGold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '${gift.unitPrice} 金币',
+                              style: const TextStyle(
+                                color: Color(0xFFB3AAA2),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    ),
+  );
+
+  Future<void> _confirmRealGift(ChatGiftQuote gift) async {
+    final chat = _chat;
+    if (chat == null || _confirmingGift) return;
+    setState(() => _confirmingGift = true);
+    final controller = TextEditingController(text: '1');
+    try {
+      final quantity = await showDialog<int>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (_, refresh) {
+            final number = int.tryParse(controller.text);
+            String? total;
+            if (number != null) {
+              try {
+                total = gift.totalFor(number);
+              } catch (_) {}
+            }
+            return AlertDialog(
+              title: Text('赠送${gift.name}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('赠送给 ${widget.peerName}'),
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    maxLength: 10,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => refresh(() {}),
+                    decoration: const InputDecoration(
+                      labelText: '数量',
+                      helperMaxLines: 3,
+                      helperText: '确认后金币转入对方账户，不能撤回',
+                    ),
+                  ),
+                  Text(total == null ? '请输入有效数量' : '合计 $total 金币'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('取消'),
+                ),
+                TextButton(
+                  onPressed: total == null
+                      ? null
+                      : () => Navigator.pop(dialogContext, number),
+                  child: const Text('确认赠送'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+      if (!mounted || quantity == null || !identical(chat, _chat)) return;
+      await chat.sendGift(
+        gift,
+        quantity: quantity,
+        onQueued: () {
+          if (mounted) setState(() => _composerPanel = _ComposerPanel.none);
+        },
+      );
+      if (mounted && identical(chat, _chat) && chat.error != null) {
+        KingNotice.of(context).show(chat.error!);
+        unawaited(_loadGifts());
+      }
+    } catch (error) {
+      if (mounted) KingNotice.of(context).show(error.toString());
+    } finally {
+      Future<void>.delayed(const Duration(seconds: 1), controller.dispose);
+      if (mounted) setState(() => _confirmingGift = false);
+    }
   }
 
   void _insertEmoji() {
