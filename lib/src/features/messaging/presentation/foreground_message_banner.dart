@@ -15,7 +15,7 @@ class ForegroundMessageBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = MediaQuery.sizeOf(context).width / 750;
-    final radius = BorderRadius.circular(50 * r);
+    final radius = BorderRadius.circular(32 * r);
     final caption = TextStyle(
       inherit: false,
       color: const Color(0x80FFFFFF),
