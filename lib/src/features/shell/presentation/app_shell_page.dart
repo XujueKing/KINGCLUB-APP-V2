@@ -3,6 +3,9 @@ import '../../contacts/presentation/public_member_page.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:ui';
+import 'dart:async';
+
+import '../../messaging/data/desktop_badge.dart';
 
 import 'package:flutter/material.dart';
 
@@ -203,6 +206,9 @@ class _AppShellPageState extends State<AppShellPage> {
                           return;
                         }
                         setState(() => _friendConversationUnread = count);
+                        if (widget.realChat) {
+                          unawaited(DesktopBadge.update(count));
+                        }
                       },
                       onOpenContacts: () =>
                           setState(() => _messagesPageIndex = 0),

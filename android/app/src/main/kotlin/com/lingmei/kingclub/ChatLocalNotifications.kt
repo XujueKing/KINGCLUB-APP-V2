@@ -24,12 +24,28 @@ class ChatLocalNotifications(private val context: Context) {
                 (!callsOnly || it.notification.category == Notification.CATEGORY_CALL) }
             .forEach { manager.cancel(it.tag, it.id) }
     }
+    private fun badge(count: Int): Boolean {
+        if (Build.MANUFACTURER.lowercase() !in listOf("oppo", "oneplus", "realme")) return false
+        return try {
+            val value = count.coerceIn(0, 9999)
+            android.util.Log.d("KingclubBadge", "set oplus badge count:" + value)
+            context.contentResolver.call(Uri.parse("content://com.android.badge/badge"),
+                "setAppBadgeCount", null, android.os.Bundle().apply {
+                    putInt("app_badge_count", value)
+                }) != null
+        } catch (_: Exception) { false } // Unsupported OS or user permission disabled.
+    }
     fun handle(call: MethodCall, result: MethodChannel.Result, foreground: Boolean) {
         try {
             when (call.method) {
+                "badge" -> result.success(badge(call.argument<Int>("count") ?: 0))
                 "bind" -> {
                     val next = call.argument<String>("session")
-                    if (session != next || next == null) { clear(); session = next }
+                    if (session != next || next == null) {
+                        clear()
+                        if (session != null || next == null) badge(0)
+                        session = next
+                    }
                     result.success(null)
                 }
                 "reconcileCalls" -> {
