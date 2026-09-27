@@ -37,3 +37,11 @@
 发现并修正客户端提示缺口：此前忽略 resolve 的返回值，只要请求未抛异常，就显示“已互相关注，可以聊天了”。现仅在 `status=accepted` 且 `friends=true` 时显示该提示；`friends=false` 明确说明申请已处理、当前未互相关注；关系字段缺失时仅提示检查当前关系。仍刷新申请、通讯录及角标，不自动补写关注，不改变实际关系。
 
 验证：`flutter test test/real_friend_requests_test.dart test/local_relationship_sync_test.dart` 共 8 项通过，覆盖三种关系返回值及无实时连接时的通讯录/角标更新；两个修改文件的 analyze 通过。本次为源代码修正，尚未覆盖安装到 A/B，不算扫码双机复验通过。
+
+### 提示修正版双机安装
+
+后续将已提交 `aa8c5173` 的 `friendship_pages.dart` 同步到聊天专用隔离构建目录，沿用上一版 API、SuperVM 公钥身份、STUN、ICE、LAN、文件传输和私有 OPPO 客户端配置；未复制并行开发的注册偏好改动。profile 构建 70.2 秒完成，脚本通过正式包名及 Flutter/NovoRUDP ARM64 库检查。
+
+APK SHA256：`D1420F666D2B696187D7F805BCB446AF737FFD418A7B3592F791F0F13BDD9F70`。安装前两端无可见通话控制和未发送输入；A/B 的 `adb install -r` 均返回 Success，未卸载、清数据或操作第三台手机。随后启动正式包，进程均存在、显示原登录首页；点击消息入口后两端出现聊天和通讯录，没有手机号/验证码登录入口。
+
+本轮完成覆盖安装及登录/消息入口冒烟检查，没有重新申请或接受好友，不将历史单向关系问题标为解决。原始 UI 检查留在隔离构建目录 `build/chat-update-before-*.xml`、`chat-update-after-*.xml`、`chat-update-messages-*.xml`，不提交设备个人页面数据。
