@@ -5,9 +5,11 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.AtomicFile
 import org.json.JSONArray
+import org.json.JSONException
 import java.io.File
 import java.security.KeyStore
 import javax.crypto.Cipher
+import javax.crypto.AEADBadTagException
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
@@ -16,6 +18,7 @@ import javax.crypto.spec.GCMParameterSpec
 class ChatPushPendingStore(context: Context) {
     private val file = AtomicFile(File(context.noBackupFilesDir, "chat-push-pending-v1"))
     private val alias = "kingclub.chat.push-pending.v1"
+    private class CorruptJournal : Exception()
 
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -31,15 +34,39 @@ class ChatPushPendingStore(context: Context) {
     }
 
     fun read(): List<String> {
-        val bytes = try { file.openRead().use { it.readBytes() } }
-            catch (_: java.io.FileNotFoundException) { return emptyList() }
-        require(bytes.size in 29..32768)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
-        cipher.updateAAD(alias.toByteArray(Charsets.UTF_8))
-        val array = JSONArray(String(cipher.doFinal(bytes, 12, bytes.size - 12), Charsets.UTF_8))
-        require(array.length() <= 8)
-        return (0 until array.length()).map { array.getString(it).also { raw -> require(raw.length <= 2048) } }
+        try {
+            val bytes = try {
+                file.openRead().use {
+                    // Check before allocation, including a truncated/interrupted file.
+                    if (it.channel.size() !in 29L..32768L) throw CorruptJournal()
+                    it.readBytes()
+                }
+            } catch (_: java.io.FileNotFoundException) { return emptyList() }
+            if (bytes.size !in 29..32768) throw CorruptJournal()
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
+            cipher.updateAAD(alias.toByteArray(Charsets.UTF_8))
+            val array = JSONArray(String(cipher.doFinal(bytes, 12, bytes.size - 12), Charsets.UTF_8))
+            if (array.length() > 8) throw CorruptJournal()
+            return (0 until array.length()).map {
+                val raw = array.get(it)
+                if (raw !is String || raw.length > 2048) throw CorruptJournal()
+                raw
+            }
+        } catch (_: CorruptJournal) {
+            return discardCorruptJournal()
+        } catch (_: AEADBadTagException) {
+            return discardCorruptJournal()
+        } catch (_: JSONException) {
+            return discardCorruptJournal()
+        }
+        // I/O and Keystore availability failures propagate. They must not erase
+        // an otherwise valid destination just because storage is temporarily locked.
+    }
+
+    private fun discardCorruptJournal(): List<String> {
+        file.delete()
+        return emptyList()
     }
 
     fun write(items: List<String>) {
