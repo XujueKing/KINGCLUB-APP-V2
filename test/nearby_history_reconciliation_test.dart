@@ -92,6 +92,11 @@ void main() {
       options: OpenDatabaseOptions(
         version: 6,
         onCreate: (db, _) async {
+          // Full v6 schema from b486dd04, including the existing conversation
+          // table later membership migrations must alter.
+          await db.execute(
+            'CREATE TABLE conversation (id TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0, hiddenThrough INTEGER NOT NULL DEFAULT 0, membershipVersion INTEGER, presentation BLOB, historyVersion INTEGER)',
+          );
           await db.execute(
             'CREATE TABLE message (conversation TEXT NOT NULL, sequence INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(conversation,sequence))',
           );

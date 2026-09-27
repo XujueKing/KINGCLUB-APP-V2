@@ -19,3 +19,17 @@
 - 两个修改 Dart 文件 analyze 通过。
 
 这是 SQLite 参数兼容性和持久化可靠性修正，不证明会话动画卡顿已解决。当前只完成代码和自动化验证，尚未打入 A/B 已安装的 `AA1A4AAC...` 包。
+
+## 扩大回归与后续安装
+
+群聊历史、历史仓库、附近消息、会员关联及附近消息对账 5 个测试文件首次执行为 92 通过、1 失败。失败的 v6 升级夹具仅创建 message/nearby_message，遗漏实际 v6 已有的 conversation 表，导致新版本 ALTER TABLE 找不到表。对照历史提交 `b486dd04` 补全该表原结构，没有放宽生产升级逻辑。再次执行全部 5 个文件，93 项通过；夹具文件 analyze 通过。
+
+包含密文 BLOB 修正的 profile 包 SHA256 为 `2AF670157D37284EDB3527D08EB9E3CC0B4D8C85F2396714E23B650009981889`，构建脚本的正式包名与原生库检查通过。A/B 均覆盖安装 Success 并启动，没有卸载或清数据；隔离构建仅同步本次 history store 改动，不混入其他栏目。
+
+### B 离线冷启动检查
+
+先确认 B Wi-Fi 开启、mobile_data=0。临时关闭 Wi-Fi，force-stop 正式包后重开（不清数据），进入消息页：已有会话仍显示，进入 A/B 会话可见 `AB_UI_SMOOTH_0927_02` 一次。随后恢复 Wi-Fi。
+
+再以相同网络前提关闭 Wi-Fi并冷启动，进入通讯录可见新的朋友入口及原 A 联系人；采集时 wifi_on=0。finally 恢复 Wi-Fi，读回 wifi_on=1。未操作第三台手机，也没有发送离线测试消息或改动好友关系。
+
+这证明本次真实设备的离线会话列表、历史和通讯录读取成功；不等同于首帧无闪烁或所有媒体已离线验收。原始 UI 转储保留于隔离构建目录 `build/chat-offline-list.xml`、`chat-offline-history.xml`、`chat-offline-contacts.xml`，不入库。
