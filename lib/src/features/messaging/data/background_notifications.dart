@@ -14,12 +14,17 @@ import 'messaging_repository.dart';
 /// Validates incoming events for either the UI fallback or service-owned engine.
 /// Vendor push is still required when Android cannot run either receiver.
 class BackgroundNotifications {
+  BackgroundNotifications() : _testHandler = null;
+  @visibleForTesting
+  BackgroundNotifications.forTesting(this._testHandler);
+  final Future<void> Function(Map<String, dynamic>)? _testHandler;
   static const channel = MethodChannel('kingclub/local-notifications');
   final _messages = ForegroundMessageNoticeResolver();
   final _calls = <String>{};
   int _epoch = 0;
   bool _foreground = true;
   Future<void> _queue = Future.value();
+  Future<void> _callQueue = Future.value();
 
   void foreground(bool value) {
     _foreground = value;
@@ -51,15 +56,34 @@ class BackgroundNotifications {
   }
 
   void notify(Map<String, dynamic> event) {
+    if (event['eventType'] == 'connection.ready') {
+      notify({'eventType': 'receiver.checkCalls'});
+      notify({'eventType': 'receiver.checkUnread'});
+      return;
+    }
+    final isCall = const {
+      'chat.call.changed',
+      'chat.group.call.changed',
+      'receiver.checkCalls',
+    }.contains(event['eventType']);
     final epoch = _epoch;
-    _queue = _queue
+    final next = (isCall ? _callQueue : _queue)
         .then((_) async {
           if (_foreground || epoch != _epoch) return;
-          await _handle(event, epoch);
+          if (_testHandler != null) {
+            await _testHandler(event);
+          } else {
+            await _handle(event, epoch);
+          }
         })
         .catchError((Object error) {
           debugPrint('ChatBackground: failed ${error.runtimeType}');
         });
+    if (isCall) {
+      _callQueue = next;
+    } else {
+      _queue = next;
+    }
   }
 
   Future<void> _handle(Map<String, dynamic> event, int epoch) async {
@@ -101,7 +125,7 @@ class BackgroundNotifications {
 
     final type = event['eventType'];
     debugPrint('ChatBackground: authorized event=$type');
-    if (type == 'connection.ready') {
+    if (type == 'receiver.checkUnread') {
       try {
         final notices = await _messages.reconcile(
           account: repository.account,
