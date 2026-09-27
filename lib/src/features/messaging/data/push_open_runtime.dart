@@ -76,6 +76,11 @@ class PushOpenRuntime {
   Future<void>? _running;
   bool _dirty = false, _closed = false;
 
+  /// Recheck after asynchronous navigation authorization: a newer native click
+  /// may be waiting to be drained while the previous session read completes.
+  bool isCurrent(PushOpenTarget target) =>
+      !_closed && !_dirty && identical(_pending, target);
+
   Future<void> sync() {
     if (_closed) return Future.value();
     _dirty = true;
@@ -105,6 +110,7 @@ class PushOpenRuntime {
         }
         final session = await readySession();
         if (_closed) return;
+        if (_dirty) continue;
         if (session == null) continue;
         if (pending.expiresAt <= now().millisecondsSinceEpoch) {
           _pending = null;

@@ -97,6 +97,55 @@ void main() {
     await runtime.sync();
     expect(opens, 0);
   });
+  for (final duringNavigation in [false, true]) {
+    test(
+      'new click supersedes stale ${duringNavigation ? 'navigation' : 'session'} read',
+      () async {
+        final queue = [jsonEncode(payload())];
+        final gate = Completer<void>();
+        final entered = Completer<void>();
+        final opened = <String>[];
+        var reads = 0;
+        late PushOpenRuntime runtime;
+        runtime = PushOpenRuntime(
+          takePending: () async => queue.isEmpty ? null : queue.removeAt(0),
+          readySession: () async {
+            if (!duringNavigation && reads++ == 0) {
+              entered.complete();
+              await gate.future;
+            }
+            return session;
+          },
+          open: (target, _) async {
+            if (duringNavigation && !entered.isCompleted) {
+              entered.complete();
+              await gate.future;
+            }
+            if (!runtime.isCurrent(target)) return false;
+            opened.add(target.target);
+            return true;
+          },
+          now: () => time,
+        );
+        addTearDown(runtime.close);
+        final first = runtime.sync();
+        await entered.future;
+        queue.add(
+          jsonEncode(
+            payload()
+              ..['eventId'] = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+              ..['target'] = 'new_sender',
+          ),
+        );
+        final second = runtime.sync();
+        gate.complete();
+        await Future.wait([first, second]);
+        expect(opened, ['new_sender']);
+        await runtime.sync();
+        expect(opened, ['new_sender']);
+      },
+    );
+  }
   test(
     'navigation not ready retains click and racing sync stays serialized',
     () async {

@@ -95,7 +95,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     PushOpenSession expected,
   ) async {
     final current = await _pushReadySession();
-    if (current != expected ||
+    if (_pushOpen?.isCurrent(target) != true ||
+        current != expected ||
         target.expiresAt <= DateTime.now().millisecondsSinceEpoch) {
       return false;
     }
