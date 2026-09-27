@@ -5,6 +5,7 @@ import '../../../core/session/secure_session_store.dart';
 import '../../auth/presentation/terms_consent_page.dart';
 import '../data/profile_repository.dart';
 import '../../messaging/data/native_push_registration.dart';
+import '../../messaging/data/background_connection.dart';
 import 'edit_profile_page.dart';
 
 import 'package:flutter/material.dart';
@@ -358,47 +359,82 @@ class _SettingsPageState extends State<SettingsPage>
   }
 
   Future<void> _showNotificationStatus() async {
+    var receiverEnabled = await BackgroundConnection.invoke('enabled');
+    if (!mounted) return;
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('通知权限'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _scenario == SettingsScenario.notificationDisabled
-                  ? '系统通知已关闭'
-                  : switch (_notificationsEnabled) {
-                      true => '系统通知已允许',
-                      false => '系统通知已关闭',
-                      null => '暂时无法读取系统通知状态',
-                    },
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (settingsContext, update) => AlertDialog(
+          title: const Text('通知权限'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _scenario == SettingsScenario.notificationDisabled
+                      ? '系统通知已关闭'
+                      : switch (_notificationsEnabled) {
+                          true => '系统通知已允许',
+                          false => '系统通知已关闭',
+                          null => '暂时无法读取系统通知状态',
+                        },
+                ),
+                const SizedBox(height: 10),
+                const Text('消息通知、活动提醒和订单状态最终由手机系统设置控制。'),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('后台接收消息和来电'),
+                  subtitle: const Text('开启后显示常驻通知，有助于后台接收，可能增加耗电。'),
+                  value: receiverEnabled,
+                  onChanged: (value) async {
+                    await BackgroundConnection.invoke('enable', {
+                      'value': value,
+                    });
+                    if (value) await BackgroundConnection.invoke('start');
+                    if (settingsContext.mounted) {
+                      update(() => receiverEnabled = value);
+                    }
+                  },
+                ),
+                const Text('若锁屏或切后台后收不到消息，请在应用耗电管理中允许后台运行。'),
+                TextButton(
+                  onPressed: () async {
+                    final opened = await BackgroundConnection.invoke(
+                      'settings',
+                    );
+                    if (!opened && mounted) {
+                      KingNotice.of(context).showSnackBar(
+                        const SnackBar(content: Text('请在手机设置中打开应用详情，允许后台运行')),
+                      );
+                    }
+                  },
+                  child: const Text('设置后台运行权限'),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            const Text('消息通知、活动提醒和订单状态最终由手机系统设置控制。'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('关闭'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                try {
+                  await NativePushRegistration().openNotificationSettings();
+                } catch (_) {
+                  if (!mounted) return;
+                  KingNotice.of(context).showSnackBar(
+                    const SnackBar(content: Text('无法打开系统设置，请在手机设置中管理通知权限')),
+                  );
+                }
+              },
+              child: const Text('打开系统设置'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('关闭'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              try {
-                await NativePushRegistration().openNotificationSettings();
-              } catch (_) {
-                if (!mounted) return;
-                KingNotice.of(context).showSnackBar(
-                  const SnackBar(content: Text('无法打开系统设置，请在手机设置中管理通知权限')),
-                );
-              }
-            },
-            child: const Text('打开系统设置'),
-          ),
-        ],
       ),
     );
   }

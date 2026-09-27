@@ -11,7 +11,8 @@ import 'foreground_message_notice.dart';
 import 'group_call_repository.dart';
 import 'messaging_repository.dart';
 
-/// Best-effort reception while the process runs, not a killed-process service.
+/// Validates incoming events for either the UI fallback or service-owned engine.
+/// Vendor push is still required when Android cannot run either receiver.
 class BackgroundNotifications {
   static const channel = MethodChannel('kingclub/local-notifications');
   final _messages = ForegroundMessageNoticeResolver();
@@ -66,7 +67,7 @@ class BackgroundNotifications {
     final session = await store.readSession();
     final id = session?['sessionId'];
     if (id is! String || _foreground || epoch != _epoch) return;
-    final repository = await MessagingRepository.open();
+    final repository = await MessagingRepository.open(installMediaRuntime: false);
     bool valid() => !_foreground && epoch == _epoch;
     Future<bool> authorized() async =>
         (await store.readSession())?['sessionId'] == id && valid();

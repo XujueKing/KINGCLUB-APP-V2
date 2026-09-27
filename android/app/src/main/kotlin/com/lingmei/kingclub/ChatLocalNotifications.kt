@@ -95,7 +95,9 @@ class ChatLocalNotifications(private val context: Context) {
                     val tag = prefix + value.getString("scope") + ":" +
                         value.getString("target") + ":" + value.getString("kind")
                     val intent = Intent(context, MainActivity::class.java)
-                        .setData(Uri.parse("kingclub://notification/" + Uri.encode(tag)))
+                        // Action distinguishes PendingIntents without making Flutter
+                        // mistake the notification identity for a navigable deep link.
+                        .setAction("com.lingmei.kingclub.OPEN_NOTIFICATION." + tag)
                         .putExtra("kingclub_push", raw)
                         .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     val open = PendingIntent.getActivity(context, 0, intent,

@@ -83,7 +83,7 @@ class MessagingRepository {
         : fetch();
   }
 
-  static Future<MessagingRepository> open() async {
+  static Future<MessagingRepository> open({bool installMediaRuntime = true}) async {
     final store = SecureSessionStore();
     final session = await store.readSession();
     final account = (session?['account'] as Map?)?['userAccount'];
@@ -101,8 +101,10 @@ class MessagingRepository {
         store: store,
       ).call,
     );
-    NovoRudpBindingRuntime.start(repository);
-    ChatMediaTransfer.install(repository);
+    if (installMediaRuntime) {
+      NovoRudpBindingRuntime.start(repository);
+      ChatMediaTransfer.install(repository);
+    }
     return repository;
   }
 

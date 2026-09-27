@@ -17,8 +17,24 @@ class MainActivity : FlutterActivity() {
     private var foreground = false
     private var pushRegistration: ChatPushRegistration? = null
     private var pushOpen: ChatPushOpen? = null
+    private fun sanitizeLocalNotification(intent: Intent) {
+        // Notifications posted by older builds still contain this identity URI.
+        // Keep the payload for ChatPushOpen's account/expiry checks, but never
+        // hand the synthetic URI to Flutter's automatic deep-link navigation.
+        if (intent.data?.scheme == "kingclub" && intent.data?.host == "notification") {
+            intent.data = null
+        }
+    }
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        sanitizeLocalNotification(intent)
+        super.onCreate(savedInstanceState)
+    }
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/connection-service")
+            .setMethodCallHandler { call, result ->
+                ChatConnectionService.handle(this, call, result, foreground)
+            }
         val localNotifications = ChatLocalNotifications(applicationContext)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/local-notifications")
             .setMethodCallHandler { call, result -> localNotifications.handle(call, result, foreground) }
@@ -85,6 +101,7 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler(handler::handle)
     }
     override fun onNewIntent(intent: Intent) {
+        sanitizeLocalNotification(intent)
         super.onNewIntent(intent)
         setIntent(intent)
         pushOpen?.accept(intent)
@@ -115,9 +132,11 @@ class MainActivity : FlutterActivity() {
         super.onResume()
         pushOpen?.accept(intent)
         foreground = true
+        ChatConnectionService.foreground(true)
     }
     override fun onPause() {
         foreground = false
+        ChatConnectionService.foreground(false)
         super.onPause()
     }
     override fun onDestroy() {

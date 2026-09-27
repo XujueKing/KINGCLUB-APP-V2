@@ -1,5 +1,6 @@
 import 'features/messaging/data/push_registration_runtime.dart';
 import 'features/messaging/data/background_notifications.dart';
+import 'features/messaging/data/background_connection.dart';
 import 'features/messaging/data/foreground_message_notice.dart';
 import 'features/messaging/presentation/foreground_message_banner.dart';
 import 'features/messaging/data/push_open_runtime.dart';
@@ -436,16 +437,26 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     _groupCallInbox = null;
   }
 
+  bool _backgroundReceiverStarted = false;
   Future<void> _syncRealtime() async {
     if (kingclubApiBaseUrl.isEmpty) return;
     final session = await SecureSessionStore().readSession();
     if (!mounted) return;
     if (session == null) {
+      _backgroundReceiverStarted = false;
+      await BackgroundConnection.invoke('stop');
       _clearCallInbox();
       KingclubRealtime.shared.stop();
       _messenger.currentState?.clearSnackBars();
       if (mounted) setState(() => _notice = null);
     } else {
+      if (_foreground) {
+        _backgroundReceiverStarted = await BackgroundConnection.invoke('start');
+      }
+      if (!_foreground && _backgroundReceiverStarted) {
+        KingclubRealtime.shared.stop();
+        return;
+      }
       unawaited(_recoverOutbox());
       await KingclubRealtime.shared.start();
       await _ensureCallInbox();
@@ -456,7 +467,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   Timer? _noticeTimer;
   String? _noticeSession;
   Future<void> _notification(Map<String, dynamic> event) async {
-    if (!_foreground) _backgroundNotifications.notify(event);
+    if (!_foreground && !_backgroundReceiverStarted) {
+      _backgroundNotifications.notify(event);
+    }
     if (event['eventType'] == 'chat.changed' ||
         event['eventType'] == 'chat.group.message') {
       unawaited(_foregroundMessage(event));
@@ -626,9 +639,17 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       _messageNoticeEpoch++;
       _dismissMessageNotice();
       _stopOutboxRecovery();
+      unawaited(_handoffBackgroundReceiver());
       // Keep the authenticated socket while Android lets the process run.
       // Vendor push remains necessary after OS suspension/process death.
     }
+  }
+
+  Future<void> _handoffBackgroundReceiver() async {
+    final running = await BackgroundConnection.invoke('running');
+    if (!mounted || _foreground) return;
+    _backgroundReceiverStarted = running;
+    if (running) KingclubRealtime.shared.stop();
   }
 
   Future<void> _checkMobileWindow() async {
