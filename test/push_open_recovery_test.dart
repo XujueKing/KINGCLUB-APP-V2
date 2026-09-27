@@ -7,7 +7,16 @@ import 'package:kingclub/src/features/messaging/data/push_open_store.dart';
 
 class FailingStore extends PushOpenStore {
   String? value;
-  bool failWrite = false, failDelete = false;
+  String? handled;
+  bool failWrite = false, failDelete = false, failHandled = false;
+  @override
+  Future<String?> readHandled() async => handled;
+  @override
+  Future<void> saveHandled(String raw) async {
+    if (failHandled) throw StateError('receipt unavailable');
+    handled = raw;
+  }
+
   @override
   Future<String?> read() async => value;
   @override
@@ -38,6 +47,112 @@ void main() {
     'unexpectedBody': 'must not persist',
   });
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+
+  test(
+    'handled click survives reconstruction and a new event still opens',
+    () async {
+      var opened = 0;
+      final queue = [payload()];
+      PushOpenRuntime build() => PushOpenRuntime(
+        store: PushOpenStore(),
+        now: () => now,
+        takePending: () async => queue.isEmpty ? null : queue.removeAt(0),
+        readySession: () async => account,
+        open: (_, _) async {
+          opened++;
+          return true;
+        },
+      );
+      final first = build();
+      await first.sync();
+      first.close();
+      queue.add(payload());
+      final second = build();
+      addTearDown(second.close);
+      await second.sync();
+      expect(opened, 1);
+      queue.add(
+        jsonEncode(
+          jsonDecode(payload())
+            ..['eventId'] = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        ),
+      );
+      await second.sync();
+      expect(opened, 2);
+      final stored = await PushOpenStore().readHandled();
+      expect(stored, isNot(contains('recipient')));
+      expect(stored, isNot(contains('sender')));
+    },
+  );
+
+  test('receipt failure retries storage without reopening and tolerates failed clear', () async {
+    final store = FailingStore()..failHandled = true;
+    final queue = [payload()];
+    var opened = 0;
+    PushOpenRuntime build() => PushOpenRuntime(
+      store: store,
+      now: () => now,
+      takePending: () async => queue.isEmpty ? null : queue.removeAt(0),
+      readySession: () async => account,
+      open: (_, _) async {
+        opened++;
+        return true;
+      },
+    );
+    final first = build();
+    await first.sync();
+    expect(opened, 1);
+    expect(store.value, isNotNull);
+    await first.sync();
+    expect(opened, 1);
+    store.failHandled = false;
+    store.failDelete = true;
+    await first.sync();
+    expect(store.handled, isNotNull);
+    expect(store.value, isNotNull);
+    first.close();
+    store.failDelete = false;
+    final second = build();
+    addTearDown(second.close);
+    await second.sync();
+    expect(opened, 1);
+    expect(store.value, isNull);
+  });
+
+  for (final receipts in ['expired', 'malformed']) {
+    test(
+      '$receipts receipts are cleaned without blocking new clicks',
+      () async {
+        await PushOpenStore().saveHandled(
+          receipts == 'malformed'
+              ? '['
+              : jsonEncode({
+                  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa':
+                      now.millisecondsSinceEpoch,
+                }),
+        );
+        final queue = [payload()];
+        var opened = 0;
+        final runtime = PushOpenRuntime(
+          store: PushOpenStore(),
+          now: () => now,
+          takePending: () async => queue.isEmpty ? null : queue.removeAt(0),
+          readySession: () async => account,
+          open: (_, _) async {
+            opened++;
+            return true;
+          },
+        );
+        addTearDown(runtime.close);
+        await runtime.sync();
+        expect(opened, 1);
+        final values =
+            jsonDecode((await PushOpenStore().readHandled())!) as Map;
+        expect(values.length, 1);
+        expect(values.values.single, greaterThan(now.millisecondsSinceEpoch));
+      },
+    );
+  }
 
   test(
     'new runtime restores secure destination after bootstrap interruption',

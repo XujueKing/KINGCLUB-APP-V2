@@ -75,13 +75,42 @@ class PushOpenRuntime {
   final Future<bool> Function(PushOpenTarget, PushOpenSession) open;
   final DateTime Function() now;
   final PushOpenStore? store;
-  final _seen = <String>{};
+  final _seen = <String, int>{};
+  String? _handledWrite;
   PushOpenTarget? _pending;
   String? _pendingWrite;
   Future<void>? _running;
   bool _dirty = false, _closed = false;
   bool _restored = false;
   bool _discarding = false;
+
+  void _restoreHandled(String? raw) {
+    if (raw == null || raw.length > 8192) return;
+    try {
+      final entries = jsonDecode(raw);
+      if (entries is! Map || entries.length > 64) return;
+      final current = now().millisecondsSinceEpoch;
+      final latest = now().add(const Duration(days: 1)).millisecondsSinceEpoch;
+      for (final entry in entries.entries) {
+        final id = entry.key, expiry = entry.value;
+        if (id is String &&
+            PushOpenTarget._uuid.hasMatch(id) &&
+            expiry is int &&
+            expiry > current &&
+            expiry <= latest) {
+          _seen[id] = expiry;
+        }
+      }
+    } catch (_) {
+      // A corrupt receipt must not prevent a new, validated click.
+    }
+  }
+
+  Future<void> _persistHandled() async {
+    if (_handledWrite == null) return;
+    await store?.saveHandled(_handledWrite!);
+    _handledWrite = null;
+  }
 
   Future<void> _discard() async {
     _discarding = true;
@@ -106,9 +135,17 @@ class PushOpenRuntime {
     do {
       _dirty = false;
       try {
+        await _persistHandled();
         if (_discarding) await _discard();
         if (_closed) return;
         if (!_restored) {
+          final handled = await store?.readHandled();
+          if (_closed) return;
+          _restoreHandled(handled);
+          if (handled != null && handled != jsonEncode(_seen)) {
+            _handledWrite = jsonEncode(_seen);
+            await _persistHandled();
+          }
           final saved = await store?.read();
           if (_closed) return;
           if (saved != null) {
@@ -117,13 +154,16 @@ class PushOpenRuntime {
           }
           _restored = true;
         }
+        _seen.removeWhere(
+          (_, expiry) => expiry <= now().millisecondsSinceEpoch,
+        );
         // Native queue is bounded too; arbitrary external intents cannot cause
         // an unbounded drain or arbitrary URLs/activity execution.
         for (var i = 0; i < 8 && !_closed; i++) {
           final raw = await takePending();
           if (raw == null) break;
           final parsed = PushOpenTarget.parse(raw, now());
-          if (parsed != null && !_seen.contains(parsed.eventId)) {
+          if (parsed != null && !_seen.containsKey(parsed.eventId)) {
             _pending = parsed;
             // Persist before waiting for login/navigation so a new runtime can
             // resume after the process is reclaimed during bootstrap.
@@ -146,6 +186,10 @@ class PushOpenRuntime {
         }
         final pending = _pending;
         if (pending == null) continue;
+        if (_seen.containsKey(pending.eventId)) {
+          await _discard();
+          continue;
+        }
         if (pending.expiresAt <= now().millisecondsSinceEpoch) {
           await _discard();
           continue;
@@ -165,8 +209,12 @@ class PushOpenRuntime {
           continue;
         }
         if (await open(pending, session)) {
-          _seen.add(pending.eventId);
-          if (_seen.length > 64) _seen.remove(_seen.first);
+          _seen[pending.eventId] = pending.expiresAt;
+          if (_seen.length > 64) _seen.remove(_seen.keys.first);
+          _handledWrite = jsonEncode(_seen);
+          // Save the receipt before clearing the pending target. If clearing
+          // fails, a rebuilt runtime still knows the click was handled.
+          await _persistHandled();
           if (identical(_pending, pending)) {
             await _discard();
           }
