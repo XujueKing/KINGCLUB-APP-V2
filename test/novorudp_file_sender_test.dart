@@ -751,6 +751,119 @@ void main() {
       );
     }
 
+    test('real UDP prefix survives handoff to real HTTP socket', () async {
+      const block = ChatFileDownloader.chunkBytes;
+      const id = '12345678-1234-4234-8234-123456789012';
+      const asset = '22345678-1234-4234-8234-123456789012';
+      final bytes = List.generate(block * 2 + 3, (i) => i % 251);
+      final input = await source(bytes);
+      final cache = ChatDownloadCache(
+        root: Directory('${directory.path}/resume'),
+        key: await DartAesGcm.with256bits().newSecretKey(),
+      );
+      final http = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final requested = <int>[];
+      final serving = http.listen((request) async {
+        final index = int.parse(request.uri.pathSegments.last);
+        requested.add(index);
+        final start = index * block;
+        final data = bytes.sublist(
+          start,
+          (start + block).clamp(0, bytes.length),
+        );
+        request.response.headers.contentType = ContentType.binary;
+        request.response.contentLength = data.length;
+        request.response.add(data);
+        await request.response.close();
+      });
+      addTearDown(() async {
+        await http.close(force: true);
+        await serving.cancel();
+      });
+      Future<void>? feeding;
+      var receivedPrefix = 0;
+      final downloader = ChatFileDownloader(
+        repository: MessagingRepository(
+          account: 'a',
+          call: (_, _) async => {
+            'messageId': id,
+            'file': {
+              'assetId': asset,
+              'fileName': 'handoff.bin',
+              'size': bytes.length,
+              'sha256': input.hash,
+              'chunkBytes': block,
+              'chunkCount': 3,
+              'contentType': 'application/octet-stream',
+              'path': '/kingclub/chat-file/$id',
+              'headers': {'authorization': 'Bearer synthetic-only'},
+            },
+          },
+        ),
+        checkSession: () async {},
+        dio: Dio(BaseOptions(baseUrl: 'http://127.0.0.1:${http.port}')),
+        temporaryDirectory: () async => directory,
+        resumeCache: cache,
+        peerDownload: (ref, active) async {
+          final peer = await NovoRudpFileDownload.open(
+            link: right,
+            privateDirectory: directory,
+            streamId: BigInt.one,
+            objectId: BigInt.two,
+            size: ref.size,
+            sha256: ref.sha256,
+            canReceive: active,
+            idleTimeout: const Duration(seconds: 2),
+          );
+          feeding = () async {
+            const chunk = NovoRudpFileReceiver.chunkSize;
+            final count = (block + chunk - 1) ~/ chunk;
+            for (var i = 0; i < count; i++) {
+              await left.send(
+                NovoRudpFrame(
+                  kind: NovoRudpFrameKind.data,
+                  sessionId: left.channel.sessionId,
+                  streamId: BigInt.one,
+                  objectId: BigInt.two,
+                  sequence: BigInt.from(i),
+                  ackEpoch: BigInt.zero,
+                  payload: bytes.sublist(i * chunk, (i + 1) * chunk),
+                ),
+              );
+              final wait = Stopwatch()..start();
+              while (peer.receivedBytes < (i + 1) * chunk) {
+                if (wait.elapsed > const Duration(seconds: 1)) {
+                  throw StateError('UDP prefix stalled');
+                }
+                await Future<void>.delayed(const Duration(milliseconds: 1));
+              }
+            }
+            receivedPrefix = peer.receivedBytes;
+            // Stop sending: the receiver must persist its complete prefix,
+            // reach its idle bound and continue over the actual HTTP server.
+          }();
+          return peer;
+        },
+      );
+      addTearDown(downloader.dispose);
+      final result = await downloader
+          .download(
+            ChatFileReference(
+              messageId: id,
+              assetId: asset,
+              fileName: 'handoff.bin',
+              size: bytes.length,
+              sha256: input.hash,
+            ),
+          )
+          .timeout(const Duration(seconds: 45));
+      await feeding;
+      expect(receivedPrefix, greaterThanOrEqualTo(block));
+      expect(packets, greaterThan(0));
+      expect(requested, [1, 2]); // HTTP must not redownload UDP block zero.
+      expect(await result.readAsBytes(), bytes);
+    });
+
     test('idle download ignores duplicate fragments and ACK polls', () async {
       final bytes = List<int>.filled(NovoRudpFileReceiver.chunkSize + 1, 7);
       final input = await source(bytes);
