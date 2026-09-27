@@ -35,3 +35,29 @@
 4. 使用隔离合成资产验证完整链路。当前没有执行真实转账、充值或赠送。
 
 本记录是完成矩阵的缺口证据，不是资产功能交付，也不影响已通过的文字、媒体与群语音测试。
+
+## 旧生产元数据追踪结果
+
+2026-09-27 从既有旧生产服务的实际配置取得连接，仅查询 `s_interface` 与 `information_schema.ROUTINES` 定义。未执行 Routine，未查询会员钱包行，未改余额、权限或生产结构。接口映射如下：
+
+| 接口 | 实际 Routine | 主要依赖 |
+| --- | --- | --- |
+| S231202505010704 | k_getBlanceInfo | k_wallet、k_balance_details，返回四类钱包 |
+| S231202505010705 | k_sendGoldcoin | k_setCount_Goldcoin、getGenerateId、k_conversations_messages |
+| S231202505170722 | k_buyGiftToFriend | k_virtual_goods_log、k_virtual_goods、k_conversations、k_setCount_Goldcoin、消息表 |
+
+`k_setCount_Goldcoin` 按 `k_goldcoin_detail` 收支和计算金币余额，成功时写双方金币明细、双方账单及收件人的系统消息；返回 0 表示成功，1 表示余额不足。它与 `k_getBlanceInfo` 返回的现金/赠送金钱包不是同一个余额来源，因此不能沿用旧金币页面把钱包 0 与 1 相加来展示可转赠金币。
+
+读取到的 `k_sendGoldcoin` 有事务及 SQL 异常回滚，但没有在底层返回 1 时中止消息插入；正常提交结果仍给出 status=1 并另带 setStatus。旧前端只检查 status。新版必须在余额不足时拒绝整个事务，不能生成成功的金币消息。
+
+读取到的 `k_buyGiftToFriend` 以客户端 num×price 计算扣款，写礼物流转记录，调用金币函数后也未检查其失败返回码，再写消息；消息展示中的价格来自礼物目录。这存在扣款依据与展示报价不一致的实现缺口，新版应由服务端目录报价并在同一事务中校验库存/可用状态、扣款和消息。上述判断针对已读取 Routine 与前端，不声称已审查全部入口防护和触发器。
+
+当前三段定义未见客户端幂等编号或规范账号顺序的余额锁；底层先读 SUM 再写收支。新版须用幂等请求及有序账户行锁处理并发，失败不得留资产明细、消息或通知。原始 Routine 只留在服务仓库 Git 外 build 目录；文档不保存连接凭据、真实账号、生产地址或全文 SQL。
+
+## 新版资产来源的核实
+
+主服务与独立 commerce 工作树的 `database/mysql8/033_kingclub_profile.sql` 均将金币定义为 `kingclubProfileAssets.goldCoin`（unsigned bigint），现金另为 cashBalance。`profile-service.ts` 的注册奖励幂等地增加 50 金币，个人中心从同一字段读取。已查 commerce 源码未见独立金币转赠写入路径。
+
+后续金币转赠应继续使用这一权威金币余额，追加转赠凭据/收支记录并与聊天消息原子提交，不创建第二套可支配余额、不将旧现金钱包冒充金币；unsigned bigint 的边界需按整数精确处理，不能先转为 JavaScript 浮点 Number。普通文字/媒体聊天仍免费。
+
+红包仍需继续追踪支付订单完成与领取/退回链路；按 Routine 名称匹配 redpacket/red_packet 未获得对应定义，这不证明业务不存在。金币、礼物和红包均未因本次元数据提取标为已实现或开放。
