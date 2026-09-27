@@ -15,6 +15,8 @@
 
 ## 最初推送接入调查（历史，后续进展见下方）
 
+最新目录补齐：通讯录新增“群聊”入口，通过有效成员关系列出已加入群，不依赖最近会话是否被清空；账号隔离本地目录、分页和群变动刷新已实现，5 项定向测试及静态分析通过。此目录新版尚未安装实机，参见 `feature_group_directory/README.md`，不标实机验收完成。
+
 - A、B USB 当前在线；第三台设备不在授权测试范围。
 - App 搜索未发现 Firebase/HMS/Heytap/token 注册实现，仅 CallForegroundService 通知通道。
 - 服务端聊天已有 durable outbox / websocket 路径；尚不能据此宣称厂商推送已具备。
