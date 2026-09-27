@@ -6,6 +6,14 @@
 
 两项实际 Navigator 组件测试覆盖首帧连续打开、未发送草稿保留、一次返回首页、离开后重新打开、账号/目标/群类型隔离、被其他页面覆盖、身份未就绪及释放。连同既有通知运行时共 8 项通过。此增量尚未重新构建安装，不等同于厂商通知送达验收。
 
+### 会话复用修正版 B 安装与验证
+
+上述“尚未安装”为此前状态。现已在隔离构建目录复制该节点三个运行文件，保留既有正式包名、OPPO 客户端配置、API、WSS、ICE/LAN/文件传输配置。Android profile 构建成功（Gradle 69 秒），APK SHA256 为 `39C91A245547015E2E65450B55FCD3A6774E6FA751E73B74721E429B0ED1C0DB`。B 安装前无通话服务、无输入框或通话控件，覆盖安装 Success，无卸载和数据清除。A 和第三台手机未操作。
+
+启动后向 B 连续注入两个不同 eventId、相同 A/B 会话目标的有效本地通知点击 Intent：原测试消息 `AB_UI_SMOOTH_0927_02` 出现一次，输入框存在，没有登录入口。按一次系统返回后输入框消失，回到“首页，标签，已选中”的原首页，没有停留在另一层聊天页。原始 UI 证据仅保存在隔离目录 `build/push-reuse-open.xml`、`build/push-reuse-back.xml`，不纳入 Git。
+
+这证明新版在 B 上的连续本地通知点击未重复压入会话，以及升级后登录仍可恢复；没有新发聊天消息，不代表 OPPO 已送达这两条通知。厂商报表会话过期及实际投递问题仍独立待解决。
+
 对接服务端 `cc31beb` 的固定 Activity 动作参数：`kingclub_push` JSON 字符串包含 version、eventId、kind、expiresAt、scope、recipient、target。通知内容不作为会话数据或权限证明。
 
 Android MainActivity 在首次创建与 onNewIntent 接收该 extra，通过独立方法通道向 Flutter 提供有界队列（最多 8 条、每条最多 2048 字符）。不执行任意 URI/Activity。Flutter 校验事件 UUID、账号/群标识、版本及有效期，等待登录和非注册路由恢复后匹配当前接收账号；导航前再次确认同一 sessionId。失效或其他账号的点击丢弃，同一运行期保留最近 64 个已处理事件去重。
