@@ -1196,7 +1196,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                   physics: const _ChatViewportPhysics(),
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
-                  scrollCacheExtent: const ScrollCacheExtent.pixels(640),
+                  // Keep a small warm margin without rebuilding multiple
+                  // screens of offscreen media when a new message arrives.
+                  scrollCacheExtent: const ScrollCacheExtent.pixels(250),
                   padding: const EdgeInsets.fromLTRB(14, 16, 14, 20),
                   itemCount: _messages.length + 1,
                   findChildIndexCallback: (key) {
