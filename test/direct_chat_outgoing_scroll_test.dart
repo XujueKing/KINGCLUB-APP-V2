@@ -8,6 +8,71 @@ import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.da
 import 'direct_chat_controller_test.dart' show MemoryOutbox, ack, history;
 
 void main() {
+  testWidgets('IME frames move composer and latest message together', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(393, 852);
+    addTearDown(tester.view.reset);
+    var historyReads = 0;
+    final repo = MessagingRepository(
+      account: 'me',
+      call: (method, params) async {
+        if (method == 'K260913000604') {
+          historyReads++;
+          return history(
+            List.generate(
+              30,
+              (i) => ack({
+                'clientMessageId': 'ime-$i',
+                'text': 'Keyboard history $i',
+              }, sequence: i + 1),
+            ),
+          );
+        }
+        return {};
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DirectChatPage(
+          peerAccount: 'peer',
+          peerName: 'Test peer',
+          repository: repo,
+          chatOutbox: MemoryOutbox(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final latest = find.text('Keyboard history 29');
+    final composer = find.byType(TextField);
+    final initialComposerY = tester.getTopLeft(composer).dy;
+    final initialMessageY = tester.getTopLeft(latest).dy;
+    final textSize = tester.getSize(latest);
+    final initialReads = historyReads;
+    final list = tester.widget<ListView>(find.byType(ListView).first);
+    for (final inset in <double>[24, 72, 144, 228, 300, 228, 144, 72, 24, 0]) {
+      tester.view.viewInsets = FakeViewPadding(bottom: inset);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(
+        tester.getTopLeft(composer).dy,
+        closeTo(initialComposerY - inset, 0.1),
+      );
+      expect(
+        tester.getTopLeft(latest).dy,
+        closeTo(initialMessageY - inset, 0.1),
+      );
+      expect(tester.getSize(latest), textSize);
+      expect(list.controller!.position.pixels, closeTo(0, 0.1));
+      expect(historyReads, initialReads);
+      expect(tester.takeException(), isNull);
+    }
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(tester.getTopLeft(composer).dy, initialComposerY);
+    expect(tester.getTopLeft(latest).dy, initialMessageY);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('first outgoing bubble slides up without changing text size', (
     tester,
   ) async {
