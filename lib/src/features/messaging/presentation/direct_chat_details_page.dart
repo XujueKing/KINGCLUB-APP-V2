@@ -1,4 +1,8 @@
 import '../../contacts/presentation/public_member_page.dart';
+
+import 'dart:async';
+
+import '../../../core/session/secure_session_store.dart';
 import 'chat_member_avatar.dart';
 import 'chat_history_context_page.dart';
 import 'chat_history_search_page.dart';
@@ -44,6 +48,8 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
   late bool _pinned = widget.peerAccount == null ? true : widget.initialPinned;
   late bool _onlyChat = widget.initialOnlyChat;
   bool _saving = false;
+  bool _invalid = false;
+  StreamSubscription<void>? _sessionChanges;
   bool _searching = false;
   late final Future<Map<String, dynamic>> _profile =
       widget.peerAccount != null && widget.repository != null
@@ -59,7 +65,22 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
       : '聊天成员';
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.peerAccount != null) {
+      _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
+        if (!mounted) return;
+        setState(() {
+          _invalid = true;
+          _searchController.clear();
+        });
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _sessionChanges?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -85,7 +106,13 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                 }
               },
             ),
-            Expanded(child: _searching ? _searchView() : _settingsView()),
+            Expanded(
+              child: _invalid
+                  ? const Center(child: Text('登录状态已变化，请返回重新进入会话'))
+                  : _searching
+                  ? _searchView()
+                  : _settingsView(),
+            ),
           ],
         ),
       ),
@@ -267,7 +294,7 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
               key: const ValueKey('direct-chat-details-clear'),
               label: '清空聊天记录',
               centered: true,
-              onTap: _confirmClear,
+              onTap: _saving ? null : _confirmClear,
             ),
           ],
         ),
@@ -346,18 +373,19 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
     bool? pinned,
     bool? onlyChat,
   }) async {
-    if (_saving) return;
+    if (_saving || _invalid) return;
     setState(() => _saving = true);
     try {
       if (widget.peerAccount != null) {
-        await widget.repository!.settings(
+        final result = await widget.repository!.settings(
           widget.peerAccount!,
           muted: muted,
           pinned: pinned,
           onlyChat: onlyChat,
         );
+        if (result['saved'] != true) throw const FormatException('设置未保存，请重试');
       }
-      if (!mounted) return;
+      if (!mounted || _invalid) return;
       setState(() {
         _muted = muted ?? _muted;
         _pinned = pinned ?? _pinned;
@@ -365,40 +393,54 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
       });
       if (muted != null) widget.onMutedChanged?.call(muted);
     } catch (error) {
-      if (mounted) KingNotice.of(context).show(error.toString());
+      if (mounted && !_invalid) KingNotice.of(context).show(error.toString());
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
   Future<void> _confirmClear() async {
-    final clear = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('再次确认清空聊天记录'),
-        content: const Text('清空后仅对你隐藏且无法恢复，对方的聊天记录不受影响。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            key: const ValueKey('direct-chat-details-confirm-clear'),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('确认清空'),
-          ),
-        ],
-      ),
-    );
-    if (clear == true && mounted) {
-      try {
-        if (widget.peerAccount != null) {
-          await widget.repository!.settings(widget.peerAccount!, hide: true);
+    if (_saving || _invalid) return;
+    setState(() => _saving = true);
+    try {
+      final clear = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('再次确认清空聊天记录'),
+          content: const Text('清空后仅对你隐藏且无法恢复，对方的聊天记录不受影响。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              key: const ValueKey('direct-chat-details-confirm-clear'),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('确认清空'),
+            ),
+          ],
+        ),
+      );
+      if (clear == true && mounted && !_invalid) {
+        try {
+          if (widget.peerAccount != null) {
+            final result = await widget.repository!.settings(
+              widget.peerAccount!,
+              hide: true,
+            );
+            if (result['saved'] != true) {
+              throw const FormatException('清空未完成，请重试');
+            }
+          }
+          if (mounted && !_invalid) Navigator.pop(context, true);
+        } catch (error) {
+          if (mounted && !_invalid) {
+            KingNotice.of(context).show(error.toString());
+          }
         }
-        if (mounted) Navigator.pop(context, true);
-      } catch (error) {
-        if (mounted) KingNotice.of(context).show(error.toString());
       }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 }
