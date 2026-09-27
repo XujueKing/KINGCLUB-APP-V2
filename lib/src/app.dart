@@ -1,4 +1,6 @@
 import 'features/messaging/data/push_registration_runtime.dart';
+import 'features/messaging/data/foreground_message_notice.dart';
+import 'features/messaging/presentation/foreground_message_banner.dart';
 import 'features/messaging/data/push_open_runtime.dart';
 import 'features/messaging/data/push_open_store.dart';
 import 'features/messaging/presentation/chat_route_presence.dart';
@@ -61,6 +63,117 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   Future<void>? _openingCallInbox;
   ChatOutboxRecovery? _outboxRecovery;
   int _outboxGeneration = 0;
+  final _messageNoticeResolver = ForegroundMessageNoticeResolver();
+  ForegroundMessageNotice? _messageNotice;
+  PushOpenSession? _messageNoticeSession;
+  Timer? _messageNoticeTimer;
+  int _messageNoticeEpoch = 0;
+
+  void _messageRouteChanged() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _messageNotice == null || _messageNoticeSession == null) {
+        return;
+      }
+      final navigator = ref
+          .read(appRouterProvider)
+          .routerDelegate
+          .navigatorKey
+          .currentState;
+      if (navigator != null &&
+          ChatRoutePresence.instance.isCurrent(navigator, (
+            account: _messageNoticeSession!.account,
+            target: _messageNotice!.target,
+            group: _messageNotice!.group,
+          ))) {
+        _dismissMessageNotice();
+      }
+    });
+  }
+
+  void _dismissMessageNotice() {
+    _messageNoticeTimer?.cancel();
+    if (mounted) setState(() => _messageNotice = null);
+  }
+
+  Future<void> _foregroundMessage(Map<String, dynamic> event) async {
+    final epoch = _messageNoticeEpoch;
+    final session = await _pushReadySession();
+    if (session == null || epoch != _messageNoticeEpoch) return;
+    bool valid() =>
+        mounted && _pushNavigationReady && epoch == _messageNoticeEpoch;
+    try {
+      final repository = await MessagingRepository.open();
+      if (!valid() || repository.account != session.account) return;
+      final notice = await _messageNoticeResolver.resolve(
+        event: event,
+        account: session.account,
+        page: (offset) => repository
+            .conversations(offset: offset)
+            .timeout(const Duration(seconds: 5)),
+        valid: valid,
+      );
+      if (notice == null ||
+          !valid() ||
+          await _pushReadySession() != session ||
+          !valid()) {
+        return;
+      }
+      final navigator = ref
+          .read(appRouterProvider)
+          .routerDelegate
+          .navigatorKey
+          .currentState;
+      if (navigator == null ||
+          ChatRoutePresence.instance.isCurrent(navigator, (
+            account: session.account,
+            target: notice.target,
+            group: notice.group,
+          ))) {
+        return;
+      }
+      _messageNoticeSession = session;
+      setState(() => _messageNotice = notice);
+      _messageNoticeTimer?.cancel();
+      _messageNoticeTimer = Timer(
+        const Duration(seconds: 5),
+        _dismissMessageNotice,
+      );
+    } catch (_) {
+      /* Realtime list recovery still runs if notice lookup fails. */
+    }
+  }
+
+  Future<void> _openMessageNotice() async {
+    final notice = _messageNotice, expected = _messageNoticeSession;
+    _dismissMessageNotice();
+    if (notice == null ||
+        expected == null ||
+        await _pushReadySession() != expected) {
+      return;
+    }
+    final navigator = ref
+        .read(appRouterProvider)
+        .routerDelegate
+        .navigatorKey
+        .currentState;
+    if (navigator == null) return;
+    final identity = (
+      account: expected.account,
+      target: notice.target,
+      group: notice.group,
+    );
+    if (ChatRoutePresence.instance.isCurrent(navigator, identity)) return;
+    final route = MaterialPageRoute<void>(
+      allowSnapshotting: false,
+      builder: (_) => DirectChatPage(
+        peerName: notice.name,
+        peerAccount: notice.group ? null : notice.target,
+        groupId: notice.group ? notice.target : null,
+      ),
+    );
+    final release = ChatRoutePresence.instance.register(route, () => identity);
+    unawaited(navigator.push<void>(route).whenComplete(release));
+  }
 
   bool get _pushNavigationReady {
     if (!mounted ||
@@ -341,6 +454,10 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   Timer? _noticeTimer;
   String? _noticeSession;
   Future<void> _notification(Map<String, dynamic> event) async {
+    if (event['eventType'] == 'chat.changed' ||
+        event['eventType'] == 'chat.group.message') {
+      unawaited(_foregroundMessage(event));
+    }
     if (event['eventType'] == 'connection.ready') {
       _pushRegistration?.sync();
       unawaited(_recoverOutbox());
@@ -436,6 +553,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   @override
   void initState() {
     super.initState();
+    ChatRoutePresence.instance.addListener(_messageRouteChanged);
     WidgetsBinding.instance.addObserver(this);
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       _pushOpen = PushOpenRuntime(
@@ -456,6 +574,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       _schedulePushOpen();
     }
     _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
+      _messageNoticeEpoch++;
+      _messageNoticeResolver.clear();
+      _dismissMessageNotice();
       _schedulePushOpen();
       _pushRegistration?.sync();
       _clearCallInbox();
@@ -468,6 +589,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
 
   @override
   void dispose() {
+    ChatRoutePresence.instance.removeListener(_messageRouteChanged);
+    _messageNoticeEpoch++;
+    _messageNoticeTimer?.cancel();
     _removePushRouteListener?.call();
     _pushOpen?.close();
     if (_pushOpen != null) _pushOpenChannel.setMethodCallHandler(null);
@@ -492,6 +616,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       _checkMobileWindow();
       unawaited(_syncRealtime().catchError((Object _) {}));
     } else {
+      _messageNoticeEpoch++;
+      _dismissMessageNotice();
       _stopOutboxRecovery();
       KingclubRealtime.shared.stop();
     }
@@ -522,6 +648,16 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
         child: Stack(
           children: [
             child ?? const SizedBox.shrink(),
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 10,
+              left: 12,
+              right: 12,
+              child: ForegroundMessageBanner(
+                visible: _messageNotice != null,
+                onTap: _openMessageNotice,
+                onDismiss: _dismissMessageNotice,
+              ),
+            ),
             if (_notice != null)
               Positioned(
                 top: MediaQuery.paddingOf(context).top + 8,

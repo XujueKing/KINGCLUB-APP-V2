@@ -4,7 +4,7 @@ typedef ChatRouteIdentity = ({String account, String target, bool group});
 
 /// Tracks live routes only. Reading identity lazily preserves account isolation
 /// while a conversation restores its repository after a session change.
-class ChatRoutePresence {
+class ChatRoutePresence extends ChangeNotifier {
   static final instance = ChatRoutePresence();
   final _entries = <Object, (Route<dynamic>, ChatRouteIdentity? Function())>{};
 
@@ -14,7 +14,11 @@ class ChatRoutePresence {
   ) {
     final owner = Object();
     _entries[owner] = (route, identity);
-    return () => _entries.remove(owner);
+    notifyListeners();
+    return () {
+      _entries.remove(owner);
+      notifyListeners();
+    };
   }
 
   bool isCurrent(NavigatorState navigator, ChatRouteIdentity identity) =>

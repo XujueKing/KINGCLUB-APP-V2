@@ -1,0 +1,162 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/messaging/data/foreground_message_notice.dart';
+import 'package:kingclub/src/features/messaging/presentation/foreground_message_banner.dart';
+
+void main() {
+  const event = {
+    'eventType': 'chat.changed',
+    'data': {'conversationId': 'pair'},
+  };
+  Map<String, dynamic> row() => {
+    'conversationId': 'pair',
+    'kind': 'direct',
+    'peer': 'bob',
+    'sender': 'bob',
+    'lastSequence': 3,
+    'unreadCount': 1,
+    'muted': false,
+    'nickname': '好友',
+  };
+  Future<ForegroundMessageNotice?> resolve(
+    ForegroundMessageNoticeResolver r,
+    Map<String, dynamic> item, {
+    String account = 'alice',
+  }) => r.resolve(
+    event: event,
+    account: account,
+    valid: () => true,
+    page: (_) async => {
+      'items': [item],
+      'hasMore': false,
+    },
+  );
+  test(
+    'resolves authorized target and deduplicates sequence, account isolated',
+    () async {
+      final r = ForegroundMessageNoticeResolver();
+      expect(await resolve(r, row()), (
+        target: 'bob',
+        group: false,
+        name: '好友',
+      ));
+      expect(await resolve(r, row()), isNull);
+      expect(await resolve(r, row(), account: 'carol'), isNotNull);
+    },
+  );
+  test('muted, read and self-sent events do not notify', () async {
+    for (final change in [
+      {'muted': true},
+      {'unreadCount': 0},
+      {'sender': 'alice'},
+    ]) {
+      expect(
+        await resolve(ForegroundMessageNoticeResolver(), {...row(), ...change}),
+        isNull,
+      );
+    }
+  });
+  test(
+    'finds group after pinned page and ignores non-message events',
+    () async {
+      final offsets = <int>[];
+      final r = ForegroundMessageNoticeResolver();
+      final notice = await r.resolve(
+        event: {
+          'eventType': 'chat.group.message',
+          'data': {'groupId': 'group'},
+        },
+        account: 'alice',
+        valid: () => true,
+        page: (offset) async {
+          offsets.add(offset);
+          return offset == 0
+              ? {
+                  'items': [row()],
+                  'hasMore': true,
+                }
+              : {
+                  'items': [
+                    {
+                      ...row(),
+                      'conversationId': 'group',
+                      'groupId': 'group',
+                      'kind': 'group',
+                    },
+                  ],
+                  'hasMore': false,
+                };
+        },
+      );
+      expect(offsets, [0, 1]);
+      expect(notice?.target, 'group');
+      expect(notice?.group, true);
+      expect(
+        await r.resolve(
+          event: {'eventType': 'chat.read.changed'},
+          account: 'alice',
+          valid: () => true,
+          page: (_) async => throw StateError('must not fetch'),
+        ),
+        isNull,
+      );
+    },
+  );
+  test(
+    'account/background invalidation during lookup drops late result',
+    () async {
+      final reply = Completer<Map<String, dynamic>>();
+      var valid = true;
+      final pending = ForegroundMessageNoticeResolver().resolve(
+        event: event,
+        account: 'alice',
+        valid: () => valid,
+        page: (_) => reply.future,
+      );
+      valid = false;
+      reply.complete({
+        'items': [row()],
+      });
+      expect(await pending, isNull);
+    },
+  );
+  testWidgets(
+    'legacy banner opens, dismisses and hidden overlay does not intercept',
+    (tester) async {
+      var opens = 0, closes = 0;
+      Widget view(bool visible) => MaterialApp(
+        home: Scaffold(
+          body: ForegroundMessageBanner(
+            visible: visible,
+            onTap: () => opens++,
+            onDismiss: () => closes++,
+          ),
+        ),
+      );
+      await tester.pumpWidget(view(true));
+      expect(find.text('您收到一条新消息'), findsOneWidget);
+      await tester.tap(find.text('您收到一条新消息'));
+      expect(opens, 1);
+      await tester.tap(find.byTooltip('关闭消息提醒'));
+      expect(closes, 1);
+      await tester.pumpWidget(view(false));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<IgnorePointer>(
+              find
+                  .descendant(
+                    of: find.byType(ForegroundMessageBanner),
+                    matching: find.byType(IgnorePointer),
+                  )
+                  .first,
+            )
+            .ignoring,
+        true,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+}
