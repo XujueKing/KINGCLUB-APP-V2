@@ -58,6 +58,35 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  test('gift snapshot survives restart and is removed by tombstone', () async {
+    const id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    final gift = {
+      'transferId': id,
+      'giftId': 'rose',
+      'name': '玫瑰',
+      'assetKey': 'rose',
+      'unitPrice': '9007199254740993',
+      'quantity': 2,
+      'total': '18014398509481986',
+    };
+    final row = {
+      ...message(1),
+      'messageId': id,
+      'messageType': 'gift',
+      'gift': {...gift, 'untrusted': 'discard'},
+    };
+    await store.commit('direct:peer', [row], expectedEpoch: 0);
+    await store.close();
+    store = await open();
+    expect((await store.read('direct:peer')).messages.single['gift'], gift);
+    await store.commit('direct:peer', [
+      {...row, 'messageType': 'hidden'},
+    ], expectedEpoch: 0);
+    expect(
+      (await store.read('direct:peer')).messages.single.containsKey('gift'),
+      false,
+    );
+  });
   test(
     'coin receipt survives restart precisely, strips extras and obeys deletion',
     () async {

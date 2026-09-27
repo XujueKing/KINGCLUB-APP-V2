@@ -1,4 +1,5 @@
 import 'chat_coin.dart';
+import 'chat_gift.dart';
 import 'chat_location.dart';
 
 /// Payload agreement is required before an own message leaves the durable queue,
@@ -24,11 +25,23 @@ void validateQueuedMessageReceipt(
       'videoHasAudio',
     ],
     'file' => ['fileAssetId', 'fileName', 'fileSize', 'fileSha256'],
-    'location' || 'gold' => <String>[],
+    'location' || 'gold' || 'gift' => <String>[],
     _ => throw const FormatException('消息回执与发送内容不符'),
   };
   if (fields.any((field) => pending[field] != received[field])) {
     throw const FormatException('消息回执与发送内容不符');
+  }
+  if (kind == 'gift') {
+    final gift = ChatGift.tryParse(
+      received['gift'],
+      messageId: received['messageId'] as String?,
+    );
+    if (gift == null ||
+        gift.giftId != pending['giftId'] ||
+        gift.quantity != pending['quantity'] ||
+        gift.unitPrice != pending['expectedUnitPrice']) {
+      throw const FormatException('礼物回执与发送内容不符');
+    }
   }
   if (kind == 'gold') {
     final coin = ChatCoin.tryParse(
