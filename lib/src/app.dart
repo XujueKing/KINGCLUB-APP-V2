@@ -1,5 +1,6 @@
 import 'features/messaging/data/push_registration_runtime.dart';
 import 'features/messaging/data/push_open_runtime.dart';
+import 'features/messaging/data/push_open_store.dart';
 import 'features/messaging/presentation/chat_route_presence.dart';
 import 'features/messaging/presentation/direct_chat_page.dart';
 import 'features/messaging/data/chat_outbox_recovery.dart';
@@ -438,6 +439,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     WidgetsBinding.instance.addObserver(this);
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       _pushOpen = PushOpenRuntime(
+        store: PushOpenStore(),
         takePending: () => _pushOpenChannel.invokeMethod<String>('takePending'),
         readySession: _pushReadySession,
         open: _openPushConversation,

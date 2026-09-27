@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'push_open_store.dart';
+
 class PushOpenTarget {
   PushOpenTarget._(
     this.eventId,
@@ -65,16 +67,29 @@ class PushOpenRuntime {
     required this.takePending,
     required this.readySession,
     required this.open,
+    this.store,
     DateTime Function()? now,
   }) : now = now ?? DateTime.now;
   final Future<String?> Function() takePending;
   final Future<PushOpenSession?> Function() readySession;
   final Future<bool> Function(PushOpenTarget, PushOpenSession) open;
   final DateTime Function() now;
+  final PushOpenStore? store;
   final _seen = <String>{};
   PushOpenTarget? _pending;
+  String? _pendingWrite;
   Future<void>? _running;
   bool _dirty = false, _closed = false;
+  bool _restored = false;
+  bool _discarding = false;
+
+  Future<void> _discard() async {
+    _discarding = true;
+    await store?.clear();
+    _pending = null;
+    _pendingWrite = null;
+    _discarding = false;
+  }
 
   /// Recheck after asynchronous navigation authorization: a newer native click
   /// may be waiting to be drained while the previous session read completes.
@@ -91,6 +106,17 @@ class PushOpenRuntime {
     do {
       _dirty = false;
       try {
+        if (_discarding) await _discard();
+        if (_closed) return;
+        if (!_restored) {
+          final saved = await store?.read();
+          if (_closed) return;
+          if (saved != null) {
+            _pending = PushOpenTarget.parse(saved, now());
+            if (_pending == null) await store?.clear();
+          }
+          _restored = true;
+        }
         // Native queue is bounded too; arbitrary external intents cannot cause
         // an unbounded drain or arbitrary URLs/activity execution.
         for (var i = 0; i < 8 && !_closed; i++) {
@@ -99,13 +125,29 @@ class PushOpenRuntime {
           final parsed = PushOpenTarget.parse(raw, now());
           if (parsed != null && !_seen.contains(parsed.eventId)) {
             _pending = parsed;
+            // Persist before waiting for login/navigation so a new runtime can
+            // resume after the process is reclaimed during bootstrap.
+            _pendingWrite = jsonEncode({
+              'version': 1,
+              'eventId': parsed.eventId,
+              'recipient': parsed.recipient,
+              'target': parsed.target,
+              'scope': parsed.group ? 'group' : 'direct',
+              'kind': parsed.call ? 'call' : 'message',
+              'expiresAt': parsed.expiresAt,
+            });
           }
         }
         if (_closed) return;
+        if (_pendingWrite != null) {
+          await store?.save(_pendingWrite!);
+          _pendingWrite = null;
+          if (_closed) return;
+        }
         final pending = _pending;
         if (pending == null) continue;
         if (pending.expiresAt <= now().millisecondsSinceEpoch) {
-          _pending = null;
+          await _discard();
           continue;
         }
         final session = await readySession();
@@ -113,18 +155,21 @@ class PushOpenRuntime {
         if (_dirty) continue;
         if (session == null) continue;
         if (pending.expiresAt <= now().millisecondsSinceEpoch) {
-          _pending = null;
+          await _discard();
           continue;
         }
         if (session.account != pending.recipient) {
-          _pending =
-              null; // A previous account's click must not survive a switch.
+          // A previous account's click must not survive a switch, including
+          // a temporary secure-storage deletion failure.
+          await _discard();
           continue;
         }
         if (await open(pending, session)) {
           _seen.add(pending.eventId);
           if (_seen.length > 64) _seen.remove(_seen.first);
-          if (identical(_pending, pending)) _pending = null;
+          if (identical(_pending, pending)) {
+            await _discard();
+          }
         }
       } catch (_) {
         // Keep the click for the next lifecycle/session/navigation update.
@@ -136,6 +181,7 @@ class PushOpenRuntime {
   void close() {
     _closed = true;
     _pending = null;
+    _pendingWrite = null;
     _seen.clear();
   }
 }
