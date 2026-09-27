@@ -1,4 +1,9 @@
-typedef ForegroundMessageNotice = ({String target, bool group, String name});
+typedef ForegroundMessageNotice = ({
+  String target,
+  bool group,
+  String name,
+  int unread,
+});
 
 /// Resolve hints against authorized, read-projected conversation state. Events
 /// carry IDs only; they must not invent a sender, body, or navigation target.
@@ -43,6 +48,7 @@ class ForegroundMessageNoticeResolver {
         return (
           target: target,
           group: group,
+          unread: (row['unreadCount'] as num).toInt(),
           name: (row['remark'] as String?)?.isNotEmpty == true
               ? row['remark'] as String
               : row['nickname'] as String? ?? '聊天',

@@ -41,6 +41,7 @@ void main() {
         target: 'bob',
         group: false,
         name: '好友',
+        unread: 1,
       ));
       expect(await resolve(r, row()), isNull);
       expect(await resolve(r, row(), account: 'carol'), isNotNull);
@@ -58,6 +59,20 @@ void main() {
       );
     }
   });
+  test(
+    'notification replacement carries authoritative unread count, not one',
+    () async {
+      final r = ForegroundMessageNoticeResolver();
+      final first = await resolve(r, {...row(), 'unreadCount': 7});
+      expect(first?.unread, 7);
+      final next = await resolve(r, {
+        ...row(),
+        'lastSequence': 4,
+        'unreadCount': 3,
+      });
+      expect(next?.unread, 3);
+    },
+  );
   test(
     'finds group after pinned page and ignores non-message events',
     () async {

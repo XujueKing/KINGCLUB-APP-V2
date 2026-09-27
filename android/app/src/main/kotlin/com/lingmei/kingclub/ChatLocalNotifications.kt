@@ -109,7 +109,7 @@ class ChatLocalNotifications(private val context: Context) {
                         .setOnlyAlertOnce(isCall)
                         .setCategory(if (isCall) Notification.CATEGORY_CALL else Notification.CATEGORY_MESSAGE)
                         .setVisibility(Notification.VISIBILITY_PRIVATE)
-                        .setNumber((call.argument<Int>("unread") ?: 1).coerceIn(1, 9999))
+                        .setNumber(if (isCall) 0 else (call.argument<Int>("unread") ?: 1).coerceIn(1, 9999))
                         .setPriority(Notification.PRIORITY_HIGH)
                     if (Build.VERSION.SDK_INT >= 26) builder.setTimeoutAfter(remaining)
                     builder.addExtras(android.os.Bundle().apply {

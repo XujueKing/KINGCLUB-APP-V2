@@ -77,11 +77,13 @@ class BackgroundNotifications {
       bool group,
       bool call,
       int expiry,
-      String eventId,
-    ) async {
+      String eventId, {
+      int unread = 0,
+    }) async {
       if (!await authorized()) return false;
       return _invoke('show', {
         'session': id,
+        'unread': unread,
         'destination': jsonEncode({
           'version': 1,
           'eventId': eventId,
@@ -113,6 +115,7 @@ class BackgroundNotifications {
           false,
           DateTime.now().add(const Duration(hours: 12)).millisecondsSinceEpoch,
           const Uuid().v4(),
+          unread: notice.unread,
         );
       }
     }
