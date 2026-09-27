@@ -198,6 +198,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Actual friend'),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Actual friend'), findsOneWidget);
       expect(find.text('Alice'), findsNothing);
       expect(find.text('卡座搭子'), findsNothing);
