@@ -1,4 +1,6 @@
 import 'features/messaging/data/push_registration_runtime.dart';
+import 'features/messaging/data/push_open_runtime.dart';
+import 'features/messaging/presentation/direct_chat_page.dart';
 import 'features/messaging/data/chat_outbox_recovery.dart';
 import 'features/messaging/data/chat_outbox.dart';
 import 'core/design_system/king_text_scale.dart';
@@ -26,6 +28,8 @@ import 'features/club/data/storage_repository.dart';
 import 'features/club/presentation/real_storage_pickup_page.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/design_system/king_theme.dart';
@@ -42,6 +46,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     with WidgetsBindingObserver {
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   final _pushRegistration = PushRegistrationRuntime.configured();
+  static const _pushOpenChannel = MethodChannel('kingclub/push-open');
+  PushOpenRuntime? _pushOpen;
+  VoidCallback? _removePushRouteListener;
   StreamSubscription<void>? _sessionChanges;
   StreamSubscription<Map<String, dynamic>>? _messages;
   bool _foreground = true;
@@ -52,6 +59,78 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   Future<void>? _openingCallInbox;
   ChatOutboxRecovery? _outboxRecovery;
   int _outboxGeneration = 0;
+
+  bool get _pushNavigationReady {
+    if (!mounted ||
+        !_foreground ||
+        CallPresentationLease.isActive ||
+        ref.read(authenticatedMemberProvider)?.canEnterApp != true) {
+      return false;
+    }
+    final path = ref
+        .read(appRouterProvider)
+        .routerDelegate
+        .currentConfiguration
+        .uri
+        .path;
+    return path.isNotEmpty &&
+        !path.startsWith('/auth') &&
+        !path.startsWith('/onboarding');
+  }
+
+  Future<PushOpenSession?> _pushReadySession() async {
+    if (!_pushNavigationReady) return null;
+    final session = await SecureSessionStore().readSession();
+    final account = (session?['account'] as Map?)?['userAccount'];
+    final id = session?['sessionId'];
+    if (!_pushNavigationReady || account is! String || id is! String) {
+      return null;
+    }
+    return (account: account, sessionId: id);
+  }
+
+  Future<bool> _openPushConversation(
+    PushOpenTarget target,
+    PushOpenSession expected,
+  ) async {
+    final current = await _pushReadySession();
+    if (current != expected ||
+        target.expiresAt <= DateTime.now().millisecondsSinceEpoch) {
+      return false;
+    }
+    final navigator = ref
+        .read(appRouterProvider)
+        .routerDelegate
+        .navigatorKey
+        .currentState;
+    if (navigator == null) return false;
+    unawaited(
+      navigator
+          .push<void>(
+            MaterialPageRoute(
+              allowSnapshotting: false,
+              settings: RouteSettings(
+                name: 'push-chat:${target.group}:${target.target}',
+              ),
+              builder: (_) => DirectChatPage(
+                peerName: target.group ? '群聊' : '聊天',
+                peerAccount: target.group ? null : target.target,
+                groupId: target.group ? target.target : null,
+              ),
+            ),
+          )
+          .whenComplete(_schedulePushOpen),
+    );
+    return true;
+  }
+
+  void _schedulePushOpen() {
+    if (!mounted || _pushOpen == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_pushOpen?.sync());
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
 
   void _stopOutboxRecovery() {
     _outboxGeneration++;
@@ -346,7 +425,23 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      _pushOpen = PushOpenRuntime(
+        takePending: () => _pushOpenChannel.invokeMethod<String>('takePending'),
+        readySession: _pushReadySession,
+        open: _openPushConversation,
+      );
+      _pushOpenChannel.setMethodCallHandler((call) async {
+        if (call.method == 'changed') _schedulePushOpen();
+      });
+      final delegate = ref.read(appRouterProvider).routerDelegate;
+      delegate.addListener(_schedulePushOpen);
+      _removePushRouteListener = () =>
+          delegate.removeListener(_schedulePushOpen);
+      _schedulePushOpen();
+    }
     _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
+      _schedulePushOpen();
       _pushRegistration?.sync();
       _clearCallInbox();
       unawaited(_syncRealtime().catchError((Object _) {}));
@@ -358,6 +453,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
 
   @override
   void dispose() {
+    _removePushRouteListener?.call();
+    _pushOpen?.close();
+    if (_pushOpen != null) _pushOpenChannel.setMethodCallHandler(null);
     _pushRegistration?.close();
     _clearCallInbox();
     _noticeTimer?.cancel();
@@ -375,6 +473,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     _callInbox?.foreground(_foreground);
     _groupCallInbox?.foreground(_foreground);
     if (_foreground) {
+      _schedulePushOpen();
       _checkMobileWindow();
       unawaited(_syncRealtime().catchError((Object _) {}));
     } else {
@@ -396,6 +495,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authenticatedMemberProvider, (_, _) => _schedulePushOpen());
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
       title: 'KingClub',

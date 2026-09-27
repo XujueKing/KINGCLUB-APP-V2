@@ -3,6 +3,7 @@
 class CallPresentationLease {
   CallPresentationLease._();
   static CallPresentationLease? _owner;
+  static bool get isActive => _owner != null;
 
   static CallPresentationLease? acquire() {
     if (_owner != null) return null;
