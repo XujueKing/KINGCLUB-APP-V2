@@ -441,6 +441,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       _pushOpen = PushOpenRuntime(
         store: PushOpenStore(),
         takePending: () => _pushOpenChannel.invokeMethod<String>('takePending'),
+        acknowledge: (raw) =>
+            _pushOpenChannel.invokeMethod<void>('ackPending', raw),
         readySession: _pushReadySession,
         open: _openPushConversation,
       );

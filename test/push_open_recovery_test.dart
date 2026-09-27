@@ -49,6 +49,78 @@ void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
   test(
+    'native click is acknowledged only after durable save succeeds',
+    () async {
+      final store = FailingStore()..failWrite = true;
+      final queue = [payload()];
+      var opened = 0;
+      final runtime = PushOpenRuntime(
+        store: store,
+        now: () => now,
+        takePending: () async => queue.firstOrNull,
+        acknowledge: (raw) async {
+          expect(store.value, isNotNull);
+          expect(raw, queue.first);
+          queue.removeAt(0);
+        },
+        readySession: () async => account,
+        open: (_, _) async {
+          opened++;
+          return true;
+        },
+      );
+      addTearDown(runtime.close);
+      await runtime.sync();
+      expect(queue, hasLength(1));
+      expect(opened, 0);
+      store.failWrite = false;
+      await runtime.sync();
+      expect(queue, isEmpty);
+      expect(opened, 1);
+    },
+  );
+
+  test(
+    'reconstruction between durable save and native ack recovers once',
+    () async {
+      final store = FailingStore();
+      final queue = [payload()];
+      var failAck = true, opened = 0;
+      PushOpenRuntime build() => PushOpenRuntime(
+        store: store,
+        now: () => now,
+        takePending: () async => queue.firstOrNull,
+        acknowledge: (raw) async {
+          if (failAck) throw StateError('native channel interrupted');
+          expect(raw, queue.first);
+          queue.removeAt(0);
+        },
+        readySession: () async => account,
+        open: (_, _) async {
+          opened++;
+          return true;
+        },
+      );
+      final first = build();
+      await first.sync();
+      expect(store.value, isNotNull);
+      expect(queue, hasLength(1));
+      expect(opened, 0);
+      first.close();
+      failAck = false;
+      final second = build();
+      addTearDown(second.close);
+      await second.sync();
+      expect(queue, isEmpty);
+      expect(opened, 1);
+      queue.add(payload());
+      await second.sync();
+      expect(queue, isEmpty);
+      expect(opened, 1);
+    },
+  );
+
+  test(
     'handled click survives reconstruction and a new event still opens',
     () async {
       var opened = 0;

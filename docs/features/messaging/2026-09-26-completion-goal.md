@@ -21,6 +21,8 @@
 
 转发清理增量：B 群文件转发到 A/B 私聊后，删除群原记录不影响私聊副本断网冷启动读取；再仅删除该私聊测试消息，副本实体删除且重启不恢复，旧文字和源文件保留。实测转发产生新的 fileAssetId，不能将此标为同一资产共享引用验收。见 `2026-09-27-forward-file-cleanup.md`。
 
+通知交接增量：原生点击已改为 Keystore AES-GCM 加密有界日志，Dart 安全保存后确认移除。B 已验证 Dart PauseStart 时原生日志存在、受控结束进程后不带通知参数重启仍恢复原私聊，账号和旧历史保留；20 项通知测试通过。此项补上原生到 Dart 交接窗口，实际厂商送达、锁屏新来电和系统自发回收仍待验。见 `2026-09-27-push-pending-recovery.md`。
+
 - A、B USB 当前在线；第三台设备不在授权测试范围。
 - App 搜索未发现 Firebase/HMS/Heytap/token 注册实现，仅 CallForegroundService 通知通道。
 - 服务端聊天已有 durable outbox / websocket 路径；尚不能据此宣称厂商推送已具备。

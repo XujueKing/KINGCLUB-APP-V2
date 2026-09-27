@@ -19,7 +19,7 @@ class MainActivity : FlutterActivity() {
     private var pushOpen: ChatPushOpen? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        pushOpen = ChatPushOpen(MethodChannel(
+        pushOpen = ChatPushOpen(applicationContext, MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "kingclub/push-open"
         )).also { it.accept(intent) }
         val push = ChatPushRegistration(applicationContext)
@@ -110,6 +110,7 @@ class MainActivity : FlutterActivity() {
     }
     override fun onResume() {
         super.onResume()
+        pushOpen?.accept(intent)
         foreground = true
     }
     override fun onPause() {

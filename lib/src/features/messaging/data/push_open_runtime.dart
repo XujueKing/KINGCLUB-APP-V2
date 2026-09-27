@@ -67,10 +67,12 @@ class PushOpenRuntime {
     required this.takePending,
     required this.readySession,
     required this.open,
+    this.acknowledge,
     this.store,
     DateTime Function()? now,
   }) : now = now ?? DateTime.now;
   final Future<String?> Function() takePending;
+  final Future<void> Function(String)? acknowledge;
   final Future<PushOpenSession?> Function() readySession;
   final Future<bool> Function(PushOpenTarget, PushOpenSession) open;
   final DateTime Function() now;
@@ -176,7 +178,18 @@ class PushOpenRuntime {
               'kind': parsed.call ? 'call' : 'message',
               'expiresAt': parsed.expiresAt,
             });
+            // Keep the native journal until this destination is durable.
+            // A crash before ack replays safely through event-id deduplication.
+            if (acknowledge != null) {
+              if (store == null) {
+                throw StateError('Durable push store required');
+              }
+              await store!.save(_pendingWrite!);
+              _pendingWrite = null;
+            }
           }
+          if (_closed) return;
+          await acknowledge?.call(raw);
         }
         if (_closed) return;
         if (_pendingWrite != null) {
