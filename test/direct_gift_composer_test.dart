@@ -105,6 +105,12 @@ void main() {
         find.byKey(const ValueKey('direct-chat-gift-message')),
         findsOneWidget,
       );
+      await tester.longPress(
+        find.byKey(const ValueKey('direct-chat-gift-message')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('direct-chat-forward')), findsNothing);
+      expect(find.byKey(const ValueKey('direct-chat-recall')), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpWidget(const SizedBox.shrink());

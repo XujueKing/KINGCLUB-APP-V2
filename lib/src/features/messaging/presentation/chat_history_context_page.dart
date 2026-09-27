@@ -1,4 +1,5 @@
 import '../data/chat_history_access.dart';
+import '../data/chat_history_label.dart';
 
 import 'dart:async';
 
@@ -276,7 +277,7 @@ class _ChatHistoryContextPageState extends State<ChatHistoryContextPage>
       }
     }
     return SelectableText(
-      message['text'] as String? ?? '',
+      chatHistoryLabel(message),
       style: TextStyle(
         color: message['sender'] == widget.account
             ? Colors.black

@@ -3363,13 +3363,16 @@ class _DirectChatPageState extends State<DirectChatPage>
                 onTap: () =>
                     Navigator.pop(sheetContext, _FakeMessageAction.quote),
               ),
-              ListTile(
-                key: const ValueKey('direct-chat-forward'),
-                leading: const Icon(Icons.forward),
-                title: const Text('转发'),
-                onTap: () =>
-                    Navigator.pop(sheetContext, _FakeMessageAction.forward),
-              ),
+              if (_realTarget == null ||
+                  message.kind == _FakeMessageKind.text ||
+                  message.kind == _FakeMessageKind.image)
+                ListTile(
+                  key: const ValueKey('direct-chat-forward'),
+                  leading: const Icon(Icons.forward),
+                  title: const Text('转发'),
+                  onTap: () =>
+                      Navigator.pop(sheetContext, _FakeMessageAction.forward),
+                ),
               ListTile(
                 enabled:
                     _realTarget == null ||
@@ -3513,7 +3516,11 @@ class _DirectChatPageState extends State<DirectChatPage>
           final confirmed = await _confirmMessageAction(
             title: '删除这条消息？',
             action: '删除',
-            body: '只从你的聊天记录中删除，对方记录不受影响。',
+            body:
+                message.kind == _FakeMessageKind.goldCoin ||
+                    message.kind == _FakeMessageKind.gift
+                ? '只从你的聊天记录中删除，对方记录和已完成的金币收付不受影响，不会退款。'
+                : '只从你的聊天记录中删除，对方记录不受影响。',
           );
           if (!confirmed || !mounted || _chat != controller) return;
           try {

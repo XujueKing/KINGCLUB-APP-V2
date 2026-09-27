@@ -1,4 +1,5 @@
 import '../data/chat_history_access.dart';
+import '../data/chat_history_label.dart';
 
 import 'dart:async';
 
@@ -477,10 +478,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
                             ? null
                             : () => widget.onSelected!(row),
                         title: Text(
-                          row['messageType'] == 'file'
-                              ? (row['fileName'] as String? ??
-                                    row['text'] as String)
-                              : row['text'] as String,
+                          chatHistoryLabel(row),
                           style: const TextStyle(color: Colors.white),
                         ),
                         subtitle: Text(
