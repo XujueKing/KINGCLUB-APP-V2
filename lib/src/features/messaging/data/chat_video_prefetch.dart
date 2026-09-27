@@ -172,11 +172,12 @@ class ChatVideoPrefetch {
       throw const FormatException('Invalid video hash');
     }
     final fresh = await _grant(id);
-    if (stopped() ||
-        fresh.fileId != grant.fileId ||
+    if (stopped()) return;
+    if (fresh.fileId != grant.fileId ||
         fresh.sha256 != grant.sha256 ||
         fresh.size != grant.size) {
-      return;
+      await discardTransfer();
+      throw const FormatException('Video changed during retention');
     }
     await _media.importFile(
       file,

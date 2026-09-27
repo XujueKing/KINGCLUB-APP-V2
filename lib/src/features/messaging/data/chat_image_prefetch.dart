@@ -171,7 +171,15 @@ class ChatImagePrefetch {
     );
     if (stopped()) return;
     final fresh = await _grant(id);
-    if (stopped() || fresh['fileId'] != grant['fileId']) return;
+    if (stopped()) return;
+    if (fresh['fileId'] != grant['fileId']) {
+      await _media.evict(
+        scope: _scope,
+        contentKey: _transferKey(id),
+        kind: MediaKind.image,
+      );
+      throw const FormatException('Image changed during retention');
+    }
     await _media.importFile(
       file,
       scope: _scope,

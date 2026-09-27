@@ -165,7 +165,15 @@ class ChatVoicePrefetch {
     // Do not publish a local asset mapping using authority captured before a
     // potentially slow download (removal/hide may have happened meanwhile).
     final fresh = _grant(await repository.voiceMedia(id, group: group), id);
-    if (stopped() || fresh['fileId'] != grant['fileId']) return;
+    if (stopped()) return;
+    if (fresh['fileId'] != grant['fileId']) {
+      await _media.evict(
+        scope: scope,
+        contentKey: 'chat-voice-transfer:$group:$id',
+        kind: MediaKind.audio,
+      );
+      throw const FormatException('Voice changed during retention');
+    }
     await _media.importFile(
       file,
       scope: scope,
