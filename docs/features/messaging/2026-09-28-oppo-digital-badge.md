@@ -37,3 +37,13 @@
 - Dart analyze 通过，数字角标和后台生命周期 4 项定向测试通过；Android preview/profile 构建成功。
 - A/B 已覆盖安装此版，无清除数据。B 原生调用日志记录实际计数 10→11，证明确实调用了官方接口；系统应用通知设置仍未显示本应用数字角标选项，不能把调用日志认定为桌面成功显示。
 - B 仍保持数字模式，未开启/修改全局圆点。ColorOS 15 数字显示尚未解决；已向用户申请发送上述技术咨询的授权，收到明确授权前不发送。
+
+## 旧版实机补查与结论修正
+
+- 不能把 ColorOS 16 新文档的最低版本当作旧系统完全没有数字角标能力的证据。ShortcutBadger 的 OPPOHomeBader 在 2016 年已经调用相同 provider/method；更换该库并不会增加当前 A/B 的接口覆盖。
+- 源码证据：https://github.com/leolin310148/ShortcutBadger/blob/master/ShortcutBadger/src/main/java/me/leolin/shortcutbadger/impl/OPPOHomeBader.java
+- A（ColorOS 12.1）与 B（15）均实际存在 com.android.launcher/.BadgeProvider，authority=com.android.badge。
+- 原先仅打印调用计数、吞掉异常的诊断不足。本次加入系统返回值和异常类型/原因记录，仅记录角标接口结果，不记录聊天或凭据。
+- 原生 profile 构建通过，两端覆盖安装。保留现有 Flutter/媒体/传输二进制，安装前确认没有输入框草稿。
+- 实机结果：A 04:43:27 count=6、B 04:42:42 count=11，provider 均返回 null，未抛出异常。该结果不能独立区分旧接口空返回约定、权限策略或桌面未更新，因此仍不标记适配成功，也不能声称已证明被白名单拒绝。
+- 保留两端全局数字模式；未改系统权限数据库、未改其他 App、未发送客服咨询。下一步须查清旧版平台授权与通知计数路径，而不是仅继续重复同一调用。

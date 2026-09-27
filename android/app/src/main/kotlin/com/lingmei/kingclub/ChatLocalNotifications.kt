@@ -29,11 +29,18 @@ class ChatLocalNotifications(private val context: Context) {
         return try {
             val value = count.coerceIn(0, 9999)
             android.util.Log.d("KingclubBadge", "set oplus badge count:" + value)
-            context.contentResolver.call(Uri.parse("content://com.android.badge/badge"),
+            val response = context.contentResolver.call(Uri.parse("content://com.android.badge/badge"),
                 "setAppBadgeCount", null, android.os.Bundle().apply {
                     putInt("app_badge_count", value)
-                }) != null
-        } catch (_: Exception) { false } // Unsupported OS or user permission disabled.
+                })
+            android.util.Log.d("KingclubBadge", "provider response=" + (response?.toString() ?: "null"))
+            response != null
+        } catch (error: Exception) {
+            // Preserve the OS rejection reason: an attempted call is not proof of
+            // launcher support, and an older OS version alone is not a diagnosis.
+            android.util.Log.w("KingclubBadge", "provider rejected: ${error.javaClass.simpleName}: ${error.message}")
+            false
+        }
     }
     fun handle(call: MethodCall, result: MethodChannel.Result, foreground: Boolean) {
         try {
