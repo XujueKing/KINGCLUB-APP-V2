@@ -16,6 +16,7 @@ class ChatOutboxRecovery {
     this.repository,
     this.outbox, {
     this.relaySenderFor,
+    this.preferRelayTextFor,
     this.openHistory,
     this.recoverTransport,
     this.transportReady,
@@ -28,6 +29,7 @@ class ChatOutboxRecovery {
           : null);
   final Future<bool> Function(String text, String id) Function(String peer)?
   relaySenderFor;
+  final bool Function(String peer)? preferRelayTextFor;
   final MessagingRepository repository;
   final ChatOutbox outbox;
 
@@ -154,6 +156,10 @@ class ChatOutboxRecovery {
                   peer: target,
                   outbox: outbox,
                   openHistory: _historyFactory,
+                  preferRelayText: () =>
+                      preferRelayTextFor?.call(target) ??
+                      (repository.persistHistory &&
+                          NovoRudpBindingRuntime.relay?.connection != null),
                   sendRelayText:
                       relaySenderFor?.call(target) ??
                       (repository.persistHistory

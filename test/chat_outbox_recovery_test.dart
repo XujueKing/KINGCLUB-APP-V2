@@ -9,6 +9,51 @@ import 'direct_chat_controller_test.dart' as direct;
 import 'group_chat_controller_test.dart' as group;
 
 void main() {
+  for (final preferPeer in [true, false]) {
+    for (final peerDelivered in [true, false]) {
+      test(
+        'recovery transport order preferred=$preferPeer delivered=$peerDelivered',
+        () async {
+          final queue = direct.MemoryOutbox();
+          await queue.put({
+            'clientMessageId': 'queued',
+            'status': 'queued',
+            'recipient': 'peer',
+            'sender': 'me',
+            'text': 'hello',
+          });
+          final order = <String>[];
+          final worker = ChatOutboxRecovery(
+            MessagingRepository(
+              account: 'me',
+              call: (method, params) async {
+                if (method == 'K260913000604') return direct.history([]);
+                expect(params['clientMessageId'], 'queued');
+                order.add('service');
+                return {'message': direct.ack(params)};
+              },
+            ),
+            queue,
+            preferRelayTextFor: (peer) {
+              expect(peer, 'peer');
+              return preferPeer;
+            },
+            relaySenderFor: (peer) => (text, id) async {
+              expect(peer, 'peer');
+              expect(id, 'queued');
+              expect(text, 'hello');
+              order.add('peer');
+              return peerDelivered;
+            },
+          );
+          await worker.notify();
+          expect(order, preferPeer ? ['peer', 'service'] : ['service']);
+          expect(queue.items, isEmpty);
+          worker.close();
+        },
+      );
+    }
+  }
   testWidgets('idle foreground timer kicks transport without queued messages', (
     tester,
   ) async {
@@ -183,6 +228,7 @@ void main() {
           },
         ),
         queue,
+        preferRelayTextFor: (_) => true,
         relaySenderFor: (peer) => (text, id) async {
           expect(peer, 'peer');
           expect(text, 'hello');
