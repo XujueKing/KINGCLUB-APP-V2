@@ -25,6 +25,105 @@ class PendingReferences implements ChatOutbox {
 void main() {
   sqfliteFfiInit();
   for (final group in [false, true]) {
+    for (final type in ['image', 'video']) {
+      test('pending $type source survives clear and restart ($group)', () async {
+        final root = await Directory.systemTemp.createTemp(
+          'chat-pending-media-',
+        );
+        final key = await AesGcm.with256bits().newSecretKey();
+        final queue = PendingReferences();
+        final cache = MediaCache(
+          directory: () async => Directory('${root.path}/media'),
+        );
+        final cleanup = ChatMediaCleanup(media: cache);
+        final conversation = group ? 'group:g' : 'direct:peer';
+        final kind = type == 'image' ? MediaKind.image : MediaKind.video;
+        final sourceKey = 'chat-$type-sent:client1';
+        final ownedKey = 'chat-$type-message:$group:message1:$type';
+        final bytes = Uint8List.fromList([1, 2, 3, 4]);
+        final message = <String, dynamic>{
+          'sequence': 1,
+          'messageId': 'message1',
+          'clientMessageId': 'client1',
+          'sender': 'me',
+          'messageType': type,
+          '${type}AssetId': 'asset1',
+          if (type == 'video') ...{
+            'videoDurationMs': 1000,
+            'videoWidth': 16,
+            'videoHeight': 16,
+            'videoHasAudio': false,
+          },
+          'text': '',
+        };
+        Future<ChatHistoryStore> open() => ChatHistoryStore.openDatabaseWithKey(
+          factory: databaseFactoryFfi,
+          file: '${root.path}/history.db',
+          key: key,
+          account: 'me',
+          outbox: queue,
+        );
+        var store = await open();
+        try {
+          final source = await cache.importBytes(
+            bytes,
+            scope: 'member:me',
+            contentKey: sourceKey,
+            kind: kind,
+          );
+          final owned = await cache.importBytes(
+            bytes,
+            scope: 'member:me',
+            contentKey: ownedKey,
+            kind: kind,
+          );
+          final other = await cache.importBytes(
+            bytes,
+            scope: 'member:other',
+            contentKey: sourceKey,
+            kind: kind,
+          );
+          await store.commit(conversation, [message], expectedEpoch: 0);
+          // Server acknowledgment and local outbox removal are separate steps.
+          await queue.put(message);
+          await store.clear(conversation, mediaCleanup: cleanup);
+          expect((await store.read(conversation)).messages, isEmpty);
+          expect(await owned.exists(), isFalse);
+          expect(await source.readAsBytes(), bytes);
+          await store.close();
+          store = await open();
+          await store.collectDeferredMedia(mediaCleanup: cleanup);
+          expect(await source.readAsBytes(), bytes);
+          await expectLater(
+            cache.importBytes(
+              bytes,
+              scope: 'member:me',
+              contentKey: ownedKey,
+              kind: kind,
+            ),
+            throwsStateError,
+          );
+          await queue.remove('client1');
+          await store.collectDeferredMedia(mediaCleanup: cleanup);
+          expect(await source.exists(), isFalse);
+          expect(await other.readAsBytes(), bytes);
+          final reopened = MediaCache(
+            directory: () async => Directory('${root.path}/media'),
+          );
+          await expectLater(
+            reopened.cached(
+              scope: 'member:me',
+              contentKey: sourceKey,
+              kind: kind,
+            ),
+            throwsStateError,
+          );
+        } finally {
+          await store.close();
+          await root.delete(recursive: true);
+        }
+      });
+    }
     test(
       'shared file source survives restart until its last reference ($group)',
       () async {
