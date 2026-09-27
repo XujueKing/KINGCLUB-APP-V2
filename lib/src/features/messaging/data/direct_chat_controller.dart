@@ -1,3 +1,5 @@
+import 'chat_coin.dart';
+
 import 'dart:async';
 
 import 'chat_message_receipt.dart';
@@ -675,6 +677,32 @@ class DirectChatController extends ChatSessionController {
   }
 
   @override
+  Future<void> sendGold(String amount, {VoidCallback? onQueued}) async {
+    _checkNewSendPermission();
+    if (_disposed) return;
+    if (!ChatCoin.validAmount(amount)) {
+      throw const FormatException('请输入有效的金币数量');
+    }
+    final id = const Uuid().v4();
+    final message = <String, dynamic>{
+      'clientMessageId': id,
+      'recipient': peer,
+      'sender': repository.account,
+      'messageType': 'gold',
+      'amount': amount,
+      'text': '[金币]',
+      'createdDate': DateTime.now().toUtc().toIso8601String(),
+      'status': 'queued',
+    };
+    await outbox.put(message);
+    if (_disposed) return;
+    _pending[id] = message;
+    _changed();
+    onQueued?.call();
+    await retry(id);
+  }
+
+  @override
   Future<void> sendLocation(
     ChatLocation location, {
     VoidCallback? onQueued,
@@ -890,10 +918,17 @@ class DirectChatController extends ChatSessionController {
           kind != 'voice' &&
           kind != 'video' &&
           kind != 'file' &&
-          kind != 'location') {
+          kind != 'location' &&
+          kind != 'gold') {
         throw const FormatException('不支持的待发送消息类型');
       }
-      final result = kind == 'image'
+      final result = kind == 'gold'
+          ? await repository.sendGold(
+              peer: peer,
+              clientMessageId: id,
+              amount: pending['amount'] as String,
+            )
+          : kind == 'image'
           ? await repository.sendImage(
               peer: peer,
               clientMessageId: id,

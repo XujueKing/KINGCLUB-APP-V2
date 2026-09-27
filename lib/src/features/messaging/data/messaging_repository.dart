@@ -124,6 +124,16 @@ class MessagingRepository {
     return result;
   }
 
+  Future<Map<String, dynamic>> sendGold({
+    required String peer,
+    required String clientMessageId,
+    required String amount,
+  }) => call('K260927000801', {
+    'recipient': peer,
+    'clientMessageId': clientMessageId,
+    'amount': amount,
+  });
+
   Future<Map<String, dynamic>> sendImage({
     required String peer,
     required String clientMessageId,

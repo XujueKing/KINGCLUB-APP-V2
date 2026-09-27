@@ -1,3 +1,4 @@
+import '../data/chat_coin.dart';
 import '../data/chat_queue_completion.dart';
 import 'chat_route_presence.dart';
 import '../data/chat_outbox_recovery.dart';
@@ -994,7 +995,9 @@ class _DirectChatPageState extends State<DirectChatPage>
         ..addAll(
           rows.map(
             (message) => _FakeMessage(
-              message['text'] as String,
+              message['messageType'] == 'gold'
+                  ? '${ChatCoin.tryParse(message['coin'], messageId: message['messageId'] as String?)?.amount ?? (ChatCoin.validAmount(message['amount']) ? message['amount'] : '—')} 枚'
+                  : message['text'] as String,
               messageId: message['messageId'] as String?,
               system: message['messageType'] == 'recalled',
               quoted: ChatReply.tryParse(message['reply'])?.text,
@@ -1027,7 +1030,9 @@ class _DirectChatPageState extends State<DirectChatPage>
               location: message['messageType'] == 'location'
                   ? ChatLocation.tryParse(message['location'])
                   : null,
-              kind: message['messageType'] == 'image'
+              kind: message['messageType'] == 'gold'
+                  ? _FakeMessageKind.goldCoin
+                  : message['messageType'] == 'image'
                   ? _FakeMessageKind.image
                   : _FakeMessageKind.text,
               mine: message['sender'] == chat.messaging.account,
@@ -2705,8 +2710,70 @@ class _DirectChatPageState extends State<DirectChatPage>
     _appendFakeMessage(message);
   }
 
+  Future<void> _openRealGoldComposer() async {
+    final chat = _chat;
+    if (chat == null || widget.groupId != null) {
+      KingNotice.of(context).show('金币转赠请在好友会话中使用');
+      return;
+    }
+    setState(() => _composerPanel = _ComposerPanel.none);
+    final controller = TextEditingController();
+    final amount = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('转赠金币'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('赠送给 ${widget.peerName}'),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 20,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                labelText: '金币数量',
+                helperText: '确认后转入对方账户，不能撤回',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (_, value, _) => TextButton(
+              onPressed: ChatCoin.validAmount(value.text)
+                  ? () => Navigator.pop(dialogContext, value.text)
+                  : null,
+              child: const Text('确认赠送'),
+            ),
+          ),
+        ],
+      ),
+    );
+    // Dialog exit animation may still reference its controller.
+    Future<void>.delayed(const Duration(seconds: 1), controller.dispose);
+    if (!mounted || amount == null || !identical(chat, _chat)) return;
+    try {
+      await chat.sendGold(amount);
+      if (mounted && identical(chat, _chat) && chat.error != null) {
+        KingNotice.of(context).show(chat.error!);
+      }
+    } catch (error) {
+      if (mounted) KingNotice.of(context).show(error.toString());
+    }
+  }
+
   Future<void> _openGoldCoinComposer() async {
-    if (_requiresRealMedia()) return;
+    if (_realTarget != null) {
+      await _openRealGoldComposer();
+      return;
+    }
     setState(() => _composerPanel = _ComposerPanel.none);
     final amount = await _showNumberComposer(
       title: '转赠金币',
@@ -3699,7 +3766,12 @@ class _MessageContent extends StatelessWidget {
           key: const ValueKey('direct-chat-gold-message'),
           assetPath: 'assets/legacy/messaging/more_3.png',
           title: 'KING CLUB 金币',
-          subtitle: '${message.text} · 赠送成功',
+          subtitle:
+              '${message.text} · ${switch (message.status) {
+                _FakeMessageStatus.sent => '赠送成功',
+                _FakeMessageStatus.failed => '未确认，请重试',
+                _ => '正在确认',
+              }}',
         );
       case _FakeMessageKind.redPacket:
         return _LegacyValueMessageCard(

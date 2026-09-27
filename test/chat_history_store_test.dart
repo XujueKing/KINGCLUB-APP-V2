@@ -58,6 +58,36 @@ void main() {
     await store.close();
     await dir.delete(recursive: true);
   });
+  test(
+    'coin receipt survives restart precisely, strips extras and obeys deletion',
+    () async {
+      const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      final gold = {
+        ...message(1),
+        'messageId': id,
+        'messageType': 'gold',
+        'coin': {
+          'transferId': id,
+          'amount': '18446744073709551615',
+          'untrusted': 'discard',
+        },
+      };
+      await store.commit('direct:peer', [gold], expectedEpoch: 0);
+      await store.close();
+      store = await open();
+      expect((await store.read('direct:peer')).messages.single['coin'], {
+        'transferId': id,
+        'amount': '18446744073709551615',
+      });
+      await store.commit('direct:peer', [
+        {...gold, 'messageType': 'hidden'},
+      ], expectedEpoch: 0);
+      expect(
+        (await store.read('direct:peer')).messages.single.containsKey('coin'),
+        false,
+      );
+    },
+  );
   for (final group in [false, true]) {
     test(
       'outgoing confirmation bridges missing list and obeys clear: group=$group',

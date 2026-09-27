@@ -24,6 +24,8 @@ abstract class ChatSessionController extends ChangeNotifier {
     String? replyToMessageId,
     String? clientMessageId,
   });
+  Future<void> sendGold(String amount, {VoidCallback? onQueued}) =>
+      Future.error(UnsupportedError('当前会话不支持金币转赠'));
   Future<void> sendImage(
     String assetId, {
     VoidCallback? onQueued,

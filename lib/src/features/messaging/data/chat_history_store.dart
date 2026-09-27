@@ -1,3 +1,4 @@
+import 'chat_coin.dart';
 import 'chat_call_history.dart';
 import 'chat_reply.dart';
 import 'chat_media_cleanup.dart';
@@ -534,6 +535,7 @@ class ChatHistoryStore {
       'voiceAssetId',
       'voiceDurationMs',
       'location',
+      'coin',
     };
     final value = {
       for (final key in fields)
@@ -553,6 +555,16 @@ class ChatHistoryStore {
       // Tombstones need identity and ordering, never the removed content or
       // its attachment metadata, even if an older server echoes those fields.
       _stripTombstoneContent(value);
+    }
+    if (value['messageType'] == 'gold') {
+      final coin = ChatCoin.tryParse(
+        value['coin'],
+        messageId: value['messageId'] as String?,
+      );
+      if (coin == null) throw const FormatException('Invalid coin history');
+      value['coin'] = coin.toJson();
+    } else {
+      value.remove('coin');
     }
     // Locations are reduced separately so nested headers/URLs cannot enter disk.
     if (value['messageType'] == 'location') {
