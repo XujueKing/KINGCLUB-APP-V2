@@ -19,6 +19,9 @@ class MainActivity : FlutterActivity() {
     private var pushOpen: ChatPushOpen? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        val localNotifications = ChatLocalNotifications(applicationContext)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/local-notifications")
+            .setMethodCallHandler { call, result -> localNotifications.handle(call, result, foreground) }
         pushOpen = ChatPushOpen(applicationContext, MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "kingclub/push-open"
         )).also { it.accept(intent) }

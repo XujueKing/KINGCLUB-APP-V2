@@ -1,4 +1,5 @@
 import 'features/messaging/data/push_registration_runtime.dart';
+import 'features/messaging/data/background_notifications.dart';
 import 'features/messaging/data/foreground_message_notice.dart';
 import 'features/messaging/presentation/foreground_message_banner.dart';
 import 'features/messaging/data/push_open_runtime.dart';
@@ -56,6 +57,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   StreamSubscription<void>? _sessionChanges;
   StreamSubscription<Map<String, dynamic>>? _messages;
   bool _foreground = true;
+  final _backgroundNotifications = BackgroundNotifications();
   ForegroundCallInbox? _callInbox;
   ForegroundGroupCallInbox? _groupCallInbox;
   final _incomingPresentation = CallPresentationOwner();
@@ -435,9 +437,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   }
 
   Future<void> _syncRealtime() async {
-    if (!_foreground || kingclubApiBaseUrl.isEmpty) return;
+    if (kingclubApiBaseUrl.isEmpty) return;
     final session = await SecureSessionStore().readSession();
-    if (!mounted || !_foreground) return;
+    if (!mounted) return;
     if (session == null) {
       _clearCallInbox();
       KingclubRealtime.shared.stop();
@@ -454,6 +456,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   Timer? _noticeTimer;
   String? _noticeSession;
   Future<void> _notification(Map<String, dynamic> event) async {
+    if (!_foreground) _backgroundNotifications.notify(event);
     if (event['eventType'] == 'chat.changed' ||
         event['eventType'] == 'chat.group.message') {
       unawaited(_foregroundMessage(event));
@@ -574,6 +577,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       _schedulePushOpen();
     }
     _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
+      _backgroundNotifications.reset();
       _messageNoticeEpoch++;
       _messageNoticeResolver.clear();
       _dismissMessageNotice();
@@ -589,6 +593,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
 
   @override
   void dispose() {
+    _backgroundNotifications.reset();
     ChatRoutePresence.instance.removeListener(_messageRouteChanged);
     _messageNoticeEpoch++;
     _messageNoticeTimer?.cancel();
@@ -608,6 +613,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
+    _backgroundNotifications.foreground(_foreground);
+    KingclubRealtime.shared.foreground(_foreground);
     _pushRegistration?.foreground(_foreground);
     _callInbox?.foreground(_foreground);
     _groupCallInbox?.foreground(_foreground);
@@ -619,7 +626,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       _messageNoticeEpoch++;
       _dismissMessageNotice();
       _stopOutboxRecovery();
-      KingclubRealtime.shared.stop();
+      // Keep the authenticated socket while Android lets the process run.
+      // Vendor push remains necessary after OS suspension/process death.
     }
   }
 

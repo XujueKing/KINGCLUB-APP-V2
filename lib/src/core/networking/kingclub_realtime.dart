@@ -152,6 +152,15 @@ class KingclubRealtime {
   Timer? _retry;
   Timer? _foregroundHeartbeat;
   bool _active = false;
+  bool _foreground = true;
+  void foreground(bool value) {
+    if (_foreground == value) return;
+    _foreground = value;
+    // Closing removes the server's foreground lease immediately. The new
+    // background socket must not claim foreground delivery suppression.
+    if (_active) unawaited(reconnect());
+  }
+
   int _epoch = 0, _attempt = 0;
   String? _sessionId;
   final _seen = <String>{};
@@ -208,9 +217,11 @@ class KingclubRealtime {
                 if (event['eventType'] == 'connection.ready') {
                   _attempt = 0;
                   Future<void> sendHeartbeat() async {
+                    if (!_foreground) return;
                     try {
                       final frame = await codec.foregroundHeartbeat();
                       if (_active &&
+                          _foreground &&
                           epoch == _epoch &&
                           socket.readyState == WebSocket.open) {
                         socket.add(frame);
@@ -221,7 +232,7 @@ class KingclubRealtime {
                   }
 
                   await sendHeartbeat();
-                  if (epoch == _epoch && _active) {
+                  if (epoch == _epoch && _active && _foreground) {
                     _foregroundHeartbeat?.cancel();
                     _foregroundHeartbeat = Timer.periodic(
                       const Duration(seconds: 15),
