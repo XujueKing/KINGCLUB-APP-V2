@@ -30,6 +30,41 @@ class RealtimeCodec {
   final String clientId;
   final String timestamp, nonce, requestId;
   int _sequence = 0;
+  int _outboundSequence = 0;
+
+  Future<String> foregroundHeartbeat() async {
+    final seq = ++_outboundSequence;
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final box = await AesGcm.with256bits().encrypt(
+      utf8.encode(jsonEncode({'active': true})),
+      secretKey: await _key('client-to-server'),
+    );
+    final data = {
+      'iv': _b64(box.nonce),
+      'ciphertext': _b64(box.cipherText),
+      'tag': _b64(box.mac.bytes),
+    };
+    final canonical = [
+      'client.foreground',
+      seq,
+      timestamp,
+      '',
+      _hex((await Sha256().hash(utf8.encode(jsonEncode(data)))).bytes),
+    ].join('\n');
+    final sign = await Hmac.sha256().calculateMac(
+      utf8.encode(canonical),
+      secretKey: await _key('message-sign'),
+    );
+    return jsonEncode({
+      'eventType': 'client.foreground',
+      'encrypted': true,
+      'data': data,
+      'sign': _b64(sign.bytes),
+      'seq': seq,
+      'timestamp': timestamp,
+    });
+  }
+
   Future<SecretKey> _key(String purpose) =>
       Hkdf(hmac: Hmac.sha256(), outputLength: 32).deriveKey(
         secretKey: SecretKey(utf8.encode(session['apiKey'] as String)),
@@ -115,6 +150,7 @@ class KingclubRealtime {
   Stream<Map<String, dynamic>> get events => _events.stream;
   WebSocket? _socket;
   Timer? _retry;
+  Timer? _foregroundHeartbeat;
   bool _active = false;
   int _epoch = 0, _attempt = 0;
   String? _sessionId;
@@ -129,6 +165,7 @@ class KingclubRealtime {
     _active = false;
     _epoch++;
     _retry?.cancel();
+    _foregroundHeartbeat?.cancel();
     _socket?.close();
     _socket = null;
     _sessionId = null;
@@ -138,6 +175,7 @@ class KingclubRealtime {
   Future<void> reconnect() async {
     if (!_active || kingclubApiBaseUrl.isEmpty) return;
     final epoch = ++_epoch;
+    _foregroundHeartbeat?.cancel();
     _retry?.cancel();
     _socket?.close();
     _socket = null;
@@ -167,7 +205,30 @@ class KingclubRealtime {
                 if (epoch != _epoch) return;
                 final event = await codec.decode(raw as String);
                 if (epoch != _epoch) return;
-                if (event['eventType'] == 'connection.ready') _attempt = 0;
+                if (event['eventType'] == 'connection.ready') {
+                  _attempt = 0;
+                  Future<void> sendHeartbeat() async {
+                    try {
+                      final frame = await codec.foregroundHeartbeat();
+                      if (_active &&
+                          epoch == _epoch &&
+                          socket.readyState == WebSocket.open) {
+                        socket.add(frame);
+                      }
+                    } catch (_) {
+                      if (epoch == _epoch) unawaited(socket.close());
+                    }
+                  }
+
+                  await sendHeartbeat();
+                  if (epoch == _epoch && _active) {
+                    _foregroundHeartbeat?.cancel();
+                    _foregroundHeartbeat = Timer.periodic(
+                      const Duration(seconds: 15),
+                      (_) => unawaited(sendHeartbeat()),
+                    );
+                  }
+                }
                 final data = event['data'];
                 final id = data is Map
                     ? data['notificationId'] ?? data['eventId']
@@ -192,6 +253,7 @@ class KingclubRealtime {
 
   void _schedule(int epoch) {
     if (!_active || epoch != _epoch || (_retry?.isActive ?? false)) return;
+    _foregroundHeartbeat?.cancel();
     _socket = null;
     _retry = Timer(
       Duration(seconds: min(30, 1 << min(_attempt++, 5))),
