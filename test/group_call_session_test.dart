@@ -62,6 +62,53 @@ class FailingOpenMedia extends FailingCleanupMedia {
 }
 
 void main() {
+  for (final peerPhase in ['invited', 'expired', 'joined']) {
+    test('waiting for peers requires a live sender: $peerPhase', () async {
+      final controller = GroupCallController(
+        repository: Calls(),
+        initial: GroupCallSnapshot.parse({
+          'callId': fixtures.callId,
+          'groupId': fixtures.callId,
+          'mediaKind': 'audio',
+          'version': 0,
+          'endedAtMs': null,
+          'participants': [
+            {'account': 'me', 'phase': 'joined', 'deadlineMs': 9999999999999},
+            {
+              'account': 'friend',
+              'phase': peerPhase,
+              'deadlineMs': 9999999999999,
+            },
+          ],
+        }, 'me'),
+        sessionChanges: const Stream.empty(),
+        invalidations: const Stream.empty(),
+      );
+      late void Function(String, String) connection;
+      final session = GroupCallSession(
+        controller: controller,
+        createMedia: (repository, state, error) {
+          connection = state;
+          return NativeGroupCallMedia(
+            repository: fixtures.Repo(),
+            device: fixtures.DeviceFixture(),
+            capture: (_) async => fixtures.StreamFixture(),
+          );
+        },
+      );
+      await session.enter();
+      expect(session.waitingForOthers, false);
+      connection('send', 'connected');
+      expect(session.waitingForOthers, peerPhase != 'joined');
+      expect(session.connectedDuration, isNull);
+      connection('send', 'disconnected');
+      expect(session.waitingForOthers, false);
+      connection('send', 'connected');
+      await session.close();
+      expect(session.waitingForOthers, false);
+      controller.dispose();
+    });
+  }
   for (final code in [
     'NETWORK_ERROR',
     'CHAT_GROUP_CALL_VERSION_CONFLICT',

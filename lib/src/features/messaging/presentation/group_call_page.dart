@@ -507,6 +507,13 @@ class _GroupCallPageState extends State<GroupCallPage>
   String get _callStatus {
     final session = _session!;
     if (session.isClosed) return '通话已结束';
+    if (session.waitingForOthers) {
+      return _controller!.call.participants.any(
+            (p) => p.phase == GroupCallPhase.invited,
+          )
+          ? '等待其他成员接听'
+          : '当前只有你在通话中';
+    }
     final duration = session.connectedDuration;
     if (duration == null) return '正在连接';
     final seconds = duration.inSeconds;

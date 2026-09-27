@@ -47,6 +47,17 @@ class GroupCallSession {
   bool _receiveConnected = false, _everConnected = false;
   final _duration = Stopwatch();
   bool get isConnected => !_closed && _sendConnected && _receiveConnected;
+  // An idle receive transport has nothing to connect to until a peer publishes.
+  // Only report waiting once our own send transport is actually connected.
+  bool get waitingForOthers =>
+      !_closed &&
+      _sendConnected &&
+      controller.call.endedAtMs == null &&
+      !controller.call.participants.any(
+        (p) =>
+            p.account != controller.repository.messaging.account &&
+            p.phase == GroupCallPhase.joined,
+      );
   Duration? get connectedDuration => _everConnected ? _duration.elapsed : null;
   Future<void>? _opening, _closing, _hangingUp;
   Timer? _heartbeat;
