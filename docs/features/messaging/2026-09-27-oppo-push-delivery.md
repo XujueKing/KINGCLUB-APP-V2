@@ -25,3 +25,14 @@ B 退到桌面并休眠后接收该通知。Android Notification Manager 的活�
 官方[普通推送规则调整公告](https://open.oppomobile.com/bbs/forum.php?mod=viewthread&tid=6275)说明非商店安装、公信消息存在设备级管控；这是排查线索，尚未证明本条因频控被拦截。保持普通通道，不自行申请 IM 分类、不绕过平台限制，也不对已 accepted 的消息盲目重复发送。后续需补充厂商投递诊断、系统回收进程及锁屏来电证据。
 
 进一步直接读取公告所附官方规则表：商店安装的普通非新闻应用公信通道为单设备每日 2 条；非商店安装应用从公告规定日期起不再提供公信服务，并说明分系统版本逐步覆盖。当前 USB 安装测试包不能据此承诺稳定普通推送。已向用户说明并询问是否调整原先只用普通通道的要求，尚未申请私信或 IM 权限。单条定向通知的已展示证据仍成立，但不能推导所有消息可达；本次失败原因也未单独确证为该限制。
+
+## B 手机侧通知配置排查
+
+只读检查正式包的 package、appops、standby bucket 及 Notification Manager 配置，未修改系统设置、重发通知或操作 A/第三台手机：
+
+- POST_NOTIFICATIONS 已授权；POST_NOTIFICATION appop 默认 allow；包 stopped=false、suspended=false，待机桶值为 10（active）。
+- 正式包 AppSettings importance=DEFAULT；普通推送实际使用的 push_oplus_category_content 通道 importance=3、未删除，其所属通知通道组 blocked=false。没有发现总权限或该通道被关闭。
+- 此普通通道 sound=null、vibration=false、showBanner=false、lockscreenVisibility=-1，并有 userLockedFields=26。当前配置会抑制声音、横幅及锁屏展示；不能由此推断通知未到达，更不能解释通知栏没有活动记录。
+- 新打开 OPPO 应用报表明确显示“登录会话过期，请重新登录”，本次未取得新的厂商投递统计。此前 accepted 但无通知记录的具体丢失原因仍未确认。
+
+结论：需将“厂商送达”和“手机提醒展示设置”分别处理，不能通过提高通道优先级、盲目重发或绕过用户设置宣称修复。尚未通过真实锁屏新来电或系统回收后的推送验收。
