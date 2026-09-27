@@ -24,10 +24,12 @@ class GroupDetailsPage extends StatefulWidget {
     required this.groupId,
     required this.repository,
     this.events,
+    this.onHistoryCleared,
   });
   final String groupId;
   final GroupChatRepository repository;
   final Stream<Map<String, dynamic>>? events;
+  final VoidCallback? onHistoryCleared;
   @override
   State<GroupDetailsPage> createState() => _GroupDetailsPageState();
 }
@@ -175,6 +177,64 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
           _error = chatSyncFailureMessage(error);
         });
       }
+    }
+  }
+
+  Future<void> _confirmClearHistory() async {
+    if (_invalid ||
+        !_foreground ||
+        _stale ||
+        _loading != null ||
+        _saving ||
+        _details == null) {
+      return;
+    }
+    final epoch = _actionEpoch;
+    setState(() => _saving = true);
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('清空群聊天记录'),
+          content: const Text('清空后无法恢复，只影响你自己的聊天记录，其他群成员不受影响。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              key: const ValueKey('group-confirm-clear-history'),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('确认清空'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true ||
+          !mounted ||
+          _invalid ||
+          !_foreground ||
+          _stale ||
+          epoch != _actionEpoch) {
+        return;
+      }
+      final result = await widget.repository.settings(
+        widget.groupId,
+        hide: true,
+      );
+      if (!mounted || _invalid || !_foreground || epoch != _actionEpoch) return;
+      if (result['saved'] != true) throw const FormatException('清空未完成，请重试');
+      widget.onHistoryCleared?.call();
+      Navigator.pop(
+        context,
+        false,
+      ); // Remain a member; return to the conversation.
+    } catch (error) {
+      if (mounted && !_invalid && _foreground && epoch == _actionEpoch) {
+        setState(() => _error = chatSyncFailureMessage(error));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -974,6 +1034,14 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
                   ],
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+                    child: TextButton(
+                      key: const ValueKey('group-clear-history'),
+                      onPressed: _saving ? null : _confirmClearHistory,
+                      child: const Text('清空聊天记录'),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
                     child: TextButton(
                       key: const ValueKey('group-depart'),
                       onPressed: _saving ? null : _depart,

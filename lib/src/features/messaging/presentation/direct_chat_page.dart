@@ -2899,6 +2899,11 @@ class _DirectChatPageState extends State<DirectChatPage>
           builder: (_) => GroupDetailsPage(
             groupId: widget.groupId!,
             repository: GroupChatRepository(repository),
+            onHistoryCleared: () {
+              if (mounted && identical(_chat?.messaging, repository)) {
+                _chat?.resetVisibleHistory(clearMedia: true);
+              }
+            },
           ),
         ),
       );
