@@ -4,6 +4,10 @@ import 'dart:io';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+// Exercise the driver's announced future behavior instead of accepting its
+// compatibility warning for unsupported BLOB argument types.
+// ignore: implementation_imports
+import 'package:sqflite_common/src/value_utils.dart' as sqlite_values;
 import 'package:kingclub/src/features/messaging/data/chat_history_store.dart';
 import 'package:kingclub/src/features/messaging/data/direct_chat_controller.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
@@ -17,6 +21,9 @@ void main() {
   late ChatHistoryStore store;
   late SecretKey key;
   setUp(() async {
+    final previous = sqlite_values.checkThrowException;
+    sqlite_values.checkThrowException = true;
+    addTearDown(() => sqlite_values.checkThrowException = previous);
     dir = await Directory.systemTemp.createTemp('direct-history-');
     key = await AesGcm.with256bits().newSecretKey();
     store = await ChatHistoryStore.openDatabaseWithKey(

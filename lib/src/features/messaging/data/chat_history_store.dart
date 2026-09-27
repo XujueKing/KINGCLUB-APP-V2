@@ -749,7 +749,7 @@ class ChatHistoryStore {
       messages = messages
           .map((message) => Map<String, dynamic>.from(message))
           .toList();
-      final savedPayloads = <int, List<int>>{};
+      final savedPayloads = <int, Uint8List>{};
       // Bound SQL parameters and cross the platform database channel once per
       // batch rather than once per message in a catch-up page.
       for (var start = 0; start < rows.length; start += 200) {
@@ -766,8 +766,12 @@ class ChatHistoryStore {
           whereArgs: [id, ...sequences],
         );
         for (final saved in prior) {
-          savedPayloads[saved['sequence'] as int] = (saved['payload'] as List)
-              .cast<int>();
+          final payload = saved['payload'];
+          // Terminal messages reuse this ciphertext in a later SQL write.
+          // List.cast loses the BLOB type required by sqflite's channel.
+          savedPayloads[saved['sequence'] as int] = payload is Uint8List
+              ? payload
+              : Uint8List.fromList((payload as List).cast<int>());
         }
       }
       final alreadyRedacted = <int>{};

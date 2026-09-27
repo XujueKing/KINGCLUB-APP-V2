@@ -64,6 +64,8 @@ dependencies:
   mediasfu_mediasoup_client: 0.1.4
   lpinyin: 2.0.3
 dev_dependencies:
+  # Pin the driver's strict argument checker used by persistence regression tests.
+  sqflite_common: 2.5.12
   video_player_platform_interface: ^6.9.0
   flutter_test:
     sdk: flutter

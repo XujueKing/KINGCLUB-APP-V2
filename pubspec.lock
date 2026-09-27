@@ -1459,7 +1459,7 @@ packages:
     source: hosted
     version: "2.4.4"
   sqflite_common:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: sqflite_common
       sha256: b3ebf7b30c8ae279615f146dfc29ea6ba097299294193107c85a7531ec2346d9
