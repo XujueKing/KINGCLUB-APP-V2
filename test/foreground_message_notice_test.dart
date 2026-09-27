@@ -139,7 +139,13 @@ void main() {
       expect(find.text('您收到一条新消息'), findsOneWidget);
       await tester.tap(find.text('您收到一条新消息'));
       expect(opens, 1);
-      await tester.tap(find.byTooltip('关闭消息提醒'));
+      expect(find.text('现在'), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsNothing);
+      await tester.fling(
+        find.byKey(const ValueKey('legacy-message-banner-card')),
+        const Offset(0, -100),
+        500,
+      );
       expect(closes, 1);
       await tester.pumpWidget(view(false));
       await tester.pumpAndSettle();

@@ -649,9 +649,12 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
           children: [
             child ?? const SizedBox.shrink(),
             Positioned(
-              top: MediaQuery.paddingOf(context).top + 10,
-              left: 12,
-              right: 12,
+              top: (100 * MediaQuery.sizeOf(context).width / 750).clamp(
+                MediaQuery.paddingOf(context).top,
+                double.infinity,
+              ),
+              left: 20 * MediaQuery.sizeOf(context).width / 750,
+              right: 20 * MediaQuery.sizeOf(context).width / 750,
               child: ForegroundMessageBanner(
                 visible: _messageNotice != null,
                 onTap: _openMessageNotice,

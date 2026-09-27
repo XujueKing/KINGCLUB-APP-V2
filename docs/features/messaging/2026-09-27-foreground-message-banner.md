@@ -19,3 +19,11 @@
 - B 保持该会话，A 发送 AB_BANNER_0927_03，B 可见新气泡，捕获的 UI 不含新消息横幅或关闭提醒按钮。
 
 相关 27 tests 与静态检查通过。本节点不改变此前普通推送频控结论。
+
+## 按旧版 CSS 还原（用户补充要求）
+
+逐项对照旧小程序 components/message-modal/index.wxss 与 wxml：content-box 宽650rpx、高110rpx，加左右30rpx/上下20rpx padding，实际外框710×150rpx；左右20rpx、top100rpx（仅在刘海安全区超过此值时避让）；圆角50rpx；背景 CSS #FFFFFF24 → Flutter 0x24FFFFFF；blur20px、黑色半透明10rpx阴影。文字24/28rpx及白色80/AA透明度，图文间20rpx、两行间8rpx。
+
+使用旧版 images/KINGCLUB.png 原图，86rpx、圆角20rpx；右侧恢复“现在”，移除上一版可见关闭图标。点击跳转、5秒自动收起继续保留，另保留上滑收起。transform/opacity均按旧版0.5秒ease。仅对超大文字做容器内缩小以免溢出，内容和路由逻辑不变。
+
+CSS 版验收：5 项既有提醒测试通过，相关静态检查无问题。A/B 覆盖安装成功，最终 APK SHA256 C6A63B72AB3B6AB7B75DE7A9FFB181CF6BE299FDC98BECDF56177A2C81900CED。A 向既有双人测试群发送一条样式验证消息，B 首页真实横幅显示原版黑底 King 图标、K聊、灰白正文、右侧“现在”，已目视检查布局及圆角，无文字下划线或溢出。设备截屏仅保留构建目录，不入 Git。
