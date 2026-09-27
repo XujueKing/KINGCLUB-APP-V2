@@ -2735,6 +2735,7 @@ class _DirectChatPageState extends State<DirectChatPage>
               decoration: const InputDecoration(
                 labelText: '金币数量',
                 helperText: '确认后转入对方账户，不能撤回',
+                helperMaxLines: 3,
               ),
             ),
           ],
