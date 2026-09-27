@@ -9,6 +9,8 @@ import 'package:kingclub/src/features/messaging/data/native_call_media.dart';
 import 'package:kingclub/src/features/messaging/data/call_foreground_lease.dart';
 
 class Track implements MediaStreamTrack {
+  @override
+  void Function()? onEnded;
   int stops = 0;
   @override
   String get id => 'local-audio';
@@ -171,6 +173,29 @@ class RestartPeer extends Peer {
 }
 
 void main() {
+  test(
+    'ended local capture closes peer once and notifies the call owner',
+    () async {
+      final stream = StreamFixture(), peer = Peer();
+      final states = <RTCPeerConnectionState>[];
+      final media = NativeCallMedia(
+        video: false,
+        iceServers: [],
+        capture: (_) async => stream,
+        peerFactory: (_) async => peer,
+        onConnection: states.add,
+      );
+      await media.open();
+      final ended = stream.track.onEnded!;
+      ended();
+      ended();
+      await media.close();
+      expect(states, [RTCPeerConnectionState.RTCPeerConnectionStateClosed]);
+      expect(peer.closes, 1);
+      expect(stream.track.stops, 1);
+      expect(stream.track.onEnded, isNull);
+    },
+  );
   for (final missing in ['audio', 'video']) {
     test(
       'missing $missing capture fails before peer setup and releases other tracks',

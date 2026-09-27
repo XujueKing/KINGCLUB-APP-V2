@@ -43,6 +43,12 @@ class StreamFixture implements rtc.MediaStream {
 }
 
 class ProducerFixture implements rtc.Producer {
+  final events = <String, Function>{};
+  @override
+  void on(String event, Function handler) {
+    events[event] = handler;
+  }
+
   ProducerFixture(this.track);
   @override
   final rtc.MediaStreamTrack track;
@@ -289,6 +295,24 @@ class Repo extends GroupCallMediaRepository {
 }
 
 void main() {
+  test('producer track end reports terminal capture failure once', () async {
+    final stream = StreamFixture(), device = DeviceFixture();
+    final errors = <Object>[];
+    final media = NativeGroupCallMedia(
+      repository: Repo(),
+      device: device,
+      capture: (_) async => stream,
+      onError: errors.add,
+    );
+    await media.open();
+    final ended = device.send.producer!.events['trackended']!;
+    ended(null);
+    ended(null);
+    await media.close();
+    expect(errors, hasLength(1));
+    expect(media.isClosed, isTrue);
+    expect(stream.track.stops, 1);
+  });
   for (final missing in ['audio', 'video']) {
     test(
       'group missing $missing releases capture and transports without publishing',

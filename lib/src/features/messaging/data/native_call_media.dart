@@ -120,6 +120,9 @@ class NativeCallMedia {
       if (video && _local!.getVideoTracks().isEmpty) {
         throw StateError('Camera track missing');
       }
+      for (final track in _local!.getTracks()) {
+        track.onEnded = _captureEnded;
+      }
       await _foregroundLease.start(video: video);
       _check();
       _peer = await _peerFactory({
@@ -170,6 +173,14 @@ class NativeCallMedia {
     } finally {
       _readingRouteStats = false;
     }
+  }
+
+  void _captureEnded() {
+    if (_closed) return;
+    // A stopped capture is terminal, unlike temporary mute or an ICE outage.
+    // Close synchronously marks the owner closed before stop() can emit again.
+    unawaited(close().catchError((Object _) {}));
+    onConnection?.call(RTCPeerConnectionState.RTCPeerConnectionStateClosed);
   }
 
   RTCPeerConnection get _ready {
@@ -400,6 +411,7 @@ class NativeCallMedia {
       try {
         for (final track in stream.getTracks()) {
           try {
+            track.onEnded = null;
             await track.stop();
           } catch (e) {
             failure ??= e;

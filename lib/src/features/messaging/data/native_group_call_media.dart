@@ -214,6 +214,11 @@ class NativeGroupCallMedia {
         _publishing.remove(track.kind);
         _check();
         _producers[track.kind!] = producer;
+        // The SDK owns track.onEnded; subscribe through its producer rather
+        // than overwriting the SDK handler. Mute is not an ended event.
+        producer.on('trackended', (_) {
+          _fail(StateError('本地音视频采集已结束'));
+        });
       }
       _check();
       onLocal?.call(stream);
