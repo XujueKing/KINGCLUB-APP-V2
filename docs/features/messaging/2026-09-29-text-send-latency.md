@@ -6,6 +6,6 @@
 
 验收覆盖快速 peer、慢 peer 不阻塞服务、服务失败但 peer 成功、取消不启动服务、迟到 peer 不产生第二次提交；真机效果以更新发送端后为准。
 
-验证：48 项相关测试通过，修改文件静态分析无问题。使用已固定审核版本的 SUPERVM-KINGCLUB-PINNED 构建原生库，Android profile 包构建成功，已覆盖安装到 A，ADB 返回 Success。iPhone 收件端无需因此重新安装。用户实际端到端延迟尚待确认，不能将有界模拟测试当作网络实测。
+验证：48 项相关测试通过，修改文件静态分析无问题。使用已固定审核版本的 SUPERVM-KINGCLUB-PINNED 构建原生库，Android profile 包构建成功，已覆盖安装到旧 B（PKL110），ADB 返回 Success。此前误认成 A，现已纠正：A（PCLM50）尚未更新。iPhone 收件端无需因此重新安装。用户实际端到端延迟尚待确认，不能将有界模拟测试当作网络实测。
 
 Device correction: user confirmed the installed Android was the old B (PKL110). A is PCLM50; current B is iPhone. A has NOT received this fix yet. At correction time adb listed no devices. Installation claims must be checked against model and serial, never inferred from there being only one connected Android.
