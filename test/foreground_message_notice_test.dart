@@ -236,6 +236,72 @@ void main() {
       expect(await resolve(r, row()), isNotNull);
     },
   );
+  test(
+    'failed local submission is retried, successful submission deduplicates',
+    () async {
+      final r = ForegroundMessageNoticeResolver();
+      var succeeds = false;
+      var attempts = 0;
+      Future<List<ForegroundMessageNotice>> recover() => r.reconcile(
+        account: 'alice',
+        valid: () => true,
+        page: (_) async => {
+          'items': [row()],
+        },
+        deliver: (_) async {
+          attempts++;
+          return succeeds;
+        },
+      );
+      expect(await recover(), isEmpty);
+      succeeds = true;
+      expect(await recover(), hasLength(1));
+      expect(await recover(), isEmpty);
+      expect(attempts, 2);
+      expect(await resolve(r, row()), isNull);
+    },
+  );
+  test(
+    'throwing live notification does not burn the unread watermark',
+    () async {
+      final r = ForegroundMessageNoticeResolver();
+      await expectLater(
+        r.resolve(
+          event: event,
+          account: 'alice',
+          valid: () => true,
+          page: (_) async => {
+            'items': [row()],
+          },
+          deliver: (_) async => throw StateError('platform unavailable'),
+        ),
+        throwsStateError,
+      );
+      expect(await resolve(r, row()), isNotNull);
+    },
+  );
+  test('late local submission cannot repopulate a reset account', () async {
+    final r = ForegroundMessageNoticeResolver();
+    final posted = Completer<bool>();
+    final started = Completer<void>();
+    final pending = r.resolve(
+      event: event,
+      account: 'alice',
+      valid: () => true,
+      page: (_) async => {
+        'items': [row()],
+      },
+      deliver: (_) {
+        started.complete();
+        return posted.future;
+      },
+    );
+    await started.future;
+    r.clear();
+    posted.complete(true);
+    expect(await pending, isNull);
+    expect(await resolve(r, row()), isNotNull);
+  });
   testWidgets(
     'legacy banner opens, dismisses and hidden overlay does not intercept',
     (tester) async {

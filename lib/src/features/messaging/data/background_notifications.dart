@@ -123,30 +123,27 @@ class BackgroundNotifications {
       });
     }
 
+    Future<bool> deliverMessage(ForegroundMessageNotice notice) => show(
+      notice.target,
+      notice.group,
+      false,
+      DateTime.now().add(const Duration(hours: 12)).millisecondsSinceEpoch,
+      const Uuid().v4(),
+      unread: notice.unread,
+    );
+
     final type = event['eventType'];
     debugPrint('ChatBackground: authorized event=$type');
     if (type == 'receiver.checkUnread') {
       try {
-        final notices = await _messages.reconcile(
+        await _messages.reconcile(
           account: repository.account,
           page: (offset) => repository
               .conversations(offset: offset)
               .timeout(const Duration(seconds: 5)),
           valid: valid,
+          deliver: deliverMessage,
         );
-        for (final notice in notices) {
-          if (!await authorized()) return;
-          await show(
-            notice.target,
-            notice.group,
-            false,
-            DateTime.now()
-                .add(const Duration(hours: 12))
-                .millisecondsSinceEpoch,
-            const Uuid().v4(),
-            unread: notice.unread,
-          );
-        }
       } catch (_) {
         // Message reconciliation failure must not suppress incoming calls.
       }
@@ -159,18 +156,9 @@ class BackgroundNotifications {
             .conversations(offset: offset)
             .timeout(const Duration(seconds: 5)),
         valid: valid,
+        deliver: deliverMessage,
       );
-      debugPrint('ChatBackground: messageEligible=${notice != null}');
-      if (notice != null) {
-        await show(
-          notice.target,
-          notice.group,
-          false,
-          DateTime.now().add(const Duration(hours: 12)).millisecondsSinceEpoch,
-          const Uuid().v4(),
-          unread: notice.unread,
-        );
-      }
+      debugPrint('ChatBackground: messageSubmitted=${notice != null}');
     }
     if (type == 'chat.call.changed' ||
         type == 'chat.group.call.changed' ||
