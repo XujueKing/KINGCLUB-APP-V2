@@ -92,6 +92,18 @@ class ChatLocalNotifications(private val context: Context) {
                             setShowBadge(true)
                         })
                     }
+                    if (Build.VERSION.SDK_INT >= 26) {
+                        val settings = manager.getNotificationChannel(channel)
+                        // notify() returns normally even when this channel is disabled.
+                        // Do not acknowledge a notification that cannot be shown.
+                        if (settings == null || settings.importance == NotificationManager.IMPORTANCE_NONE) {
+                            result.success(false); return
+                        }
+                        if (Build.VERSION.SDK_INT >= 28 && settings.group != null &&
+                            manager.getNotificationChannelGroup(settings.group)?.isBlocked == true) {
+                            result.success(false); return
+                        }
+                    }
                     val tag = prefix + value.getString("scope") + ":" +
                         value.getString("target") + ":" + value.getString("kind")
                     val intent = Intent(context, MainActivity::class.java)
