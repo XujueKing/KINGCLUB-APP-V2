@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -37,8 +38,22 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   OrderingOrderReceipt? _receipt;
   bool _busy = false, _checking = false, _ready = false;
   bool _confirmed = false;
+  bool _receiptMatchesQuote = true;
+  bool _paymentBridgeUnavailable = false;
   String? _message;
   Timer? _timer;
+  String? get _creationBlockReason {
+    if (widget.quote.orderingContext!.paymentTiming != 'prepay') {
+      return '当前版本尚未开放后付费下单，请联系门店处理。';
+    }
+    if (kIsWeb ||
+        defaultTargetPlatform != TargetPlatform.android ||
+        _paymentBridgeUnavailable) {
+      return '当前设备尚未开放微信付款；已有订单可继续查询，请勿重复下单。';
+    }
+    return null;
+  }
+
   int get _total =>
       widget.quote.items.fold(0, (sum, item) => sum + item.subtotalCents);
   String _money(int cents) => (cents / 100).toStringAsFixed(2);
@@ -52,6 +67,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   Future<void> _restore() async {
     try {
       final session = await widget.repository.readSession();
+      if (!mounted) return;
       final account = session?['account'];
       if (account is! Map || account['userAccount'] is! String) {
         throw const AuthFailure('SESSION_EXPIRED', '请重新登录');
@@ -71,43 +87,59 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
             .toList(),
       );
       final saved = await _storage.read(key: _storageKey!);
+      if (!mounted) return;
       if (saved != null) {
         final value = jsonDecode(saved);
-        if (value is Map &&
-            value['scope'] == _scope &&
-            value['requestId'] is String) {
-          _requestId = value['requestId'];
+        if (value is! Map || value['requestId'] is! String) {
+          throw const FormatException('Invalid pending order');
         }
-        if (value is Map && value['requestId'] is String) {
-          _receipt = value['orderRef'] is String
-              ? await widget.repository.owned(
-                  context: widget.quote.orderingContext!,
-                  orderRef: value['orderRef'],
-                )
-              : await widget.repository.findByRequest(
-                  context: widget.quote.orderingContext!,
-                  requestId: value['requestId'],
-                );
-          if (_receipt == null) {
+        _receiptMatchesQuote = value['scope'] == _scope;
+        _requestId = value['requestId'];
+        _receipt = value['orderRef'] is String
+            ? await widget.repository.owned(
+                context: widget.quote.orderingContext!,
+                orderRef: value['orderRef'],
+              )
+            : await widget.repository.findByRequest(
+                context: widget.quote.orderingContext!,
+                requestId: value['requestId'],
+              );
+        if (!mounted) return;
+        if (_receipt == null) {
+          // A lost submission response must keep its idempotency key.
+          // A different basket is allowed only after the server found no order.
+          if (!_receiptMatchesQuote) {
             await _storage.delete(key: _storageKey!);
             _requestId = const Uuid().v4();
-            if (mounted) setState(() => _ready = true);
-            return;
+            _receiptMatchesQuote = true;
           }
-          if (_receipt!.status == 'paid' || _receipt!.status == 'expired') {
-            await _storage.delete(key: _storageKey!);
-            _receipt = null;
-            _requestId = const Uuid().v4();
-          } else if (value['scope'] != _scope) {
-            _message = '此桌还有一笔待付款订单，请先确认该订单状态，再重新选购。';
-            _ready = false;
-            if (mounted) setState(() {});
-            _startPolling();
-            return;
+          if (mounted) {
+            setState(() {
+              _message = _creationBlockReason;
+              _ready = _message == null;
+            });
           }
+          return;
+        }
+        if (_receipt!.status == 'paid' || _receipt!.status == 'expired') {
+          // Keep the terminal receipt on screen. Never turn a paid order into
+          // a fresh request just because its confirmation arrived while away.
+          _applyReceipt(_receipt!);
+          await _storage.delete(key: _storageKey!);
+          return;
+        } else if (!_receiptMatchesQuote) {
+          _message = '此桌还有一笔待付款订单，请先确认该订单状态，再重新选购。';
+          _ready = false;
+          if (mounted) setState(() {});
+          _startPolling();
+          return;
         }
       }
-      if (mounted) setState(() => _ready = true);
+      if (!mounted) return;
+      setState(() {
+        _message = _creationBlockReason;
+        _ready = _message == null;
+      });
       if (_receipt != null) _startPolling();
     } catch (_) {
       if (mounted) setState(() => _message = '暂时无法恢复订单，请返回后重试');
@@ -126,7 +158,26 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   }
 
   void _startPolling() {
+    if (!mounted) return;
     _timer ??= Timer.periodic(const Duration(seconds: 4), (_) => _refresh());
+  }
+
+  void _applyReceipt(OrderingOrderReceipt receipt) {
+    if (!mounted) return;
+    setState(() {
+      _receipt = receipt;
+      if (receipt.status == 'paid') {
+        _message = _receiptMatchesQuote
+            ? '支付成功，订单已提交门店'
+            : '此前订单已支付，当前购物车未改动，请返回后重新确认选购。';
+      } else if (receipt.status == 'expired') {
+        _message = '订单已关闭，请返回重新选购；如已扣款请联系门店核对。';
+      }
+    });
+    if (receipt.status == 'paid' && _receiptMatchesQuote && !_confirmed) {
+      _confirmed = true;
+      widget.quote.onPaymentConfirmed?.call();
+    }
   }
 
   @override
@@ -149,18 +200,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         orderRef: _receipt!.orderRef,
       );
       if (!mounted) return;
-      setState(() {
-        _receipt = next;
-        if (next.status == 'paid') {
-          _message = '支付成功，订单已提交门店';
-        } else if (next.status == 'expired') {
-          _message = '订单已关闭，未扣款的库存已释放';
-        }
-      });
-      if (next.status == 'paid' && !_confirmed) {
-        _confirmed = true;
-        widget.quote.onPaymentConfirmed?.call();
-      }
+      _applyReceipt(next);
       if (next.status == 'paid' || next.status == 'expired') {
         _timer?.cancel();
         _timer = null;
@@ -174,7 +214,14 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   }
 
   Future<void> _pay() async {
-    if (_busy || !_ready) return;
+    if (_busy ||
+        !_ready ||
+        !_receiptMatchesQuote ||
+        _creationBlockReason != null ||
+        _receipt?.status == 'paid' ||
+        _receipt?.status == 'expired') {
+      return;
+    }
     setState(() {
       _busy = true;
       _message = null;
@@ -220,6 +267,14 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       }
     } on AuthFailure catch (error) {
       if (mounted) setState(() => _message = error.message);
+    } on MissingPluginException catch (_) {
+      if (mounted) {
+        setState(() {
+          _paymentBridgeUnavailable = true;
+          _ready = false;
+          _message = _creationBlockReason;
+        });
+      }
     } on PlatformException catch (_) {
       if (mounted) setState(() => _message = '微信未能调起，请检查微信安装及应用支付配置');
     } catch (_) {
@@ -309,90 +364,96 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                       line('桌号', widget.quote.orderingContext!.tableName),
                       if (_receipt != null) line('订单号', _receipt!.orderRef),
                     ]),
-                    card([
-                      const Text('商品明细'),
-                      for (final item in items)
-                        Container(
-                          padding: EdgeInsets.symmetric(vertical: r(20)),
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(color: Color(0x16000000)),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: r(76),
-                                height: r(120),
-                                child: item.catalogProduct?.thumbnailUrl != null
-                                    ? CachedMediaImage(
-                                        item.catalogProduct!.thumbnailUrl!,
-                                        contentKey:
-                                            item.catalogProduct!.imageCacheKey,
-                                        private: true,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (_, _, _) => const Icon(
-                                          Icons.local_bar_outlined,
-                                        ),
-                                      )
-                                    : item.asset.isNotEmpty
-                                    ? Image.asset(
-                                        item.asset,
-                                        fit: BoxFit.contain,
-                                      )
-                                    : const Icon(Icons.local_bar_outlined),
+                    if (!_receiptMatchesQuote)
+                      card([const Text('当前显示此前订单的状态；当前购物车不是该订单明细。')]),
+                    if (_receiptMatchesQuote)
+                      card([
+                        const Text('商品明细'),
+                        for (final item in items)
+                          Container(
+                            padding: EdgeInsets.symmetric(vertical: r(20)),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: Color(0x16000000)),
                               ),
-                              SizedBox(width: r(28)),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                            ),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: r(76),
+                                  height: r(120),
+                                  child:
+                                      item.catalogProduct?.thumbnailUrl != null
+                                      ? CachedMediaImage(
+                                          item.catalogProduct!.thumbnailUrl!,
+                                          contentKey: item
+                                              .catalogProduct!
+                                              .imageCacheKey,
+                                          private: true,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, _, _) => const Icon(
+                                            Icons.local_bar_outlined,
+                                          ),
+                                        )
+                                      : item.asset.isNotEmpty
+                                      ? Image.asset(
+                                          item.asset,
+                                          fit: BoxFit.contain,
+                                        )
+                                      : const Icon(Icons.local_bar_outlined),
+                                ),
+                                SizedBox(width: r(28)),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.name,
+                                        style: TextStyle(fontSize: r(30)),
+                                      ),
+                                      Text(
+                                        item.detail,
+                                        style: TextStyle(fontSize: r(22)),
+                                      ),
+                                      Text(
+                                        '单价 ¥${_money(item.unitPriceCents ?? item.unitPrice * 100)}',
+                                        style: TextStyle(fontSize: r(22)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(width: r(12)),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      item.name,
-                                      style: TextStyle(fontSize: r(30)),
+                                      '数量 × ${item.quantity}',
+                                      style: TextStyle(fontSize: r(24)),
                                     ),
                                     Text(
-                                      item.detail,
-                                      style: TextStyle(fontSize: r(22)),
-                                    ),
-                                    Text(
-                                      '单价 ¥${_money(item.unitPriceCents ?? item.unitPrice * 100)}',
-                                      style: TextStyle(fontSize: r(22)),
+                                      '¥${_money(item.subtotalCents)}',
+                                      style: TextStyle(fontSize: r(32)),
                                     ),
                                   ],
                                 ),
-                              ),
-                              SizedBox(width: r(12)),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    '数量 × ${item.quantity}',
-                                    style: TextStyle(fontSize: r(24)),
-                                  ),
-                                  Text(
-                                    '¥${_money(item.subtotalCents)}',
-                                    style: TextStyle(fontSize: r(32)),
-                                  ),
-                                ],
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      if (allItems.length > 3)
-                        TextButton(
-                          onPressed: () =>
-                              setState(() => _expanded = !_expanded),
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0x90000000),
+                        if (allItems.length > 3)
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => _expanded = !_expanded),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0x90000000),
+                            ),
+                            child: Text(
+                              '${_expanded ? '收起' : '展开'}更多（共${widget.quote.itemCount}件商品）',
+                            ),
                           ),
-                          child: Text(
-                            '${_expanded ? '收起' : '展开'}更多（共${widget.quote.itemCount}件商品）',
-                          ),
-                        ),
-                      SizedBox(height: r(24)),
-                      line('商品总价', '¥${_money(_total)}'),
-                    ]),
+                        SizedBox(height: r(24)),
+                        line('商品总价', '¥${_money(_total)}'),
+                      ]),
                     card([
                       Row(
                         children: [
