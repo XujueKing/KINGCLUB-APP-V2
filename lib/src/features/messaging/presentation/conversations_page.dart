@@ -1603,12 +1603,14 @@ class _ConversationContent extends StatelessWidget {
   final bool system, inactive, muted, pinned;
   @override
   Widget build(BuildContext context) {
-    final r = MediaQuery.sizeOf(context).width / 750;
+    final width = MediaQuery.sizeOf(context).width;
+    final r = width / 750;
+    final lineInset = width * .05 + 2;
     return Stack(
       children: [
         Container(
           height: 140 * r,
-          padding: EdgeInsets.only(left: 40 * r, right: 50 * r),
+          padding: EdgeInsets.only(left: 40 * r, right: lineInset),
           child: Row(
             children: [
               SizedBox(
@@ -1691,6 +1693,7 @@ class _ConversationContent extends StatelessWidget {
                         ),
                         SizedBox(width: 10 * r),
                         Flexible(
+                          fit: FlexFit.tight,
                           child: Text(
                             date,
                             textAlign: TextAlign.right,
@@ -1745,12 +1748,12 @@ class _ConversationContent extends StatelessWidget {
           ),
         ),
         Positioned(
-          left: 0,
-          right: 0,
+          left: lineInset,
+          right: lineInset,
           bottom: 0,
           child: Center(
             child: SizedBox(
-              width: MediaQuery.sizeOf(context).width * .9 - 4,
+              width: double.infinity,
               height: .5,
               child: ColoredBox(
                 color: pinned
