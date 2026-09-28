@@ -11,10 +11,15 @@ class ChatBubbleTail extends CustomPainter {
     final edge = mine ? size.width : 0.0;
     final direction = mine ? 1.0 : -1.0;
     final path = Path()
-      ..moveTo(edge - direction * 0.5, 15)
-      ..lineTo(edge + direction * 6, 21)
-      ..quadraticBezierTo(edge + direction * 6.7, 22, edge + direction * 6, 23)
-      ..lineTo(edge - direction * 0.5, 29)
+      ..moveTo(edge - direction * 0.5, 17.5)
+      ..lineTo(edge + direction * 4, 21.5)
+      ..quadraticBezierTo(
+        edge + direction * 4.4,
+        22,
+        edge + direction * 4,
+        22.5,
+      )
+      ..lineTo(edge - direction * 0.5, 26.5)
       ..close();
     canvas.drawPath(path, Paint()..color = color);
   }

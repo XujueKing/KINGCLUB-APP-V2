@@ -1195,14 +1195,16 @@ class _DirectChatPageState extends State<DirectChatPage>
     };
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: const Color(0xFF191919),
+      backgroundColor: const Color(0xFF101010),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
             LegacyMessagingHeader(
-              backgroundColor: const Color(0xFF191919),
+              backgroundColor: const Color(0xFF101010),
               alignToConversationTitle: true,
+              lineColor: const Color(0x1CC9B69E),
+              lineWidth: .5,
               title: _displayPeerName,
               onBack: () => Navigator.pop(context),
               trailing: IconButton(
@@ -3758,13 +3760,13 @@ class _MessageRow extends StatelessWidget {
     return Column(
       children: [
         Align(
-          alignment: Alignment.centerRight,
+          alignment: Alignment.center,
           child: Padding(
             key: ValueKey('chat-timestamp-${message.messageId}'),
-            padding: const EdgeInsets.only(bottom: 12, right: 52),
+            padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               label,
-              textAlign: TextAlign.right,
+              textAlign: TextAlign.center,
               style: const TextStyle(color: Color(0xFF888888), fontSize: 11),
             ),
           ),

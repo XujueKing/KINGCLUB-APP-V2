@@ -1,3 +1,4 @@
+import 'chat_timestamp.dart';
 import '../data/chat_outbox.dart';
 import '../data/pending_conversation_rows.dart';
 import '../data/chat_text_draft_store.dart';
@@ -880,11 +881,7 @@ class _ConversationsPageState extends State<ConversationsPage>
         ((item['remark'] as String?)?.isNotEmpty == true
             ? item['remark'] as String
             : item['nickname'] as String? ?? target);
-    final time = DateTime.tryParse(item['messageDate'] as String? ?? '')
-        ?.toLocal();
-    final date = time == null
-        ? ''
-        : '${time.month}/${time.day} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    final date = conversationTimestampLabel(item['messageDate'] as String?);
     return _FriendConversation(
       avatar: group
           ? GroupChatAvatar(repository: _repository!, groupId: target)
@@ -1696,10 +1693,11 @@ class _ConversationContent extends StatelessWidget {
                         Flexible(
                           child: Text(
                             date,
+                            textAlign: TextAlign.right,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: const Color(0x66FFFFFF),
+                              color: const Color(0xFF666666),
                               fontSize: 24 * r,
                             ),
                           ),

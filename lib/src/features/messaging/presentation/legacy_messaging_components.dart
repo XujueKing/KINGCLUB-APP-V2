@@ -50,6 +50,8 @@ class LegacyMessagingHeader extends StatelessWidget {
     this.trailing,
     this.backgroundColor = Colors.black,
     this.alignToConversationTitle = false,
+    this.lineColor = legacyMessageLine,
+    this.lineWidth = 1,
   });
 
   final String title;
@@ -57,6 +59,8 @@ class LegacyMessagingHeader extends StatelessWidget {
   final Widget? trailing;
   final Color backgroundColor;
   final bool alignToConversationTitle;
+  final Color lineColor;
+  final double lineWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +69,9 @@ class LegacyMessagingHeader extends StatelessWidget {
       height: 56,
       decoration: BoxDecoration(
         color: backgroundColor,
-        border: const Border(bottom: BorderSide(color: legacyMessageLine)),
+        border: Border(
+          bottom: BorderSide(color: lineColor, width: lineWidth),
+        ),
       ),
       child: Stack(
         alignment: Alignment.center,
