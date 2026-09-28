@@ -11,19 +11,21 @@ void main() {
     final now = DateTime(2026, 9, 16, 12);
     String? label(String? current, [String? previous]) =>
         chatTimestampLabel(current, previous, now: now);
-    expect(label('2026-09-16T10:03:00'), '今天 10:03');
+    expect(label('2026-09-16T10:03:00'), '10:03');
     expect(label('2026-09-16T10:04:59', '2026-09-16T10:00:00'), isNull);
-    expect(label('2026-09-16T10:05:00', '2026-09-16T10:00:00'), '今天 10:05');
-    expect(label('2026-09-16T00:00:01', '2026-09-15T23:59:59'), '今天 00:00');
+    expect(label('2026-09-16T10:05:00', '2026-09-16T10:00:00'), '10:05');
+    expect(label('2026-09-16T00:00:01', '2026-09-15T23:59:59'), '00:00');
     expect(label('2026-09-15T23:59:59'), '昨天 23:59');
-    expect(label('2026-09-12T09:08:00'), '9月12日 09:08');
+    expect(label('2026-09-12T09:08:00'), '周六 09:08');
+    expect(label('2026-09-10T09:08:00'), '周四 09:08');
+    expect(label('2026-09-09T09:08:00'), '9月9日 09:08');
     expect(label('2025-09-12T09:08:00'), '2025年9月12日 09:08');
     expect(label(null), isNull);
     expect(label('invalid'), isNull);
-    expect(label('2026-09-16T10:03:00', 'invalid'), '今天 10:03');
+    expect(label('2026-09-16T10:03:00', 'invalid'), '10:03');
     expect(
       label(DateTime(2026, 9, 16, 10, 3).toUtc().toIso8601String()),
-      '今天 10:03',
+      '10:03',
     );
   });
   testWidgets(
@@ -66,6 +68,10 @@ void main() {
       expect(find.text('2020年1月2日 10:00'), findsOneWidget);
       expect(find.text('2020年1月2日 10:01'), findsNothing);
       expect(find.text('2020年1月2日 10:07'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('2020年1月2日 10:07')).textAlign,
+        TextAlign.right,
+      );
       expect(
         tester.getTopLeft(find.text('2020年1月2日 10:07')).dy,
         lessThan(tester.getTopLeft(find.text('message 2')).dy),

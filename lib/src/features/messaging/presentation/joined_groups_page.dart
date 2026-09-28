@@ -8,6 +8,7 @@ import '../data/group_chat_repository.dart';
 import '../data/group_directory_store.dart';
 import '../data/messaging_repository.dart';
 import 'direct_chat_page.dart';
+import 'group_chat_avatar.dart';
 import 'legacy_messaging_components.dart';
 
 class JoinedGroupsPage extends StatefulWidget {
@@ -224,9 +225,9 @@ class _JoinedGroupsPageState extends State<JoinedGroupsPage>
                   final row = _items[index];
                   return ListTile(
                     key: ValueKey(row['groupId']),
-                    leading: const Icon(
-                      Icons.groups_outlined,
-                      color: Color(0xFFC9B69E),
+                    leading: GroupChatAvatar(
+                      repository: _repository!.messaging,
+                      groupId: row['groupId'] as String,
                     ),
                     title: Text(
                       row['groupName'] as String,

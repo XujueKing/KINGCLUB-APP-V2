@@ -15,9 +15,19 @@ String? chatTimestampLabel(String? date, String? previous, {DateTime? now}) {
   final time =
       '${current.hour.toString().padLeft(2, '0')}:'
       '${current.minute.toString().padLeft(2, '0')}';
-  if (sameDay(current, today)) return '今天 $time';
+  if (sameDay(current, today)) return time;
   final yesterday = DateTime(today.year, today.month, today.day - 1);
   if (sameDay(current, yesterday)) return '昨天 $time';
+  // Calendar dates avoid daylight-saving days being 23 or 25 hours long.
+  final age = DateTime.utc(
+    today.year,
+    today.month,
+    today.day,
+  ).difference(DateTime.utc(current.year, current.month, current.day)).inDays;
+  if (age >= 2 && age < 7) {
+    const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    return '${weekdays[current.weekday - 1]} $time';
+  }
   final year = current.year == today.year ? '' : '${current.year}年';
   return '$year${current.month}月${current.day}日 $time';
 }
