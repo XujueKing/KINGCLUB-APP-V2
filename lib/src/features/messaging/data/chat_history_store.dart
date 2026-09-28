@@ -26,6 +26,7 @@ part 'chat_history_deferred_cleanup.dart';
 part 'chat_history_replies.dart';
 part 'chat_history_draft_migration.dart';
 part 'chat_history_search.dart';
+part 'chat_history_device_receipts.dart';
 
 class ChatHistoryPage {
   const ChatHistoryPage(
@@ -176,8 +177,9 @@ class ChatHistoryStore {
     final db = await factory.openDatabase(
       file,
       options: OpenDatabaseOptions(
-        version: 24,
+        version: 25,
         onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 25) await _createDeviceReceipts(db);
           if (oldVersion < 24) await _createFriendRequestSnapshot(db);
           if (oldVersion < 23) {
             await db.execute(
@@ -254,6 +256,7 @@ class ChatHistoryStore {
           if (oldVersion < 20) await _sanitizeLegacyReplies(db, key, account);
         },
         onCreate: (db, _) async {
+          await _createDeviceReceipts(db);
           await _createFriendRequestSnapshot(db);
           await _createVisibilityChecks(db);
           await _createDeferredMediaCleanup(db);
@@ -915,6 +918,9 @@ class ChatHistoryStore {
         );
       }
       await batch.commit(noResult: true);
+      // Same SQLite transaction as encrypted messages: never acknowledge a
+      // download whose local write rolled back or lost the clear-history race.
+      await _queueDeviceReceipts(tx, conversation, id, messages);
       if (recordOutgoingHead) {
         for (final message in messages) {
           if ((message['sequence'] as int) > floor) {

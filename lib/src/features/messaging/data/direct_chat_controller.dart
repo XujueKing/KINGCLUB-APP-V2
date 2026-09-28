@@ -505,6 +505,7 @@ class DirectChatController extends ChatSessionController {
         throw StateError('聊天记录已清空，请重新同步');
       }
     }
+    unawaited(repository.flushSavedHistory());
     if (hidden is int) {
       if (hidden > _hiddenThrough) _hiddenThrough = hidden;
       _confirmed.removeWhere(
@@ -575,6 +576,7 @@ class DirectChatController extends ChatSessionController {
       }
       if (_disposed || generation != _historyGeneration) return;
     }
+    unawaited(repository.flushSavedHistory());
     final id = message['messageId'] as String;
     if ((message['sequence'] as int) > _hiddenThrough) {
       _confirmed[id] = {...message, 'status': 'sent'};

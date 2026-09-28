@@ -442,7 +442,7 @@ void main() {
     final inspected = await databaseFactoryFfi.openDatabase(
       '${dir.path}/history.db',
     );
-    expect(await inspected.getVersion(), 24);
+    expect(await inspected.getVersion(), 25);
     final jobs = await inspected.query('conversation_visibility_checks');
     expect(jobs, hasLength(1));
     expect(jobs.single['target'], isNot(contains('private-peer-marker')));
@@ -602,7 +602,7 @@ void main() {
     }
     await store.close();
     raw = await databaseFactoryFfi.openDatabase('${dir.path}/history.db');
-    expect(await raw.getVersion(), 24);
+    expect(await raw.getVersion(), 25);
     final after = await raw.query('message', orderBy: 'sequence');
     for (var i = 0; i < 60; i++) {
       if (i == 0 || i == 54) continue;

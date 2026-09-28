@@ -1,4 +1,5 @@
 import 'chat_video.dart';
+import 'device_history_receipts.dart';
 
 import 'dart:async';
 
@@ -74,6 +75,10 @@ class MessagingRepository {
   final String account;
   final ChatApiCall call;
 
+  Future<void> flushSavedHistory() => persistHistory
+      ? flushDeviceHistoryReceipts(account, call)
+      : Future<void>.value();
+
   Future<Map<String, dynamic>> avatarProfile(String peer) {
     Future<Map<String, dynamic>> fetch() => peer == account
         ? call('K260912000501', {})
@@ -83,7 +88,9 @@ class MessagingRepository {
         : fetch();
   }
 
-  static Future<MessagingRepository> open({bool installMediaRuntime = true}) async {
+  static Future<MessagingRepository> open({
+    bool installMediaRuntime = true,
+  }) async {
     final store = SecureSessionStore();
     final session = await store.readSession();
     final account = (session?['account'] as Map?)?['userAccount'];
@@ -292,6 +299,7 @@ class MessagingRepository {
   }
 
   Future<void> retryPendingReads({required bool Function() isActive}) async {
+    if (isActive()) unawaited(flushSavedHistory());
     for (final queue in [readOutbox, groupReadOutbox]) {
       if (!isActive()) return;
       if (queue == null) continue;

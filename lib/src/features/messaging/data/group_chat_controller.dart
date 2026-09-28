@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'chat_message_receipt.dart';
 import 'chat_video.dart';
 import 'chat_history_store.dart';
@@ -455,6 +457,7 @@ class GroupChatController extends ChatSessionController {
       if (_disposed || generation != _historyGeneration) return;
       if (!committed) throw StateError('群历史状态已变化，请重新进入');
     }
+    unawaited(repository.messaging.flushSavedHistory());
     _confirmed.removeWhere(
       (_, message) => (message['sequence'] as num).toInt() <= _visibleAfter,
     );
@@ -515,6 +518,7 @@ class GroupChatController extends ChatSessionController {
     if (message['groupId'] != groupId) {
       throw const FormatException('Wrong group message');
     }
+    unawaited(repository.messaging.flushSavedHistory());
     final id = message['messageId'] as String;
     if ((message['sequence'] as num).toInt() > _visibleAfter) {
       _confirmed[id] = {...message, 'status': 'sent'};
