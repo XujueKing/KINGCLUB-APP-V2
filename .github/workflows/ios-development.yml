@@ -37,6 +37,7 @@ jobs:
         run: >-
           flutter build ipa --release
           --dart-define=KINGCLUB_API_BASE_URL=https://test.wuyexin.cn/kingclub-v2
+          --dart-define=KINGCLUB_IOS_WECHAT_PAYMENT=true
           --export-options-plist="$RUNNER_TEMP/kingclub-signing/ExportOptions.plist"
       - name: Encrypt package before storing artifact
         env:
