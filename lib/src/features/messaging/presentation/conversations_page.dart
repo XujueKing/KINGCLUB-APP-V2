@@ -2,6 +2,7 @@ import '../data/chat_outbox.dart';
 import '../data/pending_conversation_rows.dart';
 import '../data/chat_text_draft_store.dart';
 import 'chat_member_avatar.dart';
+import 'group_chat_avatar.dart';
 import 'conversation_draft_preview.dart';
 import '../data/group_chat_repository.dart';
 import '../data/chat_history_store.dart';
@@ -886,7 +887,7 @@ class _ConversationsPageState extends State<ConversationsPage>
         : '${time.month}/${time.day} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
     return _FriendConversation(
       avatar: group
-          ? const Icon(Icons.groups, color: Color(0xFFC9B69E), size: 32)
+          ? GroupChatAvatar(repository: _repository!, groupId: target)
           : ChatMemberAvatar(
               account: target,
               profile: cachedChatAvatarProfile(

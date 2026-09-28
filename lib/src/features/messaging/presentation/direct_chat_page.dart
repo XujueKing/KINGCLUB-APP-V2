@@ -5,6 +5,7 @@ import 'chat_route_presence.dart';
 import '../data/chat_outbox_recovery.dart';
 import '../data/chat_call_history.dart';
 import 'chat_timestamp.dart';
+import 'chat_bubble_tail.dart';
 import '../data/call_presentation_lease.dart';
 import 'message_voice_transcription_page.dart';
 import 'voice_transcription_page.dart';
@@ -1106,16 +1107,21 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   void _onRealScroll() {
     _markRealRead();
-    final chat = _chat;
-    if (chat == null ||
-        _loadingOlder ||
-        !chat.hasOlder ||
+    if (!_scrollController.hasClients ||
         _scrollController.position.extentAfter > 32) {
       return;
     }
-    _loadingOlder = true;
+    _loadOlderPage();
+  }
+
+  void _loadOlderPage() {
+    final chat = _chat;
+    if (chat == null || _loadingOlder || !chat.hasOlder) {
+      return;
+    }
+    setState(() => _loadingOlder = true);
     chat.loadOlder().whenComplete(() {
-      _loadingOlder = false;
+      if (mounted) setState(() => _loadingOlder = false);
     });
   }
 
@@ -1189,12 +1195,13 @@ class _DirectChatPageState extends State<DirectChatPage>
     };
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF191919),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
             LegacyMessagingHeader(
+              backgroundColor: const Color(0xFF191919),
               alignToConversationTitle: true,
               title: _displayPeerName,
               onBack: () => Navigator.pop(context),
@@ -1252,7 +1259,33 @@ class _DirectChatPageState extends State<DirectChatPage>
                   itemBuilder: (context, index) {
                     if (index == _messages.length) {
                       if (_realTarget != null) {
-                        return const SizedBox.shrink();
+                        if (_chat?.hasOlder != true && !_loadingOlder) {
+                          return const SizedBox.shrink();
+                        }
+                        return SizedBox(
+                          height: 36,
+                          child: Center(
+                            child: _loadingOlder
+                                ? const Text(
+                                    '正在加载更早的消息',
+                                    style: TextStyle(
+                                      color: Color(0xFF888888),
+                                      fontSize: 11,
+                                    ),
+                                  )
+                                : TextButton(
+                                    key: const ValueKey('chat-load-older'),
+                                    onPressed: _loadOlderPage,
+                                    child: const Text(
+                                      '查看更早的消息',
+                                      style: TextStyle(
+                                        color: Color(0xFF888888),
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        );
                       }
                       return const Padding(
                         padding: EdgeInsets.only(bottom: 12),
@@ -3724,13 +3757,16 @@ class _MessageRow extends StatelessWidget {
     if (label == null) return _buildContent(context);
     return Column(
       children: [
-        Padding(
-          key: ValueKey('chat-timestamp-${message.messageId}'),
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF8A8178), fontSize: 12),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            key: ValueKey('chat-timestamp-${message.messageId}'),
+            padding: const EdgeInsets.only(bottom: 12, right: 52),
+            child: Text(
+              label,
+              textAlign: TextAlign.right,
+              style: const TextStyle(color: Color(0xFF888888), fontSize: 11),
+            ),
           ),
         ),
         _buildContent(context),
@@ -3770,6 +3806,7 @@ class _MessageRow extends StatelessWidget {
                 : MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (message.mine) const SizedBox(width: 52),
               if (!message.mine) ...[
                 GestureDetector(
                   onTap: onAvatarTap,
@@ -3798,46 +3835,56 @@ class _MessageRow extends StatelessWidget {
                     GestureDetector(
                       onLongPress: onLongPress,
                       onTap: onTap,
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 280),
-                        padding: isVisualCard
-                            ? EdgeInsets.zero
-                            : const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
+                      child: CustomPaint(
+                        painter: isVisualCard
+                            ? null
+                            : ChatBubbleTail(
+                                mine: message.mine,
+                                color: message.mine
+                                    ? const Color(0xFF29B463)
+                                    : const Color(0xFF303030),
                               ),
-                        decoration: BoxDecoration(
-                          color: isVisualCard
-                              ? Colors.transparent
-                              : message.mine
-                              ? const Color(0xFF29B463)
-                              : const Color(0x33C9B69E),
-                          borderRadius: BorderRadius.circular(7),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (message.quoted != null) ...[
-                              GestureDetector(
-                                key: ValueKey(
-                                  'chat-reply-${message.messageId}',
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 280),
+                          padding: isVisualCard
+                              ? EdgeInsets.zero
+                              : const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
                                 ),
-                                behavior: HitTestBehavior.opaque,
-                                onTap: onQuoteTap,
-                                child: Text(
-                                  message.quoted!,
-                                  style: TextStyle(
-                                    color: message.mine
-                                        ? const Color(0x99111111)
-                                        : const Color(0x99C9B69E),
-                                    fontSize: 11,
+                          decoration: BoxDecoration(
+                            color: isVisualCard
+                                ? Colors.transparent
+                                : message.mine
+                                ? const Color(0xFF29B463)
+                                : const Color(0xFF303030),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (message.quoted != null) ...[
+                                GestureDetector(
+                                  key: ValueKey(
+                                    'chat-reply-${message.messageId}',
+                                  ),
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: onQuoteTap,
+                                  child: Text(
+                                    message.quoted!,
+                                    style: TextStyle(
+                                      color: message.mine
+                                          ? const Color(0x99111111)
+                                          : const Color(0x99C9B69E),
+                                      fontSize: 11,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 5),
+                                const SizedBox(height: 5),
+                              ],
+                              imageContent ?? _MessageContent(message: message),
                             ],
-                            imageContent ?? _MessageContent(message: message),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -3851,6 +3898,7 @@ class _MessageRow extends StatelessWidget {
                   child: avatar ?? const LegacyFakeAvatar(size: 42),
                 ),
               ],
+              if (!message.mine) const SizedBox(width: 52),
             ],
           ),
           if (message.status == _FakeMessageStatus.failed)

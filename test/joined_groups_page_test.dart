@@ -40,7 +40,8 @@ void main() {
           repository: GroupChatRepository(
             MessagingRepository(
               account: 'A',
-              call: (_, _) {
+              call: (id, _) {
+                if (id == 'K260913000619') return Future.value({'members': []});
                 reads++;
                 if (reads == 1) return old.future;
                 return Future.value({
@@ -80,6 +81,7 @@ void main() {
             MessagingRepository(
               account: 'A',
               call: (id, params) {
+                if (id == 'K260913000619') return Future.value({'members': []});
                 expect(id, 'K260913000618');
                 return response.future;
               },
@@ -111,6 +113,7 @@ void main() {
             MessagingRepository(
               account: 'A',
               call: (id, params) async {
+                if (id == 'K260913000619') return {'members': []};
                 reads++;
                 if (reads == 1) {
                   return {
