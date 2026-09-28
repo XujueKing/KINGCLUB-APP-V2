@@ -62,6 +62,8 @@ import '../features/onboarding/presentation/style_music_preferences_page.dart';
 import '../features/onboarding/data/real_identity_repository.dart';
 import '../features/scanner/presentation/safe_scanner_page.dart';
 import '../features/shell/presentation/app_shell_page.dart';
+import 'live_feature_gate.dart';
+import 'unavailable_feature_page.dart';
 
 part 'app_router.g.dart';
 
@@ -179,11 +181,47 @@ GoRouter appRouter(Ref ref) {
   );
   final router = GoRouter(
     initialLocation: previewLocation,
-    routes: $appRoutes,
+    routes: [
+      ...$appRoutes,
+      GoRoute(
+        path: '/feature-unavailable',
+        pageBuilder: (context, state) => MaterialPage<void>(
+          key: state.pageKey,
+          allowSnapshotting: false,
+          child: UnavailableFeaturePage(
+            feature: UnavailableLiveFeature.values.firstWhere(
+              (feature) => feature.name == state.uri.queryParameters['feature'],
+              orElse: () => UnavailableLiveFeature.ordering,
+            ),
+            onBack: () => context.canPop()
+                ? context.pop()
+                : const AppShellRoute().go(context),
+          ),
+        ),
+      ),
+    ],
     observers: [welcomeMediaRouteObserver],
     redirect: (context, state) {
       final realMode = ref.read(authRepositoryProvider) is RealAuthRepository;
       final member = ref.read(authenticatedMemberProvider);
+      // Guard before constructing typed routes (including direct/deep links).
+      // Real builds must not fall back to demo business even before login loads.
+      final blocked = unavailableLiveFeature(
+        state.uri,
+        liveMode:
+            kingclubApiBaseUrl.isNotEmpty ||
+            realMode ||
+            member?.isRealSession == true,
+        hasLiveOrderingContext:
+            state.extra is FakeOrderingQuote &&
+            (state.extra as FakeOrderingQuote).orderingContext != null,
+      );
+      if (blocked != null) {
+        return Uri(
+          path: '/feature-unavailable',
+          queryParameters: {'feature': blocked.name},
+        ).toString();
+      }
       if (realMode &&
           member != null &&
           (member.canEnterApp ||
