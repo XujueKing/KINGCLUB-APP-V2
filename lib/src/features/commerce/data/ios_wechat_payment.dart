@@ -5,7 +5,7 @@ import 'package:fluwx/fluwx.dart';
 class IosWechatPayment {
   static const enabled = bool.fromEnvironment('KINGCLUB_IOS_WECHAT_PAYMENT');
   static const appId = 'wxc6428fd9a2133384';
-  static const universalLink = 'https://www.wuyexin.cn/';
+  static const universalLink = 'https://www.wuyexin.cn/app/';
   static final Fluwx _sdk = Fluwx();
 
   static Future<bool> prepare() async {
