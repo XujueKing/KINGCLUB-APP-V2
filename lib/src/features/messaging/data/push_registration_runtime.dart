@@ -22,11 +22,13 @@ class PushRegistrationRuntime {
     required this.register,
     required this.call,
     this.requestNotificationPermission,
+    this.registrationProvider,
     this.retryDelay = const Duration(seconds: 15),
   });
   final Future<PushSession?> Function() readSession;
   final Future<String> Function() register;
   final PushCall call;
+  final String Function()? registrationProvider;
   final Future<void> Function()? requestNotificationPermission;
   final Duration retryDelay;
   PushSession? _bound;
@@ -39,19 +41,32 @@ class PushRegistrationRuntime {
   static PushRegistrationRuntime? configured() {
     const key = String.fromEnvironment('KINGCLUB_OPPO_APP_KEY');
     const secret = String.fromEnvironment('KINGCLUB_OPPO_APP_SECRET');
+    final apple = defaultTargetPlatform == TargetPlatform.iOS;
     if (kIsWeb ||
-        defaultTargetPlatform != TargetPlatform.android ||
         kingclubApiBaseUrl.isEmpty ||
-        key.isEmpty ||
-        secret.isEmpty) {
+        (!apple &&
+            (defaultTargetPlatform != TargetPlatform.android ||
+                key.isEmpty ||
+                secret.isEmpty))) {
       return null;
     }
     final store = SecureSessionStore();
     final client = KingclubSecureClient(kingclubApiBaseUrl);
+    var provider = 'oppo';
     return PushRegistrationRuntime(
+      registrationProvider: () => provider,
       readSession: store.readSession,
-      register: () =>
-          NativePushRegistration().register(appKey: key, appSecret: secret),
+      register: () async {
+        if (apple) {
+          final registration = await NativePushRegistration().registerApple();
+          provider = registration.provider;
+          return registration.token;
+        }
+        return NativePushRegistration().register(
+          appKey: key,
+          appSecret: secret,
+        );
+      },
       requestNotificationPermission:
           NativePushRegistration().requestNotificationPermission,
       call: (session, id, params) async {
@@ -140,7 +155,7 @@ class PushRegistrationRuntime {
         // binding so a subsequent logout still unregisters that session.
         _bound = current;
         await call(current!, 'K260926000730', {
-          'provider': 'oppo',
+          'provider': registrationProvider?.call() ?? 'oppo',
           'packageName': 'com.lingmei.kingclub',
           'token': token,
         });

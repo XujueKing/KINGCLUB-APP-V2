@@ -13,6 +13,26 @@ PushSession session(String id) => {
 
 void main() {
   testWidgets(
+    'APNs binding uses registered environment without Android credentials',
+    (tester) async {
+      final sent = <Map<String, dynamic>>[];
+      final runtime = PushRegistrationRuntime(
+        readSession: () async => session('apple-member'),
+        register: () async => 'ab' * 32,
+        registrationProvider: () => 'apns_sandbox',
+        call: (_, id, params) async {
+          sent.add(params);
+        },
+      );
+      addTearDown(runtime.close);
+      runtime.sync();
+      await tester.pump();
+      expect(sent.single['provider'], 'apns_sandbox');
+      expect(sent.single['packageName'], 'com.lingmei.kingclub');
+      expect(sent.single.containsKey('appSecret'), isFalse);
+    },
+  );
+  testWidgets(
     'permission follows successful binding and failure does not retry binding',
     (tester) async {
       final events = <String>[];

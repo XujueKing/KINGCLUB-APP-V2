@@ -22,6 +22,21 @@ class NativePushRegistration {
   Future<void> requestNotificationPermission() =>
       _channel.invokeMethod<void>('requestNotificationPermission');
 
+  Future<({String provider, String token})> registerApple() async {
+    final result = await _channel.invokeMapMethod<String, dynamic>(
+      'registerApple',
+    );
+    final provider = result?['provider'];
+    final token = result?['token'];
+    if (!const ['apns', 'apns_sandbox'].contains(provider) ||
+        token is! String ||
+        token.length > 512 ||
+        !RegExp(r'^(?:[0-9a-f]{2}){16,256}$').hasMatch(token)) {
+      throw const FormatException('Invalid APNs registration');
+    }
+    return (provider: provider as String, token: token);
+  }
+
   Future<String> register({
     required String appKey,
     required String appSecret,

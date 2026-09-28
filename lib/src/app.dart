@@ -571,7 +571,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     super.initState();
     ChatRoutePresence.instance.addListener(_messageRouteChanged);
     WidgetsBinding.instance.addObserver(this);
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS)) {
       _pushOpen = PushOpenRuntime(
         store: PushOpenStore(),
         takePending: () => _pushOpenChannel.invokeMethod<String>('takePending'),

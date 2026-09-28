@@ -7,6 +7,32 @@ void main() {
   const channel = MethodChannel('kingclub/push-registration');
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  test(
+    'Apple registration preserves signed environment and rejects other vendors',
+    () async {
+      final token = 'ab' * 32;
+      for (final provider in ['apns', 'apns_sandbox']) {
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          expect(call.method, 'registerApple');
+          return {'provider': provider, 'token': token};
+        });
+        final value = await NativePushRegistration().registerApple();
+        expect(value.provider, provider);
+        expect(value.token, token);
+      }
+      for (final reply in [
+        {'provider': 'oppo', 'token': token},
+        {'provider': 'apns', 'token': 'not-a-device-token'},
+        {'provider': 'apns_sandbox', 'token': ''},
+      ]) {
+        messenger.setMockMethodCallHandler(channel, (_) async => reply);
+        await expectLater(
+          NativePushRegistration().registerApple(),
+          throwsFormatException,
+        );
+      }
+    },
+  );
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
   test('notification status preserves disabled and unknown results', () async {
     for (final value in [true, false, null]) {
