@@ -133,7 +133,8 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
-    appBar: AppBar(
+    appBar: kingAppBar(
+      context: context,
       title: const Text('发送位置'),
       leading: KingBackButton(onPressed: () => Navigator.of(context).pop()),
     ),

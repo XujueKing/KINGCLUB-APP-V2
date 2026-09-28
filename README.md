@@ -2,7 +2,7 @@
 
 ## 2026-09-10 晚间开发状态
 
-真实短信登录已接入并部署 IDC 测试服务器，使用新的 `kingclubMember` 表；短信正文已恢复旧版。当前入口 `https://test.wuyexin.cn/kingclub-v2`，`api.sh-kingclub.cn` 备案处理中。照片实名认证、两图评分及审核的真实接口仍待接入；首版保留腾讯照片实名认证，不接新增 App 活体核身 SDK。
+真实短信登录已接入新服务器，使用新的 `kingclubMember` 表；短信正文已恢复旧版。当前统一超级接口入口为 `https://api.wuyexin.cn`（`/supper-handshake`、`/supper-interface`）。`test.wuyexin.cn/kingclub-v2` 仅为历史记录，不作为现行入口；`api.sh-kingclub.cn` 备案处理中。照片实名认证、两图评分及审核的真实接口仍待接入；首版保留腾讯照片实名认证，不接新增 App 活体核身 SDK。
 
 接续详见[聊天与 Git 核实记录](docs/migration/SESSION_RECOVERY_2026-09-10.md)和[交付账本](docs/v2/APP_SCOPE_AND_UI_DELIVERY_GATE.md)。以下旧阶段描述按日期追溯，不能据此重复开发已完成项。
 

@@ -1,0 +1,266 @@
+{
+  "Processing": {
+    "type": "object",
+    "properties": {
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "operationRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "outcome": {
+        "type": "string",
+        "enum": [
+          "processing"
+        ]
+      },
+      "retryAction": {
+        "type": "string",
+        "enum": [
+          "query_original"
+        ]
+      }
+    },
+    "required": [
+      "commandId",
+      "operationRef",
+      "outcome",
+      "retryAction"
+    ],
+    "additionalProperties": false
+  },
+  "Rejected": {
+    "type": "object",
+    "properties": {
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "outcome": {
+        "type": "string",
+        "enum": [
+          "rejected"
+        ]
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "reasonKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "retryAction": {
+            "type": "string",
+            "enum": [
+              "reload_and_confirm",
+              "query_original",
+              "return_to_source",
+              "review_original_command"
+            ]
+          },
+          "fieldErrors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "reasonKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              },
+              "required": [
+                "path",
+                "reasonKey"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "code",
+          "reasonKey",
+          "retryAction"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "commandId",
+      "outcome",
+      "error"
+    ],
+    "additionalProperties": false
+  },
+  "QueryNotFound": {
+    "type": "object",
+    "properties": {
+      "found": {
+        "type": "boolean",
+        "enum": [
+          false
+        ]
+      },
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "action": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "queriedAt": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "retryAction": {
+        "type": "string",
+        "enum": [
+          "query_or_retry_same_command"
+        ]
+      }
+    },
+    "required": [
+      "found",
+      "commandId",
+      "action",
+      "queriedAt",
+      "retryAction"
+    ],
+    "additionalProperties": false
+  },
+  "QueryFound": {
+    "type": "object",
+    "properties": {
+      "found": {
+        "type": "boolean",
+        "enum": [
+          true
+        ]
+      },
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "operationRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "action": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "queriedAt": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "outcome": {
+        "type": "string",
+        "enum": [
+          "succeeded",
+          "processing",
+          "rejected"
+        ]
+      },
+      "originalResult": {
+        "type": "object"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "reasonKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "retryAction": {
+            "type": "string",
+            "enum": [
+              "reload_and_confirm",
+              "query_original",
+              "return_to_source",
+              "review_original_command"
+            ]
+          },
+          "fieldErrors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "reasonKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              },
+              "required": [
+                "path",
+                "reasonKey"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "code",
+          "reasonKey",
+          "retryAction"
+        ],
+        "additionalProperties": false
+      },
+      "retryAction": {
+        "type": "string",
+        "enum": [
+          "query_original"
+        ]
+      },
+      "currentObjectVersion": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2147483647
+      }
+    },
+    "required": [
+      "found",
+      "commandId",
+      "operationRef",
+      "action",
+      "queriedAt",
+      "outcome"
+    ],
+    "additionalProperties": false
+  }
+}

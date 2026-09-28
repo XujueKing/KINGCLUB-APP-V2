@@ -1,3 +1,5 @@
+import '../../../core/media/cached_media_image.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 
 import 'dart:async';
@@ -6,6 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../club/presentation/legacy_club_components.dart';
+import '../data/ordering_context.dart';
+import '../data/ordering_catalog_repository.dart';
+import 'ordering_entry_status.dart';
 
 enum ScanOrderingScenario {
   ready,
@@ -24,11 +29,15 @@ class FakeOrderingQuote {
     required this.itemCount,
     required this.total,
     required this.items,
+    this.orderingContext,
+    this.onPaymentConfirmed,
   });
 
   final int itemCount;
   final int total;
   final List<FakeOrderingQuoteItem> items;
+  final OrderingContext? orderingContext;
+  final VoidCallback? onPaymentConfirmed;
 }
 
 class FakeOrderingQuoteItem {
@@ -38,15 +47,26 @@ class FakeOrderingQuoteItem {
     required this.asset,
     required this.quantity,
     required this.unitPrice,
+    this.unitPriceCents,
+    this.catalogProduct,
   });
 
   final String name;
   final String detail;
   final String asset;
   final int quantity;
+
+  /// Whole-yuan price retained for legacy preview fixtures.
   final int unitPrice;
 
+  /// Live catalog prices are authoritative integer cents and must not be
+  /// rounded when the quote is handed to the confirmation page.
+  final int? unitPriceCents;
+  final OrderingCatalogProduct? catalogProduct;
+
   int get subtotal => quantity * unitPrice;
+  int get subtotalCents => quantity * (unitPriceCents ?? unitPrice * 100);
+  bool get usesCents => unitPriceCents != null;
 }
 
 class ScanOrderingCartPage extends StatefulWidget {
@@ -55,18 +75,25 @@ class ScanOrderingCartPage extends StatefulWidget {
     required this.onBack,
     this.onQuoteReady,
     this.onOpenOrders,
+    this.orderingContext,
+    this.catalog,
+    this.locale = const Locale('zh'),
   });
 
+  final OrderingCatalog? catalog;
+  final Locale locale;
   final VoidCallback onBack;
   final ValueChanged<FakeOrderingQuote>? onQuoteReady;
   final VoidCallback? onOpenOrders;
+  final OrderingContext? orderingContext;
 
   @override
   State<ScanOrderingCartPage> createState() => _ScanOrderingCartPageState();
 }
 
-class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
-  static const _products = <_OrderingProduct>[
+class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
+    with SingleTickerProviderStateMixin {
+  static const _demoProducts = <_OrderingProduct>[
     _OrderingProduct(
       id: 'hennessy-xo',
       category: '酒水',
@@ -117,26 +144,119 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     ),
   ];
 
+  bool get _live => widget.catalog != null;
+  String _localized(Map<String, String> names) => OrderingEntryStatus.text(
+    widget.locale,
+    [names['zh-CN']!, names['en']!, names['zh-TW']!, names['th']!],
+  );
+  String _major(String value) =>
+      const {'liquor': '酒水', 'drinks': '饮料', 'snacks': '小吃'}[value]!;
+  String _money(int amount) => _live
+      ? '${amount ~/ 100}.${(amount % 100).toString().padLeft(2, '0')}'
+      : '$amount';
+  String _categoryLabel(String id) {
+    if (!_live) return _legacyCategoryLabel(id);
+    return _localized(
+      widget.catalog!.categories.firstWhere((c) => c.reference == id).names,
+    );
+  }
+
+  List<_OrderingProduct> get _products {
+    final catalog = widget.catalog;
+    if (catalog == null) return _demoProducts;
+    final categories = {for (final c in catalog.categories) c.reference: c};
+    return catalog.products
+        .map(
+          (p) => _OrderingProduct(
+            id: p.reference,
+            category: _major(categories[p.categoryRef]!.majorCategory),
+            subcategory: p.categoryRef,
+            name: _localized(p.names),
+            englishName: p.names['en']!,
+            specs: _localized(p.specifications),
+            price: p.priceCents,
+            originalPrice: p.priceCents,
+            asset: '',
+            thumbnailUrl: p.thumbnailUrl,
+            imageCacheKey: p.imageCacheKey,
+            limit: p.available,
+          ),
+        )
+        .toList();
+  }
+
   final _searchController = TextEditingController();
+  final _catalogController = ScrollController();
+  int? _categoryAnchorIndex;
   final Map<String, int> _quantities = {'hennessy-xo': 1, 'chivas-12': 1};
   ScanOrderingScenario _scenario = ScanOrderingScenario.ready;
   String _category = '酒水';
   String _subcategory = '畅饮套餐';
   bool _quoting = false;
   bool _cartPanelOpen = false;
+  late final AnimationController _cartAnimation;
+  final _bagAnchor = GlobalKey();
+  final Set<String> _unchecked = {};
+  int _scopeGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _cartAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    // Existing no-context route remains the legacy UI demonstration.
+    if (widget.orderingContext != null || _live) _quantities.clear();
+    if (_live && widget.catalog!.categories.isNotEmpty) {
+      _category = _major(widget.catalog!.categories.first.majorCategory);
+      _subcategory = widget.catalog!.categories.first.reference;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ScanOrderingCartPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final previous = oldWidget.orderingContext;
+    final current = widget.orderingContext;
+    if (previous == null && current == null) return;
+    if (previous != null &&
+        current != null &&
+        previous.hasSameScope(current) &&
+        oldWidget.catalog == widget.catalog) {
+      return;
+    }
+    _scopeGeneration++;
+    _unchecked.clear();
+    _cartAnimation.value = 0;
+    _quantities.clear();
+    _quoting = false;
+    _cartPanelOpen = false;
+    _scenario = ScanOrderingScenario.ready;
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _catalogController.dispose();
+    _cartAnimation.dispose();
     super.dispose();
   }
 
   int get _itemCount =>
       _quantities.values.fold(0, (total, quantity) => total + quantity);
 
+  int get _selectedCount => _quantities.entries
+      .where((entry) => !_unchecked.contains(entry.key))
+      .fold(0, (sum, entry) => sum + entry.value);
+
   int get _total => _products.fold(
     0,
-    (total, product) => total + product.price * (_quantities[product.id] ?? 0),
+    (total, product) =>
+        total +
+        (_unchecked.contains(product.id)
+            ? 0
+            : product.price * (_quantities[product.id] ?? 0)),
   );
 
   bool get _canEdit => !{
@@ -152,27 +272,36 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     final query = _searchController.text.trim().toLowerCase();
     return _products.where((product) {
       final matchesCategory = product.category == _category;
-      final matchesSubcategory =
-          _subcategory == '全部' || product.subcategory == _subcategory;
       final matchesQuery =
           query.isEmpty ||
           product.name.toLowerCase().contains(query) ||
           product.englishName.toLowerCase().contains(query) ||
           product.specs.toLowerCase().contains(query);
-      final showLegacyInitialList = _category == '酒水' && _subcategory == '畅饮套餐';
-      return matchesCategory &&
-          (showLegacyInitialList || matchesSubcategory) &&
-          matchesQuery;
+      return matchesCategory && matchesQuery;
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Match the ordering design density independently of the phone's global
+    // large-font setting; scale this visual catalog with the viewport width.
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: TextScaler.linear(
+          (MediaQuery.sizeOf(context).width / 375).clamp(.8, 1.2),
+        ),
+      ),
+      child: Builder(builder: _buildOrderingPage),
+    );
+  }
+
+  Widget _buildOrderingPage(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 _buildSearchHeader(),
@@ -182,47 +311,104 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   final banner? => [banner],
                   null => const <Widget>[],
                 },
-                Expanded(child: _buildCatalog()),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final unobscuredHeight =
+                          constraints.maxHeight -
+                          _cartContentHeight -
+                          MediaQuery.paddingOf(context).bottom;
+                      return _buildCatalog(
+                        (unobscuredHeight / 3.6).clamp(
+                          MediaQuery.sizeOf(context).width > 480
+                              ? 132
+                              : _rpx(196),
+                          220,
+                        ),
+                        constraints.maxHeight,
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           ),
-          if (_cartPanelOpen) _buildCartOverlay(),
+          if (_cartPanelOpen)
+            MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.noScaling),
+              child: _buildCartOverlay(),
+            ),
+          Positioned(left: 0, right: 0, bottom: 0, child: _buildCartBar()),
         ],
       ),
-      bottomNavigationBar: SafeArea(top: false, child: _buildCartBar()),
     );
   }
 
+  // Legacy WXSS uses a 750-rpx design width. Keep spacing and controls on
+  // the same scale as the typography instead of mixing fixed dp and rpx.
+  double _rpx(double value) =>
+      value * (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6);
+
+  double get _cartContentHeight => _rpx(120);
+
   Widget _buildSearchHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 24, 8),
+      padding: EdgeInsets.fromLTRB(
+        KingBackButton.leftOffset(context),
+        4,
+        _rpx(20),
+        4,
+      ),
       child: Row(
         children: [
           SizedBox(
-            width: 42,
+            width: 48,
             height: 48,
             child: KingBackButton(
               key: const ValueKey('ordering-back'),
               tooltip: '返回',
-              onPressed: widget.onBack,
+              onPressed: () =>
+                  _cartPanelOpen ? _setCartOpen(false) : widget.onBack(),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 2),
           Expanded(
             child: SizedBox(
-              height: 48,
+              // Legacy input: 36rpx content + 20rpx padding per side.
+              height: _rpx(76),
               child: TextField(
                 key: const ValueKey('ordering-search'),
                 controller: _searchController,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) {
+                  _resetCatalogScroll();
+                  setState(() {});
+                },
+                textAlignVertical: TextAlignVertical.center,
                 style: const TextStyle(color: Color(0xFFD8D3CD), fontSize: 14),
                 decoration: InputDecoration(
+                  isDense: true,
+                  constraints: BoxConstraints.tightFor(height: _rpx(76)),
+                  prefixIconConstraints: BoxConstraints(
+                    minWidth: _rpx(76),
+                    minHeight: _rpx(36),
+                  ),
+                  suffixIconConstraints: BoxConstraints(
+                    minWidth: _rpx(60),
+                    minHeight: _rpx(36),
+                  ),
                   hintText: '搜一搜你想要的饮品',
                   hintStyle: const TextStyle(color: Color(0xFF5D5A57)),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    size: 21,
-                    color: Color(0xFF575653),
+                  prefixIcon: Center(
+                    widthFactor: 1,
+                    child: Opacity(
+                      opacity: .3,
+                      child: Image.asset(
+                        'assets/legacy/ordering/enlarge.png',
+                        width: _rpx(26),
+                        height: _rpx(26),
+                      ),
+                    ),
                   ),
                   suffixIcon: _searchController.text.isEmpty
                       ? null
@@ -230,6 +416,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                           tooltip: '清空搜索',
                           onPressed: () {
                             _searchController.clear();
+                            _resetCatalogScroll();
                             setState(() {});
                           },
                           icon: const Icon(
@@ -240,7 +427,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                         ),
                   filled: true,
                   fillColor: const Color(0xFF191919),
-                  contentPadding: EdgeInsets.zero,
+                  contentPadding: EdgeInsets.symmetric(vertical: _rpx(20)),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(7),
                     borderSide: BorderSide.none,
@@ -266,9 +453,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     return GestureDetector(
       key: const ValueKey('ordering-store-header'),
       behavior: HitTestBehavior.opaque,
-      onLongPress: _showScenarioPicker,
+      onLongPress: _live ? null : _showScenarioPicker,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(28, 10, 26, 12),
+        padding: EdgeInsets.fromLTRB(_rpx(45), _rpx(10), _rpx(45), 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -277,15 +464,15 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
               children: [
                 Image.asset(
                   'assets/legacy/home/logo_2.png',
-                  width: 52,
-                  height: 34,
+                  width: _rpx(100),
+                  height: _rpx(50),
                   fit: BoxFit.contain,
                   alignment: Alignment.centerLeft,
                 ),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'KINGBAR 湖南工大店',
+                    widget.orderingContext?.storeName ?? 'KINGBAR 湖南工大店',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -297,25 +484,59 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                SvgPicture.asset(
-                  'assets/legacy/ordering/table_888.svg',
-                  key: ValueKey('ordering-table-888'),
-                  width: 78,
-                  height: 34,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.centerRight,
-                ),
+                if (widget.orderingContext == null)
+                  SvgPicture.asset(
+                    'assets/legacy/ordering/table_888.svg',
+                    key: ValueKey('ordering-table-888'),
+                    width: 78,
+                    height: 34,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.centerRight,
+                  )
+                else
+                  SizedBox(
+                    width: 52,
+                    height: 42,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        widget.orderingContext!.tableName,
+                        key: const ValueKey('ordering-table-name'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFFC9B69E),
+                          fontSize: 42,
+                          height: 1,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 6),
-            const Text(
-              '株洲市天元区金华路瀚水栗源1栋102',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Color(0xFF4B4947),
-                fontSize: 12,
-                height: 1.1,
+            SizedBox(height: _rpx(4)),
+            // Keep the logo/name row fixed; lift only the address through the
+            // space introduced by the taller table label.
+            Transform.translate(
+              offset: Offset(
+                0,
+                -((widget.orderingContext == null ? 34 : 42) - _rpx(50)).clamp(
+                      0,
+                      double.infinity,
+                    ) /
+                    2,
+              ),
+              child: Text(
+                widget.orderingContext?.storeAddress ?? '株洲市天元区金华路瀚水栗源1栋102',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Color(0xFF4B4947),
+                  fontSize: 12,
+                  height: 1.1,
+                ),
               ),
             ),
           ],
@@ -326,21 +547,22 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
 
   Widget _buildCategoryTabs() {
     return Container(
-      height: 56,
+      height: _rpx(88),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFF312F2D), width: .7)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          const SizedBox(width: 4),
+          SizedBox(width: _rpx(5)),
           ...['酒水', '饮料', '小吃'].map((label) {
             final selected = _category == label;
             return SizedBox(
-              width: 80,
+              width: _rpx(144),
               child: InkWell(
                 key: ValueKey('ordering-category-$label'),
                 onTap: () => setState(() {
+                  _resetCatalogScroll();
                   _category = label;
                   _subcategory = label == '酒水' ? '畅饮套餐' : '全部';
                 }),
@@ -357,11 +579,11 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                         fontWeight: FontWeight.w400,
                       ),
                     ),
-                    const SizedBox(height: 9),
+                    SizedBox(height: _rpx(14)),
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      width: selected ? 36 : 0,
-                      height: 3,
+                      width: selected ? _rpx(64) : 0,
+                      height: _rpx(6),
                       color: const Color(0xFFFFB400),
                     ),
                   ],
@@ -419,7 +641,39 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     );
   }
 
-  Widget _buildCatalog() {
+  void _resetCatalogScroll() {
+    _categoryAnchorIndex = null;
+    if (_catalogController.hasClients) _catalogController.jumpTo(0);
+  }
+
+  void _scrollToSubcategory(String label, double rowHeight) {
+    final index = _visibleProducts.indexWhere(
+      (product) => label == '全部' || product.subcategory == label,
+    );
+    setState(() {
+      _subcategory = label;
+      if (index >= 0) _categoryAnchorIndex = index;
+    });
+    if (index < 0) return;
+    // Rebuild the tail space first so even the final category can align at top.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !_catalogController.hasClients ||
+          _categoryAnchorIndex != index) {
+        return;
+      }
+      _catalogController.animateTo(
+        (index * (rowHeight + 2)).clamp(
+          0.0,
+          _catalogController.position.maxScrollExtent,
+        ),
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  Widget _buildCatalog(double rowHeight, double viewportHeight) {
     if (_scenario == ScanOrderingScenario.catalogError) {
       return _OrderingEmptyState(
         icon: Icons.sync_problem_rounded,
@@ -430,16 +684,38 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
       );
     }
     final products = _visibleProducts;
-    final subcategories = switch (_category) {
-      '酒水' => const ['畅饮套餐', '威士忌', '白兰地', '伏特加', '香槟', '红葡萄酒', '清酒', '鸡尾酒'],
-      '饮料' => const ['全部', '软饮', '果汁'],
-      _ => const ['全部', '果盘', '热食'],
-    };
+    final minimumTail =
+        _cartContentHeight + MediaQuery.paddingOf(context).bottom + _rpx(12);
+    final tail = _categoryAnchorIndex == null
+        ? minimumTail
+        : (viewportHeight -
+                  (products.length - _categoryAnchorIndex!) * (rowHeight + 2) +
+                  2)
+              .clamp(minimumTail, double.infinity);
+    final subcategories = _live
+        ? widget.catalog!.categories
+              .where((c) => _major(c.majorCategory) == _category)
+              .map((c) => c.reference)
+              .toList()
+        : switch (_category) {
+            '酒水' => const [
+              '畅饮套餐',
+              '威士忌',
+              '白兰地',
+              '伏特加',
+              '香槟',
+              '红葡萄酒',
+              '清酒',
+              '鸡尾酒',
+            ],
+            '饮料' => const ['全部', '软饮', '果汁'],
+            _ => const ['全部', '果盘', '热食'],
+          };
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          width: 75,
+          width: MediaQuery.sizeOf(context).width * 130 / 750,
           decoration: const BoxDecoration(
             color: Colors.black,
             border: Border(
@@ -447,16 +723,23 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
             ),
           ),
           child: ListView.builder(
-            padding: EdgeInsets.zero,
+            padding: EdgeInsets.only(
+              bottom:
+                  _cartContentHeight +
+                  MediaQuery.paddingOf(context).bottom +
+                  _rpx(30),
+            ),
             itemCount: subcategories.length,
             itemBuilder: (context, index) {
               final label = subcategories[index];
               final selected = _subcategory == label;
               return InkWell(
                 key: ValueKey('ordering-subcategory-$label'),
-                onTap: () => setState(() => _subcategory = label),
+                onTap: () => _scrollToSubcategory(label, rowHeight),
                 child: Container(
-                  constraints: const BoxConstraints(minHeight: 74),
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.sizeOf(context).width * 132 / 750,
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
@@ -465,7 +748,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                         : Colors.transparent,
                     borderRadius: selected
                         ? const BorderRadius.horizontal(
-                            right: Radius.circular(5),
+                            left: Radius.circular(5),
                           )
                         : BorderRadius.zero,
                     border: Border(
@@ -478,13 +761,13 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                     ),
                   ),
                   child: Text(
-                    _legacyCategoryLabel(label),
+                    _categoryLabel(label),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: selected
                           ? const Color(0xFF1B1510)
                           : const Color(0xFFDDD8D2),
-                      fontSize: selected ? 16 : 15,
+                      fontSize: selected ? 15 : 14,
                       height: 1.2,
                       fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
                     ),
@@ -502,11 +785,15 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   subtitle: '可切换分类或修改搜索词',
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(8, 5, 10, 80),
+                  key: const ValueKey('ordering-product-list'),
+                  controller: _catalogController,
+                  // Default: small end gap. Category click: enough room to
+                  // align its first item, without filtering other products.
+                  padding: EdgeInsets.fromLTRB(8, 5, 10, tail),
                   itemCount: products.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 2),
                   itemBuilder: (context, index) =>
-                      _buildProductCard(products[index]),
+                      _buildProductCard(products[index], rowHeight),
                 ),
         ),
       ],
@@ -523,33 +810,39 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     return label;
   }
 
-  Widget _buildProductCard(_OrderingProduct product) {
+  Widget _buildProductCard(_OrderingProduct product, double rowHeight) {
+    final textScale = (MediaQuery.sizeOf(context).width / 375).clamp(.8, 1.2);
+    final verticalInset = ((rowHeight - 90 * textScale) / 2).clamp(
+      2.0,
+      _rpx(28),
+    );
+    final contentHeight = rowHeight - verticalInset * 2;
     final quantity = _quantities[product.id] ?? 0;
     final soldOut =
-        _scenario == ScanOrderingScenario.soldOut && product.id == 'chivas-12';
+        product.limit == 0 ||
+        (_scenario == ScanOrderingScenario.soldOut &&
+            product.id == 'chivas-12');
     final limitReached = quantity >= product.limit;
     return Semantics(
       container: true,
-      label: '${product.name}，价格 ${product.price} 元，已选 $quantity 件',
+      label: '${product.name}，价格 ${_money(product.price)} 元，已选 $quantity 件',
       child: SizedBox(
-        height: 176,
+        height: rowHeight,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 17),
+          padding: EdgeInsets.symmetric(vertical: verticalInset),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset(
-                product.asset,
-                width: 109,
-                height: 138,
-                fit: BoxFit.contain,
-                color: soldOut ? const Color(0x77000000) : null,
-                colorBlendMode: soldOut ? BlendMode.darken : null,
+              _OrderingProductImage(
+                product: product,
+                width: MediaQuery.sizeOf(context).width * 190 / 750,
+                height: contentHeight,
+                soldOut: soldOut,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: SizedBox(
-                  height: 138,
+                  height: contentHeight,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,9 +856,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Color(0xFFE8DED1),
-                              fontSize: 18,
-                              height: 1.12,
+                              color: Color(0xFFEEEEEE),
+                              fontSize: 16,
+                              height: 1.4,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -575,16 +868,16 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Color(0xFFC9B69E),
-                              fontSize: 16,
-                              height: 1.22,
+                              fontSize: 14,
+                              height: 1.4,
                             ),
                           ),
                           Text(
                             product.specs,
                             style: const TextStyle(
                               color: Color(0xFFC9B69E),
-                              fontSize: 16,
-                              height: 1.18,
+                              fontSize: 14,
+                              height: 1.4,
                             ),
                           ),
                         ],
@@ -592,29 +885,35 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text.rich(
-                            TextSpan(
-                              children: [
-                                const TextSpan(
-                                  text: '¥ ',
-                                  style: TextStyle(
-                                    color: Color(0xFFC9B69E),
-                                    fontSize: 14,
-                                  ),
-                                ),
+                          Expanded(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text.rich(
                                 TextSpan(
-                                  text: '${product.price}',
-                                  style: const TextStyle(
-                                    color: Color(0xFFE8E3DD),
-                                    fontSize: 21,
-                                    height: 1,
-                                    fontWeight: FontWeight.w400,
-                                  ),
+                                  children: [
+                                    const TextSpan(
+                                      text: '¥ ',
+                                      style: TextStyle(
+                                        color: Color(0xFFC9B69E),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: _money(product.price),
+                                      style: const TextStyle(
+                                        color: Color(0xFFE8E3DD),
+                                        fontSize: 18,
+                                        height: 1.2,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
-                          const Spacer(),
+                          SizedBox(width: _rpx(5)),
                           if (soldOut)
                             const Text(
                               '已售罄',
@@ -623,6 +922,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             )
                           else
                             _QuantityControl(
+                              bagAnchor: _bagAnchor,
                               productId: product.id,
                               quantity: quantity,
                               canDecrease: _canEdit && quantity > 0,
@@ -632,11 +932,18 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                             ),
                         ],
                       ),
-                      if (limitReached ||
+                      if ((!soldOut && limitReached) ||
                           (_scenario == ScanOrderingScenario.limitReached &&
                               product.id == 'hennessy-xo'))
                         Text(
-                          '每桌限购 ${product.limit} 份',
+                          _live
+                              ? OrderingEntryStatus.text(widget.locale, [
+                                  '可选库存 ${product.limit} 份',
+                                  '${product.limit} available',
+                                  '可選庫存 ${product.limit} 份',
+                                  'คงเหลือ ${product.limit}',
+                                ])
+                              : '每桌限购 ${product.limit} 份',
                           key: const ValueKey('ordering-limit-message'),
                           style: const TextStyle(
                             color: Color(0xFFFFC96E),
@@ -655,16 +962,23 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   }
 
   Widget _buildCartBar() {
-    final enabled = _canEdit && _itemCount > 0 && !_quoting;
+    final enabled = _canEdit && _selectedCount > 0 && !_quoting;
     return Container(
       key: const ValueKey('ordering-cart-bar'),
-      height: 80,
-      padding: const EdgeInsets.fromLTRB(22, 10, 18, 10),
+      height: _cartContentHeight + MediaQuery.paddingOf(context).bottom,
+      padding: EdgeInsets.fromLTRB(
+        _rpx(40),
+        _rpx(12),
+        _rpx(24),
+        _rpx(12) + MediaQuery.paddingOf(context).bottom,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF181512), Color(0xFF080706)],
+          // WXSS: linear-gradient(to top, #000 60rpx, #000, #000000CC).
+          colors: [Color(0xCC000000), Color(0xFF000000), Color(0xFF000000)],
+          stops: [0, .324, 1],
         ),
         border: Border(top: BorderSide(color: Color(0xFF302820))),
       ),
@@ -672,98 +986,108 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
         children: [
           GestureDetector(
             key: const ValueKey('ordering-cart-bag'),
-            onTap: _itemCount == 0 ? null : _showCartSheet,
+            onTap: _itemCount == 0 ? null : () => _setCartOpen(!_cartPanelOpen),
             child: Stack(
+              key: _bagAnchor,
               clipBehavior: Clip.none,
               children: [
                 Opacity(
                   opacity: _itemCount > 0 ? 1 : .4,
                   child: Image.asset(
                     'assets/legacy/ordering/shopping_bag.png',
-                    width: 54,
-                    height: 48,
+                    width: _rpx(80),
+                    height: _rpx(64),
                     fit: BoxFit.contain,
                   ),
                 ),
-                if (_itemCount > 0)
-                  Positioned(
-                    right: -4,
-                    top: 6,
-                    child: Container(
-                      key: const ValueKey('ordering-cart-badge'),
-                      constraints: const BoxConstraints(minWidth: 25),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 4,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFB400),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$_itemCount',
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
+                Positioned(
+                  right: -4,
+                  bottom: 0,
+                  child: Container(
+                    key: const ValueKey('ordering-cart-badge'),
+                    constraints: BoxConstraints(minWidth: _rpx(36)),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: _rpx(6),
+                      vertical: _rpx(4),
+                    ),
+                    decoration: BoxDecoration(
+                      color: _itemCount > 0
+                          ? const Color(0xFFFFB400)
+                          : const Color(0xFF6C4C00),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$_itemCount',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
+                ),
               ],
             ),
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text.rich(
-              key: const ValueKey('ordering-estimate'),
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: '合计 ¥ ',
-                    style: TextStyle(
-                      color: _itemCount > 0
-                          ? const Color(0xFF8E867E)
-                          : const Color(0xFF56514C),
-                      fontSize: 14,
+            child: Opacity(
+              opacity: _itemCount > 0 ? 1 : 0,
+              child: Text.rich(
+                key: const ValueKey('ordering-estimate'),
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '合计 ¥ ',
+                      style: TextStyle(
+                        color: _itemCount > 0
+                            ? const Color(0xFF8E867E)
+                            : const Color(0xFF56514C),
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                  TextSpan(
-                    text: _itemCount > 0 ? _total.toStringAsFixed(0) : '0',
-                    style: TextStyle(
-                      color: _itemCount > 0
-                          ? const Color(0xFFE1D3C1)
-                          : const Color(0xFF5A554F),
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
+                    TextSpan(
+                      text: _live
+                          ? _money(_total)
+                          : (_itemCount > 0 ? _total.toStringAsFixed(0) : '0'),
+                      style: TextStyle(
+                        color: _itemCount > 0
+                            ? const Color(0xFFE1D3C1)
+                            : const Color(0xFF5A554F),
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  TextSpan(
-                    text: '.00',
-                    style: TextStyle(
-                      color: _itemCount > 0
-                          ? const Color(0xFF8E867E)
-                          : const Color(0xFF56514C),
-                      fontSize: 14,
+                    TextSpan(
+                      text: _live ? '' : '.00',
+                      style: TextStyle(
+                        color: _itemCount > 0
+                            ? const Color(0xFF8E867E)
+                            : const Color(0xFF56514C),
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
           SizedBox(
-            width: 112,
-            height: 50,
+            width: _rpx(180),
+            height: _rpx(68),
             child: FilledButton(
               key: const ValueKey('ordering-confirm'),
               onPressed: enabled ? _requestFakeQuote : null,
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFC9B69E),
                 foregroundColor: const Color(0xFF1C150E),
-                disabledBackgroundColor: const Color(0xFF332E28),
-                disabledForegroundColor: const Color(0xFF756B61),
+                disabledBackgroundColor: const Color(0xFF262626),
+                disabledForegroundColor: const Color(0xFF363636),
                 shape: const StadiumBorder(),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: _quoting
                   ? const SizedBox.square(
@@ -776,7 +1100,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
                   : const Text(
                       '去结算',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -794,8 +1118,10 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     setState(() {
       if (next == 0) {
         _quantities.remove(product.id);
+        _unchecked.remove(product.id);
       } else {
         _quantities[product.id] = next;
+        _unchecked.remove(product.id);
       }
     });
     if (delta > 0 && next == current) {
@@ -805,21 +1131,54 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
 
   Future<void> _requestFakeQuote() async {
     setState(() => _quoting = true);
+    final generation = _scopeGeneration;
     await Future<void>.delayed(const Duration(milliseconds: 450));
-    if (!mounted) return;
+    if (!mounted || generation != _scopeGeneration) return;
     setState(() => _quoting = false);
+    final purchased = Map<String, int>.fromEntries(
+      _quantities.entries.where((entry) => !_unchecked.contains(entry.key)),
+    );
     final quote = FakeOrderingQuote(
-      itemCount: _itemCount,
+      onPaymentConfirmed: _live
+          ? () {
+              if (mounted && generation == _scopeGeneration) {
+                setState(() {
+                  for (final entry in purchased.entries) {
+                    final remaining =
+                        (_quantities[entry.key] ?? 0) - entry.value;
+                    if (remaining <= 0) {
+                      _quantities.remove(entry.key);
+                      _unchecked.remove(entry.key);
+                    } else {
+                      _quantities[entry.key] = remaining;
+                    }
+                  }
+                });
+              }
+            }
+          : null,
+      orderingContext: widget.orderingContext,
+      itemCount: _selectedCount,
       total: _total,
       items: _products
-          .where((product) => (_quantities[product.id] ?? 0) > 0)
+          .where(
+            (product) =>
+                (_quantities[product.id] ?? 0) > 0 &&
+                !_unchecked.contains(product.id),
+          )
           .map(
             (product) => FakeOrderingQuoteItem(
               name: product.name,
               detail: '${product.englishName} · ${product.specs}',
               asset: product.asset,
               quantity: _quantities[product.id]!,
-              unitPrice: product.price,
+              unitPrice: _live ? product.price ~/ 100 : product.price,
+              unitPriceCents: _live ? product.price : null,
+              catalogProduct: _live
+                  ? widget.catalog!.products.firstWhere(
+                      (p) => p.reference == product.id,
+                    )
+                  : null,
             ),
           )
           .toList(growable: false),
@@ -864,132 +1223,202 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
     );
   }
 
-  Future<void> _showCartSheet() async {
-    setState(() => _cartPanelOpen = true);
+  Future<void> _setCartOpen(bool open) async {
+    if (open) {
+      setState(() => _cartPanelOpen = true);
+      await _cartAnimation.forward();
+    } else {
+      await _cartAnimation.reverse();
+      if (mounted && _cartAnimation.value == 0) {
+        setState(() => _cartPanelOpen = false);
+      }
+    }
   }
 
   Widget _buildCartOverlay() {
-    final selected = _products
+    final products = _products
         .where((product) => (_quantities[product.id] ?? 0) > 0)
         .toList();
+    final curve = _cartAnimation.drive(CurveTween(curve: Curves.ease));
     return Positioned.fill(
       child: Stack(
         children: [
-          GestureDetector(
-            key: const ValueKey('ordering-cart-scrim'),
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _cartPanelOpen = false),
-            child: Container(color: const Color(0xB3000000)),
+          FadeTransition(
+            opacity: curve,
+            child: GestureDetector(
+              key: const ValueKey('ordering-cart-scrim'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _setCartOpen(false),
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment(0, -.08),
+                    radius: .8,
+                    colors: [Color(0x66000000), Colors.black],
+                  ),
+                ),
+                child: SizedBox.expand(),
+              ),
+            ),
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            child: Container(
-              key: const ValueKey('ordering-cart-sheet'),
-              height: 470,
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 18),
-              decoration: const BoxDecoration(
-                color: Color(0xFF94826C),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: 54,
-                    child: Row(
-                      children: [
-                        const _LegacySelectionMark(selected: true),
-                        const SizedBox(width: 10),
-                        Text.rich(
-                          key: const ValueKey('ordering-cart-select-all'),
-                          TextSpan(
-                            children: [
-                              const TextSpan(text: '全选'),
-                              TextSpan(
-                                text: '(共$_itemCount件商品)',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
+            child: SlideTransition(
+              position: Tween(
+                begin: const Offset(0, 1),
+                end: Offset.zero,
+              ).animate(curve),
+              child: FadeTransition(
+                opacity: curve,
+                child: Container(
+                  key: const ValueKey('ordering-cart-sheet'),
+                  height: MediaQuery.sizeOf(context).height * .6,
+                  padding: EdgeInsets.fromLTRB(
+                    _rpx(20),
+                    _rpx(30),
+                    _rpx(20),
+                    _cartContentHeight + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF94826C),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(bottom: _rpx(20)),
+                        child: Row(
+                          children: [
+                            GestureDetector(
+                              key: const ValueKey('ordering-cart-select-all'),
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => setState(() {
+                                if (_unchecked.isEmpty) {
+                                  _unchecked.addAll(products.map((p) => p.id));
+                                } else {
+                                  _unchecked.clear();
+                                }
+                              }),
+                              child: Row(
+                                children: [
+                                  _LegacySelectionMark(
+                                    selected: _unchecked.isEmpty,
+                                  ),
+                                  SizedBox(width: _rpx(10)),
+                                  Text(
+                                    '全选',
+                                    style: TextStyle(
+                                      color: const Color(0xCC000000),
+                                      fontSize: _rpx(28),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                '(共$_itemCount件商品)',
+                                style: TextStyle(
+                                  fontSize: _rpx(24),
+                                  color: const Color(0xCC000000),
                                 ),
                               ),
-                            ],
-                          ),
-                          style: const TextStyle(
-                            color: Color(0xFF211910),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                            ),
+                            TextButton.icon(
+                              key: const ValueKey('ordering-clear-cart'),
+                              onPressed: () async {
+                                final clear = await _confirmClear(context);
+                                if (clear != true || !mounted) return;
+                                setState(() {
+                                  _quantities.clear();
+                                  _unchecked.clear();
+                                });
+                                _setCartOpen(false);
+                              },
+                              icon: Image.asset(
+                                'assets/legacy/ordering/del2.png',
+                                width: _rpx(30),
+                                height: _rpx(30),
+                              ),
+                              label: const Text('清空购物袋'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xCC000000),
+                                textStyle: TextStyle(fontSize: _rpx(26)),
+                                minimumSize: Size.zero,
+                                padding: EdgeInsets.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        TextButton.icon(
-                          key: const ValueKey('ordering-clear-cart'),
-                          onPressed: () async {
-                            final clear = await _confirmClear(context);
-                            if (clear != true || !mounted) return;
-                            setState(() {
-                              _quantities.clear();
-                              _cartPanelOpen = false;
-                            });
-                          },
-                          icon: const Icon(
-                            Icons.delete_outline_rounded,
-                            size: 21,
-                          ),
-                          label: const Text('清空购物袋'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF2C2218),
-                            textStyle: const TextStyle(fontSize: 15),
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                          ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          key: const ValueKey('ordering-cart-scroll'),
+                          padding: EdgeInsets.only(bottom: _rpx(24)),
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: _rpx(36),
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(_rpx(16)),
+                                gradient: const RadialGradient(
+                                  center: Alignment(-.5, 0),
+                                  radius: 1.1,
+                                  colors: [Color(0xEF252018), Colors.black],
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < products.length; i++)
+                                    _buildCartPanelItem(
+                                      products[i],
+                                      showDivider: i < products.length - 1,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              margin: EdgeInsets.only(top: _rpx(20)),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: _rpx(36),
+                                vertical: _rpx(30),
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0x60FFFFFF),
+                                borderRadius: BorderRadius.circular(_rpx(16)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '商品总价',
+                                      style: TextStyle(
+                                        fontSize: _rpx(32),
+                                        color: const Color(0xFF181205),
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '¥ ${_money(_total)}',
+                                    style: TextStyle(
+                                      fontSize: _rpx(32),
+                                      color: const Color(0xFF181205),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF090806),
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Column(
-                      children: [
-                        for (var index = 0; index < selected.length; index++)
-                          _buildCartPanelItem(
-                            selected[index],
-                            showDivider: index < selected.length - 1,
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    height: 68,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xAAC9B69E),
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text(
-                          '商品总价',
-                          style: TextStyle(
-                            color: Color(0xFF181205),
-                            fontSize: 17,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '¥ ${_total.toStringAsFixed(0)}.00',
-                          style: const TextStyle(
-                            color: Color(0xFF181205),
-                            fontSize: 18,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                ],
+                ),
               ),
             ),
           ),
@@ -1004,81 +1433,105 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage> {
   }) {
     final quantity = _quantities[product.id] ?? 0;
     return Container(
-      height: 112,
+      padding: EdgeInsets.symmetric(vertical: _rpx(20)),
       decoration: BoxDecoration(
         border: showDivider
-            ? const Border(
-                bottom: BorderSide(color: Color(0xFF2A251F), width: .8),
-              )
+            ? const Border(bottom: BorderSide(color: Color(0x30C9B69E)))
             : null,
       ),
       child: Row(
         children: [
-          const _LegacySelectionMark(selected: true),
-          const SizedBox(width: 8),
-          Image.asset(
-            product.asset,
-            width: 58,
-            height: 88,
-            fit: BoxFit.contain,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFE8DED1),
-                    fontSize: 16,
-                    height: 1.15,
-                  ),
-                ),
-                Text(
-                  product.englishName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF94826C),
-                    fontSize: 12,
-                    height: 1.25,
-                  ),
-                ),
-                Text(
-                  product.specs,
-                  style: const TextStyle(
-                    color: Color(0xFF94826C),
-                    fontSize: 12,
-                    height: 1.25,
-                  ),
-                ),
-                Text(
-                  '¥ ${product.price}',
-                  style: const TextStyle(
-                    color: Color(0xFFE2D7C8),
-                    fontSize: 16,
-                    height: 1.2,
-                  ),
-                ),
-              ],
+          GestureDetector(
+            key: ValueKey('ordering-cart-select-${product.id}'),
+            onTap: () => setState(() {
+              if (!_unchecked.remove(product.id)) _unchecked.add(product.id);
+            }),
+            child: _LegacySelectionMark(
+              selected: !_unchecked.contains(product.id),
             ),
           ),
-          _QuantityControl(
-            productId: 'sheet-${product.id}',
-            quantity: quantity,
-            canDecrease: _canEdit,
-            canIncrease: _canEdit && quantity < product.limit,
-            onDecrease: () {
-              _changeQuantity(product, -1);
-              if (_itemCount == 0) {
-                setState(() => _cartPanelOpen = false);
-              }
-            },
-            onIncrease: () => _changeQuantity(product, 1),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: _rpx(28)),
+            child: _OrderingProductImage(
+              product: product,
+              width: _rpx(100),
+              height: _rpx(158),
+            ),
+          ),
+          Expanded(
+            child: SizedBox(
+              height: _rpx(150),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: _rpx(30),
+                          color: const Color(0xFFEEEEEE),
+                          height: 1.2,
+                        ),
+                      ),
+                      Text(
+                        product.englishName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: _rpx(22),
+                          color: const Color(0xFF94826C),
+                          height: 1.3,
+                        ),
+                      ),
+                      Text(
+                        product.specs,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: _rpx(22),
+                          color: const Color(0xFF94826C),
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '¥ ${_money(product.price)}',
+                            style: TextStyle(
+                              fontSize: _rpx(32),
+                              color: const Color(0xFFEEEEEE),
+                            ),
+                          ),
+                        ),
+                      ),
+                      _QuantityControl(
+                        bagAnchor: _bagAnchor,
+                        productId: 'sheet-${product.id}',
+                        quantity: quantity,
+                        canDecrease: _canEdit,
+                        canIncrease: _canEdit && quantity < product.limit,
+                        onDecrease: () {
+                          _changeQuantity(product, -1);
+                          if (_itemCount == 0) _setCartOpen(false);
+                        },
+                        onIncrease: () => _changeQuantity(product, 1),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -1171,8 +1624,8 @@ class _LegacySelectionMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 22,
-      height: 22,
+      width: 36 * (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6),
+      height: 36 * (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: selected ? const Color(0xFFC9B69E) : Colors.black,
@@ -1197,6 +1650,8 @@ class _OrderingProduct {
     required this.originalPrice,
     required this.asset,
     required this.limit,
+    this.thumbnailUrl,
+    this.imageCacheKey,
   });
 
   final String id;
@@ -1209,10 +1664,12 @@ class _OrderingProduct {
   final int originalPrice;
   final String asset;
   final int limit;
+  final String? thumbnailUrl, imageCacheKey;
 }
 
 class _QuantityControl extends StatelessWidget {
   const _QuantityControl({
+    this.bagAnchor,
     required this.productId,
     required this.quantity,
     required this.canDecrease,
@@ -1221,6 +1678,7 @@ class _QuantityControl extends StatelessWidget {
     required this.onIncrease,
   });
 
+  final GlobalKey? bagAnchor;
   final String productId;
   final int quantity;
   final bool canDecrease;
@@ -1241,7 +1699,7 @@ class _QuantityControl extends StatelessWidget {
             onTap: onDecrease,
           ),
           SizedBox(
-            width: 27,
+            width: 54 * (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6),
             child: Text(
               '$quantity',
               textAlign: TextAlign.center,
@@ -1251,6 +1709,7 @@ class _QuantityControl extends StatelessWidget {
         ],
         _RoundQuantityButton(
           key: ValueKey('ordering-add-$productId'),
+          bagAnchor: bagAnchor,
           icon: Icons.add,
           enabled: canIncrease,
           filled: true,
@@ -1264,6 +1723,7 @@ class _QuantityControl extends StatelessWidget {
 class _RoundQuantityButton extends StatelessWidget {
   const _RoundQuantityButton({
     super.key,
+    this.bagAnchor,
     required this.icon,
     required this.enabled,
     required this.onTap,
@@ -1274,18 +1734,29 @@ class _RoundQuantityButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
   final bool filled;
+  final GlobalKey? bagAnchor;
 
   @override
   Widget build(BuildContext context) {
+    final unit = (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6);
     return Semantics(
       button: true,
       enabled: enabled,
       child: InkWell(
-        onTap: enabled ? onTap : null,
+        onTap: enabled
+            ? () {
+                onTap();
+                if (filled &&
+                    bagAnchor?.currentContext != null &&
+                    !MediaQuery.disableAnimationsOf(context)) {
+                  _flyToBag(context, bagAnchor!.currentContext!);
+                }
+              }
+            : null,
         customBorder: const CircleBorder(),
         child: Container(
-          width: filled ? 25 : 23,
-          height: filled ? 25 : 23,
+          width: (filled ? 40 : 36) * unit,
+          height: (filled ? 40 : 36) * unit,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: filled
@@ -1299,17 +1770,72 @@ class _RoundQuantityButton extends StatelessWidget {
                         : const Color(0xFF39332D),
                   ),
           ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: filled
-                ? (enabled ? Colors.black : const Color(0xFF6D655E))
-                : (enabled ? const Color(0xFFFFB400) : const Color(0xFF6D655E)),
+          child: Center(
+            child: Image.asset(
+              'assets/legacy/ordering/${filled ? 'add4' : 'add4a'}.png',
+              width: 20 * unit,
+              height: 20 * unit,
+              color: filled
+                  ? (enabled ? Colors.black : const Color(0xFF6D655E))
+                  : (enabled
+                        ? const Color(0xFFFFB400)
+                        : const Color(0xFF6D655E)),
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+void _flyToBag(BuildContext source, BuildContext target) {
+  final overlay = Overlay.of(source);
+  final overlayBox = overlay.context.findRenderObject()! as RenderBox;
+  final sourceBox = source.findRenderObject()! as RenderBox;
+  final targetBox = target.findRenderObject()! as RenderBox;
+  final start = overlayBox.globalToLocal(
+    sourceBox.localToGlobal(sourceBox.size.center(Offset.zero)),
+  );
+  final end = overlayBox.globalToLocal(
+    targetBox.localToGlobal(targetBox.size.center(Offset.zero)),
+  );
+  final size = 40 * (MediaQuery.sizeOf(source).width / 750).clamp(.4, .6);
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (_) => IgnorePointer(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.ease,
+        onEnd: () {
+          entry.remove();
+          entry.dispose();
+        },
+        builder: (_, value, child) {
+          final point = Offset.lerp(start, end, value)!;
+          return Stack(
+            children: [
+              Positioned(
+                left: point.dx - size / 2,
+                top: point.dy - size / 2,
+                child: Opacity(opacity: 1 - value * .5, child: child!),
+              ),
+            ],
+          );
+        },
+        child: Container(
+          key: const ValueKey('ordering-fly-item'),
+          width: size,
+          height: size,
+          decoration: const BoxDecoration(
+            color: Color(0xFFFFB400),
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    ),
+  );
+  overlay.insert(entry);
 }
 
 class _OrderingEmptyState extends StatelessWidget {
@@ -1359,5 +1885,58 @@ class _OrderingEmptyState extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _OrderingProductImage extends StatelessWidget {
+  const _OrderingProductImage({
+    required this.product,
+    required this.width,
+    required this.height,
+    this.soldOut = false,
+  });
+  final _OrderingProduct product;
+  final double width, height;
+  final bool soldOut;
+  @override
+  Widget build(BuildContext context) {
+    final placeholder = SizedBox(
+      width: width,
+      height: height,
+      child: const Icon(Icons.local_bar_outlined, color: Color(0xFF8E867E)),
+    );
+    final Widget image;
+    if (product.thumbnailUrl != null) {
+      image = CachedMediaImage(
+        product.thumbnailUrl!,
+        key: ValueKey('ordering-remote-image-${product.id}'),
+        contentKey: product.imageCacheKey,
+        private: true,
+        width: width,
+        height: height,
+        fit: BoxFit.contain,
+        placeholder: placeholder,
+        errorBuilder: (_, _, _) => placeholder,
+      );
+    } else if (product.asset.isNotEmpty) {
+      image = Image.asset(
+        product.asset,
+        key: ValueKey('ordering-image-${product.id}'),
+        width: width,
+        height: height,
+        fit: BoxFit.contain,
+      );
+    } else {
+      image = placeholder;
+    }
+    return soldOut
+        ? ColorFiltered(
+            colorFilter: const ColorFilter.mode(
+              Color(0x77000000),
+              BlendMode.darken,
+            ),
+            child: image,
+          )
+        : image;
   }
 }

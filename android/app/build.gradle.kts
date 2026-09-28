@@ -41,6 +41,11 @@ android {
     }
 
     productFlavors {
+        create("commerce") {
+            dimension = "distribution"
+            applicationIdSuffix = ".commerce"
+            versionNameSuffix = "-commerce"
+        }
         create("preview") {
             dimension = "distribution"
             // Vendor push registration uses the same identity as the published app.
@@ -80,6 +85,7 @@ flutter {
 dependencies {
     implementation(files("libs/heytap-push-3.7.1.aar"))
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.tencent.mm.opensdk:wechat-sdk-android:6.8.40")
     implementation("androidx.media3:media3-transformer:1.9.2")
     implementation("androidx.media3:media3-effect:1.9.2")
 }

@@ -1386,9 +1386,10 @@ class _LegacyHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 58),
+      constraints: const BoxConstraints(minHeight: 56),
       child: Row(
         children: [
+          SizedBox(width: KingBackButton.leftOffset(context)),
           KingBackButton(key: const ValueKey('legacy-back'), onPressed: onBack),
           Expanded(
             child: GestureDetector(

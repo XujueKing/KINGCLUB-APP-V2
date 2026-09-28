@@ -50,6 +50,8 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 } else push.handle(call, result, foreground)
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/wechat-payment")
+            .setMethodCallHandler { call, result -> WechatPayment.handle(this, call, result) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/call-foreground")
             .setMethodCallHandler { call, result ->
                 val id = call.argument<String>("id") ?: ""

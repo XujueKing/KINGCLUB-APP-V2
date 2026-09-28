@@ -165,7 +165,8 @@ class _MessageVoiceTranscriptionPageState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
+    appBar: kingAppBar(
+      context: context,
       title: const Text('转文字'),
       leading: KingBackButton(onPressed: () => Navigator.pop(context)),
     ),

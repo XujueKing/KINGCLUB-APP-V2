@@ -2,6 +2,43 @@ import 'package:flutter/material.dart';
 
 import 'king_theme.dart';
 
+/// Shared inner-page toolbar; follows the original conversation back position.
+AppBar kingAppBar({
+  required BuildContext context,
+  Widget? title,
+  Widget? leading,
+  List<Widget>? actions,
+  Color? backgroundColor,
+  Color? foregroundColor,
+  bool? centerTitle,
+}) {
+  final back =
+      leading ??
+      (ModalRoute.of(context)?.canPop == true
+          ? KingBackButton(onPressed: () => Navigator.maybePop(context))
+          : null);
+  return AppBar(
+    toolbarHeight: 56,
+    automaticallyImplyLeading: false,
+    leadingWidth: KingBackButton.leftOffset(context) + 48,
+    leading: back == null
+        ? null
+        : Padding(
+            padding: EdgeInsets.only(
+              left: KingBackButton.leftOffset(context),
+              top: 4,
+              bottom: 4,
+            ),
+            child: back,
+          ),
+    title: title,
+    actions: actions,
+    backgroundColor: backgroundColor,
+    foregroundColor: foregroundColor,
+    centerTitle: centerTitle,
+  );
+}
+
 class KingBackButton extends StatelessWidget {
   const KingBackButton({
     super.key,
@@ -17,9 +54,9 @@ class KingBackButton extends StatelessWidget {
   static double contentWidth(BuildContext context) =>
       (MediaQuery.sizeOf(context).width * .8).clamp(0.0, 480.0).toDouble();
 
-  // Center the 8 dp glyph in its 48 dp touch target on the content edge.
-  static double leftOffset(BuildContext context) =>
-      (MediaQuery.sizeOf(context).width - contentWidth(context)) / 2 - 20;
+  // Original conversation: a 48dp button at x=-2 placed the glyph at x=18.
+  // Preserve that visible position with the full touch target inside the screen.
+  static double leftOffset(BuildContext context) => 0;
   static const glyphSize = Size(8, 16);
 
   @override
@@ -29,12 +66,15 @@ class KingBackButton extends StatelessWidget {
       padding: EdgeInsets.zero,
       onPressed: onPressed,
       tooltip: tooltip,
-      icon: Image.asset(
-        'assets/legacy/friendship/back.png',
-        width: glyphSize.width,
-        height: glyphSize.height,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
+      icon: Transform.translate(
+        offset: const Offset(-2, 0),
+        child: Image.asset(
+          'assets/legacy/friendship/back.png',
+          width: glyphSize.width,
+          height: glyphSize.height,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+        ),
       ),
     );
   }

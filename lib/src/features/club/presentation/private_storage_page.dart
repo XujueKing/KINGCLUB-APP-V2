@@ -1,3 +1,8 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show appFlavor;
+
+import '../data/bottle_material_preview.dart';
+
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:async';
@@ -12,6 +17,7 @@ import '../../../core/design_system/king_theme.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../data/storage_repository.dart';
 import 'storage_liquid_bottle.dart';
+import 'bottle_material_image.dart';
 import 'real_storage_pickup_page.dart';
 
 const _gold = Color(0xFFC9B69E);
@@ -28,9 +34,17 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     with SingleTickerProviderStateMixin {
   late final StorageRepository _repository =
       widget.repository ??
-      (kingclubApiBaseUrl.isEmpty
+      (_materialPreviewEnabled
+          ? BottleMaterialPreviewRepository()
+          : kingclubApiBaseUrl.isEmpty
           ? PreviewStorageRepository()
           : RealStorageRepository());
+  static final _materialPreviewEnabled =
+      !kReleaseMode &&
+      appFlavor == 'commerce' &&
+      const bool.fromEnvironment('KINGCLUB_BOTTLE_MATERIAL_PREVIEW');
+  bool get _materialPreview => _repository is BottleMaterialPreviewRepository;
+  double _previewLevel = 50;
   final _pages = PageController();
   static const _categories = ['wine', 'coupon', 'item'];
   static const _labels = ['酒', '券', '物'];
@@ -85,6 +99,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   void initState() {
     super.initState();
     _load();
+    if (_materialPreview) return;
     _realtime = KingclubRealtime.shared.events.listen((event) {
       if (event['eventType'] == 'connection.ready' ||
           event['eventType'] == 'storage.changed') {
@@ -185,6 +200,10 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   Future<void> _pickup() async {
     final item = _item;
     if (item == null) return;
+    if (_materialPreview) {
+      KingNotice.of(context).show('素材测试不签发取酒码');
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         allowSnapshotting: false,
@@ -193,6 +212,47 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
       ),
     );
     if (mounted) _load();
+  }
+
+  Future<void> _adjustPreviewLevel() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF211C14),
+      builder: (context) => StatefulBuilder(
+        builder: (context, updateSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${_item?.name ?? ''} · ${_previewLevel.round()}%',
+                  style: const TextStyle(color: _gold),
+                ),
+                Slider(
+                  value: _previewLevel,
+                  min: 0,
+                  max: 100,
+                  divisions: 100,
+                  onChanged: (value) {
+                    setState(() {
+                      _previewLevel = value;
+                      _back = true;
+                      _flip.value = 1;
+                    });
+                    updateSheet(() {});
+                  },
+                ),
+                const Text(
+                  '仅调节展示比例，不改变实际存酒余量',
+                  style: TextStyle(color: _gold, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _showExpiredStorage() async {
@@ -281,25 +341,19 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
         bottom: false,
         child: LayoutBuilder(
           builder: (context, c) {
-            final u = c.maxWidth / 750;
-            final width = math.min(
-              c.maxWidth * .84,
-              math.max(
-                0.0,
-                (c.maxHeight -
-                        58 -
-                        100 * u -
-                        MediaQuery.paddingOf(context).bottom -
-                        95 * u) *
-                    .64,
-              ),
+            final screenUnit = c.maxWidth / 750;
+            // extendBody supplies the whole bottom navigation obstruction as
+            // MediaQuery padding. Reserve it BEFORE fitting the legacy layout.
+            final bottom = MediaQuery.paddingOf(context).bottom;
+            // Legacy .box_style is 630rpx on a 750rpx viewport. Never
+            // shrink its horizontal footprint to solve vertical pressure.
+            final u = screenUnit;
+            final width = 630 * u;
+            final heroHeight = math.min(
+              490 * u,
+              math.max(0.0, c.maxHeight - bottom - 58 - 785 * u),
             );
-            final bottom = 100 * u + MediaQuery.paddingOf(context).bottom;
-            final heroHeight = math.max(
-              0.0,
-              c.maxHeight - bottom - width - 58 - 95 * u,
-            );
-            return Column(
+            final content = Column(
               children: [
                 SizedBox(
                   height: 58,
@@ -314,9 +368,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                           crossAxisAlignment: CrossAxisAlignment.baseline,
                           textBaseline: TextBaseline.alphabetic,
                           children: [
-                            const Flexible(
+                            Flexible(
                               child: Text(
-                                '储物袋',
+                                _materialPreview ? '储物袋 · 素材测试' : '储物袋',
                                 style: kingSectionTitleStyle,
                                 maxLines: 1,
                               ),
@@ -351,7 +405,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                           key: const ValueKey('storage-expired-items'),
                           onPressed: _loading || _error != null
                               ? null
-                              : _showExpiredStorage,
+                              : (_materialPreview
+                                    ? _adjustPreviewLevel
+                                    : _showExpiredStorage),
                           style:
                               TextButton.styleFrom(
                                 foregroundColor: const Color(0xB3C9B69E),
@@ -369,7 +425,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                   Colors.transparent,
                                 ),
                               ),
-                          child: const Text('过期储物'),
+                          child: Text(_materialPreview ? '测试余量' : '过期储物'),
                         ),
                       ),
                     ],
@@ -377,12 +433,17 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                 ),
                 SizedBox(
                   height: heroHeight,
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 48 * u),
-                    child: _hero(u),
+                  width: 750 * u,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(
+                      width: c.maxWidth,
+                      height: 490 * screenUnit,
+                      child: _hero(screenUnit),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 28 * u),
                 SizedBox(
                   width: width,
                   height: 48 * u,
@@ -497,6 +558,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                 ),
                 SizedBox(height: 20 * u),
                 Row(
+                  key: const ValueKey('storage-category-dots'),
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     3,
@@ -513,9 +575,18 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                     ),
                   ),
                 ),
-                SizedBox(height: math.max(0.0, bottom - 24)),
+                SizedBox(height: 32 * u),
               ],
             );
+            // Keep the full-width grid on phones. In landscape/short windows,
+            // allow scrolling once even the grid alone cannot fit vertically.
+            if (58 + 785 * u > c.maxHeight - bottom) {
+              return SingleChildScrollView(
+                padding: EdgeInsets.only(bottom: bottom),
+                child: content,
+              );
+            }
+            return content;
           },
         ),
       ),
@@ -560,11 +631,12 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
               : Stack(
                   children: [
                     Center(
-                      child: Image.asset(
-                        item.thumbnail,
+                      child: SizedBox(
                         width: 160 * u,
                         height: 160 * u,
-                        fit: BoxFit.contain,
+                        child: item is BottlePreviewItem
+                            ? BottleMaterialImage(item: item, thumbnail: true)
+                            : Image.asset(item.thumbnail, fit: BoxFit.contain),
                       ),
                     ),
                     if (item.category == 'wine')
@@ -660,7 +732,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                         ..setEntry(3, 2, .0015)
                         ..rotateY(angle),
                       child: SizedBox(
-                        height: 460 * u,
+                        height: _materialPreview ? 490 * u : 460 * u,
                         child: item.category == 'wine'
                             ? (back ? _backFace(item, u) : _frontFace(item, u))
                             : LayoutBuilder(
@@ -701,7 +773,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   }
 
   Widget _frontFace(StorageItem item, double u) => item.category == 'wine'
-      ? Image.asset(item.image, fit: BoxFit.contain)
+      ? (item is BottlePreviewItem
+            ? BottleMaterialImage(item: item)
+            : Image.asset(item.image, fit: BoxFit.contain))
       : Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -737,7 +811,11 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   Widget _backFace(StorageItem item, double u) => item.category == 'wine'
       ? StorageLiquidBottle(
           key: ValueKey(item.ref),
-          item: item,
+          item: switch (item) {
+            BottlePreviewItem() => item.atLevel(_previewLevel),
+            LegacyBottleComparisonItem() => item.atLevel(_previewLevel),
+            _ => item,
+          },
           active: widget.active && _back,
         )
       : Column(

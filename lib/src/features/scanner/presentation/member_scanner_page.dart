@@ -1,8 +1,13 @@
+import 'package:kingclub/src/core/design_system/king_components.dart';
+
 import '../../messaging/data/group_chat_repository.dart';
 import '../../messaging/presentation/group_qr_preview_page.dart';
 import '../../../core/session/secure_session_store.dart';
 
 import 'package:uuid/uuid.dart';
+import 'package:go_router/go_router.dart';
+
+import '../data/scan_route.dart';
 
 import '../../messaging/data/messaging_repository.dart';
 import '../../../core/design_system/king_notice.dart';
@@ -81,9 +86,19 @@ class _MemberScannerPageState extends State<MemberScannerPage>
     final generation = ++_generation;
     try {
       await _controller.stop();
+      if (!mounted || !_active || _invalid || generation != _generation) return;
+      final route = ScanRoute.parse(code);
+      if (route.kind == ScanRouteKind.unsupported) {
+        setState(() => _error = '此二维码无效或对应业务尚未接通');
+        return;
+      }
+      if (route.kind == ScanRouteKind.tableOrdering) {
+        await context.push<void>(route.location!);
+        return;
+      }
       final messaging = await MessagingRepository.open();
       if (!mounted || !_active || _invalid || generation != _generation) return;
-      if (code.startsWith('KC:G:')) {
+      if (route.kind == ScanRouteKind.group) {
         await Navigator.push(
           context,
           MaterialPageRoute<void>(
@@ -131,7 +146,7 @@ class _MemberScannerPageState extends State<MemberScannerPage>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('扫一扫')),
+    appBar: kingAppBar(context: context, title: const Text('扫一扫')),
     body: Stack(
       children: [
         MobileScanner(
@@ -159,7 +174,7 @@ class _MemberScannerPageState extends State<MemberScannerPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(_error ?? (_busy ? '正在读取二维码…' : '请扫描 KINGCLUB 个人或群二维码')),
+                  Text(_error ?? (_busy ? '正在读取二维码…' : '请扫描桌卡、个人或群二维码')),
                   if (_error != null && !_invalid)
                     TextButton(
                       onPressed: () {
@@ -243,7 +258,7 @@ class _MemberCardPreviewState extends State<MemberCardPreview> {
   );
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('会员资料')),
+    appBar: kingAppBar(context: context, title: const Text('会员资料')),
     body: Center(
       child: Padding(
         padding: const EdgeInsets.all(28),

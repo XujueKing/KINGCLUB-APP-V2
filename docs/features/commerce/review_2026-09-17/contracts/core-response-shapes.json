@@ -1,0 +1,325 @@
+{
+  "JoinActivity": {
+    "type": "object",
+    "required": [
+      "commandId",
+      "operationRef",
+      "objectRef",
+      "version",
+      "outcome",
+      "result"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "operationRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "objectRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "version": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "outcome": {
+        "type": "string",
+        "enum": [
+          "succeeded"
+        ]
+      },
+      "result": {
+        "type": "object",
+        "required": [
+          "registrationRef",
+          "registrationState"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "registrationRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "registrationState": {
+            "type": "string",
+            "enum": [
+              "unassigned"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "ConfirmSeatAllocation": {
+    "type": "object",
+    "required": [
+      "commandId",
+      "operationRef",
+      "objectRef",
+      "version",
+      "outcome",
+      "result"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "operationRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "objectRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "version": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "outcome": {
+        "type": "string",
+        "enum": [
+          "succeeded"
+        ]
+      },
+      "result": {
+        "type": "object",
+        "required": [
+          "assignments"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "assignments": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "registrationRef",
+                "tableSessionRef",
+                "version"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "registrationRef": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "tableSessionRef": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "ConfirmSessionOpening": {
+    "type": "object",
+    "required": [
+      "commandId",
+      "operationRef",
+      "objectRef",
+      "version",
+      "outcome",
+      "result"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "operationRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "objectRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "version": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "outcome": {
+        "type": "string",
+        "enum": [
+          "succeeded"
+        ]
+      },
+      "result": {
+        "type": "object",
+        "required": [
+          "tableSessionRef",
+          "sessionState",
+          "fulfillmentRef",
+          "issueRef",
+          "deliveryState"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "tableSessionRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "sessionState": {
+            "type": "string",
+            "enum": [
+              "open"
+            ]
+          },
+          "fulfillmentRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "issueRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "deliveryState": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "CreateAAGroup": {
+    "type": "object",
+    "required": [
+      "commandId",
+      "operationRef",
+      "objectRef",
+      "version",
+      "outcome",
+      "result"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "operationRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "objectRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "version": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "outcome": {
+        "type": "string",
+        "enum": [
+          "succeeded"
+        ]
+      },
+      "result": {
+        "type": "object",
+        "required": [
+          "groupRef",
+          "groupState",
+          "refundState",
+          "totalMinor",
+          "currency",
+          "shareAmountsMinor",
+          "createdAt",
+          "expiresAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "groupRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "groupState": {
+            "type": "string",
+            "enum": [
+              "collecting"
+            ]
+          },
+          "refundState": {
+            "type": "string",
+            "enum": [
+              "not_required"
+            ]
+          },
+          "totalMinor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3
+          },
+          "shareAmountsMinor": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 200,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "expiresAt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      }
+    }
+  }
+}

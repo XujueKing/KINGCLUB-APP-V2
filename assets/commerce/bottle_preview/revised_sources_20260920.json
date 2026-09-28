@@ -1,0 +1,112 @@
+[
+  {
+    "key": "bottle_01",
+    "source": "奔富BIN407.png",
+    "width": 893,
+    "height": 3756,
+    "sha256": "a338e991e6df71afcd70bbaada9d992a378dd1124f00422268c16943bdc43cee",
+    "thumbnail": [
+      183,
+      768
+    ]
+  },
+  {
+    "key": "bottle_02",
+    "source": "巴黎之花特级干型香槟-3.png",
+    "width": 328,
+    "height": 1194,
+    "sha256": "b7237828b22a375aba3284c136542e4ef6f60253eb8a76a2d6ac0dffdf48ec3d",
+    "thumbnail": [
+      211,
+      768
+    ]
+  },
+  {
+    "key": "bottle_03",
+    "source": "獭祭39 1.8l.png",
+    "width": 900,
+    "height": 3409,
+    "sha256": "ceec0be3f4c9844844ec83344b119071650ef3053035e57033e0393caa7eb5f5",
+    "thumbnail": [
+      203,
+      768
+    ]
+  },
+  {
+    "key": "bottle_04",
+    "source": "獭祭39 300ml.png",
+    "width": 404,
+    "height": 1286,
+    "sha256": "c93a707f3ac58fe43b1c8f3b2fe7ff5956978180064a20886fd3eaf90756499b",
+    "thumbnail": [
+      241,
+      768
+    ]
+  },
+  {
+    "key": "bottle_05",
+    "source": "獭祭39 720ml.png",
+    "width": 392,
+    "height": 1366,
+    "sha256": "de7eb0d8fed199c59b6854a30727edab6e61be9ae912f50c1f3b6fdab22ca6da",
+    "thumbnail": [
+      220,
+      768
+    ]
+  },
+  {
+    "key": "bottle_06",
+    "source": "百富12年.png",
+    "width": 354,
+    "height": 1054,
+    "sha256": "6ea733acee692f1404320acdcddc3eeeee7c8212e4056852038cf9ee862e263f",
+    "thumbnail": [
+      258,
+      768
+    ]
+  },
+  {
+    "key": "bottle_07",
+    "source": "酩悦皇室香槟.png",
+    "width": 1043,
+    "height": 3649,
+    "sha256": "b28bbf03faa4edfe32ee8e7ff678ba3d0edb6c160eca32ae35f0587011a3cf23",
+    "thumbnail": [
+      220,
+      768
+    ]
+  },
+  {
+    "key": "bottle_08",
+    "source": "麦卡伦12年.png",
+    "width": 912,
+    "height": 3738,
+    "sha256": "14bf86af687ee8ed3359d669a90538251b73c64723d1a422f6fa5d1ea6938c8e",
+    "thumbnail": [
+      187,
+      768
+    ]
+  },
+  {
+    "key": "bottle_09",
+    "source": "麦卡伦LITHA.png",
+    "width": 1019,
+    "height": 3770,
+    "sha256": "1b28389b65f7d6e83d3f7408e21fe455a2b9246a2ebebfd4748fc68fe35b3a84",
+    "thumbnail": [
+      208,
+      768
+    ]
+  },
+  {
+    "key": "bottle_10",
+    "source": "黑桃A黄金香槟.png",
+    "width": 284,
+    "height": 973,
+    "sha256": "d2318612601a7f243fb6a7c6c9c2e82800530e9003064f2ca6e9c9c96dcc7814",
+    "thumbnail": [
+      224,
+      768
+    ]
+  }
+]

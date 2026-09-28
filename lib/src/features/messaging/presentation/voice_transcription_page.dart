@@ -82,7 +82,8 @@ class _VoiceTranscriptionPageState extends State<VoiceTranscriptionPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFF191715),
-    appBar: AppBar(
+    appBar: kingAppBar(
+      context: context,
       title: const Text('转文字'),
       leading: KingBackButton(onPressed: () => Navigator.pop(context)),
     ),

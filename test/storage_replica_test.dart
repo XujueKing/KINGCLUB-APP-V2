@@ -59,13 +59,14 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('storage-flip')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
-      await tester.tap(find.byKey(const ValueKey('storage-tab-物-idle')));
+      await tester.tap(find.byKey(const ValueKey('storage-tab-券-idle')));
       await tester.pumpAndSettle();
       expect(find.text('首次AA免单券'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('storage-flip')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('最大抵用金额：388元'), findsOneWidget);
+      expect(find.byType(StorageLiquidBottle), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -73,6 +74,7 @@ void main() {
     const Size(360, 640),
     const Size(393, 852),
     const Size(430, 932),
+    const Size(800, 600),
   ]) {
     testWidgets('cabinet fits $size', (tester) async {
       tester.view.physicalSize = size;

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../data/storage_repository.dart';
+import '../data/bottle_material_preview.dart';
+import 'bottle_material_image.dart';
 
 /// Original bottle silhouettes; only the liquid surface is procedurally animated.
 class StorageLiquidBottle extends StatefulWidget {
@@ -69,6 +71,11 @@ class _StorageLiquidBottleState extends State<StorageLiquidBottle>
 
   @override
   Widget build(BuildContext context) {
+    final preview = widget.item;
+    if (preview is BottlePreviewItem) return _previewBottle(preview);
+    if (preview is LegacyBottleComparisonItem) {
+      return _legacyComparison(preview);
+    }
     final key = ['vodka', 'chivas', 'hennessy'].contains(widget.item.assetKey)
         ? widget.item.assetKey
         : 'vodka';
@@ -152,6 +159,184 @@ class _StorageLiquidBottleState extends State<StorageLiquidBottle>
       ],
     );
   }
+
+  Widget _bottleLabels(StorageItem item, double u) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        '${item.remainingPercent.toStringAsFixed(0)}%',
+        style: TextStyle(
+          color: const Color(0xFFC9B69E),
+          fontSize: 40 * u,
+          height: 1.2,
+          fontWeight: FontWeight.w400,
+        ),
+      ),
+      Text(
+        item.expiresLabel.split(' ').first,
+        style: TextStyle(
+          color: const Color(0xFFC9B69E),
+          fontSize: 22 * u,
+          height: 1.4,
+          fontWeight: FontWeight.w400,
+        ),
+      ),
+    ],
+  );
+
+  Widget _materialLiquid(String mask, double level, double u) =>
+      AnimatedBuilder(
+        animation: _wave,
+        builder: (context, _) => Stack(
+          fit: StackFit.expand,
+          children: [
+            // Old .bottle_progress: radial(circle 240rpx at 50% 100%, #443626, #c9b69e).
+            ShaderMask(
+              blendMode: BlendMode.srcIn,
+              shaderCallback: (bounds) => RadialGradient(
+                center: Alignment.bottomCenter,
+                radius: 240 * u / bounds.shortestSide,
+                colors: const [Color(0xFF443626), Color(0xFFC9B69E)],
+              ).createShader(bounds),
+              child: SvgPicture.asset(mask, fit: BoxFit.contain),
+            ),
+            // Old moving dark liquid surface, clipped to the same bottle silhouette.
+            ClipPath(
+              key: const ValueKey('storage-liquid-surface'),
+              clipper: _LegacyMaterialSurface(level / 100, _wave.value),
+              child: ShaderMask(
+                blendMode: BlendMode.srcIn,
+                shaderCallback: (bounds) => RadialGradient(
+                  center: Alignment.topCenter,
+                  radius: 500 * u / bounds.shortestSide,
+                  colors: const [Color(0xFF52412F), Color(0xDD000000)],
+                ).createShader(bounds),
+                child: SvgPicture.asset(mask, fit: BoxFit.contain),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _previewBottle(BottlePreviewItem item) {
+    final u = MediaQuery.sizeOf(context).width / 750;
+    return LayoutBuilder(
+      builder: (context, box) {
+        final imageHeight = math.min(
+          box.maxHeight,
+          box.maxWidth / item.imageAspectRatio,
+        );
+        final imageWidth = imageHeight * item.imageAspectRatio;
+        return Stack(
+          alignment: Alignment.center,
+          fit: StackFit.expand,
+          clipBehavior: Clip.none,
+          children: [
+            BottleMaterialBacking(
+              item: item,
+              reverse: true,
+              bodyHeight: imageHeight,
+              bodyWidth: imageWidth,
+            ),
+            Center(
+              child: OverflowBox(
+                maxHeight: imageHeight * 1.08,
+                maxWidth: imageHeight * 1.08 * item.aspectRatio,
+                child: SizedBox(
+                  key: ValueKey('bottle-reverse-canvas-${item.ref}'),
+                  height: imageHeight * 1.08,
+                  width: imageHeight * 1.08 * item.aspectRatio,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _materialLiquid(item.mask, item.remainingPercent, u),
+                      SvgPicture.asset(item.outline, fit: BoxFit.contain),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: (box.maxHeight - imageHeight) / 2 + imageHeight * .66,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: SizedBox(
+                  width: math.max(1, imageWidth - 32 * u),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _bottleLabels(item, u),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _legacyComparison(LegacyBottleComparisonItem item) {
+    final u = MediaQuery.sizeOf(context).width / 750;
+    // Exact dimensions from legacy index.wxss; A = gold bottle, B = liquid mask.
+    final dims = switch (item.assetKey) {
+      'xo' => [311.0, 289.0, 460.0, 272.0, 443.0, -11.5],
+      'vodka' => [217.0, 146.0, 453.0, 130.0, 437.0, -18.0],
+      'chivas' => [216.0, 173.0, 449.0, 157.0, 434.0, -11.5],
+      _ => [217.0, 167.0, 453.0, 153.0, 439.0, -11.5],
+    };
+    final prefix = '${BottlePreviewItem.directory}/legacy_${item.assetKey}';
+    return Center(
+      child: SizedBox(
+        width: dims[0] * u,
+        height: 490 * u,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SvgPicture.asset(
+              '${prefix}_BJ.svg',
+              width: dims[0] * u,
+              height: 490 * u,
+              colorFilter: const ColorFilter.mode(
+                Color(0x33000000),
+                BlendMode.srcIn,
+              ),
+            ),
+            Transform.translate(
+              offset: Offset(0, dims[5] * u / 2),
+              child: SvgPicture.asset(
+                '${prefix}_A.svg',
+                width: dims[1] * u,
+                height: dims[2] * u,
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFFC9B69E),
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
+            Transform.translate(
+              offset: Offset(0, -11.5 * u / 2),
+              child: SizedBox(
+                width: dims[3] * u,
+                height: dims[4] * u,
+                child: _materialLiquid(
+                  '${prefix}_B.svg',
+                  item.remainingPercent,
+                  u,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 490 * u * .66,
+              left: 0,
+              right: 0,
+              child: _bottleLabels(item, u),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _LiquidClipper extends CustomClipper<Path> {
@@ -185,5 +370,36 @@ class _LiquidClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(_LiquidClipper old) =>
+      old.level != level || old.phase != phase;
+}
+
+/// Match the legacy dark liquid / gold empty-bottle visual, keeping a stopper
+/// above a full bottle. Percentage is not a physical volume-height calibration.
+class _LegacyMaterialSurface extends CustomClipper<Path> {
+  const _LegacyMaterialSurface(this.level, this.phase);
+  final double level, phase;
+  @override
+  Path getClip(Size size) {
+    final value = level.clamp(0.0, 1.0);
+    if (value == 0) return Path();
+    final y = size.height * (1 - value * .94);
+    final p = Path()..moveTo(0, y);
+    for (double x = 0; x <= size.width; x += 2) {
+      p.lineTo(
+        x,
+        y +
+            math.sin(x / size.width * math.pi * 4 + phase * math.pi * 2) *
+                2 *
+                value,
+      );
+    }
+    return p
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(_LegacyMaterialSurface old) =>
       old.level != level || old.phase != phase;
 }

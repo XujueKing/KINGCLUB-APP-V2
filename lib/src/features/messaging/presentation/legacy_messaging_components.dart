@@ -72,9 +72,7 @@ class LegacyMessagingHeader extends StatelessWidget {
         children: [
           Positioned(
             // The 8 dp glyph has 20 dp inset inside its 48 dp target.
-            left: alignToConversationTitle
-                ? -2
-                : KingBackButton.leftOffset(context),
+            left: KingBackButton.leftOffset(context),
             top: KingBackButton.safeAreaOffset.dy,
             child: KingBackButton(
               key: const ValueKey('messaging-back'),
@@ -94,7 +92,7 @@ class LegacyMessagingHeader extends StatelessWidget {
           ),
           if (trailing != null)
             Positioned(
-              // Match the back button center, not the wider icon edge.
+              // Preserve the main branch's approved chat action placement.
               right: alignToConversationTitle ? -2 : 18,
               top: 4,
               height: 48,

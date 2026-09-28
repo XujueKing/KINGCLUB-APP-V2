@@ -1,0 +1,206 @@
+{
+  "JoinActivity": {
+    "type": "object",
+    "required": [
+      "commandId",
+      "storeRef",
+      "activityRef",
+      "entitlementRef"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "storeRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "activityRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "entitlementRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      }
+    }
+  },
+  "ConfirmSeatAllocation": {
+    "type": "object",
+    "required": [
+      "commandId",
+      "storeRef",
+      "tenantRef",
+      "activityRef",
+      "tableSessions",
+      "assignments"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "storeRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "tenantRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "activityRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "tableSessions": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 200,
+        "items": {
+          "type": "object",
+          "required": [
+            "tableSessionRef",
+            "expectedVersion"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "tableSessionRef": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "expectedVersion": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        }
+      },
+      "assignments": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 200,
+        "items": {
+          "type": "object",
+          "required": [
+            "registrationRef",
+            "expectedVersion",
+            "tableSessionRef"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "registrationRef": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "expectedVersion": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "tableSessionRef": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        }
+      }
+    }
+  },
+  "ConfirmSessionOpening": {
+    "type": "object",
+    "required": [
+      "commandId",
+      "storeRef",
+      "tableSessionRef",
+      "expectedVersion",
+      "expectedRecipeVersion"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "storeRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "tableSessionRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "expectedVersion": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "expectedRecipeVersion": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2147483647
+      }
+    }
+  },
+  "CreateAAGroup": {
+    "type": "object",
+    "required": [
+      "commandId",
+      "storeRef",
+      "tableSessionRef",
+      "quoteRef",
+      "expectedQuoteVersion",
+      "shareCount"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "commandId": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36
+      },
+      "storeRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "tableSessionRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "quoteRef": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "expectedQuoteVersion": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "shareCount": {
+        "type": "integer",
+        "minimum": 2,
+        "maximum": 200
+      }
+    }
+  }
+}

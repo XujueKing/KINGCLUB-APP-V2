@@ -150,7 +150,8 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
     final system = location.coordinateSystem == 'gcj02' ? 'GCJ-02' : 'WGS84';
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
+      appBar: kingAppBar(
+        context: context,
         title: const Text('位置'),
         backgroundColor: Colors.black,
         leading: KingBackButton(onPressed: () => Navigator.of(context).pop()),

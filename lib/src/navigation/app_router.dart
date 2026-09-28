@@ -1,6 +1,16 @@
+import '../features/commerce/presentation/live_order_payment_page.dart';
+import '../features/commerce/data/ordering_order_repository.dart';
+import '../features/commerce/presentation/managed_tables_page.dart';
+import '../features/commerce/presentation/daily_table_settings_page.dart';
+import '../features/commerce/data/table_management_repository.dart';
+import '../features/commerce/data/commerce_endpoint.dart';
+import '../features/commerce/data/ordering_table_repository.dart';
+import '../features/commerce/data/ordering_catalog_repository.dart';
+
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import '../features/scanner/presentation/member_scanner_page.dart';
+import '../features/commerce/presentation/table_ordering_entry_page.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1083,8 +1093,65 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
   const ScanOrderingCartRoute();
 
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      ScanOrderingCartPage(
+  Widget build(BuildContext context, GoRouterState state) {
+    final tableId = state.uri.queryParameters['tableId'];
+    if (state.uri.queryParameters['manage'] == '1' &&
+        tableId != null &&
+        const bool.fromEnvironment('KINGCLUB_TABLE_MANAGEMENT_ENABLED')) {
+      final store = state.uri.queryParameters['storeRef'];
+      final date = state.uri.queryParameters['businessDate'];
+      final parsed = date == null ? null : DateTime.tryParse(date);
+      if (store != null &&
+          RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(store) &&
+          date != null &&
+          RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date) &&
+          parsed != null &&
+          parsed.toIso8601String().substring(0, 10) == date &&
+          kingclubCommerceApiBaseUrl.isNotEmpty) {
+        return DailyTableSettingsPage(
+          tableId: tableId,
+          storeRef: store,
+          businessDate: date,
+          repository: TableManagementRepository.secure(
+            kingclubCommerceApiBaseUrl,
+          ),
+          locale: Localizations.localeOf(context),
+          onBack: () => context.canPop()
+              ? context.pop()
+              : const AppShellRoute().go(context),
+        );
+      }
+    }
+    if (tableId != null) {
+      return TableOrderingEntryPage(
+        tableId: tableId,
+        tableName: state.uri.queryParameters['tableName'],
+        resolveTable: kingclubCommerceApiBaseUrl.isEmpty
+            ? null
+            : (id) =>
+                  OrderingTableRepository.secure(kingclubCommerceApiBaseUrl)
+                      .resolve(id, shopId: state.uri.queryParameters['shopId']),
+        tableManagement:
+            const bool.fromEnvironment('KINGCLUB_GUEST_COUNT_ENABLED') &&
+                kingclubCommerceApiBaseUrl.isNotEmpty
+            ? TableManagementRepository.secure(kingclubCommerceApiBaseUrl)
+            : null,
+        openWalkIn: kingclubCommerceApiBaseUrl.isEmpty
+            ? null
+            : (entry, count, requestId) =>
+                  OrderingTableRepository.secure(kingclubCommerceApiBaseUrl)
+                      .resolve(
+                        tableId,
+                        shopId: state.uri.queryParameters['shopId'],
+                        partySize: count,
+                        requestId: requestId,
+                        expectedBusinessDate: entry.businessDate,
+                        expectedRuleRevision: entry.revision,
+                      ),
+        readCatalog: kingclubCommerceApiBaseUrl.isEmpty
+            ? null
+            : OrderingCatalogRepository.secure(kingclubCommerceApiBaseUrl).read,
+        locale: Localizations.localeOf(context),
         onBack: () => context.canPop()
             ? context.pop()
             : const AppShellRoute().go(context),
@@ -1092,6 +1159,15 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
             ScanOrderConfirmationRoute(quote).push<void>(context),
         onOpenOrders: () => const OrderCenterRoute().push<void>(context),
       );
+    }
+    return ScanOrderingCartPage(
+      onBack: () =>
+          context.canPop() ? context.pop() : const AppShellRoute().go(context),
+      onQuoteReady: (quote) =>
+          ScanOrderConfirmationRoute(quote).push<void>(context),
+      onOpenOrders: () => const OrderCenterRoute().push<void>(context),
+    );
+  }
 }
 
 @TypedGoRoute<ScanOrderConfirmationRoute>(path: '/commerce/ordering/confirm')
@@ -1111,21 +1187,29 @@ class ScanOrderConfirmationRoute extends GoRouteData
 
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      ScanOrderConfirmationPage(
-        repository: _commerce(context),
-        quote: $extra,
-        onBack: () => context.canPop()
-            ? context.pop()
-            : const ScanOrderingCartRoute().go(context),
-        onModify: () => context.canPop()
-            ? context.pop()
-            : const ScanOrderingCartRoute().go(context),
-        onOrderCreated: (intent) =>
-            PaymentResultRoute(FakePaymentIntentRef(intent.paymentIntentId))
-                .go(context),
-        onSessionResetRequested: () => _clearCommerceAndLogin(context),
-        onOpenOrders: () => const OrderCenterRoute().go(context),
-      );
+      $extra?.orderingContext != null
+      ? LiveOrderPaymentPage(
+          quote: $extra!,
+          repository: OrderingOrderRepository.secure(
+            kingclubCommerceApiBaseUrl,
+          ),
+          onBack: () => context.pop(),
+        )
+      : ScanOrderConfirmationPage(
+          repository: _commerce(context),
+          quote: $extra,
+          onBack: () => context.canPop()
+              ? context.pop()
+              : const ScanOrderingCartRoute().go(context),
+          onModify: () => context.canPop()
+              ? context.pop()
+              : const ScanOrderingCartRoute().go(context),
+          onOrderCreated: (intent) =>
+              PaymentResultRoute(FakePaymentIntentRef(intent.paymentIntentId))
+                  .go(context),
+          onSessionResetRequested: () => _clearCommerceAndLogin(context),
+          onOpenOrders: () => const OrderCenterRoute().go(context),
+        );
 }
 
 @TypedGoRoute<OrderCenterRoute>(
@@ -1312,16 +1396,32 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
       );
 
   @override
-  Widget build(BuildContext context, GoRouterState state) => SettingsPage(
-    onBack: () =>
-        context.canPop() ? context.pop() : const AppShellRoute().go(context),
-    onOpenPaymentSecurity: () =>
-        const PaymentSecurityRoute().push<void>(context),
-    onOpenAccountDeletion: () =>
-        const AccountDeletionRoute().push<void>(context),
-    onOpenAboutLegal: () => const AboutLegalRoute().push<void>(context),
-    onLogoutCompleted: () => _clearCommerceAndLogin(context),
-    onSessionResetRequested: () => _clearCommerceAndLogin(context),
+  Widget build(BuildContext context, GoRouterState state) => Builder(
+    builder: (pageContext) => SettingsPage(
+      onBack: () =>
+          context.canPop() ? context.pop() : const AppShellRoute().go(context),
+      onOpenPaymentSecurity: () =>
+          const PaymentSecurityRoute().push<void>(context),
+      onOpenAccountDeletion: () =>
+          const AccountDeletionRoute().push<void>(context),
+      onOpenAboutLegal: () => const AboutLegalRoute().push<void>(context),
+      onOpenTableManagement:
+          const bool.fromEnvironment('KINGCLUB_TABLE_MANAGEMENT_ENABLED') &&
+              kingclubCommerceApiBaseUrl.isNotEmpty
+          ? () => Navigator.of(pageContext).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ManagedTablesPage(
+                  repository: TableManagementRepository.secure(
+                    kingclubCommerceApiBaseUrl,
+                  ),
+                  locale: Localizations.localeOf(pageContext),
+                ),
+              ),
+            )
+          : null,
+      onLogoutCompleted: () => _clearCommerceAndLogin(context),
+      onSessionResetRequested: () => _clearCommerceAndLogin(context),
+    ),
   );
 }
 

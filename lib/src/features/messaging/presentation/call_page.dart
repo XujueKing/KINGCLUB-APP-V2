@@ -301,7 +301,8 @@ class _CallPageState extends State<CallPage> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF161616),
-        appBar: AppBar(
+        appBar: kingAppBar(
+          context: context,
           backgroundColor: const Color(0xFF161616),
           leading: KingBackButton(onPressed: _end),
           title: Text(

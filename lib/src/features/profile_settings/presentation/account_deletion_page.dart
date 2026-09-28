@@ -527,9 +527,10 @@ class _DeletionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 62,
+      height: 56,
       child: Row(
         children: [
+          SizedBox(width: KingBackButton.leftOffset(context)),
           KingBackButton(onPressed: onBack),
           Expanded(
             child: GestureDetector(
