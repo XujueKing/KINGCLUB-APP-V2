@@ -46,6 +46,7 @@ import UserNotifications
     withCompletionHandler completionHandler: @escaping () -> Void) {
     if let raw = response.notification.request.content.userInfo["kingclub_push"] as? String {
       AppleChatPush.saveClick(raw)
+      AppleChatPush.clearDeliveredConversation(raw)
       chatPush?.clickChanged()
       completionHandler()
     } else {
@@ -170,6 +171,31 @@ private final class AppleChatPush {
   }
 
   func clickChanged() { clicks.invokeMethod("changed", arguments: nil) }
+
+  // Notification Center retains earlier banners after opening the latest one.
+  // Clear only this recipient's message conversation; preserve other chats/calls.
+  static func clearDeliveredConversation(_ raw: String) {
+    guard let data = raw.data(using: .utf8),
+      let clicked = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+      clicked["version"] as? Int == 1, clicked["kind"] as? String == "message",
+      let recipient = clicked["recipient"] as? String,
+      let scope = clicked["scope"] as? String,
+      let target = clicked["target"] as? String else { return }
+    let center = UNUserNotificationCenter.current()
+    center.getDeliveredNotifications { notifications in
+      let identifiers = notifications.compactMap { notice -> String? in
+        guard let stored = notice.request.content.userInfo["kingclub_push"] as? String,
+          let bytes = stored.data(using: .utf8),
+          let value = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
+          value["version"] as? Int == 1, value["kind"] as? String == "message",
+          value["recipient"] as? String == recipient,
+          value["scope"] as? String == scope,
+          value["target"] as? String == target else { return nil }
+        return notice.request.identifier
+      }
+      center.removeDeliveredNotifications(withIdentifiers: identifiers)
+    }
+  }
 
   private static func journal() throws -> URL {
     let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
