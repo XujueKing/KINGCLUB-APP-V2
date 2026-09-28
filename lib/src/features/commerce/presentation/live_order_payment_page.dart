@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
+import 'package:fluwx/fluwx.dart' show FluwxCancelable;
 
 import '../../../core/design_system/king_components.dart';
 import '../../../core/media/cached_media_image.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../data/ordering_order_repository.dart';
+import '../data/ios_wechat_payment.dart';
 import 'scan_ordering_cart_page.dart';
 
 /// SDK completion is only a reason to query; only the server can confirm payment.
@@ -40,6 +42,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   bool _confirmed = false;
   bool _receiptMatchesQuote = true;
   bool _paymentBridgeUnavailable = false;
+  FluwxCancelable? _paymentReturn;
   String? _message;
   Timer? _timer;
   String? get _creationBlockReason {
@@ -47,7 +50,9 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       return '当前版本尚未开放后付费下单，请联系门店处理。';
     }
     if (kIsWeb ||
-        defaultTargetPlatform != TargetPlatform.android ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            !(defaultTargetPlatform == TargetPlatform.iOS &&
+                IosWechatPayment.enabled)) ||
         _paymentBridgeUnavailable) {
       return '当前设备尚未开放微信付款；已有订单可继续查询，请勿重复下单。';
     }
@@ -61,6 +66,11 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.iOS &&
+        IosWechatPayment.enabled) {
+      _paymentReturn = IosWechatPayment.onReturn(() => _refresh());
+    }
     _restore();
   }
 
@@ -227,6 +237,13 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       _message = null;
     });
     try {
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        if (!await IosWechatPayment.prepare()) {
+          if (mounted) setState(() => _message = '?????????????????');
+          return;
+        }
+        if (!mounted) return;
+      }
       await _save(); // Persist the idempotency key before the first network attempt.
       final lines = widget.quote.items.map((item) {
         if (item.catalogProduct == null) {
@@ -254,10 +271,9 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         setState(() => _message = '订单已创建，正在确认支付状态');
         return;
       }
-      final launched = await _channel.invokeMethod<bool>(
-        'pay',
-        receipt.payment,
-      );
+      final launched = defaultTargetPlatform == TargetPlatform.iOS
+          ? await IosWechatPayment.pay(receipt.payment!)
+          : await _channel.invokeMethod<bool>('pay', receipt.payment);
       if (mounted) {
         setState(
           () => _message = launched == true
@@ -286,6 +302,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
 
   @override
   void dispose() {
+    _paymentReturn?.cancel();
     _timer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();

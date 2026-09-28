@@ -65,6 +65,7 @@ dependencies:
   unorm_dart: 0.3.2
   mediasfu_mediasoup_client: 0.1.4
   lpinyin: 2.0.3
+  fluwx: ^6.0.4
 dev_dependencies:
   # Pin the driver's strict argument checker used by persistence regression tests.
   sqflite_common: 2.5.12
