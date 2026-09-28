@@ -74,3 +74,7 @@ B 锁屏状态，A 发起视频通话：05:57:37.593 收到 chat.call.changed，
 修正本地 show 成功条件：除应用通知总开关外，Android 8+ 检查具体消息/来电通道 IMPORTANCE_NONE，Android 9+ 检查通道组是否阻止。关闭时返回 false，不记录已提醒序号、不发送成功回执。保留用户通道设置，不重建通道 ID 或强制开启通知；低重要性/静音通道仍可显示通知，不误判成禁用。不保证系统收到 notify 后必然展示横幅或发声。
 
 验证状态：Android preview/profile 原生构建通过，B 覆盖安装成功；临时关闭再恢复消息通道，允许通知、静默、横幅/锁屏、铃声、振动设置与原截图核对一致。A 从 offline 重连后变为 unauthorized，未安装此原生增量；双机关闭通道发送用例尚未完成，不声称真实回执验证通过。
+
+### 通道开关双机补验完成
+
+A 恢复 USB 授权后已成功覆盖安装原生增量；随后出现一次 ADB offline，定向 reconnect 后恢复，登录保留。B 通道关闭时 A 发送测试消息：13:07:12 localShown=false / messageSubmitted=false，没有成功回执；对应厂商 delivery 为 accepted / attempts=1，证明未误抑制兜底，不能据此声称厂商实际送达。恢复原通道配置后再次发送：13:08:20 localShown=true、client.messageNoticeShown.accepted，delivery 为 skipped / LOCAL_NOTICE_SHOWN / attempts=0。允许通知、静默、横幅/锁屏、铃声及振动均恢复原设置。此证据补齐前一节未完成的消息通道双机用例；通道组关闭、系统杀进程和长期保活仍未在此用例验证。
