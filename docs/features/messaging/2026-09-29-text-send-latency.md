@@ -9,3 +9,5 @@
 验证：48 项相关测试通过，修改文件静态分析无问题。使用已固定审核版本的 SUPERVM-KINGCLUB-PINNED 构建原生库，Android profile 包构建成功，已覆盖安装到旧 B（PKL110），ADB 返回 Success。此前误认成 A，现已纠正：A（PCLM50）尚未更新。iPhone 收件端无需因此重新安装。用户实际端到端延迟尚待确认，不能将有界模拟测试当作网络实测。
 
 Device correction: user confirmed the installed Android was the old B (PKL110). A is PCLM50; current B is iPhone. A has NOT received this fix yet. At correction time adb listed no devices. Installation claims must be checked against model and serial, never inferred from there being only one connected Android.
+
+后续安装确认：2026-09-29 02:00（本机时间），A 重新连接后通过设备列表及 `ro.product.model` 双重确认 PCLM50，指定该设备覆盖安装成功。包更新时间为 02:00:05，启动后进程存在。至此 A 已收到本次发送延迟修复；上段“未更新”仅为纠正时状态。实际 A→iPhone 消息时延待用户确认。
