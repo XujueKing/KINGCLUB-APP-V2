@@ -169,7 +169,7 @@ void main() {
       (tester) async {
         final h = _Harness()..status = 'paid';
         await h.mount(tester, withOrderRef: withOrderRef);
-        expect(find.text('支付成功 · 返回'), findsOneWidget);
+        expect(find.byKey(const ValueKey('live-payment-success')), findsOneWidget);
         expect(h.confirmed, 1);
         expect(h.submitted, 0);
         expect(h.launched, 0);
@@ -217,7 +217,7 @@ void main() {
     expect(h.confirmed, 0);
     expect(h.submitted, 0);
     expect(find.text('Current basket product'), findsNothing);
-    expect(find.text('支付成功 · 返回'), findsOneWidget);
+    expect(find.byKey(const ValueKey('live-payment-success')), findsOneWidget);
     await h.finish(tester);
   });
 

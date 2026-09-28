@@ -308,10 +308,112 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     super.dispose();
   }
 
+  Widget _buildSuccess(BuildContext context) {
+    final receipt = _receipt!;
+    const gold = Color(0xFFC9B69E);
+    return Scaffold(
+      key: const ValueKey('live-payment-success'),
+      backgroundColor: Colors.black,
+      appBar: kingAppBar(
+        context: context,
+        title: const Text('订单信息', style: TextStyle(color: gold)),
+        leading: KingBackButton(onPressed: widget.onBack),
+        backgroundColor: Colors.black,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 50, 24, 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Column(
+                    children: [
+                      Image.asset(
+                        'assets/legacy/payment/legacy_payment_success.png',
+                        width: 92,
+                        height: 92,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        '支付成功',
+                        style: TextStyle(
+                          color: gold,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '¥${_money(receipt.totalCents)}',
+                        style: const TextStyle(color: gold, fontSize: 28),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '订单号：${receipt.orderRef}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFFAAA097),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        widget.quote.orderingContext!.storeName,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFFAAA097)),
+                      ),
+                      if (!_receiptMatchesQuote) ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          '此前订单已支付，当前购物车未改动，请返回后重新确认选购。',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: gold),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton(
+                      key: const ValueKey('live-payment-success-return'),
+                      onPressed: widget.onBack,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: gold,
+                        foregroundColor: const Color(0xFF181205),
+                      ),
+                      child: const Text('返回'),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'SHANGHAI · ZHUZHOU',
+                    style: TextStyle(color: Color(0xFFAAA097), fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
+    if (_receipt?.status == 'paid') return _buildSuccess(context);
     final unit = (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6);
     double r(double value) => value * unit;
     final status = _receipt?.status;

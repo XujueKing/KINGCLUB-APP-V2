@@ -55,7 +55,7 @@ void main() {
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         FlutterSecureStorage.setMockInitialValues({});
-        var paid = false, submitted = 0, launches = 0;
+        var paid = false, submitted = 0, launches = 0, returned = 0;
         const channel = MethodChannel('kingclub/wechat-payment');
         tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
           channel,
@@ -115,7 +115,7 @@ void main() {
             home: LiveOrderPaymentPage(
               quote: quote,
               repository: repo,
-              onBack: () {},
+              onBack: () => returned++,
             ),
           ),
         );
@@ -126,13 +126,18 @@ void main() {
         await tester.pumpAndSettle();
         expect(submitted, 1);
         expect(launches, 1);
-        expect(find.text('支付成功 · 返回'), findsNothing);
+        expect(find.byKey(const ValueKey('live-payment-success')), findsNothing);
         paid = true;
         await tester.ensureVisible(find.text('刷新支付结果'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('刷新支付结果'));
         await tester.pumpAndSettle();
-        expect(find.text('支付成功 · 返回'), findsOneWidget);
+        expect(find.byKey(const ValueKey('live-payment-success')), findsOneWidget);
+        expect(returned, 0);
+        expect(find.text('D00000000001'), findsNothing);
+        expect(find.textContaining('D00000000001'), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('live-payment-success-return')));
+        expect(returned, 1);
         await tester.pumpWidget(const SizedBox());
         tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
           channel,
