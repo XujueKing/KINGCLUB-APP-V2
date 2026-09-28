@@ -216,6 +216,8 @@ void main() {
       addTearDown(controller.dispose);
       final sending = controller.send('route test');
       await serviceStarted.future;
+      // Service submission and local peer-receipt persistence now overlap.
+      await Future<void>.delayed(Duration.zero);
       expect(order, ['relay', 'service']);
       expect(sent['clientMessageId'], relayId);
       expect(outbox.items[relayId]?['peerDelivered'] == true, peerAccepts);
@@ -286,6 +288,43 @@ void main() {
       expect(serviceCalls, 0);
     },
   );
+  test(
+    'slow primary peer cannot hold back a successful service receipt',
+    () async {
+      final receipt = Completer<bool>();
+      final outbox = MemoryOutbox();
+      var serviceCalls = 0;
+      String? peerId;
+      final controller = DirectChatController(
+        peer: 'peer',
+        outbox: outbox,
+        preferRelayText: () => true,
+        sendRelayText: (_, id) {
+          peerId = id;
+          return receipt.future;
+        },
+        repository: MessagingRepository(
+          account: 'me',
+          call: (_, params) async {
+            serviceCalls++;
+            expect(params['clientMessageId'], peerId);
+            return {'message': ack(params)};
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      await controller.send('slow peer').timeout(const Duration(seconds: 1));
+      expect(receipt.isCompleted, false);
+      expect(outbox.items, isEmpty);
+      expect(controller.messages, hasLength(1));
+      receipt.complete(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(serviceCalls, 1);
+      expect(controller.messages, hasLength(1));
+      expect(outbox.items, isEmpty);
+    },
+  );
+
   test('late older page cannot roll back a newer peer read receipt', () async {
     final older = Completer<Map<String, dynamic>>();
     final olderRequested = Completer<void>();

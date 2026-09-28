@@ -1,4 +1,5 @@
 import 'chat_coin.dart';
+import 'peer_first_text_submission.dart';
 import 'chat_gift.dart';
 
 import 'dart:async';
@@ -905,6 +906,7 @@ class DirectChatController extends ChatSessionController {
     if (pending == null || _disposed || !_sending.add(id)) return;
     var peerDelivered = pending['peerDelivered'] == true;
     var attemptedPeer = false;
+    Future<Map<String, dynamic>>? hedgedText;
     _pending[id] = {...pending, 'status': 'sending'};
     _changed();
     try {
@@ -916,10 +918,23 @@ class DirectChatController extends ChatSessionController {
           pending['replyToMessageId'] == null) {
         attemptedPeer = true;
         try {
-          peerDelivered = await sendRelayText!(
-            pending['text'] as String,
-            id,
-          ).timeout(const Duration(seconds: 3));
+          final submission = await peerFirstTextSubmission(
+            sendPeer: () => sendRelayText!(
+              pending['text'] as String,
+              id,
+            ).timeout(const Duration(seconds: 3)),
+            sendService: () => repository.sendText(
+              peer: peer,
+              clientMessageId: id,
+              text: pending['text'] as String,
+            ),
+            isCurrent: () =>
+                !_disposed &&
+                historyGeneration == _historyGeneration &&
+                _pending.containsKey(id),
+          );
+          hedgedText = submission.service;
+          peerDelivered = submission.peerDelivered;
         } catch (_) {
           // An unavailable peer route must not prevent normal service delivery.
         }
@@ -1001,12 +1016,13 @@ class DirectChatController extends ChatSessionController {
                 Map<String, dynamic>.from(pending['location'] as Map),
               ),
             )
-          : await repository.sendText(
-              peer: peer,
-              clientMessageId: id,
-              text: pending['text'] as String,
-              replyToMessageId: pending['replyToMessageId'] as String?,
-            );
+          : await (hedgedText ??
+                repository.sendText(
+                  peer: peer,
+                  clientMessageId: id,
+                  text: pending['text'] as String,
+                  replyToMessageId: pending['replyToMessageId'] as String?,
+                ));
       if (_disposed) return;
       final received = Map<String, dynamic>.from(result['message'] as Map);
       final recalled = ['recalled', 'hidden'].contains(received['messageType']);
