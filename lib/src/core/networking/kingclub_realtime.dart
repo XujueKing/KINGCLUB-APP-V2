@@ -32,11 +32,14 @@ class RealtimeCodec {
   int _sequence = 0;
   int _outboundSequence = 0;
 
-  Future<String> foregroundHeartbeat() async {
+  Future<String> foregroundHeartbeat() =>
+      encode('client.foreground', {'active': true});
+
+  Future<String> encode(String eventType, Map<String, dynamic> payload) async {
     final seq = ++_outboundSequence;
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final box = await AesGcm.with256bits().encrypt(
-      utf8.encode(jsonEncode({'active': true})),
+      utf8.encode(jsonEncode(payload)),
       secretKey: await _key('client-to-server'),
     );
     final data = {
@@ -45,7 +48,7 @@ class RealtimeCodec {
       'tag': _b64(box.mac.bytes),
     };
     final canonical = [
-      'client.foreground',
+      eventType,
       seq,
       timestamp,
       '',
@@ -56,7 +59,7 @@ class RealtimeCodec {
       secretKey: await _key('message-sign'),
     );
     return jsonEncode({
-      'eventType': 'client.foreground',
+      'eventType': eventType,
       'encrypted': true,
       'data': data,
       'sign': _b64(sign.bytes),
@@ -149,6 +152,53 @@ class KingclubRealtime {
   final _events = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get events => _events.stream;
   WebSocket? _socket;
+  RealtimeCodec? _codec;
+  Future<void> _outbound = Future.value();
+
+  Future<void> callNoticeShown(String sessionId, String scope, String callId) =>
+      _send('client.callNoticeShown', {
+        'scope': scope,
+        'callId': callId,
+      }, sessionId);
+
+  Future<void> messageNoticeShown(
+    String sessionId,
+    String scope,
+    String conversationId,
+    int sequence,
+  ) => _send('client.messageNoticeShown', {
+    'scope': scope,
+    'conversationId': conversationId,
+    'sequence': sequence,
+  }, sessionId);
+
+  Future<void> _send(String type, Map<String, dynamic> data, String sessionId) {
+    final epoch = _epoch;
+    final next = _outbound
+        .then((_) async {
+          final socket = _socket, codec = _codec;
+          if (!_active ||
+              epoch != _epoch ||
+              _sessionId != sessionId ||
+              socket?.readyState != WebSocket.open ||
+              codec == null) {
+            return;
+          }
+          final frame = await codec.encode(type, data);
+          if (_active &&
+              epoch == _epoch &&
+              _sessionId == sessionId &&
+              socket!.readyState == WebSocket.open) {
+            socket.add(frame);
+          }
+        })
+        .catchError((Object _) {
+          // Lost receipts leave vendor fallback eligible. Do not fake acknowledgement.
+        });
+    _outbound = next;
+    return next;
+  }
+
   Timer? _retry;
   Timer? _foregroundHeartbeat;
   bool _active = false;
@@ -205,6 +255,7 @@ class KingclubRealtime {
         return;
       }
       _socket = socket;
+      _codec = codec;
       socket.pingInterval = const Duration(seconds: 25);
       Future<void> serial = Future.value();
       socket.listen(
@@ -219,13 +270,9 @@ class KingclubRealtime {
                   Future<void> sendHeartbeat() async {
                     if (!_foreground) return;
                     try {
-                      final frame = await codec.foregroundHeartbeat();
-                      if (_active &&
-                          _foreground &&
-                          epoch == _epoch &&
-                          socket.readyState == WebSocket.open) {
-                        socket.add(frame);
-                      }
+                      await _send('client.foreground', {
+                        'active': true,
+                      }, session['sessionId'] as String);
                     } catch (_) {
                       if (epoch == _epoch) unawaited(socket.close());
                     }

@@ -38,6 +38,8 @@ void main() {
     () async {
       final r = ForegroundMessageNoticeResolver();
       expect(await resolve(r, row()), (
+        conversationId: 'pair',
+        sequence: 3,
         target: 'bob',
         group: false,
         name: '好友',

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/session/secure_session_store.dart';
+import '../../../core/networking/kingclub_realtime.dart';
 import 'call_repository.dart';
 import 'foreground_message_notice.dart';
 import 'group_call_repository.dart';
@@ -108,7 +109,7 @@ class BackgroundNotifications {
       int unread = 0,
     }) async {
       if (!await authorized()) return false;
-      return _invoke('show', {
+      final shown = await _invoke('show', {
         'session': id,
         'unread': unread,
         'destination': jsonEncode({
@@ -121,16 +122,35 @@ class BackgroundNotifications {
           'expiresAt': expiry,
         }),
       });
+      if (shown && call && await authorized()) {
+        await KingclubRealtime.shared.callNoticeShown(
+          id,
+          group ? 'group' : 'direct',
+          eventId,
+        );
+      }
+      return shown;
     }
 
-    Future<bool> deliverMessage(ForegroundMessageNotice notice) => show(
-      notice.target,
-      notice.group,
-      false,
-      DateTime.now().add(const Duration(hours: 12)).millisecondsSinceEpoch,
-      const Uuid().v4(),
-      unread: notice.unread,
-    );
+    Future<bool> deliverMessage(ForegroundMessageNotice notice) async {
+      final shown = await show(
+        notice.target,
+        notice.group,
+        false,
+        DateTime.now().add(const Duration(hours: 12)).millisecondsSinceEpoch,
+        const Uuid().v4(),
+        unread: notice.unread,
+      );
+      if (shown && await authorized()) {
+        await KingclubRealtime.shared.messageNoticeShown(
+          id,
+          notice.group ? 'group' : 'direct',
+          notice.conversationId,
+          notice.sequence,
+        );
+      }
+      return shown;
+    }
 
     final type = event['eventType'];
     debugPrint('ChatBackground: authorized event=$type');

@@ -3,6 +3,8 @@ typedef ForegroundMessageNotice = ({
   bool group,
   String name,
   int unread,
+  String conversationId,
+  int sequence,
 });
 
 /// Resolve hints against authorized, read-projected conversation state. Events
@@ -83,6 +85,8 @@ class ForegroundMessageNoticeResolver {
     final target = row[group ? 'groupId' : 'peer'];
     if (target is! String || target.isEmpty) return null;
     return (
+      conversationId: id,
+      sequence: sequence,
       target: target,
       group: group,
       unread: (row['unreadCount'] as num).toInt(),

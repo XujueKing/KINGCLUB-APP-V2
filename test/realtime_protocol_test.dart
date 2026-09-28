@@ -52,6 +52,22 @@ void main() {
       expect((jsonDecode(await c.foregroundHeartbeat()) as Map)['seq'], 2);
     },
   );
+  test(
+    'call receipts share heartbeat sequence and keep IDs encrypted',
+    () async {
+      final c = codec();
+      await c.foregroundHeartbeat();
+      final raw = await c.encode('client.callNoticeShown', {
+        'scope': 'direct',
+        'callId': 'private-call-id',
+      });
+      final frame = jsonDecode(raw) as Map;
+      expect(frame['seq'], 2);
+      expect(frame['eventType'], 'client.callNoticeShown');
+      expect(raw, isNot(contains('private-call-id')));
+      expect((jsonDecode(await c.foregroundHeartbeat()) as Map)['seq'], 3);
+    },
+  );
   test('decrypts server event and rejects replay and tampering', () async {
     final c = codec();
     final raw = jsonEncode(fixture['frame']);
