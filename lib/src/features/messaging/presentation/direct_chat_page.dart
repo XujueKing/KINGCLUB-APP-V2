@@ -3984,6 +3984,7 @@ class _MessageContent extends StatelessWidget {
           message.text,
           style: legacyChatBodyTextStyle.copyWith(
             color: message.mine ? const Color(0xFF222222) : legacyMessageGold,
+            fontWeight: message.mine ? FontWeight.w500 : FontWeight.w400,
           ),
         );
       case _FakeMessageKind.image:
