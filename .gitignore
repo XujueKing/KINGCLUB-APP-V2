@@ -44,6 +44,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
+
+# Local one-off build diagnostics and artifact retrieval helpers.
+/build-DefaultEncoderFactory.java
+/build-download-banner.py
+/build-novorudp-rust-frames.json
+/build-sticker-device.png
 
 # Widget Preview related
 .widget_preview/
