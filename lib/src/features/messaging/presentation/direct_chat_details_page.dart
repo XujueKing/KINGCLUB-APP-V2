@@ -199,7 +199,7 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                             ),
                           ),
                         ),
-                  borderRadius: BorderRadius.circular(6),
+                  customBorder: const CircleBorder(),
                   child: CustomPaint(
                     painter: const _DashedAvatarBorder(),
                     child: const SizedBox.square(
@@ -563,13 +563,7 @@ class _DashedAvatarBorder extends CustomPainter {
   const _DashedAvatarBorder();
   @override
   void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(
-          (Offset.zero & size).deflate(.75),
-          const Radius.circular(6),
-        ),
-      );
+    final path = Path()..addOval((Offset.zero & size).deflate(.75));
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1

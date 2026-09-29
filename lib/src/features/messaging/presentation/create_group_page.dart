@@ -221,42 +221,15 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
               lineColor: Colors.transparent,
               onBack: () => Navigator.maybePop(context),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-              child: TextField(
-                key: const ValueKey('group-contact-search'),
-                controller: _search,
-                enabled: !_invalid && !_saving,
-                onChanged: (_) => setState(() {}),
-                style: const TextStyle(color: Color(0xFFC9B69E), fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: '搜索备注、昵称或会员号',
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    size: 20,
-                    color: Colors.grey,
-                  ),
-                  suffixIcon: _search.text.isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: '清除搜索',
-                          onPressed: _invalid || _saving
-                              ? null
-                              : () => setState(_search.clear),
-                          icon: const Icon(
-                            Icons.close,
-                            size: 18,
-                            color: Colors.grey,
-                          ),
-                        ),
-                  filled: true,
-                  fillColor: const Color(0xFF191919),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(7),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
+            LegacyConversationSearch(
+              inputKey: const ValueKey('group-contact-search'),
+              controller: _search,
+              enabled: !_invalid && !_saving,
+              maxLength: 100,
+              onChanged: (_) => setState(() {}),
+              onClear: () {
+                if (!_invalid && !_saving) setState(_search.clear);
+              },
             ),
             if (_error != null)
               Padding(
@@ -273,8 +246,8 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
               child: ListView.separated(
                 itemCount: contacts.length,
                 separatorBuilder: (_, _) => const Divider(
-                  indent: 96,
-                  endIndent: 24,
+                  indent: 0,
+                  endIndent: 0,
                   height: 1,
                   color: Color(0xFF292929),
                 ),

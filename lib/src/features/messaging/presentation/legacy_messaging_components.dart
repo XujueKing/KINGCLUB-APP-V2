@@ -410,6 +410,8 @@ class LegacyConversationSearch extends StatefulWidget {
     this.onSubmitted,
     this.enabled = true,
     this.maxLength = 40,
+    this.inputKey,
+    this.autofocus = false,
   });
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
@@ -418,6 +420,8 @@ class LegacyConversationSearch extends StatefulWidget {
   final ValueChanged<String>? onSubmitted;
   final bool enabled;
   final int maxLength;
+  final Key? inputKey;
+  final bool autofocus;
   @override
   State<LegacyConversationSearch> createState() =>
       _LegacyConversationSearchState();
@@ -450,6 +454,8 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
       builder: (context, value, _) => SizedBox(
         height: 84 * MediaQuery.sizeOf(context).width / 750,
         child: TextField(
+          key: widget.inputKey,
+          autofocus: widget.autofocus,
           controller: widget.controller,
           enabled: widget.enabled,
           focusNode: _focus,

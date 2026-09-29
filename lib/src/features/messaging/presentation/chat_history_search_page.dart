@@ -1,3 +1,4 @@
+import 'legacy_messaging_components.dart';
 import '../data/chat_history_access.dart';
 import '../data/chat_history_label.dart';
 
@@ -363,19 +364,23 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 4, 12),
+            padding: const EdgeInsets.only(top: 8),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: TextField(
-                    key: const ValueKey('chat-history-search-input'),
+                  child: LegacyConversationSearch(
+                    inputKey: const ValueKey('chat-history-search-input'),
                     controller: _input,
                     enabled: !_invalid,
                     autofocus: true,
                     maxLength: 100,
-                    textInputAction: TextInputAction.search,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
                     onChanged: (_) {
+                      _messageType = null;
+                      _changed();
+                    },
+                    onClear: () {
+                      _input.clear();
                       _messageType = null;
                       _changed();
                     },
@@ -383,21 +388,6 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
                       _debounce?.cancel();
                       _load();
                     },
-                    decoration: InputDecoration(
-                      hintText: '搜索',
-                      counterText: '',
-                      prefixIcon: const Icon(
-                        Icons.search,
-                        color: Color(0xFF777777),
-                      ),
-                      filled: true,
-                      fillColor: const Color(0xFF191919),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
                   ),
                 ),
                 TextButton(
