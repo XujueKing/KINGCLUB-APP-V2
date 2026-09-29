@@ -9,6 +9,7 @@ import 'package:kingclub/src/features/auth/data/auth_repository_provider.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/auth/presentation/auth_bootstrap_page.dart';
 import 'package:kingclub/src/features/auth/presentation/legacy_welcome_page.dart';
+import 'package:kingclub/src/navigation/app_router.dart';
 
 class _Repository extends RealAuthRepository {
   _Repository(this.pending)
@@ -22,6 +23,38 @@ class _Repository extends RealAuthRepository {
 }
 
 void main() {
+  test(
+    'restored approved member starts at home before any bootstrap route',
+    () {
+      final container = ProviderContainer(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(
+            _Repository(Future.value(null)),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container
+          .read(authenticatedMemberProvider.notifier)
+          .update(
+            const AuthLoginResult(
+              isNewMembership: false,
+              membershipStatus: 'active',
+              registrationStatus: 'approved',
+              isRealSession: true,
+            ),
+          );
+      expect(
+        container
+            .read(appRouterProvider)
+            .routeInformationProvider
+            .value
+            .uri
+            .path,
+        '/home',
+      );
+    },
+  );
   testWidgets('pending login restoration never renders welcome cover', (
     tester,
   ) async {
