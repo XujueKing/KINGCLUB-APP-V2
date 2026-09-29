@@ -78,6 +78,7 @@ void main() {
           home: CreateGroupPage(
             repository: GroupChatRepository(repo),
             chatOutbox: queue,
+            initialMembers: const {'actual-peer', 'not-a-friend'},
           ),
         ),
       );
@@ -86,8 +87,7 @@ void main() {
         find.byKey(const ValueKey('create-group-name')),
         'Friends group',
       );
-      await tester.tap(find.text('Actual friend'));
-      await tester.pump();
+      expect(find.text('创建（1）'), findsOneWidget);
       await tester.enterText(
         find.byKey(const ValueKey('group-contact-search')),
         'TX',

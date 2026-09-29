@@ -2,6 +2,11 @@ import '../../contacts/presentation/public_member_page.dart';
 
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
+
+import 'create_group_page.dart';
+import '../data/group_chat_repository.dart';
+
 import '../../../core/session/secure_session_store.dart';
 import 'chat_member_avatar.dart';
 import 'chat_history_context_page.dart';
@@ -88,13 +93,15 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF111111),
       body: SafeArea(
         child: Column(
           children: [
             LegacyMessagingHeader(
               title: _searching ? '查找聊天内容' : '聊天详情',
-              backgroundColor: const Color(0x141C1814),
+              backgroundColor: const Color(0xFF111111),
+              lineColor: const Color(0xFF262626),
+              lineWidth: .5,
               onBack: () {
                 if (_searching) {
                   setState(() {
@@ -125,9 +132,10 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
       padding: const EdgeInsets.only(bottom: 40),
       children: [
         Container(
-          color: const Color(0x14C9B69E),
-          padding: const EdgeInsets.fromLTRB(28, 22, 28, 16),
+          color: const Color(0xFF191919),
+          padding: const EdgeInsets.fromLTRB(14, 18, 14, 20),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Column(
                 children: [
@@ -152,6 +160,7 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                         profile: _profile,
                         account: widget.peerAccount!,
                         size: 52,
+                        cornerRadius: 5,
                       ),
                     ),
                   const SizedBox(height: 5),
@@ -162,10 +171,48 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      style: const TextStyle(
+                        color: Color(0xFF999999),
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(width: 6),
+              Semantics(
+                label: '添加朋友发起群聊',
+                button: true,
+                child: InkWell(
+                  key: const ValueKey('direct-chat-details-create-group'),
+                  onTap: _invalid || _saving
+                      ? null
+                      : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => CreateGroupPage(
+                              repository: widget.repository == null
+                                  ? null
+                                  : GroupChatRepository(widget.repository!),
+                              initialMembers: {
+                                if (widget.peerAccount != null)
+                                  widget.peerAccount!,
+                              },
+                            ),
+                          ),
+                        ),
+                  borderRadius: BorderRadius.circular(6),
+                  child: CustomPaint(
+                    painter: const _DashedAvatarBorder(),
+                    child: const SizedBox.square(
+                      dimension: 52,
+                      child: Icon(
+                        Icons.add,
+                        size: 32,
+                        color: Color(0xFF666666),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -238,10 +285,12 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
           children: [
             _SettingsRow(
               label: '消息免打扰',
-              trailing: Switch(
+              trailing: CupertinoSwitch(
                 key: const ValueKey('direct-chat-details-muted'),
                 value: _muted,
                 activeTrackColor: const Color(0xFF07C160),
+                inactiveTrackColor: const Color(0xFF39393D),
+                thumbColor: Colors.white,
                 onChanged: _saving
                     ? null
                     : (value) => _saveSettings(muted: value),
@@ -249,10 +298,12 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
             ),
             _SettingsRow(
               label: '置顶聊天',
-              trailing: Switch(
+              trailing: CupertinoSwitch(
                 key: const ValueKey('direct-chat-details-pinned'),
                 value: _pinned,
                 activeTrackColor: const Color(0xFF07C160),
+                inactiveTrackColor: const Color(0xFF39393D),
+                thumbColor: Colors.white,
                 onChanged: _saving
                     ? null
                     : (value) => _saveSettings(pinned: value),
@@ -261,10 +312,12 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
             if (widget.peerAccount != null)
               _SettingsRow(
                 label: '仅聊天',
-                trailing: Switch(
+                trailing: CupertinoSwitch(
                   key: const ValueKey('direct-chat-details-only-chat'),
                   value: _onlyChat,
                   activeTrackColor: const Color(0xFF07C160),
+                  inactiveTrackColor: const Color(0xFF39393D),
+                  thumbColor: Colors.white,
                   onChanged: _saving
                       ? null
                       : (value) => _saveSettings(onlyChat: value),
@@ -293,7 +346,8 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
             _SettingsRow(
               key: const ValueKey('direct-chat-details-clear'),
               label: '清空聊天记录',
-              centered: true,
+              centered: false,
+              showChevron: false,
               onTap: _saving ? null : _confirmClear,
             ),
           ],
@@ -453,7 +507,7 @@ class _SettingsGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0x14C9B69E),
+      color: const Color(0xFF191919),
       child: Column(children: children),
     );
   }
@@ -466,12 +520,14 @@ class _SettingsRow extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.centered = false,
+    this.showChevron = true,
   });
 
   final String label;
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool centered;
+  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -479,9 +535,11 @@ class _SettingsRow extends StatelessWidget {
       onTap: onTap,
       child: Container(
         constraints: const BoxConstraints(minHeight: 58),
-        margin: const EdgeInsets.symmetric(horizontal: 24),
+        margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0x20C9B69E))),
+          border: Border(
+            bottom: BorderSide(color: Color(0xFF262626), width: .5),
+          ),
         ),
         child: Row(
           mainAxisAlignment: centered
@@ -490,14 +548,40 @@ class _SettingsRow extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
+              style: const TextStyle(color: Color(0xFFE0E0E0), fontSize: 17),
             ),
             ?trailing,
-            if (!centered && trailing == null)
+            if (!centered && trailing == null && showChevron)
               const Icon(Icons.chevron_right, color: Color(0x66FFFFFF)),
           ],
         ),
       ),
     );
   }
+}
+
+class _DashedAvatarBorder extends CustomPainter {
+  const _DashedAvatarBorder();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          (Offset.zero & size).deflate(.75),
+          const Radius.circular(6),
+        ),
+      );
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = const Color(0xFF666666);
+    for (final metric in path.computeMetrics()) {
+      for (double start = 0; start < metric.length; start += 9) {
+        canvas.drawPath(metric.extractPath(start, start + 5), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedAvatarBorder oldDelegate) => false;
 }

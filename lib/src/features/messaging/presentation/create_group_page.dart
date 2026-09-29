@@ -18,10 +18,12 @@ class CreateGroupPage extends StatefulWidget {
     this.repository,
     this.chatOutbox,
     this.inviteGroupId,
+    this.initialMembers = const {},
   });
   final GroupChatRepository? repository;
   final ChatOutbox? chatOutbox;
   final String? inviteGroupId;
+  final Set<String> initialMembers;
   @override
   State<CreateGroupPage> createState() => _CreateGroupPageState();
 }
@@ -68,6 +70,14 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       _contacts ??= ContactsController(repository.messaging)
         ..addListener(_changed);
       await _contacts!.refresh();
+      if (!mounted || _invalid) return;
+      if (widget.inviteGroupId == null) {
+        _selected.addAll(
+          widget.initialMembers.where(
+            (account) => _contacts!.contacts.any((c) => c.account == account),
+          ),
+        );
+      }
       if (widget.inviteGroupId != null) {
         final details = await repository.details(widget.inviteGroupId!);
         if (!mounted || _invalid) return;
