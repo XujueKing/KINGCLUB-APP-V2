@@ -339,6 +339,7 @@ class _AppShellPageState extends State<AppShellPage> {
       MaterialPageRoute<void>(
         allowSnapshotting: false,
         builder: (_) => SystemNotificationsPage(
+          demo: !widget.realChat,
           initialUnreadCount: _systemNotificationsUnread,
           onUnreadChanged: (count) {
             if (!mounted || count == _systemNotificationsUnread) return;

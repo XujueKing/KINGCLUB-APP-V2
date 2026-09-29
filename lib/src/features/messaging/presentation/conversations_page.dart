@@ -1025,7 +1025,7 @@ class _ConversationsPageState extends State<ConversationsPage>
           onPressed: () => _refreshReal(more: true),
           child: const Text('加载更多'),
         ),
-      if (_realReady && filtered.isEmpty)
+      if (_realReady && filtered.isEmpty && !_matches('KINGCLUB 系统消息'))
         Padding(
           padding: const EdgeInsets.all(40),
           child: Center(
@@ -1089,6 +1089,12 @@ class _ConversationsPageState extends State<ConversationsPage>
                         icon: Icons.devices_outlined,
                         text:
                             '已登录 ${widget.otherDeviceCount} 台其他设备${widget.mobileNotificationsDisabled ? '，手机通知已关闭' : ''}',
+                      ),
+                    if (widget.realData && _matches('KINGCLUB 系统消息'))
+                      _KingClubConversation(
+                        unreadCount: widget.systemUnreadCount,
+                        onTap: widget.onOpenSystemNotifications,
+                        realData: true,
                       ),
                     if (widget.realData) ..._realRows(),
                     if (!widget.realData &&
@@ -1569,7 +1575,12 @@ class _PinnedToggle extends StatelessWidget {
 }
 
 class _KingClubConversation extends StatelessWidget {
-  const _KingClubConversation({required this.unreadCount, required this.onTap});
+  const _KingClubConversation({
+    required this.unreadCount,
+    required this.onTap,
+    this.realData = false,
+  });
+  final bool realData;
   final int unreadCount;
   final VoidCallback onTap;
   @override
@@ -1578,9 +1589,9 @@ class _KingClubConversation extends StatelessWidget {
     child: InkWell(
       onTap: onTap,
       child: _ConversationContent(
-        name: 'KING CLUB',
-        preview: '收到50枚金币',
-        date: '08月23日',
+        name: realData ? 'KINGCLUB' : 'KING CLUB',
+        preview: realData ? '系统消息' : '收到50枚金币',
+        date: realData ? '' : '08月23日',
         unread: unreadCount,
         system: true,
       ),
@@ -1939,19 +1950,12 @@ class _KingAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      padding: EdgeInsets.all(size * .12),
-      decoration: const BoxDecoration(
-        color: Color(0xFF3047D6),
-        shape: BoxShape.circle,
-      ),
+    return ClipOval(
       child: Image.asset(
-        'assets/legacy/home/logo_2.png',
-        color: Colors.white,
-        colorBlendMode: BlendMode.srcIn,
-        fit: BoxFit.contain,
+        'assets/legacy/messaging/system_kingclub.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
       ),
     );
   }

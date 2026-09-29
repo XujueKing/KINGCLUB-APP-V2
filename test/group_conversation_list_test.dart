@@ -69,6 +69,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Actual group'), findsOneWidget);
+      expect(find.text('KINGCLUB'), findsOneWidget);
+      expect(find.text('系统消息'), findsOneWidget);
+      expect(find.text('收到50枚金币'), findsNothing);
       await tester.longPress(find.text('Actual group'));
       await tester.pumpAndSettle();
       expect(find.text('拉黑'), findsNothing);

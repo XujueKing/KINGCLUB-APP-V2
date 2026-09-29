@@ -7,9 +7,11 @@ class SystemNotificationsPage extends StatefulWidget {
     super.key,
     this.initialUnreadCount = 3,
     this.onUnreadChanged,
+    this.demo = true,
   });
 
   final int initialUnreadCount;
+  final bool demo;
   final ValueChanged<int>? onUnreadChanged;
 
   @override
@@ -48,6 +50,7 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
   @override
   void initState() {
     super.initState();
+    if (!widget.demo) _notices.clear();
     final unreadCount = widget.initialUnreadCount.clamp(0, _notices.length);
     for (var index = 0; index < _notices.length; index++) {
       _notices[index].read = index >= unreadCount;

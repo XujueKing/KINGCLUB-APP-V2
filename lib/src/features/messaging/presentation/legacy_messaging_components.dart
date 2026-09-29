@@ -180,30 +180,42 @@ class LegacyConversationTabs extends StatelessWidget {
               },
         child: Padding(
           padding: const EdgeInsets.only(bottom: 14),
-          child: Badge(
-            key: title == '通讯录'
-                ? const ValueKey('contacts-tab-request-badge')
-                : const ValueKey('chat-tab-unread-badge'),
-            isLabelVisible:
-                (title == '通讯录' ? pendingRequests : unreadCount) > 0,
-            alignment: Alignment.topRight,
-            backgroundColor: const Color(0xFFFF4D55),
-            textColor: Colors.white,
-            label: Text(
-              (title == '通讯录' ? pendingRequests : unreadCount) > 99
-                  ? '99+'
-                  : '${title == '通讯录' ? pendingRequests : unreadCount}',
-            ),
-            child: Text(
-              title,
-              style: selected
-                  ? kingSectionTitleStyle
-                  : const TextStyle(
-                      color: Color(0x80C9B69E),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w400,
-                    ),
-            ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Text(
+                title,
+                style: selected
+                    ? kingSectionTitleStyle
+                    : const TextStyle(
+                        color: Color(0x80C9B69E),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                      ),
+              ),
+              Positioned(
+                top: -3,
+                right: -9,
+                child: Badge(
+                  key: title == '通讯录'
+                      ? const ValueKey('contacts-tab-request-badge')
+                      : const ValueKey('chat-tab-unread-badge'),
+                  isLabelVisible:
+                      (title == '通讯录' ? pendingRequests : unreadCount) > 0,
+                  alignment: Alignment.topRight,
+                  largeSize: 12,
+                  textStyle: const TextStyle(fontSize: 9, height: 1),
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  backgroundColor: const Color(0xFFFF4D55),
+                  textColor: Colors.white,
+                  label: Text(
+                    (title == '通讯录' ? pendingRequests : unreadCount) > 99
+                        ? '99+'
+                        : '${title == '通讯录' ? pendingRequests : unreadCount}',
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -217,8 +229,7 @@ class LegacyConversationTabs extends StatelessWidget {
             top: 10,
             right: 70,
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 tab('聊天', chatSelected, onChat),
                 const SizedBox(width: 16),

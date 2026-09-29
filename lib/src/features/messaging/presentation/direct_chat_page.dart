@@ -1666,6 +1666,9 @@ class _DirectChatPageState extends State<DirectChatPage>
                                 color: const Color(0xFFBBBBBB),
                               ),
                               textInputAction: TextInputAction.send,
+                              // Sending is not the end of editing: keep the IME
+                              // attached instead of Flutter's default unfocus.
+                              onEditingComplete: () {},
                               onSubmitted: (_) => _send(),
                               decoration: InputDecoration(
                                 hintText: _readOnly ? '当前不可发送消息' : '',

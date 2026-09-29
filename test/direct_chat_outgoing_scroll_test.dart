@@ -100,6 +100,11 @@ void main() {
     await tester.pump();
     await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).focusNode!.hasFocus,
+      isTrue,
+    );
+    expect(tester.testTextInput.isVisible, isTrue);
     await tester.pump(const Duration(milliseconds: 40));
     final text = find.text('First message');
     final size = tester.getSize(text);

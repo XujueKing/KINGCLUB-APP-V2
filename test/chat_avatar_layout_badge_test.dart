@@ -37,6 +37,8 @@ void main() {
     tester,
   ) async {
     for (final selected in [true, false]) {
+      Rect? chatRect;
+      Rect? contactsRect;
       for (final counts in [(3, 2), (0, 2), (3, 0), (0, 0)]) {
         await tester.pumpWidget(
           MaterialApp(
@@ -69,6 +71,12 @@ void main() {
           counts.$2 > 0,
         );
         expect(tester.takeException(), isNull);
+        final chatNow = tester.getRect(find.text('聊天'));
+        final contactsNow = tester.getRect(find.text('通讯录'));
+        chatRect ??= chatNow;
+        contactsRect ??= contactsNow;
+        expect(chatNow, chatRect);
+        expect(contactsNow, contactsRect);
       }
     }
   });
