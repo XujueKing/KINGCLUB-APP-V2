@@ -5,7 +5,6 @@ import 'chat_route_presence.dart';
 import '../data/chat_outbox_recovery.dart';
 import '../data/chat_call_history.dart';
 import 'chat_timestamp.dart';
-import 'chat_bubble_tail.dart';
 import '../data/call_presentation_lease.dart';
 import 'message_voice_transcription_page.dart';
 import 'voice_transcription_page.dart';
@@ -3801,56 +3800,51 @@ class _MessageRow extends StatelessWidget {
                     GestureDetector(
                       onLongPress: onLongPress,
                       onTap: onTap,
-                      child: CustomPaint(
-                        painter: isVisualCard
-                            ? null
-                            : ChatBubbleTail(
-                                mine: message.mine,
-                                color: message.mine
-                                    ? const Color(0xFF29B463)
-                                    : const Color(0xFF303030),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        padding: isVisualCard
+                            ? EdgeInsets.zero
+                            : const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
                               ),
-                        child: Container(
-                          constraints: const BoxConstraints(maxWidth: 280),
-                          padding: isVisualCard
-                              ? EdgeInsets.zero
-                              : const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-                          decoration: BoxDecoration(
-                            color: isVisualCard
-                                ? Colors.transparent
-                                : message.mine
-                                ? const Color(0xFF29B463)
-                                : const Color(0xFF303030),
-                            borderRadius: BorderRadius.circular(7),
+                        decoration: BoxDecoration(
+                          color: isVisualCard
+                              ? Colors.transparent
+                              : message.mine
+                              ? const Color(0xFF29B463)
+                              : const Color(0xFF303030),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(message.mine ? 7 : 0),
+                            topRight: Radius.circular(message.mine ? 0 : 7),
+                            bottomLeft: const Radius.circular(7),
+                            bottomRight: const Radius.circular(7),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (message.quoted != null) ...[
-                                GestureDetector(
-                                  key: ValueKey(
-                                    'chat-reply-${message.messageId}',
-                                  ),
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: onQuoteTap,
-                                  child: Text(
-                                    message.quoted!,
-                                    style: TextStyle(
-                                      color: message.mine
-                                          ? const Color(0x99111111)
-                                          : const Color(0x99C9B69E),
-                                      fontSize: 11,
-                                    ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (message.quoted != null) ...[
+                              GestureDetector(
+                                key: ValueKey(
+                                  'chat-reply-${message.messageId}',
+                                ),
+                                behavior: HitTestBehavior.opaque,
+                                onTap: onQuoteTap,
+                                child: Text(
+                                  message.quoted!,
+                                  style: TextStyle(
+                                    color: message.mine
+                                        ? const Color(0x99111111)
+                                        : const Color(0x99C9B69E),
+                                    fontSize: 11,
                                   ),
                                 ),
-                                const SizedBox(height: 5),
-                              ],
-                              imageContent ?? _MessageContent(message: message),
+                              ),
+                              const SizedBox(height: 5),
                             ],
-                          ),
+                            imageContent ?? _MessageContent(message: message),
+                          ],
                         ),
                       ),
                     ),
@@ -3920,9 +3914,7 @@ class _MessageContent extends StatelessWidget {
     switch (message.kind) {
       case _FakeMessageKind.text:
         if (message.call != null) {
-          final color = message.mine
-              ? const Color(0xFF222222)
-              : legacyMessageGold;
+          final color = message.mine ? const Color(0xFF222222) : Colors.white;
           return Row(
             key: ValueKey('chat-call-record-${message.call!.id}'),
             mainAxisSize: MainAxisSize.min,
@@ -3947,7 +3939,7 @@ class _MessageContent extends StatelessWidget {
         return Text(
           message.text,
           style: legacyChatBodyTextStyle.copyWith(
-            color: message.mine ? const Color(0xFF222222) : legacyMessageGold,
+            color: message.mine ? const Color(0xFF222222) : Colors.white,
             fontWeight: message.mine ? FontWeight.w500 : FontWeight.w400,
           ),
         );
