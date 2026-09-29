@@ -145,7 +145,7 @@ void main() {
         'Reply text',
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('direct-chat-send')));
+      await tester.testTextInput.receiveAction(TextInputAction.send);
       await tester.pumpAndSettle();
       expect(sent.single['replyToMessageId'], source);
       expect(queue.items.values.single['replyToMessageId'], source);
@@ -158,7 +158,7 @@ void main() {
         'Plain text',
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('direct-chat-send')));
+      await tester.testTextInput.receiveAction(TextInputAction.send);
       await tester.pumpAndSettle();
       expect(sent.last.containsKey('replyToMessageId'), false);
       await tester.pumpWidget(const SizedBox());

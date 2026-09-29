@@ -1275,14 +1275,13 @@ void main() {
       '失败',
     );
     await tester.pump();
-    final enabledSend = tester.widget<TextButton>(
-      find.byKey(const ValueKey('direct-chat-send')),
-    );
+    expect(find.byKey(const ValueKey('direct-chat-send')), findsNothing);
+    expect(find.byKey(const ValueKey('direct-chat-emoji')), findsOneWidget);
     expect(
-      enabledSend.style?.backgroundColor?.resolve(<WidgetState>{}),
-      const Color(0xFF07C160),
+      find.byKey(const ValueKey('direct-chat-attachments')),
+      findsOneWidget,
     );
-    await tester.tap(find.byKey(const ValueKey('direct-chat-send')));
+    await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.pumpAndSettle();
     expect(find.text('发送失败，重试'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('direct-chat-retry')));
@@ -1398,7 +1397,6 @@ void main() {
     await tester.pumpAndSettle();
 
     final input = find.byKey(const ValueKey('direct-chat-input'));
-    final send = find.byKey(const ValueKey('direct-chat-send'));
     final longText = List<String>.filled(180, '长').join();
 
     await tester.enterText(input, longText);
@@ -1407,7 +1405,7 @@ void main() {
     expect(inputHeight, greaterThan(48));
     expect(inputHeight, lessThanOrEqualTo(132));
     expect(tester.widget<TextField>(input).maxLines, 4);
-    await tester.tap(send);
+    await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text(longText), findsOneWidget);
     expect(tester.getSize(find.text(longText)).width, lessThanOrEqualTo(252));
@@ -1416,7 +1414,7 @@ void main() {
     for (var index = 1; index <= 10; index++) {
       await tester.enterText(input, '连续消息 $index');
       await tester.pump();
-      await tester.tap(send);
+      await tester.testTextInput.receiveAction(TextInputAction.send);
       await tester.pump(const Duration(milliseconds: 250));
       expect(find.text('连续消息 $index'), findsOneWidget);
     }
@@ -1461,8 +1459,7 @@ void main() {
       '收到',
     );
     await tester.pump();
-    await tester.ensureVisible(find.byKey(const ValueKey('direct-chat-send')));
-    await tester.tap(find.byKey(const ValueKey('direct-chat-send')));
+    await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
     expect(find.text('收到'), findsOneWidget);

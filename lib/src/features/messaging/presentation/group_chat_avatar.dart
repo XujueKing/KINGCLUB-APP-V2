@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:cryptography/cryptography.dart';
@@ -15,32 +14,26 @@ import '../../auth/domain/auth_repository.dart';
 import '../data/group_chat_repository.dart';
 import '../data/messaging_repository.dart';
 
-/// Center incomplete rows, keeping every tile square (one to nine members).
+/// Edge-to-edge tiles: halves for two, one above two for three members.
 List<Rect> groupAvatarTiles(int count, {double size = 144}) {
   count = count.clamp(0, 9);
   if (count == 0) return const [];
-  final columns = count == 1
+  final rows = count <= 2
       ? 1
-      : count <= 4
+      : count <= 6
       ? 2
       : 3;
-  final rows = (count / columns).ceil();
-  final gap = size / 36;
-  final tile = (size - gap * (columns + 1)) / columns;
-  final top = (size - rows * tile - (rows - 1) * gap) / 2;
+  final base = count ~/ rows;
+  final extra = count % rows;
   return [
-    for (var i = 0; i < count; i++)
-      Rect.fromLTWH(
-        (size -
-                    math.min(columns, count - (i ~/ columns) * columns) * tile -
-                    (math.min(columns, count - (i ~/ columns) * columns) - 1) *
-                        gap) /
-                2 +
-            (i % columns) * (tile + gap),
-        top + (i ~/ columns) * (tile + gap),
-        tile,
-        tile,
-      ),
+    for (var row = 0; row < rows; row++)
+      for (var col = 0; col < base + (row >= rows - extra ? 1 : 0); col++)
+        Rect.fromLTWH(
+          col * size / (base + (row >= rows - extra ? 1 : 0)),
+          row * size / rows,
+          size / (base + (row >= rows - extra ? 1 : 0)),
+          size / rows,
+        ),
   ];
 }
 
@@ -100,7 +93,7 @@ class _GroupChatAvatarState extends State<GroupChatAvatar> {
     final group = widget.groupId;
     final scope = 'member:${repository.account}';
     final pointer =
-        'kingclub.group-avatar.${jsonEncode([repository.account, group])}';
+        'kingclub.group-avatar.v2.${jsonEncode([repository.account, group])}';
     bool active() => mounted && generation == _generation;
     void display(File file) {
       if (active()) setState(() => _file = file);
@@ -202,7 +195,7 @@ class _GroupChatAvatarState extends State<GroupChatAvatar> {
           utf8.encode(jsonEncode([group, identities])),
         );
         final key =
-            'group-avatar-v1:${hash.bytes.map((v) => v.toRadixString(16).padLeft(2, '0')).join()}';
+            'group-avatar-v2:${hash.bytes.map((v) => v.toRadixString(16).padLeft(2, '0')).join()}';
         File? file;
         try {
           file = await MediaCache.shared.cachedImage(
@@ -218,14 +211,16 @@ class _GroupChatAvatarState extends State<GroupChatAvatar> {
           for (var i = 0; i < tiles.length; i++) {
             final tile = tiles[i], image = images[i];
             if (image != null) {
-              final side = math.min(image.width, image.height).toDouble();
+              final sourceSize = Size(
+                image.width.toDouble(),
+                image.height.toDouble(),
+              );
+              final fitted = applyBoxFit(BoxFit.cover, sourceSize, tile.size);
               canvas.drawImageRect(
                 image,
-                Rect.fromLTWH(
-                  (image.width - side) / 2,
-                  (image.height - side) / 2,
-                  side,
-                  side,
+                Alignment.center.inscribe(
+                  fitted.source,
+                  Offset.zero & sourceSize,
                 ),
                 tile,
                 Paint()..filterQuality = FilterQuality.medium,
@@ -287,8 +282,7 @@ class _GroupChatAvatarState extends State<GroupChatAvatar> {
   }
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(5),
+  Widget build(BuildContext context) => ClipOval(
     child: SizedBox.square(
       dimension: widget.size,
       child: _file == null

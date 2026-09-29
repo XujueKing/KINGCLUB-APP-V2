@@ -54,6 +54,7 @@ class ContactsPage extends StatefulWidget {
     required this.active,
     required this.onIntent,
     this.onOpenChat,
+    this.chatUnreadCount = 0,
     this.onPendingRequestsChanged,
     this.realData = false,
     this.repository,
@@ -63,6 +64,7 @@ class ContactsPage extends StatefulWidget {
     this.onSessionResetRequested,
   });
 
+  final int chatUnreadCount;
   final bool active;
   final bool realData;
   final MessagingRepository? repository;
@@ -412,6 +414,7 @@ class _ContactsPageState extends State<ContactsPage>
 
   Widget _header() => LegacyConversationTabs(
     chatSelected: false,
+    unreadCount: widget.chatUnreadCount,
     pendingRequests: widget.realData ? (_real?.pendingRequests ?? 0) : 0,
     onScan: widget.onScan,
     onPersonalQr: widget.onPersonalQr,

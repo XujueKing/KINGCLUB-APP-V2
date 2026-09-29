@@ -156,11 +156,13 @@ class LegacyConversationTabs extends StatelessWidget {
     required this.onContacts,
     required this.onAdd,
     this.pendingRequests = 0,
+    this.unreadCount = 0,
     this.onScan,
     this.onPersonalQr,
   });
   final bool chatSelected;
   final int pendingRequests;
+  final int unreadCount;
   final VoidCallback? onChat, onContacts, onAdd, onScan, onPersonalQr;
   @override
   Widget build(BuildContext context) {
@@ -181,11 +183,17 @@ class LegacyConversationTabs extends StatelessWidget {
           child: Badge(
             key: title == '通讯录'
                 ? const ValueKey('contacts-tab-request-badge')
-                : null,
-            isLabelVisible: title == '通讯录' && pendingRequests > 0,
+                : const ValueKey('chat-tab-unread-badge'),
+            isLabelVisible:
+                (title == '通讯录' ? pendingRequests : unreadCount) > 0,
+            alignment: Alignment.topRight,
             backgroundColor: const Color(0xFFFF4D55),
             textColor: Colors.white,
-            label: Text(pendingRequests > 99 ? '99' : '$pendingRequests'),
+            label: Text(
+              (title == '通讯录' ? pendingRequests : unreadCount) > 99
+                  ? '99+'
+                  : '${title == '通讯录' ? pendingRequests : unreadCount}',
+            ),
             child: Text(
               title,
               style: selected

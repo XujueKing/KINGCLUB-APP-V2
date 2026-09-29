@@ -98,7 +98,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'First message');
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('direct-chat-send')));
+    await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 40));
     final text = find.text('First message');
@@ -167,7 +167,7 @@ void main() {
     expect(controller.position.pixels, closeTo(readingOffset, 1));
     await tester.enterText(find.byType(TextField), 'New outgoing message');
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('direct-chat-send')));
+    await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.pump();
     for (
       var frame = 0;

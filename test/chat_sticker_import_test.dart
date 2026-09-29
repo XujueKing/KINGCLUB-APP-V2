@@ -83,7 +83,7 @@ void main() {
           await tester.enterText(find.byType(TextField), 'new-pack');
           await tester.tap(find.text('添加'));
         } else {
-          await tester.tap(find.byTooltip('添加的单个表情'));
+          await tester.tap(find.byTooltip('自定义表情'));
           await tester.pump();
           await tester.tap(find.byKey(const ValueKey('add-single-sticker')));
         }
@@ -145,7 +145,7 @@ void main() {
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 50));
-        await tester.tap(find.byTooltip('添加的单个表情'));
+        await tester.tap(find.byTooltip('自定义表情'));
         await tester.pump();
         await tester.tap(find.byKey(const ValueKey('add-single-sticker')));
         await tester.pump();

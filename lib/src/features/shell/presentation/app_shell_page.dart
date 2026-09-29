@@ -182,6 +182,9 @@ class _AppShellPageState extends State<AppShellPage> {
                   index: _messagesPageIndex,
                   children: [
                     ContactsPage(
+                      chatUnreadCount:
+                          _friendConversationUnread +
+                          _systemNotificationsUnread,
                       realData: widget.realChat,
                       onPendingRequestsChanged: (count) {
                         if (!mounted || count == _pendingFriendRequests) return;

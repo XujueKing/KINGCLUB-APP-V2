@@ -1161,6 +1161,9 @@ class _ConversationsPageState extends State<ConversationsPage>
 
   Widget _header() => LegacyConversationTabs(
     chatSelected: true,
+    unreadCount:
+        (widget.realData ? widget.initialFriendUnreadCount : _friendUnread) +
+        widget.systemUnreadCount,
     pendingRequests: widget.pendingRequests,
     onChat: () {},
     onContacts: widget.onOpenContacts,

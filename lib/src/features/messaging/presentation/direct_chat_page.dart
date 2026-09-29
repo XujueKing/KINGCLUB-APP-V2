@@ -1681,56 +1681,24 @@ class _DirectChatPageState extends State<DirectChatPage>
                               ),
                             ),
                           ),
-                          ValueListenableBuilder<TextEditingValue>(
-                            valueListenable: _controller,
-                            builder: (context, value, _) {
-                              if (!_readOnly && value.text.trim().isNotEmpty) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 3),
-                                  child: TextButton(
-                                    key: const ValueKey('direct-chat-send'),
-                                    onPressed: _send,
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(66, 32),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                      ),
-                                      backgroundColor: const Color(0xFF29B463),
-                                      foregroundColor: Colors.black,
-                                      shape: const StadiumBorder(),
-                                      textStyle: const TextStyle(fontSize: 14),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text('发送'),
-                                        SizedBox(width: 4),
-                                        Icon(Icons.send, size: 12),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _composerIcon(
-                                    'direct-chat-emoji',
-                                    '表情',
-                                    _composerPanel == _ComposerPanel.emoji
-                                        ? 'keynote.png'
-                                        : 'smail.png',
-                                    _readOnly ? null : _insertEmoji,
-                                  ),
-                                  _composerIcon(
-                                    'direct-chat-attachments',
-                                    '更多',
-                                    'add.png',
-                                    _readOnly ? null : _toggleAttachments,
-                                  ),
-                                ],
-                              );
-                            },
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _composerIcon(
+                                'direct-chat-emoji',
+                                '表情',
+                                _composerPanel == _ComposerPanel.emoji
+                                    ? 'keynote.png'
+                                    : 'smail.png',
+                                _readOnly ? null : _insertEmoji,
+                              ),
+                              _composerIcon(
+                                'direct-chat-attachments',
+                                '更多',
+                                'add.png',
+                                _readOnly ? null : _toggleAttachments,
+                              ),
+                            ],
                           ),
                         ],
                       ),

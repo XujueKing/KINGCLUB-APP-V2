@@ -263,32 +263,40 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('direct-chat-emoji')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('动物'));
+      expect(find.byTooltip('动物'), findsNothing);
+      expect(find.byTooltip('食物'), findsNothing);
+      await tester.tap(find.byTooltip('表情').last);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('🐱').last);
+      await tester.tap(find.text('😀').last);
       await tester.pump();
       expect(
         tester
             .widget<TextField>(find.byKey(const ValueKey('direct-chat-input')))
             .controller!
             .text,
-        '🐱',
+        '😀',
       );
       await tester.drag(
-        find.byKey(const ValueKey('emoji-pages-1')),
+        find.byKey(const ValueKey('emoji-pages-0')),
         const Offset(-320, 0),
       );
       await tester.pumpAndSettle();
       expect(
         find
             .descendant(
-              of: find.byKey(const ValueKey('emoji-pages-1')),
-              matching: find.text('🐱'),
+              of: find.byKey(const ValueKey('emoji-pages-0')),
+              matching: find.text('😀'),
             )
             .hitTestable(),
         findsNothing,
       );
-      await tester.tap(find.byTooltip('添加的单个表情'));
+      expect(find.byKey(const ValueKey('direct-chat-send')), findsNothing);
+      expect(find.byKey(const ValueKey('direct-chat-emoji')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('direct-chat-attachments')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byTooltip('自定义表情'));
       await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('add-single-sticker')).hitTestable(),

@@ -497,7 +497,11 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
         _page = 0;
       }),
       child: Container(
-        width: 46,
+        width: category == 0
+            ? 64
+            : category == 3
+            ? 104
+            : 46,
         height: 42,
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
@@ -538,22 +542,20 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
                       vertical: 5,
                     ),
                     children: [
-                      for (var i = 0; i < 3; i++)
-                        _tab(
-                          i,
-                          ['表情', '动物', '食物'][i],
-                          Text(
-                            ['😀', '🐶', '🍏'][i],
-                            style: const TextStyle(fontSize: 25),
-                          ),
+                      _tab(
+                        0,
+                        '表情',
+                        const Text(
+                          '表情',
+                          style: TextStyle(color: legacyMessageGold),
                         ),
+                      ),
                       _tab(
                         3,
-                        '添加的单个表情',
-                        const Icon(
-                          Icons.favorite_border,
-                          size: 25,
-                          color: legacyMessageGold,
+                        '自定义表情',
+                        const Text(
+                          '自定义表情',
+                          style: TextStyle(color: legacyMessageGold),
                         ),
                       ),
                       for (var i = 1; i < _names.length; i++)
@@ -724,7 +726,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
                       ? null
                       : () => _add(pack: false),
                   child: Semantics(
-                    label: '添加单个表情',
+                    label: '从照片添加表情',
                     button: true,
                     enabled: !_importing && !_invalid,
                     child: CustomPaint(
