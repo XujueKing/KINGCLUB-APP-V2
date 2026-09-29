@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'call_presentation_scope.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
@@ -138,6 +140,23 @@ class _CallPageState extends State<CallPage> {
     }
   }
 
+  CallPresentationControls? _presentation;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _presentation = CallPresentationControls.of(context);
+    _presentation?.onBack = _back;
+  }
+
+  void _back() {
+    if (_presentation != null && !_controller.isClosed) {
+      _presentation!.minimize();
+    } else {
+      unawaited(_end());
+    }
+  }
+
   Future<void> _end() async {
     if (_leaving) return;
     setState(() {
@@ -148,7 +167,11 @@ class _CallPageState extends State<CallPage> {
       if (!_controller.isClosed) await _controller.end();
       if (!mounted) return;
       setState(() => _allowPop = true);
-      Navigator.of(context).pop();
+      if (_presentation != null) {
+        _presentation!.close();
+      } else {
+        Navigator.of(context).pop();
+      }
     } catch (_) {
       if (mounted) setState(() => _actionError = '本机通话已停止，结束状态同步失败，请重试');
     } finally {
@@ -294,17 +317,38 @@ class _CallPageState extends State<CallPage> {
     final ended = _controller.isClosed;
     final incoming = _controller.needsAccept;
     final video = _controller.call.media == CallMedia.video;
+    if (_presentation?.minimized == true) {
+      if (ended) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _controller.isClosed) _presentation?.close();
+        });
+      }
+      return CallMiniWindow(
+        title: widget.peerName,
+        status: _controller.connectedDuration == null
+            ? _status
+            : _formatDuration(_controller.connectedDuration!),
+        onRestore: _presentation!.restore,
+        onHangUp: _end,
+        video: video && _rendererReady && _remote!.srcObject != null
+            ? RTCVideoView(
+                _remote!,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              )
+            : null,
+      );
+    }
     return PopScope(
       canPop: _allowPop || ended,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_end());
+        if (!didPop) _back();
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF161616),
         appBar: kingAppBar(
           context: context,
           backgroundColor: const Color(0xFF161616),
-          leading: KingBackButton(onPressed: _end),
+          leading: KingBackButton(onPressed: _back),
           title: Text(
             video ? '视频通话' : '语音通话',
             style: const TextStyle(color: Colors.white),

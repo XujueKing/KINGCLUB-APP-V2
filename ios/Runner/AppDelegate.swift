@@ -1,10 +1,12 @@
 import Flutter
 import UIKit
 import UserNotifications
+import AVFAudio
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var chatPush: AppleChatPush?
+  private var callLifetime: AppleCallLifetime?
 
   override func application(
     _ application: UIApplication,
@@ -17,6 +19,7 @@ import UserNotifications
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     chatPush = AppleChatPush(messenger: engineBridge.applicationRegistrar.messenger())
+    callLifetime = AppleCallLifetime(messenger: engineBridge.applicationRegistrar.messenger())
   }
   override func application(_ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
@@ -51,6 +54,57 @@ import UserNotifications
       completionHandler()
     } else {
       super.userNotificationCenter(center, didReceive: response, withCompletionHandler: completionHandler)
+    }
+  }
+}
+
+/// Confirms background audio support and holds the screen awake for video.
+private final class AppleCallLifetime {
+  private let channel: FlutterMethodChannel
+  private var owner: String?
+  private var previousIdleTimer = false
+  private var changedIdleTimer = false
+
+  init(messenger: FlutterBinaryMessenger) {
+    channel = FlutterMethodChannel(name: "kingclub/call-foreground", binaryMessenger: messenger)
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else { return }
+      guard let args = call.arguments as? [String: Any],
+            let id = args["id"] as? String, UUID(uuidString: id) != nil else {
+        result(FlutterError(code: "CALL_INVALID", message: "Invalid call owner", details: nil)); return
+      }
+      switch call.method {
+      case "start":
+        guard self.owner == nil || self.owner == id else {
+          result(FlutterError(code: "CALL_BUSY", message: "Another call is active", details: nil)); return
+        }
+        // getUserMedia has already configured WebRTC's recording session.
+        // WebRTC retains audio activation/routing ownership; do not override it.
+        let category = AVAudioSession.sharedInstance().category
+        let modes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] ?? []
+        guard modes.contains("audio"), category == .playAndRecord || category == .multiRoute else {
+          result(FlutterError(code: "CALL_AUDIO_UNAVAILABLE", message: "Background call audio unavailable", details: nil)); return
+        }
+        if self.owner == nil {
+          self.previousIdleTimer = UIApplication.shared.isIdleTimerDisabled
+          self.owner = id
+        }
+        if args["video"] as? Bool == true {
+          self.changedIdleTimer = true
+          UIApplication.shared.isIdleTimerDisabled = true
+        }
+        result(nil)
+      case "stop":
+        if self.owner == id {
+          if self.changedIdleTimer {
+            UIApplication.shared.isIdleTimerDisabled = self.previousIdleTimer
+          }
+          self.changedIdleTimer = false
+          self.owner = nil
+        }
+        result(nil)
+      default: result(FlutterMethodNotImplemented)
+      }
     }
   }
 }

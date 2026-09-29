@@ -7,8 +7,49 @@ import 'package:kingclub/src/features/messaging/data/call_repository.dart';
 import 'package:kingclub/src/features/messaging/data/group_chat_repository.dart';
 import 'package:kingclub/src/features/messaging/data/messaging_repository.dart';
 import 'package:kingclub/src/features/messaging/presentation/group_call_page.dart';
+import 'package:kingclub/src/features/messaging/presentation/call_presentation_scope.dart';
+import 'package:kingclub/src/features/messaging/data/call_presentation_lease.dart';
 
 void main() {
+  testWidgets(
+    'back from hosted member selection exits without an empty mini window',
+    (tester) async {
+      final navigator = GlobalKey<NavigatorState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorKey: navigator,
+          builder: (_, child) => CallPresentationHost(child: child!),
+          home: const Scaffold(body: Text('home')),
+        ),
+      );
+      var completed = false;
+      unawaited(
+        pushCallPresentation(
+          navigator.currentState!,
+          GroupCallPage(
+            repository: GroupChatRepository(
+              MessagingRepository(
+                account: 'me',
+                call: (_, _) async => {'members': []},
+              ),
+            ),
+            groupId: '00000000-0000-4000-8000-000000000001',
+            media: CallMedia.audio,
+          ),
+          CallPresentationLease.acquire()!,
+        ).then((_) => completed = true),
+      );
+      await tester.pumpAndSettle();
+      await navigator.currentState!.maybePop();
+      await tester.pumpAndSettle();
+      expect(completed, true);
+      expect(find.byType(GroupCallPage), findsNothing);
+      expect(find.byType(CallMiniWindow), findsNothing);
+      CallPresentationLease.acquire()!.release();
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   testWidgets(
     'member selection reads real repository and retains start identity on retry',
     (tester) async {

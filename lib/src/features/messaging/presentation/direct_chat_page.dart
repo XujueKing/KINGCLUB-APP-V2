@@ -872,17 +872,14 @@ class _DirectChatPageState extends State<DirectChatPage>
       _openingCall = true;
       _dismissComposer();
       try {
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute(
-            builder: (_) => CallPresentationScope(
-              lease: lease,
-              child: GroupCallPage(
-                repository: GroupChatRepository(chat.messaging),
-                groupId: widget.groupId!,
-                media: media,
-              ),
-            ),
+        await pushCallPresentation(
+          Navigator.of(context),
+          GroupCallPage(
+            repository: GroupChatRepository(chat.messaging),
+            groupId: widget.groupId!,
+            media: media,
           ),
+          lease,
         );
       } finally {
         _openingCall = false;
@@ -918,11 +915,9 @@ class _DirectChatPageState extends State<DirectChatPage>
           page.controller.dispose();
         }
       } else {
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute(
-            builder: (_) => CallPresentationScope(lease: lease, child: page),
-          ),
-        );
+        launcher.handoffOutgoing(prepared.call.id);
+        await pushCallPresentation(Navigator.of(context), page, lease);
+        return;
       }
       if (!mounted || _leaving || !identical(_callLauncher, launcher)) return;
       await launcher.finishOutgoing(prepared.call.id);

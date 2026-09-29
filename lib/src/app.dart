@@ -679,68 +679,70 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       theme: KingTheme.dark,
       routerConfig: router,
       builder: (context, child) => KingTextScale(
-        child: Stack(
-          children: [
-            child ?? const SizedBox.shrink(),
-            Positioned(
-              top: (100 * MediaQuery.sizeOf(context).width / 750).clamp(
-                MediaQuery.paddingOf(context).top,
-                double.infinity,
-              ),
-              left: 20 * MediaQuery.sizeOf(context).width / 750,
-              right: 20 * MediaQuery.sizeOf(context).width / 750,
-              child: ForegroundMessageBanner(
-                visible: _messageNotice != null,
-                onTap: _openMessageNotice,
-                onDismiss: _dismissMessageNotice,
-              ),
-            ),
-            if (_notice != null)
+        child: CallPresentationHost(
+          child: Stack(
+            children: [
+              child ?? const SizedBox.shrink(),
               Positioned(
-                top: MediaQuery.paddingOf(context).top + 8,
-                left: 16,
-                right: 16,
-                child: Material(
-                  color: const Color(0xF02A261E),
-                  borderRadius: BorderRadius.circular(14),
-                  elevation: 4,
-                  child: InkWell(
-                    onTap: _openNotice,
+                top: (100 * MediaQuery.sizeOf(context).width / 750).clamp(
+                  MediaQuery.paddingOf(context).top,
+                  double.infinity,
+                ),
+                left: 20 * MediaQuery.sizeOf(context).width / 750,
+                right: 20 * MediaQuery.sizeOf(context).width / 750,
+                child: ForegroundMessageBanner(
+                  visible: _messageNotice != null,
+                  onTap: _openMessageNotice,
+                  onDismiss: _dismissMessageNotice,
+                ),
+              ),
+              if (_notice != null)
+                Positioned(
+                  top: MediaQuery.paddingOf(context).top + 8,
+                  left: 16,
+                  right: 16,
+                  child: Material(
+                    color: const Color(0xF02A261E),
                     borderRadius: BorderRadius.circular(14),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.inventory_2_outlined,
-                            color: Color(0xFFC9B69E),
-                            size: 20,
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              '储物已核销，点击查看最新记录',
-                              style: TextStyle(
-                                color: Color(0xFFC9B69E),
-                                fontSize: 13,
+                    elevation: 4,
+                    child: InkWell(
+                      onTap: _openNotice,
+                      borderRadius: BorderRadius.circular(14),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              color: Color(0xFFC9B69E),
+                              size: 20,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                '储物已核销，点击查看最新记录',
+                                style: TextStyle(
+                                  color: Color(0xFFC9B69E),
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
-                          ),
-                          Icon(
-                            Icons.chevron_right,
-                            color: Color(0xFFC9B69E),
-                            size: 18,
-                          ),
-                        ],
+                            Icon(
+                              Icons.chevron_right,
+                              color: Color(0xFFC9B69E),
+                              size: 18,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

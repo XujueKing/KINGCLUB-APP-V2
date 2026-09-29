@@ -102,6 +102,16 @@ class CallLaunchCoordinator {
     return PreparedCall(current, relay);
   }
 
+  /// The persistent presentation now owns cleanup, even if its chat is removed.
+  void handoffOutgoing(String callId) {
+    _check();
+    if (_outgoing != null || _callId != callId) {
+      throw StateError('Outgoing call is not ready for handoff');
+    }
+    _callId = null;
+    _attempt = null;
+  }
+
   /// Clear only after the route has finished AND the server confirms terminal
   /// state. A network error must not turn a retry into a second dial request.
   Future<void> finishOutgoing(String callId) async {

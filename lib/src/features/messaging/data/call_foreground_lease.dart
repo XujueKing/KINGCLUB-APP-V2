@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
-/// Android capture lifetime. Starting media is still authorized by the call owner.
+/// Mobile capture lifetime. Starting media is still authorized by the call owner.
 class CallForegroundLease {
   CallForegroundLease({
     bool? supported,
     Future<void> Function(String, Map<String, dynamic>)? invoke,
-  }) : _supported = supported ?? Platform.isAndroid,
+  }) : _supported = supported ?? (Platform.isAndroid || Platform.isIOS),
        _invoke = invoke ?? _native;
 
   static const _channel = MethodChannel('kingclub/call-foreground');

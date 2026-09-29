@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'call_presentation_scope.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:uuid/uuid.dart';
@@ -157,7 +159,8 @@ class _GroupCallPageState extends State<GroupCallPage>
       controller.addListener(_changed);
       if (!mounted ||
           _invalid ||
-          ModalRoute.of(context)?.isCurrent != true ||
+          (_presentation == null &&
+              ModalRoute.of(context)?.isCurrent != true) ||
           WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
         await session.hangUp();
         if (!mounted) controller.dispose();
@@ -244,12 +247,30 @@ class _GroupCallPageState extends State<GroupCallPage>
     }
   }
 
+  CallPresentationControls? _presentation;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _presentation = CallPresentationControls.of(context);
+    _presentation?.onBack = () => unawaited(_back());
+  }
+
   Future<void> _back() async {
+    if (_presentation != null &&
+        (_busy || (_session != null && !_session!.isClosed))) {
+      _presentation!.minimize();
+      return;
+    }
     _invalid = true;
     await _stop();
     if (!mounted) return;
     setState(() => _allowPop = true);
-    Navigator.of(context).pop();
+    if (_presentation != null) {
+      _presentation!.close();
+    } else {
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _mute() async {
@@ -311,198 +332,231 @@ class _GroupCallPageState extends State<GroupCallPage>
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: _allowPop,
-    onPopInvokedWithResult: (didPop, _) {
-      if (!didPop) unawaited(_back());
-    },
-    child: Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            LegacyMessagingHeader(
-              title: widget.media == CallMedia.video ? '群视频通话' : '群语音通话',
-              onBack: _back,
-            ),
-            if (_session != null)
-              Text(
-                _callStatus,
-                style: const TextStyle(color: Colors.white54, fontSize: 13),
+  Widget build(BuildContext context) {
+    if (_presentation?.minimized == true) {
+      if (_session?.isClosed == true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _session?.isClosed == true) _presentation?.close();
+        });
+      }
+      final remote = _streams.entries.where(
+        (e) => e.key != widget.repository.account,
+      );
+      final preview = remote.isNotEmpty
+          ? remote.first
+          : _streams.entries.firstOrNull;
+      return CallMiniWindow(
+        title: widget.media == CallMedia.video ? '群视频通话' : '群语音通话',
+        status: _session == null ? '正在连接' : _callStatus,
+        onRestore: _presentation!.restore,
+        onHangUp: _stop,
+        video: widget.media == CallMedia.video && preview != null
+            ? _GroupVideo(
+                stream: preview.value,
+                own: preview.key == widget.repository.account,
+              )
+            : null,
+      );
+    }
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_back());
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Column(
+            children: [
+              LegacyMessagingHeader(
+                title: widget.media == CallMedia.video ? '群视频通话' : '群语音通话',
+                onBack: _back,
               ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(color: Colors.white70),
+              if (_session != null)
+                Text(
+                  _callStatus,
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
                 ),
-              ),
-            Expanded(
-              child: FutureBuilder<Map<String, dynamic>>(
-                future: _details,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: TextButton(
-                        onPressed: _invalid
-                            ? null
-                            : () => setState(
-                                () => _details = widget.repository.details(
-                                  widget.groupId,
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ),
+              Expanded(
+                child: FutureBuilder<Map<String, dynamic>>(
+                  future: _details,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: TextButton(
+                          onPressed: _invalid
+                              ? null
+                              : () => setState(
+                                  () => _details = widget.repository.details(
+                                    widget.groupId,
+                                  ),
                                 ),
-                              ),
-                        child: const Text('重新加载群成员'),
-                      ),
-                    );
-                  }
-                  final members = ((snapshot.data?['members'] as List?) ?? [])
-                      .cast<Map>();
-                  if (_session == null) {
-                    return ListView(
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text(
-                            '选择成员，最多8人',
-                            style: TextStyle(color: Colors.white70),
-                          ),
+                          child: const Text('重新加载群成员'),
                         ),
-                        for (final member in members)
-                          if (member['account'] != widget.repository.account)
-                            CheckboxListTile(
-                              secondary: _avatar(member['account'] as String),
-                              value: _selected.contains(member['account']),
-                              title: Text(
-                                '${member['nickname'] ?? member['account']}',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              onChanged: _busy || _invalid || _requestId != null
-                                  ? null
-                                  : (checked) => setState(() {
-                                      if (checked == true &&
-                                          _selected.length < 8) {
-                                        _selected.add(
-                                          member['account'] as String,
-                                        );
-                                      }
-                                      if (checked != true) {
-                                        _selected.remove(member['account']);
-                                      }
-                                    }),
+                      );
+                    }
+                    final members = ((snapshot.data?['members'] as List?) ?? [])
+                        .cast<Map>();
+                    if (_session == null) {
+                      return ListView(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Text(
+                              '选择成员，最多8人',
+                              style: TextStyle(color: Colors.white70),
                             ),
+                          ),
+                          for (final member in members)
+                            if (member['account'] != widget.repository.account)
+                              CheckboxListTile(
+                                secondary: _avatar(member['account'] as String),
+                                value: _selected.contains(member['account']),
+                                title: Text(
+                                  '${member['nickname'] ?? member['account']}',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                onChanged:
+                                    _busy || _invalid || _requestId != null
+                                    ? null
+                                    : (checked) => setState(() {
+                                        if (checked == true &&
+                                            _selected.length < 8) {
+                                          _selected.add(
+                                            member['account'] as String,
+                                          );
+                                        }
+                                        if (checked != true) {
+                                          _selected.remove(member['account']);
+                                        }
+                                      }),
+                              ),
+                        ],
+                      );
+                    }
+                    return GridView.count(
+                      crossAxisCount: 2,
+                      children: [
+                        for (final participant
+                            in _controller!.call.participants)
+                          Card(
+                            color: const Color(0xFF202020),
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child:
+                                      !(participant.account ==
+                                                  widget.repository.account &&
+                                              _videoOff) &&
+                                          (_streams[participant.account]
+                                                  ?.getVideoTracks()
+                                                  .isNotEmpty ==
+                                              true)
+                                      ? _GroupVideo(
+                                          stream:
+                                              _streams[participant.account]!,
+                                          own:
+                                              participant.account ==
+                                                  widget.repository.account &&
+                                              _frontFacing,
+                                        )
+                                      : Center(
+                                          child: _avatar(
+                                            participant.account,
+                                            size: 64,
+                                          ),
+                                        ),
+                                ),
+                                Text(
+                                  '${members.where((m) => m['account'] == participant.account).firstOrNull?['nickname'] ?? participant.account}',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                Text(
+                                  _participantStatus(participant),
+                                  style: const TextStyle(color: Colors.white54),
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                            ),
+                          ),
                       ],
                     );
-                  }
-                  return GridView.count(
-                    crossAxisCount: 2,
-                    children: [
-                      for (final participant in _controller!.call.participants)
-                        Card(
-                          color: const Color(0xFF202020),
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child:
-                                    !(participant.account ==
-                                                widget.repository.account &&
-                                            _videoOff) &&
-                                        (_streams[participant.account]
-                                                ?.getVideoTracks()
-                                                .isNotEmpty ==
-                                            true)
-                                    ? _GroupVideo(
-                                        stream: _streams[participant.account]!,
-                                        own:
-                                            participant.account ==
-                                                widget.repository.account &&
-                                            _frontFacing,
-                                      )
-                                    : Center(
-                                        child: _avatar(
-                                          participant.account,
-                                          size: 64,
-                                        ),
-                                      ),
-                              ),
-                              Text(
-                                '${members.where((m) => m['account'] == participant.account).firstOrNull?['nickname'] ?? participant.account}',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              Text(
-                                _participantStatus(participant),
-                                style: const TextStyle(color: Colors.white54),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    if (_session == null)
+                      TextButton(
+                        onPressed: _busy || _invalid || _selected.isEmpty
+                            ? null
+                            : _start,
+                        child: Text(_busy ? '正在发起…' : '发起通话'),
+                      ),
+                    if (_session != null && !_session!.isClosed) ...[
+                      IconButton(
+                        tooltip: _speaker ? '切换听筒' : '开启免提',
+                        onPressed: _busy ? null : _routeAudio,
+                        icon: Icon(
+                          _speaker ? Icons.volume_up : Icons.hearing,
+                          color: Colors.white,
+                        ),
+                      ),
+                      if (widget.media == CallMedia.video) ...[
+                        IconButton(
+                          tooltip: _videoOff ? '开启摄像头' : '关闭摄像头',
+                          onPressed: _busy ? null : () => _camera(),
+                          icon: Icon(
+                            _videoOff ? Icons.videocam_off : Icons.videocam,
+                            color: Colors.white,
                           ),
                         ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  if (_session == null)
-                    TextButton(
-                      onPressed: _busy || _invalid || _selected.isEmpty
-                          ? null
-                          : _start,
-                      child: Text(_busy ? '正在发起…' : '发起通话'),
-                    ),
-                  if (_session != null && !_session!.isClosed) ...[
-                    IconButton(
-                      tooltip: _speaker ? '切换听筒' : '开启免提',
-                      onPressed: _busy ? null : _routeAudio,
-                      icon: Icon(
-                        _speaker ? Icons.volume_up : Icons.hearing,
-                        color: Colors.white,
-                      ),
-                    ),
-                    if (widget.media == CallMedia.video) ...[
+                        IconButton(
+                          tooltip: '切换摄像头',
+                          onPressed: _busy || _videoOff
+                              ? null
+                              : () => _camera(switchFacing: true),
+                          icon: const Icon(
+                            Icons.cameraswitch,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                       IconButton(
-                        tooltip: _videoOff ? '开启摄像头' : '关闭摄像头',
-                        onPressed: _busy ? null : () => _camera(),
+                        onPressed: _busy ? null : _mute,
                         icon: Icon(
-                          _videoOff ? Icons.videocam_off : Icons.videocam,
+                          _muted ? Icons.mic_off : Icons.mic,
                           color: Colors.white,
                         ),
                       ),
                       IconButton(
-                        tooltip: '切换摄像头',
-                        onPressed: _busy || _videoOff
-                            ? null
-                            : () => _camera(switchFacing: true),
+                        onPressed: _stop,
                         icon: const Icon(
-                          Icons.cameraswitch,
-                          color: Colors.white,
+                          Icons.call_end,
+                          color: Colors.redAccent,
                         ),
                       ),
                     ],
-                    IconButton(
-                      onPressed: _busy ? null : _mute,
-                      icon: Icon(
-                        _muted ? Icons.mic_off : Icons.mic,
-                        color: Colors.white,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _stop,
-                      icon: const Icon(Icons.call_end, color: Colors.redAccent),
-                    ),
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   String get _callStatus {
     final session = _session!;

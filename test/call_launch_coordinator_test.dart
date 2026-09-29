@@ -33,6 +33,32 @@ Map<String, dynamic> relay() {
 }
 
 void main() {
+  test(
+    'chat disposal cannot cancel a call handed to the persistent presentation',
+    () async {
+      final requests = <String>[];
+      final launch = CallLaunchCoordinator(
+        CallRepository(
+          MessagingRepository(
+            account: 'a',
+            call: (method, params) async {
+              requests.add(method);
+              if (method == 'K260913000643') return call('ringing');
+              if (method == 'K260913000645') return {'call': call('ringing')};
+              return relay();
+            },
+          ),
+        ),
+      );
+      final prepared = await launch.outgoing(peer: 'b', media: CallMedia.audio);
+      expect(() => launch.handoffOutgoing('wrong-id'), throwsStateError);
+      launch.handoffOutgoing(prepared.call.id);
+      requests.clear();
+      await launch.abandonOutgoing();
+      expect(requests, isEmpty);
+    },
+  );
+
   test('leaving during start cancels the late call and handles simultaneous acceptance', () async {
     final start = Completer<Map<String, dynamic>>();
     var reads = 0;
