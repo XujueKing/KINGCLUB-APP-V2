@@ -1200,6 +1200,7 @@ class _DirectChatPageState extends State<DirectChatPage>
               lineColor: const Color(0x1CC9B69E),
               lineWidth: .5,
               title: _displayPeerName,
+              muted: _muted,
               onBack: () => Navigator.pop(context),
               trailing: IconButton(
                 key: const ValueKey('direct-chat-details'),
@@ -3940,6 +3941,7 @@ class _MessageContent extends StatelessWidget {
           message.text,
           style: legacyChatBodyTextStyle.copyWith(
             color: message.mine ? const Color(0xFF222222) : Colors.white,
+            fontSize: chatEmojiOnly(message.text) ? 30 : null,
             fontWeight: message.mine ? FontWeight.w500 : FontWeight.w400,
           ),
         );

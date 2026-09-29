@@ -52,6 +52,7 @@ class LegacyMessagingHeader extends StatelessWidget {
     this.alignToConversationTitle = false,
     this.lineColor = legacyMessageLine,
     this.lineWidth = 1,
+    this.muted = false,
   });
 
   final String title;
@@ -61,6 +62,7 @@ class LegacyMessagingHeader extends StatelessWidget {
   final bool alignToConversationTitle;
   final Color lineColor;
   final double lineWidth;
+  final bool muted;
 
   @override
   Widget build(BuildContext context) {
@@ -86,14 +88,36 @@ class LegacyMessagingHeader extends StatelessWidget {
               onPressed: onBack,
             ),
           ),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width - 128,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (muted)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 6),
+                    child: Icon(
+                      Icons.notifications_off_outlined,
+                      size: 16,
+                      color: Color(0xFF999999),
+                      semanticLabel: '消息免打扰',
+                    ),
+                  ),
+              ],
             ),
           ),
           if (trailing != null)
@@ -538,3 +562,50 @@ const legacyChatBodyTextStyle = TextStyle(
   fontWeight: FontWeight.w400,
   fontFamilyFallback: ['PingFang SC', 'Microsoft YaHei'],
 );
+
+/// Enlarge emoji messages, without enlarging ordinary text or plain digits.
+bool chatEmojiOnly(String text) {
+  final value = text.trim();
+  if (value.isEmpty) return false;
+  for (final cluster in value.characters) {
+    if (cluster.trim().isEmpty) continue;
+    final runes = cluster.runes.toList();
+    final keycap = runes.contains(0x20E3);
+    var hasEmoji = false;
+    for (final rune in runes) {
+      if (rune == 0xFE0F ||
+          rune == 0xFE0E ||
+          rune == 0x200D ||
+          rune >= 0x1F3FB && rune <= 0x1F3FF ||
+          rune >= 0xE0020 && rune <= 0xE007F) {
+        continue;
+      }
+      if (keycap &&
+          (rune == 0x20E3 ||
+              rune == 35 ||
+              rune == 42 ||
+              rune >= 48 && rune <= 57)) {
+        hasEmoji = true;
+      } else if (rune >= 0x1F000 && rune <= 0x1FAFF ||
+          rune >= 0x2600 && rune <= 0x27BF ||
+          const {
+            0x00A9,
+            0x00AE,
+            0x203C,
+            0x2049,
+            0x2122,
+            0x2139,
+            0x3030,
+            0x303D,
+            0x3297,
+            0x3299,
+          }.contains(rune)) {
+        hasEmoji = true;
+      } else {
+        return false;
+      }
+    }
+    if (!hasEmoji) return false;
+  }
+  return true;
+}
