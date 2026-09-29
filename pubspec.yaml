@@ -91,7 +91,7 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 tobias:
   url_scheme: kingclubalipay
-  no_utdid: true
+  no_utdid: false
   ios:
     ignore_security: true
     universal_link: https://www.wuyexin.cn/app/

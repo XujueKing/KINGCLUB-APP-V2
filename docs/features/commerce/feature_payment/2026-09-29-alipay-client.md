@@ -25,3 +25,4 @@
 - Android 本机首次构建在复制原生库阶段因 D 盘空间不足中断；使用已提交源码在 C 盘临时构建目录重新构建，ARM64 preview debug APK 已通过。未安装手机。
 - iOS SDK 安装脚本默认会放宽 ATS；显式设置 `ignore_security: true`（意为不修改现有 ATS），并复用已有 Associated Domain，避免生成空 `applinks:` 权限。支付宝支付使用独立 Scheme 回跳。
 - iOS 云端编译、真实调起及真实付款尚待验证，不标记全部完成。
+- 首次 iOS 链接发现 NoUtdid SDK 要求宿主另外提供 UTDevice，本项目没有该依赖；切换插件的 normal 完整 SDK（no_utdid=false），重新云端编译。没有添加伪造 UTDevice 实现。
