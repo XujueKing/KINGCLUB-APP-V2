@@ -302,7 +302,9 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
           LegacyMessagingHeader(
             title: _title,
             backgroundColor: const Color(0xFF101010),
-            lineColor: const Color(0x1CC9B69E),
+            lineColor: widget.mode == FriendDiscoveryMode.search
+                ? Colors.transparent
+                : const Color(0x1CC9B69E),
             lineWidth: .5,
             onBack: widget.onBack ?? () => Navigator.pop(context),
           ),
