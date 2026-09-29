@@ -9,6 +9,8 @@
 锁屏实测首轮：用户确认 iPhone 锁屏后，由 A 的现有好友会话发起语音通话。
 服务端 VoIP delivery=accepted、attempts=1、lastErrorCode=null，随后通话 phase=active。
 这证明真实 VoIP 投递和接听状态已贯通；不等同用户确认铃声、双向声音、拒绝与图标。
+随后用户明确确认“声音正常”；本通话之后 phase=ended。锁屏接听后的音频通过本轮
+人工确认。铃声/震动、拒接收尾、主叫取消和 KING 图标仍独立待验收；群系统来电未完成。
 
 私聊已接入应用级 SystemCallRuntime：冷启动读取原生动作，按明确 callId 通过已认证接口
 校验接收者、状态及中继租约，复用现有控制器；前台页面与后台共用一个媒体会话。
