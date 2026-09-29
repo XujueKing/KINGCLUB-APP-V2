@@ -32,7 +32,7 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
     configuration.maximumCallsPerCallGroup = 1
     configuration.includesCallsInRecents = false
     configuration.iconTemplateImageData = Self.brandTemplate()
-    configuration.ringtoneSound = "kingclub_incoming.wav"
+    configuration.ringtoneSound = nil // Use the user's system incoming-call ringtone.
     // CallKit owns ringing/haptics and respects system silent/Focus settings.
     provider = CXProvider(configuration: configuration)
     super.init()
