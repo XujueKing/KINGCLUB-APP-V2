@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'call_presentation_scope.dart';
+import 'chat_member_avatar.dart';
+import '../data/call_peer_identity.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -59,10 +61,27 @@ class _CallPageState extends State<CallPage> {
   bool _routingAudio = false;
   Timer? _durationTicker;
   String? _actionError;
+  late final String _peer;
+  late final Future<Map<String, dynamic>> _peerProfile;
+  String? _resolvedName;
 
   @override
   void initState() {
     super.initState();
+    final repository = _controller.repository.messaging;
+    _peer = _controller.call.caller == repository.account
+        ? _controller.call.callee
+        : _controller.call.caller;
+    _peerProfile = repository.avatarProfile(_peer);
+    unawaited(
+      callPeerName(repository, _peer)
+          .then((name) {
+            if (mounted && !_controller.isClosed && name != null) {
+              setState(() => _resolvedName = name);
+            }
+          })
+          .catchError((Object _) {}),
+    );
     SystemCallRuntime.shared?.attachPage(_controller);
     _controller.addListener(_changed);
     if (_controller.call.media == CallMedia.video) {
@@ -362,11 +381,17 @@ class _CallPageState extends State<CallPage> {
                 ),
               Column(
                 children: [
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 24),
+                  ChatMemberAvatar(
+                    profile: _peerProfile,
+                    account: _peer,
+                    size: 88,
+                  ),
+                  const SizedBox(height: 20),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
-                      widget.peerName,
+                      _resolvedName ?? widget.peerName,
                       maxLines: 2,
                       textAlign: TextAlign.center,
                       style: const TextStyle(

@@ -118,6 +118,9 @@ void main() {
         MessagingRepository(
           account: 'a',
           call: (method, params) async {
+            if (method == 'K260913000612' ||
+                !params.containsKey('action') && method != 'K260913000645')
+              return <String, dynamic>{};
             if (method == 'K260913000645') return {'call': server};
             ends++;
             server = {
@@ -202,6 +205,9 @@ void main() {
         MessagingRepository(
           account: 'b',
           call: (method, params) async {
+            if (method == 'K260913000612' ||
+                !params.containsKey('action') && method != 'K260913000645')
+              return <String, dynamic>{};
             if (method == 'K260913000645') return {'call': server};
             server = snapshot('connecting', 1);
             if (lost) {

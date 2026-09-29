@@ -86,6 +86,17 @@ class NativeSystemCalls {
 
   Future<bool> answer(String callId) async =>
       await _channel.invokeMethod<bool>('answer', {'callId': callId}) ?? false;
+  Future<void> updateCaller({
+    required String callId,
+    required String account,
+    required String peer,
+    required String name,
+  }) => _channel.invokeMethod<void>('updateCaller', {
+    'callId': callId,
+    'account': account,
+    'peer': peer,
+    'name': name,
+  });
   Future<List<SystemCallEvent>> pending() async {
     final events = await _channel.invokeListMethod<Object?>('pending') ?? [];
     return events.map(SystemCallEvent.parse).toList(growable: false);

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'call_state_controller.dart';
+import 'call_peer_identity.dart';
 import 'native_system_calls.dart';
 import 'system_call_controller_binding.dart';
 
@@ -69,7 +70,32 @@ class SystemCallRuntime {
       native: native,
     );
     controller.watch();
+    unawaited(_updateCaller(controller));
     changed();
+  }
+
+  Future<void> _updateCaller(CallStateController controller) async {
+    try {
+      final name = await callPeerName(
+        controller.repository.messaging,
+        controller.call.caller,
+      ).timeout(const Duration(seconds: 4));
+      if (name == null ||
+          _closed ||
+          !identical(active, controller) ||
+          controller.isClosed ||
+          controller.isEnding) {
+        return;
+      }
+      await native.updateCaller(
+        callId: controller.call.id,
+        account: controller.repository.messaging.account,
+        peer: controller.call.caller,
+        name: name,
+      );
+    } catch (_) {
+      /* Identity lookup must never delay answering. */
+    }
   }
 
   Future<CallStateController> _resolve(SystemCallEvent event) async {
@@ -154,6 +180,9 @@ class SystemCallRuntime {
         throw StateError('Call changed');
       }
       await _binding!.handle(event);
+      if (event.kind == SystemCallEventKind.incoming) {
+        unawaited(_updateCaller(_binding!.controller));
+      }
       changed();
     } catch (_) {
       try {

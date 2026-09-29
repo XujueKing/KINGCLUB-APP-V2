@@ -32,7 +32,8 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
     configuration.maximumCallsPerCallGroup = 1
     configuration.includesCallsInRecents = false
     configuration.iconTemplateImageData = Self.brandTemplate()
-    // Use the system ringtone/haptics until the branded resource is supplied.
+    configuration.ringtoneSound = "kingclub_incoming.wav"
+    // CallKit owns ringing/haptics and respects system silent/Focus settings.
     provider = CXProvider(configuration: configuration)
     super.init()
     provider.setDelegate(self, queue: .main)
@@ -124,6 +125,20 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
         result(nil); return
       }
       result(["token": token, "provider": environment == "development" ? "apns_voip_sandbox" : "apns_voip"])
+    case "updateCaller":
+      guard let raw = args["callId"] as? String, let id = UUID(uuidString: raw),
+        let input = calls[id], let owner = args["account"] as? String,
+        owner == account, input["recipient"] as? String == owner,
+        let peer = args["peer"] as? String,
+        peer.range(of: "^[A-Za-z0-9_-]{1,64}$", options: .regularExpression) != nil,
+        let name = args["name"] as? String, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        result(nil); return
+      }
+      let update = CXCallUpdate()
+      update.remoteHandle = CXHandle(type: .generic, value: peer)
+      update.localizedCallerName = String(name.prefix(128))
+      provider.reportCall(with: id, updated: update)
+      result(nil)
     case "answer":
       guard let raw = args["callId"] as? String, let id = UUID(uuidString: raw), calls[id] != nil else {
         result(false); return
