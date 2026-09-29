@@ -912,6 +912,8 @@ class _ConversationsPageState extends State<ConversationsPage>
               style: TextStyle(
                 color: const Color(0x66FFFFFF),
                 fontSize: 26 * MediaQuery.sizeOf(context).width / 750,
+                height: kTextHeightNone,
+                fontWeight: FontWeight.w400,
               ),
             )
           : null,
@@ -1690,6 +1692,7 @@ class _ConversationContent extends StatelessWidget {
                             style: TextStyle(
                               color: const Color(0xBBFFFFFF),
                               fontSize: 30 * r,
+                              height: kTextHeightNone,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -1705,6 +1708,8 @@ class _ConversationContent extends StatelessWidget {
                             style: TextStyle(
                               color: const Color(0xFF666666),
                               fontSize: 24 * r,
+                              height: kTextHeightNone,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ),
@@ -1725,6 +1730,8 @@ class _ConversationContent extends StatelessWidget {
                                       ? const Color(0x99C9B69E)
                                       : const Color(0x66FFFFFF),
                                   fontSize: 26 * r,
+                                  height: kTextHeightNone,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                         ),
