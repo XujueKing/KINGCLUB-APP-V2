@@ -43,4 +43,38 @@ void main() {
     rows[0] = report('t', 'transport', {'selectedCandidatePairId': 'missing'});
     expect(callRouteDiagnostics(rows), isEmpty);
   });
+  test('audio diagnostics separate capture, RTP and missing data without identifiers', () {
+    final rows = [
+      report('PRIVATE_ID', 'media-source', {
+        'kind': 'audio',
+        'audioLevel': 0.3,
+        'totalAudioEnergy': 2.5,
+        'trackIdentifier': 'PRIVATE_TRACK',
+      }),
+      report('out', 'outbound-rtp', {
+        'kind': 'audio',
+        'packetsSent': 42,
+        'bytesSent': 2000,
+      }),
+      report('in', 'inbound-rtp', {
+        'mediaType': 'audio',
+        'packetsReceived': 40,
+        'totalAudioEnergy': 0,
+        'audioLevel': double.nan,
+        'packetsLost': -1,
+      }),
+      report('video', 'outbound-rtp', {'kind': 'video', 'packetsSent': 999}),
+    ];
+    final result = callAudioDiagnostics(rows);
+    expect(result, hasLength(3));
+    expect(result[0], contains('totalAudioEnergy=2.5'));
+    expect(result[0], contains('totalSamplesDuration=unavailable'));
+    expect(result[1], contains('packetsSent=42 bytesSent=2000'));
+    expect(
+      result[2],
+      contains('packetsLost=-1 audioLevel=unavailable totalAudioEnergy=0'),
+    );
+    expect(result.join(), isNot(contains('PRIVATE')));
+    expect(result.join(), isNot(contains('999')));
+  });
 }

@@ -27,4 +27,6 @@ iPhone 签名构建：[36588895961](https://github.com/XujueKing/KINGCLUB-APP-V2
 
 本次“小窗”限定 App 内。切换到其他 App 后的系统画中画、系统级来电接听界面属于后续独立能力。
 
+安卓首次双机测试未通过：用户确认 A 与旧版 iPhone 均亮屏、未切后台时双向无声。A 录音授权允许、系统麦克风未静音、语音通话音量最大；记录到 AudioRecord/AudioTrack 启动，TURN 选中链路前约 25 秒收发计数增长，随后 disconnected/failed 并结束。不能将字节流量视为有声，也不能将问题归因为锁屏。追加仅 profile 模式的数值诊断，将采集能量、音频 RTP 收发与接收能量分开；不记录录音、SDP、轨道标识或联系人。字段依据 [W3C WebRTC Stats](https://www.w3.org/TR/webrtc-stats/)。后续验证仍待进行。
+
 2026-09-29 安卓 A 端准备：用户连接 A 端并确认另一端可配合。A 为 PCLM50 / Android 12；从 `c09b411e` 源码快照在 C 盘构建 preview/profile/ARM64，原生网络库使用构建脚本固定的 `579008d1` 源码，不修改当前 SUPERVM 工作目录。Gradle 190.4 秒成功，APK SHA-256 为 `befe6a9379bbbd94e25c8637197b287ebd8a6e7b09f7688ab7d1c06b374ae80b`。通过 `adb install -r -t` 覆盖安装 `com.lingmei.kingclub`，手机记录更新时间 23:41:12，随后确认 MainActivity 在前台且进程存在。未卸载或清除应用数据。此记录仅证明构建、安装和启动，语音/视频小窗、锁屏双向声音仍待本次双机测试结果。

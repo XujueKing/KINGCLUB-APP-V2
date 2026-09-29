@@ -168,6 +168,9 @@ class NativeCallMedia {
       for (final summary in callRouteDiagnostics(reports)) {
         debugPrint('CallRoute $summary');
       }
+      for (final summary in callAudioDiagnostics(reports)) {
+        debugPrint('CallAudio $summary');
+      }
     } catch (_) {
       // Diagnostics never interrupt capture, negotiation or cleanup.
     } finally {

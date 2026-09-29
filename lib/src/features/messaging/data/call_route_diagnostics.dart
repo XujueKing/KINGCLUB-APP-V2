@@ -39,3 +39,40 @@ List<String> callRouteDiagnostics(List<StatsReport> reports) {
   }
   return results;
 }
+
+/// Allowlisted numeric audio counters only; never SDP, track IDs or audio data.
+List<String> callAudioDiagnostics(List<StatsReport> reports) {
+  final results = <String>[];
+  for (final report in reports) {
+    if ((report.values['kind'] ?? report.values['mediaType']) != 'audio') {
+      continue;
+    }
+    final fields = switch (report.type) {
+      'media-source' => [
+        'audioLevel',
+        'totalAudioEnergy',
+        'totalSamplesDuration',
+      ],
+      'outbound-rtp' => ['packetsSent', 'bytesSent'],
+      'inbound-rtp' => [
+        'packetsReceived',
+        'bytesReceived',
+        'packetsLost',
+        'audioLevel',
+        'totalAudioEnergy',
+        'totalSamplesReceived',
+        'concealedSamples',
+      ],
+      _ => <String>[],
+    };
+    if (fields.isEmpty) continue;
+    final values = fields
+        .map((name) {
+          final value = report.values[name];
+          return '$name=${value is num && value.isFinite ? value : 'unavailable'}';
+        })
+        .join(' ');
+    results.add('${report.type} $values');
+  }
+  return results;
+}
