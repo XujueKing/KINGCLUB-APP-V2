@@ -86,12 +86,19 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
     case "prepareCredentials":
       // Change only the existing login item's protection class, in place.
       // No delete/recreate window, no credential value crosses this channel.
-      let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword,
-        kSecAttrService: "flutter_secure_storage_service",
-        kSecAttrAccount: "kingclub.auth.session", kSecAttrSynchronizable: false]
-      let status = SecItemUpdate(query as CFDictionary,
-        [kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly] as CFDictionary)
-      if status == errSecSuccess { result(true) }
+      var updated = false
+      for key in ["kingclub.auth.session", "kingclub.device.id"] {
+        let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword,
+          kSecAttrService: "flutter_secure_storage_service",
+          kSecAttrAccount: key, kSecAttrSynchronizable: false]
+        let status = SecItemUpdate(query as CFDictionary,
+          [kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly] as CFDictionary)
+        if status == errSecSuccess { updated = true }
+        else if status != errSecItemNotFound {
+          result(FlutterError(code: "CALL_CREDENTIALS_UNAVAILABLE", message: nil, details: nil)); return
+        }
+      }
+      if updated { result(true) }
       else { result(FlutterError(code: "CALL_CREDENTIALS_UNAVAILABLE", message: nil, details: nil)) }
     case "bind":
       guard let owner = args["account"] as? String,

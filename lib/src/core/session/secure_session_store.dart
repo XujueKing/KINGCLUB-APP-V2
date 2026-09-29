@@ -25,10 +25,14 @@ class SecureSessionStore {
   final FlutterSecureStorage _storage;
 
   Future<String> deviceId() async {
-    final current = await _storage.read(key: _deviceKey);
+    final current = await _readCallKey(_deviceKey);
     if (current != null && current.length >= 8) return current;
     final created = 'android_${const Uuid().v4().replaceAll('-', '_')}';
-    await _storage.write(key: _deviceKey, value: created);
+    await _storage.write(
+      key: _deviceKey,
+      value: created,
+      iOptions: _callSessionOptions,
+    );
     return created;
   }
 
@@ -178,15 +182,12 @@ class SecureSessionStore {
     }
   }
 
-  Future<Map<String, dynamic>?> readSession() async {
-    var value = await _storage.read(
-      key: _sessionKey,
-      iOptions: _callSessionOptions,
-    );
+  Future<String?> _readCallKey(String key) async {
+    var value = await _storage.read(key: key, iOptions: _callSessionOptions);
     if (value == null &&
         !kIsWeb &&
         defaultTargetPlatform == TargetPlatform.iOS) {
-      value = await _storage.read(key: _sessionKey);
+      value = await _storage.read(key: key);
       if (value != null) {
         // Upgrade old installed sessions without logging out or duplicating
         // refresh tokens. A locked legacy key remains unavailable until unlock.
@@ -194,6 +195,11 @@ class SecureSessionStore {
             .invokeMethod<bool>('prepareCredentials');
       }
     }
+    return value;
+  }
+
+  Future<Map<String, dynamic>?> readSession() async {
+    final value = await _readCallKey(_sessionKey);
     if (value == null) return null;
     try {
       return Map<String, dynamic>.from(jsonDecode(value) as Map);
