@@ -26,3 +26,5 @@ iPhone 签名构建：[36588895961](https://github.com/XujueKing/KINGCLUB-APP-V2
 4. 群语音/群视频重复以上流程；对方结束、退出登录后确认小窗消失、麦克风/摄像头停止占用。
 
 本次“小窗”限定 App 内。切换到其他 App 后的系统画中画、系统级来电接听界面属于后续独立能力。
+
+2026-09-29 安卓 A 端准备：用户连接 A 端并确认另一端可配合。A 为 PCLM50 / Android 12；从 `c09b411e` 源码快照在 C 盘构建 preview/profile/ARM64，原生网络库使用构建脚本固定的 `579008d1` 源码，不修改当前 SUPERVM 工作目录。Gradle 190.4 秒成功，APK SHA-256 为 `befe6a9379bbbd94e25c8637197b287ebd8a6e7b09f7688ab7d1c06b374ae80b`。通过 `adb install -r -t` 覆盖安装 `com.lingmei.kingclub`，手机记录更新时间 23:41:12，随后确认 MainActivity 在前台且进程存在。未卸载或清除应用数据。此记录仅证明构建、安装和启动，语音/视频小窗、锁屏双向声音仍待本次双机测试结果。
