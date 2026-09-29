@@ -92,6 +92,9 @@ dev_dependencies:
 tobias:
   url_scheme: kingclubalipay
   no_utdid: true
+  ios:
+    ignore_security: true
+    universal_link: https://www.wuyexin.cn/app/
 
 flutter:
 

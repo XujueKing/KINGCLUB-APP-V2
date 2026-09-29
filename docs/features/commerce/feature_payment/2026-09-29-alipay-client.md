@@ -22,4 +22,6 @@
 - 6 个支付测试文件、51 项通过，包括已有微信流程；定向静态检查通过。
 - 配置未启用时，先按原请求号确认是否已有订单；仅确认未建单才允许改选渠道，并保留原幂等键。不会因配置关闭就丢弃可能已经生成的订单。
 - iOS 回调沿用 Flutter 3.47.1 的 Scene → legacy plugin 转发，已核对本机 FlutterPluginAppLifeCycleDelegate 的 sceneFallbackOpenURLContexts 实现；未额外覆盖 SceneDelegate，避免重复回调。
-- Android 本机首次构建在复制原生库阶段因 D 盘空间不足中断；正在改用临时构建目录验证。iOS 编译、真实调起及真实付款尚待验证，不标记完成。
+- Android 本机首次构建在复制原生库阶段因 D 盘空间不足中断；使用已提交源码在 C 盘临时构建目录重新构建，ARM64 preview debug APK 已通过。未安装手机。
+- iOS SDK 安装脚本默认会放宽 ATS；显式设置 `ignore_security: true`（意为不修改现有 ATS），并复用已有 Associated Domain，避免生成空 `applinks:` 权限。支付宝支付使用独立 Scheme 回跳。
+- iOS 云端编译、真实调起及真实付款尚待验证，不标记全部完成。
