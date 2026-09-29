@@ -101,6 +101,77 @@ void main() {
     );
     expect(called, isFalse);
   });
+
+  for (final payload in <Map<String, dynamic>>[
+    {'provider': 'alipay', 'orderString': 'signed=fixture%2B%2F'},
+    {'provider': 'alipay', 'orderString': ''},
+    {'provider': 'alipay', 'orderString': 'bad\nstring'},
+    {'provider': 'alipay', 'orderString': 'x' * 65537},
+    {'provider': 'unknown', 'orderString': 'signed=fixture'},
+  ]) {
+    test(
+      'validates Alipay payload ${payload['provider']} length=${(payload['orderString'] as String).length}',
+      () async {
+        final repo = OrderingOrderRepository(
+          readSession: () async => session,
+          request: (_, params, _) async {
+            expect(params['paymentProvider'], 'alipay');
+            return {
+              'result': {
+                'orderRef': 'D00000000001',
+                'storeRef': context.storeRef,
+                'tableId': context.tableId,
+                'tableSessionRef': context.tableSessionRef,
+                'status': 'awaitingPayment',
+                'totalCents': 38800,
+                'currency': 'CNY',
+                'expiresAt': '2030-01-01T00:00:00Z',
+                'payment': payload,
+              },
+            };
+          },
+        );
+        final result = repo.submit(
+          context: context,
+          requestId: '44444444-4444-4444-4444-444444444444',
+          lines: [const OrderingOrderLine(product: product, quantity: 1)],
+          paymentProvider: OrderingPaymentProvider.alipay,
+        );
+        if (payload['orderString'] == 'signed=fixture%2B%2F') {
+          expect((await result).payment, payload);
+        } else {
+          await expectLater(result, throwsA(isA<AuthFailure>()));
+        }
+      },
+    );
+  }
+
+  test('rejects Alipay reply for a WeChat submission', () async {
+    final repo = OrderingOrderRepository(
+      readSession: () async => session,
+      request: (_, _, _) async => {
+        'result': {
+          'orderRef': 'D00000000001',
+          'storeRef': context.storeRef,
+          'tableId': context.tableId,
+          'tableSessionRef': context.tableSessionRef,
+          'status': 'pending',
+          'totalCents': 100,
+          'currency': 'CNY',
+          'expiresAt': '2030-01-01T00:00:00Z',
+          'payment': {'provider': 'alipay', 'orderString': 'signed=fixture'},
+        },
+      },
+    );
+    await expectLater(
+      repo.submit(
+        context: context,
+        requestId: '44444444-4444-4444-4444-444444444444',
+        lines: [const OrderingOrderLine(product: product, quantity: 1)],
+      ),
+      throwsA(isA<AuthFailure>()),
+    );
+  });
   test('owned payment requires the same order and scope and accepts authoritative cents', () async {
     var wrong = false;
     final repo = OrderingOrderRepository(

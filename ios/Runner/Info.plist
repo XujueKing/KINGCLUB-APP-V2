@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>LSApplicationQueriesSchemes</key>
-    <array><string>weixin</string><string>wechat</string><string>weixinULAPI</string><string>weixinURLParamsAPI</string></array>
+    <array><string>weixin</string><string>wechat</string><string>weixinULAPI</string><string>weixinURLParamsAPI</string><string>alipay</string><string>alipays</string></array>
     <key>CFBundleURLTypes</key>
-    <array><dict><key>CFBundleURLName</key><string>weixin</string><key>CFBundleTypeRole</key><string>Editor</string><key>CFBundleURLSchemes</key><array><string>wxc6428fd9a2133384</string></array></dict></array>
+    <array><dict><key>CFBundleURLName</key><string>weixin</string><key>CFBundleTypeRole</key><string>Editor</string><key>CFBundleURLSchemes</key><array><string>wxc6428fd9a2133384</string></array></dict><dict><key>CFBundleURLName</key><string>alipay</string><key>CFBundleTypeRole</key><string>Editor</string><key>CFBundleURLSchemes</key><array><string>kingclubalipay</string></array></dict></array>
 	<key>KingclubAPNsEnvironment</key>
 	<string>$(APS_ENVIRONMENT)</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

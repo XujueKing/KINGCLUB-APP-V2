@@ -66,6 +66,7 @@ dependencies:
   mediasfu_mediasoup_client: 0.1.4
   lpinyin: 2.0.3
   fluwx: ^6.0.4
+  tobias: 5.3.4
 dev_dependencies:
   # Pin the driver's strict argument checker used by persistence regression tests.
   sqflite_common: 2.5.12
@@ -88,6 +89,10 @@ dev_dependencies:
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
+tobias:
+  url_scheme: kingclubalipay
+  no_utdid: true
+
 flutter:
 
   # The following line ensures that the Material Icons font is

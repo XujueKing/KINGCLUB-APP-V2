@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/commerce/data/ordering_catalog_repository.dart';
 import 'package:kingclub/src/features/commerce/data/ordering_context.dart';
 import 'package:kingclub/src/features/commerce/data/ordering_order_repository.dart';
@@ -53,8 +54,10 @@ class _Harness {
   int submitted = 0, queried = 0, confirmed = 0, launched = 0;
   String status = 'pending';
   bool missing = false;
+  bool alipayUnavailable = false;
   final submittedIds = <Object?>[];
   final queriedIds = <Object?>[];
+  final submittedProviders = <Object?>[];
 
   late final repository = OrderingOrderRepository(
     readSession: () async => _session,
@@ -62,6 +65,10 @@ class _Harness {
       if (id == 'K260919000814') {
         submitted++;
         submittedIds.add(params['requestId']);
+        submittedProviders.add(params['paymentProvider']);
+        if (alipayUnavailable && params['paymentProvider'] == 'alipay') {
+          throw const AuthFailure('ALIPAY_NOT_READY', 'Alipay unavailable');
+        }
       } else {
         queried++;
         queriedIds.add(params['requestId']);
@@ -82,15 +89,17 @@ class _Harness {
           'expiresAt': '2030-01-01T00:00:00Z',
           'status': status,
           if (id == 'K260919000814')
-            'payment': {
-              'appId': 'wxfixture',
-              'partnerId': 'fixture-partner',
-              'prepayId': 'fixture-prepay',
-              'packageValue': 'Sign=WXPay',
-              'nonceStr': 'fixture-nonce',
-              'timeStamp': '1',
-              'sign': 'fixture-sign',
-            },
+            'payment': params['paymentProvider'] == 'alipay'
+                ? {'provider': 'alipay', 'orderString': 'signed=fixture%2B%2F'}
+                : {
+                    'appId': 'wxfixture',
+                    'partnerId': 'fixture-partner',
+                    'prepayId': 'fixture-prepay',
+                    'packageValue': 'Sign=WXPay',
+                    'nonceStr': 'fixture-nonce',
+                    'timeStamp': '1',
+                    'sign': 'fixture-sign',
+                  },
         },
       };
     },
@@ -102,11 +111,13 @@ class _Harness {
     bool sameBasket = true,
     bool withOrderRef = true,
     String timing = 'prepay',
+    String? savedProvider,
   }) async {
     FlutterSecureStorage.setMockInitialValues({
       if (saved)
         _storageKey: jsonEncode({
           'requestId': _requestId,
+          'paymentProvider': ?savedProvider,
           'scope': jsonEncode([
             [
               sameBasket ? 'product-1' : 'old-product',
@@ -163,13 +174,144 @@ class _Harness {
 }
 
 void main() {
+  for (final orderExists in [false, true]) {
+    testWidgets(
+      'disabled Alipay unlocks only after no-order lookup: exists=$orderExists',
+      (tester) async {
+        const alipay = MethodChannel('com.jarvanmo/tobias');
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          alipay,
+          (_) async => true,
+        );
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          _channel,
+          (_) async => true,
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            alipay,
+            null,
+          ),
+        );
+        final h = _Harness()
+          ..alipayUnavailable = true
+          ..missing = !orderExists;
+        await h.mount(tester, saved: false);
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('payment-provider-alipay')),
+        );
+        await tester.tap(find.byKey(const ValueKey('payment-provider-alipay')));
+        await tester.tap(find.text('立即支付'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('payment-provider-wechat')),
+        );
+        await tester.tap(find.byKey(const ValueKey('payment-provider-wechat')));
+        await tester.tap(find.text('立即支付'));
+        await tester.pumpAndSettle();
+        expect(h.submittedProviders, [
+          'alipay',
+          orderExists ? 'alipay' : 'wechat',
+        ]);
+        expect(h.submittedIds.toSet().length, 1);
+        await h.finish(tester);
+      },
+    );
+  }
+  for (final restored in [false, true]) {
+    testWidgets(
+      'Alipay channel stays locked and SDK success still queries: restored=$restored',
+      (tester) async {
+        const alipay = MethodChannel('com.jarvanmo/tobias');
+        var paidCalls = 0;
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(alipay, (
+          call,
+        ) async {
+          if (call.method == 'isAliPayInstalled') return true;
+          expect(call.method, 'pay');
+          expect((call.arguments as Map)['order'], 'signed=fixture%2B%2F');
+          paidCalls++;
+          return {'resultStatus': '9000'};
+        });
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            alipay,
+            null,
+          ),
+        );
+        final h = _Harness();
+        await h.mount(tester, saved: restored, savedProvider: 'alipay');
+        if (!restored) {
+          await tester.ensureVisible(
+            find.byKey(const ValueKey('payment-provider-alipay')),
+          );
+          await tester.tap(
+            find.byKey(const ValueKey('payment-provider-alipay')),
+          );
+          await tester.pump();
+        }
+        await tester.tap(find.text('立即支付'));
+        await tester.pumpAndSettle();
+        expect(paidCalls, 1);
+        expect(h.confirmed, 0);
+        expect(h.queried, greaterThanOrEqualTo(1));
+        expect(h.submittedProviders, ['alipay']);
+        final cache = jsonDecode(
+          (await const FlutterSecureStorage().read(key: _storageKey))!,
+        );
+        expect(cache['paymentProvider'], 'alipay');
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('payment-provider-wechat')),
+        );
+        await tester.tap(find.byKey(const ValueKey('payment-provider-wechat')));
+        await tester.tap(find.text('立即支付'));
+        await tester.pumpAndSettle();
+        expect(h.submittedProviders, ['alipay', 'alipay']);
+        expect(h.submittedIds.toSet().length, 1);
+        h.status = 'paid';
+        await tester.pump(const Duration(seconds: 4));
+        await tester.pumpAndSettle();
+        expect(h.confirmed, 1);
+        expect(
+          find.byKey(const ValueKey('live-payment-success')),
+          findsOneWidget,
+        );
+        expect(
+          await const FlutterSecureStorage().read(key: _storageKey),
+          isNull,
+        );
+        await h.finish(tester);
+      },
+    );
+  }
+
+  testWidgets(
+    'unknown persisted provider cannot be bypassed by selecting WeChat',
+    (tester) async {
+      final h = _Harness();
+      await h.mount(tester, savedProvider: 'invalid');
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('payment-provider-wechat')),
+      );
+      await tester.tap(find.byKey(const ValueKey('payment-provider-wechat')));
+      await tester.tap(find.text('立即支付'));
+      await tester.pumpAndSettle();
+      expect(h.submitted, 0);
+      expect(find.text('暂时无法恢复订单，请返回后重试'), findsOneWidget);
+      await h.finish(tester);
+    },
+  );
+
   for (final withOrderRef in [true, false]) {
     testWidgets(
       'restore paid order confirms same basket without resubmitting: ref=$withOrderRef',
       (tester) async {
         final h = _Harness()..status = 'paid';
         await h.mount(tester, withOrderRef: withOrderRef);
-        expect(find.byKey(const ValueKey('live-payment-success')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('live-payment-success')),
+          findsOneWidget,
+        );
         expect(h.confirmed, 1);
         expect(h.submitted, 0);
         expect(h.launched, 0);

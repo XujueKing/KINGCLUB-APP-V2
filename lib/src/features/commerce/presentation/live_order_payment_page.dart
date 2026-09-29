@@ -13,7 +13,9 @@ import '../../../core/media/cached_media_image.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../data/ordering_order_repository.dart';
 import '../data/ios_wechat_payment.dart';
+import '../data/alipay_app_payment.dart';
 import 'scan_ordering_cart_page.dart';
+import 'ordering_entry_status.dart';
 
 /// SDK completion is only a reason to query; only the server can confirm payment.
 class LiveOrderPaymentPage extends StatefulWidget {
@@ -42,9 +44,14 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   bool _confirmed = false;
   bool _receiptMatchesQuote = true;
   bool _paymentBridgeUnavailable = false;
+  OrderingPaymentProvider _provider = OrderingPaymentProvider.wechat;
+  bool _channelLocked = false;
+  bool _restorationComplete = false;
   FluwxCancelable? _paymentReturn;
   String? _message;
   Timer? _timer;
+  String _paymentText(List<String> values) =>
+      OrderingEntryStatus.text(Localizations.localeOf(context), values);
   String? get _creationBlockReason {
     if (widget.quote.orderingContext!.paymentTiming != 'prepay') {
       return '当前版本尚未开放后付费下单，请联系门店处理。';
@@ -52,9 +59,17 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android &&
             !(defaultTargetPlatform == TargetPlatform.iOS &&
-                IosWechatPayment.enabled)) ||
+                (_provider == OrderingPaymentProvider.alipay ||
+                    IosWechatPayment.enabled))) ||
         _paymentBridgeUnavailable) {
-      return '当前设备尚未开放微信付款；已有订单可继续查询，请勿重复下单。';
+      return _provider == OrderingPaymentProvider.wechat
+          ? '当前设备尚未开放微信付款；已有订单可继续查询，请勿重复下单。'
+          : _paymentText([
+              '当前设备暂不支持支付宝付款，已有订单可继续查询。',
+              'Alipay is unavailable on this device. Existing orders can still be checked.',
+              '目前裝置暫不支援支付寶付款，已有訂單可繼續查詢。',
+              'อุปกรณ์นี้ยังไม่รองรับ Alipay แต่ยังตรวจสอบคำสั่งซื้อเดิมได้',
+            ]);
     }
     return null;
   }
@@ -105,6 +120,11 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         }
         _receiptMatchesQuote = value['scope'] == _scope;
         _requestId = value['requestId'];
+        final savedProvider = value['paymentProvider'] ?? 'wechat';
+        _provider = OrderingPaymentProvider.values.firstWhere(
+          (provider) => provider.name == savedProvider,
+        );
+        _channelLocked = true;
         _receipt = value['orderRef'] is String
             ? await widget.repository.owned(
                 context: widget.quote.orderingContext!,
@@ -122,11 +142,14 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
             await _storage.delete(key: _storageKey!);
             _requestId = const Uuid().v4();
             _receiptMatchesQuote = true;
+            _channelLocked = false;
+            _provider = OrderingPaymentProvider.wechat;
           }
           if (mounted) {
             setState(() {
               _message = _creationBlockReason;
               _ready = _message == null;
+              _restorationComplete = true;
             });
           }
           return;
@@ -149,6 +172,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       setState(() {
         _message = _creationBlockReason;
         _ready = _message == null;
+        _restorationComplete = true;
       });
       if (_receipt != null) _startPolling();
     } catch (_) {
@@ -163,6 +187,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         'scope': _scope,
         'requestId': _requestId,
         'orderRef': _receipt?.orderRef,
+        'paymentProvider': _provider.name,
       }),
     );
   }
@@ -237,14 +262,31 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       _message = null;
     });
     try {
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
+      if (_provider == OrderingPaymentProvider.alipay) {
+        if (!await AlipayAppPayment.prepare()) {
+          if (mounted) {
+            setState(
+              () => _message = _paymentText([
+                '请先安装支付宝后重试',
+                'Install Alipay and try again.',
+                '請先安裝支付寶後重試',
+                'โปรดติดตั้ง Alipay แล้วลองอีกครั้ง',
+              ]),
+            );
+          }
+          return;
+        }
+        if (!mounted) return;
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
         if (!await IosWechatPayment.prepare()) {
-          if (mounted) setState(() => _message = '?????????????????');
+          if (mounted) setState(() => _message = '请先安装微信，并确认微信支付配置已启用');
           return;
         }
         if (!mounted) return;
       }
       await _save(); // Persist the idempotency key before the first network attempt.
+      if (!mounted) return;
+      setState(() => _channelLocked = true);
       final lines = widget.quote.items.map((item) {
         if (item.catalogProduct == null) {
           throw const AuthFailure('PRODUCT_INVALID', '请返回重新选择商品');
@@ -258,6 +300,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         context: widget.quote.orderingContext!,
         requestId: _requestId,
         lines: lines,
+        paymentProvider: _provider,
       );
       if (!mounted) return;
       setState(() => _receipt = receipt);
@@ -271,6 +314,23 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         setState(() => _message = '订单已创建，正在确认支付状态');
         return;
       }
+      if (_provider == OrderingPaymentProvider.alipay) {
+        await AlipayAppPayment.pay(receipt.payment!);
+        if (mounted &&
+            _receipt?.status != 'paid' &&
+            _receipt?.status != 'expired') {
+          setState(
+            () => _message = _paymentText([
+              '正在核对支付宝付款结果，请勿重复付款',
+              'Checking Alipay payment. Do not pay again.',
+              '正在核對支付寶付款結果，請勿重複付款',
+              'กำลังตรวจสอบการชำระเงิน Alipay โปรดอย่าชำระซ้ำ',
+            ]),
+          );
+        }
+        await _refresh();
+        return;
+      }
       final launched = defaultTargetPlatform == TargetPlatform.iOS
           ? await IosWechatPayment.pay(receipt.payment!)
           : await _channel.invokeMethod<bool>('pay', receipt.payment);
@@ -282,6 +342,25 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         );
       }
     } on AuthFailure catch (error) {
+      // Configuration can be disabled after a previous submission. Only a
+      // successful lookup may unlock selection, and retain the idempotency key.
+      if (error.code == 'ALIPAY_NOT_READY' && _receipt == null) {
+        try {
+          final existing = await widget.repository.findByRequest(
+            context: widget.quote.orderingContext!,
+            requestId: _requestId,
+          );
+          if (!mounted) return;
+          if (existing == null) {
+            _channelLocked = false;
+          } else {
+            _applyReceipt(existing);
+            _startPolling();
+          }
+        } catch (_) {
+          // Unknown result: preserve the saved attempt and channel lock.
+        }
+      }
       if (mounted) setState(() => _message = error.message);
     } on MissingPluginException catch (_) {
       if (mounted) {
@@ -292,12 +371,24 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         });
       }
     } on PlatformException catch (_) {
-      if (mounted) setState(() => _message = '微信未能调起，请检查微信安装及应用支付配置');
+      if (mounted) setState(() => _message = '支付应用未能调起，请检查安装及支付配置');
     } catch (_) {
       if (mounted) setState(() => _message = '暂时无法确认结果，请重试；同一订单不会重复创建');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _selectProvider(OrderingPaymentProvider provider) {
+    if (_channelLocked || _busy || !_restorationComplete) {
+      return;
+    }
+    setState(() {
+      _provider = provider;
+      _paymentBridgeUnavailable = false;
+      _message = _creationBlockReason;
+      _ready = _message == null;
+    });
   }
 
   @override
@@ -574,21 +665,67 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                         line('商品总价', '¥${_money(_total)}'),
                       ]),
                     card([
-                      Row(
-                        children: [
-                          Image.asset(
-                            'assets/legacy/ordering/WEIPAY.png',
-                            width: r(44),
-                            height: r(44),
-                          ),
-                          SizedBox(width: r(15)),
-                          const Expanded(child: Text('微信支付')),
-                          Icon(
-                            Icons.check_circle,
-                            color: const Color(0xFF55493C),
-                            size: r(36),
-                          ),
-                        ],
+                      InkWell(
+                        key: const ValueKey('payment-provider-wechat'),
+                        onTap: _channelLocked || _busy
+                            ? null
+                            : () => _selectProvider(
+                                OrderingPaymentProvider.wechat,
+                              ),
+                        child: Row(
+                          children: [
+                            Image.asset(
+                              'assets/legacy/ordering/WEIPAY.png',
+                              width: r(44),
+                              height: r(44),
+                            ),
+                            SizedBox(width: r(15)),
+                            const Expanded(child: Text('微信支付')),
+                            Icon(
+                              _provider == OrderingPaymentProvider.wechat
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: const Color(0xFF55493C),
+                              size: r(36),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: r(24)),
+                      InkWell(
+                        key: const ValueKey('payment-provider-alipay'),
+                        onTap: _channelLocked || _busy
+                            ? null
+                            : () => _selectProvider(
+                                OrderingPaymentProvider.alipay,
+                              ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.account_balance_wallet_outlined,
+                              size: r(44),
+                              color: const Color(0xFF1677FF),
+                            ),
+                            SizedBox(width: r(15)),
+                            Expanded(
+                              child: Text(
+                                _paymentText([
+                                  '支付宝',
+                                  'Alipay',
+                                  '支付寶',
+                                  'Alipay',
+                                ]),
+                              ),
+                            ),
+                            Icon(
+                              _provider == OrderingPaymentProvider.alipay
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: const Color(0xFF55493C),
+                              size: r(36),
+                            ),
+                          ],
+                        ),
                       ),
                     ]),
                     if (_message != null)

@@ -5,6 +5,8 @@ import 'ordering_catalog_repository.dart';
 import 'ordering_context.dart';
 import 'ordering_table_repository.dart';
 
+enum OrderingPaymentProvider { wechat, alipay }
+
 class OrderingOrderLine {
   const OrderingOrderLine({required this.product, required this.quantity});
 
@@ -66,6 +68,7 @@ class OrderingOrderRepository {
     required OrderingContext context,
     required String requestId,
     required List<OrderingOrderLine> lines,
+    OrderingPaymentProvider paymentProvider = OrderingPaymentProvider.wechat,
   }) async {
     if (context.tableId == null ||
         !_ref.hasMatch(context.tableId!) ||
@@ -103,12 +106,18 @@ class OrderingOrderRepository {
       'tableSessionRef': context.tableSessionRef,
       'requestId': requestId,
       'items': items,
+      'paymentProvider': paymentProvider.name,
     }, session!);
     final current = await readSession();
     if (!_sameIdentity(_identity(current), identity)) {
       throw const AuthFailure('SESSION_CHANGED', '登录状态已变更，请重试');
     }
-    return _parse(response, context);
+    final receipt = _parse(response, context);
+    if (receipt.payment != null &&
+        (receipt.payment!['provider'] ?? 'wechat') != paymentProvider.name) {
+      _invalid();
+    }
+    return receipt;
   }
 
   Future<OrderingOrderReceipt> owned({
@@ -191,25 +200,39 @@ class OrderingOrderRepository {
     Map<String, String>? payment;
     if (result['payment'] != null) {
       final raw = result['payment'];
-      const keys = [
-        'appId',
-        'partnerId',
-        'prepayId',
-        'packageValue',
-        'nonceStr',
-        'timeStamp',
-        'sign',
-      ];
-      if (raw is! Map ||
-          keys.any(
-            (key) => raw[key] is! String || (raw[key] as String).isEmpty,
-          )) {
-        _invalid();
-      }
-      payment = {for (final key in keys) key: raw[key] as String};
-      if (payment['packageValue'] != 'Sign=WXPay' ||
-          !RegExp(r'^wx[a-zA-Z0-9]+$').hasMatch(payment['appId']!) ||
-          int.tryParse(payment['timeStamp']!) == null) {
+      if (raw is! Map) _invalid();
+      final provider = raw['provider'] ?? 'wechat';
+      if (provider == 'alipay') {
+        final orderString = raw['orderString'];
+        if (orderString is! String ||
+            orderString.trim().isEmpty ||
+            orderString.length > 65536 ||
+            orderString.contains(RegExp(r'[\x00-\x1f]'))) {
+          _invalid();
+        }
+        payment = {'provider': 'alipay', 'orderString': orderString};
+      } else if (provider == 'wechat') {
+        const keys = [
+          'appId',
+          'partnerId',
+          'prepayId',
+          'packageValue',
+          'nonceStr',
+          'timeStamp',
+          'sign',
+        ];
+        if (keys.any(
+          (key) => raw[key] is! String || (raw[key] as String).isEmpty,
+        )) {
+          _invalid();
+        }
+        payment = {for (final key in keys) key: raw[key] as String};
+        if (payment['packageValue'] != 'Sign=WXPay' ||
+            !RegExp(r'^wx[a-zA-Z0-9]+$').hasMatch(payment['appId']!) ||
+            int.tryParse(payment['timeStamp']!) == null) {
+          _invalid();
+        }
+      } else {
         _invalid();
       }
     }
