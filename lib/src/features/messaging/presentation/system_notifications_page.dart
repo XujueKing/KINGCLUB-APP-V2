@@ -60,13 +60,15 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E090C),
+      backgroundColor: const Color(0xFF101010),
       body: SafeArea(
         child: Column(
           children: [
             LegacyMessagingHeader(
               title: '系统消息',
-              backgroundColor: const Color(0xFF0E090C),
+              backgroundColor: const Color(0xFF101010),
+              lineColor: const Color(0x1CC9B69E),
+              lineWidth: .5,
               onBack: () => Navigator.pop(context),
               trailing: TextButton(
                 key: const ValueKey('system-notifications-read-all'),
@@ -96,7 +98,12 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
                     )
                   : ListView.builder(
                       key: const ValueKey('system-notifications-list'),
-                      padding: const EdgeInsets.fromLTRB(30, 14, 30, 42),
+                      padding: EdgeInsets.fromLTRB(
+                        45 * MediaQuery.sizeOf(context).width / 750,
+                        0,
+                        45 * MediaQuery.sizeOf(context).width / 750,
+                        30,
+                      ),
                       itemCount: _notices.length,
                       itemBuilder: (context, index) => _NoticeCard(
                         key: ValueKey('system-notice-$index'),
@@ -104,9 +111,7 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
                         onTap: () {
                           final wasUnread = !_notices[index].read;
                           setState(() {
-                            _notices[index]
-                              ..expanded = !_notices[index].expanded
-                              ..read = true;
+                            _notices[index].read = true;
                           });
                           if (wasUnread) _notifyUnreadChanged();
                         },
@@ -132,134 +137,125 @@ class _NoticeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final r = MediaQuery.sizeOf(context).width / 750;
+    final bodyStyle = TextStyle(
+      color: const Color(0xCCFFFFFF),
+      fontSize: 28 * r,
+      height: kTextHeightNone,
+    );
     return Column(
       children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(8),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              decoration: BoxDecoration(
-                color: const Color(0x0FFFFFFF),
-                borderRadius: BorderRadius.circular(8),
-                border: notice.read
-                    ? null
-                    : Border.all(color: const Color(0x66C9B69E)),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      notice.kingClub
-                          ? const LegacyFakeAvatar(size: 30, kingClub: true)
-                          : Image.asset(
-                              'assets/legacy/home/gold.png',
-                              width: 28,
-                              height: 28,
-                            ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          notice.source,
-                          style: const TextStyle(
-                            color: Color(0xCCFFFFFF),
-                            fontSize: 14,
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 20 * r),
+          child: Material(
+            color: const Color(0x0FFFFFFF),
+            borderRadius: BorderRadius.circular(16 * r),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: EdgeInsets.all(30 * r),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.only(bottom: 30 * r),
+                      margin: EdgeInsets.only(bottom: 90 * r),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Color(0x14FFFFFF),
+                            width: 1,
                           ),
                         ),
                       ),
-                      if (!notice.read)
-                        const CircleAvatar(
-                          radius: 4,
-                          backgroundColor: Color(0xFFD65E6B),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  const Divider(color: Color(0x14FFFFFF)),
-                  Padding(
-                    key: ValueKey('system-notice-body-${notice.title}'),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          notice.title,
-                          style: const TextStyle(
-                            color: Color(0xCCFFFFFF),
-                            fontSize: 14,
+                      child: Row(
+                        children: [
+                          ClipOval(
+                            child: Image.asset(
+                              notice.kingClub
+                                  ? 'assets/legacy/messaging/system_kingclub.png'
+                                  : 'assets/legacy/home/gold.png',
+                              width: (notice.kingClub ? 60 : 50) * r,
+                              height: (notice.kingClub ? 60 : 50) * r,
+                              fit: BoxFit.cover,
+                            ),
                           ),
+                          SizedBox(width: 14 * r),
+                          Expanded(
+                            child: Text(notice.source, style: bodyStyle),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      key: ValueKey('system-notice-body-${notice.title}'),
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4 * r),
+                          child: Text(notice.title, style: bodyStyle),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          notice.value,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w500,
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 20 * r,
+                            vertical: 20 * r,
+                          ),
+                          child: Text(
+                            notice.value,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 56 * r,
+                              fontWeight: FontWeight.w500,
+                              height: kTextHeightNone,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  AnimatedCrossFade(
-                    duration: const Duration(milliseconds: 180),
-                    crossFadeState: notice.expanded
-                        ? CrossFadeState.showSecond
-                        : CrossFadeState.showFirst,
-                    firstChild: const SizedBox(width: double.infinity),
-                    secondChild: Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 6, 0, 16),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        20 * r,
+                        50 * r,
+                        20 * r,
+                        30 * r,
+                      ),
                       child: Column(
-                        children: notice.details
-                            .map(
-                              (detail) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 3,
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SizedBox(
-                                      width: 92,
-                                      child: Text(
-                                        detail.$1,
-                                        style: const TextStyle(
-                                          color: Color(0x80FFFFFF),
-                                          fontSize: 13,
-                                        ),
+                        children: [
+                          for (final detail in notice.details)
+                            Padding(
+                              padding: EdgeInsets.symmetric(vertical: 5 * r),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 152 * r,
+                                    child: Text(
+                                      detail.$1,
+                                      style: bodyStyle.copyWith(
+                                        color: const Color(0x80FFFFFF),
                                       ),
                                     ),
-                                    Expanded(
-                                      child: Text(
-                                        detail.$2,
-                                        style: const TextStyle(
-                                          color: Color(0xCCFFFFFF),
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                  Expanded(
+                                    child: Text(detail.$2, style: bodyStyle),
+                                  ),
+                                ],
                               ),
-                            )
-                            .toList(),
+                            ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(0, 14, 0, 8),
+          padding: EdgeInsets.fromLTRB(0, 30 * r, 0, 10 * r),
           child: Text(
             notice.time,
-            style: const TextStyle(color: Color(0x66FFFFFF), fontSize: 12),
+            style: TextStyle(color: const Color(0x66FFFFFF), fontSize: 24 * r),
           ),
         ),
       ],
@@ -284,5 +280,4 @@ class _FakeNotice {
   final bool kingClub;
   final List<(String, String)> details;
   bool read = false;
-  bool expanded = false;
 }

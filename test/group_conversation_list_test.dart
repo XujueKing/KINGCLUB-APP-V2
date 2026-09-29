@@ -72,6 +72,10 @@ void main() {
       expect(find.text('KINGCLUB'), findsOneWidget);
       expect(find.text('系统消息'), findsOneWidget);
       expect(find.text('收到50枚金币'), findsNothing);
+      expect(
+        tester.getTopLeft(find.text('KINGCLUB')).dy,
+        greaterThan(tester.getTopLeft(find.text('Actual group')).dy),
+      );
       await tester.longPress(find.text('Actual group'));
       await tester.pumpAndSettle();
       expect(find.text('拉黑'), findsNothing);

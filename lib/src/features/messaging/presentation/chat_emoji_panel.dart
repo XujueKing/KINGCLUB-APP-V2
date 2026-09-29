@@ -497,11 +497,7 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
         _page = 0;
       }),
       child: Container(
-        width: category == 0
-            ? 64
-            : category == 3
-            ? 104
-            : 46,
+        width: 46,
         height: 42,
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
@@ -545,17 +541,15 @@ class _ChatEmojiPanelState extends State<ChatEmojiPanel> {
                       _tab(
                         0,
                         '表情',
-                        const Text(
-                          '表情',
-                          style: TextStyle(color: legacyMessageGold),
-                        ),
+                        const Text('😀', style: TextStyle(fontSize: 25)),
                       ),
                       _tab(
                         3,
                         '自定义表情',
-                        const Text(
-                          '自定义表情',
-                          style: TextStyle(color: legacyMessageGold),
+                        const Icon(
+                          Icons.favorite_border,
+                          size: 25,
+                          color: legacyMessageGold,
                         ),
                       ),
                       for (var i = 1; i < _names.length; i++)

@@ -276,6 +276,19 @@ void main() {
             .text,
         '😀',
       );
+      final panel = find.byKey(const ValueKey('direct-chat-emoji-panel'));
+      final panelRect = tester.getRect(panel);
+      await tester.tap(find.text('发送'));
+      await tester.pumpAndSettle();
+      expect(panel, findsOneWidget);
+      expect(tester.getRect(panel), panelRect);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('direct-chat-input')))
+            .controller!
+            .text,
+        isEmpty,
+      );
       await tester.drag(
         find.byKey(const ValueKey('emoji-pages-0')),
         const Offset(-320, 0),

@@ -2269,7 +2269,6 @@ class _DirectChatPageState extends State<DirectChatPage>
       _quotedDraft = null;
       _quotedMessageId = null;
       _quotedMessageSequence = null;
-      _composerPanel = _ComposerPanel.none;
     });
     _scrollToLatest();
     if (message.status == _FakeMessageStatus.sending) _completeSend(message);
@@ -2299,7 +2298,6 @@ class _DirectChatPageState extends State<DirectChatPage>
               _quotedDraft = null;
               _quotedMessageId = null;
               _quotedMessageSequence = null;
-              _composerPanel = _ComposerPanel.none;
             });
             _captureTextDraft();
           }

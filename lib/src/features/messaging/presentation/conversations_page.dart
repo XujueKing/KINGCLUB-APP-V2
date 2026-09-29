@@ -59,6 +59,7 @@ class ConversationsPage extends StatefulWidget {
     this.otherDeviceCount = 0,
     this.mobileNotificationsDisabled = false,
     required this.systemUnreadCount,
+    this.systemMessageDate,
     required this.initialFriendUnreadCount,
     required this.onFriendUnreadChanged,
     required this.onOpenContacts,
@@ -83,6 +84,7 @@ class ConversationsPage extends StatefulWidget {
   final int otherDeviceCount;
   final bool mobileNotificationsDisabled;
   final int systemUnreadCount;
+  final DateTime? systemMessageDate;
   final int initialFriendUnreadCount;
   final ValueChanged<int> onFriendUnreadChanged;
   final VoidCallback onOpenContacts;
@@ -996,6 +998,18 @@ class _ConversationsPageState extends State<ConversationsPage>
         )
         .toList();
     final pinned = filtered.where((item) => item['pinned'] == true).toList();
+    final ordinary = filtered.where((item) => item['pinned'] != true).toList();
+    // A system entry participates in ordinary chronology, never pinned. An
+    // inbox with no messages has no invented timestamp and follows dated rows.
+    final systemIndex = widget.systemMessageDate == null
+        ? ordinary.length
+        : ordinary.indexWhere((item) {
+            final rawDate = item['messageDate'];
+            final date = rawDate is String ? DateTime.tryParse(rawDate) : null;
+            return item['_draftTarget'] == null &&
+                (date == null || !date.isAfter(widget.systemMessageDate!));
+          });
+    final insertionIndex = systemIndex < 0 ? ordinary.length : systemIndex;
     return [
       if (pinned.isNotEmpty)
         Container(
@@ -1019,7 +1033,16 @@ class _ConversationsPageState extends State<ConversationsPage>
             ],
           ),
         ),
-      ...filtered.where((item) => item['pinned'] != true).map(_realRow),
+      for (var i = 0; i <= ordinary.length; i++) ...[
+        if (i == insertionIndex && _matches('KINGCLUB 系统消息'))
+          _KingClubConversation(
+            unreadCount: widget.systemUnreadCount,
+            onTap: widget.onOpenSystemNotifications,
+            realData: true,
+            messageDate: widget.systemMessageDate,
+          ),
+        if (i < ordinary.length) _realRow(ordinary[i]),
+      ],
       if (_hasMore)
         TextButton(
           onPressed: () => _refreshReal(more: true),
@@ -1089,12 +1112,6 @@ class _ConversationsPageState extends State<ConversationsPage>
                         icon: Icons.devices_outlined,
                         text:
                             '已登录 ${widget.otherDeviceCount} 台其他设备${widget.mobileNotificationsDisabled ? '，手机通知已关闭' : ''}',
-                      ),
-                    if (widget.realData && _matches('KINGCLUB 系统消息'))
-                      _KingClubConversation(
-                        unreadCount: widget.systemUnreadCount,
-                        onTap: widget.onOpenSystemNotifications,
-                        realData: true,
                       ),
                     if (widget.realData) ..._realRows(),
                     if (!widget.realData &&
@@ -1579,8 +1596,10 @@ class _KingClubConversation extends StatelessWidget {
     required this.unreadCount,
     required this.onTap,
     this.realData = false,
+    this.messageDate,
   });
   final bool realData;
+  final DateTime? messageDate;
   final int unreadCount;
   final VoidCallback onTap;
   @override
@@ -1591,7 +1610,9 @@ class _KingClubConversation extends StatelessWidget {
       child: _ConversationContent(
         name: realData ? 'KINGCLUB' : 'KING CLUB',
         preview: realData ? '系统消息' : '收到50枚金币',
-        date: realData ? '' : '08月23日',
+        date: realData
+            ? conversationTimestampLabel(messageDate?.toIso8601String())
+            : '08月23日',
         unread: unreadCount,
         system: true,
       ),
