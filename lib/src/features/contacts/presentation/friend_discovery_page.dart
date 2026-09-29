@@ -46,6 +46,21 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
   bool _busy = false, _searched = false, _invalid = false, _radarActive = false;
   int _generation = 0;
   String _leaseId = const Uuid().v4();
+  bool _searchSubmitted = false;
+
+  void _clearSearch() {
+    _generation++;
+    _query.clear();
+    setState(() {
+      _searchSubmitted = false;
+      _searched = false;
+      _busy = false;
+      _items = [];
+      _cursor = null;
+      _error = null;
+    });
+  }
+
   String get _title => switch (widget.mode) {
     FriendDiscoveryMode.search => '添加朋友',
     FriendDiscoveryMode.browse => '交友查询',
@@ -154,6 +169,11 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
     setState(() {
       _busy = true;
       _error = null;
+      if (widget.mode == FriendDiscoveryMode.search) {
+        _searchSubmitted = true;
+        _searched = false;
+        _items = [];
+      }
     });
     try {
       final repo = _repository ??= await MessagingRepository.open();
@@ -229,7 +249,11 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
         );
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted &&
+          (generation == _generation ||
+              widget.mode != FriendDiscoveryMode.search)) {
+        setState(() => _busy = false);
+      }
     }
   }
 
@@ -286,8 +310,19 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
             child: ListView(
               padding: const EdgeInsets.only(bottom: 24),
               children: [
-                if (widget.mode == FriendDiscoveryMode.search ||
-                    widget.mode == FriendDiscoveryMode.faceGroup)
+                if (widget.mode == FriendDiscoveryMode.search)
+                  LegacyConversationSearch(
+                    controller: _query,
+                    hint: '账号 / 手机号码',
+                    maxLength: 64,
+                    enabled: !_invalid && !_busy,
+                    onChanged: (value) {
+                      if (value.isEmpty) _clearSearch();
+                    },
+                    onClear: _clearSearch,
+                    onSubmitted: (_) => _load(),
+                  ),
+                if (widget.mode == FriendDiscoveryMode.faceGroup)
                   Padding(
                     padding: const EdgeInsets.all(18),
                     child: TextField(
@@ -323,7 +358,8 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
                       ),
                     ),
                   ),
-                if (widget.mode == FriendDiscoveryMode.search) ...[
+                if (widget.mode == FriendDiscoveryMode.search &&
+                    !_searchSubmitted) ...[
                   _entry(
                     Icons.qr_code_scanner,
                     '扫一扫',

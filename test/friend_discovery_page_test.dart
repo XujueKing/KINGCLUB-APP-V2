@@ -30,7 +30,8 @@ void main() {
       for (final title in ['扫一扫', '交友查询', '雷达', '面对面建群', '我的二维码']) {
         expect(find.text(title), findsOneWidget);
       }
-      await tester.tap(find.byTooltip('查找'));
+      await tester.tap(find.byType(TextField));
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pump();
       expect(find.text('请输入账号或手机号码'), findsOneWidget);
       expect(calls, isEmpty);
@@ -41,6 +42,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(calls, ['K260930000901']);
       expect(find.text('暂未找到符合条件的朋友'), findsOneWidget);
+      for (final title in ['扫一扫', '交友查询', '雷达', '面对面建群', '我的二维码']) {
+        expect(find.text(title), findsNothing);
+      }
+      await tester.tap(find.byTooltip('清除搜索'));
+      await tester.pump();
+      expect(find.text('扫一扫'), findsOneWidget);
+      expect(find.text('暂未找到符合条件的朋友'), findsNothing);
     },
   );
   testWidgets(

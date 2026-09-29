@@ -407,11 +407,17 @@ class LegacyConversationSearch extends StatefulWidget {
     required this.onChanged,
     required this.onClear,
     this.hint = '搜索',
+    this.onSubmitted,
+    this.enabled = true,
+    this.maxLength = 40,
   });
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
   final String hint;
+  final ValueChanged<String>? onSubmitted;
+  final bool enabled;
+  final int maxLength;
   @override
   State<LegacyConversationSearch> createState() =>
       _LegacyConversationSearchState();
@@ -445,12 +451,16 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
         height: 84 * MediaQuery.sizeOf(context).width / 750,
         child: TextField(
           controller: widget.controller,
+          enabled: widget.enabled,
           focusNode: _focus,
           onChanged: widget.onChanged,
-          maxLength: 40,
+          maxLength: widget.maxLength,
           textAlignVertical: TextAlignVertical.center,
           textInputAction: TextInputAction.search,
-          onSubmitted: (_) => FocusScope.of(context).unfocus(),
+          onSubmitted: (value) {
+            FocusScope.of(context).unfocus();
+            widget.onSubmitted?.call(value);
+          },
           onTapOutside: (_) => FocusScope.of(context).unfocus(),
           style: const TextStyle(color: legacyMessageGold, fontSize: 14),
           cursorColor: legacyMessageGold,

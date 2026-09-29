@@ -17,11 +17,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart';
 
 import '../../profile_settings/data/profile_repository.dart';
 
 class MemberScannerPage extends StatefulWidget {
-  const MemberScannerPage({super.key});
+  const MemberScannerPage({super.key, this.pickPhoto});
+  final Future<XFile?> Function()? pickPhoto;
   @override
   State<MemberScannerPage> createState() => _MemberScannerPageState();
 }
@@ -34,6 +37,8 @@ class _MemberScannerPageState extends State<MemberScannerPage>
   );
   final _repo = ProfileRepository();
   bool _busy = false, _active = true;
+  bool _pickingPhoto = false;
+  BarcodeCapture? _pendingPhoto;
   String? _error;
   int _generation = 0;
   bool _invalid = false;
@@ -44,6 +49,7 @@ class _MemberScannerPageState extends State<MemberScannerPage>
     WidgetsBinding.instance.addObserver(this);
     _session = SecureSessionStore.changes.stream.listen((_) {
       _invalid = true;
+      _pendingPhoto = null;
       _generation++;
       unawaited(_controller.stop());
       if (mounted) {
@@ -55,12 +61,18 @@ class _MemberScannerPageState extends State<MemberScannerPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
     _active = s == AppLifecycleState.resumed;
-    if (!_active) {
+    if (!_active && !_pickingPhoto) {
       _generation++;
     }
     if (!_controller.value.hasCameraPermission) return;
-    if (_active && !_busy && !_invalid) {
-      unawaited(_controller.start());
+    if (_active && !_busy && !_pickingPhoto && !_invalid) {
+      final pending = _pendingPhoto;
+      _pendingPhoto = null;
+      if (pending != null) {
+        unawaited(_scan(pending));
+      } else {
+        unawaited(_resumeCamera());
+      }
     } else {
       unawaited(_controller.stop());
     }
@@ -76,8 +88,12 @@ class _MemberScannerPageState extends State<MemberScannerPage>
   }
 
   Future<void> _scan(BarcodeCapture capture) async {
-    if (_busy || !_active || _invalid) return;
-    final code = capture.barcodes.firstOrNull?.rawValue;
+    if (_busy || _pickingPhoto || !_active || _invalid) return;
+    final code = capture.barcodes
+        .map((b) => b.rawValue)
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .firstOrNull;
     if (code == null) return;
     setState(() {
       _busy = true;
@@ -144,51 +160,188 @@ class _MemberScannerPageState extends State<MemberScannerPage>
     }
   }
 
+  Future<void> _pickPhoto() async {
+    if (_busy || _pickingPhoto || _invalid) return;
+    setState(() {
+      _pickingPhoto = true;
+      _error = null;
+    });
+    final generation = _generation;
+    BarcodeCapture? capture;
+    try {
+      await _controller.stop();
+      final photo =
+          await (widget.pickPhoto?.call() ??
+              ImagePicker().pickImage(source: ImageSource.gallery));
+      if (!mounted || _invalid || generation != _generation) return;
+      if (photo != null) {
+        capture = await _controller.analyzeImage(
+          photo.path,
+          formats: [BarcodeFormat.qrCode],
+        );
+        if (!mounted || _invalid || generation != _generation) return;
+        if (capture == null ||
+            !capture.barcodes.any((b) => b.rawValue?.isNotEmpty == true)) {
+          setState(() => _error = '照片中未识别到二维码，请选择清晰的二维码照片');
+        }
+      }
+    } catch (_) {
+      if (mounted && !_invalid && generation == _generation) {
+        setState(() => _error = '照片读取失败，请重新选择或允许相册权限');
+      }
+    } finally {
+      if (mounted) setState(() => _pickingPhoto = false);
+    }
+    if (!mounted || _invalid || generation != _generation) return;
+    if (capture != null &&
+        capture.barcodes.any((b) => b.rawValue?.isNotEmpty == true)) {
+      if (_active) {
+        await _scan(capture);
+      } else {
+        _pendingPhoto = capture;
+      }
+    } else if (_active && _error == null) {
+      await _resumeCamera();
+    }
+  }
+
+  Future<void> _resumeCamera() async {
+    if (_busy || _pickingPhoto || _invalid || !_active) return;
+    setState(() => _error = null);
+    try {
+      await _controller.start();
+    } catch (_) {
+      if (mounted) setState(() => _error = '无法打开相机，请允许相机权限后重试');
+    }
+  }
+
+  Future<void> _toggleTorch() async {
+    try {
+      await _controller.toggleTorch();
+    } catch (_) {
+      if (mounted) setState(() => _error = '闪光灯暂不可用');
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: kingAppBar(context: context, title: const Text('扫一扫')),
-    body: Stack(
-      children: [
-        MobileScanner(
-          controller: _controller,
-          onDetect: _scan,
-          errorBuilder: (context, error) => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('无法打开相机，请允许相机权限后重试'),
-                TextButton(
-                  onPressed: () => _controller.start(),
-                  child: const Text('重试'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: SafeArea(
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              color: Colors.black87,
+  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+    value: SystemUiOverlayStyle.light.copyWith(
+      statusBarColor: Colors.transparent,
+    ),
+    child: Scaffold(
+      backgroundColor: Colors.black,
+      extendBody: true,
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          MobileScanner(
+            controller: _controller,
+            fit: BoxFit.cover,
+            onDetect: _scan,
+            errorBuilder: (context, error) => Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(_error ?? (_busy ? '正在读取二维码…' : '请扫描桌卡、个人或群二维码')),
-                  if (_error != null && !_invalid)
-                    TextButton(
-                      onPressed: () {
-                        setState(() => _error = null);
-                        _controller.start();
-                      },
-                      child: const Text('重新扫描'),
-                    ),
+                  const Text('无法打开相机，请允许相机权限后重试'),
+                  TextButton(onPressed: _resumeCamera, child: const Text('重试')),
                 ],
               ),
             ),
           ),
-        ),
-      ],
+          Positioned(
+            top:
+                MediaQuery.paddingOf(context).top +
+                KingBackButton.safeAreaOffset.dy,
+            left: KingBackButton.leftOffset(context),
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                color: Colors.black38,
+                shape: BoxShape.circle,
+              ),
+              child: KingBackButton(
+                onPressed: () => Navigator.maybePop(context),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: SafeArea(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black54],
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _error ??
+                          (_busy || _pickingPhoto
+                              ? '正在读取二维码…'
+                              : '请扫描桌卡、个人或群二维码'),
+                      style: const TextStyle(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ValueListenableBuilder<MobileScannerState>(
+                          valueListenable: _controller,
+                          builder: (context, state, _) => TextButton.icon(
+                            onPressed:
+                                _busy ||
+                                    _pickingPhoto ||
+                                    _invalid ||
+                                    !state.isRunning ||
+                                    state.torchState == TorchState.unavailable
+                                ? null
+                                : _toggleTorch,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              disabledForegroundColor: Colors.white38,
+                            ),
+                            icon: Icon(
+                              state.torchState == TorchState.on
+                                  ? Icons.flashlight_on
+                                  : Icons.flashlight_off,
+                            ),
+                            label: Text(
+                              state.torchState == TorchState.on
+                                  ? '关闭闪光灯'
+                                  : '闪光灯',
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _busy || _pickingPhoto || _invalid
+                              ? null
+                              : _pickPhoto,
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.photo_library_outlined),
+                          label: const Text('相册'),
+                        ),
+                      ],
+                    ),
+                    if (_error != null && !_invalid)
+                      TextButton(
+                        onPressed: _resumeCamera,
+                        child: const Text('重新扫描'),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
