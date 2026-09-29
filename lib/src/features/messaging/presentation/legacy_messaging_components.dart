@@ -229,7 +229,7 @@ class LegacyConversationTabs extends StatelessWidget {
             top: 10,
             right: 70,
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 tab('聊天', chatSelected, onChat),
                 const SizedBox(width: 16),

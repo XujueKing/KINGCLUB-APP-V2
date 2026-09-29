@@ -1,3 +1,4 @@
+import 'friend_discovery_page.dart';
 import '../../messaging/data/chat_history_store.dart';
 import '../../messaging/data/chat_sync_failure.dart';
 import '../../../core/media/cached_media_image.dart';
@@ -723,6 +724,13 @@ class _AddFriendPageState extends State<AddFriendPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_scenario == AddFriendScenario.ready) {
+      return FriendDiscoveryPage(
+        onBack: widget.onBack,
+        onOpenScanner: _openScanner,
+        onOpenPersonalQr: widget.onOpenPersonalQr,
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(

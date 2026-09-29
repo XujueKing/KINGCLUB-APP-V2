@@ -73,6 +73,7 @@ void main() {
         expect(tester.takeException(), isNull);
         final chatNow = tester.getRect(find.text('聊天'));
         final contactsNow = tester.getRect(find.text('通讯录'));
+        expect(chatNow.bottom, closeTo(contactsNow.bottom, .01));
         chatRect ??= chatNow;
         contactsRect ??= contactsNow;
         expect(chatNow, chatRect);
