@@ -12,4 +12,17 @@ iOS：声明 UIBackgroundModes/audio，复用 WebRTC 的 playAndRecord 音频会
 
 平台依据：[Apple playAndRecord 后台音频](https://developer.apple.com/documentation/avfaudio/avaudiosession/category-swift.struct/playandrecord)。当前插件 flutter_webrtc 已配置录放音会话，变更仅补应用后台声明与生命周期管理。
 
-本地验证：所有通话相关测试 163 项通过；改动的 10 个 Dart 源码/测试文件 analyze 无问题。新增验证覆盖会话 State 保持、小窗拖动/恢复、跨页导航、独占租约、显式挂断、远端结束、注销和未发起群通话的退出。iPhone 签名构建及锁屏双向音频真机结果待补充；Windows 上的测试不构成 iOS 真机验收。
+本地验证：所有通话相关测试 163 项通过；改动的 10 个 Dart 源码/测试文件 analyze 无问题。新增验证覆盖会话 State 保持、小窗拖动/恢复、跨页导航、独占租约、显式挂断、远端结束、注销和未发起群通话的退出。锁屏双向音频真机结果待补充；Windows 上的测试不构成 iOS 真机验收。
+
+iPhone 签名构建：[36588895961](https://github.com/XujueKing/KINGCLUB-APP-V2/actions/runs/36588895961) 成功，代码版本 `a33918046e0264207415b747612660046c752119`。安装包已下载到本机私有签名目录；核对 ZIP 完整性、Bundle ID、签名文件、开发 Provisioning Profile、已登记测试设备及 `UIBackgroundModes/audio` 均通过。IPA 为 76,990,358 字节，SHA-256：`95aa107b512844f75594e1e203155df40953bd0c97f596dd7966da996729cec5`。
+
+扩大回归：`app_smoke_test.dart` 与 `app_shell_flow_test.dart` 共 39 项通过、15 项失败。用修改前 `6a67a689` 的只读源码快照在 C 盘重跑，得到完全相同的 15 个冒烟测试失败，主界面导航测试通过；此次未修改这些原有预期不匹配问题。初次补测被 D 盘空间不足打断，已将 3 个可再生成的测试缓存文件保留到 C 盘临时目录后重跑，未删除用户数据。
+
+真机验收步骤（待执行）：
+
+1. 两台设备建立语音通话，iPhone 分别自动锁屏、按侧键锁屏至少 60 秒，确认双方持续听到对方；解锁后时长不中断。
+2. 建立视频通话，点击返回缩成小窗，退出原聊天并打开另一会话，拖动小窗后点击恢复，确认音频持续且恢复同一通话。
+3. 前台视频等待超过系统自动锁屏时间，确认屏幕保持亮；手动锁屏确认音频持续，解锁后检查视频恢复。挂断后确认自动锁屏设置恢复。
+4. 群语音/群视频重复以上流程；对方结束、退出登录后确认小窗消失、麦克风/摄像头停止占用。
+
+本次“小窗”限定 App 内。切换到其他 App 后的系统画中画、系统级来电接听界面属于后续独立能力。

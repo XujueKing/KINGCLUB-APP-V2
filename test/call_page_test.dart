@@ -80,7 +80,8 @@ void main() {
           ).then((_) => completed = true),
         );
         await tester.pumpAndSettle();
-        await navigator.currentState!.maybePop();
+        // Exercise the visible iPhone back button as well as system back below.
+        await tester.tap(find.byTooltip('返回'));
         await tester.pumpAndSettle();
         expect(find.byType(CallMiniWindow), findsOneWidget);
         if (terminal == 'remote') {
