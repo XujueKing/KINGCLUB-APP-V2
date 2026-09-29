@@ -4,6 +4,7 @@ import PushKit
 import CallKit
 import AVFAudio
 import WebRTC
+import Security
 
 /// Native incoming-call boundary. Registration is explicit: the Flutter runtime
 /// must first support authenticated answer/end handling before calling bind.
@@ -67,6 +68,16 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     let args = call.arguments as? [String: Any] ?? [:]
     switch call.method {
+    case "prepareCredentials":
+      // Change only the existing login item's protection class, in place.
+      // No delete/recreate window, no credential value crosses this channel.
+      let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword,
+        kSecAttrService: "flutter_secure_storage_service",
+        kSecAttrAccount: "kingclub.auth.session", kSecAttrSynchronizable: false]
+      let status = SecItemUpdate(query as CFDictionary,
+        [kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly] as CFDictionary)
+      if status == errSecSuccess { result(true) }
+      else { result(FlutterError(code: "CALL_CREDENTIALS_UNAVAILABLE", message: nil, details: nil)) }
     case "bind":
       guard let owner = args["account"] as? String,
         owner.range(of: "^[A-Za-z0-9_-]{1,64}$", options: .regularExpression) != nil else {
@@ -85,6 +96,20 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
       UserDefaults.standard.removeObject(forKey: "kingclub.voip.account")
       result(nil)
     case "token": result(token)
+    case "registration":
+      let environment = AppleChatPush.environment()
+      guard let token = token, environment == "development" || environment == "production" else {
+        result(nil); return
+      }
+      result(["token": token, "provider": environment == "development" ? "apns_voip_sandbox" : "apns_voip"])
+    case "answer":
+      guard let raw = args["callId"] as? String, let id = UUID(uuidString: raw), calls[id] != nil else {
+        result(false); return
+      }
+      CXCallController().request(CXTransaction(action: CXAnswerCallAction(call: id))) { error in
+        if error != nil { result(FlutterError(code: "CALL_ANSWER_FAILED", message: nil, details: nil)) }
+        else { result(true) }
+      }
     case "pending": result(events)
     case "ack":
       guard let id = args["eventId"] as? String else { result(false); return }
@@ -114,14 +139,16 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
 
   func pushRegistry(_ registry: PKPushRegistry, didUpdate pushCredentials: PKPushCredentials, for type: PKPushType) {
     guard type == .voIP else { return }
-    token = pushCredentials.token.map { String(format: "%02x", $0) }.joined()
-    channel?.invokeMethod("changed", arguments: nil)
+    let updated = pushCredentials.token.map { String(format: "%02x", $0) }.joined()
+    guard token != updated else { return }
+    token = updated
+    channel?.invokeMethod("tokenChanged", arguments: nil)
   }
 
   func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
     guard type == .voIP else { return }
     token = nil
-    channel?.invokeMethod("changed", arguments: nil)
+    channel?.invokeMethod("tokenChanged", arguments: nil)
   }
 
   func pushRegistry(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload,
@@ -185,9 +212,9 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
       rtc.lockForConfiguration()
       defer { rtc.unlockForConfiguration() }
       let video = calls[action.callUUID]?["video"] as? Bool ?? false
-      try rtc.setCategory(AVAudioSession.Category.playAndRecord.rawValue,
+      try rtc.setCategory(AVAudioSession.Category.playAndRecord,
         with: video ? [.allowBluetooth, .defaultToSpeaker] : [.allowBluetooth])
-      try rtc.setMode(video ? AVAudioSession.Mode.videoChat.rawValue : AVAudioSession.Mode.voiceChat.rawValue)
+      try rtc.setMode(video ? AVAudioSession.Mode.videoChat : AVAudioSession.Mode.voiceChat)
       previousManualAudio = rtc.useManualAudio
       rtc.useManualAudio = true
       rtc.isAudioEnabled = false

@@ -72,6 +72,20 @@ class NativeSystemCalls {
 
   Future<void> unbind() => _channel.invokeMethod<void>('unbind');
   Future<String?> token() => _channel.invokeMethod<String>('token');
+  Future<({String provider, String token})?> registration() async {
+    final raw = await _channel.invokeMapMethod<String, dynamic>('registration');
+    if (raw == null) return null;
+    final token = raw['token'], provider = raw['provider'];
+    if (!{'apns_voip', 'apns_voip_sandbox'}.contains(provider) ||
+        token is! String ||
+        !RegExp(r'^(?:[0-9a-f]{2}){16,256}$').hasMatch(token)) {
+      throw const FormatException('Invalid PushKit registration');
+    }
+    return (provider: provider as String, token: token);
+  }
+
+  Future<bool> answer(String callId) async =>
+      await _channel.invokeMethod<bool>('answer', {'callId': callId}) ?? false;
   Future<List<SystemCallEvent>> pending() async {
     final events = await _channel.invokeListMethod<Object?>('pending') ?? [];
     return events.map(SystemCallEvent.parse).toList(growable: false);
@@ -97,6 +111,7 @@ class NativeSystemCalls {
   void listen({
     required Future<void> Function() changed,
     required Future<void> Function(bool) audio,
+    void Function()? tokenChanged,
   }) {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
@@ -106,6 +121,8 @@ class NativeSystemCalls {
           await audio(true);
         case 'audioDeactivated':
           await audio(false);
+        case 'tokenChanged':
+          tokenChanged?.call();
         default:
           throw MissingPluginException();
       }

@@ -15,6 +15,10 @@ import 'features/messaging/data/call_presentation_lease.dart';
 import 'features/messaging/data/foreground_call_inbox.dart';
 import 'features/messaging/data/call_launch_coordinator.dart';
 import 'features/messaging/data/call_repository.dart';
+import 'features/messaging/data/native_system_calls.dart';
+import 'features/messaging/data/native_call_controller.dart';
+import 'features/messaging/data/system_call_runtime.dart';
+import 'features/messaging/data/voip_push_registration.dart';
 import 'features/messaging/data/messaging_repository.dart';
 import 'features/messaging/presentation/call_page.dart';
 import 'features/messaging/presentation/call_presentation_scope.dart';
@@ -65,6 +69,85 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   final _incomingPresentation = CallPresentationOwner();
   int _callGeneration = 0;
   Future<void>? _openingCallInbox;
+  SystemCallRuntime? _systemCallRuntime;
+  PushRegistrationRuntime? _voipRegistration;
+
+  void _scheduleSystemCall() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !_foreground ||
+          ref.read(authenticatedMemberProvider)?.canEnterApp != true) {
+        return;
+      }
+      final controller = _systemCallRuntime?.active;
+      if (controller == null || controller.isClosed || controller.isEnding) {
+        return;
+      }
+      final navigator = ref
+          .read(appRouterProvider)
+          .routerDelegate
+          .navigatorKey
+          .currentState;
+      if (navigator == null) return;
+      final lease = _incomingPresentation.acquire();
+      if (lease == null) return;
+      unawaited(
+        pushCallPresentation(
+          navigator,
+          CallPage(controller: controller, peerName: controller.call.caller),
+          lease,
+          onDisposed: () => _incomingPresentation.release(lease),
+        ).whenComplete(() => _incomingPresentation.release(lease)),
+      );
+    });
+  }
+
+  void _startSystemCalls() {
+    if (kIsWeb ||
+        defaultTargetPlatform != TargetPlatform.iOS ||
+        kingclubApiBaseUrl.isEmpty) {
+      return;
+    }
+    final native = NativeSystemCalls();
+    if (const bool.fromEnvironment('KINGCLUB_IOS_SYSTEM_CALLS')) {
+      _voipRegistration = createVoipRegistration(native);
+    }
+    final runtime = _systemCallRuntime = SystemCallRuntime(
+      native: native,
+      tokenChanged: () => _voipRegistration?.sync(),
+      changed: _scheduleSystemCall,
+      prepare: (event) async {
+        final repository = CallRepository(
+          await MessagingRepository.open(installMediaRuntime: false),
+        );
+        if (event.group || repository.messaging.account != event.account) {
+          throw StateError('Incoming call account changed');
+        }
+        final initial = await repository.read(callId: event.callId);
+        if (initial == null ||
+            initial.callee != event.account ||
+            initial.phase != CallPhase.ringing) {
+          throw StateError('Call no longer ringing');
+        }
+        final relay = await repository.readRelay(callId: event.callId);
+        final current = await repository.read(callId: event.callId);
+        if (current == null ||
+            current.phase != CallPhase.ringing ||
+            current.callee != event.account) {
+          throw StateError('Call no longer ringing');
+        }
+        return createNativeCallController(
+          repository: repository,
+          initial: current,
+          relay: relay,
+        );
+      },
+    );
+    SystemCallRuntime.shared = runtime;
+    runtime.start();
+    _voipRegistration?.sync();
+  }
+
   ChatOutboxRecovery? _outboxRecovery;
   int _outboxGeneration = 0;
   final _messageNoticeResolver = ForegroundMessageNoticeResolver();
@@ -570,6 +653,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   @override
   void initState() {
     super.initState();
+    _startSystemCalls();
     ChatRoutePresence.instance.addListener(_messageRouteChanged);
     WidgetsBinding.instance.addObserver(this);
     if (!kIsWeb &&
@@ -599,6 +683,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       _dismissMessageNotice();
       _schedulePushOpen();
       _pushRegistration?.sync();
+      _systemCallRuntime?.reset();
+      _voipRegistration?.sync();
       _clearCallInbox();
       unawaited(_syncRealtime().catchError((Object _) {}));
     });
@@ -609,6 +695,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
 
   @override
   void dispose() {
+    _voipRegistration?.close();
+    _systemCallRuntime?.close();
     _backgroundNotifications.reset();
     ChatRoutePresence.instance.removeListener(_messageRouteChanged);
     _messageNoticeEpoch++;
@@ -632,9 +720,12 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     _backgroundNotifications.foreground(_foreground);
     KingclubRealtime.shared.foreground(_foreground);
     _pushRegistration?.foreground(_foreground);
+    _voipRegistration?.foreground(_foreground);
     _callInbox?.foreground(_foreground);
     _groupCallInbox?.foreground(_foreground);
     if (_foreground) {
+      _scheduleSystemCall();
+      unawaited(_systemCallRuntime?.drain());
       _schedulePushOpen();
       _checkMobileWindow();
       unawaited(_syncRealtime().catchError((Object _) {}));
@@ -668,7 +759,10 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(authenticatedMemberProvider, (_, _) => _schedulePushOpen());
+    ref.listen(authenticatedMemberProvider, (_, _) {
+      _schedulePushOpen();
+      _scheduleSystemCall();
+    });
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
       supportedLocales: kingSupportedLocales,

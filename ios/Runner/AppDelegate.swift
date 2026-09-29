@@ -114,7 +114,7 @@ private final class AppleCallLifetime {
 
 /// No APNs signing key belongs in the application. Only the device token crosses
 /// this channel; the authenticated server establishes its owner.
-private final class AppleChatPush {
+final class AppleChatPush {
   private let registration: FlutterMethodChannel
   private let clicks: FlutterMethodChannel
   private let notifications: FlutterMethodChannel
@@ -197,7 +197,7 @@ private final class AppleChatPush {
     }
   }
 
-  private static func environment() -> String? {
+  static func environment() -> String? {
     // Development-signed Release/Profile builds still use Apple's sandbox.
     // Read the signed provisioning profile rather than infer from Dart mode.
     if let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),

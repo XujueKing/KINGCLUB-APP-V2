@@ -23,12 +23,16 @@ class PushRegistrationRuntime {
     required this.call,
     this.requestNotificationPermission,
     this.registrationProvider,
+    this.unregisterProvider,
+    this.sessionUnavailable,
     this.retryDelay = const Duration(seconds: 15),
   });
   final Future<PushSession?> Function() readSession;
   final Future<String> Function() register;
   final PushCall call;
   final String Function()? registrationProvider;
+  final String Function()? unregisterProvider;
+  final Future<void> Function()? sessionUnavailable;
   final Future<void> Function()? requestNotificationPermission;
   final Duration retryDelay;
   PushSession? _bound;
@@ -115,7 +119,9 @@ class PushRegistrationRuntime {
 
   Future<void> _remove(PushSession old) async {
     try {
-      await call(old, 'K260926000731', {});
+      await call(old, 'K260926000731', {
+        if (unregisterProvider != null) 'provider': unregisterProvider!(),
+      });
     } on AuthFailure catch (error) {
       // Revoked/expired sessions are excluded by the server on every delivery.
       if (!{
@@ -143,7 +149,11 @@ class PushRegistrationRuntime {
           _bound = null;
         }
         if (revision != _generation) continue;
-        if (!_foreground || !_eligible(current)) return;
+        if (!_eligible(current)) {
+          await sessionUnavailable?.call();
+          return;
+        }
+        if (!_foreground) return;
         final token = await register();
         if (_closed) return;
         if (revision != _generation ||

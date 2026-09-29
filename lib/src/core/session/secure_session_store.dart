@@ -4,6 +4,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
 import '../media/media_cache.dart';
@@ -15,6 +17,11 @@ class SecureSessionStore {
 
   static const _deviceKey = 'kingclub.device.id';
   static const _sessionKey = 'kingclub.auth.session';
+  // Authenticated PushKit reads must work after locking an already unlocked
+  // phone. Credentials remain device-bound and are not migrated in backups.
+  static const _callSessionOptions = IOSOptions(
+    accessibility: KeychainAccessibility.first_unlock_this_device,
+  );
   final FlutterSecureStorage _storage;
 
   Future<String> deviceId() async {
@@ -109,7 +116,11 @@ class SecureSessionStore {
     } else {
       MemberQrMemory.clearPresentation();
     }
-    await _storage.write(key: _sessionKey, value: jsonEncode(value));
+    await _storage.write(
+      key: _sessionKey,
+      value: jsonEncode(value),
+      iOptions: _callSessionOptions,
+    );
     if (changed) changes.add(null);
   }
 
@@ -168,7 +179,21 @@ class SecureSessionStore {
   }
 
   Future<Map<String, dynamic>?> readSession() async {
-    final value = await _storage.read(key: _sessionKey);
+    var value = await _storage.read(
+      key: _sessionKey,
+      iOptions: _callSessionOptions,
+    );
+    if (value == null &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.iOS) {
+      value = await _storage.read(key: _sessionKey);
+      if (value != null) {
+        // Upgrade old installed sessions without logging out or duplicating
+        // refresh tokens. A locked legacy key remains unavailable until unlock.
+        await const MethodChannel('kingclub/system-calls')
+            .invokeMethod<bool>('prepareCredentials');
+      }
+    }
     if (value == null) return null;
     try {
       return Map<String, dynamic>.from(jsonDecode(value) as Map);

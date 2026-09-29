@@ -3,19 +3,14 @@ import 'dart:async';
 import 'call_presentation_scope.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../../core/design_system/king_components.dart';
-import '../../../core/session/secure_session_store.dart';
-import '../../../core/networking/kingclub_realtime.dart';
-import '../data/call_media_session.dart';
 import '../data/call_repository.dart';
 import '../data/call_relay_configuration.dart';
 import '../data/call_state_controller.dart';
-import '../data/native_call_media.dart';
-import '../data/native_system_calls.dart';
-import '../data/system_call_controller_binding.dart';
+import '../data/native_call_controller.dart';
+import '../data/system_call_runtime.dart';
 
 /// Owns the controller for this route. ICE configuration must come from the
 /// authenticated call setup; no public relay or permanent credential is used.
@@ -34,27 +29,16 @@ class CallPage extends StatefulWidget {
     return CallPage(
       key: key,
       peerName: peerName,
-      controller: CallStateController(
-        repository: repository,
-        initial: initial,
-        outgoingAttempt: outgoingAttempt,
-        sessionChanges: SecureSessionStore.changes.stream,
-        events: KingclubRealtime.shared.events,
-        sessionFactory: (call, onConnection) {
-          relay.requireUsable(call.id);
-          return CallMediaSession(
-            repository: repository,
-            call: call,
-            initialRelayExpiresAtMs: relay.expiresAtMs,
-            mediaFactory: (onCandidate) => NativeCallMedia(
-              video: call.media == CallMedia.video,
-              iceServers: relay.iceServers,
-              onCandidate: onCandidate,
-              onConnection: onConnection,
+      controller:
+          SystemCallRuntime.shared?.find(initial.id) ??
+          _adoptIncoming(
+            createNativeCallController(
+              repository: repository,
+              initial: initial,
+              relay: relay,
+              outgoingAttempt: outgoingAttempt,
             ),
-          );
-        },
-      ),
+          ),
     );
   }
 
@@ -75,41 +59,16 @@ class _CallPageState extends State<CallPage> {
   bool _routingAudio = false;
   Timer? _durationTicker;
   String? _actionError;
-  NativeSystemCalls? _systemCalls;
-  SystemCallControllerBinding? _systemBinding;
-
-  Future<void> _drainSystemCalls() async {
-    final native = _systemCalls, binding = _systemBinding;
-    if (native == null || binding == null) return;
-    try {
-      for (final event in await native.pending()) {
-        // Answer may wait for ICE. An end action must be able to interrupt it.
-        unawaited(binding.handle(event).catchError((Object _) {}));
-      }
-    } catch (_) {
-      // Native action deadlines still close a call if the engine is unavailable.
-    }
-  }
 
   @override
   void initState() {
     super.initState();
+    SystemCallRuntime.shared?.attachPage(_controller);
     _controller.addListener(_changed);
     if (_controller.call.media == CallMedia.video) {
       _rendering = _initializeRenderers();
     }
     _controller.watch();
-    if (!kIsWeb &&
-        defaultTargetPlatform == TargetPlatform.iOS &&
-        _controller.call.callee == _controller.repository.messaging.account) {
-      final native = _systemCalls = NativeSystemCalls();
-      _systemBinding = SystemCallControllerBinding(
-        controller: _controller,
-        native: native,
-      );
-      native.listen(changed: _drainSystemCalls, audio: (_) async {});
-      unawaited(_drainSystemCalls());
-    }
     _durationTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted &&
           !_controller.isClosed &&
@@ -161,7 +120,11 @@ class _CallPageState extends State<CallPage> {
       _actionError = null;
     });
     try {
-      await _controller.accept();
+      final runtime = SystemCallRuntime.shared;
+      final handled = runtime != null && identical(runtime.active, _controller)
+          ? await runtime.native.answer(_controller.call.id)
+          : false;
+      if (!handled) await _controller.accept();
     } catch (_) {
       if (mounted) setState(() => _actionError = '接听失败，请重试');
     } finally {
@@ -578,13 +541,18 @@ class _CallPageState extends State<CallPage> {
 
   @override
   void dispose() {
-    _systemBinding?.close();
-    _systemCalls?.detach();
-    unawaited(_systemCalls?.end(_controller.call.id).catchError((Object _) {}));
+    SystemCallRuntime.shared?.release(_controller);
     _durationTicker?.cancel();
     _controller.removeListener(_changed);
     _controller.dispose();
     unawaited(_disposeRenderers().catchError((Object _) {}));
     super.dispose();
   }
+}
+
+CallStateController _adoptIncoming(CallStateController controller) {
+  if (controller.call.callee == controller.repository.messaging.account) {
+    SystemCallRuntime.shared?.adopt(controller);
+  }
+  return controller;
 }

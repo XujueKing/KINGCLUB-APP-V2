@@ -12,6 +12,35 @@ PushSession session(String id) => {
 };
 
 void main() {
+  testWidgets('VoIP logout unregisters its channel and clears native account', (
+    tester,
+  ) async {
+    PushSession? current = session('member');
+    final operations = <Object>[];
+    final runtime = PushRegistrationRuntime(
+      readSession: () async => current,
+      register: () async => 'ab' * 32,
+      registrationProvider: () => 'apns_voip_sandbox',
+      unregisterProvider: () => 'apns_voip_sandbox',
+      sessionUnavailable: () async {
+        operations.add('unbind');
+      },
+      call: (_, id, params) async {
+        operations.add((id, params));
+      },
+    );
+    addTearDown(runtime.close);
+    runtime.sync();
+    await tester.pump();
+    current = null;
+    runtime.sync();
+    await tester.pump();
+    final removal = operations[1] as (String, Map<String, dynamic>);
+    expect(removal.$1, 'K260926000731');
+    expect(removal.$2, {'provider': 'apns_voip_sandbox'});
+    expect(operations.last, 'unbind');
+  });
+
   testWidgets(
     'APNs binding uses registered environment without Android credentials',
     (tester) async {
