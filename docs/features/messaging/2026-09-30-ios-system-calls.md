@@ -8,6 +8,12 @@ KING 图标；普通 APNs 横幅送达不算通话验收。当前阶段尚未达
 当前尚未在 Dart 运行时调用 bind，因此不会向未完成的通话流程投递真实来电。
 已有普通 APNs 和通话后台音频继续保持原路径。
 
+Flutter 通道封装 `native_system_calls.dart` 已加入，校验事件/动作 ID、账号与
+范围，分开事件确认和系统动作完成。定向 analyze 无问题，3 项测试通过，覆盖
+非法事件拒绝、UUID 大小写与原生 action 身份保留、确认事件不等于接听成功。
+原生邀请报告完成与快速接听竞态已处理，已接听后不会重新启动未接听超时器。
+macOS 无签名编译通过前不标为可安装，系统来电整体仍未启用/验收。
+
 VoIP 格式与服务端 `kingclub_call` 对齐：version、callId、recipient、scope、
 video、expiresAt；不传姓名、群名、聊天内容。每次 PushKit 到达先报告系统来电，
 随后处理失效/账号不匹配/重复/忙线。Flutter 尚未启动时保留事件；接听与拒绝

@@ -15,6 +15,7 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
   private var calls: [UUID: [String: Any]] = [:]
   private var timers: [UUID: Timer] = [:]
   private var actions: [UUID: CXCallAction] = [:]
+  private var answered: Set<UUID> = []
   private var events: [[String: Any]] = []
 
   override init() {
@@ -153,8 +154,10 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
         self.forget(id)
         return
       }
-      self.timers[id] = Timer.scheduledTimer(withTimeInterval: max(0.1, (deadline-now)/1000), repeats: false) { [weak self] _ in
-        self?.finish(id, reason: .unanswered)
+      if !self.answered.contains(id) {
+        self.timers[id] = Timer.scheduledTimer(withTimeInterval: max(0.1, (deadline-now)/1000), repeats: false) { [weak self] _ in
+          self?.finish(id, reason: .unanswered)
+        }
       }
       self.emit(["eventId": UUID().uuidString, "kind": "incoming", "callId": id.uuidString,
         "account": self.account ?? "", "scope": input["scope"] ?? "direct"])
@@ -170,6 +173,8 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
   }
 
   func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
+    guard calls[action.callUUID] != nil else { action.fail(); return }
+    answered.insert(action.callUUID)
     timers.removeValue(forKey: action.callUUID)?.invalidate()
     self.action(action, kind: "answer")
     // Flutter must acknowledge authenticated connection success, not just a tap.
@@ -201,6 +206,7 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
       "account": input["recipient"] ?? "", "scope": input["scope"] ?? "direct"])
   }
   private func forget(_ id: UUID) {
+    answered.remove(id)
     calls.removeValue(forKey: id)
     timers.removeValue(forKey: id)?.invalidate()
     for key in Array(actions.keys) where actions[key]?.callUUID == id {
