@@ -2,12 +2,14 @@ import Flutter
 import UIKit
 import UserNotifications
 import AVFAudio
+import MapKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var chatPush: AppleChatPush?
   private var callLifetime: AppleCallLifetime?
   private var systemCalls: AppleSystemCalls?
+  private var mapPreview: AppleChatMapPreview?
 
   override func application(
     _ application: UIApplication,
@@ -20,6 +22,7 @@ import AVFAudio
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    mapPreview = AppleChatMapPreview(messenger: engineBridge.applicationRegistrar.messenger())
     chatPush = AppleChatPush(messenger: engineBridge.applicationRegistrar.messenger())
     callLifetime = AppleCallLifetime(messenger: engineBridge.applicationRegistrar.messenger())
     systemCalls?.attach(messenger: engineBridge.applicationRegistrar.messenger())
@@ -296,5 +299,54 @@ final class AppleChatPush {
     let now = Date().timeIntervalSince1970 * 1000
     guard expiry > now, expiry <= now + 86400000 else { return nil }
     return raw
+  }
+}
+
+
+/// Map previews use the system map provider; no chat text is sent to it.
+private final class AppleChatMapPreview {
+  private let channel: FlutterMethodChannel
+  private var pending: [UUID: MKMapSnapshotter] = [:]
+
+  init(messenger: FlutterBinaryMessenger) {
+    channel = FlutterMethodChannel(name: "kingclub/chat-map-preview", binaryMessenger: messenger)
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "snapshot" else { result(FlutterMethodNotImplemented); return }
+      guard let self = self,
+            let args = call.arguments as? [String: Any],
+            let lat = args["latitudeE6"] as? NSNumber,
+            let lon = args["longitudeE6"] as? NSNumber,
+            args["coordinateSystem"] as? String == "wgs84" else {
+        // Do not plot legacy GCJ-02 coordinates on a WGS-84 API incorrectly.
+        result(nil); return
+      }
+      let coordinate = CLLocationCoordinate2D(latitude: lat.doubleValue / 1_000_000,
+                                             longitude: lon.doubleValue / 1_000_000)
+      guard CLLocationCoordinate2DIsValid(coordinate), self.pending.count < 8 else {
+        result(nil); return
+      }
+      let options = MKMapSnapshotter.Options()
+      options.region = MKCoordinateRegion(center: coordinate,
+        latitudinalMeters: 650, longitudinalMeters: 1500)
+      options.size = CGSize(width: 250, height: 96)
+      options.scale = 2
+      options.traitCollection = UITraitCollection(userInterfaceStyle: .dark)
+      let snapshotter = MKMapSnapshotter(options: options)
+      let id = UUID()
+      self.pending[id] = snapshotter
+      snapshotter.start(with: .main) { [weak self] snapshot, _ in
+        guard self?.pending.removeValue(forKey: id) != nil else { return }
+        if let data = snapshot?.image.pngData() {
+          result(FlutterStandardTypedData(bytes: data))
+        } else {
+          result(nil)
+        }
+      }
+      DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+        guard let active = self?.pending.removeValue(forKey: id) else { return }
+        active.cancel()
+        result(nil)
+      }
+    }
   }
 }

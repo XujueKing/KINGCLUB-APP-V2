@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -21,58 +22,166 @@ class ChatLocationMessage extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
-    final color = mine ? const Color(0xFF193E2B) : const Color(0xFFC9B69E);
     return Semantics(
       button: true,
       label: '查看位置：${location.name}',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: SizedBox(
-          width: 210,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: ClipRRect(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(mine ? 7 : 0),
+            topRight: Radius.circular(mine ? 0 : 7),
+            bottomLeft: const Radius.circular(7),
+            bottomRight: const Radius.circular(7),
+          ),
+          child: SizedBox(
+            width: 250,
+            child: ColoredBox(
+              color: const Color(0xFF2C2C2C),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.location_on, size: 22, color: color),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      location.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: color, fontSize: 15),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          location.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFE0E0E0),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        if (location.address.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            location.address,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF929292),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                  _LocationMapPreview(location: location),
                 ],
               ),
-              if (location.address.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  location.address,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: color.withValues(alpha: 0.7),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 8),
-              Text(
-                '位置',
-                style: TextStyle(
-                  color: color.withValues(alpha: 0.65),
-                  fontSize: 11,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+class _LocationMapPreview extends StatefulWidget {
+  const _LocationMapPreview({required this.location});
+  final ChatLocation location;
+  @override
+  State<_LocationMapPreview> createState() => _LocationMapPreviewState();
+}
+
+class _LocationMapPreviewState extends State<_LocationMapPreview> {
+  static const _maps = MethodChannel('kingclub/chat-map-preview');
+  late Future<Uint8List?> _image;
+
+  Future<Uint8List?> _load() async {
+    if (kIsWeb ||
+        defaultTargetPlatform != TargetPlatform.iOS ||
+        widget.location.coordinateSystem != 'wgs84') {
+      return null;
+    }
+    try {
+      // The map provider needs coordinates only, never message or member data.
+      return await _maps
+          .invokeMethod<Uint8List>('snapshot', {
+            'latitudeE6': widget.location.latitudeE6,
+            'longitudeE6': widget.location.longitudeE6,
+            'coordinateSystem': widget.location.coordinateSystem,
+          })
+          .timeout(const Duration(seconds: 12));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _image = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _LocationMapPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.location.sameAs(widget.location)) _image = _load();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 96,
+    child: ColoredBox(
+      color: const Color(0xFF222627),
+      child: FutureBuilder<Uint8List?>(
+        future: _image,
+        builder: (context, snapshot) => Stack(
+          fit: StackFit.expand,
+          children: [
+            if (snapshot.data != null)
+              Image.memory(
+                snapshot.data!,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
+            const Center(
+              child: Icon(
+                Icons.location_on,
+                size: 42,
+                color: Color(0xFF07C160),
+              ),
+            ),
+            if (snapshot.data != null)
+              const Positioned(
+                right: 5,
+                bottom: 4,
+                child: Text(
+                  'Apple Maps',
+                  style: TextStyle(fontSize: 9, color: Colors.white70),
+                ),
+              ),
+            if (snapshot.data == null)
+              Positioned(
+                left: 8,
+                right: 8,
+                bottom: 6,
+                child: Text(
+                  snapshot.connectionState == ConnectionState.done
+                      ? '点击查看位置'
+                      : '地图加载中',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF929292),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class ChatLocationDetailsPage extends StatefulWidget {

@@ -3756,6 +3756,7 @@ class _MessageRow extends StatelessWidget {
         message.kind == _FakeMessageKind.video;
     final isVisualCard =
         isMedia ||
+        message.location != null ||
         message.kind == _FakeMessageKind.goldCoin ||
         message.kind == _FakeMessageKind.redPacket ||
         message.kind == _FakeMessageKind.gift;
@@ -3942,7 +3943,7 @@ class _MessageContent extends StatelessWidget {
           style: legacyChatBodyTextStyle.copyWith(
             color: message.mine ? const Color(0xFF222222) : Colors.white,
             fontSize: chatEmojiOnly(message.text) ? 30 : null,
-            fontWeight: message.mine ? FontWeight.w500 : FontWeight.w400,
+            fontWeight: FontWeight.w400,
           ),
         );
       case _FakeMessageKind.image:
