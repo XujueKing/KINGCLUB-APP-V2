@@ -3,6 +3,7 @@ import UIKit
 import PushKit
 import CallKit
 import AVFAudio
+import WebRTC
 
 /// Native incoming-call boundary. Registration is explicit: the Flutter runtime
 /// must first support authenticated answer/end handling before calling bind.
@@ -16,6 +17,9 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
   private var timers: [UUID: Timer] = [:]
   private var actions: [UUID: CXCallAction] = [:]
   private var answered: Set<UUID> = []
+  private var ownsAudio = false
+  private var audioActive = false
+  private var previousManualAudio = false
   private var events: [[String: Any]] = []
 
   override init() {
@@ -174,6 +178,25 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
 
   func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
     guard calls[action.callUUID] != nil else { action.fail(); return }
+    do {
+      // Configure, but let CallKit activate. Opening WebRTC tracks alone must
+      // not seize the microphone before the system answer action is fulfilled.
+      let rtc = RTCAudioSession.sharedInstance()
+      rtc.lockForConfiguration()
+      defer { rtc.unlockForConfiguration() }
+      let video = calls[action.callUUID]?["video"] as? Bool ?? false
+      try rtc.setCategory(AVAudioSession.Category.playAndRecord.rawValue,
+        with: video ? [.allowBluetooth, .defaultToSpeaker] : [.allowBluetooth])
+      try rtc.setMode(video ? AVAudioSession.Mode.videoChat.rawValue : AVAudioSession.Mode.voiceChat.rawValue)
+      previousManualAudio = rtc.useManualAudio
+      rtc.useManualAudio = true
+      rtc.isAudioEnabled = false
+      ownsAudio = true
+    } catch {
+      action.fail()
+      finish(action.callUUID, reason: .failed)
+      return
+    }
     answered.insert(action.callUUID)
     timers.removeValue(forKey: action.callUUID)?.invalidate()
     self.action(action, kind: "answer")
@@ -192,9 +215,19 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
     for id in Array(calls.keys) { finish(id, reason: .failed) }
   }
   func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
+    if ownsAudio && !audioActive {
+      audioActive = true
+      RTCAudioSession.sharedInstance().audioSessionDidActivate(audioSession)
+      RTCAudioSession.sharedInstance().isAudioEnabled = true
+    }
     channel?.invokeMethod("audioActivated", arguments: nil)
   }
   func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
+    if ownsAudio && audioActive {
+      audioActive = false
+      RTCAudioSession.sharedInstance().isAudioEnabled = false
+      RTCAudioSession.sharedInstance().audioSessionDidDeactivate(audioSession)
+    }
     channel?.invokeMethod("audioDeactivated", arguments: nil)
   }
 
@@ -208,6 +241,16 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
   private func forget(_ id: UUID) {
     answered.remove(id)
     calls.removeValue(forKey: id)
+    if calls.isEmpty && ownsAudio {
+      let rtc = RTCAudioSession.sharedInstance()
+      rtc.isAudioEnabled = false
+      if audioActive {
+        rtc.audioSessionDidDeactivate(AVAudioSession.sharedInstance())
+        audioActive = false
+      }
+      rtc.useManualAudio = previousManualAudio
+      ownsAudio = false
+    }
     timers.removeValue(forKey: id)?.invalidate()
     for key in Array(actions.keys) where actions[key]?.callUUID == id {
       actions.removeValue(forKey: key)?.fail()

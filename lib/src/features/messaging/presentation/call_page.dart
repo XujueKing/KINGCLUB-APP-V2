@@ -3,6 +3,7 @@ import 'dart:async';
 import 'call_presentation_scope.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../../core/design_system/king_components.dart';
@@ -13,6 +14,8 @@ import '../data/call_repository.dart';
 import '../data/call_relay_configuration.dart';
 import '../data/call_state_controller.dart';
 import '../data/native_call_media.dart';
+import '../data/native_system_calls.dart';
+import '../data/system_call_controller_binding.dart';
 
 /// Owns the controller for this route. ICE configuration must come from the
 /// authenticated call setup; no public relay or permanent credential is used.
@@ -72,6 +75,21 @@ class _CallPageState extends State<CallPage> {
   bool _routingAudio = false;
   Timer? _durationTicker;
   String? _actionError;
+  NativeSystemCalls? _systemCalls;
+  SystemCallControllerBinding? _systemBinding;
+
+  Future<void> _drainSystemCalls() async {
+    final native = _systemCalls, binding = _systemBinding;
+    if (native == null || binding == null) return;
+    try {
+      for (final event in await native.pending()) {
+        // Answer may wait for ICE. An end action must be able to interrupt it.
+        unawaited(binding.handle(event).catchError((Object _) {}));
+      }
+    } catch (_) {
+      // Native action deadlines still close a call if the engine is unavailable.
+    }
+  }
 
   @override
   void initState() {
@@ -81,6 +99,17 @@ class _CallPageState extends State<CallPage> {
       _rendering = _initializeRenderers();
     }
     _controller.watch();
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.iOS &&
+        _controller.call.callee == _controller.repository.messaging.account) {
+      final native = _systemCalls = NativeSystemCalls();
+      _systemBinding = SystemCallControllerBinding(
+        controller: _controller,
+        native: native,
+      );
+      native.listen(changed: _drainSystemCalls, audio: (_) async {});
+      unawaited(_drainSystemCalls());
+    }
     _durationTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted &&
           !_controller.isClosed &&
@@ -549,6 +578,9 @@ class _CallPageState extends State<CallPage> {
 
   @override
   void dispose() {
+    _systemBinding?.close();
+    _systemCalls?.detach();
+    unawaited(_systemCalls?.end(_controller.call.id).catchError((Object _) {}));
     _durationTicker?.cancel();
     _controller.removeListener(_changed);
     _controller.dispose();
