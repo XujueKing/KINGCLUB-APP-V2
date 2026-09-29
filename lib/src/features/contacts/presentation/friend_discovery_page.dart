@@ -12,6 +12,7 @@ import '../../messaging/presentation/chat_member_avatar.dart';
 import '../../messaging/presentation/direct_chat_page.dart';
 import '../../messaging/presentation/legacy_messaging_components.dart';
 import 'public_member_page.dart';
+import 'friend_radar_view.dart';
 
 enum FriendDiscoveryMode { search, browse, radar, faceGroup }
 
@@ -72,6 +73,7 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _repository = widget.repository;
+    if (widget.mode == FriendDiscoveryMode.radar) unawaited(_prepareRadar());
     _session = SecureSessionStore.changes.stream.listen((_) {
       _stopRadar();
       _generation++;
@@ -85,6 +87,44 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
         });
       }
     });
+  }
+
+  Future<void> _prepareRadar() async {
+    try {
+      final repo = _repository ?? await MessagingRepository.open();
+      if (!mounted || _invalid) return;
+      setState(() => _repository = repo);
+    } catch (_) {
+      if (mounted) setState(() => _error = '无法读取个人资料，请重新进入');
+    }
+  }
+
+  Widget _radarAvatar(String account, {bool own = false}) => ChatMemberAvatar(
+    profile: _avatars.putIfAbsent(
+      account,
+      () => _repository!.avatarProfile(account),
+    ),
+    account: account,
+    own: own,
+    size: own ? 64 : 48,
+  );
+
+  void _toggleRadar() {
+    if (_radarActive) {
+      _stopRadar();
+      setState(() {
+        _items = [];
+        _searched = false;
+        _busy = false;
+        _error = null;
+      });
+    } else if (!_busy && !_invalid) {
+      setState(() {
+        _leaseId = const Uuid().v4();
+        _radarActive = true;
+      });
+      unawaited(_load());
+    }
   }
 
   @override
@@ -244,6 +284,7 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
       }
     } catch (error) {
       if (mounted && generation == _generation) {
+        if (widget.mode == FriendDiscoveryMode.radar) _stopRadar();
         setState(
           () => _error = error.toString().replaceFirst('Bad state: ', ''),
         );
@@ -294,276 +335,270 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
     contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
   );
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF101010),
-    body: SafeArea(
-      child: Column(
-        children: [
-          LegacyMessagingHeader(
-            title: _title,
-            backgroundColor: const Color(0xFF101010),
-            lineColor: widget.mode == FriendDiscoveryMode.search
-                ? Colors.transparent
-                : const Color(0x1CC9B69E),
-            lineWidth: .5,
-            onBack: widget.onBack ?? () => Navigator.pop(context),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 24),
+  Widget build(BuildContext context) => widget.mode == FriendDiscoveryMode.radar
+      ? FriendRadarView(
+          selfAvatar: _repository == null
+              ? const CircleAvatar(
+                  radius: 32,
+                  child: Icon(Icons.person_outline),
+                )
+              : _radarAvatar(_repository!.account, own: true),
+          people: [
+            if (_radarActive && _repository != null)
+              for (final item in _items)
+                (
+                  account: item['account'] as String,
+                  avatar: _radarAvatar(item['account'] as String),
+                  onTap: () => _profile(item['account'] as String),
+                ),
+          ],
+          active: _radarActive,
+          busy: _busy,
+          error: _error,
+          onToggle: _invalid ? null : _toggleRadar,
+          onBack: widget.onBack ?? () => Navigator.pop(context),
+        )
+      : Scaffold(
+          backgroundColor: const Color(0xFF101010),
+          body: SafeArea(
+            child: Column(
               children: [
-                if (widget.mode == FriendDiscoveryMode.search)
-                  LegacyConversationSearch(
-                    controller: _query,
-                    hint: '账号 / 手机号码',
-                    maxLength: 64,
-                    enabled: !_invalid && !_busy,
-                    onChanged: (value) {
-                      if (value.isEmpty) _clearSearch();
-                    },
-                    onClear: _clearSearch,
-                    onSubmitted: (_) => _load(),
-                  ),
-                if (widget.mode == FriendDiscoveryMode.faceGroup)
-                  Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: TextField(
-                      controller: _query,
-                      enabled: !_invalid,
-                      maxLength: widget.mode == FriendDiscoveryMode.faceGroup
-                          ? 4
-                          : 64,
-                      keyboardType: widget.mode == FriendDiscoveryMode.faceGroup
-                          ? TextInputType.number
-                          : TextInputType.text,
-                      inputFormatters:
-                          widget.mode == FriendDiscoveryMode.faceGroup
-                          ? [FilteringTextInputFormatter.digitsOnly]
-                          : null,
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => _load(),
-                      decoration: InputDecoration(
-                        counterText: '',
-                        hintText: widget.mode == FriendDiscoveryMode.search
-                            ? '账号 / 手机号码'
-                            : '输入相同的四位数字',
-                        prefixIcon: Icon(
-                          widget.mode == FriendDiscoveryMode.search
-                              ? Icons.search
-                              : Icons.pin_outlined,
+                LegacyMessagingHeader(
+                  title: _title,
+                  backgroundColor: const Color(0xFF101010),
+                  lineColor: widget.mode == FriendDiscoveryMode.search
+                      ? Colors.transparent
+                      : const Color(0x1CC9B69E),
+                  lineWidth: .5,
+                  onBack: widget.onBack ?? () => Navigator.pop(context),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    children: [
+                      if (widget.mode == FriendDiscoveryMode.search)
+                        LegacyConversationSearch(
+                          controller: _query,
+                          hint: '账号 / 手机号码',
+                          maxLength: 64,
+                          enabled: !_invalid && !_busy,
+                          onChanged: (value) {
+                            if (value.isEmpty) _clearSearch();
+                          },
+                          onClear: _clearSearch,
+                          onSubmitted: (_) => _load(),
                         ),
-                        suffixIcon: IconButton(
-                          tooltip: '查找',
-                          onPressed: _busy ? null : () => _load(),
-                          icon: const Icon(Icons.arrow_forward),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (widget.mode == FriendDiscoveryMode.search &&
-                    !_searchSubmitted) ...[
-                  _entry(
-                    Icons.qr_code_scanner,
-                    '扫一扫',
-                    '扫描二维码名片',
-                    widget.onOpenScanner == null
-                        ? null
-                        : () => widget.onOpenScanner!(),
-                  ),
-                  _entry(
-                    Icons.person_search_outlined,
-                    '交友查询',
-                    '按性别、年龄、爱好认识朋友',
-                    () => _open(FriendDiscoveryMode.browse),
-                  ),
-                  _entry(
-                    Icons.radar,
-                    '雷达',
-                    '添加身边同样打开雷达的朋友',
-                    () => _open(FriendDiscoveryMode.radar),
-                  ),
-                  _entry(
-                    Icons.groups_outlined,
-                    '面对面建群',
-                    '和身边的朋友输入同一个四位数字',
-                    () => _open(FriendDiscoveryMode.faceGroup),
-                  ),
-                  if (widget.onOpenPersonalQr != null)
-                    _entry(
-                      Icons.qr_code,
-                      '我的二维码',
-                      '让朋友扫一扫添加我',
-                      widget.onOpenPersonalQr,
-                    ),
-                ],
-                if (widget.mode == FriendDiscoveryMode.browse)
-                  Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 12,
-                          children: [
-                            for (final entry in <int?, String>{
-                              null: '不限',
-                              1: '男',
-                              2: '女',
-                            }.entries)
-                              ChoiceChip(
-                                label: Text(entry.value),
-                                selected: _gender == entry.key,
-                                onSelected: _busy
-                                    ? null
-                                    : (_) =>
-                                          setState(() => _gender = entry.key),
+                      if (widget.mode == FriendDiscoveryMode.faceGroup)
+                        Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: TextField(
+                            controller: _query,
+                            enabled: !_invalid,
+                            maxLength:
+                                widget.mode == FriendDiscoveryMode.faceGroup
+                                ? 4
+                                : 64,
+                            keyboardType:
+                                widget.mode == FriendDiscoveryMode.faceGroup
+                                ? TextInputType.number
+                                : TextInputType.text,
+                            inputFormatters:
+                                widget.mode == FriendDiscoveryMode.faceGroup
+                                ? [FilteringTextInputFormatter.digitsOnly]
+                                : null,
+                            textInputAction: TextInputAction.search,
+                            onSubmitted: (_) => _load(),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              hintText:
+                                  widget.mode == FriendDiscoveryMode.search
+                                  ? '账号 / 手机号码'
+                                  : '输入相同的四位数字',
+                              prefixIcon: Icon(
+                                widget.mode == FriendDiscoveryMode.search
+                                    ? Icons.search
+                                    : Icons.pin_outlined,
                               ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        Text(
-                          '年龄 ${_ages.start.round()}–${_ages.end.round()} 岁',
-                        ),
-                        RangeSlider(
-                          values: _ages,
-                          min: 18,
-                          max: 100,
-                          divisions: 82,
-                          onChanged: _busy
-                              ? null
-                              : (v) => setState(() => _ages = v),
-                        ),
-                        DropdownButtonFormField<String>(
-                          initialValue: _interest,
-                          decoration: const InputDecoration(labelText: '爱好'),
-                          items: [
-                            const DropdownMenuItem(
-                              value: null,
-                              child: Text('不限'),
+                              suffixIcon: IconButton(
+                                tooltip: '查找',
+                                onPressed: _busy ? null : () => _load(),
+                                icon: const Icon(Icons.arrow_forward),
+                              ),
                             ),
-                            for (final e in const {
-                              'house': 'House 音乐',
-                              'techno': 'Techno 音乐',
-                              'hip_hop': '嘻哈音乐',
-                              'cocktail': '鸡尾酒',
-                              'red_wine': '红酒',
-                              'beer': '啤酒',
-                              'cosplay': 'Cosplay',
-                              'car_club': '车友会',
-                              'campus_club': '校园社团',
-                            }.entries)
-                              DropdownMenuItem(
-                                value: e.key,
-                                child: Text(e.value),
-                              ),
-                          ],
-                          onChanged: _busy
+                          ),
+                        ),
+                      if (widget.mode == FriendDiscoveryMode.search &&
+                          !_searchSubmitted) ...[
+                        _entry(
+                          Icons.qr_code_scanner,
+                          '扫一扫',
+                          '扫描二维码名片',
+                          widget.onOpenScanner == null
                               ? null
-                              : (v) => setState(() => _interest = v),
+                              : () => widget.onOpenScanner!(),
                         ),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: _busy ? null : () => _load(),
-                          child: const Text('查找朋友'),
+                        _entry(
+                          Icons.person_search_outlined,
+                          '交友查询',
+                          '按性别、年龄、爱好认识朋友',
+                          () => _open(FriendDiscoveryMode.browse),
                         ),
-                      ],
-                    ),
-                  ),
-                if (widget.mode == FriendDiscoveryMode.radar)
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        const Icon(
+                        _entry(
                           Icons.radar,
-                          size: 100,
-                          color: legacyMessageGold,
+                          '雷达',
+                          '添加身边同样打开雷达的朋友',
+                          () => _open(FriendDiscoveryMode.radar),
                         ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          '开启后，附近约 200 米内同时打开雷达的会员可看到你。离开页面或切到后台后停止展示。',
-                          textAlign: TextAlign.center,
+                        _entry(
+                          Icons.groups_outlined,
+                          '面对面建群',
+                          '和身边的朋友输入同一个四位数字',
+                          () => _open(FriendDiscoveryMode.faceGroup),
                         ),
-                        const SizedBox(height: 20),
-                        FilledButton(
-                          onPressed: _busy
-                              ? null
-                              : () {
-                                  if (_radarActive) {
-                                    _stopRadar();
-                                    setState(() {
-                                      _items = [];
-                                      _searched = false;
-                                    });
-                                  } else {
-                                    setState(() {
-                                      _leaseId = const Uuid().v4();
-                                      _radarActive = true;
-                                    });
-                                    _load();
-                                  }
-                                },
-                          child: Text(_radarActive ? '停止雷达' : '开启雷达'),
-                        ),
+                        if (widget.onOpenPersonalQr != null)
+                          _entry(
+                            Icons.qr_code,
+                            '我的二维码',
+                            '让朋友扫一扫添加我',
+                            widget.onOpenPersonalQr,
+                          ),
                       ],
-                    ),
-                  ),
-                if (widget.mode == FriendDiscoveryMode.faceGroup)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      '和身边约 200 米内的朋友输入相同四位数字，即可进入同一群聊。入群窗口为 10 分钟，请只向准备加入的朋友告知数字。',
-                    ),
-                  ),
-                if (_busy) const LinearProgressIndicator(minHeight: 2),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.redAccent),
-                    ),
-                  ),
-                if (_searched && _items.isEmpty && !_busy)
-                  const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text('暂未找到符合条件的朋友', textAlign: TextAlign.center),
-                  ),
-                for (final item in _items)
-                  ListTile(
-                    leading: ChatMemberAvatar(
-                      profile: _avatars.putIfAbsent(
-                        item['account'] as String,
-                        () => _repository!.avatarProfile(
-                          item['account'] as String,
+                      if (widget.mode == FriendDiscoveryMode.browse)
+                        Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 12,
+                                children: [
+                                  for (final entry in <int?, String>{
+                                    null: '不限',
+                                    1: '男',
+                                    2: '女',
+                                  }.entries)
+                                    ChoiceChip(
+                                      label: Text(entry.value),
+                                      selected: _gender == entry.key,
+                                      onSelected: _busy
+                                          ? null
+                                          : (_) => setState(
+                                              () => _gender = entry.key,
+                                            ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 18),
+                              Text(
+                                '年龄 ${_ages.start.round()}–${_ages.end.round()} 岁',
+                              ),
+                              RangeSlider(
+                                values: _ages,
+                                min: 18,
+                                max: 100,
+                                divisions: 82,
+                                onChanged: _busy
+                                    ? null
+                                    : (v) => setState(() => _ages = v),
+                              ),
+                              DropdownButtonFormField<String>(
+                                initialValue: _interest,
+                                decoration: const InputDecoration(
+                                  labelText: '爱好',
+                                ),
+                                items: [
+                                  const DropdownMenuItem(
+                                    value: null,
+                                    child: Text('不限'),
+                                  ),
+                                  for (final e in const {
+                                    'house': 'House 音乐',
+                                    'techno': 'Techno 音乐',
+                                    'hip_hop': '嘻哈音乐',
+                                    'cocktail': '鸡尾酒',
+                                    'red_wine': '红酒',
+                                    'beer': '啤酒',
+                                    'cosplay': 'Cosplay',
+                                    'car_club': '车友会',
+                                    'campus_club': '校园社团',
+                                  }.entries)
+                                    DropdownMenuItem(
+                                      value: e.key,
+                                      child: Text(e.value),
+                                    ),
+                                ],
+                                onChanged: _busy
+                                    ? null
+                                    : (v) => setState(() => _interest = v),
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton(
+                                onPressed: _busy ? null : () => _load(),
+                                child: const Text('查找朋友'),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      account: item['account'] as String,
-                    ),
-                    title: Text(
-                      (item['nickname'] as String?)?.isNotEmpty == true
-                          ? item['nickname'] as String
-                          : item['account'] as String,
-                    ),
-                    subtitle: Text(
-                      [
-                        if (item['age'] != null) '${item['age']}岁',
-                        if (item['locationCity'] != null) item['locationCity'],
-                      ].join(' · '),
-                    ),
-                    trailing: const Icon(Icons.chevron_right, size: 18),
-                    onTap: () => _profile(item['account'] as String),
+                      if (widget.mode == FriendDiscoveryMode.faceGroup)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            '和身边约 200 米内的朋友输入相同四位数字，即可进入同一群聊。入群窗口为 10 分钟，请只向准备加入的朋友告知数字。',
+                          ),
+                        ),
+                      if (_busy) const LinearProgressIndicator(minHeight: 2),
+                      if (_error != null)
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(color: Colors.redAccent),
+                          ),
+                        ),
+                      if (_searched && _items.isEmpty && !_busy)
+                        const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            '暂未找到符合条件的朋友',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      for (final item in _items)
+                        ListTile(
+                          leading: ChatMemberAvatar(
+                            profile: _avatars.putIfAbsent(
+                              item['account'] as String,
+                              () => _repository!.avatarProfile(
+                                item['account'] as String,
+                              ),
+                            ),
+                            account: item['account'] as String,
+                          ),
+                          title: Text(
+                            (item['nickname'] as String?)?.isNotEmpty == true
+                                ? item['nickname'] as String
+                                : item['account'] as String,
+                          ),
+                          subtitle: Text(
+                            [
+                              if (item['age'] != null) '${item['age']}岁',
+                              if (item['locationCity'] != null)
+                                item['locationCity'],
+                            ].join(' · '),
+                          ),
+                          trailing: const Icon(Icons.chevron_right, size: 18),
+                          onTap: () => _profile(item['account'] as String),
+                        ),
+                      if (_cursor != null)
+                        TextButton(
+                          onPressed: _busy ? null : () => _load(more: true),
+                          child: const Text('加载更多'),
+                        ),
+                    ],
                   ),
-                if (_cursor != null)
-                  TextButton(
-                    onPressed: _busy ? null : () => _load(more: true),
-                    child: const Text('加载更多'),
-                  ),
+                ),
               ],
             ),
           ),
-        ],
-      ),
-    ),
-  );
+        );
 }

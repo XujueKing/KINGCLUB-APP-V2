@@ -55,9 +55,11 @@ void main() {
     'discovery filters are submitted and radar does not publish on entry',
     (tester) async {
       Map<String, dynamic>? params;
+      var radarPublished = false;
       final repo = MessagingRepository(
         account: 'tester',
         call: (id, p) async {
+          if (id == 'K260930000903') radarPublished = true;
           params = p;
           return {'items': []};
         },
@@ -87,7 +89,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(params, isNull);
+      expect(radarPublished, isFalse);
       expect(find.text('开启雷达'), findsOneWidget);
     },
   );
