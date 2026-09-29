@@ -160,7 +160,6 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
                         profile: _profile,
                         account: widget.peerAccount!,
                         size: 52,
-                        cornerRadius: 5,
                       ),
                     ),
                   const SizedBox(height: 5),

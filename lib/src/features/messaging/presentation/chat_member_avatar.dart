@@ -14,7 +14,6 @@ class ChatMemberAvatar extends StatefulWidget {
     required this.account,
     this.own = false,
     this.size = 42,
-    this.cornerRadius,
     this.baseUrl = kingclubApiBaseUrl,
     this.snapshots,
   });
@@ -22,7 +21,6 @@ class ChatMemberAvatar extends StatefulWidget {
   final String account;
   final bool own;
   final double size;
-  final double? cornerRadius;
   final String baseUrl;
   final ChatAvatarSnapshot? snapshots;
 
@@ -65,8 +63,7 @@ class _ChatMemberAvatarState extends State<ChatMemberAvatar> {
     );
     return SizedBox.square(
       dimension: size,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(widget.cornerRadius ?? size / 2),
+      child: ClipOval(
         child: FutureBuilder<Map<String, dynamic>>(
           future: widget.profile,
           builder: (context, snapshot) {

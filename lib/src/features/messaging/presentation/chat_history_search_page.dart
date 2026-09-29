@@ -13,7 +13,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/secure_session_store.dart';
-import 'legacy_messaging_components.dart';
 
 typedef HistorySearch = Future<Map<String, dynamic>> Function(
   String query,
@@ -359,69 +358,119 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Colors.black,
+    backgroundColor: const Color(0xFF111111),
     body: SafeArea(
       child: Column(
         children: [
-          LegacyMessagingHeader(
-            title: '查找聊天内容',
-            onBack: () => Navigator.pop(context),
-          ),
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              key: const ValueKey('chat-history-search-input'),
-              controller: _input,
-              enabled: !_invalid,
-              autofocus: true,
-              maxLength: 100,
-              style: const TextStyle(color: Colors.white),
-              onChanged: (_) {
-                _messageType = null;
-                _changed();
-              },
-              onSubmitted: (_) {
-                _debounce?.cancel();
-                _load();
-              },
-              decoration: const InputDecoration(
-                hintText: '搜索聊天内容',
-                counterText: '',
-                prefixIcon: Icon(Icons.search),
-              ),
+            padding: const EdgeInsets.fromLTRB(8, 8, 4, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('chat-history-search-input'),
+                    controller: _input,
+                    enabled: !_invalid,
+                    autofocus: true,
+                    maxLength: 100,
+                    textInputAction: TextInputAction.search,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    onChanged: (_) {
+                      _messageType = null;
+                      _changed();
+                    },
+                    onSubmitted: (_) {
+                      _debounce?.cancel();
+                      _load();
+                    },
+                    decoration: InputDecoration(
+                      hintText: '搜索',
+                      counterText: '',
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFF777777),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFF191919),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(5),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    '取消',
+                    style: TextStyle(color: Color(0xFF8996A5), fontSize: 16),
+                  ),
+                ),
+              ],
             ),
           ),
-          if (widget.mediaSearch != null)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  for (final entry in const {
-                    'image': '图片',
-                    'voice': '语音',
-                    'video': '视频',
-                    'file': '文件',
-                    'location': '位置',
-                  }.entries)
-                    TextButton(
-                      key: ValueKey('history-type-${entry.key}'),
-                      onPressed: _invalid
-                          ? null
-                          : () {
-                              FocusScope.of(context).unfocus();
-                              _input.clear();
-                              _messageType = entry.key;
-                              _changed();
-                            },
-                      style: TextButton.styleFrom(
-                        foregroundColor: _messageType == entry.key
-                            ? legacyMessageGold
-                            : const Color(0x88FFFFFF),
+          if (widget.mediaSearch != null && _input.text.trim().isEmpty)
+            Flexible(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
+                  child: Column(
+                    children: [
+                      const Text(
+                        '快速搜索聊天内容',
+                        style: TextStyle(
+                          color: Color(0xFF999999),
+                          fontSize: 14,
+                        ),
                       ),
-                      child: Text(entry.value),
-                    ),
-                ],
+                      const SizedBox(height: 22),
+                      for (final row in const [
+                        [('image', '图片'), ('video', '视频'), ('file', '文件')],
+                        [('voice', '音频'), ('location', '位置')],
+                      ])
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              for (var i = 0; i < row.length; i++) ...[
+                                if (i > 0)
+                                  const SizedBox(
+                                    height: 20,
+                                    child: VerticalDivider(
+                                      width: 1,
+                                      color: Color(0xFF333333),
+                                    ),
+                                  ),
+                                Expanded(
+                                  child: TextButton(
+                                    key: ValueKey('history-type-${row[i].$1}'),
+                                    onPressed: _invalid
+                                        ? null
+                                        : () {
+                                            FocusScope.of(context).unfocus();
+                                            _input.clear();
+                                            _messageType = row[i].$1;
+                                            _changed();
+                                          },
+                                    child: Text(
+                                      row[i].$2,
+                                      style: const TextStyle(
+                                        color: Color(0xFF8996A5),
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (row.length < 3)
+                                const Expanded(child: SizedBox()),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           if (_localOnly)
@@ -448,7 +497,7 @@ class _ChatHistorySearchPageState extends State<ChatHistorySearchPage>
                       _busy
                           ? '正在搜索…'
                           : !_hasCriteria
-                          ? '输入关键词查找聊天记录'
+                          ? ''
                           : '未找到相关聊天内容',
                       style: const TextStyle(color: Color(0x88FFFFFF)),
                     ),

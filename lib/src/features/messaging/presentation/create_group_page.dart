@@ -108,6 +108,36 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
 
   Future<void> _create() async {
     if (_saving || _invalid || _repository == null) return;
+    if (widget.inviteGroupId == null && _name.text.trim().isEmpty) {
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('设置群名称'),
+          content: TextField(
+            key: const ValueKey('create-group-name'),
+            controller: _name,
+            autofocus: true,
+            maxLength: 64,
+            decoration: const InputDecoration(hintText: '群名称'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (_name.text.trim().isNotEmpty) {
+                  Navigator.pop(dialogContext, true);
+                }
+              },
+              child: const Text('创建'),
+            ),
+          ],
+        ),
+      );
+      if (accepted != true || !mounted || _invalid) return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -181,42 +211,18 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   Widget build(BuildContext context) {
     final contacts = _contacts?.search(_search.text) ?? const <MemberContact>[];
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF111111),
       body: SafeArea(
         child: Column(
           children: [
             LegacyMessagingHeader(
-              title: widget.inviteGroupId == null ? '发起群聊' : '邀请好友',
+              title: '选择联系人',
+              backgroundColor: const Color(0xFF111111),
+              lineColor: Colors.transparent,
               onBack: () => Navigator.maybePop(context),
-              trailing: TextButton(
-                onPressed: _invalid || _saving || _selected.isEmpty
-                    ? null
-                    : _create,
-                child: Text(
-                  '${widget.inviteGroupId == null ? '创建' : '邀请'}（${_selected.length}）',
-                ),
-              ),
             ),
-            if (widget.inviteGroupId == null)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                child: TextField(
-                  key: const ValueKey('create-group-name'),
-                  controller: _name,
-                  enabled: !_invalid && !_saving,
-                  maxLength: 64,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: '群名称',
-                    counterText: '',
-                  ),
-                ),
-              ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
               child: TextField(
                 key: const ValueKey('group-contact-search'),
                 controller: _search,
@@ -244,7 +250,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                           ),
                         ),
                   filled: true,
-                  fillColor: const Color(0x0DFFFFFF),
+                  fillColor: const Color(0xFF191919),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(7),
                     borderSide: BorderSide.none,
@@ -267,14 +273,24 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
               child: ListView.separated(
                 itemCount: contacts.length,
                 separatorBuilder: (_, _) => const Divider(
-                  indent: 72,
+                  indent: 96,
                   endIndent: 24,
                   height: 1,
-                  color: Color(0xFF1A1611),
+                  color: Color(0xFF292929),
                 ),
                 itemBuilder: (context, index) {
                   final contact = contacts[index];
                   return CheckboxListTile(
+                    controlAffinity: ListTileControlAffinity.leading,
+                    checkboxShape: const CircleBorder(),
+                    activeColor: const Color(0xFF07C160),
+                    checkColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFF666666), width: 1),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                    tileColor: const Color(0xFF191919),
                     value: _selected.contains(contact.account),
                     onChanged:
                         _invalid ||
@@ -290,23 +306,54 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                               }
                             });
                           },
-                    secondary: Builder(
-                      builder: (_) => ChatMemberAvatar(
-                        account: contact.account,
-                        profile: _avatarProfiles.putIfAbsent(
-                          contact.account,
-                          () => _repository!.messaging.avatarProfile(
+                    title: Row(
+                      children: [
+                        ChatMemberAvatar(
+                          account: contact.account,
+                          profile: _avatarProfiles.putIfAbsent(
                             contact.account,
+                            () => _repository!.messaging.avatarProfile(
+                              contact.account,
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    title: Text(
-                      contact.displayName,
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            contact.displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 },
+              ),
+            ),
+            Container(
+              color: const Color(0xFF191919),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  FilledButton(
+                    key: const ValueKey('create-group-complete'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF07C160),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    onPressed: _invalid || _saving || _selected.isEmpty
+                        ? null
+                        : _create,
+                    child: Text(_saving ? '正在提交…' : '完成（${_selected.length}）'),
+                  ),
+                ],
               ),
             ),
             if (_contacts?.hasSnapshot == true && contacts.isEmpty)
