@@ -39,6 +39,48 @@ void main() {
     'membership': {'status': 'active', 'registrationStatus': 'approved'},
   };
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  test('approved startup restores before any network request', () async {
+    final store = SecureSessionStore();
+    await store.saveSession(session());
+    final client = _Offline();
+    final snapshots = <AuthLoginResult>[];
+    final repo = RealAuthRepository(
+      client,
+      store,
+      now: () => now,
+      onAuthenticated: snapshots.add,
+    );
+    expect((await repo.restoreCachedForStartup())?.canEnterApp, isTrue);
+    expect(client.called.isCompleted, isFalse);
+    expect(snapshots, hasLength(1));
+    expect(await store.readSession(), session());
+  });
+  for (final kind in [
+    'missing',
+    'expired',
+    'unapproved',
+    'suspended',
+    'invalid',
+  ]) {
+    test('startup does not admit $kind session', () async {
+      final saved = session();
+      if (kind == 'expired') saved['refreshExpiresAt'] = now.toIso8601String();
+      if (kind == 'unapproved') {
+        saved['membership'] = {
+          'status': 'active',
+          'registrationStatus': 'photos_required',
+        };
+      }
+      if (kind == 'suspended') {
+        saved['account'] = {'userAccount': 'me', 'accountStatus': 'suspended'};
+      }
+      if (kind == 'invalid') saved['apiKey'] = '';
+      final store = SecureSessionStore();
+      if (kind != 'missing') await store.saveSession(saved);
+      final repo = RealAuthRepository(_Offline(), store, now: () => now);
+      expect(await repo.restoreCachedForStartup(), isNull);
+    });
+  }
   test(
     'approved local bootstrap works offline without renewing API credentials',
     () async {

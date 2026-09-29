@@ -1,4 +1,3 @@
-import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,7 +6,6 @@ import '../../../core/design_system/king_theme.dart';
 import '../../../core/mock/mock_runtime.dart';
 import '../data/auth_repository_provider.dart';
 import '../domain/auth_repository.dart';
-import 'legacy_welcome_page.dart';
 
 class AuthBootstrapPage extends ConsumerWidget {
   const AuthBootstrapPage({
@@ -119,6 +117,7 @@ class _RealBootstrap extends ConsumerStatefulWidget {
 
 class _RealBootstrapState extends ConsumerState<_RealBootstrap> {
   bool _loading = false;
+  String? _error;
   @override
   void initState() {
     super.initState();
@@ -131,7 +130,10 @@ class _RealBootstrapState extends ConsumerState<_RealBootstrap> {
       widget.onAuthenticated();
       return;
     }
-    _loading = true;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final result = await (ref.read(
         authRepositoryProvider,
@@ -153,19 +155,34 @@ class _RealBootstrapState extends ConsumerState<_RealBootstrap> {
     } catch (_) {
       _showError('网络连接暂不可用，点击继续重试');
     } finally {
-      _loading = false;
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   void _showError(String message) {
     if (!mounted) return;
-    KingNotice.of(context).showSnackBar(SnackBar(content: Text(message)));
+    setState(() => _error = message);
   }
 
   @override
-  Widget build(BuildContext context) => LegacyWelcomePage(
-    onNext: _restore,
-    onOpenTerms: widget.onOpenTerms ?? () {},
-    onOpenPrivacy: widget.onOpenPrivacy ?? () {},
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: KingColors.canvas,
+    body: _error == null
+        ? const SizedBox.expand()
+        : SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_error!, textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _loading ? null : _restore,
+                    child: const Text('重试'),
+                  ),
+                ],
+              ),
+            ),
+          ),
   );
 }

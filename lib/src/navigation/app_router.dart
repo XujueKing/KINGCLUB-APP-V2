@@ -180,7 +180,11 @@ GoRouter appRouter(Ref ref) {
     defaultValue: '/auth/bootstrap',
   );
   final router = GoRouter(
-    initialLocation: previewLocation,
+    initialLocation:
+        previewLocation == '/auth/bootstrap' &&
+            ref.read(authenticatedMemberProvider)?.canEnterApp == true
+        ? '/home'
+        : previewLocation,
     routes: [
       ...$appRoutes,
       GoRoute(

@@ -653,6 +653,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_checkMobileWindow());
+    });
     _startSystemCalls();
     ChatRoutePresence.instance.addListener(_messageRouteChanged);
     WidgetsBinding.instance.addObserver(this);
@@ -749,11 +752,21 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   Future<void> _checkMobileWindow() async {
     if (ref.read(authenticatedMemberProvider)?.isRealSession != true) return;
     final repository = ref.read(authRepositoryProvider);
-    if (repository is RealAuthRepository &&
-        !await repository.canResumeWithoutSms() &&
-        mounted) {
-      ref.read(authenticatedMemberProvider.notifier).clear();
-      ref.read(appRouterProvider).go('/auth/mobile');
+    if (repository is! RealAuthRepository) return;
+    try {
+      final allowed = await repository.canResumeWithoutSms();
+      if (!mounted) return;
+      if (!allowed) {
+        ref.read(authenticatedMemberProvider.notifier).clear();
+        ref.read(appRouterProvider).go('/auth/mobile');
+      } else if (ref.read(authenticatedMemberProvider)?.canEnterApp == false &&
+          ref.read(appRouterProvider).routeInformationProvider.value.uri.path ==
+              '/home') {
+        ref.read(appRouterProvider).go('/auth/bootstrap');
+      }
+    } catch (_) {
+      // Temporary revalidation failure must not replace the restored home UI.
+      // Protected APIs remain authenticated and the next resume retries.
     }
   }
 

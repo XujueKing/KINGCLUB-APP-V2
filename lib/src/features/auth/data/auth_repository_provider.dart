@@ -85,6 +85,27 @@ class RealAuthRepository implements AuthRepository {
   static final _sharedRestores =
       <(String, String, Object?), Future<AuthLoginResult?>>{};
 
+  /// Restore only the local UI snapshot before the first frame. Protected APIs
+  /// still validate credentials, and the app revalidates online after launch.
+  Future<AuthLoginResult?> restoreCachedForStartup() async {
+    final saved = await _sessionStore.readSession();
+    if (saved == null || !_savedMemberApproved(saved)) return null;
+    for (final key in ['sessionId', 'apiKeyId', 'apiKey']) {
+      if (saved[key] is! String || (saved[key] as String).isEmpty) return null;
+    }
+    final account = (saved['account'] as Map)['userAccount'];
+    final expiry = DateTime.tryParse('${saved['refreshExpiresAt']}');
+    if (account is! String ||
+        account.isEmpty ||
+        expiry == null ||
+        !expiry.isAfter(_now())) {
+      return null;
+    }
+    final result = parseMembership(saved);
+    onAuthenticated?.call(result);
+    return result;
+  }
+
   Future<AuthLoginResult?> restoreSession() => _restoring ??=
       _coordinatedRestore().whenComplete(() => _restoring = null);
 

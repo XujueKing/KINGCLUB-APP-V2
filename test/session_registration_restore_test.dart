@@ -356,7 +356,7 @@ void main() {
     },
   );
   testWidgets(
-    'pending cold restoration shows the existing welcome instead of a loading page',
+    'pending cold restoration does not flash the anonymous welcome cover',
     (tester) async {
       final gate = Completer<void>();
       final client = _Client(waitForResponse: gate.future);
@@ -382,8 +382,8 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.byType(LegacyWelcomePage), findsOneWidget);
-      expect(find.byKey(const ValueKey('legacy-welcome-logo')), findsOneWidget);
+      expect(find.byType(LegacyWelcomePage), findsNothing);
+      expect(find.byKey(const ValueKey('legacy-welcome-logo')), findsNothing);
       expect(find.text('正在恢复登录和注册进度'), findsNothing);
       expect(find.byType(CircularProgressIndicator), findsNothing);
       gate.complete();
