@@ -1,6 +1,11 @@
 name: iPhone development package
 on:
   workflow_dispatch:
+    inputs:
+      system_calls:
+        description: Enable reviewed PushKit direct-call path (requires backend migration 203)
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -38,6 +43,7 @@ jobs:
           flutter build ipa --release
           --dart-define=KINGCLUB_API_BASE_URL=https://test.wuyexin.cn/kingclub-v2
           --dart-define=KINGCLUB_IOS_WECHAT_PAYMENT=true
+          --dart-define=KINGCLUB_IOS_SYSTEM_CALLS=${{ inputs.system_calls }}
           --export-options-plist="$RUNNER_TEMP/kingclub-signing/ExportOptions.plist"
       - name: Encrypt package before storing artifact
         env:

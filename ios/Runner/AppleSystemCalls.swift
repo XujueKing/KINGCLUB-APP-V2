@@ -5,6 +5,7 @@ import CallKit
 import AVFAudio
 import WebRTC
 import Security
+import CoreImage
 
 /// Native incoming-call boundary. Registration is explicit: the Flutter runtime
 /// must first support authenticated answer/end handling before calling bind.
@@ -30,12 +31,26 @@ final class AppleSystemCalls: NSObject, PKPushRegistryDelegate, CXProviderDelega
     configuration.maximumCallGroups = 1
     configuration.maximumCallsPerCallGroup = 1
     configuration.includesCallsInRecents = false
+    configuration.iconTemplateImageData = Self.brandTemplate()
     // Use the system ringtone/haptics until the branded resource is supplied.
     provider = CXProvider(configuration: configuration)
     super.init()
     provider.setDelegate(self, queue: .main)
     account = UserDefaults.standard.string(forKey: "kingclub.voip.account")
     if account != nil { register() }
+  }
+
+  private static func brandTemplate() -> Data? {
+    // CallKit consumes an alpha template, not the opaque black app-icon square.
+    // Reuse the exact bundled KING artwork and convert luminance to alpha.
+    guard let artwork = UIImage(named: "CallKitBrand"), let input = CIImage(image: artwork),
+      let mask = CIFilter(name: "CIMaskToAlpha", parameters: [kCIInputImageKey: input])?.outputImage,
+      let cg = CIContext().createCGImage(mask, from: input.extent) else { return nil }
+    let format = UIGraphicsImageRendererFormat()
+    format.opaque = false
+    format.scale = 3
+    return UIGraphicsImageRenderer(size: CGSize(width: 40, height: 40), format: format)
+      .image { _ in UIImage(cgImage: cg).draw(in: CGRect(x: 0, y: 0, width: 40, height: 40)) }.pngData()
   }
 
   func attach(messenger: FlutterBinaryMessenger) {
