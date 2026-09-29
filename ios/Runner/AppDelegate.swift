@@ -7,12 +7,14 @@ import AVFAudio
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var chatPush: AppleChatPush?
   private var callLifetime: AppleCallLifetime?
+  private var systemCalls: AppleSystemCalls?
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     UNUserNotificationCenter.current().delegate = self
+    systemCalls = AppleSystemCalls()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -20,6 +22,7 @@ import AVFAudio
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     chatPush = AppleChatPush(messenger: engineBridge.applicationRegistrar.messenger())
     callLifetime = AppleCallLifetime(messenger: engineBridge.applicationRegistrar.messenger())
+    systemCalls?.attach(messenger: engineBridge.applicationRegistrar.messenger())
   }
   override func application(_ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
