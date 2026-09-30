@@ -55,6 +55,7 @@ class _Harness {
   String status = 'pending';
   bool missing = false;
   bool alipayUnavailable = false;
+  bool soldOut = false;
   final submittedIds = <Object?>[];
   final queriedIds = <Object?>[];
   final submittedProviders = <Object?>[];
@@ -66,6 +67,7 @@ class _Harness {
         submitted++;
         submittedIds.add(params['requestId']);
         submittedProviders.add(params['paymentProvider']);
+        if (soldOut) throw const AuthFailure('ORDERING_OUT_OF_STOCK','Sold out');
         if (alipayUnavailable && params['paymentProvider'] == 'alipay') {
           throw const AuthFailure('ALIPAY_NOT_READY', 'Alipay unavailable');
         }
@@ -174,6 +176,22 @@ class _Harness {
 }
 
 void main() {
+  for (final result in ['expired','pending','missing','paid']) {
+    testWidgets('sold-out retry clears saved request only after terminal proof: $result', (tester) async {
+      final h=_Harness()..soldOut=true..status=result=='missing'?'pending':result..missing=result=='missing';
+      await h.mount(tester,saved:false);
+      await tester.tap(find.text('立即支付'));
+      await tester.pumpAndSettle();
+      expect(h.submitted,1);
+      expect(h.launched,0);
+      final saved=await const FlutterSecureStorage().read(key:_storageKey);
+      expect(saved,result=='expired'||result=='paid'?isNull:isNotNull);
+      expect(h.confirmed,result=='paid'?1:0);
+      if(result=='expired')expect(find.textContaining('No charge was initiated'),findsOneWidget);
+      if(result=='pending'||result=='missing')expect(find.textContaining('Checking the original order'),findsOneWidget);
+      await h.finish(tester);
+    });
+  }
   for (final orderExists in [false, true]) {
     testWidgets(
       'disabled Alipay unlocks only after no-order lookup: exists=$orderExists',

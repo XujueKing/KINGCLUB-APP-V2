@@ -52,6 +52,12 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   Timer? _timer;
   String _paymentText(List<String> values) =>
       OrderingEntryStatus.text(Localizations.localeOf(context), values);
+  String get _checkingOriginalMessage => _paymentText([
+    '正在核对原订单，请勿重复付款',
+    'Checking the original order. Do not pay again.',
+    '正在核對原訂單，請勿重複付款',
+    'กำลังตรวจสอบคำสั่งซื้อเดิม โปรดอย่าชำระเงินซ้ำ',
+  ]);
   String? get _creationBlockReason {
     if (widget.quote.orderingContext!.paymentTiming != 'prepay') {
       return '当前版本尚未开放后付费下单，请联系门店处理。';
@@ -342,6 +348,32 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         );
       }
     } on AuthFailure catch (error) {
+      if (error.code == 'ORDERING_OUT_OF_STOCK') {
+        // Never discard the saved request based on an error alone. The server
+        // must prove that the original order is terminal before another basket.
+        try {
+          final closed = await widget.repository.findByRequest(
+            context: widget.quote.orderingContext!, requestId: _requestId,
+          );
+          if (!mounted) return;
+          if (closed?.status == 'expired') {
+            _applyReceipt(closed!);
+            await _storage.delete(key: _storageKey!);
+          } else if (closed?.status == 'paid') {
+            _applyReceipt(closed!);
+            await _storage.delete(key: _storageKey!);
+            return;
+          } else {
+            if (closed != null) _applyReceipt(closed);
+            _startPolling();
+            setState(() => _message = _checkingOriginalMessage);
+            return;
+          }
+        } catch (_) {
+          if (mounted) setState(() => _message = _checkingOriginalMessage);
+          return;
+        }
+      }
       // Configuration can be disabled after a previous submission. Only a
       // successful lookup may unlock selection, and retain the idempotency key.
       if (error.code == 'ALIPAY_NOT_READY' && _receipt == null) {
@@ -369,7 +401,9 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
               '商品已售罄，未發起扣款，請返回修改訂單。',
               'สินค้าหมด ยังไม่ได้เรียกเก็บเงิน โปรดย้อนกลับไปแก้ไขคำสั่งซื้อ',
             ])
-          : error.message);
+          : error.code == 'ORDERING_PAYMENT_IN_PROGRESS'
+              ? _checkingOriginalMessage
+              : error.message);
       }
     } on MissingPluginException catch (_) {
       if (mounted) {
