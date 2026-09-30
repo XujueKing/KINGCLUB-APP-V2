@@ -558,8 +558,11 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
 }
 
 const legacyChatBodyTextStyle = TextStyle(
-  fontSize: 16,
+  fontSize: 17,
   fontWeight: FontWeight.w400,
+  height: 1.25,
+  letterSpacing: 0,
+  wordSpacing: 0,
   fontFamilyFallback: ['PingFang SC', 'Microsoft YaHei'],
 );
 

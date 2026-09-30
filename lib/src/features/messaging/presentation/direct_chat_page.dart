@@ -3900,6 +3900,10 @@ class _MessageRow extends StatelessWidget {
         message.kind == _FakeMessageKind.goldCoin ||
         message.kind == _FakeMessageKind.redPacket ||
         message.kind == _FakeMessageKind.gift;
+    final isEmoji =
+        message.kind == _FakeMessageKind.text &&
+        message.call == null &&
+        chatEmojiOnly(message.text);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -3943,19 +3947,22 @@ class _MessageRow extends StatelessWidget {
                       onLongPress: onLongPress,
                       onTap: onTap,
                       child: Container(
-                        constraints: const BoxConstraints(maxWidth: 280),
+                        constraints: BoxConstraints(
+                          maxWidth: 280,
+                          minHeight: isVisualCard ? 0 : 42,
+                        ),
                         padding: isVisualCard
                             ? EdgeInsets.zero
-                            : const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
+                            : EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: isEmoji ? 9 : 10,
                               ),
                         decoration: BoxDecoration(
                           color: isVisualCard
                               ? Colors.transparent
                               : message.mine
-                              ? const Color(0xFF29B463)
-                              : const Color(0xFF303030),
+                              ? const Color(0xFF27B561)
+                              : const Color(0xFF2C2C2C),
                           borderRadius: BorderRadius.only(
                             topLeft: Radius.circular(message.mine ? 7 : 0),
                             topRight: Radius.circular(message.mine ? 0 : 7),
@@ -4056,7 +4063,7 @@ class _MessageContent extends StatelessWidget {
     switch (message.kind) {
       case _FakeMessageKind.text:
         if (message.call != null) {
-          final color = message.mine ? const Color(0xFF222222) : Colors.white;
+          final color = message.mine ? const Color(0xFF111111) : Colors.white;
           return Row(
             key: ValueKey('chat-call-record-${message.call!.id}'),
             mainAxisSize: MainAxisSize.min,
@@ -4081,8 +4088,9 @@ class _MessageContent extends StatelessWidget {
         return Text(
           message.text,
           style: legacyChatBodyTextStyle.copyWith(
-            color: message.mine ? const Color(0xFF222222) : Colors.white,
-            fontSize: chatEmojiOnly(message.text) ? 30 : null,
+            color: message.mine ? const Color(0xFF111111) : Colors.white,
+            fontSize: chatEmojiOnly(message.text) ? 24 : null,
+            height: chatEmojiOnly(message.text) ? 1 : null,
             fontWeight: FontWeight.w400,
           ),
         );
