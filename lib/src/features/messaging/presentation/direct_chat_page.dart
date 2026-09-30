@@ -1266,7 +1266,9 @@ class _DirectChatPageState extends State<DirectChatPage>
         ? 0.0
         : switch (_composerPanel) {
             _ComposerPanel.none => 0.0,
-            _ComposerPanel.attachments => 242.0,
+            _ComposerPanel.attachments => _AttachmentPanelMetrics.of(
+              context,
+            ).panelHeight,
             _ComposerPanel.emoji => 300.0,
             _ComposerPanel.gifts => 326.0,
           };
@@ -2031,6 +2033,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Widget _attachmentPanel() {
+    final metrics = _AttachmentPanelMetrics.of(context);
     final actions = <Widget>[
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/more_1.png',
@@ -2048,13 +2051,11 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_video_call.svg',
-        glyphSize: 32,
         label: '视频通话',
         onTap: _chooseCallType,
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_location.svg',
-        glyphSize: 32,
         label: '位置',
         onTap: _selectChatLocation,
       ),
@@ -2065,19 +2066,16 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_red_packet.svg',
-        glyphSize: 32,
         label: '红包',
         onTap: _openRedPacketComposer,
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/gift2.png',
-        glyphSize: 23,
         label: '礼物',
         onTap: _toggleGifts,
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_voice_input.svg',
-        glyphSize: 32,
         label: '语音输入',
         onTap: () {
           _inputFocusNode.unfocus();
@@ -2090,13 +2088,11 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_file.svg',
-        glyphSize: 32,
         label: '文件',
         onTap: _selectChatFile,
       ),
       _AttachmentAction(
         assetPath: 'assets/legacy/messaging/action_coupon.svg',
-        glyphSize: 32,
         label: '卡券',
         onTap: () => KingNotice.of(context).show('卡券分享暂未开放'),
       ),
@@ -2120,10 +2116,9 @@ class _DirectChatPageState extends State<DirectChatPage>
     final pageCount = (actions.length / 8).ceil();
     return Container(
       key: const ValueKey('direct-chat-attachment-panel'),
-      height: 242,
+      height: metrics.panelHeight,
       width: double.infinity,
       color: legacyMessagePanel,
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
       child: Column(
         children: [
           Expanded(
@@ -2131,41 +2126,53 @@ class _DirectChatPageState extends State<DirectChatPage>
               key: const PageStorageKey('chat-attachment-pages'),
               itemCount: pageCount,
               onPageChanged: (page) => setState(() => _attachmentPage = page),
-              itemBuilder: (context, page) => Column(
-                children: [
-                  for (var row = 0; row < 2; row++)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (var col = 0; col < 4; col++)
-                          Expanded(
-                            child: page * 8 + row * 4 + col < actions.length
-                                ? actions[page * 8 + row * 4 + col]
-                                : const SizedBox.shrink(),
+              itemBuilder: (context, page) => Center(
+                child: SizedBox(
+                  width: metrics.contentWidth,
+                  child: Column(
+                    children: [
+                      for (var row = 0; row < 2; row++)
+                        SizedBox(
+                          height: metrics.rowHeight,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (var col = 0; col < 4; col++)
+                                Expanded(
+                                  child:
+                                      page * 8 + row * 4 + col < actions.length
+                                      ? actions[page * 8 + row * 4 + col]
+                                      : const SizedBox.shrink(),
+                                ),
+                            ],
                           ),
-                      ],
-                    ),
-                ],
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
           if (pageCount > 1)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (var page = 0; page < pageCount; page++)
-                  Container(
-                    width: 5,
-                    height: 5,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: page == _attachmentPage
-                          ? legacyMessageGold
-                          : const Color(0x554A4037),
+            SizedBox(
+              height: 30 * metrics.rpx,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var page = 0; page < pageCount; page++)
+                    Container(
+                      width: 10 * metrics.rpx,
+                      height: 10 * metrics.rpx,
+                      margin: EdgeInsets.symmetric(horizontal: 8 * metrics.rpx),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: page == _attachmentPage
+                            ? legacyMessageGold
+                            : const Color(0x60FFFFFF),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
         ],
       ),
@@ -4301,65 +4308,100 @@ class _LegacyValueMessageCard extends StatelessWidget {
   }
 }
 
+class _AttachmentPanelMetrics {
+  _AttachmentPanelMetrics.of(BuildContext context)
+    : rpx = MediaQuery.sizeOf(context).width.clamp(0, 480) / 750 {
+    final painter = TextPainter(
+      text: TextSpan(text: '视频通话', style: labelStyle),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout(maxWidth: contentWidth / 4);
+    labelHeight = painter.height;
+    painter.dispose();
+  }
+
+  final double rpx;
+  late final double labelHeight;
+  double get contentWidth => 700 * rpx;
+  double get buttonSize => 135 * rpx;
+  double get glyphSize => 50 * rpx;
+  double get rowHeight => 175 * rpx + labelHeight;
+  double get panelHeight =>
+      (rowHeight * 2 + 30 * rpx).clamp(420 * rpx, double.infinity);
+  TextStyle get labelStyle => TextStyle(
+    color: const Color(0xFFAAAAAA),
+    fontSize: 24 * rpx,
+    height: 1.2,
+    fontWeight: FontWeight.normal,
+  );
+}
+
 class _AttachmentAction extends StatelessWidget {
   const _AttachmentAction({
     this.icon,
     this.assetPath,
-    this.glyphSize = 26,
     required this.label,
     required this.onTap,
   }) : assert(icon != null || assetPath != null);
 
   final IconData? icon;
   final String? assetPath;
-  final double glyphSize;
   final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final metrics = _AttachmentPanelMetrics.of(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.all(7),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: const Color(0x4D323232),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: assetPath != null
-                  ? Padding(
-                      padding: EdgeInsets.all((64 - glyphSize) / 2),
-                      child: assetPath!.endsWith('.svg')
-                          ? SvgPicture.asset(
-                              assetPath!,
-                              colorFilter: const ColorFilter.mode(
-                                Color(0x99C9B69E),
-                                BlendMode.srcIn,
-                              ),
-                            )
-                          : Image.asset(
-                              assetPath!,
-                              color: const Color(0x99C9B69E),
-                              colorBlendMode: BlendMode.srcIn,
-                              fit: BoxFit.contain,
+      borderRadius: BorderRadius.circular(12 * metrics.rpx),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: 20 * metrics.rpx),
+          Container(
+            width: metrics.buttonSize,
+            height: metrics.buttonSize,
+            decoration: BoxDecoration(
+              color: const Color(0x4D323232),
+              borderRadius: BorderRadius.circular(12 * metrics.rpx),
+            ),
+            child: assetPath != null
+                ? Padding(
+                    padding: EdgeInsets.all(
+                      (metrics.buttonSize - metrics.glyphSize) / 2,
+                    ),
+                    child: assetPath!.endsWith('.svg')
+                        ? SvgPicture.asset(
+                            assetPath!,
+                            colorFilter: const ColorFilter.mode(
+                              Color(0x99C9B69E),
+                              BlendMode.srcIn,
                             ),
-                    )
-                  : Icon(icon, color: legacyMessageGold),
-            ),
-            const SizedBox(height: 5),
-            Text(
+                          )
+                        : Image.asset(
+                            assetPath!,
+                            color: const Color(0x99C9B69E),
+                            colorBlendMode: BlendMode.srcIn,
+                            fit: BoxFit.contain,
+                          ),
+                  )
+                : Icon(
+                    icon,
+                    size: metrics.glyphSize,
+                    color: const Color(0x99C9B69E),
+                  ),
+          ),
+          SizedBox(height: 20 * metrics.rpx),
+          SizedBox(
+            height: metrics.labelHeight,
+            child: Text(
               label,
-              style: const TextStyle(color: Color(0x99FFFFFF), fontSize: 11),
+              textAlign: TextAlign.center,
+              style: metrics.labelStyle,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

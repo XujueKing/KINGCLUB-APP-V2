@@ -5,6 +5,53 @@ import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/features/messaging/presentation/direct_chat_page.dart';
 
 void main() {
+  testWidgets(
+    'more panel keeps both rows visible on narrow screens with large text',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(320, 800);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: KingTheme.dark,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(1.8)),
+            child: child!,
+          ),
+          home: DirectChatPage(
+            voiceCapture: VoiceCapture(
+              device: _NoMicrophone(),
+              allocatePath: () async => 'unused',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('direct-chat-attachments')));
+      await tester.pumpAndSettle();
+      final panel = tester.getRect(
+        find.byKey(const ValueKey('direct-chat-attachment-panel')),
+      );
+      for (final label in ['照片', '视频通话', '礼物', '语音输入']) {
+        final actionLabel = find.text(label).hitTestable();
+        expect(actionLabel, findsOneWidget);
+        final bounds = tester.getRect(actionLabel);
+        expect(bounds.left, greaterThanOrEqualTo(panel.left));
+        expect(bounds.right, lessThanOrEqualTo(panel.right));
+        expect(bounds.bottom, lessThanOrEqualTo(panel.bottom));
+      }
+      await tester.drag(
+        find.byKey(const PageStorageKey('chat-attachment-pages')),
+        const Offset(-280, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('语音草稿').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('hold overlay highlights cancel and dismisses on release', (
     tester,
   ) async {
@@ -209,9 +256,12 @@ void main() {
       );
       await tester.pumpAndSettle();
       final panelListHeight = tester.getSize(list).height;
-      tester.view.viewInsets = const FakeViewPadding(bottom: 240);
+      final attachmentHeight = tester
+          .getSize(find.byKey(const ValueKey('direct-chat-attachment-panel')))
+          .height;
+      tester.view.viewInsets = FakeViewPadding(bottom: attachmentHeight);
       await tester.pumpAndSettle();
-      // IME and the 242px attachment surface replace one another; never add.
+      // Equally tall IME and attachment surfaces replace one another; never add.
       expect(tester.getSize(list).height, closeTo(panelListHeight, 1));
       tester.view.viewInsets = const FakeViewPadding();
       await tester.pumpAndSettle();
