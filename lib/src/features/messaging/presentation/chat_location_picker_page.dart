@@ -5,12 +5,14 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/session/secure_session_store.dart';
 import '../data/chat_location.dart';
 import '../data/chat_location_lookup.dart';
 import '../data/chat_current_position.dart';
 import '../data/chat_place_search.dart';
+import '../data/chat_map_coordinates.dart';
 
 /// Selecting a candidate never sends it; the explicit confirm returns it.
 class ChatLocationPickerPage extends StatefulWidget {
@@ -52,7 +54,16 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   ChatLocation? _current;
   Offset? _markerAnchor;
   String _mapStatus = 'loading';
-  bool get _nativeMap => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  String _iosCoordinateSystem = 'wgs84';
+  bool _androidMapAllowed = false;
+  bool get _androidAvailable =>
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.android &&
+      TencentChatPlaceSearch.configuredKey.isNotEmpty;
+  bool get _nativeMap =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          (_androidAvailable && _androidMapAllowed));
   bool _openingMap = false;
   bool _busy = false, _invalid = false, _sending = false;
   int _generation = 0;
@@ -61,6 +72,7 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
     super.initState();
     _selected = widget.initialSelection;
     if (_selected != null) _results = [_selected!];
+    if (_androidAvailable) unawaited(_restoreMapConsent());
     _session = SecureSessionStore.changes.stream.listen((_) {
       if (!mounted) return;
       _generation++;
@@ -76,6 +88,69 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
         _accuracyLabel = null;
         _placesNotice = null;
       });
+    });
+  }
+
+  Future<void> _restoreMapConsent() async {
+    try {
+      final consent = await const FlutterSecureStorage().read(
+        key: 'tencent-chat-map-consent-v1',
+      );
+      if (mounted && !_invalid && consent == 'true') {
+        setState(() => _androidMapAllowed = true);
+      }
+    } catch (_) {
+      /* Require fresh consent when local storage is unavailable. */
+    }
+  }
+
+  Future<void> _allowAndroidMap() async {
+    final agreed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('使用地图选择位置'),
+        content: const Text(
+          '地图与附近地点由腾讯位置服务提供，将使用你选择的位置或搜索词加载地图和地点。仅在本页使用定位，不进行后台定位。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('同意并使用'),
+          ),
+        ],
+      ),
+    );
+    if (agreed != true || !mounted || _invalid) return;
+    try {
+      await const FlutterSecureStorage().write(
+        key: 'tencent-chat-map-consent-v1',
+        value: 'true',
+      );
+    } catch (_) {
+      /* This explicit consent still applies to the current page. */
+    }
+    if (mounted && !_invalid) {
+      setState(() => _androidMapAllowed = true);
+    }
+  }
+
+  ChatLocation _canonical(ChatLocation value) {
+    if (value.coordinateSystem != 'gcj02') {
+      return value;
+    }
+    final point = ChatMapCoordinates.fromTencent(
+      value.latitudeE6 / 1e6,
+      value.longitudeE6 / 1e6,
+    );
+    return ChatLocation.fromJson({
+      ...value.toJson(),
+      'latitudeE6': (point.lat * 1e6).round(),
+      'longitudeE6': (point.lon * 1e6).round(),
+      'coordinateSystem': 'wgs84',
     });
   }
 
@@ -110,7 +185,7 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
         _mapDebounce?.cancel();
         _mapDebounce = Timer(
           const Duration(milliseconds: 350),
-          () => _nearby(center),
+          () => _nearby(_canonical(center)),
         );
       }
     });
@@ -124,7 +199,17 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   }
 
   Future<void> _restoreSelection(ChatLocation initial) async {
-    await _center(initial);
+    try {
+      await _center(initial);
+    } catch (_) {
+      if (mounted && !_invalid) {
+        setState(() {
+          _selected = null;
+          _error = '地图位置未能显示，请重新选择';
+        });
+      }
+      return;
+    }
     if (!mounted || _invalid) return;
     await _nearby(initial, preserveSelection: true);
   }
@@ -133,16 +218,38 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
     ChatLocation location, {
     bool userLocation = false,
   }) async {
-    if (_invalid || !_nativeMap || location.coordinateSystem != 'wgs84') return;
+    if (_invalid || !_nativeMap) return;
+    var data = location.toJson();
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final point = location.coordinateSystem == 'gcj02'
+          ? (lat: location.latitudeE6 / 1e6, lon: location.longitudeE6 / 1e6)
+          : ChatMapCoordinates.toTencent(
+              location.latitudeE6 / 1e6,
+              location.longitudeE6 / 1e6,
+            );
+      data = {
+        ...data,
+        'latitudeE6': (point.lat * 1e6).round(),
+        'longitudeE6': (point.lon * 1e6).round(),
+        'coordinateSystem': 'gcj02',
+      };
+    } else {
+      data = ChatMapCoordinates.appleArguments(data);
+    }
     try {
-      await _map
-          ?.invokeMethod<void>('center', {
-            ...location.toJson(),
+      final system = await _map
+          ?.invokeMethod<dynamic>('center', {
+            ...data,
             'userLocation': userLocation,
           })
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 10));
+      if (defaultTargetPlatform == TargetPlatform.iOS &&
+          (system == 'wgs84' || system == 'gcj02')) {
+        _iosCoordinateSystem = system as String;
+      }
     } catch (_) {
       if (mounted && !_invalid) setState(() => _mapStatus = 'failed');
+      rethrow;
     }
   }
 
@@ -152,12 +259,29 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   ) async {
     final channel = _map;
     if (channel == null) throw StateError('地图尚未准备好，请稍后重试');
+    var nativeArgs = args;
+    if (method == 'nearby' && _iosCoordinateSystem == 'gcj02') {
+      final location = ChatLocation.tryParse(args);
+      if (location != null && location.coordinateSystem == 'wgs84') {
+        final point = ChatMapCoordinates.toTencent(
+          location.latitudeE6 / 1e6,
+          location.longitudeE6 / 1e6,
+        );
+        nativeArgs = {
+          ...args,
+          'latitudeE6': (point.lat * 1e6).round(),
+          'longitudeE6': (point.lon * 1e6).round(),
+          'coordinateSystem': 'gcj02',
+        };
+      }
+    }
     final data = await channel
-        .invokeListMethod<dynamic>(method, args)
+        .invokeListMethod<dynamic>(method, nativeArgs)
         .timeout(const Duration(seconds: 15));
     return (data ?? [])
         .map(ChatLocation.tryParse)
         .whereType<ChatLocation>()
+        .map(_canonical)
         .toList();
   }
 
@@ -198,6 +322,10 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   }
 
   Future<ChatLocation> _currentLocation() async {
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        _lookup is NativeChatLocationLookup) {
+      return _lookup.currentCoordinate();
+    }
     if (!_nativeMap || _lookup is! NativeChatLocationLookup) {
       return _lookup.current();
     }
@@ -215,7 +343,8 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
       throw StateError('地图尚未获取精确位置，请重新定位');
     }
     _lookup.currentAccuracyMeters = accuracy.ceil();
-    return location;
+    _iosCoordinateSystem = location.coordinateSystem;
+    return _canonical(location);
   }
 
   Future<void> _nearby(
@@ -283,7 +412,9 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
         _current = results.first;
         // Native current location is centered by MapKit's tracking camera.
         // Do not replace it with an independent raw GPS center afterwards.
-        if (!_nativeMap || _lookup is! NativeChatLocationLookup) {
+        if (!_nativeMap ||
+            _lookup is! NativeChatLocationLookup ||
+            defaultTargetPlatform == TargetPlatform.android) {
           await _center(results.first, userLocation: true);
         }
         if (_nativeMap || _places != null) {
@@ -353,7 +484,10 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
     final generation = _generation;
     setState(() => _openingMap = true);
     try {
-      final data = location.toJson()..remove('address');
+      var data = location.toJson()..remove('address');
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        data = ChatMapCoordinates.appleArguments(data);
+      }
       data['mode'] = 'view';
       final opened = await _maps
           .invokeMethod<bool>('open', data)
@@ -438,7 +572,24 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (_nativeMap && !_invalid)
+                      if (_nativeMap &&
+                          !_invalid &&
+                          defaultTargetPlatform == TargetPlatform.android)
+                        AndroidView(
+                          viewType: 'kingclub/location-picker-map',
+                          creationParams: {
+                            'key': TencentChatPlaceSearch.configuredKey,
+                            'privacyAccepted': _androidMapAllowed,
+                          },
+                          creationParamsCodec: const StandardMessageCodec(),
+                          gestureRecognizers: {
+                            Factory<OneSequenceGestureRecognizer>(
+                              () => EagerGestureRecognizer(),
+                            ),
+                          },
+                          onPlatformViewCreated: _attachMap,
+                        )
+                      else if (_nativeMap && !_invalid)
                         UiKitView(
                           viewType: 'kingclub/location-picker-map',
                           creationParamsCodec: const StandardMessageCodec(),
@@ -469,7 +620,11 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                                         ),
                                         const SizedBox(height: 12),
                                         Text(
-                                          _invalid ? '登录状态已变化' : '此设备暂未接入内嵌地图',
+                                          _invalid
+                                              ? '登录状态已变化'
+                                              : _androidAvailable
+                                              ? '使用地图选择位置和附近地点'
+                                              : '此设备暂未接入内嵌地图',
                                           style: const TextStyle(
                                             color: Color(0xFF777777),
                                           ),
@@ -587,6 +742,8 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                               tooltip: '使用当前位置',
                               onPressed: _invalid || _busy || _sending
                                   ? null
+                                  : _androidAvailable && !_androidMapAllowed
+                                  ? _allowAndroidMap
                                   : () => _load(true),
                               color: const Color(0xFF222222),
                               icon: const Icon(Icons.my_location, size: 25),

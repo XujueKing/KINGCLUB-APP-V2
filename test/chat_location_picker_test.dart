@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_location.dart';
 import 'package:kingclub/src/features/messaging/data/chat_location_lookup.dart';
+import 'package:kingclub/src/features/messaging/data/chat_place_search.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_location_picker_page.dart';
 
 final place = ChatLocation.fromJson({
@@ -51,7 +52,104 @@ class MapOnlyLookup extends NativeChatLocationLookup {
       throw StateError('Independent GPS must not be used');
 }
 
+class BoundaryPlaces implements ChatPlaceSearch {
+  ChatLocation? queried;
+  @override
+  Future<List<ChatLocation>> nearby(ChatLocation value) async {
+    queried = value;
+    return [
+      ChatLocation.fromJson({...value.toJson(), 'name': 'Tencent residence'}),
+    ];
+  }
+
+  @override
+  Future<List<ChatLocation>> search(String text, ChatLocation? value) async =>
+      [];
+  @override
+  void cancel() {}
+  @override
+  void dispose() {}
+}
+
 void main() {
+  testWidgets(
+    'mainland native coordinates leave as WGS and reenter as one GCJ candidate',
+    (tester) async {
+      final original = GeolocatorPlatform.instance;
+      GeolocatorPlatform.instance = PrecisePlatform();
+      final places = BoundaryPlaces();
+      Map<String, dynamic>? centered;
+      MethodChannel? channel;
+      final native = {
+        'latitudeE6': 39901404,
+        'longitudeE6': 116406243,
+        'coordinateSystem': 'gcj02',
+        'name': '当前位置',
+        'address': '',
+      };
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform_views,
+        (call) async {
+          if (call.method == 'create') {
+            channel = MethodChannel(
+              'kingclub/location-picker-map/${call.arguments['id']}',
+            );
+            tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+              channel!,
+              (call) async {
+                if (call.method == 'locate') {
+                  return {'location': native, 'accuracyMeters': 8};
+                }
+                if (call.method == 'center') {
+                  centered = Map<String, dynamic>.from(call.arguments);
+                  return 'gcj02';
+                }
+                return null;
+              },
+            );
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        GeolocatorPlatform.instance = original;
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform_views,
+          null,
+        );
+        if (channel != null) {
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel!,
+            null,
+          );
+        }
+      });
+      ChatLocation? saved;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatLocationPickerPage(
+            lookup: MapOnlyLookup(),
+            places: places,
+            onSelectionChanged: (value) async => saved = value,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(places.queried!.coordinateSystem, 'wgs84');
+      expect(places.queried!.latitudeE6, closeTo(39900000, 3));
+      expect(places.queried!.longitudeE6, closeTo(116400000, 3));
+      await tester.tap(find.text('Tencent residence'));
+      await tester.pumpAndSettle();
+      expect(saved!.coordinateSystem, 'wgs84');
+      expect(centered!['latitudeE6'], saved!.latitudeE6);
+      final display = centered!['alternateGCJ02'] as Map;
+      expect(display['coordinateSystem'], 'gcj02');
+      expect(display['latitudeE6'], closeTo(native['latitudeE6'] as int, 2));
+      expect(display['longitudeE6'], closeTo(native['longitudeE6'] as int, 2));
+      await tester.pumpWidget(const SizedBox());
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
   for (final cachedGps in [true, false]) {
     testWidgets(
       'restored ${cachedGps ? 'GPS' : 'manual'} draft queries places and respects map authority',

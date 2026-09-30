@@ -6,6 +6,7 @@ param(
   [string]$RelayPeer,
   [string]$RelayCertificatePath,
   [string]$PushConfigFile,
+  [string]$MapsConfigFile,
   [string]$NovoRudpSourceRoot,
   [string]$StunHost,
   [string[]]$StunFallbacks = @(),
@@ -24,6 +25,17 @@ Push-Location (Split-Path -Parent $PSScriptRoot)
 $previousJni = $env:KINGCLUB_NOVORUDP_JNI_DIR
 try {
   $relayArguments = @()
+  if ($MapsConfigFile) {
+    $mapsConfigPath = (Resolve-Path -LiteralPath $MapsConfigFile).Path
+    $mapsConfig = Get-Content -LiteralPath $mapsConfigPath -Raw | ConvertFrom-Json
+    $mapsKeys = @($mapsConfig.PSObject.Properties.Name)
+    if ($mapsKeys.Count -ne 1 -or $mapsKeys[0] -cne 'KINGCLUB_TENCENT_MAP_KEY' -or
+        $mapsConfig.KINGCLUB_TENCENT_MAP_KEY -isnot [string] -or
+        [string]::IsNullOrWhiteSpace($mapsConfig.KINGCLUB_TENCENT_MAP_KEY)) {
+      throw 'Maps config must contain only a nonempty KINGCLUB_TENCENT_MAP_KEY.'
+    }
+    $relayArguments += "--dart-define-from-file=$mapsConfigPath"
+  }
   if ($PushConfigFile) {
     $pushConfigPath = (Resolve-Path -LiteralPath $PushConfigFile).Path
     $pushConfig = Get-Content -LiteralPath $pushConfigPath -Raw | ConvertFrom-Json

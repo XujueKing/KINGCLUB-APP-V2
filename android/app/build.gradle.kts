@@ -83,6 +83,8 @@ flutter {
 
 // Keep aligned with video_player_android's ExoPlayer version.
 dependencies {
+    implementation("com.tencent.map:tencent-map-vector-sdk:6.13.0.260731.bb0666d5.209828299")
+    implementation("com.tencent.openmap:foundation:0.9.1.6875646")
     implementation(files("libs/heytap-push-3.7.1.aar"))
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.tencent.mm.opensdk:wechat-sdk-android:6.8.40")

@@ -46,6 +46,7 @@ class ChatCurrentPosition {
   static Future<Position> selectFix(
     Stream<Position> samples, {
     Duration timeout = const Duration(seconds: 20),
+    Duration settling = const Duration(seconds: 3),
     DateTime Function()? clock,
   }) async {
     final now = clock ?? DateTime.now;
@@ -65,11 +66,16 @@ class ChatCurrentPosition {
 
     final ready = Completer<Position?>();
     Position? best;
+    Timer? settleTimer;
     final subscription = samples.listen(
       (sample) {
         if (!usable(sample) || ready.isCompleted) return;
         if (best == null || sample.accuracy < best!.accuracy) best = sample;
-        if (sample.accuracy <= 50) ready.complete(sample);
+        if (sample.accuracy <= 50 && settleTimer == null) {
+          settleTimer = Timer(settling, () {
+            if (!ready.isCompleted) ready.complete(best);
+          });
+        }
       },
       onError: (Object error, StackTrace trace) {
         if (!ready.isCompleted) ready.completeError(error, trace);
@@ -82,6 +88,7 @@ class ChatCurrentPosition {
     try {
       selected = await ready.future.timeout(timeout, onTimeout: () => best);
     } finally {
+      settleTimer?.cancel();
       await subscription.cancel();
     }
     if (selected == null || !usable(selected)) {

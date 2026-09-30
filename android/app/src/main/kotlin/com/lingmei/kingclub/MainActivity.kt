@@ -15,6 +15,7 @@ class MainActivity : FlutterActivity() {
     private var export: ChatFileExport? = null
     private var videoUpload: ChatVideoUpload? = null
     private var foreground = false
+    private var locationMaps: ChatLocationPickerMapFactory? = null
     private var pushRegistration: ChatPushRegistration? = null
     private var pushOpen: ChatPushOpen? = null
     private fun sanitizeLocalNotification(intent: Intent) {
@@ -31,6 +32,9 @@ class MainActivity : FlutterActivity() {
     }
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        locationMaps = ChatLocationPickerMapFactory(flutterEngine.dartExecutor.binaryMessenger).also {
+            flutterEngine.platformViewsController.registry.registerViewFactory("kingclub/location-picker-map", it)
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/connection-service")
             .setMethodCallHandler { call, result ->
                 ChatConnectionService.handle(this, call, result, foreground)
@@ -132,16 +136,20 @@ class MainActivity : FlutterActivity() {
     }
     override fun onResume() {
         super.onResume()
+        locationMaps?.resume()
         pushOpen?.accept(intent)
         foreground = true
         ChatConnectionService.foreground(true)
     }
     override fun onPause() {
+        locationMaps?.pause()
         foreground = false
         ChatConnectionService.foreground(false)
         super.onPause()
     }
     override fun onDestroy() {
+        locationMaps?.dispose()
+        locationMaps = null
         pushOpen?.close()
         pushRegistration?.close()
         CallForegroundService.shutdown(this)

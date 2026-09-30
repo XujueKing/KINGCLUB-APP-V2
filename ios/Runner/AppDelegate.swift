@@ -312,11 +312,33 @@ final class AppleChatPush {
 
 
 private func chatCoordinate(_ args: [String: Any]) -> CLLocationCoordinate2D? {
-  guard args["coordinateSystem"] as? String == "wgs84",
+  guard let system = args["coordinateSystem"] as? String, ["wgs84", "gcj02"].contains(system),
         let lat = args["latitudeE6"] as? NSNumber,
         let lon = args["longitudeE6"] as? NSNumber else { return nil }
   let point = CLLocationCoordinate2D(latitude: lat.doubleValue / 1e6, longitude: lon.doubleValue / 1e6)
   return CLLocationCoordinate2DIsValid(point) ? point : nil
+}
+
+/// Country-aware display conversion shared by previews, detail and Maps launch.
+/// Persisted message coordinates stay unchanged. No fixed regional offset.
+private func appleChatCoordinate(_ args: [String: Any], completion: @escaping (CLLocationCoordinate2D?) -> Void) {
+  guard let point = chatCoordinate(args) else { completion(nil); return }
+  if args["coordinateSystem"] as? String == "gcj02" { completion(point); return }
+  let geocoder = CLGeocoder()
+  var done = false
+  let finish: (CLLocationCoordinate2D?) -> Void = { point in
+    guard !done else { return }; done = true; completion(point)
+  }
+  geocoder.reverseGeocodeLocation(CLLocation(latitude: point.latitude, longitude: point.longitude)) { places, _ in
+    guard let country = places?.first?.isoCountryCode else { finish(nil); return }
+    if country == "CN" {
+      guard let alternate = args["alternateGCJ02"] as? [String: Any] else { finish(nil); return }
+      finish(chatCoordinate(alternate))
+    } else { finish(point) }
+  }
+  DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+    guard !done else { return }; geocoder.cancelGeocode(); finish(nil)
+  }
 }
 
 private final class AppleChatMapNavigation {
@@ -327,13 +349,16 @@ private final class AppleChatMapNavigation {
       guard call.method == "open", let args = call.arguments as? [String: Any] else {
         result(FlutterMethodNotImplemented); return
       }
-      if let coordinate = chatCoordinate(args) {
+      if chatCoordinate(args) != nil {
+        appleChatCoordinate(args) { coordinate in
+        guard let coordinate = coordinate else { result(false); return }
         let place = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
         place.name = args["name"] as? String
         let mode = args["mode"] as? String == "walking" ? MKLaunchOptionsDirectionsModeWalking : MKLaunchOptionsDirectionsModeDriving
         let options: [String: Any] = args["mode"] as? String == "view"
           ? [:] : [MKLaunchOptionsDirectionsModeKey: mode]
         result(place.openInMaps(launchOptions: options))
+        }
       } else if args["coordinateSystem"] as? String == "gcj02",
                 let lat = args["latitudeE6"] as? NSNumber,
                 let lon = args["longitudeE6"] as? NSNumber,
@@ -362,30 +387,38 @@ private final class AppleChatMapFactory: NSObject, FlutterPlatformViewFactory {
 private final class AppleChatMapView: NSObject, FlutterPlatformView, MKMapViewDelegate {
   private let map: MKMapView
   private let channel: FlutterMethodChannel
-  private let target: CLLocationCoordinate2D?
+  private var target: CLLocationCoordinate2D?
   private var loadState = "loading"
   init(frame: CGRect, id: Int64, args: [String: Any], messenger: FlutterBinaryMessenger) {
     map = MKMapView(frame: frame)
-    target = chatCoordinate(args)
+    target = nil
     channel = FlutterMethodChannel(name: "kingclub/location-map/\(id)", binaryMessenger: messenger)
     super.init()
     map.overrideUserInterfaceStyle = .dark
     map.delegate = self
     map.isRotateEnabled = true
     map.showsCompass = true
-    if let target = target {
+    appleChatCoordinate(args) { [weak self] target in
+      guard let self = self else { return }
+      guard let target = target else {
+        self.loadState = "failed"; self.channel.invokeMethod("status", arguments: "failed"); return
+      }
+      self.target = target
       let pin = MKPointAnnotation(); pin.coordinate = target; pin.title = args["name"] as? String
-      map.addAnnotation(pin)
-      center(target)
+      self.map.addAnnotation(pin)
+      self.center(target)
     }
     channel.setMethodCallHandler { [weak self] call, result in
       guard let self = self else { result(false); return }
       if call.method == "status" { result(self.loadState)
       } else if call.method == "target", let target = self.target {
         self.center(target); result(true)
-      } else if call.method == "locate", let args = call.arguments as? [String: Any], let point = chatCoordinate(args) {
-        self.map.showsUserLocation = true
-        self.center(point); result(true)
+      } else if call.method == "locate", let args = call.arguments as? [String: Any] {
+        appleChatCoordinate(args) { [weak self] point in
+          guard let self = self, let point = point else { result(false); return }
+          self.map.showsUserLocation = true
+          self.center(point); result(true)
+        }
       } else { result(FlutterMethodNotImplemented) }
     }
   }
@@ -418,6 +451,7 @@ private final class AppleChatMapView: NSObject, FlutterPlatformView, MKMapViewDe
 private final class AppleChatMapPreview {
   private let channel: FlutterMethodChannel
   private var pending: [UUID: MKMapSnapshotter] = [:]
+  private var resolving = 0
 
   init(messenger: FlutterBinaryMessenger) {
     channel = FlutterMethodChannel(name: "kingclub/chat-map-preview", binaryMessenger: messenger)
@@ -433,9 +467,14 @@ private final class AppleChatMapPreview {
       }
       let coordinate = CLLocationCoordinate2D(latitude: lat.doubleValue / 1_000_000,
                                              longitude: lon.doubleValue / 1_000_000)
-      guard CLLocationCoordinate2DIsValid(coordinate), self.pending.count < 8 else {
+      guard CLLocationCoordinate2DIsValid(coordinate), self.pending.count + self.resolving < 8 else {
         result(nil); return
       }
+      self.resolving += 1
+      appleChatCoordinate(args) { [weak self] coordinate in
+      guard let self = self else { result(nil); return }
+      self.resolving -= 1
+      guard let coordinate = coordinate else { result(nil); return }
       let options = MKMapSnapshotter.Options()
       options.region = MKCoordinateRegion(center: coordinate,
         latitudinalMeters: 650, longitudinalMeters: 1500)
@@ -453,10 +492,11 @@ private final class AppleChatMapPreview {
           result(nil)
         }
       }
-      DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+      DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
         guard let active = self?.pending.removeValue(forKey: id) else { return }
         active.cancel()
         result(nil)
+      }
       }
     }
   }

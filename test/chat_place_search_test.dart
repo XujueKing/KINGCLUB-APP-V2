@@ -42,6 +42,32 @@ final gps = ChatLocation.fromJson({
 });
 
 void main() {
+  test('typed location search uses an actual local search and preserves POI coordinate', () async {
+    final transport = MapTransport({
+      'status': 0,
+      'data': [
+        {
+          'title': 'Public residence',
+          'address': 'Public street',
+          'location': {'lat': 39.901404, 'lng': 116.406243},
+        },
+      ],
+    });
+    final service = TencentChatPlaceSearch(
+      key: 'test-map-key',
+      dio: Dio()..httpClientAdapter = transport,
+    );
+    addTearDown(service.dispose);
+    final result = await service.search('residence', gps);
+    expect(transport.request!.path, '/ws/place/v1/search');
+    expect(
+      transport.request!.queryParameters['boundary'],
+      startsWith('nearby(39.901'),
+    );
+    expect(transport.request!.queryParameters['orderby'], '_distance');
+    expect(result.single.latitudeE6, closeTo(gps.latitudeE6, 3));
+    expect(result.single.longitudeE6, closeTo(gps.longitudeE6, 3));
+  });
   test(
     'coordinate adapter agrees with Tencent official public-point samples',
     () {
@@ -91,14 +117,16 @@ void main() {
     };
     final transport = MapTransport({
       'status': 0,
-      'data': [
-        row,
-        row,
-        {
-          'title': 'bad',
-          'location': {'lat': 91, 'lng': 0},
-        },
-      ],
+      'result': {
+        'pois': [
+          row,
+          row,
+          {
+            'title': 'bad',
+            'location': {'lat': 91, 'lng': 0},
+          },
+        ],
+      },
     });
     final dio = Dio()..httpClientAdapter = transport;
     final service = TencentChatPlaceSearch(key: 'test-map-key', dio: dio);
@@ -116,10 +144,18 @@ void main() {
       lessThan(2),
     );
     expect(results.single.name, 'Public test place');
-    expect(transport.request!.path, '/ws/place/v1/here');
+    expect(transport.request!.path, '/ws/geocoder/v1/');
     expect(
-      transport.request!.queryParameters['boundary'],
-      startsWith('nearby(39.901'),
+      transport.request!.queryParameters['location'],
+      startsWith('39.901'),
+    );
+    expect(
+      transport.request!.queryParameters['poi_options'],
+      contains('policy=2'),
+    );
+    expect(
+      transport.request!.queryParameters['poi_options'],
+      contains('page_size=20'),
     );
     expect(
       transport.request!.headers.keys.where(

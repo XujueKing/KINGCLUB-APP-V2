@@ -11,6 +11,7 @@ import '../../../core/design_system/king_notice.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/chat_location.dart';
 import '../data/chat_current_position.dart';
+import '../data/chat_map_coordinates.dart';
 import '../data/chat_media_deletion.dart';
 import '../data/chat_saved_locations.dart';
 
@@ -109,11 +110,14 @@ class _LocationMapPreviewState extends State<_LocationMapPreview> {
     try {
       // The map provider needs coordinates only, never message or member data.
       return await _maps
-          .invokeMethod<Uint8List>('snapshot', {
-            'latitudeE6': widget.location.latitudeE6,
-            'longitudeE6': widget.location.longitudeE6,
-            'coordinateSystem': widget.location.coordinateSystem,
-          })
+          .invokeMethod<Uint8List>(
+            'snapshot',
+            ChatMapCoordinates.appleArguments({
+              'latitudeE6': widget.location.latitudeE6,
+              'longitudeE6': widget.location.longitudeE6,
+              'coordinateSystem': widget.location.coordinateSystem,
+            }),
+          )
           .timeout(const Duration(seconds: 12));
     } catch (_) {
       return null;
@@ -319,11 +323,14 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
             widget.location.longitudeE6 / 1e6,
           ),
         );
-        await _mapView?.invokeMethod('locate', {
-          'latitudeE6': (position.latitude * 1e6).round(),
-          'longitudeE6': (position.longitude * 1e6).round(),
-          'coordinateSystem': 'wgs84',
-        });
+        await _mapView?.invokeMethod(
+          'locate',
+          ChatMapCoordinates.appleArguments({
+            'latitudeE6': (position.latitude * 1e6).round(),
+            'longitudeE6': (position.longitude * 1e6).round(),
+            'coordinateSystem': 'wgs84',
+          }),
+        );
       }
     } catch (error) {
       if (mounted && _valid) {
@@ -432,7 +439,10 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
     if (!_valid || _openingMap) return;
     setState(() => _openingMap = true);
     try {
-      final data = widget.location.toJson()..remove('address');
+      var data = widget.location.toJson()..remove('address');
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        data = ChatMapCoordinates.appleArguments(data);
+      }
       if (mode != null) data['mode'] = mode;
       final opened = await _maps
           .invokeMethod<bool>('open', data)
@@ -525,7 +535,9 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
                         UiKitView(
                           key: ValueKey(_mapGeneration),
                           viewType: 'kingclub/location-map',
-                          creationParams: location.toJson(),
+                          creationParams: ChatMapCoordinates.appleArguments(
+                            location.toJson(),
+                          ),
                           creationParamsCodec: const StandardMessageCodec(),
                           gestureRecognizers: {
                             Factory<OneSequenceGestureRecognizer>(

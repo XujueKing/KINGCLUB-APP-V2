@@ -33,10 +33,10 @@ class TencentChatPlaceSearch implements ChatPlaceSearch {
   @override
   Future<List<ChatLocation>> nearby(ChatLocation center) {
     final point = _point(center);
-    return _get('/ws/place/v1/here', {
-      'boundary': 'nearby(${point.lat},${point.lon},1000)',
-      'policy': 1,
-      'page_size': 10,
+    return _get('/ws/geocoder/v1/', {
+      'location': '${point.lat},${point.lon}',
+      'get_poi': 1,
+      'poi_options': 'radius=1000;page_size=20;page_index=1;policy=2',
     });
   }
 
@@ -47,12 +47,14 @@ class TencentChatPlaceSearch implements ChatPlaceSearch {
       throw StateError('请输入100字以内的地点名称或地址');
     }
     final point = center == null ? null : _point(center);
-    return _get('/ws/place/v1/suggestion', {
+    return _get('/ws/place/v1/search', {
       'keyword': text,
-      'region': '全国',
-      'region_fix': 0,
+      'boundary': point == null
+          ? 'region(全国,0)'
+          : 'nearby(${point.lat},${point.lon},1000,1)',
+      if (point != null) 'orderby': '_distance',
       'page_size': 20,
-      if (point != null) 'location': '${point.lat},${point.lon}',
+      'page_index': 1,
     });
   }
 
@@ -79,11 +81,23 @@ class TencentChatPlaceSearch implements ChatPlaceSearch {
       );
       if (token.isCancelled) throw StateError('地点查询已取消');
       final body = response.data;
-      if (body is! Map || body['status'] != 0 || body['data'] is! List) {
+      if (body is! Map || body['status'] != 0) {
         throw StateError('附近地点服务暂不可用，请重试');
       }
+      final result = body['result'];
+      final reference = result is Map ? result['address_reference'] : null;
+      final rows = path == '/ws/geocoder/v1/' && result is Map
+          ? [
+              if (reference is Map) ...[
+                reference['landmark_l2'],
+                reference['landmark_l1'],
+              ],
+              if (result['pois'] is List) ...(result['pois'] as List),
+            ]
+          : body['data'];
+      if (rows is! List) throw StateError('附近地点服务暂不可用，请重试');
       final unique = <String, ChatLocation>{};
-      for (final row in (body['data'] as List).take(30)) {
+      for (final row in rows.take(30)) {
         if (row is! Map || row['location'] is! Map) continue;
         final position = row['location'] as Map;
         final lat = position['lat'], lon = position['lng'];

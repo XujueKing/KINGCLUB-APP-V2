@@ -24,9 +24,12 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
   private var settlingLocation = false
   private var locationStarted = Date.distantPast
   private var bestLocation: CLLocation?
+  private var bestDisplayCoordinate: CLLocationCoordinate2D?
   private var locationTimer: DispatchWorkItem?
   private var selectionCoordinate: CLLocationCoordinate2D?
   private var lastAnchor: CGPoint?
+  private var mapCoordinateSystem = "wgs84"
+  private var countryOrigin: CLLocation?
 
   init(frame: CGRect, id: Int64, messenger: FlutterBinaryMessenger) {
     map = MKMapView(frame: frame)
@@ -44,14 +47,7 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
       }
       guard let args = call.arguments as? [String: Any] else { result(FlutterMethodNotImplemented); return }
       if call.method == "center", let point = self.coordinate(args) {
-        self.userRegionChange = false
-        self.map.setUserTrackingMode(.none, animated: false)
-        self.selectionCoordinate = point
-        self.positioned = true
-        if args["userLocation"] as? Bool == true { self.map.showsUserLocation = true }
-        self.map.setRegion(MKCoordinateRegion(center: point, latitudinalMeters: 900, longitudinalMeters: 900), animated: false)
-        self.updateAnchor()
-        result(true)
+        self.center(point, args: args, result: result)
       } else if call.method == "locate" {
         self.locate(result)
       } else if call.method == "nearby", let point = self.coordinate(args) {
@@ -65,14 +61,48 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
 
   func view() -> UIView { map }
   private func coordinate(_ args: [String: Any]) -> CLLocationCoordinate2D? {
-    guard args["coordinateSystem"] as? String == "wgs84",
+    guard let system = args["coordinateSystem"] as? String, ["wgs84", "gcj02"].contains(system),
           let lat = args["latitudeE6"] as? NSNumber, let lon = args["longitudeE6"] as? NSNumber else { return nil }
     let point = CLLocationCoordinate2D(latitude: lat.doubleValue / 1e6, longitude: lon.doubleValue / 1e6)
     return CLLocationCoordinate2DIsValid(point) ? point : nil
   }
-  private func location(_ point: CLLocationCoordinate2D, name: String, address: String) -> [String: Any] {
+  private func location(_ point: CLLocationCoordinate2D, name: String, address: String, system: String? = nil) -> [String: Any] {
     ["latitudeE6": Int((point.latitude * 1e6).rounded()), "longitudeE6": Int((point.longitude * 1e6).rounded()),
-     "coordinateSystem": "wgs84", "name": String(name.prefix(100)), "address": String(address.prefix(300))]
+     "coordinateSystem": system ?? mapCoordinateSystem, "name": String(name.prefix(100)), "address": String(address.prefix(300))]
+  }
+  private func center(_ point: CLLocationCoordinate2D, args: [String: Any], result: @escaping FlutterResult) {
+    let requestRevision = start(result)
+    let original = CLLocation(latitude: point.latitude, longitude: point.longitude)
+    let apply: () -> Void = { [weak self] in
+      guard let self = self, self.revision == requestRevision else { return }
+      var display = point
+      if self.mapCoordinateSystem == "gcj02", args["coordinateSystem"] as? String == "wgs84" {
+        guard let alternate = args["alternateGCJ02"] as? [String: Any], let converted = self.coordinate(alternate) else {
+          self.finish(FlutterError(code: "coordinate", message: "缺少地图显示坐标，请重试", details: nil), revision: requestRevision); return
+        }
+        display = converted
+      }
+      self.userRegionChange = false
+      self.map.setUserTrackingMode(.none, animated: false)
+      self.selectionCoordinate = display
+      self.positioned = true
+      if args["userLocation"] as? Bool == true { self.map.showsUserLocation = true }
+      self.map.setRegion(MKCoordinateRegion(center: display, latitudinalMeters: 900, longitudinalMeters: 900), animated: false)
+      self.updateAnchor()
+      self.finish(self.mapCoordinateSystem, revision: requestRevision)
+    }
+    if let origin = countryOrigin, original.distance(from: origin) < 50000 { apply(); return }
+    // Resolve the country, rather than treating the transform's rectangular
+    // bounds (which also contain Thailand and Taiwan) as mainland China.
+    geocoder.reverseGeocodeLocation(original) { [weak self] places, _ in
+      guard let self = self, self.revision == requestRevision else { return }
+      guard let country = places?.first?.isoCountryCode else {
+        self.finish(FlutterError(code: "coordinate", message: "暂时无法识别地图区域，请重试", details: nil), revision: requestRevision); return
+      }
+      self.mapCoordinateSystem = country == "CN" ? "gcj02" : "wgs84"
+      self.countryOrigin = original
+      apply()
+    }
   }
   private func address(_ place: CLPlacemark?) -> String {
     guard let place = place else { return "" }
@@ -83,7 +113,7 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
   private func cancel() {
     revision += 1
     search?.cancel(); search = nil; geocoder.cancelGeocode()
-    locating = false; settlingLocation = false; bestLocation = nil
+    locating = false; settlingLocation = false; bestLocation = nil; bestDisplayCoordinate = nil
     locationTimer?.cancel(); locationTimer = nil
     let callback = pending; pending = nil
     callback?(FlutterError(code: "cancelled", message: "Location request superseded", details: nil))
@@ -117,8 +147,11 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
   }
   private func accept(_ point: CLLocation, revision: Int) {
     guard locating, revision == self.revision, usable(point) else { return }
-    if bestLocation == nil || point.horizontalAccuracy < bestLocation!.horizontalAccuracy { bestLocation = point }
-    if point.horizontalAccuracy <= 50 { completeLocation(point, revision: revision) }
+    if bestLocation == nil || point.horizontalAccuracy <= bestLocation!.horizontalAccuracy {
+      bestLocation = point
+      bestDisplayCoordinate = map.userLocation.coordinate
+    }
+    if point.horizontalAccuracy <= 50, !settlingLocation { completeLocation(point, revision: revision) }
   }
   private func completeLocation(_ point: CLLocation, revision: Int) {
     guard locating, !settlingLocation else { return }
@@ -131,22 +164,33 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
     // the selected message coordinate stayed at an earlier fix.
     let snapshot = DispatchWorkItem { [weak self] in
       guard let self = self, self.locating, self.revision == revision else { return }
-      let live = self.map.userLocation.location ?? point
+      let live = self.bestLocation ?? self.map.userLocation.location ?? point
       guard self.usable(live) else {
         self.locating = false; self.settlingLocation = false
         self.finish(FlutterError(code: "location", message: "地图位置已失效，请重新定位", details: nil), revision: revision)
         return
       }
-      let selected = self.map.userLocation.coordinate
+      // MKUserLocation's annotation coordinate is the blue dot's actual map
+      // coordinate. Do not substitute an independent CoreLocation raw fix.
+      let selected = self.bestDisplayCoordinate ?? self.map.userLocation.coordinate
       self.map.setUserTrackingMode(.none, animated: false)
+      self.map.setRegion(MKCoordinateRegion(center: selected, latitudinalMeters: 900, longitudinalMeters: 900), animated: false)
       self.selectionCoordinate = selected
       self.updateAnchor()
       self.locating = false; self.settlingLocation = false; self.locationTimer = nil
-      self.finish(["location": self.location(selected, name: "当前位置", address: ""),
-                   "accuracyMeters": live.horizontalAccuracy], revision: revision)
+      self.geocoder.reverseGeocodeLocation(live) { [weak self] places, _ in
+        guard let self = self, self.revision == revision else { return }
+        guard let country = places?.first?.isoCountryCode else {
+          self.finish(FlutterError(code: "coordinate", message: "暂时无法识别地图区域，请重新定位", details: nil), revision: revision); return
+        }
+        self.mapCoordinateSystem = country == "CN" ? "gcj02" : "wgs84"
+        self.countryOrigin = live
+        self.finish(["location": self.location(selected, name: "当前位置", address: ""),
+                     "accuracyMeters": live.horizontalAccuracy], revision: revision)
+      }
     }
     locationTimer = snapshot
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: snapshot)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: snapshot)
   }
   func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
     if let point = userLocation.location { accept(point, revision: revision) }
@@ -205,7 +249,9 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
       guard CLLocationCoordinate2DIsValid(point), let name = item.name, !name.isEmpty else { return nil }
       let key = "\(Int(point.latitude * 1e6)):\(Int(point.longitude * 1e6)):\(name)"
       guard seen.insert(key).inserted else { return nil }
-      return location(point, name: name, address: address(item.placemark))
+      let country = item.placemark.isoCountryCode
+      return location(point, name: name, address: address(item.placemark),
+                      system: country.map { $0 == "CN" ? "gcj02" : "wgs84" })
     }
   }
   func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {

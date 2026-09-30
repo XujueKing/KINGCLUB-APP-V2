@@ -4,6 +4,24 @@ import 'dart:math' as math;
 /// assets/licenses/eviltransform.txt. Only used at the Tencent GCJ02 boundary;
 /// MapKit GPS and the stored WGS84 message must never be transformed twice.
 class ChatMapCoordinates {
+  /// The native Apple bridge chooses by the placemark's country, never by
+  /// the conversion algorithm's rectangular bounds alone.
+  static Map<String, dynamic> appleArguments(Map<String, dynamic> coordinate) {
+    if (coordinate['coordinateSystem'] != 'wgs84') return coordinate;
+    final point = toTencent(
+      (coordinate['latitudeE6'] as num).toDouble() / 1e6,
+      (coordinate['longitudeE6'] as num).toDouble() / 1e6,
+    );
+    return {
+      ...coordinate,
+      'alternateGCJ02': {
+        'latitudeE6': (point.lat * 1e6).round(),
+        'longitudeE6': (point.lon * 1e6).round(),
+        'coordinateSystem': 'gcj02',
+      },
+    };
+  }
+
   static bool _outside(double lat, double lon) =>
       lon < 72.004 || lon > 137.8347 || lat < .8293 || lat > 55.8271;
 

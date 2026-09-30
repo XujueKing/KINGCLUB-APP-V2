@@ -37,6 +37,24 @@ class CoarsePlatform extends GeolocatorPlatform {
 }
 
 void main() {
+  test('collects a better fix during the short settling window instead of taking the first 40m sample', () async {
+    final now = DateTime.utc(2026, 10, 1);
+    var cancelled = false;
+    final source = StreamController<Position>(onCancel: () => cancelled = true);
+    final pending = ChatCurrentPosition.selectFix(
+      source.stream,
+      settling: const Duration(milliseconds: 30),
+      clock: () => now,
+    );
+    source.add(fix(now, 40));
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    final better = fix(now, 6);
+    source.add(better);
+    source.add(fix(now, 30));
+    expect(await pending, same(better));
+    expect(cancelled, true);
+    await source.close();
+  });
   test('software-simulated positions are never presented as current physical location', () async {
     final now = DateTime.utc(2026, 10, 1);
     final real = fix(now, 18);
