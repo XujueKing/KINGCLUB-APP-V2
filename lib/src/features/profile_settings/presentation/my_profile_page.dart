@@ -203,7 +203,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
         final toolbarHeight =
             MediaQuery.paddingOf(context).top +
             math.max(
-              6 + 60 * scale,
+              math.max(49, 6 + 60 * scale),
               17 + MediaQuery.textScalerOf(context).scale(16),
             );
         final textScale = MediaQuery.textScalerOf(context).scale(1);
@@ -394,7 +394,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
   Widget _buildTopTools() {
     final scale = _legacyScale;
-    final height = math.max(32.0, 42 * scale);
+    final height = math.max(44.0, 42 * scale);
     return Positioned(
       left: 20 * scale,
       right: 20 * scale,
@@ -481,6 +481,20 @@ class _MyProfilePageState extends State<MyProfilePage> {
                 ),
               ),
             ),
+            TextButton(
+              key: const ValueKey('my-profile-orders-shortcut'),
+              onPressed: _showOrders,
+              style: TextButton.styleFrom(
+                foregroundColor: _warmWhite,
+                minimumSize: const Size(64, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: Text(_ordersLabel),
+            ),
             _assetTool(
               key: const ValueKey('my-profile-settings'),
               imageKey: const ValueKey('my-profile-settings-image'),
@@ -495,6 +509,17 @@ class _MyProfilePageState extends State<MyProfilePage> {
         ),
       ),
     );
+  }
+
+  String get _ordersLabel {
+    final locale = Localizations.localeOf(context);
+    if (locale.languageCode == 'en') return 'Orders';
+    if (locale.languageCode == 'th') return 'คำสั่งซื้อ';
+    if (locale.scriptCode == 'Hant' ||
+        ['TW', 'HK', 'MO'].contains(locale.countryCode)) {
+      return '我的訂單';
+    }
+    return '我的订单';
   }
 
   Widget _assetTool({

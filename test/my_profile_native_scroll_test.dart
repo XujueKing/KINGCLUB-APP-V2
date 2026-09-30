@@ -59,14 +59,30 @@ void main() {
           .controller!;
       scroll.jumpTo(scroll.position.maxScrollExtent);
       await tester.pump();
-      expect(tester.getTopLeft(menu).dy, closeTo(44 + 6 + 60 * 393 / 750, .1));
+      expect(
+        tester.getTopLeft(menu).dy,
+        closeTo(
+          tester
+              .getBottomRight(find.byKey(const ValueKey('my-profile-settings')))
+              .dy,
+          .1,
+        ),
+      );
       await tester.tap(find.byKey(const ValueKey('my-profile-tab-相册')));
       await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('my-profile-selected-tab-arrow-相册')),
         findsOneWidget,
       );
-      expect(tester.getTopLeft(menu).dy, closeTo(44 + 6 + 60 * 393 / 750, .1));
+      expect(
+        tester.getTopLeft(menu).dy,
+        closeTo(
+          tester
+              .getBottomRight(find.byKey(const ValueKey('my-profile-settings')))
+              .dy,
+          .1,
+        ),
+      );
       await tester.drag(
         find.byKey(const ValueKey('my-profile-pages')),
         const Offset(300, 0),
