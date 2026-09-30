@@ -36,9 +36,9 @@ class ProfileRepository {
     return result;
   }
 
-  Future<Map<String, dynamic>> memberQr() {
+  Future<Map<String, dynamic>> memberQr({bool forceRefresh = false}) {
     final cached = MemberQrMemory.valid;
-    if (cached != null && (cached['ttlSeconds'] as int) > 60) {
+    if (!forceRefresh && cached != null && (cached['ttlSeconds'] as int) > 60) {
       return Future.value(cached);
     }
     return MemberQrMemory.pending ??= _fetchQr();

@@ -44,4 +44,10 @@ void main() {
     await r.memberQr();
     expect(r.calls, 1);
   });
+  test('explicit refresh revalidates with server despite cached TTL', () async {
+    final r = Repo();
+    await r.memberQr();
+    await r.memberQr(forceRefresh: true);
+    expect(r.calls, 2);
+  });
 }

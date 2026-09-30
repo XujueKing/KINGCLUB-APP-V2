@@ -70,4 +70,21 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('failed refresh removes the previous scannable QR', (
+    tester,
+  ) async {
+    final repo = _Repo();
+    await tester.pumpWidget(
+      MaterialApp(home: RealPersonalQrPage(repository: repo)),
+    );
+    await tester.pump();
+    expect(find.byType(QrImageView), findsOneWidget);
+    repo.pending = Completer();
+    await tester.tap(find.byKey(const ValueKey('real-member-qr-surface')));
+    await tester.pump();
+    repo.pending!.completeError(StateError('session expired'));
+    await tester.pump();
+    expect(find.byType(QrImageView), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
 }

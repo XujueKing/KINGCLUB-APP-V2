@@ -46,7 +46,7 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
       }
     }
     if (_profile == null || _avatar == null) _loadProfile();
-    if (_code == null || _remaining <= 60) _refresh();
+    _refresh();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && _foreground) {
         setState(() {});
@@ -77,7 +77,7 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
       _error = null;
     });
     try {
-      final r = await _repo.memberQr();
+      final r = await _repo.memberQr(forceRefresh: true);
       if (!mounted || gen != _generation || !_foreground) return;
       setState(() {
         _code = r['code'] as String;
@@ -86,7 +86,13 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
       });
     } catch (_) {
       if (mounted && gen == _generation) {
-        setState(() => _error = '二维码获取失败，请检查网络后重试');
+        if (widget.repository == null) MemberQrMemory.clearPresentation();
+        setState(() {
+          _code = null;
+          _validity = null;
+          _ttl = 0;
+          _error = '二维码获取失败，请刷新重试；登录过期时请重新登录';
+        });
       }
     } finally {
       if (mounted && gen == _generation) setState(() => _busy = false);
