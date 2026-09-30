@@ -11,6 +11,7 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private var navigationBar: AppNavigationBar? = null
     private var nearby: NearbyLanDiscovery? = null
     private var export: ChatFileExport? = null
     private var videoUpload: ChatVideoUpload? = null
@@ -29,6 +30,11 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         sanitizeLocalNotification(intent)
         super.onCreate(savedInstanceState)
+        navigationBar = AppNavigationBar(window)
+    }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) navigationBar?.focus()
     }
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -136,18 +142,22 @@ class MainActivity : FlutterActivity() {
     }
     override fun onResume() {
         super.onResume()
+        navigationBar?.resume()
         locationMaps?.resume()
         pushOpen?.accept(intent)
         foreground = true
         ChatConnectionService.foreground(true)
     }
     override fun onPause() {
+        navigationBar?.pause()
         locationMaps?.pause()
         foreground = false
         ChatConnectionService.foreground(false)
         super.onPause()
     }
     override fun onDestroy() {
+        navigationBar?.dispose()
+        navigationBar = null
         locationMaps?.dispose()
         locationMaps = null
         pushOpen?.close()

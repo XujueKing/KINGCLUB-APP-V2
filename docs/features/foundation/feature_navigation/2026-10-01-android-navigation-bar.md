@@ -1,0 +1,15 @@
+# Android 底部系统导航栏自动隐藏
+
+用户希望 KINGCLUB 不显示底部方形、圆形、三角形系统三键。仅控制本 App 的窗口，顶部状态栏保持原有行为；不更改手机全局导航方式，底边滑动可临时显示系统导航并正常退出。
+
+当前目标 SDK 36，Flutter 旧 SystemUiMode 非 edgeToEdge 模式已不适用，采用 Android 官方 WindowInsetsControllerCompat.hide(navigationBars)，并指定 BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE。官方依据：https://developer.android.com/develop/ui/views/layout/immersive 。
+
+MainActivity 创建、恢复前台、恢复窗口焦点时请求隐藏；键盘显示期间交由系统处理，关闭后延迟 1.2 秒恢复隐藏，避开系统键盘切换保护期。不持续抢占用户滑出的导航栏，不屏蔽返回/Home/最近任务。监听只观察 IME 可见性并原样返回 Insets，不消费 Flutter 的布局 Insets。暂停时取消延迟任务，销毁时移除监听，避免后台窗口操作或引用泄漏。第三方相册、支付、地图 App 的窗口由各自应用管理。
+
+验证计划：Android 原生编译和完整预览包构建；保留数据覆盖安装到已授权 A（462606d8），确认系统导航隐藏且状态栏正常、页面切换正常、滑出导航可返回桌面、重新进入恢复隐藏、输入键盘开关正常。IME/滑动需真机核对，不能仅以构建成功认定验收。iPhone 不受此 Android 原生改动影响。
+
+## 验证结果
+
+2026-10-01 Android 完整 Preview/Profile ARM64 构建成功（Gradle 137.1 秒），保留已验证的 NovoRUDP、中继、推送和地图配置；APK SHA256：5E7B1E557BA2D6136EACD2D14108E65533DB36FD12C24B7EE94C8159415CD9E3。安装前核对包名 com.lingmei.kingclub、新旧签名证书一致，A 上覆盖安装和启动成功，未卸载、未清数据。
+
+A 为 Android 12、应用 targetSdk=36。真机截图确认首页与聊天列表三键隐藏、状态栏正常；底边上滑显示透明系统三键；系统 Home 后重新进入和页面切换均恢复隐藏；搜索框正常打开键盘，系统导航栏在 IME 期间可见，Back 关闭键盘后恢复隐藏。仅操作空搜索框，未发送消息或修改资料。截图仅保存本机私有验证目录，不上传 Git。其他 Android 版本/厂商尚未逐台实测；键盘、系统弹窗和其他 App 仍可按系统规则临时显示导航栏。
