@@ -26,6 +26,9 @@ import MapKit
     mapPreview = AppleChatMapPreview(messenger: engineBridge.applicationRegistrar.messenger())
     chatMap = AppleChatMapNavigation(messenger: engineBridge.applicationRegistrar.messenger())
     engineBridge.applicationRegistrar.register(
+      ChatLocationPickerMapFactory(messenger: engineBridge.applicationRegistrar.messenger()),
+      withId: "kingclub/location-picker-map")
+    engineBridge.applicationRegistrar.register(
       AppleChatMapFactory(messenger: engineBridge.applicationRegistrar.messenger()),
       withId: "kingclub/location-map")
     chatPush = AppleChatPush(messenger: engineBridge.applicationRegistrar.messenger())
