@@ -361,7 +361,16 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
           // Unknown result: preserve the saved attempt and channel lock.
         }
       }
-      if (mounted) setState(() => _message = error.message);
+      if (mounted) {
+        setState(() => _message = error.code == 'ORDERING_OUT_OF_STOCK'
+          ? _paymentText([
+              '商品已售罄，未发起扣款，请返回修改订单。',
+              'Item sold out. No charge was initiated. Go back to change the order.',
+              '商品已售罄，未發起扣款，請返回修改訂單。',
+              'สินค้าหมด ยังไม่ได้เรียกเก็บเงิน โปรดย้อนกลับไปแก้ไขคำสั่งซื้อ',
+            ])
+          : error.message);
+      }
     } on MissingPluginException catch (_) {
       if (mounted) {
         setState(() {
