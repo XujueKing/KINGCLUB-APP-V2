@@ -113,7 +113,7 @@ void main() {
         );
         expect(
           900 - tester.getBottomLeft(bar).dy,
-          closeTo(width * 12 / 750, 0.001),
+          closeTo(tester.getTopLeft(bar).dx, 0.001),
         );
         expect(find.byKey(const ValueKey('content-heart')), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('储物袋，标签'));

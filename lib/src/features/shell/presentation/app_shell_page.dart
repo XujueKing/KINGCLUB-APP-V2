@@ -597,10 +597,11 @@ class _LegacyBottomBar extends StatelessWidget {
     builder: (context, constraints) {
       final unit = constraints.maxWidth / 750;
       final barHeight = 120 * unit - 1;
-      // Keep a small visual gap above the actual system navigation area.
-      // The mini-program's fixed 80rpx gap over-reserves space on Android.
+      // Match the capsule's side margin when the navigation bar is hidden.
+      // Retain the existing clearance when a system safe area is larger.
+      final sideGap = constraints.maxWidth * 0.05;
       final bottomGap = (MediaQuery.paddingOf(context).bottom + 8 * unit).clamp(
-        12 * unit,
+        sideGap,
         double.infinity,
       );
       // Share the legacy indicator centers with the icon hit areas.
