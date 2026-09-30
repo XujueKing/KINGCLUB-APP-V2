@@ -308,355 +308,359 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: ThemeData(
-      brightness: Brightness.light,
-      colorSchemeSeed: const Color(0xFF07C160),
-    ),
-    child: Scaffold(
-      backgroundColor: Colors.white,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final panelHeight = (MediaQuery.sizeOf(context).height * .36).clamp(
-            0.0,
-            constraints.maxHeight * .72,
-          );
-          return Column(
-            children: [
-              Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (_nativeMap && !_invalid)
-                      UiKitView(
-                        viewType: 'kingclub/location-picker-map',
-                        creationParamsCodec: const StandardMessageCodec(),
-                        gestureRecognizers: {
-                          Factory<OneSequenceGestureRecognizer>(
-                            () => EagerGestureRecognizer(),
-                          ),
-                        },
-                        onPlatformViewCreated: _attachMap,
-                      )
-                    else
-                      ColoredBox(
-                        color: const Color(0xFFF4F4F4),
-                        child: constraints.maxHeight - panelHeight < 160
-                            ? const SizedBox.shrink()
-                            : Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 30,
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.map_outlined,
-                                        size: 36,
-                                        color: Color(0xFF888888),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        _invalid ? '登录状态已变化' : '此设备暂未接入内嵌地图',
-                                        style: const TextStyle(
-                                          color: Color(0xFF777777),
-                                        ),
-                                      ),
-                                      if (_results.isNotEmpty)
-                                        TextButton(
-                                          onPressed:
-                                              _invalid ||
-                                                  _busy ||
-                                                  _sending ||
-                                                  _openingMap
-                                              ? null
-                                              : () => _preview(
-                                                  _selected ?? _results.first,
-                                                ),
-                                          child: const Text('在系统地图中查看'),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                      ),
-                    if (_nativeMap &&
-                        !_invalid &&
-                        constraints.maxHeight - panelHeight >= 160)
-                      const IgnorePointer(
-                        child: Center(
-                          child: Padding(
-                            padding: EdgeInsets.only(bottom: 54),
-                            child: Icon(
-                              Icons.location_on,
-                              size: 54,
-                              color: Color(0xFF07C160),
-                            ),
-                          ),
-                        ),
-                      ),
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: MediaQuery.paddingOf(context).top + 74,
-                      child: const IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Color(0xCCFFFFFF), Color(0x00FFFFFF)],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: MediaQuery.paddingOf(context).top + 8,
-                      left: 8,
-                      right: 16,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TextButton(
-                            onPressed: _sending
-                                ? null
-                                : () => Navigator.pop(context),
-                            style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFF222222),
-                              minimumSize: const Size(64, 44),
-                            ),
-                            child: const Text(
-                              '取消',
-                              style: TextStyle(fontSize: 18),
-                            ),
-                          ),
-                          FilledButton(
-                            onPressed:
-                                _selected == null ||
-                                    _invalid ||
-                                    _busy ||
-                                    _sending
-                                ? null
-                                : _confirm,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFF07C160),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                              ),
-                              minimumSize: const Size(64, 36),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                            child: Text(
-                              _sending ? '发送中' : '发送',
-                              style: const TextStyle(fontSize: 17),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (constraints.maxHeight - panelHeight >= 160)
-                      Positioned(
-                        bottom: 30,
-                        left: 16,
-                        child: Material(
-                          color: Colors.white,
-                          elevation: 1,
-                          borderRadius: BorderRadius.circular(8),
-                          child: IconButton(
-                            tooltip: '使用当前位置',
-                            onPressed: _invalid || _busy || _sending
-                                ? null
-                                : () => _load(true),
-                            color: const Color(0xFF222222),
-                            icon: const Icon(Icons.my_location, size: 25),
-                          ),
-                        ),
-                      ),
-                    if (_nativeMap && _mapStatus == 'failed')
-                      Positioned(
-                        left: 74,
-                        right: 16,
-                        bottom: 32,
-                        child: const Text(
-                          '地图加载失败，请检查网络后重新进入',
-                          style: TextStyle(color: Color(0xFF555555)),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              SizedBox(
-                height: panelHeight,
-                child: SafeArea(
-                  top: false,
-                  child: Column(
+  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+    value: SystemUiOverlayStyle.dark,
+    child: Theme(
+      data: ThemeData(
+        brightness: Brightness.light,
+        colorSchemeSeed: const Color(0xFF07C160),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final panelHeight = (MediaQuery.sizeOf(context).height * .36).clamp(
+              0.0,
+              constraints.maxHeight * .72,
+            );
+            return Column(
+              children: [
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                        child: TextField(
-                          controller: _query,
-                          enabled: !_invalid && !_sending,
-                          textInputAction: TextInputAction.search,
-                          onSubmitted: (_) => _load(false),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Color(0xFF222222),
+                      if (_nativeMap && !_invalid)
+                        UiKitView(
+                          viewType: 'kingclub/location-picker-map',
+                          creationParamsCodec: const StandardMessageCodec(),
+                          gestureRecognizers: {
+                            Factory<OneSequenceGestureRecognizer>(
+                              () => EagerGestureRecognizer(),
+                            ),
+                          },
+                          onPlatformViewCreated: _attachMap,
+                        )
+                      else
+                        ColoredBox(
+                          color: const Color(0xFFF4F4F4),
+                          child: constraints.maxHeight - panelHeight < 160
+                              ? const SizedBox.shrink()
+                              : Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 30,
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.map_outlined,
+                                          size: 36,
+                                          color: Color(0xFF888888),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          _invalid ? '登录状态已变化' : '此设备暂未接入内嵌地图',
+                                          style: const TextStyle(
+                                            color: Color(0xFF777777),
+                                          ),
+                                        ),
+                                        if (_results.isNotEmpty)
+                                          TextButton(
+                                            onPressed:
+                                                _invalid ||
+                                                    _busy ||
+                                                    _sending ||
+                                                    _openingMap
+                                                ? null
+                                                : () => _preview(
+                                                    _selected ?? _results.first,
+                                                  ),
+                                            child: const Text('在系统地图中查看'),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      if (_nativeMap &&
+                          !_invalid &&
+                          constraints.maxHeight - panelHeight >= 160)
+                        const IgnorePointer(
+                          child: Center(
+                            child: Padding(
+                              padding: EdgeInsets.only(bottom: 54),
+                              child: Icon(
+                                Icons.location_on,
+                                size: 54,
+                                color: Color(0xFF07C160),
+                              ),
+                            ),
                           ),
-                          decoration: InputDecoration(
-                            hintText: '搜索地点',
-                            hintStyle: const TextStyle(
-                              color: Color(0xFF999999),
-                              fontSize: 16,
-                            ),
-                            filled: true,
-                            fillColor: const Color(0xFFEDEDED),
-                            isDense: true,
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: Color(0xFF999999),
-                              size: 22,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              borderSide: BorderSide.none,
+                        ),
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: MediaQuery.paddingOf(context).top + 74,
+                        child: const IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Color(0xCCFFFFFF), Color(0x00FFFFFF)],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                      if (_busy)
-                        const SizedBox(
-                          height: 2,
-                          child: LinearProgressIndicator(
-                            color: Color(0xFF07C160),
-                          ),
-                        ),
-                      if (_accuracyLabel != null && _error == null)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              _accuracyLabel!,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF999999),
+                      Positioned(
+                        top: MediaQuery.paddingOf(context).top + 8,
+                        left: 8,
+                        right: 16,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextButton(
+                              onPressed: _sending
+                                  ? null
+                                  : () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFF222222),
+                                minimumSize: const Size(64, 44),
                               ),
+                              child: const Text(
+                                '取消',
+                                style: TextStyle(fontSize: 18),
+                              ),
+                            ),
+                            FilledButton(
+                              onPressed:
+                                  _selected == null ||
+                                      _invalid ||
+                                      _busy ||
+                                      _sending
+                                  ? null
+                                  : _confirm,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFF07C160),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                ),
+                                minimumSize: const Size(64, 36),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                              child: Text(
+                                _sending ? '发送中' : '发送',
+                                style: const TextStyle(fontSize: 17),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (constraints.maxHeight - panelHeight >= 160)
+                        Positioned(
+                          bottom: 30,
+                          left: 16,
+                          child: Material(
+                            color: Colors.white,
+                            elevation: 1,
+                            borderRadius: BorderRadius.circular(8),
+                            child: IconButton(
+                              tooltip: '使用当前位置',
+                              onPressed: _invalid || _busy || _sending
+                                  ? null
+                                  : () => _load(true),
+                              color: const Color(0xFF222222),
+                              icon: const Icon(Icons.my_location, size: 25),
                             ),
                           ),
                         ),
-                      if (_error != null)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _error!,
-                                  style: const TextStyle(
-                                    color: Color(0xFF777777),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: '定位权限设置',
-                                onPressed: _invalid
-                                    ? null
-                                    : Geolocator.openAppSettings,
-                                icon: const Icon(
-                                  Icons.settings_outlined,
-                                  size: 18,
-                                ),
-                              ),
-                            ],
+                      if (_nativeMap && _mapStatus == 'failed')
+                        Positioned(
+                          left: 74,
+                          right: 16,
+                          bottom: 32,
+                          child: const Text(
+                            '地图加载失败，请检查网络后重新进入',
+                            style: TextStyle(color: Color(0xFF555555)),
                           ),
                         ),
-                      Expanded(
-                        child: _results.isEmpty && !_busy && _error == null
-                            ? const Center(
-                                child: Text(
-                                  '移动地图或搜索地点',
-                                  style: TextStyle(
-                                    color: Color(0xFF999999),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              )
-                            : ListView.separated(
-                                padding: EdgeInsets.zero,
-                                itemCount: _results.length,
-                                separatorBuilder: (_, _) => const Divider(
-                                  height: 1,
-                                  thickness: .5,
-                                  color: Color(0xFFEDEDED),
-                                ),
-                                itemBuilder: (context, index) {
-                                  final location = _results[index];
-                                  final selected =
-                                      _selected?.sameAs(location) ?? false;
-                                  return ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 2,
-                                    ),
-                                    onTap: _sending || _busy || _invalid
-                                        ? null
-                                        : () => _select(location),
-                                    title: Text(
-                                      location.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Color(0xFF222222),
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      _subtitle(location),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Color(0xFF999999),
-                                        fontSize: 12,
-                                        height: 1.7,
-                                      ),
-                                    ),
-                                    trailing: selected
-                                        ? const Icon(
-                                            Icons.check,
-                                            color: Color(0xFF07C160),
-                                            size: 26,
-                                          )
-                                        : null,
-                                  );
-                                },
-                              ),
-                      ),
                     ],
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+                SizedBox(
+                  height: panelHeight,
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: TextField(
+                            controller: _query,
+                            enabled: !_invalid && !_sending,
+                            textInputAction: TextInputAction.search,
+                            onSubmitted: (_) => _load(false),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF222222),
+                            ),
+                            decoration: InputDecoration(
+                              hintText: '搜索地点',
+                              hintStyle: const TextStyle(
+                                color: Color(0xFF999999),
+                                fontSize: 16,
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFFEDEDED),
+                              isDense: true,
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: Color(0xFF999999),
+                                size: 22,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (_busy)
+                          const SizedBox(
+                            height: 2,
+                            child: LinearProgressIndicator(
+                              color: Color(0xFF07C160),
+                            ),
+                          ),
+                        if (_accuracyLabel != null && _error == null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                _accuracyLabel!,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF999999),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (_error != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _error!,
+                                    style: const TextStyle(
+                                      color: Color(0xFF777777),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: '定位权限设置',
+                                  onPressed: _invalid
+                                      ? null
+                                      : Geolocator.openAppSettings,
+                                  icon: const Icon(
+                                    Icons.settings_outlined,
+                                    size: 18,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Expanded(
+                          child: _results.isEmpty && !_busy && _error == null
+                              ? const Center(
+                                  child: Text(
+                                    '移动地图或搜索地点',
+                                    style: TextStyle(
+                                      color: Color(0xFF999999),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: _results.length,
+                                  separatorBuilder: (_, _) => const Divider(
+                                    height: 1,
+                                    thickness: .5,
+                                    color: Color(0xFFEDEDED),
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final location = _results[index];
+                                    final selected =
+                                        _selected?.sameAs(location) ?? false;
+                                    return ListTile(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 2,
+                                          ),
+                                      onTap: _sending || _busy || _invalid
+                                          ? null
+                                          : () => _select(location),
+                                      title: Text(
+                                        location.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF222222),
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        _subtitle(location),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF999999),
+                                          fontSize: 12,
+                                          height: 1.7,
+                                        ),
+                                      ),
+                                      trailing: selected
+                                          ? const Icon(
+                                              Icons.check,
+                                              color: Color(0xFF07C160),
+                                              size: 26,
+                                            )
+                                          : null,
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     ),
   );
