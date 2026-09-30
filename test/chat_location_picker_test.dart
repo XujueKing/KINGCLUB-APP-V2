@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_location.dart';
 import 'package:kingclub/src/features/messaging/data/chat_location_lookup.dart';
@@ -30,7 +31,118 @@ class Lookup implements ChatLocationLookup {
       pending == null ? [place] : await pending!.future;
 }
 
+class PrecisePlatform extends GeolocatorPlatform {
+  @override
+  Future<bool> isLocationServiceEnabled() async => true;
+  @override
+  Future<LocationPermission> checkPermission() async =>
+      LocationPermission.whileInUse;
+  @override
+  Future<LocationAccuracyStatus> getLocationAccuracy() async =>
+      LocationAccuracyStatus.precise;
+}
+
+class MapOnlyLookup extends NativeChatLocationLookup {
+  @override
+  Future<ChatLocation> current() async =>
+      throw StateError('Independent GPS must not be used');
+  @override
+  Future<ChatLocation> currentCoordinate() async =>
+      throw StateError('Independent GPS must not be used');
+}
+
 void main() {
+  for (final cachedGps in [true, false]) {
+    testWidgets(
+      'restored ${cachedGps ? 'GPS' : 'manual'} draft queries places and respects map authority',
+      (tester) async {
+        final original = GeolocatorPlatform.instance;
+        GeolocatorPlatform.instance = PrecisePlatform();
+        addTearDown(() => GeolocatorPlatform.instance = original);
+        final cached = ChatLocation.fromJson({
+          ...place.toJson(),
+          'name': cachedGps ? '当前位置' : '原手动选择',
+        });
+        final live = ChatLocation.fromJson({
+          ...place.toJson(),
+          'latitudeE6': 28010000,
+          'name': '当前位置',
+        });
+        final poi = ChatLocation.fromJson({
+          ...place.toJson(),
+          'name': 'Nearby real candidate',
+        });
+        MethodChannel? channel;
+        var locateCalls = 0, nearbyCalls = 0, saved = 0, sent = 0;
+        ChatLocation? queried;
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform_views,
+          (call) async {
+            if (call.method == 'create') {
+              channel = MethodChannel(
+                'kingclub/location-picker-map/${call.arguments['id']}',
+              );
+              tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+                channel!,
+                (call) async {
+                  if (call.method == 'locate') {
+                    locateCalls++;
+                    return {'location': live.toJson(), 'accuracyMeters': 12};
+                  }
+                  if (call.method == 'nearby') {
+                    nearbyCalls++;
+                    queried = ChatLocation.fromJson(
+                      Map<String, dynamic>.from(call.arguments),
+                    );
+                    return [queried!.toJson(), poi.toJson()];
+                  }
+                  return null;
+                },
+              );
+            }
+            return null;
+          },
+        );
+        addTearDown(() {
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            SystemChannels.platform_views,
+            null,
+          );
+          if (channel != null) {
+            tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+              channel!,
+              null,
+            );
+          }
+        });
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ChatLocationPickerPage(
+              lookup: MapOnlyLookup(),
+              initialSelection: cached,
+              onSelectionChanged: (_) async => saved++,
+              onConfirm: (_) async => sent++,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(locateCalls, cachedGps ? 1 : 0);
+        expect(nearbyCalls, 1);
+        expect(queried!.sameAs(cachedGps ? live : cached), true);
+        expect(find.text('Nearby real candidate'), findsOneWidget);
+        expect(
+          saved,
+          cachedGps ? 1 : 0,
+          reason:
+              'Restoring a manual draft must preserve its durable message ID',
+        );
+        expect(sent, 0);
+        await tester.pumpWidget(const SizedBox());
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+  }
+
   testWidgets(
     'native map dragging changes selection but never sends; stale results are rejected',
     (tester) async {

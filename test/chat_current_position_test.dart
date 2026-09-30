@@ -4,18 +4,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:kingclub/src/features/messaging/data/chat_current_position.dart';
 
-Position fix(DateTime timestamp, double accuracy) => Position(
-  longitude: 113,
-  latitude: 28,
-  timestamp: timestamp,
-  accuracy: accuracy,
-  altitude: 0,
-  altitudeAccuracy: 0,
-  heading: 0,
-  headingAccuracy: 0,
-  speed: 0,
-  speedAccuracy: 0,
-);
+Position fix(DateTime timestamp, double accuracy, {bool mocked = false}) =>
+    Position(
+      longitude: 113,
+      latitude: 28,
+      timestamp: timestamp,
+      accuracy: accuracy,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+      isMocked: mocked,
+    );
 
 class CoarsePlatform extends GeolocatorPlatform {
   int subscriptions = 0;
@@ -35,6 +37,17 @@ class CoarsePlatform extends GeolocatorPlatform {
 }
 
 void main() {
+  test('software-simulated positions are never presented as current physical location', () async {
+    final now = DateTime.utc(2026, 10, 1);
+    final real = fix(now, 18);
+    expect(
+      await ChatCurrentPosition.selectFix(
+        Stream.fromIterable([fix(now, 1, mocked: true), real]),
+        clock: () => now,
+      ),
+      same(real),
+    );
+  });
   test('rejects stale and kilometre-wide fixes while waiting for a new precise fix', () async {
     final now = DateTime.utc(2026, 10, 1);
     final precise = fix(now, 12);

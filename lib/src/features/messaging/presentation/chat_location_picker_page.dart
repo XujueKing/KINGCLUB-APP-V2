@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/chat_location.dart';
 import '../data/chat_location_lookup.dart';
+import '../data/chat_current_position.dart';
 
 /// Selecting a candidate never sends it; the explicit confirm returns it.
 class ChatLocationPickerPage extends StatefulWidget {
@@ -93,12 +94,18 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
       }
     });
     final initial = _selected;
-    if (initial != null) {
-      unawaited(_center(initial));
+    if (initial != null && initial.name != '当前位置') {
+      unawaited(_restoreSelection(initial));
     } else {
-      // Opening the send-location picker is the user's location request.
+      // A saved GPS fix is a draft, never evidence of the current position.
       unawaited(_load(true));
     }
+  }
+
+  Future<void> _restoreSelection(ChatLocation initial) async {
+    await _center(initial);
+    if (!mounted || _invalid) return;
+    await _nearby(initial, preserveSelection: true);
   }
 
   Future<void> _center(
@@ -133,7 +140,31 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
         .toList();
   }
 
-  Future<void> _nearby(ChatLocation center) async {
+  Future<ChatLocation> _currentLocation() async {
+    if (!_nativeMap || _lookup is! NativeChatLocationLookup) {
+      return _lookup.current();
+    }
+    await ChatCurrentPosition.ensurePermission();
+    final data = await _map
+        ?.invokeMapMethod<String, dynamic>('locate', {})
+        .timeout(const Duration(seconds: 22));
+    final location = ChatLocation.tryParse(data?['location']);
+    final accuracy = data?['accuracyMeters'];
+    if (location == null ||
+        accuracy is! num ||
+        !accuracy.isFinite ||
+        accuracy <= 0 ||
+        accuracy > 100) {
+      throw StateError('地图尚未获取精确位置，请重新定位');
+    }
+    _lookup.currentAccuracyMeters = accuracy.ceil();
+    return location;
+  }
+
+  Future<void> _nearby(
+    ChatLocation center, {
+    bool preserveSelection = false,
+  }) async {
     if (_invalid || _sending) return;
     final generation = ++_generation;
     setState(() {
@@ -150,9 +181,24 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
     }
     if (!mounted || _invalid || generation != _generation) return;
     setState(() {
-      _results = results.isEmpty ? [center] : results;
+      _results = preserveSelection
+          ? [
+              center,
+              ...results.where(
+                (item) =>
+                    item.latitudeE6 != center.latitudeE6 ||
+                    item.longitudeE6 != center.longitudeE6 ||
+                    item.name != center.name,
+              ),
+            ]
+          : results.isEmpty
+          ? [center]
+          : results;
       _busy = false;
+      if (preserveSelection) _selected = center;
     });
+    // Keep the original durable draft ID until a manual selection changes.
+    if (preserveSelection) return;
     await _select(_results.first, moveMap: false);
   }
 
@@ -170,14 +216,18 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
     });
     try {
       var results = current
-          ? [await _lookup.current()]
+          ? [await _currentLocation()]
           : _nativeMap
           ? await _mapPlaces('search', {'query': _query.text.trim()})
           : await _lookup.search(_query.text);
       if (!mounted || generation != _generation || _invalid) return;
       if (current) {
         _current = results.first;
-        await _center(results.first, userLocation: true);
+        // Native current location is centered by MapKit's tracking camera.
+        // Do not replace it with an independent raw GPS center afterwards.
+        if (!_nativeMap || _lookup is! NativeChatLocationLookup) {
+          await _center(results.first, userLocation: true);
+        }
         if (_nativeMap) {
           try {
             final nearby = await _mapPlaces('nearby', results.first.toJson());
@@ -207,6 +257,8 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
         setState(
           () => _error = error is StateError
               ? error.message.toString()
+              : error is PlatformException && error.message != null
+              ? error.message
               : '无法获取地点，请重试',
         );
       }

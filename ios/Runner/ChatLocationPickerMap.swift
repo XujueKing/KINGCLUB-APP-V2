@@ -18,8 +18,13 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
   private var search: MKLocalSearch?
   private var pending: FlutterResult?
   private var revision = 0
-  private var programmatic = false
+  private var userRegionChange = false
   private var positioned = false
+  private var locating = false
+  private var settlingLocation = false
+  private var locationStarted = Date.distantPast
+  private var bestLocation: CLLocation?
+  private var locationTimer: DispatchWorkItem?
 
   init(frame: CGRect, id: Int64, messenger: FlutterBinaryMessenger) {
     map = MKMapView(frame: frame)
@@ -37,11 +42,13 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
       }
       guard let args = call.arguments as? [String: Any] else { result(FlutterMethodNotImplemented); return }
       if call.method == "center", let point = self.coordinate(args) {
-        self.programmatic = true
+        self.map.setUserTrackingMode(.none, animated: false)
         self.positioned = true
         if args["userLocation"] as? Bool == true { self.map.showsUserLocation = true }
         self.map.setRegion(MKCoordinateRegion(center: point, latitudinalMeters: 900, longitudinalMeters: 900), animated: false)
         result(true)
+      } else if call.method == "locate" {
+        self.locate(result)
       } else if call.method == "nearby", let point = self.coordinate(args) {
         self.nearby(point, name: args["name"] as? String ?? "地图选点", result: result)
       } else if call.method == "search", let query = args["query"] as? String,
@@ -71,8 +78,76 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
   private func cancel() {
     revision += 1
     search?.cancel(); search = nil; geocoder.cancelGeocode()
+    locating = false; settlingLocation = false; bestLocation = nil
+    locationTimer?.cancel(); locationTimer = nil
     let callback = pending; pending = nil
     callback?(FlutterError(code: "cancelled", message: "Location request superseded", details: nil))
+  }
+  private func locate(_ result: @escaping FlutterResult) {
+    let requestRevision = start(result)
+    locating = true; locationStarted = Date()
+    map.showsUserLocation = true
+    // MapKit's own camera and blue dot share one coordinate pipeline.
+    map.setUserTrackingMode(.follow, animated: false)
+    if let existing = map.userLocation.location { accept(existing, revision: requestRevision) }
+    guard locating else { return }
+    let timeout = DispatchWorkItem { [weak self] in
+      guard let self = self, self.locating, self.revision == requestRevision else { return }
+      if let location = self.bestLocation, self.usable(location) { self.completeLocation(location, revision: requestRevision) }
+      else {
+        self.locating = false
+        self.finish(FlutterError(code: "location", message: "地图定位精度不足，请移至窗边或室外后重试", details: nil), revision: requestRevision)
+      }
+    }
+    locationTimer = timeout
+    DispatchQueue.main.asyncAfter(deadline: .now() + 20, execute: timeout)
+  }
+  private func usable(_ point: CLLocation) -> Bool {
+    let age = Date().timeIntervalSince(point.timestamp)
+    guard CLLocationCoordinate2DIsValid(point.coordinate), point.horizontalAccuracy > 0,
+          point.horizontalAccuracy <= 100, age >= -5, age <= 30,
+          point.timestamp >= locationStarted.addingTimeInterval(-2) else { return false }
+    if #available(iOS 15.0, *), point.sourceInformation?.isSimulatedBySoftware == true { return false }
+    return true
+  }
+  private func accept(_ point: CLLocation, revision: Int) {
+    guard locating, revision == self.revision, usable(point) else { return }
+    if bestLocation == nil || point.horizontalAccuracy < bestLocation!.horizontalAccuracy { bestLocation = point }
+    if point.horizontalAccuracy <= 50 { completeLocation(point, revision: revision) }
+  }
+  private func completeLocation(_ point: CLLocation, revision: Int) {
+    guard locating, !settlingLocation else { return }
+    settlingLocation = true
+    locationTimer?.cancel(); locationTimer = nil
+    positioned = true
+    map.setUserTrackingMode(.follow, animated: false)
+    // Let MapKit settle its own camera before freezing a sendable selection.
+    // Continuing to follow after returning would move the green marker while
+    // the selected message coordinate stayed at an earlier fix.
+    let snapshot = DispatchWorkItem { [weak self] in
+      guard let self = self, self.locating, self.revision == revision else { return }
+      let live = self.map.userLocation.location ?? point
+      guard self.usable(live) else {
+        self.locating = false; self.settlingLocation = false
+        self.finish(FlutterError(code: "location", message: "地图位置已失效，请重新定位", details: nil), revision: revision)
+        return
+      }
+      let selected = self.map.userLocation.coordinate
+      self.map.setUserTrackingMode(.none, animated: false)
+      self.locating = false; self.settlingLocation = false; self.locationTimer = nil
+      self.finish(["location": self.location(selected, name: "当前位置", address: ""),
+                   "accuracyMeters": live.horizontalAccuracy], revision: revision)
+    }
+    locationTimer = snapshot
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: snapshot)
+  }
+  func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
+    if let point = userLocation.location { accept(point, revision: revision) }
+  }
+  func mapView(_ mapView: MKMapView, didFailToLocateUserWithError error: Error) {
+    guard locating else { return }
+    locating = false; locationTimer?.cancel(); locationTimer = nil
+    finish(FlutterError(code: "location", message: "无法获取系统地图位置，请检查定位权限后重试", details: nil), revision: revision)
   }
   private func start(_ result: @escaping FlutterResult) -> Int {
     cancel(); pending = result; return revision
@@ -125,10 +200,12 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
     }
   }
   func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
-    // setRegion may produce no delegate callback when its center is unchanged.
-    // An actual gesture must always release that programmatic suppression.
-    if hasGesture(mapView) { programmatic = false }
-    guard positioned, !programmatic else { return }
+    // Only a user gesture starts a new manual choice. Camera following and
+    // tile loading must not cancel an in-flight fix or clear its selection.
+    guard hasGesture(mapView) else { return }
+    userRegionChange = true
+    map.setUserTrackingMode(.none, animated: false)
+    positioned = true
     cancel()
     channel.invokeMethod("moving", arguments: nil)
   }
@@ -137,8 +214,8 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
     return view.subviews.contains(where: { hasGesture($0) })
   }
   func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-    if programmatic { programmatic = false; return }
-    guard positioned else { return }
+    guard positioned, userRegionChange else { return }
+    userRegionChange = false
     channel.invokeMethod("centerChanged", arguments: location(mapView.centerCoordinate, name: "地图选点", address: ""))
   }
   func mapViewDidFinishRenderingMap(_ mapView: MKMapView, fullyRendered: Bool) {
@@ -148,6 +225,7 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
     channel.invokeMethod("status", arguments: "failed")
   }
   deinit {
+    locationTimer?.cancel()
     search?.cancel(); geocoder.cancelGeocode(); pending?(nil)
     channel.setMethodCallHandler(nil); map.delegate = nil; map.showsUserLocation = false
   }

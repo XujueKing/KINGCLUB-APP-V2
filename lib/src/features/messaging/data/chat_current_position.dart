@@ -8,6 +8,23 @@ class ChatCurrentPosition {
   const ChatCurrentPosition();
 
   Future<Position> current() async {
+    await ensurePermission();
+    return selectFix(
+      Geolocator.getPositionStream(
+        locationSettings: defaultTargetPlatform == TargetPlatform.android
+            ? AndroidSettings(
+                forceLocationManager: true,
+                accuracy: LocationAccuracy.best,
+                distanceFilter: 0,
+                intervalDuration: const Duration(seconds: 1),
+              )
+            : const LocationSettings(accuracy: LocationAccuracy.best),
+      ),
+    );
+  }
+
+  /// Shared by the GPS stream and the map's own user-location source.
+  static Future<void> ensurePermission() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw StateError('请先开启手机定位服务');
     }
@@ -23,18 +40,6 @@ class ChatCurrentPosition {
         LocationAccuracyStatus.reduced) {
       throw StateError('当前仅允许模糊定位，请在定位权限设置中开启精确位置');
     }
-    return selectFix(
-      Geolocator.getPositionStream(
-        locationSettings: defaultTargetPlatform == TargetPlatform.android
-            ? AndroidSettings(
-                forceLocationManager: true,
-                accuracy: LocationAccuracy.best,
-                distanceFilter: 0,
-                intervalDuration: const Duration(seconds: 1),
-              )
-            : const LocationSettings(accuracy: LocationAccuracy.best),
-      ),
-    );
   }
 
   @visibleForTesting
@@ -47,6 +52,7 @@ class ChatCurrentPosition {
     bool usable(Position sample) {
       final age = now().difference(sample.timestamp);
       return sample.latitude.isFinite &&
+          !sample.isMocked &&
           sample.longitude.isFinite &&
           sample.latitude.abs() <= 90 &&
           sample.longitude.abs() <= 180 &&

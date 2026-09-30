@@ -36,15 +36,13 @@ class NativeChatLocationLookup implements ChatLocationLookup {
   ].whereType<String>().where((v) => v.trim().isNotEmpty).toSet().join(' ');
   @override
   Future<ChatLocation> current() async {
-    currentAccuracyMeters = null;
-    final position = await const ChatCurrentPosition().current();
-    currentAccuracyMeters = position.accuracy.ceil();
+    final location = await currentCoordinate();
     var address = '';
     try {
       final places = await Geocoding()
           .placemarkFromCoordinates(
-            position.latitude,
-            position.longitude,
+            location.latitudeE6 / 1e6,
+            location.longitudeE6 / 1e6,
             locale: const Locale('zh'),
           )
           .timeout(const Duration(seconds: 6));
@@ -55,8 +53,16 @@ class NativeChatLocationLookup implements ChatLocationLookup {
     } catch (_) {
       /* Coordinates remain usable when the system has no geocoder. */
     }
+    return ChatLocation.fromJson({...location.toJson(), 'address': address});
+  }
+
+  /// A native map resolves the address once after displaying the fresh fix.
+  Future<ChatLocation> currentCoordinate() async {
+    currentAccuracyMeters = null;
+    final position = await const ChatCurrentPosition().current();
+    currentAccuracyMeters = position.accuracy.ceil();
     // A reverse-geocoder's nearest building is not an explicitly selected POI.
-    return _location(position.latitude, position.longitude, '当前位置', address);
+    return _location(position.latitude, position.longitude, '当前位置', '');
   }
 
   @override
