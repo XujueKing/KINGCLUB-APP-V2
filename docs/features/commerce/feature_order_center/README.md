@@ -1,5 +1,9 @@
 # 消费者订单中心
 
+## 2026-10-01 当前实现
+
+正式 OrderCenterRoute / OrderDetailRoute 已改接 MemberOrdersPage 和统一超级接口 K261001001955，读取本人 APP/收银桌台订单，不再以模拟仓库作为订单列表或详情的结果来源。后付费、已上数量、退款金额、会话切换与通知重读已接入代码；服务端接口尚未部署启用，会员通知投递仍待接线，未完成现场验收。详见 [真实订单接入记录](2026-10-01-real-orders.md)。下文是早期 UI 设计快照，不能视为当前上线状态；AA/VIP 等其他业务订单和服务端动作尚需逐类接入，不用历史样例补齐。
+
 - Scope ID：`KC-F-028`
 - 文档状态：`UI Mock Implemented / Android Device Verified`
 - 所属业务域：`commerce`

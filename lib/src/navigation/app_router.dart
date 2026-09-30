@@ -33,7 +33,7 @@ import '../features/club/presentation/admission_ticket_page.dart';
 import '../features/club/presentation/vip_party_page.dart';
 import '../features/club/presentation/vip_party_create_page.dart';
 import '../features/club/presentation/vip_party_management_page.dart';
-import '../features/commerce/presentation/order_detail_page.dart';
+import '../features/commerce/presentation/member_orders_page.dart';
 import '../features/commerce/data/fake_commerce_repository.dart';
 import '../features/commerce/presentation/order_center_page.dart';
 import '../features/commerce/presentation/payment_result_page.dart';
@@ -1271,13 +1271,11 @@ class OrderCenterRoute extends GoRouteData with $OrderCenterRoute {
   const OrderCenterRoute();
 
   @override
-  Widget build(BuildContext context, GoRouterState state) => OrderCenterPage(
-    repository: _commerce(context),
+  Widget build(BuildContext context, GoRouterState state) => MemberOrdersPage(
     onBack: () =>
         context.canPop() ? context.pop() : const AppShellRoute().go(context),
-    onOpenHome: () => const AppShellRoute().go(context),
-    onSessionResetRequested: () => _clearCommerceAndLogin(context),
-    onOpenOrder: (orderRef) => OrderDetailRoute(orderRef).push<void>(context),
+    onOpenOrder: (orderRef) =>
+        OrderDetailRoute(FakeOrderRef(orderRef)).push<void>(context),
   );
 }
 
@@ -1295,17 +1293,10 @@ class OrderDetailRoute extends GoRouteData with $OrderDetailRoute {
   final FakeOrderRef? $extra;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) => OrderDetailPage(
-    repository: _commerce(context),
-    orderRef: $extra ?? const FakeOrderRef(''),
+  Widget build(BuildContext context, GoRouterState state) => MemberOrdersPage(
+    orderRef: $extra?.opaqueId ?? '',
     onBack: () =>
         context.canPop() ? context.pop() : const OrderCenterRoute().go(context),
-    onAdmission: (admissionRef) =>
-        AdmissionTicketRoute(FakeAdmissionRef(admissionRef))
-            .push<void>(context),
-    onPaymentIntent: (intentId) =>
-        PaymentResultRoute(FakePaymentIntentRef(intentId)).push<void>(context),
-    onSessionResetRequested: () => _clearCommerceAndLogin(context),
   );
 }
 
