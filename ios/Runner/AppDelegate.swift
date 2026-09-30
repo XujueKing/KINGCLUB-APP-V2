@@ -328,7 +328,9 @@ private final class AppleChatMapNavigation {
         let place = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
         place.name = args["name"] as? String
         let mode = args["mode"] as? String == "walking" ? MKLaunchOptionsDirectionsModeWalking : MKLaunchOptionsDirectionsModeDriving
-        result(place.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: mode]))
+        let options: [String: Any] = args["mode"] as? String == "view"
+          ? [:] : [MKLaunchOptionsDirectionsModeKey: mode]
+        result(place.openInMaps(launchOptions: options))
       } else if args["coordinateSystem"] as? String == "gcj02",
                 let lat = args["latitudeE6"] as? NSNumber,
                 let lon = args["longitudeE6"] as? NSNumber,

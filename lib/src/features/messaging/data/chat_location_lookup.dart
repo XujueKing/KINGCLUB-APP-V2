@@ -1,9 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:geolocator/geolocator.dart';
 
 import 'chat_location.dart';
+import 'chat_current_position.dart';
 
 abstract class ChatLocationLookup {
   Future<ChatLocation> current();
@@ -11,6 +10,7 @@ abstract class ChatLocationLookup {
 }
 
 class NativeChatLocationLookup implements ChatLocationLookup {
+  int? currentAccuracyMeters;
   ChatLocation _location(
     double latitude,
     double longitude,
@@ -36,33 +36,10 @@ class NativeChatLocationLookup implements ChatLocationLookup {
   ].whereType<String>().where((v) => v.trim().isNotEmpty).toSet().join(' ');
   @override
   Future<ChatLocation> current() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      throw StateError('请先开启手机定位服务');
-    }
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      throw StateError('未获得定位权限，请在系统设置中允许定位');
-    }
-    final position = await Geolocator.getCurrentPosition(
-      locationSettings: defaultTargetPlatform == TargetPlatform.android
-          ? AndroidSettings(
-              forceLocationManager: true,
-              accuracy: LocationAccuracy.high,
-              timeLimit: const Duration(seconds: 15),
-            )
-          : const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              timeLimit: Duration(seconds: 15),
-            ),
-    ).timeout(const Duration(seconds: 17));
-    if (!position.accuracy.isFinite || position.accuracy > 1000) {
-      throw StateError('当前定位精度不足，请重试或搜索地点');
-    }
-    String name = '当前位置', address = '';
+    currentAccuracyMeters = null;
+    final position = await const ChatCurrentPosition().current();
+    currentAccuracyMeters = position.accuracy.ceil();
+    var address = '';
     try {
       final places = await Geocoding()
           .placemarkFromCoordinates(
@@ -73,14 +50,13 @@ class NativeChatLocationLookup implements ChatLocationLookup {
           .timeout(const Duration(seconds: 6));
       if (places.isNotEmpty) {
         address = _address(places.first);
-        final candidate = places.first.name?.trim() ?? '';
-        if (candidate.isNotEmpty && candidate.length <= 100) name = candidate;
         if (address.length > 300) address = '';
       }
     } catch (_) {
       /* Coordinates remain usable when the system has no geocoder. */
     }
-    return _location(position.latitude, position.longitude, name, address);
+    // A reverse-geocoder's nearest building is not an explicitly selected POI.
+    return _location(position.latitude, position.longitude, '当前位置', address);
   }
 
   @override

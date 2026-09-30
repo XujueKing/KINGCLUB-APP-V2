@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/messaging/data/chat_location.dart';
@@ -30,6 +31,47 @@ class Lookup implements ChatLocationLookup {
 }
 
 void main() {
+  testWidgets(
+    'map preview preserves WGS84 and never selects or sends a location',
+    (tester) async {
+      const maps = MethodChannel('kingclub/chat-map');
+      var opened = 0, sent = 0;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(maps, (
+        call,
+      ) async {
+        opened++;
+        expect(call.arguments['latitudeE6'], place.latitudeE6);
+        expect(call.arguments['longitudeE6'], place.longitudeE6);
+        expect(call.arguments['coordinateSystem'], 'wgs84');
+        expect(call.arguments['mode'], 'view');
+        return true;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          maps,
+          null,
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatLocationPickerPage(
+            lookup: Lookup(),
+            onConfirm: (_) async => sent++,
+          ),
+        ),
+      );
+      await tester.tap(find.text('使用当前位置'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('在系统地图中查看'));
+      await tester.pumpAndSettle();
+      expect(opened, 1);
+      expect(sent, 0);
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull,
+      );
+    },
+  );
   testWidgets(
     'location is requested explicitly and choosing never sends without confirmation',
     (tester) async {

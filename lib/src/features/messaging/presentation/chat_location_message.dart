@@ -10,6 +10,7 @@ import '../../../core/design_system/king_components.dart';
 import '../../../core/design_system/king_notice.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/chat_location.dart';
+import '../data/chat_current_position.dart';
 import '../data/chat_media_deletion.dart';
 import '../data/chat_saved_locations.dart';
 
@@ -307,22 +308,7 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
     if (!_valid || _locating) return;
     setState(() => _locating = true);
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        throw StateError('定位服务未开启');
-      }
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        throw StateError('请在系统设置允许定位');
-      }
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          timeLimit: Duration(seconds: 15),
-        ),
-      );
+      final position = await const ChatCurrentPosition().current();
       if (!mounted || !_valid) return;
       if (widget.location.coordinateSystem == 'wgs84') {
         setState(
@@ -339,9 +325,13 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
           'coordinateSystem': 'wgs84',
         });
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted && _valid) {
-        KingNotice.of(context).show('无法获取当前位置，请检查定位权限和定位服务');
+        KingNotice.of(context).show(
+          error is StateError
+              ? error.message.toString()
+              : '无法获取当前位置，请检查定位权限和定位服务',
+        );
       }
     } finally {
       if (mounted) setState(() => _locating = false);

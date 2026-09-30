@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../core/design_system/king_components.dart';
 import '../../../core/session/secure_session_store.dart';
@@ -25,6 +27,7 @@ class ChatLocationPickerPage extends StatefulWidget {
 }
 
 class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
+  static const _maps = MethodChannel('kingclub/chat-map');
   late final ChatLocationLookup _lookup =
       widget.lookup ?? NativeChatLocationLookup();
   final _query = TextEditingController();
@@ -32,6 +35,8 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   List<ChatLocation> _results = [];
   ChatLocation? _selected;
   String? _error;
+  String? _accuracyLabel;
+  bool _openingMap = false;
   bool _busy = false, _invalid = false, _sending = false;
   int _generation = 0;
   @override
@@ -48,6 +53,7 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
         _results = [];
         _selected = null;
         _error = '登录状态已变化，请重新进入';
+        _accuracyLabel = null;
       });
     });
   }
@@ -58,6 +64,7 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
     setState(() {
       _busy = true;
       _error = null;
+      _accuracyLabel = null;
       _selected = null;
       _results = [];
     });
@@ -68,6 +75,12 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
       if (!mounted || generation != _generation) return;
       setState(() {
         _results = results;
+        if (current && _lookup is NativeChatLocationLookup) {
+          final accuracy = _lookup.currentAccuracyMeters;
+          if (accuracy != null) {
+            _accuracyLabel = '系统估计定位精度约 $accuracy 米，请在地图中核对';
+          }
+        }
         if (results.isEmpty) _error = '没有找到地点，请输入更完整的地址';
       });
     } catch (error) {
@@ -102,6 +115,26 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
       }
     } finally {
       if (mounted && generation == _generation) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _preview(ChatLocation location) async {
+    if (_invalid || _busy || _sending || _openingMap) return;
+    final generation = _generation;
+    setState(() => _openingMap = true);
+    try {
+      final data = location.toJson()..remove('address');
+      data['mode'] = 'view';
+      final opened = await _maps
+          .invokeMethod<bool>('open', data)
+          .timeout(const Duration(seconds: 10));
+      if (opened != true) throw StateError('无法打开系统地图');
+    } catch (_) {
+      if (mounted && !_invalid && generation == _generation) {
+        setState(() => _error = '无法打开系统地图，请安装地图应用后重试');
+      }
+    } finally {
+      if (mounted) setState(() => _openingMap = false);
     }
   }
 
@@ -163,8 +196,23 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
             leading: const Icon(Icons.my_location),
             title: const Text('使用当前位置'),
             onTap: _busy || _invalid || _sending ? null : () => _load(true),
+            trailing: IconButton(
+              tooltip: '定位权限设置',
+              onPressed: _invalid || _sending
+                  ? null
+                  : Geolocator.openAppSettings,
+              icon: const Icon(Icons.settings_outlined),
+            ),
           ),
           if (_busy) const LinearProgressIndicator(),
+          if (_accuracyLabel != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                _accuracyLabel!,
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.all(16),
@@ -189,6 +237,13 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                         : Icons.radio_button_off,
                   ),
                   title: Text(location.name),
+                  trailing: IconButton(
+                    tooltip: '在系统地图中查看',
+                    onPressed: _invalid || _sending || _busy || _openingMap
+                        ? null
+                        : () => _preview(location),
+                    icon: const Icon(Icons.map_outlined),
+                  ),
                   subtitle: Text(
                     location.address.isNotEmpty
                         ? location.address
