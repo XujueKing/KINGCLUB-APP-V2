@@ -358,6 +358,7 @@ private final class AppleChatMapView: NSObject, FlutterPlatformView, MKMapViewDe
   private let map: MKMapView
   private let channel: FlutterMethodChannel
   private let target: CLLocationCoordinate2D?
+  private var loadState = "loading"
   init(frame: CGRect, id: Int64, args: [String: Any], messenger: FlutterBinaryMessenger) {
     map = MKMapView(frame: frame)
     target = chatCoordinate(args)
@@ -374,7 +375,8 @@ private final class AppleChatMapView: NSObject, FlutterPlatformView, MKMapViewDe
     }
     channel.setMethodCallHandler { [weak self] call, result in
       guard let self = self else { result(false); return }
-      if call.method == "target", let target = self.target {
+      if call.method == "status" { result(self.loadState)
+      } else if call.method == "target", let target = self.target {
         self.center(target); result(true)
       } else if call.method == "locate", let args = call.arguments as? [String: Any], let point = chatCoordinate(args) {
         self.map.showsUserLocation = true
@@ -386,6 +388,15 @@ private final class AppleChatMapView: NSObject, FlutterPlatformView, MKMapViewDe
     map.setRegion(MKCoordinateRegion(center: point, latitudinalMeters: 900, longitudinalMeters: 900), animated: true)
   }
   func view() -> UIView { map }
+  func mapViewDidFinishRenderingMap(_ mapView: MKMapView, fullyRendered: Bool) {
+    guard fullyRendered else { return }
+    loadState = "ready"
+    channel.invokeMethod("status", arguments: loadState)
+  }
+  func mapViewDidFailLoadingMap(_ mapView: MKMapView, withError error: Error) {
+    loadState = "failed"
+    channel.invokeMethod("status", arguments: loadState)
+  }
   func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
     if annotation is MKUserLocation { return nil }
     let pin = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: "destination")

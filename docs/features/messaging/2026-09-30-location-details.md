@@ -9,3 +9,9 @@
 验证：Flutter 定向静态检查通过；22 项位置回归测试通过，包含小屏大字长地址、导航重复点击保护、单/群删除、撤回关闭更多菜单、会话账号失效、账号隔离收藏、离线位置队列和确认边界。iPhone build 30（代码 fd445363，构建 36653116641）编译成功，产物和签名核验通过，已覆盖安装并保留数据。原生地图拖动、导航返回及外观仍待真机验收。距离仅展示定位后的直线距离，路线预计时间由系统地图计算，详情不显示虚构耗时。
 
 原生接口依据：[Flutter iOS Platform Views](https://docs.flutter.dev/platform-integration/ios/platform-views)、[Apple MapKit 导航选项](https://developer.apple.com/documentation/mapkit/launch-options-dictionary-keys)。
+
+## 后续完善
+
+用户确认没有 Android 地图 Key，Android 内嵌地图仍待配置 SDK；继续保留外部地图，不声称两端已完全一致。
+
+iOS 地图增加渲染状态与失败回调，15 秒仍未完成显示重试；旧地图回调按视图代次隔离，退出/账号变化/消息撤回时取消计时和回调。导航调用增加 10 秒超时；更多菜单增加步行导航和定位权限设置。底部卡片最多占屏幕 55%，内容可滚动，横屏保留地图空间。新增地图超时重试及横屏大字操作可达回归测试。

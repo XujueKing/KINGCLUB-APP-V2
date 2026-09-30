@@ -9,6 +9,65 @@ import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_location_message.dart';
 
 void main() {
+  testWidgets('native map timeout offers retry and preserves navigation', (
+    tester,
+  ) async {
+    var created = 0;
+    final channels = <MethodChannel>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform_views,
+      (call) async {
+        if (call.method == 'create') {
+          created++;
+          final channel = MethodChannel(
+            'kingclub/location-map/${call.arguments['id']}',
+          );
+          channels.add(channel);
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            (call) async => call.method == 'status' ? 'loading' : true,
+          );
+        }
+        return null;
+      },
+    );
+    addTearDown(() {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform_views,
+        null,
+      );
+      for (final channel in channels) {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        );
+      }
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatLocationDetailsPage(
+          location: ChatLocation.fromJson({
+            'latitudeE6': 28000000,
+            'longitudeE6': 113000000,
+            'coordinateSystem': 'wgs84',
+            'name': '地点',
+          }),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('正在加载地图'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 16));
+    expect(find.text('重试'), findsOneWidget);
+    expect(find.text('导航'), findsOneWidget);
+    await tester.tap(find.text('重试'));
+    await tester.pump();
+    await tester.pump();
+    expect(created, 2);
+    expect(find.text('正在加载地图'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
   testWidgets(
     'long location remains actionable on a small phone with large text',
     (tester) async {
@@ -69,6 +128,30 @@ void main() {
     'coordinateSystem': 'gcj02',
     'name': '测试地点',
     'address': '测试地址',
+  });
+  testWidgets('landscape keeps map space and scrolls to bottom actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(720, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(720, 360),
+            textScaler: TextScaler.linear(1.4),
+          ),
+          child: ChatLocationDetailsPage(location: location),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('导航'));
+    await tester.pumpAndSettle();
+    expect(find.text('导航').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
   for (final group in [false, true]) {
     testWidgets('deleted location hides address and actions group=$group', (
