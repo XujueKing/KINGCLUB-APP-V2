@@ -123,7 +123,7 @@ class LegacyMessagingHeader extends StatelessWidget {
           if (trailing != null)
             Positioned(
               // Preserve the main branch's approved chat action placement.
-              right: alignToConversationTitle ? -2 : 18,
+              right: alignToConversationTitle ? 0 : 18,
               top: 4,
               height: 48,
               child: trailing!,

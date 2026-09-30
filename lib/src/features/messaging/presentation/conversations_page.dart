@@ -395,6 +395,7 @@ class _ConversationsPageState extends State<ConversationsPage>
       }
       _events = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
+        if (type == 'chat.typing') return;
         if (type == 'connection.ready' ||
             type == 'chat.friend-request.changed' ||
             type == 'chat.relationship.changed') {

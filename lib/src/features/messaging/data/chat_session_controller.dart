@@ -68,6 +68,26 @@ abstract class ChatSessionController extends ChangeNotifier {
       Future.error(UnsupportedError('删除尚未接通'));
   Future<void> recall(String messageId) =>
       Future.error(UnsupportedError('撤回尚未接通'));
+  bool canErase(String id) => messages.any(
+    (m) =>
+        m['messageId'] == id &&
+        m['sender'] == messaging.account &&
+        m['status'] == 'sent' &&
+        m['call'] == null &&
+        [
+          null,
+          'text',
+          'image',
+          'video',
+          'voice',
+          'file',
+          'location',
+        ].contains(m['messageType']),
+  );
+  Future<String> quoteErase(String id) =>
+      Future.error(UnsupportedError('不限时撤回尚未接通'));
+  Future<void> erase(String id, String cost) =>
+      Future.error(UnsupportedError('不限时撤回尚未接通'));
   bool canRecall(String messageId) {
     final now = DateTime.now().toUtc();
     return messages.any((message) {

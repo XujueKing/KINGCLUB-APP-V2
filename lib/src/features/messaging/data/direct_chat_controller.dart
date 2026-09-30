@@ -1192,6 +1192,36 @@ class DirectChatController extends ChatSessionController {
       super.canRecall(messageId);
 
   @override
+  Future<String> quoteErase(String id) async {
+    if (_disposed) throw StateError('Conversation closed');
+    final result = await repository.call('K260914000661', {
+      'peer': peer,
+      'messageId': id,
+      'mode': 'erase',
+      'quote': true,
+    });
+    final cost = result['cost'];
+    if (cost is! String || !RegExp(r'^(0|[1-9][0-9]{0,9})$').hasMatch(cost)) {
+      throw StateError('Invalid recall quote');
+    }
+    return cost;
+  }
+
+  @override
+  Future<void> erase(String id, String cost) async {
+    if (_disposed) throw StateError('Conversation closed');
+    await repository.call('K260914000661', {
+      'peer': peer,
+      'messageId': id,
+      'mode': 'erase',
+      'expectedCost': cost,
+    });
+    if (_disposed) return;
+    resetVisibleHistory(clearMedia: true, deletedMessageIds: {id});
+    await synchronize();
+  }
+
+  @override
   Future<void> recall(String messageId) async {
     if (_disposed) return;
     await repository.call('K260914000661', {

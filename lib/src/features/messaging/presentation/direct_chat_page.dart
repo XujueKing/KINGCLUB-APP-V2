@@ -92,7 +92,15 @@ enum _FakeMessageKind {
 
 enum _ComposerPanel { none, attachments, gifts, emoji }
 
-enum _FakeMessageAction { copy, quote, forward, delete, recall, transcribe }
+enum _FakeMessageAction {
+  copy,
+  quote,
+  forward,
+  delete,
+  recall,
+  erase,
+  transcribe,
+}
 
 const _giftItems = <_GiftItem>[
   _GiftItem(
@@ -265,6 +273,57 @@ class _DirectChatPageState extends State<DirectChatPage>
   VoiceCapture? _capture;
   bool _leaving = false;
   int _voiceSession = 0;
+  Timer? _typingIdle, _peerTypingExpiry;
+  DateTime? _lastTypingSent;
+  bool _typingSent = false, _peerTyping = false;
+  String _lastTypingText = '';
+
+  void _stopTyping() {
+    _typingIdle?.cancel();
+    final account = _conversationAccount;
+    final peer = widget.peerAccount;
+    if (_typingSent &&
+        account != null &&
+        peer != null &&
+        widget.groupId == null) {
+      unawaited(KingclubRealtime.shared.chatTyping(account, peer, false));
+    }
+    _typingSent = false;
+    _lastTypingSent = null;
+  }
+
+  void _trackTyping() {
+    final text = _controller.text;
+    if (text == _lastTypingText) return;
+    _lastTypingText = text;
+    if (_restoringTextDraft ||
+        !_inputFocusNode.hasFocus ||
+        widget.groupId != null ||
+        _conversationAccount == null ||
+        widget.peerAccount == null) {
+      return;
+    }
+    if (text.isEmpty) {
+      _stopTyping();
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastTypingSent == null ||
+        now.difference(_lastTypingSent!) >= const Duration(seconds: 3)) {
+      _lastTypingSent = now;
+      _typingSent = true;
+      unawaited(
+        KingclubRealtime.shared.chatTyping(
+          _conversationAccount!,
+          widget.peerAccount!,
+          true,
+        ),
+      );
+    }
+    _typingIdle?.cancel();
+    _typingIdle = Timer(const Duration(seconds: 4), _stopTyping);
+  }
+
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _inputFocusNode = FocusNode();
@@ -456,6 +515,7 @@ class _DirectChatPageState extends State<DirectChatPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) _stopTyping();
     if (state != AppLifecycleState.resumed) unawaited(_flushTextDraft());
     if (state != AppLifecycleState.resumed) _endVoiceHold(interrupted: true);
     if (state == AppLifecycleState.resumed) {
@@ -601,6 +661,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     _muted = widget.initialMuted;
     _inputFocusNode.addListener(_handleInputFocusChanged);
     _controller.addListener(_captureTextDraft);
+    _controller.addListener(_trackTyping);
     _stopDraftDeletion = ChatMediaDeletion.listen((event) async {
       if (event.group != (widget.groupId != null)) return;
       _deletedDraftReplies.add((event.account, event.messageId));
@@ -710,6 +771,28 @@ class _DirectChatPageState extends State<DirectChatPage>
       _chatEvents = KingclubRealtime.shared.events.listen((event) {
         final type = event['eventType'] as String? ?? '';
         final data = event['data'];
+        if (type == 'chat.typing') {
+          if (mounted &&
+              identical(chat, _chat) &&
+              widget.groupId == null &&
+              data is Map &&
+              data['sender'] == widget.peerAccount &&
+              data['conversationId'] == chat.conversationId) {
+            _peerTypingExpiry?.cancel();
+            final expiry = data['expiresAt'];
+            final active =
+                data['active'] == true &&
+                expiry is int &&
+                expiry > DateTime.now().millisecondsSinceEpoch;
+            setState(() => _peerTyping = active);
+            if (active) {
+              _peerTypingExpiry = Timer(const Duration(seconds: 6), () {
+                if (mounted) setState(() => _peerTyping = false);
+              });
+            }
+          }
+          return;
+        }
         if (type == 'connection.ready' ||
             type == 'chat.friend-request.changed' ||
             type == 'chat.group.changed' ||
@@ -756,6 +839,9 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   Future<void> _rebindChatSession() async {
+    _stopTyping();
+    _peerTypingExpiry?.cancel();
+    _peerTyping = false;
     _remarkEvents?.cancel();
     _relationshipEvents?.cancel();
     _textDraftTimer?.cancel();
@@ -1133,6 +1219,9 @@ class _DirectChatPageState extends State<DirectChatPage>
     _remarkEvents?.cancel();
     _relationshipEvents?.cancel();
     unawaited(_flushTextDraft());
+    _stopTyping();
+    _peerTypingExpiry?.cancel();
+    _controller.removeListener(_trackTyping);
     _controller.removeListener(_captureTextDraft);
     _leaving = true;
     _connectionGeneration++;
@@ -1199,7 +1288,7 @@ class _DirectChatPageState extends State<DirectChatPage>
               alignToConversationTitle: true,
               lineColor: const Color(0x1CC9B69E),
               lineWidth: .5,
-              title: _displayPeerName,
+              title: _peerTyping ? '对方正在输入…' : _displayPeerName,
               muted: _muted,
               onBack: () => Navigator.pop(context),
               trailing: IconButton(
@@ -2320,6 +2409,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   }
 
   void _handleInputFocusChanged() {
+    if (!_inputFocusNode.hasFocus) _stopTyping();
     if (!_inputFocusNode.hasFocus || _composerPanel == _ComposerPanel.none) {
       return;
     }
@@ -3385,15 +3475,38 @@ class _DirectChatPageState extends State<DirectChatPage>
                     Navigator.pop(sheetContext, _FakeMessageAction.delete),
               ),
               if (message.mine &&
+                  message.messageId != null &&
+                  (_chat?.canErase(message.messageId!) ?? false))
+                ListTile(
+                  key: const ValueKey('direct-chat-erase'),
+                  leading: const Icon(Icons.delete_forever_outlined),
+                  title: const Text('为所有人撤回'),
+                  subtitle: const Text('不限时间·查看费用后确认'),
+                  onTap: () =>
+                      Navigator.pop(sheetContext, _FakeMessageAction.erase),
+                ),
+              if (message.mine &&
                   (_chat == null ||
                       (message.messageId != null &&
-                          _chat!.canRecall(message.messageId!))))
+                          (_chat!.canRecall(message.messageId!) ||
+                              _chat!.canErase(message.messageId!)))))
                 ListTile(
                   key: const ValueKey('direct-chat-recall'),
                   leading: const Icon(Icons.undo),
                   title: const Text('撤回'),
-                  onTap: () =>
-                      Navigator.pop(sheetContext, _FakeMessageAction.recall),
+                  subtitle: Text(
+                    _chat == null || _chat!.canRecall(message.messageId!)
+                        ? '发送后两分钟内免费撤回'
+                        : '已超过两分钟，可选择不限时撤回',
+                  ),
+                  enabled:
+                      _chat == null || _chat!.canRecall(message.messageId!),
+                  onTap: _chat == null || _chat!.canRecall(message.messageId!)
+                      ? () => Navigator.pop(
+                          sheetContext,
+                          _FakeMessageAction.recall,
+                        )
+                      : null,
                 ),
             ],
           ),
@@ -3467,7 +3580,8 @@ class _DirectChatPageState extends State<DirectChatPage>
         action != _FakeMessageAction.copy &&
         action != _FakeMessageAction.quote &&
         action != _FakeMessageAction.delete &&
-        action != _FakeMessageAction.recall) {
+        action != _FakeMessageAction.recall &&
+        action != _FakeMessageAction.erase) {
       KingNotice.of(context).show('该消息操作正在接入');
       return;
     }
@@ -3539,6 +3653,25 @@ class _DirectChatPageState extends State<DirectChatPage>
         if (confirmed && mounted && index < _messages.length) {
           setState(() => _messages.removeAt(index));
         }
+      case _FakeMessageAction.erase:
+        final chat = _chat;
+        final id = message.messageId;
+        if (chat == null || id == null) return;
+        try {
+          final cost = await chat.quoteErase(id);
+          if (!mounted || !identical(chat, _chat)) return;
+          final confirmed = await _confirmMessageAction(
+            title: '为所有人撤回这条消息？',
+            action: cost == '0' ? '确认撤回' : '支付 $cost 金币并撤回',
+            body: '不限发送时间，从双方或所有群成员的会话中移除，不留撤回提示。已截图或另存的副本无法收回。',
+          );
+          if (!confirmed || !mounted || !identical(chat, _chat)) return;
+          _voicePlayback?.stop();
+          await chat.erase(id, cost);
+        } catch (error) {
+          if (mounted) KingNotice.of(context).show('撤回失败：$error');
+        }
+        return;
       case _FakeMessageAction.recall:
         if (_chat != null) {
           final id = message.messageId;

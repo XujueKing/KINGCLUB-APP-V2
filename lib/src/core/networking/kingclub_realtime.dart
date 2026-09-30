@@ -161,6 +161,19 @@ class KingclubRealtime {
         'callId': callId,
       }, sessionId);
 
+  Future<void> chatTyping(String account, String peer, bool active) async {
+    try {
+      final session = await SecureSessionStore().readSession();
+      if ((session?['account'] as Map?)?['userAccount'] != account) return;
+      final id = session?['sessionId'];
+      if (id is String) {
+        await _send('client.chatTyping', {'peer': peer, 'active': active}, id);
+      }
+    } catch (_) {
+      // Presence is disposable; unavailable secure storage must not break input.
+    }
+  }
+
   Future<void> messageNoticeShown(
     String sessionId,
     String scope,
