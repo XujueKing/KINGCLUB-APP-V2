@@ -8,6 +8,8 @@
 
 范围限制：系统地图可以查看与导航，但系统未提供跨地图 App 通用的“选点并将坐标返回 KINGCLUB”接口。截图中的腾讯内嵌地图选点、附近 POI 仍需地图 SDK 配置，不能用外部地图跳转宣称已实现。现场精度仍须在精确定位授权后复测。
 
-验证：19 项定位、选点、地图、会话失效和删除测试通过；6 个 Dart 文件静态分析无问题；Android `compilePreviewDebugKotlin` 编译成功。现场查询 A（462606d8）正式包 `com.lingmei.kingclub` 的粗略与精确定位当前均未授权，不能据此证明过去的现场坐标误差。iPhone 权限与当前坐标尚未复测。当前版本尚未覆盖安装。
+验证：19 项定位、选点、地图、会话失效和删除测试通过；6 个 Dart 文件静态分析无问题；Android `compilePreviewDebugKotlin` 编译成功。现场查询 A（462606d8）正式包 `com.lingmei.kingclub` 的粗略与精确定位当前均未授权，但旧包 `com.lingmei.kingclub.v2preview` 两项已允许，不能以正式包权限解释旧包的现场误差。A 没有响应标准 geo Intent 的地图应用，故仍须网页回退或安装地图。iPhone 权限与当前坐标尚未复测。
+
+安装：2026-10-01 02:17，第 32 版（CI run 36755439218，源提交 c08e677e）编译、加密产物摘要、包名、签名描述文件及设备授权校验通过，已成功覆盖安装到 iPhone 00008140-000C44542E29801C，未卸载或清除数据。Android 修改已编译，尚未覆盖安装。实际落点与附近地点名称仍待手机验收。
 
 参考：[Android 地图 Intent](https://developer.android.com/guide/components/intents-common#Maps)、[Apple CLLocation](https://developer.apple.com/documentation/corelocation/cllocation)、[Geolocator 精确权限](https://pub.dev/packages/geolocator)、[高德地图标注](https://lbs.amap.com/api/amap-mobile/guide/android/marker)、[百度地图调起](https://lbs.baidu.com/docs/webapi?title=mapadjustment%2Furi%2Fandriod)。
