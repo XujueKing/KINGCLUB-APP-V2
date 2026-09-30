@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +12,11 @@ Future<void> backgroundMessageReceiver() => runBackgroundMessageReceiver();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks([
+      'eviltransform',
+    ], await rootBundle.loadString('assets/licenses/eviltransform.txt'));
+  });
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   final container = ProviderContainer();
   final repository = container.read(authRepositoryProvider);

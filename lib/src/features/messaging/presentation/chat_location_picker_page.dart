@@ -10,17 +10,20 @@ import '../../../core/session/secure_session_store.dart';
 import '../data/chat_location.dart';
 import '../data/chat_location_lookup.dart';
 import '../data/chat_current_position.dart';
+import '../data/chat_place_search.dart';
 
 /// Selecting a candidate never sends it; the explicit confirm returns it.
 class ChatLocationPickerPage extends StatefulWidget {
   const ChatLocationPickerPage({
     super.key,
     this.lookup,
+    this.places,
     this.onConfirm,
     this.initialSelection,
     this.onSelectionChanged,
   });
   final ChatLocationLookup? lookup;
+  final ChatPlaceSearch? places;
   final ChatLocation? initialSelection;
   final Future<void> Function(ChatLocation)? onSelectionChanged;
   final Future<void> Function(ChatLocation)? onConfirm;
@@ -32,12 +35,18 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   static const _maps = MethodChannel('kingclub/chat-map');
   late final ChatLocationLookup _lookup =
       widget.lookup ?? NativeChatLocationLookup();
+  late final ChatPlaceSearch? _places =
+      widget.places ??
+      (widget.lookup == null && TencentChatPlaceSearch.configuredKey.isNotEmpty
+          ? TencentChatPlaceSearch(key: TencentChatPlaceSearch.configuredKey)
+          : null);
   final _query = TextEditingController();
   StreamSubscription<void>? _session;
   List<ChatLocation> _results = [];
   ChatLocation? _selected;
   String? _error;
   String? _accuracyLabel;
+  String? _placesNotice;
   MethodChannel? _map;
   Timer? _mapDebounce;
   ChatLocation? _current;
@@ -56,6 +65,7 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
       if (!mounted) return;
       _generation++;
       _mapDebounce?.cancel();
+      _places?.cancel();
       unawaited(_map?.invokeMethod<void>('cancel').catchError((_) {}));
       setState(() {
         _invalid = true;
@@ -64,6 +74,7 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
         _selected = null;
         _error = '登录状态已变化，请重新进入';
         _accuracyLabel = null;
+        _placesNotice = null;
       });
     });
   }
@@ -86,6 +97,7 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
         }
       } else if (call.method == 'moving') {
         _generation++;
+        _places?.cancel();
         _mapDebounce?.cancel();
         setState(() {
           _busy = true;
@@ -149,6 +161,42 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
         .toList();
   }
 
+  Future<({List<ChatLocation> items, String? notice})> _nearbyPlaces(
+    ChatLocation center,
+    int generation,
+  ) async {
+    String? notice;
+    final service = _places;
+    if (service != null) {
+      try {
+        final pois = await service.nearby(center);
+        if (pois.isEmpty) notice = '附近暂未找到地点，可以移动地图或搜索';
+        // GPS stays the first independent candidate, even if a nearby building
+        // has a similar title. Never replace it with a geocoder's POI point.
+        return (
+          items: [center, ...pois.where((p) => !p.sameAs(center))],
+          notice: notice,
+        );
+      } catch (_) {
+        notice = '附近地点查询失败，可以重新定位或搜索';
+      }
+    }
+    if (!mounted || _invalid || generation != _generation) {
+      return (items: <ChatLocation>[], notice: null);
+    }
+    if (_nativeMap) {
+      try {
+        final result = await _mapPlaces('nearby', center.toJson());
+        if (result.length > 1) return (items: result, notice: null);
+        if (service == null) notice = '附近暂未找到地点，可以移动地图或搜索';
+        return (items: result.isEmpty ? [center] : result, notice: notice);
+      } catch (_) {
+        notice = '附近地点查询失败，可以重新定位或搜索';
+      }
+    }
+    return (items: [center], notice: notice);
+  }
+
   Future<ChatLocation> _currentLocation() async {
     if (!_nativeMap || _lookup is! NativeChatLocationLookup) {
       return _lookup.current();
@@ -182,14 +230,11 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
       _error = null;
       _results = [];
     });
-    var results = [center];
-    try {
-      results = await _mapPlaces('nearby', center.toJson());
-    } catch (_) {
-      // The actual map-center coordinate remains selectable without POI service.
-    }
+    final nearby = await _nearbyPlaces(center, generation);
     if (!mounted || _invalid || generation != _generation) return;
+    final results = nearby.items;
     setState(() {
+      _placesNotice = nearby.notice;
       _results = preserveSelection
           ? [
               center,
@@ -215,6 +260,7 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
     if (_invalid || _sending) return;
     final generation = ++_generation;
     _mapDebounce?.cancel();
+    _places?.cancel();
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _busy = true;
@@ -222,10 +268,13 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
       _accuracyLabel = null;
       _selected = null;
       _results = [];
+      _placesNotice = null;
     });
     try {
       var results = current
           ? [await _currentLocation()]
+          : _places != null
+          ? await _places.search(_query.text, _current)
           : _nativeMap
           ? await _mapPlaces('search', {'query': _query.text.trim()})
           : await _lookup.search(_query.text);
@@ -237,13 +286,11 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
         if (!_nativeMap || _lookup is! NativeChatLocationLookup) {
           await _center(results.first, userLocation: true);
         }
-        if (_nativeMap) {
-          try {
-            final nearby = await _mapPlaces('nearby', results.first.toJson());
-            if (nearby.isNotEmpty) results = nearby;
-          } catch (_) {
-            /* Keep the accurate GPS candidate, never fabricate POIs. */
-          }
+        if (_nativeMap || _places != null) {
+          final nearby = await _nearbyPlaces(results.first, generation);
+          if (!mounted || generation != _generation || _invalid) return;
+          results = nearby.items;
+          _placesNotice = nearby.notice;
         }
       }
       if (!mounted || generation != _generation) return;
@@ -342,6 +389,7 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   void dispose() {
     _generation++;
     _mapDebounce?.cancel();
+    _places?.dispose();
     _map?.setMethodCallHandler(null);
     unawaited(_map?.invokeMethod<void>('cancel').catchError((_) {}));
     _session?.cancel();
@@ -613,6 +661,20 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                             height: 2,
                             child: LinearProgressIndicator(
                               color: Color(0xFF07C160),
+                            ),
+                          ),
+                        if (_placesNotice != null && _error == null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                _placesNotice!,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF999999),
+                                ),
+                              ),
                             ),
                           ),
                         if (_accuracyLabel != null && _error == null)

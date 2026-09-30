@@ -39,12 +39,16 @@ jobs:
           IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
         run: python3 scripts/prepare_ios_signing.py
       - name: Build signed iPhone package
+        env:
+          KINGCLUB_TENCENT_MAP_KEY: ${{ secrets.KINGCLUB_TENCENT_MAP_KEY }}
         run: >-
+          test -n "$KINGCLUB_TENCENT_MAP_KEY" &&
           flutter build ipa --release
           --build-number=${{ github.run_number }}
           --dart-define=KINGCLUB_API_BASE_URL=https://test.wuyexin.cn/kingclub-v2
           --dart-define=KINGCLUB_IOS_WECHAT_PAYMENT=true
           --dart-define=KINGCLUB_IOS_SYSTEM_CALLS=${{ inputs.system_calls }}
+          --dart-define=KINGCLUB_TENCENT_MAP_KEY="$KINGCLUB_TENCENT_MAP_KEY"
           --export-options-plist="$RUNNER_TEMP/kingclub-signing/ExportOptions.plist"
       - name: Encrypt package before storing artifact
         env:

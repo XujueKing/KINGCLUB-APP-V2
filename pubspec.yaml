@@ -104,6 +104,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/licenses/eviltransform.txt
     - assets/commerce/bottle_preview/
     - assets/legacy/home/
     - assets/legacy/onboarding/
