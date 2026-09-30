@@ -14,4 +14,6 @@ Android 尚无内嵌地图 SDK Key，本次统一上下区布局、搜索框、�
 
 2026-10-01：CI run 36763981147（源提交 2480416a）第 34 版编译、打包成功，原生 Swift / MapKit 与 Xcode 源文件登记验证通过。加密产物摘要、IPA 完整性、AppIcon 资源、包名 com.lingmei.kingclub、voip 模式、签名描述文件与 iPhone 00008140-000C44542E29801C 授权校验通过。电脑多次查询 USB 设备为空，已向用户提示连接并解锁；尚未覆盖安装。真实地图、现场落点、附近地点覆盖以及截图视觉比较仍需设备验收，不能以编译成功宣称这些已经通过。
 
+03:27 用户接好 USB 后，确认目标 iPhone 设备与描述文件一致，第 34 版覆盖安装成功，未卸载/清除数据。03:28 启动成功，真机截图确认仍处于已登录首页；已请用户打开“聊天→＋→位置”供真机地图与视觉核对。地图验收尚未完成。安卓下一步建议腾讯地图：控制台创建应用、开通 Android 地图 SDK 的 Key 并绑定 com.lingmei.kingclub，同时核对地点搜索与定位权限；需要继续补原生 SDK / 搜索及坐标系边界适配，不是填写 Key 就能把现有外部地图变成内嵌地图。
+
 参考：[苹果附近地点查询](https://developer.apple.com/documentation/mapkit/mklocalpointsofinterestrequest)、[苹果地点搜索](https://developer.apple.com/documentation/mapkit/mklocalsearch/request)。
