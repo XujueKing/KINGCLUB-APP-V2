@@ -10,6 +10,8 @@ iOS 新增独立 MapKit 平台视图，使用系统浅色地图、蓝色实际�
 
 Android 尚无内嵌地图 SDK Key，本次统一上下区布局、搜索框、选项和发送控制，地图区域明确提示未接入，支持已配置的外部系统地图查看；不能宣称完成 Android 微信式地图拖动/POI 联调。用户此前已说明没有 Key。
 
-验证：21 项位置、地图详情、定位新鲜度、明确发送、会话变化和键盘布局测试通过；新增 iOS 平台视图通道测试验证地图移动不自动发送、过期请求被拒绝。Swift 编译和 iPhone 安装待 CI 与设备结果补充。
+验证：21 项位置、地图详情、定位新鲜度、明确发送、会话变化和键盘布局测试通过；新增 iOS 平台视图通道测试验证地图移动不自动发送、过期请求被拒绝。两个修改的 Dart 文件静态分析通过。浅色地图页单独设置深色系统状态栏文字，避免与浅色背景混在一起。
+
+2026-10-01：CI run 36763981147（源提交 2480416a）第 34 版编译、打包成功，原生 Swift / MapKit 与 Xcode 源文件登记验证通过。加密产物摘要、IPA 完整性、AppIcon 资源、包名 com.lingmei.kingclub、voip 模式、签名描述文件与 iPhone 00008140-000C44542E29801C 授权校验通过。电脑多次查询 USB 设备为空，已向用户提示连接并解锁；尚未覆盖安装。真实地图、现场落点、附近地点覆盖以及截图视觉比较仍需设备验收，不能以编译成功宣称这些已经通过。
 
 参考：[苹果附近地点查询](https://developer.apple.com/documentation/mapkit/mklocalpointsofinterestrequest)、[苹果地点搜索](https://developer.apple.com/documentation/mapkit/mklocalsearch/request)。
