@@ -13,6 +13,8 @@ import '../data/ordering_catalog_repository.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'ordering_entry_status.dart';
 import 'scan_ordering_cart_page.dart';
+import '../../membership_wallet/presentation/member_recharge_page.dart';
+import '../../membership_wallet/presentation/member_payment_code_page.dart';
 
 typedef ResolveOrderingTable = Future<OrderingContext> Function(String tableId);
 
@@ -200,6 +202,35 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
         onBack: widget.onBack,
         onQuoteReady: widget.onQuoteReady,
         onOpenOrders: widget.onOpenOrders,
+        onOpenBalancePayment:
+            const bool.fromEnvironment('KINGCLUB_MEMBER_PAYMENT')
+            ? (accountType) {
+                if (!mounted ||
+                    !identical(_context, resolved) ||
+                    !['platform_cash', 'store_balance'].contains(accountType)) {
+                  return;
+                }
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    allowSnapshotting: false,
+                    builder: (_) => MemberPaymentCodePage(
+                      storeRef: resolved.storeRef,
+                      storeName: resolved.storeName,
+                      accountType: accountType,
+                    ),
+                  ),
+                );
+              }
+            : null,
+        onOpenRecharge: const bool.fromEnvironment('KINGCLUB_STORE_RECHARGE')
+            ? () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  allowSnapshotting: false,
+                  builder: (_) =>
+                      MemberRechargePage(storeRef: resolved.storeRef),
+                ),
+              )
+            : null,
       );
     }
     return Scaffold(

@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../membership_wallet/presentation/asset_ledger_page.dart';
+import '../../membership_wallet/presentation/member_balance_page.dart';
 import '../data/profile_cover_store.dart';
 import 'edit_profile_page.dart';
 import 'profile_image_ref.dart';
@@ -1293,7 +1294,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         allowSnapshotting: false,
-        builder: (_) => AssetLedgerPage(initialType: type),
+        builder: (_) => type == AssetLedgerType.cashBalance
+            ? const MemberBalancePage()
+            : AssetLedgerPage(initialType: type),
       ),
     );
   }

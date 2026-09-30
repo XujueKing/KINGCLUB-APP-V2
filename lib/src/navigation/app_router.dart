@@ -46,6 +46,7 @@ import '../features/contacts/presentation/relationship_permissions_page.dart';
 import '../features/contacts/presentation/send_friend_request_page.dart';
 import '../features/contacts/presentation/user_profile_page.dart';
 import '../features/membership_wallet/presentation/asset_ledger_page.dart';
+import '../features/membership_wallet/presentation/member_balance_page.dart';
 import '../features/profile_settings/presentation/edit_profile_page.dart';
 import '../features/profile_settings/data/profile_cover_store.dart';
 import '../features/profile_settings/presentation/about_legal_page.dart';
@@ -1356,13 +1357,22 @@ class AssetLedgerRoute extends GoRouteData with $AssetLedgerRoute {
   final AssetLedgerType? $extra;
 
   @override
-  Widget build(BuildContext context, GoRouterState state) => AssetLedgerPage(
-    initialType: $extra ?? AssetLedgerType.cashBalance,
-    onBack: () =>
-        context.canPop() ? context.pop() : const AppShellRoute().go(context),
-    onOpenOrder: (orderRef) => OrderDetailRoute(orderRef).push<void>(context),
-    onSessionResetRequested: () => _clearCommerceAndLogin(context),
-  );
+  Widget build(BuildContext context, GoRouterState state) =>
+      ($extra ?? AssetLedgerType.cashBalance) == AssetLedgerType.cashBalance
+      ? MemberBalancePage(
+          onBack: () => context.canPop()
+              ? context.pop()
+              : const AppShellRoute().go(context),
+        )
+      : AssetLedgerPage(
+          initialType: $extra ?? AssetLedgerType.cashBalance,
+          onBack: () => context.canPop()
+              ? context.pop()
+              : const AppShellRoute().go(context),
+          onOpenOrder: (orderRef) =>
+              OrderDetailRoute(orderRef).push<void>(context),
+          onSessionResetRequested: () => _clearCommerceAndLogin(context),
+        );
 }
 
 class EditProfileRouteArgs {

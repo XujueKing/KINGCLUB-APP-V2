@@ -75,6 +75,8 @@ class ScanOrderingCartPage extends StatefulWidget {
     required this.onBack,
     this.onQuoteReady,
     this.onOpenOrders,
+    this.onOpenRecharge,
+    this.onOpenBalancePayment,
     this.orderingContext,
     this.catalog,
     this.locale = const Locale('zh'),
@@ -85,6 +87,8 @@ class ScanOrderingCartPage extends StatefulWidget {
   final VoidCallback onBack;
   final ValueChanged<FakeOrderingQuote>? onQuoteReady;
   final VoidCallback? onOpenOrders;
+  final VoidCallback? onOpenRecharge;
+  final ValueChanged<String>? onOpenBalancePayment;
   final OrderingContext? orderingContext;
 
   @override
@@ -306,6 +310,73 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
               children: [
                 _buildSearchHeader(),
                 _buildStoreHeader(),
+                if (_live &&
+                    widget.orderingContext != null &&
+                    (widget.onOpenRecharge != null ||
+                        widget.onOpenBalancePayment != null))
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      if (widget.onOpenRecharge != null)
+                        TextButton(
+                          onPressed: widget.onOpenRecharge,
+                          child: Text(
+                            OrderingEntryStatus.text(widget.locale, [
+                              '本店充值',
+                              'Store recharge',
+                              '本店儲值',
+                              'เติมเงินกับร้าน',
+                            ]),
+                          ),
+                        ),
+                      if (widget.onOpenBalancePayment != null)
+                        PopupMenuButton<String>(
+                          key: const ValueKey('ordering-balance-payment'),
+                          tooltip: OrderingEntryStatus.text(widget.locale, [
+                            '会员付款码',
+                            'Member payment code',
+                            '會員付款碼',
+                            'รหัสชำระเงินสมาชิก',
+                          ]),
+                          onSelected: widget.onOpenBalancePayment,
+                          itemBuilder: (_) => [
+                            PopupMenuItem(
+                              value: 'platform_cash',
+                              child: Text(
+                                OrderingEntryStatus.text(widget.locale, [
+                                  '用平台现金付款',
+                                  'Pay with platform cash',
+                                  '用平台現金付款',
+                                  'ชำระด้วยเงินสดแพลตฟอร์ม',
+                                ]),
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'store_balance',
+                              child: Text(
+                                OrderingEntryStatus.text(widget.locale, [
+                                  '用本店余额付款',
+                                  'Pay with store balance',
+                                  '用本店餘額付款',
+                                  'ชำระด้วยยอดร้าน',
+                                ]),
+                              ),
+                            ),
+                          ],
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Text(
+                              OrderingEntryStatus.text(widget.locale, [
+                                '会员付款码',
+                                'Member payment code',
+                                '會員付款碼',
+                                'รหัสชำระเงินสมาชิก',
+                              ]),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 _buildCategoryTabs(),
                 ...switch (_scenarioBanner) {
                   final banner? => [banner],
