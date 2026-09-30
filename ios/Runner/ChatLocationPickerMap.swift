@@ -25,6 +25,8 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
   private var locationStarted = Date.distantPast
   private var bestLocation: CLLocation?
   private var locationTimer: DispatchWorkItem?
+  private var selectionCoordinate: CLLocationCoordinate2D?
+  private var lastAnchor: CGPoint?
 
   init(frame: CGRect, id: Int64, messenger: FlutterBinaryMessenger) {
     map = MKMapView(frame: frame)
@@ -42,10 +44,13 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
       }
       guard let args = call.arguments as? [String: Any] else { result(FlutterMethodNotImplemented); return }
       if call.method == "center", let point = self.coordinate(args) {
+        self.userRegionChange = false
         self.map.setUserTrackingMode(.none, animated: false)
+        self.selectionCoordinate = point
         self.positioned = true
         if args["userLocation"] as? Bool == true { self.map.showsUserLocation = true }
         self.map.setRegion(MKCoordinateRegion(center: point, latitudinalMeters: 900, longitudinalMeters: 900), animated: false)
+        self.updateAnchor()
         result(true)
       } else if call.method == "locate" {
         self.locate(result)
@@ -85,7 +90,7 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
   }
   private func locate(_ result: @escaping FlutterResult) {
     let requestRevision = start(result)
-    locating = true; locationStarted = Date()
+    locating = true; userRegionChange = false; locationStarted = Date()
     map.showsUserLocation = true
     // MapKit's own camera and blue dot share one coordinate pipeline.
     map.setUserTrackingMode(.follow, animated: false)
@@ -134,6 +139,8 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
       }
       let selected = self.map.userLocation.coordinate
       self.map.setUserTrackingMode(.none, animated: false)
+      self.selectionCoordinate = selected
+      self.updateAnchor()
       self.locating = false; self.settlingLocation = false; self.locationTimer = nil
       self.finish(["location": self.location(selected, name: "当前位置", address: ""),
                    "accuracyMeters": live.horizontalAccuracy], revision: revision)
@@ -158,6 +165,8 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
   }
   private func nearby(_ point: CLLocationCoordinate2D, name: String, result: @escaping FlutterResult) {
     let requestRevision = start(result)
+    selectionCoordinate = point
+    updateAnchor()
     geocoder.reverseGeocodeLocation(CLLocation(latitude: point.latitude, longitude: point.longitude), preferredLocale: Locale(identifier: "zh_CN")) { [weak self] places, _ in
       guard let self = self, requestRevision == self.revision else { return }
       let selected = self.location(point, name: name, address: self.address(places?.first))
@@ -202,7 +211,10 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
   func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
     // Only a user gesture starts a new manual choice. Camera following and
     // tile loading must not cancel an in-flight fix or clear its selection.
-    guard hasGesture(mapView) else { return }
+    beginManualMovement(mapView)
+  }
+  private func beginManualMovement(_ mapView: MKMapView) {
+    guard !userRegionChange, hasGesture(mapView) else { return }
     userRegionChange = true
     map.setUserTrackingMode(.none, animated: false)
     positioned = true
@@ -210,16 +222,41 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
     channel.invokeMethod("moving", arguments: nil)
   }
   private func hasGesture(_ view: UIView) -> Bool {
-    if (view.gestureRecognizers ?? []).contains(where: { $0.state == .began || $0.state == .changed }) { return true }
+    if (view.gestureRecognizers ?? []).contains(where: {
+      guard ($0.state == .began || $0.state == .changed), $0.numberOfTouches > 0 else { return false }
+      if let pan = $0 as? UIPanGestureRecognizer {
+        let movement = pan.translation(in: map)
+        return hypot(movement.x, movement.y) >= 6
+      }
+      if let pinch = $0 as? UIPinchGestureRecognizer { return abs(pinch.scale - 1) >= 0.02 }
+      return false
+    }) { return true }
     return view.subviews.contains(where: { hasGesture($0) })
   }
   func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
     guard positioned, userRegionChange else { return }
     userRegionChange = false
+    selectionCoordinate = mapView.centerCoordinate
+    updateAnchor()
     channel.invokeMethod("centerChanged", arguments: location(mapView.centerCoordinate, name: "地图选点", address: ""))
   }
+  func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
+    beginManualMovement(mapView)
+    if userRegionChange { selectionCoordinate = mapView.centerCoordinate }
+    updateAnchor()
+  }
+  private func updateAnchor() {
+    guard let selected = selectionCoordinate, map.bounds.width > 0, map.bounds.height > 0 else { return }
+    let point = map.convert(selected, toPointTo: map)
+    guard point.x.isFinite, point.y.isFinite else { return }
+    if let last = lastAnchor, abs(last.x - point.x) < 0.5, abs(last.y - point.y) < 0.5 { return }
+    lastAnchor = point
+    // MapKit may inset its visible center around safe areas. Use the map's
+    // actual projection rather than assuming Flutter's box center is the pin.
+    channel.invokeMethod("selectionAnchor", arguments: ["x": point.x, "y": point.y])
+  }
   func mapViewDidFinishRenderingMap(_ mapView: MKMapView, fullyRendered: Bool) {
-    if fullyRendered { channel.invokeMethod("status", arguments: "ready") }
+    if fullyRendered { updateAnchor(); channel.invokeMethod("status", arguments: "ready") }
   }
   func mapViewDidFailLoadingMap(_ mapView: MKMapView, withError error: Error) {
     channel.invokeMethod("status", arguments: "failed")

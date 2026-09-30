@@ -137,6 +137,23 @@ void main() {
               'Restoring a manual draft must preserve its durable message ID',
         );
         expect(sent, 0);
+        // The map's projected point can differ from the Flutter box center
+        // (for example, MapKit's safe-area camera inset). It must remain a
+        // visual update without saving or sending a different location.
+        final savedBeforeProjection = saved;
+        await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+          channel!.name,
+          const StandardMethodCodec().encodeMethodCall(
+            const MethodCall('selectionAnchor', {'x': 180.0, 'y': 260.0}),
+          ),
+          (_) {},
+        );
+        await tester.pump();
+        final pin = find.byIcon(Icons.location_on);
+        expect(tester.getTopLeft(pin), const Offset(153, 210.5));
+        expect(saved, savedBeforeProjection);
+        expect(sent, 0);
+        expect(queried!.sameAs(cachedGps ? live : cached), true);
         await tester.pumpWidget(const SizedBox());
       },
       variant: TargetPlatformVariant.only(TargetPlatform.iOS),

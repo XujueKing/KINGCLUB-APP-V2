@@ -41,6 +41,7 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   MethodChannel? _map;
   Timer? _mapDebounce;
   ChatLocation? _current;
+  Offset? _markerAnchor;
   String _mapStatus = 'loading';
   bool get _nativeMap => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
   bool _openingMap = false;
@@ -75,6 +76,14 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
       if (!mounted || _invalid || _sending || _map != channel) return;
       if (call.method == 'status') {
         setState(() => _mapStatus = call.arguments as String? ?? 'failed');
+      } else if (call.method == 'selectionAnchor') {
+        final args = call.arguments;
+        if (args is! Map || args['x'] is! num || args['y'] is! num) return;
+        final x = (args['x'] as num).toDouble();
+        final y = (args['y'] as num).toDouble();
+        if (x.isFinite && y.isFinite) {
+          setState(() => _markerAnchor = Offset(x, y));
+        }
       } else if (call.method == 'moving') {
         _generation++;
         _mapDebounce?.cancel();
@@ -438,15 +447,19 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                       if (_nativeMap &&
                           !_invalid &&
                           constraints.maxHeight - panelHeight >= 160)
-                        const IgnorePointer(
-                          child: Center(
-                            child: Padding(
-                              padding: EdgeInsets.only(bottom: 54),
-                              child: Icon(
-                                Icons.location_on,
-                                size: 54,
-                                color: Color(0xFF07C160),
-                              ),
+                        Positioned(
+                          left:
+                              (_markerAnchor?.dx ?? constraints.maxWidth / 2) -
+                              27,
+                          top:
+                              (_markerAnchor?.dy ??
+                                  (constraints.maxHeight - panelHeight) / 2) -
+                              49.5,
+                          child: const IgnorePointer(
+                            child: Icon(
+                              Icons.location_on,
+                              size: 54,
+                              color: Color(0xFF07C160),
                             ),
                           ),
                         ),
