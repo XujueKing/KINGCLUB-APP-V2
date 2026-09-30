@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.view.View
+import android.util.Log
 import android.widget.FrameLayout
 import com.tencent.tencentmap.mapsdk.maps.*
 import com.tencent.tencentmap.mapsdk.maps.model.*
@@ -74,13 +75,20 @@ private class ChatLocationPickerMap(context: Context, id: Int, messenger: Binary
             val key = args["key"] as? String ?: ""
             require(key.isNotBlank() && args["privacyAccepted"] == true)
             TencentMapInitializer.setAgreePrivacy(context.applicationContext, true)
+            // The pinned SDK separates consent from starting its component container.
+            if (!TencentMapInitializer.getAgreePrivacy()) {
+                TencentMapInitializer.start(context.applicationContext)
+            }
             val options = TencentMapOptions().setMapKey(key).setForceHttps(true)
                 .setOnAuthCallback(object : TencentMap.OnAuthResultCallback {
-                    override fun onAuthFail(code: Int, message: String?) { status("failed") }
+                    override fun onAuthFail(code: Int, message: String?) {
+                        Log.w("KingClubMap", "SDK authentication failed code=$code")
+                        status("failed")
+                    }
                     override fun onAuthSuccess() {}
                 })
             val native = MapView(context, options)
-            view = native; map = native.map
+            view = native; map = checkNotNull(native.map) { "Map SDK did not initialize" }
             host.addView(native, FrameLayout.LayoutParams(-1, -1))
             map!!.setMapType(TencentMap.MAP_TYPE_NORMAL)
             map!!.uiSettings.apply {
@@ -111,7 +119,12 @@ private class ChatLocationPickerMap(context: Context, id: Int, messenger: Binary
             })
             host.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> anchor() }
             native.onStart(); resume()
-        } catch (_: Exception) { host.post { status("failed") } }
+        } catch (error: Exception) {
+            // Exception messages can contain provider credentials; log only type and code locations.
+            Log.w("KingClubMap", "SDK initialization failed type=${error.javaClass.simpleName} " +
+                error.stackTrace.take(4).joinToString(" ") { "${it.className}.${it.methodName}:${it.lineNumber}" })
+            host.post { status("failed") }
+        }
     }
     private fun showBlue(point: LatLng) {
         blue?.remove()
