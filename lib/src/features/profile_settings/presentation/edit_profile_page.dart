@@ -791,8 +791,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
           IOSUiSettings(
             title: '调整头像',
-            doneButtonTitle: '完成',
-            cancelButtonTitle: '取消',
+            doneButtonTitle: '确认',
+            cancelButtonTitle: '返回',
             aspectRatioLockEnabled: true,
             resetAspectRatioEnabled: false,
           ),

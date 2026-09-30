@@ -32,6 +32,8 @@ jobs:
           "$RUNNER_TEMP/flutter/bin/flutter" precache --ios
       - name: Resolve dependencies before importing credentials
         run: flutter pub get --enforce-lockfile
+      - name: Apply reviewed iOS avatar cropper controls workaround
+        run: python3 scripts/patch_ios_avatar_cropper.py
       - name: Prepare temporary development signing
         env:
           IOS_P12_BASE64: ${{ secrets.IOS_P12_BASE64 }}

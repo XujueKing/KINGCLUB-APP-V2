@@ -49,6 +49,9 @@ jobs:
             flutter pub get --enforce-lockfile
           } 2>&1 | tee build/ci/ios-dependencies.log
 
+      - name: Apply reviewed iOS avatar cropper controls workaround
+        run: python3 scripts/patch_ios_avatar_cropper.py
+
       - name: Compile device application without signing
         shell: bash
         run: |
