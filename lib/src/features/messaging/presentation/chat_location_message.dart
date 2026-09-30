@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../core/design_system/king_components.dart';
 import '../../../core/design_system/king_notice.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/chat_location.dart';
 import '../data/chat_media_deletion.dart';
+import '../data/chat_saved_locations.dart';
 
 class ChatLocationMessage extends StatelessWidget {
   const ChatLocationMessage({
@@ -204,6 +207,180 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
   bool _deleted = false;
   bool _valid = true;
   bool _openingMap = false;
+  MethodChannel? _mapView;
+  ChatSavedLocations? _bookmarks;
+  List<ChatLocation> _saved = [];
+  bool _saving = false;
+  bool _locating = false;
+  double? _distance;
+  bool get _nativeMap =>
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.iOS &&
+      widget.location.coordinateSystem == 'wgs84';
+  bool get _isSaved => _saved.any((p) => p.sameAs(widget.location));
+
+  Future<void> _loadBookmarks() async {
+    try {
+      final session = await SecureSessionStore().readSession();
+      final account = (session?['account'] as Map?)?['userAccount'];
+      if (account is! String || account.isEmpty) return;
+      final store = ChatSavedLocations(account);
+      final saved = await store.read();
+      if (!mounted || !_valid) return;
+      setState(() {
+        _bookmarks = store;
+        _saved = saved;
+      });
+    } catch (_) {
+      /* A storage failure must not prevent viewing a location. */
+    }
+  }
+
+  Future<void> _toggleSaved() async {
+    if (!_valid || _saving) return;
+    final store = _bookmarks;
+    if (store == null) {
+      KingNotice.of(context).show('收藏暂不可用，请重新进入');
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final next = _isSaved
+          ? _saved.where((p) => !p.sameAs(widget.location)).toList()
+          : [..._saved, widget.location];
+      await store.save(next);
+      if (!mounted || !_valid) return;
+      setState(() => _saved = next);
+      KingNotice.of(context).show(_isSaved ? '已收藏到本机' : '已取消收藏');
+    } catch (_) {
+      if (mounted && _valid) {
+        KingNotice.of(context).show('收藏失败，请稍后重试（最多200个地点）');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _locate() async {
+    if (!_valid || _locating) return;
+    setState(() => _locating = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw StateError('定位服务未开启');
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw StateError('请在系统设置允许定位');
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+      if (!mounted || !_valid) return;
+      if (widget.location.coordinateSystem == 'wgs84') {
+        setState(
+          () => _distance = Geolocator.distanceBetween(
+            position.latitude,
+            position.longitude,
+            widget.location.latitudeE6 / 1e6,
+            widget.location.longitudeE6 / 1e6,
+          ),
+        );
+        await _mapView?.invokeMethod('locate', {
+          'latitudeE6': (position.latitude * 1e6).round(),
+          'longitudeE6': (position.longitude * 1e6).round(),
+          'coordinateSystem': 'wgs84',
+        });
+      }
+    } catch (_) {
+      if (mounted && _valid) {
+        KingNotice.of(context).show('无法获取当前位置，请检查定位权限和定位服务');
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<void> _copy() async {
+    if (!_valid) return;
+    final p = widget.location;
+    await Clipboard.setData(
+      ClipboardData(
+        text:
+            '${p.name}\n${p.address}\n${p.latitudeE6 / 1e6}, ${p.longitudeE6 / 1e6} (${p.coordinateSystem})',
+      ),
+    );
+    if (mounted && _valid) KingNotice.of(context).show('地点信息已复制');
+  }
+
+  Future<void> _more() async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF292929),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final item in {
+              'copy': '复制地点信息',
+              if (_nativeMap) 'target': '回到目的地',
+              'saved': '已收藏的地点（本机）',
+            }.entries)
+              ListTile(
+                title: Text(item.value),
+                onTap: () => Navigator.pop(context, item.key),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || !_valid) return;
+    if (action == 'copy') {
+      await _copy();
+      return;
+    }
+    if (action == 'target') {
+      await _mapView?.invokeMethod('target');
+      return;
+    }
+    if (action == 'saved') {
+      final chosen = await showModalBottomSheet<ChatLocation>(
+        context: context,
+        backgroundColor: const Color(0xFF292929),
+        builder: (context) => SafeArea(
+          child: _saved.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(28),
+                  child: Text('暂无收藏地点'),
+                )
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final place in _saved)
+                      ListTile(
+                        title: Text(place.name),
+                        subtitle: Text(place.address),
+                        onTap: () => Navigator.pop(context, place),
+                      ),
+                  ],
+                ),
+        ),
+      );
+      if (chosen != null && mounted && _valid) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ChatLocationDetailsPage(location: chosen),
+          ),
+        );
+        if (mounted && _valid) await _loadBookmarks();
+      }
+    }
+  }
 
   Future<void> _openMap() async {
     if (!_valid || _openingMap) return;
@@ -224,8 +401,9 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
   @override
   void initState() {
     super.initState();
+    unawaited(_loadBookmarks());
     _session = SecureSessionStore.changes.stream.listen((_) {
-      if (mounted) setState(() => _valid = false);
+      if (mounted) _invalidate(false);
     });
     _removeDeletionListener = ChatMediaDeletion.listen((event) {
       final source = widget.source;
@@ -236,10 +414,21 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
           event.messageId != source.messageId) {
         return;
       }
-      setState(() {
-        _deleted = true;
-        _valid = false;
-      });
+      _invalidate(true);
+    });
+  }
+
+  void _invalidate(bool deleted) {
+    final route = ModalRoute.of(context);
+    if (route != null && route.isActive && !route.isCurrent) {
+      Navigator.of(context)
+          .popUntil((candidate) => identical(candidate, route));
+    }
+    setState(() {
+      _deleted = deleted;
+      _valid = false;
+      _saved = [];
+      _bookmarks = null;
     });
   }
 
@@ -253,76 +442,231 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final location = widget.location;
-    final coordinates =
-        '${(location.latitudeE6 / 1e6).toStringAsFixed(6)}, '
-        '${(location.longitudeE6 / 1e6).toStringAsFixed(6)}';
-    final system = location.coordinateSystem == 'gcj02' ? 'GCJ-02' : 'WGS84';
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: kingAppBar(
-        context: context,
-        title: const Text('位置'),
-        backgroundColor: Colors.black,
-        leading: KingBackButton(onPressed: () => Navigator.of(context).pop()),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: !_valid
-              ? Text(_deleted ? '内容已移除' : '登录状态已变化，请重新进入')
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      location.name,
-                      style: const TextStyle(fontSize: 20, color: Colors.white),
+      backgroundColor: const Color(0xFF202324),
+      body: !_valid
+          ? SafeArea(
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: KingBackButton(
+                      onPressed: () => Navigator.pop(context),
                     ),
-                    if (location.address.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        location.address,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(_deleted ? '内容已移除' : '登录状态已变化，请重新进入'),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (_nativeMap)
+                        UiKitView(
+                          viewType: 'kingclub/location-map',
+                          creationParams: location.toJson(),
+                          creationParamsCodec: const StandardMessageCodec(),
+                          gestureRecognizers: {
+                            Factory<OneSequenceGestureRecognizer>(
+                              () => EagerGestureRecognizer(),
+                            ),
+                          },
+                          onPlatformViewCreated: (id) => _mapView =
+                              MethodChannel('kingclub/location-map/$id'),
+                        )
+                      else
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.location_on,
+                                size: 56,
+                                color: Color(0xFF07C160),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                location.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _openMap,
+                                child: const Text('打开地图查看位置'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Positioned(
+                        top: MediaQuery.paddingOf(context).top + 8,
+                        left: 8,
+                        child: IconButton.filled(
+                          tooltip: '返回',
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFFE8E8E8),
+                            foregroundColor: const Color(0xFF252525),
+                          ),
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: () => Navigator.pop(context),
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 24),
-                    Text(
-                      '经纬度：$coordinates',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '坐标系：$system',
-                      style: const TextStyle(color: Colors.white54),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton.icon(
-                      icon: const Icon(Icons.map_outlined, size: 18),
-                      label: const Text('在高德地图查看'),
-                      onPressed: _openingMap ? null : _openMap,
-                    ),
-                    TextButton.icon(
-                      icon: const Icon(Icons.copy_outlined, size: 18),
-                      label: const Text('复制地点信息'),
-                      onPressed: () async {
-                        if (!_valid) return;
-                        await Clipboard.setData(
-                          ClipboardData(
-                            text:
-                                '${location.name}\n${location.address}\n$coordinates ($system)',
+                      if (_nativeMap)
+                        Positioned(
+                          left: 16,
+                          bottom: 28,
+                          child: IconButton.filled(
+                            tooltip: '我的位置',
+                            style: IconButton.styleFrom(
+                              backgroundColor: const Color(0xFF303234),
+                              foregroundColor: const Color(0xFF2196F3),
+                              padding: const EdgeInsets.all(14),
+                            ),
+                            onPressed: _locating ? null : _locate,
+                            icon: _locating
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.my_location),
                           ),
-                        );
-                        if (context.mounted && _valid) {
-                          KingNotice.of(context).show('地点信息已复制');
-                        }
-                      },
-                    ),
-                  ],
+                        ),
+                    ],
+                  ),
                 ),
-        ),
-      ),
+                Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF2B2B2B),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 38,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF484848),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            location.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFFE2E2E2),
+                            ),
+                          ),
+                          if (location.address.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              location.address,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                height: 1.4,
+                                color: Color(0xFFC5C5C5),
+                              ),
+                            ),
+                          ],
+                          if (_distance != null) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              '直线距离 ${_distance! < 1000 ? '${_distance!.round()} 米' : '${(_distance! / 1000).toStringAsFixed(1)} 公里'}',
+                              style: const TextStyle(
+                                color: Color(0xFF9BA3AB),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _action(
+                                  Icons.navigation,
+                                  '导航',
+                                  _openingMap ? null : _openMap,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _action(
+                                  _isSaved
+                                      ? Icons.bookmark
+                                      : Icons.bookmark_border,
+                                  _isSaved ? '已收藏' : '收藏',
+                                  _saving ? null : _toggleSaved,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              SizedBox(
+                                width: 48,
+                                child: _action(Icons.more_horiz, '', _more),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
+
+  Widget _action(
+    IconData icon,
+    String text,
+    VoidCallback? onPressed,
+  ) => Tooltip(
+    message: text.isEmpty ? '更多' : text,
+    child: FilledButton(
+      style: FilledButton.styleFrom(
+        backgroundColor: const Color(0xFF434343),
+        foregroundColor: const Color(0xFFE3E3E3),
+        minimumSize: const Size(0, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onPressed: onPressed,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 20),
+          if (text.isNotEmpty) ...[
+            const SizedBox(width: 6),
+            Flexible(child: Text(text, style: const TextStyle(fontSize: 16))),
+          ],
+        ],
+      ),
+    ),
+  );
 }

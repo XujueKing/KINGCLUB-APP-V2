@@ -51,12 +51,12 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      await tester.ensureVisible(find.text('在高德地图查看'));
+      await tester.ensureVisible(find.text('导航'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('在高德地图查看'));
+      await tester.tap(find.text('导航'));
       await tester.pumpAndSettle();
       expect(opened, true);
-      await tester.ensureVisible(find.text('复制地点信息'));
+      await tester.tap(find.byTooltip('更多'));
       await tester.pumpAndSettle();
       expect(find.text('复制地点信息').hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -132,9 +132,9 @@ void main() {
         MaterialApp(home: ChatLocationDetailsPage(location: location)),
       );
       expect(calls, 0);
-      await tester.tap(find.text('在高德地图查看'));
+      await tester.tap(find.text('导航'));
       await tester.pump();
-      await tester.tap(find.text('在高德地图查看'));
+      await tester.tap(find.text('导航'));
       expect(calls, 1);
       SecureSessionStore.changes.add(null);
       await tester.pump();
@@ -187,8 +187,9 @@ void main() {
             const Offset(2, 2),
       );
       await tester.pumpAndSettle();
-      expect(find.text('经纬度：28.000001, 113.000001'), findsOneWidget);
-      expect(find.text('坐标系：GCJ-02'), findsOneWidget);
+      expect(find.text('导航'), findsOneWidget);
+      expect(find.text('收藏'), findsOneWidget);
+      expect(find.text('打车'), findsNothing);
       SecureSessionStore.changes.add(null);
       await tester.pumpAndSettle();
       expect(find.text('经纬度：28.000001, 113.000001'), findsNothing);

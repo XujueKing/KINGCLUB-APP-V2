@@ -10,6 +10,7 @@ import MapKit
   private var callLifetime: AppleCallLifetime?
   private var systemCalls: AppleSystemCalls?
   private var mapPreview: AppleChatMapPreview?
+  private var chatMap: AppleChatMapNavigation?
 
   override func application(
     _ application: UIApplication,
@@ -23,6 +24,10 @@ import MapKit
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     mapPreview = AppleChatMapPreview(messenger: engineBridge.applicationRegistrar.messenger())
+    chatMap = AppleChatMapNavigation(messenger: engineBridge.applicationRegistrar.messenger())
+    engineBridge.applicationRegistrar.register(
+      AppleChatMapFactory(messenger: engineBridge.applicationRegistrar.messenger()),
+      withId: "kingclub/location-map")
     chatPush = AppleChatPush(messenger: engineBridge.applicationRegistrar.messenger())
     callLifetime = AppleCallLifetime(messenger: engineBridge.applicationRegistrar.messenger())
     systemCalls?.attach(messenger: engineBridge.applicationRegistrar.messenger())
@@ -302,6 +307,96 @@ final class AppleChatPush {
   }
 }
 
+
+private func chatCoordinate(_ args: [String: Any]) -> CLLocationCoordinate2D? {
+  guard args["coordinateSystem"] as? String == "wgs84",
+        let lat = args["latitudeE6"] as? NSNumber,
+        let lon = args["longitudeE6"] as? NSNumber else { return nil }
+  let point = CLLocationCoordinate2D(latitude: lat.doubleValue / 1e6, longitude: lon.doubleValue / 1e6)
+  return CLLocationCoordinate2DIsValid(point) ? point : nil
+}
+
+private final class AppleChatMapNavigation {
+  private let channel: FlutterMethodChannel
+  init(messenger: FlutterBinaryMessenger) {
+    channel = FlutterMethodChannel(name: "kingclub/chat-map", binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "open", let args = call.arguments as? [String: Any] else {
+        result(FlutterMethodNotImplemented); return
+      }
+      if let coordinate = chatCoordinate(args) {
+        let place = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        place.name = args["name"] as? String
+        let mode = args["mode"] as? String == "walking" ? MKLaunchOptionsDirectionsModeWalking : MKLaunchOptionsDirectionsModeDriving
+        result(place.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: mode]))
+      } else if args["coordinateSystem"] as? String == "gcj02",
+                let lat = args["latitudeE6"] as? NSNumber,
+                let lon = args["longitudeE6"] as? NSNumber,
+                abs(lat.doubleValue) <= 90e6, abs(lon.doubleValue) <= 180e6 {
+        // Preserve legacy coordinates for the provider which understands them.
+        var url = URLComponents(string: "https://uri.amap.com/marker")!
+        url.queryItems = [URLQueryItem(name: "position", value: "\(lon.doubleValue / 1e6),\(lat.doubleValue / 1e6)"),
+          URLQueryItem(name: "name", value: args["name"] as? String),
+          URLQueryItem(name: "coordinate", value: "gaode"), URLQueryItem(name: "callnative", value: "1")]
+        guard let target = url.url else { result(false); return }
+        UIApplication.shared.open(target, options: [:]) { result($0) }
+      } else { result(false) }
+    }
+  }
+}
+
+private final class AppleChatMapFactory: NSObject, FlutterPlatformViewFactory {
+  private let messenger: FlutterBinaryMessenger
+  init(messenger: FlutterBinaryMessenger) { self.messenger = messenger; super.init() }
+  func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol { FlutterStandardMessageCodec.sharedInstance() }
+  func create(withFrame frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?) -> FlutterPlatformView {
+    AppleChatMapView(frame: frame, id: viewId, args: args as? [String: Any] ?? [:], messenger: messenger)
+  }
+}
+
+private final class AppleChatMapView: NSObject, FlutterPlatformView, MKMapViewDelegate {
+  private let map: MKMapView
+  private let channel: FlutterMethodChannel
+  private let target: CLLocationCoordinate2D?
+  init(frame: CGRect, id: Int64, args: [String: Any], messenger: FlutterBinaryMessenger) {
+    map = MKMapView(frame: frame)
+    target = chatCoordinate(args)
+    channel = FlutterMethodChannel(name: "kingclub/location-map/\(id)", binaryMessenger: messenger)
+    super.init()
+    map.overrideUserInterfaceStyle = .dark
+    map.delegate = self
+    map.isRotateEnabled = true
+    map.showsCompass = true
+    if let target = target {
+      let pin = MKPointAnnotation(); pin.coordinate = target; pin.title = args["name"] as? String
+      map.addAnnotation(pin)
+      center(target)
+    }
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else { result(false); return }
+      if call.method == "target", let target = self.target {
+        self.center(target); result(true)
+      } else if call.method == "locate", let args = call.arguments as? [String: Any], let point = chatCoordinate(args) {
+        self.map.showsUserLocation = true
+        self.center(point); result(true)
+      } else { result(FlutterMethodNotImplemented) }
+    }
+  }
+  private func center(_ point: CLLocationCoordinate2D) {
+    map.setRegion(MKCoordinateRegion(center: point, latitudinalMeters: 900, longitudinalMeters: 900), animated: true)
+  }
+  func view() -> UIView { map }
+  func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+    if annotation is MKUserLocation { return nil }
+    let pin = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: "destination")
+    pin.markerTintColor = UIColor(red: 0.03, green: 0.76, blue: 0.38, alpha: 1)
+    pin.glyphImage = UIImage(systemName: "circle.fill")
+    pin.glyphTintColor = .white
+    pin.displayPriority = .required
+    return pin
+  }
+  deinit { channel.setMethodCallHandler(nil); map.delegate = nil; map.showsUserLocation = false }
+}
 
 /// Map previews use the system map provider; no chat text is sent to it.
 private final class AppleChatMapPreview {
