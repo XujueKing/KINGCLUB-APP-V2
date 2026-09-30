@@ -5,3 +5,7 @@
 实现范围：iOS 使用系统 MapKit 交互地图，支持缩放拖动、目标标记、定位回中；底部导航、收藏、更多（复制地点、回到目标、查看已收藏地点）。收藏按账号保存在本机。仅主动点击定位申请权限，不上传当前用户位置至业务服务器。不编造距离或路程时间。
 
 已有 GCJ-02 位置不能当作 WGS84 传给系统地图；保留坐标系感知的高德链接兜底。Android 继续使用已接入的外部地图入口，内嵌地图尚待地图 SDK 接入。布局和原生运行验收分别记录，不将构建通过视为真机验收。
+
+验证：Flutter 定向静态检查通过；22 项位置回归测试通过，包含小屏大字长地址、导航重复点击保护、单/群删除、撤回关闭更多菜单、会话账号失效、账号隔离收藏、离线位置队列和确认边界。iPhone build 30 正在编译，原生地图拖动、导航返回及外观仍待真机验收。距离仅展示定位后的直线距离，路线预计时间由系统地图计算，详情不显示虚构耗时。
+
+原生接口依据：[Flutter iOS Platform Views](https://docs.flutter.dev/platform-integration/ios/platform-views)、[Apple MapKit 导航选项](https://developer.apple.com/documentation/mapkit/launch-options-dictionary-keys)。

@@ -103,6 +103,24 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets('recall closes an open location action sheet', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatLocationDetailsPage(
+          location: location,
+          source: ChatMediaDeletion('member', false, 'location-message'),
+        ),
+      ),
+    );
+    await tester.tap(find.byTooltip('更多'));
+    await tester.pumpAndSettle();
+    expect(find.text('复制地点信息'), findsOneWidget);
+    await ChatMediaDeletion('member', false, 'location-message').dispatch();
+    await tester.pumpAndSettle();
+    expect(find.text('内容已移除'), findsOneWidget);
+    expect(find.text('复制地点信息'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'map launch preserves coordinates and prevents duplicate launches',
     (tester) async {
