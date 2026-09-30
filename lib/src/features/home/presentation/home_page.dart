@@ -1,3 +1,5 @@
+import 'legacy_home_image.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -140,23 +142,23 @@ class _HomePageState extends State<HomePage> {
   Future<void> _showMock(String label) async {
     final details = switch (label) {
       '兼职探店品鉴官' => (
-        'assets/legacy/home/mock_hero_recruitment.png',
+        'assets/legacy/home/legacy_banner_recruitment.webp',
         'KINGCLUB 正在招募兼职探店品鉴官。当前页面使用固定 Fake 内容，只用于还原旧版运营详情的展开与返回流程。',
       ),
       '最帅小哥哥活动' => (
-        'assets/legacy/home/mock_poster_handsome.png',
+        'assets/legacy/home/legacy_poster_handsome.webp',
         '谁是最帅小哥哥 · 投稿有奖。活动投稿、审核和奖励均未连接服务器。',
       ),
       'AI 卡颜局' => (
-        'assets/legacy/home/mock_poster_party.png',
+        'assets/legacy/home/legacy_poster_party.webp',
         '男女会员 1:1 随机组局。点击下方按钮可继续查看现有 VIP 组局 Fake 页面。',
       ),
       '生日有礼' => (
-        'assets/legacy/home/mock_poster_birthday.png',
+        'assets/legacy/home/legacy_poster_birthday.webp',
         '生日会员权益展示。当前仅模拟旧版内容阅读流程，不发放真实权益。',
       ),
       _ => (
-        'assets/legacy/home/mock_poster_music.png',
+        'assets/legacy/home/legacy_poster_music.webp',
         '玩音乐能赚钱。当前仅模拟旧版运营内容，不提交报名或产生真实收益。',
       ),
     };
@@ -174,10 +176,10 @@ class _HomePageState extends State<HomePage> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: Image.asset(
+                child: LegacyHomeImage(
                   details.$1,
                   height: label == '兼职探店品鉴官' ? 190 : 300,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                 ),
               ),
               const SizedBox(height: 18),
@@ -277,81 +279,94 @@ class _HomePageState extends State<HomePage> {
       _ => const _MemberPresentation(),
     };
 
-    return ColoredBox(
-      color: Colors.black,
-      child: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          onRefresh: _refresh,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportWidth = constraints.maxWidth;
+        return ColoredBox(
           color: Colors.black,
-          backgroundColor: _gold,
-          child: CustomScrollView(
-            controller: _scrollController,
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _HomeStickyHeaderDelegate(
-                  presentation: member,
-                  textScale: MediaQuery.textScalerOf(context).scale(1),
-                  viewportWidth: MediaQuery.sizeOf(context).width,
-                  showHero: !empty,
-                  hero: _HeroBanner(
-                    loading: loading,
-                    imageError: _state == HomeDemoState.partialImageError,
-                    onTap: () => _showMock('兼职探店品鉴官'),
-                    onRetry: () => setState(() => _state = HomeDemoState.ready),
-                  ),
-                  quickActions: _QuickActions(
-                    onTogether: () => _runAction(widget.onOpenTogether),
-                    onParty: () => _runAction(widget.onOpenParty),
-                    onScan: () => _runAction(widget.onOpenScanner),
-                  ),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 230),
-                sliver: SliverList.list(
-                  children: [
-                    if (offline) ...[
-                      const _HomeStatusBanner(
-                        icon: Icons.wifi_off_rounded,
-                        label: '离线内容 · 最近更新 5 分钟前',
-                      ),
-                    ],
-                    if (_refreshing) ...[
-                      const SizedBox(height: 8),
-                      const _HomeStatusBanner(
-                        icon: Icons.refresh_rounded,
-                        label: '正在刷新，当前内容继续保留',
-                        busy: true,
-                      ),
-                    ],
-                    if (empty)
-                      _EmptyPromotions(
-                        onRestore: () =>
-                            setState(() => _state = HomeDemoState.ready),
-                      )
-                    else
-                      _PromotionGrid(
+          child: SafeArea(
+            bottom: false,
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              color: Colors.black,
+              backgroundColor: _gold,
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _HomeStickyHeaderDelegate(
+                      presentation: member,
+                      textScale: MediaQuery.textScalerOf(context).scale(1),
+                      viewportWidth: viewportWidth,
+                      showHero: !empty,
+                      hero: _HeroBanner(
                         loading: loading,
                         imageError: _state == HomeDemoState.partialImageError,
-                        mode: _state == HomeDemoState.articleCard
-                            ? _PromotionMode.article
-                            : _state == HomeDemoState.videoCard
-                            ? _PromotionMode.video
-                            : _PromotionMode.poster,
-                        onTap: _showMock,
-                        onRecover: () =>
+                        onTap: () => _showMock('兼职探店品鉴官'),
+                        onRetry: () =>
                             setState(() => _state = HomeDemoState.ready),
                       ),
-                  ],
-                ),
+                      quickActions: _QuickActions(
+                        onTogether: () => _runAction(widget.onOpenTogether),
+                        onParty: () => _runAction(widget.onOpenParty),
+                        onScan: () => _runAction(widget.onOpenScanner),
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      35 * viewportWidth / 750,
+                      22 * viewportWidth / 750,
+                      35 * viewportWidth / 750,
+                      230,
+                    ),
+                    sliver: SliverList.list(
+                      children: [
+                        if (offline) ...[
+                          const _HomeStatusBanner(
+                            icon: Icons.wifi_off_rounded,
+                            label: '离线内容 · 最近更新 5 分钟前',
+                          ),
+                        ],
+                        if (_refreshing) ...[
+                          const SizedBox(height: 8),
+                          const _HomeStatusBanner(
+                            icon: Icons.refresh_rounded,
+                            label: '正在刷新，当前内容继续保留',
+                            busy: true,
+                          ),
+                        ],
+                        if (empty)
+                          _EmptyPromotions(
+                            onRestore: () =>
+                                setState(() => _state = HomeDemoState.ready),
+                          )
+                        else
+                          _PromotionGrid(
+                            unit: viewportWidth / 750,
+                            loading: loading,
+                            imageError:
+                                _state == HomeDemoState.partialImageError,
+                            mode: _state == HomeDemoState.articleCard
+                                ? _PromotionMode.article
+                                : _state == HomeDemoState.videoCard
+                                ? _PromotionMode.video
+                                : _PromotionMode.poster,
+                            onTap: _showMock,
+                            onRecover: () =>
+                                setState(() => _state = HomeDemoState.ready),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -392,15 +407,16 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget quickActions;
 
   double get _scaleExtra => (textScale - 1).clamp(0, 2) * 12;
-  double get _contentWidth => viewportWidth - 32;
+  double get _unit => viewportWidth / 750;
+  double get _contentWidth => 680 * _unit;
   double get _expandedMemberExtent => 86 + _scaleExtra;
   double get _compactMemberExtent => 56 + (_scaleExtra * 2 / 3);
-  double get _heroHeight => showHero ? _contentWidth * 417 / 690 : 0;
+  double get _heroHeight => showHero ? 417 * _unit : 0;
   double get _quickHeight => _contentWidth * 140 / 680;
   double get _shadowExtent => 8;
-  double get _expandedHeroTop => _expandedMemberExtent - 20;
+  double get _expandedHeroTop => _expandedMemberExtent - 20 * _unit;
   double get _expandedQuickTop =>
-      _expandedHeroTop + (showHero ? _heroHeight + 10 : 0);
+      _expandedHeroTop + (showHero ? _heroHeight + 20 * _unit : 0);
 
   @override
   double get maxExtent => _expandedQuickTop + _quickHeight + _shadowExtent;
@@ -432,8 +448,8 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
         children: [
           if (showHero)
             Positioned(
-              left: 16,
-              right: 16,
+              left: 30 * _unit,
+              right: 30 * _unit,
               top: heroTop,
               height: _heroHeight,
               child: hero,
@@ -462,7 +478,12 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
             height: _quickHeight + _shadowExtent,
             child: Container(
               key: const ValueKey('home-sticky-actions-shadow'),
-              padding: EdgeInsets.fromLTRB(16, 0, 16, _shadowExtent),
+              padding: EdgeInsets.fromLTRB(
+                35 * _unit,
+                0,
+                35 * _unit,
+                _shadowExtent,
+              ),
               decoration: BoxDecoration(
                 color: Colors.black,
                 boxShadow: [
@@ -861,17 +882,15 @@ class _RecruitmentBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final asset = alternate
-        ? 'assets/legacy/home/legacy_banner_childrens_day.png'
-        : 'assets/legacy/home/legacy_banner_recruitment.png';
+        ? 'assets/legacy/home/legacy_banner_childrens_day.webp'
+        : 'assets/legacy/home/legacy_banner_recruitment.webp';
 
-    return Image.asset(
+    return LegacyHomeImage(
       asset,
       key: ValueKey(
         'home-banner-original-${alternate ? 'childrens-day' : 'recruitment'}',
       ),
       fit: BoxFit.contain,
-      alignment: Alignment.center,
-      filterQuality: FilterQuality.high,
     );
   }
 }
@@ -1266,6 +1285,7 @@ enum _PromotionMode { poster, article, video }
 
 class _PromotionGrid extends StatelessWidget {
   const _PromotionGrid({
+    required this.unit,
     required this.onTap,
     required this.loading,
     required this.imageError,
@@ -1273,6 +1293,7 @@ class _PromotionGrid extends StatelessWidget {
     required this.onRecover,
   });
 
+  final double unit;
   final ValueChanged<String> onTap;
   final bool loading;
   final bool imageError;
@@ -1282,9 +1303,11 @@ class _PromotionGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
+        SizedBox(
+          width: 332 * unit,
           child: Column(
             children: [
               if (mode == _PromotionMode.article)
@@ -1293,46 +1316,42 @@ class _PromotionGrid extends StatelessWidget {
                 const _VideoPromotionCard()
               else
                 _PosterCard(
-                  asset: 'assets/legacy/home/mock_poster_handsome.png',
+                  unit: unit,
+                  asset: 'assets/legacy/home/legacy_poster_handsome.webp',
                   title: '谁是最帅小哥哥',
-                  display: 'HANDSOME\nMAN',
-                  tag: '投稿有奖',
                   loading: loading,
                   onTap: () => onTap('最帅小哥哥活动'),
                 ),
-              const SizedBox(height: 8),
+              SizedBox(height: 24 * unit + 6),
               if (imageError)
                 _PromotionImageError(title: '生日有礼', onRetry: onRecover)
               else
                 _PosterCard(
-                  asset: 'assets/legacy/home/mock_poster_birthday.png',
+                  unit: unit,
+                  asset: 'assets/legacy/home/legacy_poster_birthday.webp',
                   title: '生日有礼',
-                  display: '解锁小姐姐哥哥特权',
-                  palette: const Color(0xFFA82F61),
                   loading: loading,
                   onTap: () => onTap('生日有礼'),
                 ),
             ],
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
+        SizedBox(
+          width: 332 * unit,
           child: Column(
             children: [
               _PosterCard(
-                asset: 'assets/legacy/home/mock_poster_party.png',
+                unit: unit,
+                asset: 'assets/legacy/home/legacy_poster_party.webp',
                 title: 'AI 卡颜局',
-                display: '男女会员 1:1\n随机组局',
-                tag: '新玩法',
-                palette: const Color(0xFFFFB1D6),
                 loading: loading,
                 onTap: () => onTap('AI 卡颜局'),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 24 * unit + 6),
               _PosterCard(
-                asset: 'assets/legacy/home/mock_poster_music.png',
+                unit: unit,
+                asset: 'assets/legacy/home/legacy_poster_music.webp',
                 title: '玩音乐能赚钱',
-                display: 'PLAY MUSIC',
                 loading: loading,
                 onTap: () => onTap('玩音乐能赚钱'),
               ),
@@ -1348,18 +1367,14 @@ class _PosterCard extends StatelessWidget {
   const _PosterCard({
     required this.asset,
     required this.title,
-    required this.display,
+    required this.unit,
     required this.onTap,
-    this.tag,
-    this.palette = const Color(0xFFE7D5B9),
     this.loading = false,
   });
 
+  final double unit;
   final String asset;
   final String title;
-  final String display;
-  final String? tag;
-  final Color palette;
   final VoidCallback onTap;
   final bool loading;
 
@@ -1371,73 +1386,13 @@ class _PosterCard extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AspectRatio(
-          aspectRatio: .72,
+          aspectRatio: 332 / 460,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(10 * unit),
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.asset(asset, fit: BoxFit.cover),
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Color(0x22000000),
-                        Color(0x00000000),
-                        Color(0x66000000),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 12,
-                  right: 8,
-                  top: 16,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: palette,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        display,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: .9),
-                          height: .93,
-                          fontSize: 25,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (tag != null)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      color: const Color(0xCC8C653F),
-                      child: Text(
-                        tag!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                        ),
-                      ),
-                    ),
-                  ),
+                LegacyHomeImage(asset, key: ValueKey('home-poster-$asset')),
                 if (loading)
                   const ColoredBox(
                     color: Color(0x66000000),
@@ -1479,8 +1434,8 @@ class _ArticlePromotionCard extends StatelessWidget {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(7),
                   ),
-                  child: Image.asset(
-                    'assets/legacy/home/mock_poster_handsome.png',
+                  child: const LegacyHomeImage(
+                    'assets/legacy/home/legacy_poster_handsome.webp',
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -1553,8 +1508,8 @@ class _VideoPromotionCardState extends State<_VideoPromotionCard> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(
-                'assets/legacy/home/mock_poster_music.png',
+              const LegacyHomeImage(
+                'assets/legacy/home/legacy_poster_music.webp',
                 fit: BoxFit.cover,
               ),
               const DecoratedBox(

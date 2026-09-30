@@ -1,0 +1,72 @@
+{
+  "sourceBaseUrl": "https://www.wuyexin.cn/rest/file/wyx_files/micApp/kingclub/images/",
+  "format": "WebP, quality 90; original dimensions and alpha retained; no recoloring or added text",
+  "images": [
+    {
+      "source": "man.jpg",
+      "asset": "legacy_poster_handsome.webp",
+      "pixels": [
+        600,
+        873
+      ],
+      "sourceBytes": 105760,
+      "compressedBytes": 58236,
+      "sourceSha256": "ee4ae79f43be3b2a374e859384912e4b5b035dea47fd12c8f539889e9807e73b"
+    },
+    {
+      "source": "kayan.jpg",
+      "asset": "legacy_poster_party.webp",
+      "pixels": [
+        600,
+        873
+      ],
+      "sourceBytes": 80929,
+      "compressedBytes": 58636,
+      "sourceSha256": "f0563dd0f5a2d0b8904dfb33952afa059c463c7fdbbbf8c44b143bd16170a106"
+    },
+    {
+      "source": "Birthday.jpg",
+      "asset": "legacy_poster_birthday.webp",
+      "pixels": [
+        600,
+        873
+      ],
+      "sourceBytes": 67271,
+      "compressedBytes": 56422,
+      "sourceSha256": "593f0effe06d1250af4b50cb0fcf47b62543901a415be5281dd320597210c493"
+    },
+    {
+      "source": "job.jpg",
+      "asset": "legacy_poster_music.webp",
+      "pixels": [
+        600,
+        873
+      ],
+      "sourceBytes": 196348,
+      "compressedBytes": 91150,
+      "sourceSha256": "8a7f77cf29cbb478e3430a21b11677b5811e02d09aeaa4d89930c03fed79c8aa"
+    },
+    {
+      "source": "ad02.png",
+      "asset": "legacy_banner_recruitment.webp",
+      "pixels": [
+        1375,
+        831
+      ],
+      "sourceBytes": 294074,
+      "compressedBytes": 138292,
+      "sourceSha256": "7aaf9c63f386e13edbab722f8a01e4e7c6723cba4cd59deab8ec2dd753b59403"
+    },
+    {
+      "source": "ad4.png",
+      "asset": "legacy_banner_childrens_day.webp",
+      "pixels": [
+        687,
+        415
+      ],
+      "sourceBytes": 91544,
+      "compressedBytes": 62830,
+      "sourceSha256": "506ed53da36495e38938497de8d6faa7e7efe706d14bedcb9e76338b206436ae"
+    }
+  ]
+}

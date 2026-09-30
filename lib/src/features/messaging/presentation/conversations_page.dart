@@ -1,3 +1,4 @@
+import '../../../core/design_system/chat_list_colors.dart';
 import 'chat_timestamp.dart';
 import '../data/chat_outbox.dart';
 import '../data/pending_conversation_rows.dart';
@@ -913,7 +914,7 @@ class _ConversationsPageState extends State<ConversationsPage>
               target: '${group ? 'group' : 'peer'}:$target',
               preview: item['preview'] as String? ?? '',
               style: TextStyle(
-                color: const Color(0x66FFFFFF),
+                color: ChatListColors.preview,
                 fontSize: 26 * MediaQuery.sizeOf(context).width / 750,
                 height: kTextHeightNone,
                 fontWeight: FontWeight.w400,
@@ -1015,10 +1016,10 @@ class _ConversationsPageState extends State<ConversationsPage>
       if (pinned.isNotEmpty)
         Container(
           decoration: const BoxDecoration(
-            color: Color(0x0DC9B69E),
+            color: ChatListColors.pinnedSurface,
             border: Border(
-              top: BorderSide(color: Color(0x12C9B69E), width: .5),
-              bottom: BorderSide(color: Color(0x12C9B69E), width: .5),
+              top: BorderSide(color: ChatListColors.separator, width: .5),
+              bottom: BorderSide(color: ChatListColors.separator, width: .5),
             ),
           ),
           child: Column(
@@ -1121,14 +1122,14 @@ class _ConversationsPageState extends State<ConversationsPage>
                         _matches('卡座搭子'))
                       Container(
                         decoration: const BoxDecoration(
-                          color: Color(0x0DC9B69E),
+                          color: ChatListColors.pinnedSurface,
                           border: Border(
                             top: BorderSide(
-                              color: Color(0x12C9B69E),
+                              color: ChatListColors.separator,
                               width: .5,
                             ),
                             bottom: BorderSide(
-                              color: Color(0x12C9B69E),
+                              color: ChatListColors.separator,
                               width: .5,
                             ),
                           ),
@@ -1723,8 +1724,8 @@ class _ConversationContent extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: const Color(0xBBFFFFFF),
-                              fontSize: 30 * r,
+                              color: ChatListColors.name,
+                              fontSize: 32 * r,
                               height: kTextHeightNone,
                               fontWeight: FontWeight.w400,
                             ),
@@ -1748,7 +1749,7 @@ class _ConversationContent extends StatelessWidget {
                         ),
                       ],
                     ),
-                    SizedBox(height: 5 * r),
+                    SizedBox(height: 8 * r),
                     Row(
                       children: [
                         Expanded(
@@ -1761,7 +1762,7 @@ class _ConversationContent extends StatelessWidget {
                                 style: TextStyle(
                                   color: inactive
                                       ? const Color(0x99C9B69E)
-                                      : const Color(0x66FFFFFF),
+                                      : ChatListColors.preview,
                                   fontSize: 26 * r,
                                   height: kTextHeightNone,
                                   fontWeight: FontWeight.w400,
@@ -1798,11 +1799,7 @@ class _ConversationContent extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               height: .5,
-              child: ColoredBox(
-                color: pinned
-                    ? const Color(0x12C9B69E)
-                    : const Color(0x1CC9B69E),
-              ),
+              child: ColoredBox(color: ChatListColors.separator),
             ),
           ),
         ),
@@ -1900,12 +1897,9 @@ class _FriendConversation extends StatelessWidget {
                 },
                 onHorizontalDragEnd: (_) => onSlideEnd(),
                 child: ColoredBox(
-                  // The sliding foreground must obscure the action tray. Composite
-                  // the 5% pinned tint against black instead of making it transparent.
+                  // Keep the pinned surface opaque so it obscures the action tray.
                   key: const ValueKey('conversation-row-surface'),
-                  color: pinned
-                      ? Color.alphaBlend(const Color(0x0DC9B69E), Colors.black)
-                      : Colors.black,
+                  color: pinned ? ChatListColors.pinnedSurface : Colors.black,
                   child: _ConversationContent(
                     avatar: avatar,
                     name: name,

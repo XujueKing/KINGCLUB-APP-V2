@@ -66,8 +66,8 @@ void main() {
     expect(find.text('一起玩'), findsOneWidget);
     expect(find.text('组局玩'), findsOneWidget);
     expect(find.text('SCAN QR'), findsOneWidget);
-    expect(find.text('谁是最帅小哥哥'), findsOneWidget);
-    expect(find.text('AI 卡颜局'), findsOneWidget);
+    expect(semanticsLabel('谁是最帅小哥哥'), findsOneWidget);
+    expect(semanticsLabel('AI 卡颜局'), findsOneWidget);
 
     await tester.tap(find.text('一起玩'));
     await tester.tap(find.text('一起玩'));
@@ -92,7 +92,7 @@ void main() {
     final together = find.byKey(const ValueKey('home-quick-together'));
     final party = find.byKey(const ValueKey('home-quick-party'));
     final scan = find.byKey(const ValueKey('home-quick-scan'));
-    final scale = (393 - 32) / 680;
+    final scale = 393 / 750;
 
     expect(tester.getSize(together).width, closeTo(246 * scale, .2));
     expect(tester.getSize(party).width, closeTo(246 * scale, .2));
@@ -296,7 +296,7 @@ void main() {
     expect(find.byKey(const ValueKey('home-empty-promotions')), findsNothing);
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -420));
     await tester.pump();
-    expect(find.text('谁是最帅小哥哥'), findsOneWidget);
+    expect(semanticsLabel('谁是最帅小哥哥'), findsOneWidget);
 
     await tester.pumpWidget(home(state: HomeDemoState.partialImageError));
     await tester.pump();
@@ -318,7 +318,7 @@ void main() {
     expect(semanticsLabel('离线内容 · 最近更新 5 分钟前'), findsOneWidget);
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -360));
     await tester.pump();
-    expect(find.text('谁是最帅小哥哥'), findsOneWidget);
+    expect(semanticsLabel('谁是最帅小哥哥'), findsOneWidget);
 
     await tester.pumpWidget(home(state: HomeDemoState.fatalError));
     await tester.pump();
@@ -360,7 +360,7 @@ void main() {
     tester.widget<RefreshIndicator>(find.byType(RefreshIndicator)).onRefresh();
     await tester.pump();
     expect(find.text('正在刷新，当前内容继续保留'), findsOneWidget);
-    expect(find.text('谁是最帅小哥哥'), findsOneWidget);
+    expect(semanticsLabel('谁是最帅小哥哥'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 700));
 
     var resets = 0;

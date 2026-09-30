@@ -1,3 +1,4 @@
+import '../../../core/design_system/chat_list_colors.dart';
 import '../../messaging/presentation/chat_member_avatar.dart';
 import '../../messaging/presentation/group_invitations_page.dart';
 import '../../messaging/presentation/joined_groups_page.dart';
@@ -940,7 +941,7 @@ class _ContactRow extends StatelessWidget {
                 child: SizedBox(
                   width: MediaQuery.sizeOf(context).width * .9 - 4,
                   height: .5,
-                  child: const ColoredBox(color: Color(0x1CC9B69E)),
+                  child: const ColoredBox(color: ChatListColors.separator),
                 ),
               ),
             ),
