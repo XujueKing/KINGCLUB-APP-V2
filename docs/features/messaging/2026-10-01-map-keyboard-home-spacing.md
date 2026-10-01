@@ -23,3 +23,5 @@
 - iPhone CI 第 43 版（run `36797729046`，同一实现提交）编译产物已校验并覆盖安装成功，远程启动成功。IPA SHA256：`2F7C43876D34E83D70D3DEF61461178F5A907C98BAB48740B0FE0C0D30C6CD33`。已抓取启动画面 `ios43-installed.png`；PushKit/CallKit 构建配置保留。随后 USB 枚举不再识别 iPhone，不影响此前安装成功的证据。
 - 标题小红点与基线/位置由回归确认；当前 A 没有标题未读状态，未伪造新消息来制造红点。桌面数字角标和会话行数字不在本次修改范围。
 - 已向用户请求新版 iPhone 键盘“两段推升”和地图闪屏体验复核；尚未收到结果。A 无系统 screenrecord 命令，静态截图不能证明动画流畅，因此两端动画体验仍待真机反馈，不能标整体体验验收完成。
+
+2026-10-01 用户再次要求安装，USB 实际连接为另一台 iPhone 11（iPhone12,1，iOS 26.4，UDID 尾号 027A402E）。先核对同一第 43 版 IPA 的描述文件包含该设备，再覆盖安装；installation_proxy 返回 100% / Installation succeed，DVT 启动 pid 510。安装清单确认 `com.lingmei.kingclub`、版本 1.0.0 / build 43。未卸载、未清数据，也未把此次安装等同于地图或动画验收。
