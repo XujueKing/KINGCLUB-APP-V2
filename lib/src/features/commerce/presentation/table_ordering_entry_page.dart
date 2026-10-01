@@ -17,6 +17,7 @@ import '../data/ordering_catalog_repository.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'ordering_entry_status.dart';
 import 'scan_ordering_cart_page.dart';
+import 'table_bill_page.dart';
 import '../../membership_wallet/presentation/member_recharge_page.dart';
 import '../../membership_wallet/presentation/member_payment_code_page.dart';
 
@@ -290,6 +291,21 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
         onBack: widget.onBack,
         onQuoteReady: widget.onQuoteReady,
         onOpenOrders: widget.onOpenOrders,
+        onOpenTableBill: () {
+          if (!mounted || !_foreground || !identical(_context, resolved)) {
+            return;
+          }
+          Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              allowSnapshotting: false,
+              builder: (pageContext) => TableBillPage(
+                table: resolved,
+                events: widget.events,
+                onBack: () => Navigator.of(pageContext).pop(),
+              ),
+            ),
+          );
+        },
         onOpenBalancePayment:
             const bool.fromEnvironment('KINGCLUB_MEMBER_PAYMENT')
             ? (accountType) {

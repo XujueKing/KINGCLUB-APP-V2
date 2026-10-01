@@ -22,7 +22,11 @@ class MemberOrdersPage extends StatefulWidget {
     this.orderRef,
     this.load,
     this.events,
+    this.title,
+    this.expandItems = false,
   });
+  final String? title;
+  final bool expandItems;
   final VoidCallback onBack;
   final ValueChanged<String>? onOpenOrder;
   final String? orderRef;
@@ -256,7 +260,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                 style: const TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 12),
-              if (detail)
+              if (detail || widget.expandItems)
                 ...order.items.map(
                   (item) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -336,7 +340,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                     style: const TextStyle(color: Colors.white70),
                   ),
                 ),
-              if (detail)
+              if (detail || widget.expandItems)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: SelectableText(
@@ -534,7 +538,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
     backgroundColor: const Color(0xFF101010),
     appBar: kingAppBar(
       context: context,
-      title: Text(t(widget.orderRef == null ? 'title' : 'detail')),
+      title: Text(widget.title ?? t(widget.orderRef == null ? 'title' : 'detail')),
       backgroundColor: const Color(0xFF101010),
       foregroundColor: Colors.white,
       leading: KingBackButton(onPressed: widget.onBack),

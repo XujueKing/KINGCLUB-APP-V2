@@ -77,6 +77,7 @@ class ScanOrderingCartPage extends StatefulWidget {
     required this.onBack,
     this.onQuoteReady,
     this.onOpenOrders,
+    this.onOpenTableBill,
     this.onOpenRecharge,
     this.onOpenBalancePayment,
     this.orderingContext,
@@ -91,6 +92,7 @@ class ScanOrderingCartPage extends StatefulWidget {
   final VoidCallback onBack;
   final ValueChanged<FakeOrderingQuote>? onQuoteReady;
   final VoidCallback? onOpenOrders;
+  final VoidCallback? onOpenTableBill;
   final VoidCallback? onOpenRecharge;
   final ValueChanged<String>? onOpenBalancePayment;
   final OrderingContext? orderingContext;
@@ -483,6 +485,22 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
             ),
           ),
           const SizedBox(width: 2),
+          if (widget.onOpenTableBill != null)
+            TextButton(
+              key: const ValueKey('ordering-table-bill'),
+              child: Text(
+                widget.locale.languageCode == 'en'
+                    ? 'Table bill'
+                    : widget.locale.languageCode == 'th'
+                    ? 'บิลโต๊ะนี้'
+                    : widget.locale.scriptCode == 'Hant' ||
+                          ['TW', 'HK', 'MO'].contains(widget.locale.countryCode)
+                    ? '本桌帳單'
+                    : '本桌账单',
+                style: const TextStyle(color: legacyGold),
+              ),
+              onPressed: widget.onOpenTableBill,
+            ),
           Expanded(
             child: SizedBox(
               // Legacy input: 36rpx content + 20rpx padding per side.
