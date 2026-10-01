@@ -18,4 +18,8 @@
 
 ### Android A 安装
 
-源码 da50f71f 已推送，GitHub API 核实远端对应 SHA。Android profile/preview ARM64 构建通过（Gradle 89 秒）；APK SHA-256 ac5b490179583bac314b650484d3d649f9e621cb8c6f6e4fa465c352d07aa75c，com.lingmei.kingclub 且签名与 A 原安装相同，adb -s 462606d8 install -r 成功，保留数据。重新启动后分别打开首页、聊天、通讯录截图核对：原海报及横幅完整呈现、圆头像保留、置顶 #141414 与普通黑色分区可辨、分割线略亮、名字/摘要层次正确；系统底部三键仍隐藏，底栏外距仍保留。未发送消息、修改联系人或执行付款。截图只存本机私有 maps/home-list-after.png、chat-list-after.png、contacts-list-after.png，不提交个人页面图片。iPhone workflow run 36793582265（#42）尚在构建，暂不记为已安装。
+源码 da50f71f 已推送，GitHub API 核实远端对应 SHA。Android profile/preview ARM64 构建通过（Gradle 89 秒）；APK SHA-256 ac5b490179583bac314b650484d3d649f9e621cb8c6f6e4fa465c352d07aa75c，com.lingmei.kingclub 且签名与 A 原安装相同，adb -s 462606d8 install -r 成功，保留数据。重新启动后分别打开首页、聊天、通讯录截图核对：原海报及横幅完整呈现、圆头像保留、置顶 #141414 与普通黑色分区可辨、分割线略亮、名字/摘要层次正确；系统底部三键仍隐藏，底栏外距仍保留。未发送消息、修改联系人或执行付款。截图只存本机私有 maps/home-list-after.png、chat-list-after.png、contacts-list-after.png，不提交个人页面图片。当时 iPhone workflow run 36793582265（#42）尚在构建，安装结果见下。
+
+### iPhone 第 42 版安装
+
+run 36793582265 成功，核对构建源码 da50f71f、加密 artifact digest、IPA 签名、com.lingmei.kingclub、King 图标资源、voip 后台配置、APNs development 和已授权测试 UDID。六张压缩旧图均存在于 IPA；IPA SHA-256 9df8822349790420b14ae60aa74ee84db67e6a74e10cc70e127d22db5f15f36b。USB 覆盖安装 100% 成功，安装目录再次读出 CFBundleVersion=42，远程启动 pid 5932。真实首页截图 maps/iphone-home42.png 已查看，旧原图/比例/圆角及底栏安全区显示正确；iPhone 聊天和联系人页面未另行截图，不将 A 的验证写为 iPhone 逐页验收。
