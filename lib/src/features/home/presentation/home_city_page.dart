@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/home_city_catalog.dart';
+import '../../messaging/presentation/legacy_messaging_components.dart';
 
 String homeCopy(
   BuildContext context,
@@ -158,8 +159,9 @@ class _HomeCityPageState extends State<HomeCityPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 8, 16, 8),
+              padding: const EdgeInsets.fromLTRB(4, 8, 6, 8),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   IconButton(
                     tooltip: homeCopy(context, '关闭', 'Close', '關閉', 'ปิด'),
@@ -167,41 +169,22 @@ class _HomeCityPageState extends State<HomeCityPage> {
                     icon: const Icon(Icons.close, color: Colors.white),
                   ),
                   Expanded(
-                    child: TextField(
-                      key: const ValueKey('home-city-input'),
+                    child: LegacyConversationSearch(
+                      inputKey: const ValueKey('home-city-input'),
                       controller: _input,
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                      decoration: InputDecoration(
-                        hintText: homeCopy(
-                          context,
-                          '搜索城市/区县',
-                          'Search cities / districts',
-                          '搜尋城市/區縣',
-                          'ค้นหาเมือง / เขต',
-                        ),
-                        hintStyle: const TextStyle(color: Color(0xFF777777)),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Color(0xFF888888),
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF191919),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(28),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFC9B69E),
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(28),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFC9B69E),
-                          ),
-                        ),
+                      maxLength: 100,
+                      hint: homeCopy(
+                        context,
+                        '搜索城市/区县',
+                        'Search cities / districts',
+                        '搜尋城市/區縣',
+                        'ค้นหาเมือง / เขต',
                       ),
+                      onClear: () {
+                        _input.clear();
+                        _query = '';
+                        _filter();
+                      },
                       onChanged: (v) {
                         _query = v.trim();
                         _filter();
