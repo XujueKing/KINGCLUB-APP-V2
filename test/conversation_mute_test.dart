@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/messaging/presentation/conversations_page.dart';
@@ -108,7 +109,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     final toggle = find.byKey(const ValueKey('direct-chat-details-muted'));
-    expect(tester.widget<Switch>(toggle).value, isTrue);
+    expect(tester.widget<CupertinoSwitch>(toggle).value, isTrue);
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(changed, isFalse);

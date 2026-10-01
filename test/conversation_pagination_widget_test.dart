@@ -129,6 +129,16 @@ void main() {
             tester.getTopLeft(find.text('Latest relay text')).dy,
             lessThan(tester.getTopLeft(find.text('Old friend')).dy),
           );
+          await tester.scrollUntilVisible(
+            find.text('加载更多'),
+            200,
+            scrollable: find
+                .descendant(
+                  of: find.byType(ListView),
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          );
           await tester.tap(find.text('加载更多'));
           final secondDeadline = DateTime.now().add(const Duration(seconds: 5));
           while (find.text('Resolved name').evaluate().isEmpty &&
