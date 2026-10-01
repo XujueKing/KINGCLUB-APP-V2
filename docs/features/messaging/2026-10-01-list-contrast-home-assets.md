@@ -15,3 +15,7 @@
 首页按实际布局视口转换 rpx，避免窄屏/多窗口使用全屏宽度造成溢出；横幅 690×417rpx、左右 30rpx，三入口及海报区域左右 35rpx，海报 332×460rpx、圆角 10rpx。两列剩余间距 16rpx，垂直沿旧卡片上下 12rpx 及 grid 6px 间隔。详情也使用相同原素材，完整显示。
 
 首页、联系人、会话操作、群列表、草稿合计 28 项通过（含 360/393/430dp 及 200% 字号）；首页视觉基线已重新生成并人工查看，1 项通过。针对修改文件 analyze 零问题。Android/iPhone 安装与真机核对在后续记录。
+
+### Android A 安装
+
+源码 da50f71f 已推送，GitHub API 核实远端对应 SHA。Android profile/preview ARM64 构建通过（Gradle 89 秒）；APK SHA-256 ac5b490179583bac314b650484d3d649f9e621cb8c6f6e4fa465c352d07aa75c，com.lingmei.kingclub 且签名与 A 原安装相同，adb -s 462606d8 install -r 成功，保留数据。重新启动后分别打开首页、聊天、通讯录截图核对：原海报及横幅完整呈现、圆头像保留、置顶 #141414 与普通黑色分区可辨、分割线略亮、名字/摘要层次正确；系统底部三键仍隐藏，底栏外距仍保留。未发送消息、修改联系人或执行付款。截图只存本机私有 maps/home-list-after.png、chat-list-after.png、contacts-list-after.png，不提交个人页面图片。iPhone workflow run 36793582265（#42）尚在构建，暂不记为已安装。
