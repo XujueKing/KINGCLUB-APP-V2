@@ -209,10 +209,37 @@ class MemberOrdersRepository {
     return values.cast<String>();
   }
 
-  Future<MemberOrdersSnapshot> read({
+  Future<MemberOrdersSnapshot> read({String? orderRef, String? beforeOrder}) =>
+      _read(orderRef: orderRef, beforeOrder: beforeOrder);
+
+  /// Current seated table display only; does not authorize paying others' orders.
+  Future<MemberOrdersSnapshot> readTable({
+    required String storeRef,
+    required String tableRef,
+    required String sessionRef,
+    String? beforeOrder,
+  }) => _read(
+    storeRef: storeRef,
+    tableRef: tableRef,
+    sessionRef: sessionRef,
+    beforeOrder: beforeOrder,
+  );
+
+  Future<MemberOrdersSnapshot> _read({
     String? orderRef,
     String? beforeOrder,
+    String? storeRef,
+    String? tableRef,
+    String? sessionRef,
   }) async {
+    if (tableRef != null &&
+        [
+          storeRef,
+          tableRef,
+          sessionRef,
+        ].any((value) => value == null || !_ref.hasMatch(value))) {
+      _invalid();
+    }
     if ((orderRef != null && !_orderRef.hasMatch(orderRef)) ||
         (beforeOrder != null && !_orderRef.hasMatch(beforeOrder)) ||
         (orderRef != null && beforeOrder != null)) {
@@ -223,6 +250,8 @@ class MemberOrdersRepository {
     final response = await request('K261001001955', {
       'orderRef': ?orderRef,
       'beforeOrder': ?beforeOrder,
+      'tableRef': ?tableRef,
+      'sessionRef': ?sessionRef,
     }, session!);
     final current = _identity(await readSession());
     if (current == null ||
@@ -233,6 +262,22 @@ class MemberOrdersRepository {
       throw const AuthFailure('SESSION_CHANGED', '登录状态已变更');
     }
     final result = MemberOrdersSnapshot.parse(response['result']);
+    if (tableRef != null) {
+      final scope = _map(_map(response['result'])['tableScope']);
+      if (scope['storeRef'] != storeRef ||
+          scope['tableRef'] != tableRef ||
+          scope['sessionRef'] != sessionRef ||
+          result.orders.any(
+            (order) =>
+                order.storeRef != storeRef ||
+                order.tableRef != tableRef ||
+                order.sessionRef != sessionRef,
+          )) {
+        _invalid();
+      }
+    } else if (_map(response['result']).containsKey('tableScope')) {
+      _invalid();
+    }
     if (orderRef != null &&
         (result.orders.length != 1 ||
             result.orders.single.orderRef != orderRef ||

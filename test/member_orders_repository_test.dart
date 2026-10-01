@@ -62,6 +62,37 @@ const sessionFixture = <String, dynamic>{
 
 void main() {
   test(
+    'table read requires matching server scope and rejects foreign rows',
+    () async {
+      var page = pageFixture();
+      page['tableScope'] = {
+        'storeRef': 'test-store',
+        'tableRef': 'test-table',
+        'sessionRef': 'H00000000001',
+      };
+      final repository = MemberOrdersRepository(
+        readSession: () async => sessionFixture,
+        request: (id, params, session) async {
+          expect(params, {
+            'tableRef': 'test-table',
+            'sessionRef': 'H00000000001',
+          });
+          return {'result': page};
+        },
+      );
+      Future<MemberOrdersSnapshot> read() => repository.readTable(
+        storeRef: 'test-store',
+        tableRef: 'test-table',
+        sessionRef: 'H00000000001',
+      );
+      expect((await read()).orders, hasLength(1));
+      (page['orders'] as List).first['sessionRef'] = 'H00000000002';
+      await expectLater(read(), throwsA(isA<AuthFailure>()));
+      page = pageFixture();
+      await expectLater(read(), throwsA(isA<AuthFailure>()));
+    },
+  );
+  test(
     'reads unified own orders without caller-supplied member or store',
     () async {
       final repo = MemberOrdersRepository(
