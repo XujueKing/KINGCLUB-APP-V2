@@ -79,10 +79,12 @@ class ScanOrderingCartPage extends StatefulWidget {
     this.onOpenBalancePayment,
     this.orderingContext,
     this.catalog,
+    this.refreshing = false,
     this.locale = const Locale('zh'),
   });
 
   final OrderingCatalog? catalog;
+  final bool refreshing;
   final Locale locale;
   final VoidCallback onBack;
   final ValueChanged<FakeOrderingQuote>? onQuoteReady;
@@ -225,13 +227,28 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   @override
   void didUpdateWidget(covariant ScanOrderingCartPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.refreshing && !oldWidget.refreshing) {
+      _quoting = false;
+    }
     final previous = oldWidget.orderingContext;
     final current = widget.orderingContext;
     if (previous == null && current == null) return;
-    if (previous != null &&
-        current != null &&
-        previous.hasSameScope(current) &&
-        oldWidget.catalog == widget.catalog) {
+    if (previous != null && current != null && previous.hasSameScope(current)) {
+      if (oldWidget.catalog != widget.catalog) {
+        _quoting = false;
+        final available = {
+          for (final product in _products) product.id: product,
+        };
+        _quantities.removeWhere((id, _) => !available.containsKey(id));
+        for (final id in _quantities.keys.toList()) {
+          _quantities[id] = _quantities[id]!.clamp(
+            0,
+            _quantityLimit(available[id]!),
+          );
+        }
+        _quantities.removeWhere((_, quantity) => quantity == 0);
+        _unchecked.removeWhere((id) => !_quantities.containsKey(id));
+      }
       return;
     }
     _scopeGeneration++;
@@ -267,13 +284,15 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
             : product.price * (_quantities[product.id] ?? 0)),
   );
 
-  bool get _canEdit => !{
-    ScanOrderingScenario.offline,
-    ScanOrderingScenario.invalidContext,
-    ScanOrderingScenario.venueClosed,
-    ScanOrderingScenario.catalogError,
-    ScanOrderingScenario.emptyCatalog,
-  }.contains(_scenario);
+  bool get _canEdit =>
+      !widget.refreshing &&
+      !{
+        ScanOrderingScenario.offline,
+        ScanOrderingScenario.invalidContext,
+        ScanOrderingScenario.venueClosed,
+        ScanOrderingScenario.catalogError,
+        ScanOrderingScenario.emptyCatalog,
+      }.contains(_scenario);
 
   List<_OrderingProduct> get _visibleProducts {
     if (_scenario == ScanOrderingScenario.emptyCatalog) return const [];
@@ -299,7 +318,21 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
           (MediaQuery.sizeOf(context).width / 375).clamp(.8, 1.2),
         ),
       ),
-      child: Builder(builder: _buildOrderingPage),
+      child: Stack(
+        children: [
+          AbsorbPointer(
+            absorbing: widget.refreshing,
+            child: Builder(builder: _buildOrderingPage),
+          ),
+          if (widget.refreshing)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(child: LinearProgressIndicator()),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1212,11 +1245,14 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   }
 
   Future<void> _requestFakeQuote() async {
+    if (widget.refreshing) return;
     setState(() => _quoting = true);
     final generation = _scopeGeneration;
+    final catalog = widget.catalog;
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted || generation != _scopeGeneration) return;
     setState(() => _quoting = false);
+    if (widget.refreshing || catalog != widget.catalog) return;
     final purchased = Map<String, int>.fromEntries(
       _quantities.entries.where((entry) => !_unchecked.contains(entry.key)),
     );

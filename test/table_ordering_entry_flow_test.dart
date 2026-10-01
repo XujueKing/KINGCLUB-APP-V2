@@ -188,6 +188,10 @@ void main() {
   });
 
   testWidgets('真实目录结算把报价回调交给确认页，不再停在购物车提示', (tester) async {
+    final events = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(events.close);
+    var reads = 0;
+    var clearing = false;
     FakeOrderingQuote? quote;
     final context = scope('V1');
     final catalog = OrderingCatalog(
@@ -222,8 +226,16 @@ void main() {
         home: TableOrderingEntryPage(
           tableId: 'K24000000001',
           onBack: () {},
-          resolveTable: (_) async => context,
-          readCatalog: (_) async => catalog,
+          events: events.stream,
+          resolveTable: (_) async {
+            reads++;
+            if (clearing) {
+              throw const AuthFailure('ORDERING_TABLE_CLEARING', 'hidden');
+            }
+            return context;
+          },
+          readCatalog: (_) async =>
+              OrderingCatalog(context, catalog.categories, catalog.products),
           onQuoteReady: (value) => quote = value,
         ),
       ),
@@ -234,11 +246,33 @@ void main() {
     expect(add, findsOneWidget);
     await tester.tap(add);
     await tester.pump();
+    events.add({'eventType': 'commerce.changed'});
+    events.add({'eventType': 'commerce.changed'});
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(reads, 2);
     await tester.tap(find.byKey(const ValueKey('ordering-confirm')));
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(quote?.itemCount, 1);
     expect(quote?.items.single.unitPrice, 3380);
     expect(quote?.items.single.unitPriceCents, 338000);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    events.add({'eventType': 'commerce.changed'});
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(reads, 2);
+    clearing = true;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(reads, 3);
+    expect(find.byType(ScanOrderingCartPage), findsNothing);
+    expect(find.textContaining('正在清台'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
   });
 }

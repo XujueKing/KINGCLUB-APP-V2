@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import '../../../core/networking/kingclub_realtime.dart';
+import '../../../core/session/secure_session_store.dart';
 import '../data/table_management_repository.dart';
 import 'table_party_page.dart';
 import 'walk_in_party_page.dart';
@@ -25,6 +29,7 @@ class TableOrderingEntryPage extends StatefulWidget {
     required this.tableId,
     required this.onBack,
     this.resolveTable,
+    this.events,
     this.readCatalog,
     this.tableManagement,
     this.openWalkIn,
@@ -46,6 +51,7 @@ class TableOrderingEntryPage extends StatefulWidget {
   final String tableId;
   final VoidCallback onBack;
   final ResolveOrderingTable? resolveTable;
+  final Stream<Map<String, dynamic>>? events;
   final Future<OrderingCatalog> Function(OrderingContext)? readCatalog;
   final ValueChanged<FakeOrderingQuote>? onQuoteReady;
   final VoidCallback? onOpenOrders;
@@ -58,10 +64,15 @@ class TableOrderingEntryPage extends StatefulWidget {
   State<TableOrderingEntryPage> createState() => _TableOrderingEntryPageState();
 }
 
-class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
+class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
+    with WidgetsBindingObserver {
   OrderingContext? _context;
   OrderingCatalog? _catalog;
   bool _loading = false;
+  bool _foreground = true, _queued = false;
+  Timer? _debounce;
+  StreamSubscription<Map<String, dynamic>>? _events;
+  StreamSubscription<void>? _sessionChanges;
   OrderingEntryStatus? _error;
   int _generation = 0;
   bool _partyReady = false;
@@ -72,12 +83,74 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
   @override
   void initState() {
     super.initState();
-    _resolve();
+    WidgetsBinding.instance.addObserver(this);
+    _foreground =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    _subscribe();
+    _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
+      ++_generation;
+      setState(() {
+        _context = null;
+        _catalog = null;
+        _loading = false;
+      });
+      if (_foreground) _resolve();
+    });
+    if (_foreground) _resolve();
+  }
+
+  void _subscribe() {
+    _events?.cancel();
+    _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
+      if (_foreground &&
+          [
+            'connection.ready',
+            'commerce.changed',
+          ].contains(event['eventType'])) {
+        _queued = true;
+        _schedule();
+      }
+    });
+  }
+
+  void _schedule() {
+    if (!mounted || !_foreground || _loading || !_queued || _debounce != null) {
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      _debounce = null;
+      if (!mounted || !_foreground || _loading || !_queued) return;
+      _queued = false;
+      _resolve(null, true);
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    ++_generation;
+    _debounce?.cancel();
+    _debounce = null;
+    _queued = false;
+    setState(() => _loading = false);
+    if (_foreground) _resolve(null, true);
+  }
+
+  @override
+  void dispose() {
+    ++_generation;
+    WidgetsBinding.instance.removeObserver(this);
+    _debounce?.cancel();
+    _events?.cancel();
+    _sessionChanges?.cancel();
+    super.dispose();
   }
 
   @override
   void didUpdateWidget(covariant TableOrderingEntryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.events != widget.events) _subscribe();
     if (oldWidget.tableId != widget.tableId) {
       _openingRequest = null;
       _openingCount = null;
@@ -91,13 +164,18 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
 
   Future<void> _resolve([
     Future<OrderingContext> Function()? confirmation,
+    bool preserve = false,
   ]) async {
+    if (!_foreground) return;
+    final previous = _context;
     final generation = ++_generation;
     setState(() {
-      _partyReady = false;
-      _entry = null;
-      _context = null;
-      _catalog = null;
+      if (!preserve) {
+        _partyReady = false;
+        _entry = null;
+        _context = null;
+        _catalog = null;
+      }
       _loading = widget.resolveTable != null;
       _error = widget.resolveTable == null
           ? const OrderingEntryStatus('ORDERING_SERVICE_UNAVAILABLE')
@@ -118,6 +196,10 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
       }
       if (!mounted || generation != _generation) return;
       setState(() {
+        if (previous == null || !previous.hasSameScope(result)) {
+          _partyReady = false;
+        }
+        _entry = null;
         _context = result;
         _catalog = catalog;
         _loading = false;
@@ -125,6 +207,9 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
     } catch (error) {
       if (!mounted || generation != _generation) return;
       setState(() {
+        _context = null;
+        _catalog = null;
+        _partyReady = false;
         _loading = false;
         if (error is OrderingEntryRequired) {
           _entry = error;
@@ -135,6 +220,8 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
           error is AuthFailure ? error.code : 'UNKNOWN',
         );
       });
+    } finally {
+      if (mounted && generation == _generation) _schedule();
     }
   }
 
@@ -197,6 +284,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage> {
       return ScanOrderingCartPage(
         key: ValueKey(resolved.contextRef),
         orderingContext: resolved,
+        refreshing: _loading || !_foreground,
         catalog: _catalog,
         locale: widget.locale,
         onBack: widget.onBack,
