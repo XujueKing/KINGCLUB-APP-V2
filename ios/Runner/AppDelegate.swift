@@ -406,7 +406,7 @@ private final class AppleChatMapView: NSObject, FlutterPlatformView, MKMapViewDe
       self.target = target
       let pin = MKPointAnnotation(); pin.coordinate = target; pin.title = args["name"] as? String
       self.map.addAnnotation(pin)
-      self.center(target)
+      self.center(target, animated: false)
     }
     channel.setMethodCallHandler { [weak self] call, result in
       guard let self = self else { result(false); return }
@@ -422,12 +422,12 @@ private final class AppleChatMapView: NSObject, FlutterPlatformView, MKMapViewDe
       } else { result(FlutterMethodNotImplemented) }
     }
   }
-  private func center(_ point: CLLocationCoordinate2D) {
-    map.setRegion(MKCoordinateRegion(center: point, latitudinalMeters: 900, longitudinalMeters: 900), animated: true)
+  private func center(_ point: CLLocationCoordinate2D, animated: Bool = true) {
+    map.setRegion(MKCoordinateRegion(center: point, latitudinalMeters: 900, longitudinalMeters: 900), animated: animated)
   }
   func view() -> UIView { map }
   func mapViewDidFinishRenderingMap(_ mapView: MKMapView, fullyRendered: Bool) {
-    guard fullyRendered else { return }
+    guard fullyRendered, target != nil else { return }
     loadState = "ready"
     channel.invokeMethod("status", arguments: loadState)
   }

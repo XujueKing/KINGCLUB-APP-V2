@@ -41,6 +41,11 @@ private class ChatLocationPickerMap(context: Context, id: Int, messenger: Binary
     private var map: TencentMap? = null
     private var selected: LatLng? = null
     private var blue: Marker? = null
+    private var destination: Marker? = null
+    private val details = args["role"] == "details"
+    private var target: LatLng? = null
+    private var loaded = false
+    private var loadState = "loading"
     private var gesture = false
     private var disposed = false
     private var resumed = false
@@ -50,8 +55,13 @@ private class ChatLocationPickerMap(context: Context, id: Int, messenger: Binary
         channel.setMethodCallHandler { call, result ->
             if (disposed) result.error("disposed", "地图已关闭", null)
             else when (call.method) {
+                "status" -> result.success(loadState)
+                "target" -> {
+                    target?.let { map?.moveCamera(CameraUpdateFactory.newLatLngZoom(it, 17f)) }
+                    result.success(target != null)
+                }
                 "cancel" -> { gesture = false; result.success(null) }
-                "center" -> {
+                "center", "locate" -> {
                     val data = call.arguments as? Map<*, *>
                     val lat = (data?.get("latitudeE6") as? Number)?.toDouble()?.div(1e6)
                     val lon = (data?.get("longitudeE6") as? Number)?.toDouble()?.div(1e6)
@@ -61,10 +71,11 @@ private class ChatLocationPickerMap(context: Context, id: Int, messenger: Binary
                     } else if (map == null) result.error("map", "地图尚未加载", null)
                     else {
                         gesture = false
-                        val point = LatLng(lat, lon); selected = point
-                        if (data["userLocation"] == true) showBlue(point)
+                        val point = LatLng(lat, lon)
+                        if (!details) selected = point
+                        if (data["userLocation"] == true || call.method == "locate") showBlue(point)
                         map!!.moveCamera(CameraUpdateFactory.newLatLngZoom(point, 17f))
-                        host.post { anchor() }
+                        host.post { anchor(); if (loaded) status("ready") }
                         result.success(true)
                     }
                 }
@@ -96,11 +107,15 @@ private class ChatLocationPickerMap(context: Context, id: Int, messenger: Binary
                 setLogoPosition(TencentMapOptions.LOGO_POSITION_BOTTOM_RIGHT)
                 setTiltGesturesEnabled(false)
             }
-            map!!.setOnMapLoadedCallback { anchor(); status("ready") }
+            map!!.setOnMapLoadedCallback {
+                loaded = true
+                anchor()
+                if (selected != null || target != null) status("ready")
+            }
             map!!.setOnCameraChangeListener(object : TencentMap.OnCameraChangeListener {
                 override fun onCameraChange(position: CameraPosition) {
                     if (disposed) return
-                    if (position.triggers.contains(CameraPosition.Trigger.GESTURE)) {
+                    if (!details && position.triggers.contains(CameraPosition.Trigger.GESTURE)) {
                         if (!gesture) { gesture = true; channel.invokeMethod("moving", null) }
                         selected = position.target
                     }
@@ -117,6 +132,18 @@ private class ChatLocationPickerMap(context: Context, id: Int, messenger: Binary
                         "coordinateSystem" to "gcj02", "name" to "地图选点", "address" to ""))
                 }
             })
+            val lat = (args["latitudeE6"] as? Number)?.toDouble()?.div(1e6)
+            val lon = (args["longitudeE6"] as? Number)?.toDouble()?.div(1e6)
+            if (args["coordinateSystem"] == "gcj02" && lat != null && lon != null &&
+                lat.isFinite() && lon.isFinite() && lat in -90.0..90.0 && lon in -180.0..180.0) {
+                val point = LatLng(lat, lon)
+                selected = point
+                map!!.moveCamera(CameraUpdateFactory.newLatLngZoom(point, 17f))
+                if (details) {
+                    target = point
+                    showDestination(point)
+                }
+            }
             host.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> anchor() }
             native.onStart(); resume()
         } catch (error: Exception) {
@@ -137,6 +164,21 @@ private class ChatLocationPickerMap(context: Context, id: Int, messenger: Binary
         blue = map?.addMarker(MarkerOptions(point).icon(BitmapDescriptorFactory.fromBitmap(bitmap))
             .anchor(.5f, .5f).infoWindowEnable(false).contentDescription("本次实际定位点"))
     }
+    private fun showDestination(point: LatLng) {
+        val width = (40 * density).roundToInt()
+        val height = (54 * density).roundToInt()
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        paint.color = Color.rgb(7, 193, 96)
+        canvas.drawRoundRect(width * .45f, height * .30f, width * .55f, height.toFloat(),
+            width * .05f, width * .05f, paint)
+        canvas.drawCircle(width / 2f, width / 2f, width * .48f, paint)
+        paint.color = Color.WHITE
+        canvas.drawCircle(width / 2f, width / 2f, width * .22f, paint)
+        destination = map?.addMarker(MarkerOptions(point)
+            .icon(BitmapDescriptorFactory.fromBitmap(bitmap)).anchor(.5f, 1f).infoWindowEnable(false))
+    }
     private fun anchor() {
         if (disposed || host.width <= 0) return
         val point = selected ?: return
@@ -144,6 +186,7 @@ private class ChatLocationPickerMap(context: Context, id: Int, messenger: Binary
         channel.invokeMethod("selectionAnchor", mapOf("x" to pixels.x / density, "y" to pixels.y / density))
     }
     private fun status(state: String) {
+        loadState = state
         host.post { if (!disposed) channel.invokeMethod("status", state) }
     }
     fun resume() { if (!disposed && !resumed) { view?.onResume(); resumed = true } }
@@ -155,6 +198,7 @@ private class ChatLocationPickerMap(context: Context, id: Int, messenger: Binary
         channel.setMethodCallHandler(null)
         map?.setOnCameraChangeListener(null)
         blue?.remove(); blue = null
+        destination?.remove(); destination = null
         view?.onStop(); view?.onDestroy(); host.removeAllViews()
         map = null; view = null; onDispose?.invoke(); onDispose = null
     }

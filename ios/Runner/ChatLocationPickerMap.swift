@@ -302,7 +302,7 @@ private final class ChatLocationPickerMap: NSObject, FlutterPlatformView, MKMapV
     channel.invokeMethod("selectionAnchor", arguments: ["x": point.x, "y": point.y])
   }
   func mapViewDidFinishRenderingMap(_ mapView: MKMapView, fullyRendered: Bool) {
-    if fullyRendered { updateAnchor(); channel.invokeMethod("status", arguments: "ready") }
+    if fullyRendered && positioned { updateAnchor(); channel.invokeMethod("status", arguments: "ready") }
   }
   func mapViewDidFailLoadingMap(_ mapView: MKMapView, withError error: Error) {
     channel.invokeMethod("status", arguments: "failed")

@@ -1260,8 +1260,16 @@ class _DirectChatPageState extends State<DirectChatPage>
     child: _buildConversation(context),
   );
 
+  double? _restingComposerBottom;
+
   Widget _buildConversation(BuildContext context) {
-    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
+    final systemBottom = MediaQuery.viewPaddingOf(context).bottom;
+    // Some Android keyboards reveal the navigation bar before publishing IME
+    // frames. Do not lift the history once for that bar and again for the IME.
+    if (!_inputFocusNode.hasFocus && View.of(context).viewInsets.bottom == 0) {
+      _restingComposerBottom = systemBottom;
+    }
+    final safeBottom = _restingComposerBottom ?? systemBottom;
     final panelHeight = _readOnly
         ? 0.0
         : switch (_composerPanel) {
@@ -1751,6 +1759,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                               enabled: !_readOnly,
                               minLines: 1,
                               maxLines: 4,
+                              scrollPadding: EdgeInsets.zero,
                               style: TextStyle(
                                 fontSize: 32 * r,
                                 height: 1,

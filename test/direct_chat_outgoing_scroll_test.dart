@@ -73,6 +73,32 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets(
+    'focus does not lift history for a transient navigation inset before IME',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(393, 852);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        const MaterialApp(home: DirectChatPage(peerName: 'Test peer')),
+      );
+      await tester.pumpAndSettle();
+      final input = find.byKey(const ValueKey('direct-chat-input'));
+      final initialY = tester.getTopLeft(input).dy;
+      await tester.tap(input);
+      await tester.pump();
+      tester.view.viewPadding = const FakeViewPadding(bottom: 24);
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(tester.getTopLeft(input).dy, closeTo(initialY, .1));
+      for (final inset in <double>[24, 72, 144, 228, 300]) {
+        tester.view.viewInsets = FakeViewPadding(bottom: inset);
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(tester.getTopLeft(input).dy, closeTo(initialY - inset, .1));
+      }
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   testWidgets('first outgoing bubble slides up without changing text size', (
     tester,
   ) async {

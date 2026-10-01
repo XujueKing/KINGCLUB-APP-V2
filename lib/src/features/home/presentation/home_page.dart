@@ -409,11 +409,11 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get _scaleExtra => (textScale - 1).clamp(0, 2) * 12;
   double get _unit => viewportWidth / 750;
   double get _contentWidth => 680 * _unit;
-  double get _expandedMemberExtent => 86 + _scaleExtra;
-  double get _compactMemberExtent => 56 + (_scaleExtra * 2 / 3);
+  double get _expandedMemberExtent => 84 * _unit + _scaleExtra;
+  double get _compactMemberExtent => 60 * _unit + (_scaleExtra * 2 / 3);
   double get _heroHeight => showHero ? 417 * _unit : 0;
   double get _quickHeight => _contentWidth * 140 / 680;
-  double get _shadowExtent => 8;
+  double get _shadowExtent => 0;
   double get _expandedHeroTop => _expandedMemberExtent - 20 * _unit;
   double get _expandedQuickTop =>
       _expandedHeroTop + (showHero ? _heroHeight + 20 * _unit : 0);
@@ -432,8 +432,8 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   ) {
     final collapseOffset = shrinkOffset.clamp(0.0, maxExtent - minExtent);
     final progress = collapseOffset / (maxExtent - minExtent);
-    final memberTop = 12 - (8 * progress);
-    final memberBottom = 6 - (2 * progress);
+    final memberTop = (8 - 2 * progress) * _unit;
+    const memberBottom = 0.0;
     final memberExtent =
         _expandedMemberExtent -
         ((_expandedMemberExtent - _compactMemberExtent) * progress);
@@ -467,6 +467,7 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
                 child: _MemberHeader(
                   presentation: presentation,
                   compactProgress: progress,
+                  unit: _unit,
                 ),
               ),
             ),
@@ -514,18 +515,23 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
 }
 
 class _MemberHeader extends StatelessWidget {
-  const _MemberHeader({required this.presentation, this.compactProgress = 0});
+  const _MemberHeader({
+    required this.presentation,
+    required this.unit,
+    this.compactProgress = 0,
+  });
 
   final _MemberPresentation presentation;
   final double compactProgress;
+  final double unit;
 
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final progress = compactProgress.clamp(0.0, 1.0);
-    final height = 68.0 - (20 * progress) + ((textScale - 1).clamp(0, 2) * 12);
-    final legacyScale =
-        (MediaQuery.sizeOf(context).width / 750) * (1 - (.38 * progress));
+    final height =
+        (76 - 24 * progress) * unit + ((textScale - 1).clamp(0, 2) * 12);
+    final legacyScale = unit * (1 - (.38 * progress));
     final logoWidth = 140 * legacyScale;
     final logoHeight = logoWidth * 213 / 400;
     final contentLeft = logoWidth + (20 * legacyScale);
@@ -1322,7 +1328,7 @@ class _PromotionGrid extends StatelessWidget {
                   loading: loading,
                   onTap: () => onTap('最帅小哥哥活动'),
                 ),
-              SizedBox(height: 24 * unit + 6),
+              const SizedBox(height: 6),
               if (imageError)
                 _PromotionImageError(title: '生日有礼', onRetry: onRecover)
               else
@@ -1347,7 +1353,7 @@ class _PromotionGrid extends StatelessWidget {
                 loading: loading,
                 onTap: () => onTap('AI 卡颜局'),
               ),
-              SizedBox(height: 24 * unit + 6),
+              const SizedBox(height: 6),
               _PosterCard(
                 unit: unit,
                 asset: 'assets/legacy/home/legacy_poster_music.webp',

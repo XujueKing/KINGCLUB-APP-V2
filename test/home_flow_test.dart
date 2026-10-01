@@ -199,9 +199,7 @@ void main() {
     final progressRect = tester.getRect(
       find.byKey(const ValueKey('home-member-progress')),
     );
-    final viewportWidth = MediaQuery.sizeOf(
-      tester.element(find.byType(HomePage)),
-    ).width;
+    final viewportWidth = tester.getSize(find.byType(HomePage)).width;
     expect(logoRect.width / viewportWidth, closeTo(140 / 750, .001));
     expect(logoRect.height / logoRect.width, closeTo(213 / 400, .001));
     expect(progressRect.width / logoRect.width, closeTo(360 / 140, .01));
@@ -230,7 +228,9 @@ void main() {
   testWidgets('member header shrinks and stays pinned while ads scroll', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(393, 852));
+    // A short viewport provides enough scroll range to fully collapse the
+    // header even after removing the legacy page's excess vertical whitespace.
+    await tester.binding.setSurfaceSize(const Size(393, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(home());
     await tester.pump();

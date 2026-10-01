@@ -71,6 +71,10 @@ void main() {
           counts.$2 > 0,
         );
         expect(tester.takeException(), isNull);
+        for (final badge in tester.widgetList<Badge>(find.byType(Badge))) {
+          expect(badge.label, isNull);
+          expect(badge.smallSize, 6);
+        }
         final chatNow = tester.getRect(find.text('聊天'));
         final contactsNow = tester.getRect(find.text('通讯录'));
         expect(chatNow.bottom, closeTo(contactsNow.bottom, .01));

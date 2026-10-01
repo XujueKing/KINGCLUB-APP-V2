@@ -14,6 +14,10 @@ import '../data/chat_current_position.dart';
 import '../data/chat_map_coordinates.dart';
 import '../data/chat_media_deletion.dart';
 import '../data/chat_saved_locations.dart';
+import '../data/chat_place_search.dart';
+import '../data/chat_map_preview_cache.dart';
+import 'chat_map_consent.dart';
+import 'deferred_chat_map.dart';
 
 class ChatLocationMessage extends StatelessWidget {
   const ChatLocationMessage({
@@ -91,36 +95,20 @@ class ChatLocationMessage extends StatelessWidget {
 }
 
 class _LocationMapPreview extends StatefulWidget {
-  const _LocationMapPreview({required this.location});
+  const _LocationMapPreview({required this.location, this.height = 96});
   final ChatLocation location;
+  final double? height;
   @override
   State<_LocationMapPreview> createState() => _LocationMapPreviewState();
 }
 
 class _LocationMapPreviewState extends State<_LocationMapPreview> {
-  static const _maps = MethodChannel('kingclub/chat-map-preview');
   late Future<Uint8List?> _image;
+  Future<Uint8List?> _load() => ChatMapPreviewCache.load(widget.location);
 
-  Future<Uint8List?> _load() async {
-    if (kIsWeb ||
-        defaultTargetPlatform != TargetPlatform.iOS ||
-        widget.location.coordinateSystem != 'wgs84') {
-      return null;
-    }
-    try {
-      // The map provider needs coordinates only, never message or member data.
-      return await _maps
-          .invokeMethod<Uint8List>(
-            'snapshot',
-            ChatMapCoordinates.appleArguments({
-              'latitudeE6': widget.location.latitudeE6,
-              'longitudeE6': widget.location.longitudeE6,
-              'coordinateSystem': widget.location.coordinateSystem,
-            }),
-          )
-          .timeout(const Duration(seconds: 12));
-    } catch (_) {
-      return null;
+  void _consentChanged() {
+    if (mounted && defaultTargetPlatform == TargetPlatform.android) {
+      setState(() => _image = _load());
     }
   }
 
@@ -128,6 +116,13 @@ class _LocationMapPreviewState extends State<_LocationMapPreview> {
   void initState() {
     super.initState();
     _image = _load();
+    ChatMapPreviewCache.androidConsent.addListener(_consentChanged);
+  }
+
+  @override
+  void dispose() {
+    ChatMapPreviewCache.androidConsent.removeListener(_consentChanged);
+    super.dispose();
   }
 
   @override
@@ -138,7 +133,7 @@ class _LocationMapPreviewState extends State<_LocationMapPreview> {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 96,
+    height: widget.height,
     child: ColoredBox(
       color: const Color(0xFF222627),
       child: FutureBuilder<Uint8List?>(
@@ -161,12 +156,14 @@ class _LocationMapPreviewState extends State<_LocationMapPreview> {
               ),
             ),
             if (snapshot.data != null)
-              const Positioned(
+              Positioned(
                 right: 5,
                 bottom: 4,
                 child: Text(
-                  'Apple Maps',
-                  style: TextStyle(fontSize: 9, color: Colors.white70),
+                  defaultTargetPlatform == TargetPlatform.android
+                      ? '腾讯地图'
+                      : 'Apple Maps',
+                  style: const TextStyle(fontSize: 9, color: Colors.white70),
                 ),
               ),
             if (snapshot.data == null)
@@ -221,10 +218,16 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
   bool _saving = false;
   bool _locating = false;
   double? _distance;
+  bool _androidMapAllowed = false;
+  bool get _androidAvailable =>
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.android &&
+      TencentChatPlaceSearch.configuredKey.isNotEmpty;
   bool get _nativeMap =>
       !kIsWeb &&
-      defaultTargetPlatform == TargetPlatform.iOS &&
-      widget.location.coordinateSystem == 'wgs84';
+      ((defaultTargetPlatform == TargetPlatform.iOS &&
+              widget.location.coordinateSystem == 'wgs84') ||
+          (_androidAvailable && _androidMapAllowed));
   bool get _isSaved => _saved.any((p) => p.sameAs(widget.location));
 
   void _mapState(String? state, int generation) {
@@ -236,7 +239,11 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
 
   Future<void> _attachMap(int id) async {
     final generation = _mapGeneration;
-    final channel = MethodChannel('kingclub/location-map/$id');
+    final channel = MethodChannel(
+      defaultTargetPlatform == TargetPlatform.android
+          ? 'kingclub/location-picker-map/$id'
+          : 'kingclub/location-map/$id',
+    );
     _mapView = channel;
     channel.setMethodCallHandler((call) async {
       if (call.method == 'status') {
@@ -325,7 +332,7 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
         );
         await _mapView?.invokeMethod(
           'locate',
-          ChatMapCoordinates.appleArguments({
+          _mapArguments({
             'latitudeE6': (position.latitude * 1e6).round(),
             'longitudeE6': (position.longitude * 1e6).round(),
             'coordinateSystem': 'wgs84',
@@ -355,6 +362,18 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
       ),
     );
     if (mounted && _valid) KingNotice.of(context).show('地点信息已复制');
+  }
+
+  Map<String, dynamic> _mapArguments(Map<String, dynamic> data) =>
+      defaultTargetPlatform == TargetPlatform.android
+      ? ChatMapCoordinates.tencentArguments(data)
+      : ChatMapCoordinates.appleArguments(data);
+
+  Future<void> _allowAndroidMap() async {
+    final agreed = await requestTencentChatMapConsent(context);
+    if (mounted && _valid && agreed) {
+      setState(() => _androidMapAllowed = true);
+    }
   }
 
   Future<void> _more() async {
@@ -460,6 +479,13 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
   @override
   void initState() {
     super.initState();
+    if (_androidAvailable) {
+      unawaited(
+        ChatMapPreviewCache.restoreConsent().then((allowed) {
+          if (mounted && _valid) setState(() => _androidMapAllowed = allowed);
+        }),
+      );
+    }
     unawaited(_loadBookmarks());
     _session = SecureSessionStore.changes.stream.listen((_) {
       if (mounted) _invalidate(false);
@@ -532,19 +558,47 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
                     fit: StackFit.expand,
                     children: [
                       if (_nativeMap)
-                        UiKitView(
+                        DeferredChatMap(
                           key: ValueKey(_mapGeneration),
-                          viewType: 'kingclub/location-map',
-                          creationParams: ChatMapCoordinates.appleArguments(
-                            location.toJson(),
+                          ready: _mapStatus == 'ready',
+                          placeholder: _LocationMapPreview(
+                            location: location,
+                            height: null,
                           ),
-                          creationParamsCodec: const StandardMessageCodec(),
-                          gestureRecognizers: {
-                            Factory<OneSequenceGestureRecognizer>(
-                              () => EagerGestureRecognizer(),
-                            ),
-                          },
-                          onPlatformViewCreated: _attachMap,
+                          map: defaultTargetPlatform == TargetPlatform.android
+                              ? AndroidView(
+                                  key: ValueKey(_mapGeneration),
+                                  viewType: 'kingclub/location-picker-map',
+                                  creationParams: {
+                                    ..._mapArguments(location.toJson()),
+                                    'role': 'details',
+                                    'key': TencentChatPlaceSearch.configuredKey,
+                                    'privacyAccepted': _androidMapAllowed,
+                                  },
+                                  creationParamsCodec:
+                                      const StandardMessageCodec(),
+                                  gestureRecognizers: {
+                                    Factory<OneSequenceGestureRecognizer>(
+                                      () => EagerGestureRecognizer(),
+                                    ),
+                                  },
+                                  onPlatformViewCreated: _attachMap,
+                                )
+                              : UiKitView(
+                                  key: ValueKey(_mapGeneration),
+                                  viewType: 'kingclub/location-map',
+                                  creationParams: _mapArguments(
+                                    location.toJson(),
+                                  ),
+                                  creationParamsCodec:
+                                      const StandardMessageCodec(),
+                                  gestureRecognizers: {
+                                    Factory<OneSequenceGestureRecognizer>(
+                                      () => EagerGestureRecognizer(),
+                                    ),
+                                  },
+                                  onPlatformViewCreated: _attachMap,
+                                ),
                         )
                       else
                         Center(
@@ -570,6 +624,11 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
                                 onPressed: _openMap,
                                 child: const Text('打开地图查看位置'),
                               ),
+                              if (_androidAvailable)
+                                TextButton(
+                                  onPressed: _allowAndroidMap,
+                                  child: const Text('使用内嵌地图'),
+                                ),
                             ],
                           ),
                         ),

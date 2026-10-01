@@ -227,16 +227,8 @@ class LegacyConversationTabs extends StatelessWidget {
                   isLabelVisible:
                       (title == '通讯录' ? pendingRequests : unreadCount) > 0,
                   alignment: Alignment.topRight,
-                  largeSize: 12,
-                  textStyle: const TextStyle(fontSize: 9, height: 1),
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  smallSize: 6,
                   backgroundColor: const Color(0xFFFF4D55),
-                  textColor: Colors.white,
-                  label: Text(
-                    (title == '通讯录' ? pendingRequests : unreadCount) > 99
-                        ? '99+'
-                        : '${title == '通讯录' ? pendingRequests : unreadCount}',
-                  ),
                 ),
               ),
             ],

@@ -9,6 +9,20 @@ import 'package:kingclub/src/features/messaging/data/chat_media_deletion.dart';
 import 'package:kingclub/src/features/messaging/presentation/chat_location_message.dart';
 
 void main() {
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('kingclub/chat-map-preview'),
+          (_) async => null,
+        );
+  });
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('kingclub/chat-map-preview'),
+          null,
+        );
+  });
   testWidgets('native map timeout offers retry and preserves navigation', (
     tester,
   ) async {
@@ -55,6 +69,7 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
     await tester.pump();
     expect(find.text('正在加载地图'), findsOneWidget);
     await tester.pump(const Duration(seconds: 16));

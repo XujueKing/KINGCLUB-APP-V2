@@ -5,7 +5,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/session/secure_session_store.dart';
 import '../data/chat_location.dart';
@@ -13,6 +12,9 @@ import '../data/chat_location_lookup.dart';
 import '../data/chat_current_position.dart';
 import '../data/chat_place_search.dart';
 import '../data/chat_map_coordinates.dart';
+import '../data/chat_map_preview_cache.dart';
+import 'chat_map_consent.dart';
+import 'deferred_chat_map.dart';
 
 /// Selecting a candidate never sends it; the explicit confirm returns it.
 class ChatLocationPickerPage extends StatefulWidget {
@@ -92,48 +94,15 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
   }
 
   Future<void> _restoreMapConsent() async {
-    try {
-      final consent = await const FlutterSecureStorage().read(
-        key: 'tencent-chat-map-consent-v1',
-      );
-      if (mounted && !_invalid && consent == 'true') {
-        setState(() => _androidMapAllowed = true);
-      }
-    } catch (_) {
-      /* Require fresh consent when local storage is unavailable. */
+    final consent = await ChatMapPreviewCache.restoreConsent();
+    if (mounted && !_invalid && consent) {
+      setState(() => _androidMapAllowed = true);
     }
   }
 
   Future<void> _allowAndroidMap() async {
-    final agreed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('使用地图选择位置'),
-        content: const Text(
-          '地图与附近地点由腾讯位置服务提供，将使用你选择的位置或搜索词加载地图和地点。仅在本页使用定位，不进行后台定位。',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('同意并使用'),
-          ),
-        ],
-      ),
-    );
-    if (agreed != true || !mounted || _invalid) return;
-    try {
-      await const FlutterSecureStorage().write(
-        key: 'tencent-chat-map-consent-v1',
-        value: 'true',
-      );
-    } catch (_) {
-      /* This explicit consent still applies to the current page. */
-    }
-    if (mounted && !_invalid) {
+    final agreed = await requestTencentChatMapConsent(context);
+    if (mounted && !_invalid && agreed) {
       setState(() => _androidMapAllowed = true);
     }
   }
@@ -572,33 +541,46 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (_nativeMap &&
-                          !_invalid &&
-                          defaultTargetPlatform == TargetPlatform.android)
-                        AndroidView(
-                          viewType: 'kingclub/location-picker-map',
-                          creationParams: {
-                            'key': TencentChatPlaceSearch.configuredKey,
-                            'privacyAccepted': _androidMapAllowed,
-                          },
-                          creationParamsCodec: const StandardMessageCodec(),
-                          gestureRecognizers: {
-                            Factory<OneSequenceGestureRecognizer>(
-                              () => EagerGestureRecognizer(),
+                      if (_nativeMap && !_invalid)
+                        DeferredChatMap(
+                          ready: _mapStatus == 'ready' && _selected != null,
+                          placeholder: const ColoredBox(
+                            color: Color(0xFFF4F4F4),
+                            child: Center(
+                              child: Icon(
+                                Icons.map_outlined,
+                                size: 36,
+                                color: Color(0xFF888888),
+                              ),
                             ),
-                          },
-                          onPlatformViewCreated: _attachMap,
-                        )
-                      else if (_nativeMap && !_invalid)
-                        UiKitView(
-                          viewType: 'kingclub/location-picker-map',
-                          creationParamsCodec: const StandardMessageCodec(),
-                          gestureRecognizers: {
-                            Factory<OneSequenceGestureRecognizer>(
-                              () => EagerGestureRecognizer(),
-                            ),
-                          },
-                          onPlatformViewCreated: _attachMap,
+                          ),
+                          map: defaultTargetPlatform == TargetPlatform.android
+                              ? AndroidView(
+                                  viewType: 'kingclub/location-picker-map',
+                                  creationParams: {
+                                    'key': TencentChatPlaceSearch.configuredKey,
+                                    'privacyAccepted': _androidMapAllowed,
+                                  },
+                                  creationParamsCodec:
+                                      const StandardMessageCodec(),
+                                  gestureRecognizers: {
+                                    Factory<OneSequenceGestureRecognizer>(
+                                      () => EagerGestureRecognizer(),
+                                    ),
+                                  },
+                                  onPlatformViewCreated: _attachMap,
+                                )
+                              : UiKitView(
+                                  viewType: 'kingclub/location-picker-map',
+                                  creationParamsCodec:
+                                      const StandardMessageCodec(),
+                                  gestureRecognizers: {
+                                    Factory<OneSequenceGestureRecognizer>(
+                                      () => EagerGestureRecognizer(),
+                                    ),
+                                  },
+                                  onPlatformViewCreated: _attachMap,
+                                ),
                         )
                       else
                         ColoredBox(
@@ -629,6 +611,12 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                                             color: Color(0xFF777777),
                                           ),
                                         ),
+                                        if (_androidAvailable &&
+                                            !_androidMapAllowed)
+                                          TextButton(
+                                            onPressed: _allowAndroidMap,
+                                            child: const Text('使用内嵌地图'),
+                                          ),
                                         if (_results.isNotEmpty)
                                           TextButton(
                                             onPressed:
