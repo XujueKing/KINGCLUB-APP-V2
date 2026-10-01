@@ -1,5 +1,7 @@
 # 系统通知
 
+2026-10-02 当前实现：[业务凭证收件箱](2026-10-02-business-receipt-inbox.md)。真实模式已接列表/已读接口，成功记录由服务端权威业务凭证投影并补齐历史，卡片尺寸参照旧 sysmessage.wxss。下面的 M0/Fake 方案为历史设计，不代表当前真实收件箱仍使用演示记录；官方券能力和独立拼桌终态仍须各自业务验收。
+
 - Scope ID：`KC-F-020`
 - 文档状态：`Approved for Development`
 - 所属业务域：`messaging`

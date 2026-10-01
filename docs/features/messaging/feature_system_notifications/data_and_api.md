@@ -1,5 +1,7 @@
 # 系统通知数据与 Fake 契约
 
+当前真实契约见 [2026-10-02 业务凭证收件箱](2026-10-02-business-receipt-inbox.md) 及 SystemNoticesRepository：K261002001960 使用本人 noticeRef 游标，K261002001961 使用本人引用或列表序号水位；返回结构为语义 kind/金额分/纯文本明细/受控目标。下列 Fake 契约为旧设计参考，不用于真实付款结果。
+
 ```text
 NotificationSummary
   notificationRef
