@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
@@ -17,6 +19,7 @@ void main() {
     VoidCallback? onSessionReset,
     double textScale = 1,
     bool disableAnimations = false,
+    Future<String?> Function()? locateCity,
   }) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -37,10 +40,43 @@ void main() {
           onOpenParty: onParty ?? () {},
           onOpenScanner: onScan ?? () {},
           onSessionResetRequested: onSessionReset,
+          locateCity: locateCity ?? () async => null,
         ),
       ),
     );
   }
+
+  testWidgets(
+    'city defaults to location and late location does not replace a selection',
+    (tester) async {
+      final location = Completer<String?>();
+      await tester.pumpWidget(home(locateCity: () => location.future));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('home-city-selector')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('home-city-input')),
+        '长沙市',
+      );
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+      location.complete('株洲市');
+      await tester.pumpAndSettle();
+      expect(find.text('长沙市'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('home-city-selector')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('株洲市'));
+      await tester.pumpAndSettle();
+      expect(find.text('株洲市'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('city initially uses the actual located city', (tester) async {
+    await tester.pumpWidget(home(locateCity: () async => '株洲市'));
+    await tester.pump();
+    expect(find.text('株洲市'), findsOneWidget);
+  });
 
   testWidgets('ready home keeps legacy content and deduplicates actions', (
     tester,
@@ -202,7 +238,11 @@ void main() {
     final viewportWidth = tester.getSize(find.byType(HomePage)).width;
     expect(logoRect.width / viewportWidth, closeTo(140 / 750, .001));
     expect(logoRect.height / logoRect.width, closeTo(213 / 400, .001));
-    expect(progressRect.width / logoRect.width, closeTo(360 / 140, .01));
+    expect(progressRect.width / logoRect.width, closeTo(245 / 140, .01));
+    expect(
+      progressRect.right,
+      closeTo(diamondRect.right - 10 * viewportWidth / 750, .1),
+    );
     expect(goldRect.width / logoRect.width, closeTo(120 / 140, .01));
     expect(goldRect.height / logoRect.width, closeTo(26 / 140, .01));
     expect(diamondRect.width, closeTo(goldRect.width, .01));
@@ -252,9 +292,12 @@ void main() {
     final shadow = tester.widget<Container>(shadowFinder);
     expect(compactHeader.top, closeTo(expandedHeader.top, .1));
     expect(compactHeader.height, lessThan(expandedHeader.height));
-    expect(compactLogo.width, lessThan(expandedLogo.width));
+    expect(compactLogo.width / expandedLogo.width, closeTo(.92, .001));
     expect(compactLogo.bottom, lessThanOrEqualTo(compactHeader.bottom));
-    expect(pinnedActions.top, closeTo(compactHeader.bottom, .1));
+    expect(
+      pinnedActions.top - compactHeader.bottom,
+      closeTo(20 * 393 / 750, .1),
+    );
     expect((shadow.decoration! as BoxDecoration).boxShadow, isNotEmpty);
     expect(find.text('一起玩'), findsOneWidget);
 

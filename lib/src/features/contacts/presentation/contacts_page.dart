@@ -466,10 +466,8 @@ class _ContactsPageState extends State<ContactsPage>
     final hideIndex = MediaQuery.textScalerOf(context).scale(1) > 1.5;
     return Stack(
       children: [
-        RefreshIndicator(
+        RefreshIndicator.noSpinner(
           onRefresh: _refresh,
-          color: KingColors.onBrand,
-          backgroundColor: KingColors.brand,
           child: CustomScrollView(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),

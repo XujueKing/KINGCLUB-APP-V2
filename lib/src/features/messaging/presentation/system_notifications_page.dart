@@ -239,36 +239,6 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage>
               lineColor: const Color(0x1CC9B69E),
               lineWidth: .5,
               onBack: () => Navigator.pop(context),
-              trailing: TextButton(
-                key: const ValueKey('system-notifications-read-all'),
-                onPressed:
-                    (widget.demo
-                        ? notices.every((item) => item.read)
-                        : _controller == null ||
-                              _controller!.summary.unreadCount == 0 ||
-                              _controller!.loading ||
-                              _controller!.reading)
-                    ? null
-                    : () {
-                        if (!widget.demo) {
-                          unawaited(_controller!.markRead());
-                          return;
-                        }
-                        setState(() {
-                          for (final item in _notices) {
-                            item.read = true;
-                          }
-                        });
-                        _notifyUnreadChanged();
-                      },
-                child: Text(
-                  systemNoticeText(context, 'read_all'),
-                  style: const TextStyle(
-                    color: legacyMessageGold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
             ),
             if (_controller?.failed == true)
               TextButton(

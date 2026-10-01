@@ -218,8 +218,8 @@ class LegacyConversationTabs extends StatelessWidget {
                       ),
               ),
               Positioned(
-                top: -3,
-                right: -9,
+                top: 3,
+                right: -8,
                 child: Badge(
                   key: title == '通讯录'
                       ? const ValueKey('contacts-tab-request-badge')

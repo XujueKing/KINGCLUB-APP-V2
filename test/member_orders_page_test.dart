@@ -102,6 +102,12 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Awaiting checkout'), findsOneWidget);
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+      const Color(0xFF101010),
+    );
+    expect(find.text('Order time'), findsOneWidget);
+    expect(find.text('Order number'), findsOneWidget);
     expect(find.text('Served 1/2'), findsOneWidget);
     expect(find.textContaining('¥20.00'), findsWidgets);
     expect(

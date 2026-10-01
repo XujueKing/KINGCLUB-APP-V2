@@ -30,7 +30,6 @@ import 'legacy_messaging_components.dart';
 
 import 'package:flutter/material.dart';
 
-const _gold = Color(0xFFC9B69E);
 const _rowActionWidth = 72.0;
 
 enum _ConversationAction {
@@ -1076,9 +1075,7 @@ class _ConversationsPageState extends State<ConversationsPage>
           children: [
             _header(),
             Expanded(
-              child: RefreshIndicator(
-                color: _gold,
-                backgroundColor: const Color(0xFF1A1611),
+              child: RefreshIndicator.noSpinner(
                 onRefresh: _refreshConversations,
                 child: ListView(
                   keyboardDismissBehavior:
@@ -1797,7 +1794,7 @@ class _ConversationContent extends StatelessWidget {
           ),
         ),
         Positioned(
-          left: lineInset,
+          left: (40 + 96 + 25) * r,
           right: lineInset,
           bottom: 0,
           child: Center(

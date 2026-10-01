@@ -155,7 +155,8 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
       );
       if (!current()) return;
       final merged = [...previous, ...data.orders];
-      if (merged.map((order) => order.orderRef).toSet().length != merged.length) {
+      if (merged.map((order) => order.orderRef).toSet().length !=
+          merged.length) {
         throw const FormatException('Overlapping order page');
       }
       setState(() {
@@ -204,6 +205,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
       : t('prepayPending');
   Widget orderCard(MemberOrder order) {
     final detail = widget.orderRef != null;
+    if (detail) return orderReceipt(order);
     final color = order.refundedCents > 0 || order.status == 'expired'
         ? Colors.grey
         : order.status == 'paid'
@@ -211,7 +213,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
         : const Color(0xFFFFC35C);
     return Card(
       key: ValueKey('member-order-${order.orderRef}'),
-      color: const Color(0xFF201A1D),
+      color: const Color(0x0FFFFFFF),
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: detail || widget.onOpenOrder == null
@@ -359,13 +361,181 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
     );
   }
 
+  Widget orderReceipt(MemberOrder order) {
+    String date(DateTime value) {
+      final d = value.toLocal();
+      String two(int n) => n.toString().padLeft(2, '0');
+      return '${d.year}/${two(d.month)}/${two(d.day)} '
+          '${two(d.hour)}:${two(d.minute)}:${two(d.second)}';
+    }
+
+    Widget field(String label, String value) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              style: const TextStyle(color: Color(0x80FFFFFF), fontSize: 14),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: const TextStyle(
+                color: Color(0xCCFFFFFF),
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    Widget panel(Widget child) => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0x0FFFFFFF),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: child,
+    );
+    return Column(
+      key: ValueKey('member-order-${order.orderRef}'),
+      children: [
+        panel(
+          Column(
+            children: [
+              const SizedBox(height: 12),
+              ClipOval(
+                child: Image.asset(
+                  'assets/legacy/messaging/notification_kingclub.png',
+                  width: 64,
+                  height: 64,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                order.storeName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 18),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                '${order.status == 'paid' ? '−' : ''}${money(order.totalCents)}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 28),
+              const Divider(color: Color(0x14FFFFFF), height: 24),
+              field(t('currentStatus'), status(order)),
+              field(t('createdAt'), date(order.createdAt)),
+              field(t('store'), order.storeName),
+              field(t('table'), order.tableName),
+              field(t('source'), t(order.source)),
+              field(t('paymentTiming'), t(order.paymentTiming)),
+              field(t('orderNumber'), order.orderRef),
+              if (order.refundedCents > 0) ...[
+                field(t('refunded'), money(order.refundedCents)),
+                if (order.refundedAt != null)
+                  field(t('refundedAt'), date(order.refundedAt!)),
+              ],
+              if (order.status == 'pending' && order.source == 'cashier')
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    t('cashierPayment'),
+                    style: const TextStyle(color: Color(0x80FFFFFF)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        panel(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                t('products'),
+                style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              for (final item in order.items) ...[
+                const Divider(color: Color(0x14FFFFFF), height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.names[localeKey]!,
+                        style: const TextStyle(
+                          color: Color(0xCCFFFFFF),
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '×${item.quantity}',
+                      style: const TextStyle(color: Color(0xCCFFFFFF)),
+                    ),
+                  ],
+                ),
+                if (item.specifications[localeKey]!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: Text(
+                      item.specifications[localeKey]!,
+                      style: const TextStyle(
+                        color: Color(0x80FFFFFF),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${t('served')} ${item.servedQuantity}/${item.quantity}',
+                          style: const TextStyle(
+                            color: Color(0x80FFFFFF),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        money(item.quantity * item.priceCents),
+                        style: const TextStyle(color: Color(0xCCFFFFFF)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF0E090C),
+    backgroundColor: const Color(0xFF101010),
     appBar: kingAppBar(
       context: context,
       title: Text(t(widget.orderRef == null ? 'title' : 'detail')),
-      backgroundColor: const Color(0xFF0E090C),
+      backgroundColor: const Color(0xFF101010),
       foregroundColor: Colors.white,
       leading: KingBackButton(onPressed: widget.onBack),
       actions: [
@@ -451,5 +621,13 @@ const _copy = {
   'served': '已上|Served|已上|เสิร์ฟแล้ว',
   'total': '合计|Total|合計|รวม',
   'orderNumber': '订单号|Order number|訂單號|เลขคำสั่งซื้อ',
+  'currentStatus': '当前状态|Status|目前狀態|สถานะ',
+  'createdAt': '订单时间|Order time|訂單時間|เวลาสั่งซื้อ',
+  'store': '门店|Store|門店|ร้าน',
+  'table': '卡座|Table|卡座|โต๊ะ',
+  'source': '订单来源|Source|訂單來源|ช่องทาง',
+  'paymentTiming': '付款模式|Payment timing|付款模式|รูปแบบชำระเงิน',
+  'refundedAt': '退款时间|Refund time|退款時間|เวลาคืนเงิน',
+  'products': '商品明细|Items|商品明細|รายการสินค้า',
   'cashierPayment': '请在收银台核对并结账|Please check and settle at the cashier.|請在收銀台核對並結帳|กรุณาตรวจสอบและชำระที่แคชเชียร์',
 };

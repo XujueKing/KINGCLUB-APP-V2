@@ -1,4 +1,5 @@
 import 'legacy_home_image.dart';
+import '../data/home_city_location.dart';
 
 import 'dart:async';
 
@@ -32,6 +33,7 @@ class HomePage extends StatefulWidget {
     this.onSessionResetRequested,
     this.initialState = HomeDemoState.ready,
     this.reselectSignal = 0,
+    this.locateCity,
   });
 
   final VoidCallback onOpenTogether;
@@ -40,6 +42,7 @@ class HomePage extends StatefulWidget {
   final VoidCallback? onSessionResetRequested;
   final HomeDemoState initialState;
   final int reselectSignal;
+  final Future<String?> Function()? locateCity;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -51,13 +54,134 @@ class _HomePageState extends State<HomePage> {
   bool _actionOpening = false;
   Timer? _actionTimer;
   late HomeDemoState _state;
+  String? _city, _locatedCity;
+  bool _citySelected = false;
 
   @override
   void initState() {
     super.initState();
     _state = widget.initialState;
+    unawaited(_loadCity());
     if (_state == HomeDemoState.sessionInvalid) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _showSessionReset());
+    }
+  }
+
+  Future<void> _loadCity({bool requestPermission = false}) async {
+    try {
+      final city =
+          await (widget.locateCity?.call() ??
+              locateHomeCity(requestPermission: requestPermission));
+      if (!mounted || city == null || city.isEmpty) return;
+      setState(() {
+        _locatedCity = city;
+        if (!_citySelected) _city = city;
+      });
+    } catch (_) {
+      /* Keep manual city selection available when location fails. */
+    }
+  }
+
+  String _cityCopy(String zh, String en, String tw, String th) {
+    final l = Localizations.localeOf(context);
+    return l.languageCode == 'en'
+        ? en
+        : l.languageCode == 'th'
+        ? th
+        : l.scriptCode == 'Hant' || {'TW', 'HK', 'MO'}.contains(l.countryCode)
+        ? tw
+        : zh;
+  }
+
+  Future<void> _selectCity() async {
+    final input = TextEditingController();
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1F1F1F),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                _cityCopy('选择城市', 'Choose city', '選擇城市', 'เลือกเมือง'),
+                style: const TextStyle(fontSize: 18),
+              ),
+              const SizedBox(height: 16),
+              if (_locatedCity != null)
+                ListTile(
+                  leading: const Icon(Icons.my_location, color: _gold),
+                  title: Text(_locatedCity!),
+                  onTap: () => Navigator.pop(context, _locatedCity),
+                ),
+              TextField(
+                key: const ValueKey('home-city-input'),
+                controller: input,
+                maxLength: 40,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0x0FFFFFFF),
+                  border: const OutlineInputBorder(borderSide: BorderSide.none),
+                  hintText: _cityCopy(
+                    '输入城市名称',
+                    'City name',
+                    '輸入城市名稱',
+                    'ชื่อเมือง',
+                  ),
+                ),
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    Navigator.pop(context, value.trim());
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () {
+                  if (input.text.trim().isNotEmpty) {
+                    Navigator.pop(context, input.text.trim());
+                  }
+                },
+                child: Text(_cityCopy('确认', 'Confirm', '確認', 'ยืนยัน')),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, ''),
+                child: Text(
+                  _cityCopy(
+                    '使用定位城市',
+                    'Use current city',
+                    '使用定位城市',
+                    'ใช้เมืองปัจจุบัน',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    // Let the closing route finish disposing its text field first.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    input.dispose();
+    if (!mounted || selected == null) return;
+    if (selected.isEmpty) {
+      _citySelected = false;
+      setState(() => _city = _locatedCity);
+      await _loadCity(requestPermission: true);
+    } else {
+      setState(() {
+        _citySelected = true;
+        _city = selected;
+      });
     }
   }
 
@@ -313,6 +437,8 @@ class _HomePageState extends State<HomePage> {
                         onParty: () => _runAction(widget.onOpenParty),
                         onScan: () => _runAction(widget.onOpenScanner),
                       ),
+                      city: _city ?? _cityCopy('城市', 'City', '城市', 'เมือง'),
+                      onCity: _selectCity,
                     ),
                   ),
                   SliverPadding(
@@ -397,6 +523,8 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.showHero,
     required this.hero,
     required this.quickActions,
+    required this.city,
+    required this.onCity,
   });
 
   final _MemberPresentation presentation;
@@ -405,24 +533,29 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final bool showHero;
   final Widget hero;
   final Widget quickActions;
+  final String city;
+  final VoidCallback onCity;
 
   double get _scaleExtra => (textScale - 1).clamp(0, 2) * 12;
   double get _unit => viewportWidth / 750;
   double get _contentWidth => 680 * _unit;
   double get _expandedMemberExtent => 84 * _unit + _scaleExtra;
-  double get _compactMemberExtent => 60 * _unit + (_scaleExtra * 2 / 3);
+  double get _compactMemberExtent => 78 * _unit + _scaleExtra;
+  double get _actionGap => 20 * _unit;
   double get _heroHeight => showHero ? 417 * _unit : 0;
   double get _quickHeight => _contentWidth * 140 / 680;
   double get _shadowExtent => 0;
   double get _expandedHeroTop => _expandedMemberExtent - 20 * _unit;
-  double get _expandedQuickTop =>
-      _expandedHeroTop + (showHero ? _heroHeight + 20 * _unit : 0);
+  double get _expandedQuickTop => showHero
+      ? _expandedHeroTop + _heroHeight + _actionGap
+      : _expandedMemberExtent + _actionGap;
 
   @override
   double get maxExtent => _expandedQuickTop + _quickHeight + _shadowExtent;
 
   @override
-  double get minExtent => _compactMemberExtent + _quickHeight + _shadowExtent;
+  double get minExtent =>
+      _compactMemberExtent + _actionGap + _quickHeight + _shadowExtent;
 
   @override
   Widget build(
@@ -468,6 +601,8 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
                   presentation: presentation,
                   compactProgress: progress,
                   unit: _unit,
+                  city: city,
+                  onCity: onCity,
                 ),
               ),
             ),
@@ -510,6 +645,8 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.textScale != textScale ||
       oldDelegate.viewportWidth != viewportWidth ||
       oldDelegate.showHero != showHero ||
+      oldDelegate.city != city ||
+      oldDelegate.onCity != onCity ||
       oldDelegate.hero != hero ||
       oldDelegate.quickActions != quickActions;
 }
@@ -519,19 +656,23 @@ class _MemberHeader extends StatelessWidget {
     required this.presentation,
     required this.unit,
     this.compactProgress = 0,
+    required this.city,
+    required this.onCity,
   });
 
   final _MemberPresentation presentation;
   final double compactProgress;
   final double unit;
+  final String city;
+  final VoidCallback onCity;
 
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final progress = compactProgress.clamp(0.0, 1.0);
     final height =
-        (76 - 24 * progress) * unit + ((textScale - 1).clamp(0, 2) * 12);
-    final legacyScale = unit * (1 - (.38 * progress));
+        (76 - 6 * progress) * unit + ((textScale - 1).clamp(0, 2) * 12);
+    final legacyScale = unit * (1 - (.08 * progress));
     final logoWidth = 140 * legacyScale;
     final logoHeight = logoWidth * 213 / 400;
     final contentLeft = logoWidth + (20 * legacyScale);
@@ -554,6 +695,34 @@ class _MemberHeader extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          Positioned(
+            right: 0,
+            top: 0,
+            width: 76,
+            height: 40,
+            child: TextButton(
+              key: const ValueKey('home-city-selector'),
+              onPressed: onCity,
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                foregroundColor: _gold,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: Text(
+                      city,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  const Icon(Icons.keyboard_arrow_down, size: 16),
+                ],
+              ),
+            ),
+          ),
           Positioned(
             left: 0,
             top: (height - logoHeight) / 2,
@@ -649,14 +818,17 @@ class _MemberHeader extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: progressTopGap),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2 * legacyScale),
-                    child: LinearProgressIndicator(
-                      key: const ValueKey('home-member-progress'),
-                      value: presentation.progress.clamp(0, 1),
-                      minHeight: progressHeight,
-                      color: _gold,
-                      backgroundColor: const Color(0x33C9B69E),
+                  SizedBox(
+                    width: 245 * legacyScale,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(2 * legacyScale),
+                      child: LinearProgressIndicator(
+                        key: const ValueKey('home-member-progress'),
+                        value: presentation.progress.clamp(0, 1),
+                        minHeight: progressHeight,
+                        color: _gold,
+                        backgroundColor: const Color(0x33C9B69E),
+                      ),
                     ),
                   ),
                 ],

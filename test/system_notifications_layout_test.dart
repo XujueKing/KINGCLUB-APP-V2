@@ -14,6 +14,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(theme: KingTheme.dark, home: const SystemNotificationsPage()),
     );
+    expect(find.text('全部已读'), findsNothing);
 
     for (final title in ['签到获得', '预订状态更新', '服务维护提醒']) {
       final body = tester.widget<Column>(
