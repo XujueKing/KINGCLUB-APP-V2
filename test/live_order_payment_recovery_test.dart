@@ -56,6 +56,11 @@ class _Harness {
   bool missing = false;
   bool alipayUnavailable = false;
   bool soldOut = false;
+  bool cancelUnknown = false;
+  bool cancellationRequested = false;
+  String cancelStatus = 'expired';
+  int cancelled = 0;
+  final submittedInitiation = <Object?>[];
   final submittedIds = <Object?>[];
   final queriedIds = <Object?>[];
   final submittedProviders = <Object?>[];
@@ -65,12 +70,18 @@ class _Harness {
     request: (id, params, _) async {
       if (id == 'K260919000814') {
         submitted++;
+        submittedInitiation.add(params['initiatePayment']);
         submittedIds.add(params['requestId']);
         submittedProviders.add(params['paymentProvider']);
         if (soldOut) throw const AuthFailure('ORDERING_OUT_OF_STOCK','Sold out');
         if (alipayUnavailable && params['paymentProvider'] == 'alipay') {
           throw const AuthFailure('ALIPAY_NOT_READY', 'Alipay unavailable');
         }
+      } else if (id == 'K261001001958') {
+        cancelled++;
+        cancellationRequested = true;
+        if (cancelUnknown) throw const AuthFailure('NETWORK_ERROR', 'Unknown');
+        status = cancelStatus;
       } else {
         queried++;
         queriedIds.add(params['requestId']);
@@ -90,7 +101,8 @@ class _Harness {
           'currency': 'CNY',
           'expiresAt': '2030-01-01T00:00:00Z',
           'status': status,
-          if (id == 'K260919000814')
+          'cancellationRequested': cancellationRequested,
+          if (id == 'K260919000814' && params['initiatePayment'] != false)
             'payment': params['paymentProvider'] == 'alipay'
                 ? {'provider': 'alipay', 'orderString': 'signed=fixture%2B%2F'}
                 : {
@@ -176,6 +188,37 @@ class _Harness {
 }
 
 void main() {
+  testWidgets('create only avoids SDK and later payment reuses original request', (tester) async {
+    final h = _Harness();
+    await h.mount(tester, saved: false);
+    await tester.tap(find.byKey(const ValueKey('order-create-only')));
+    await tester.pumpAndSettle();
+    expect(h.submittedInitiation, [false]);
+    expect(h.launched, 0);
+    expect(h.confirmed, 0);
+    expect(await const FlutterSecureStorage().read(key: _storageKey), isNotNull);
+    await tester.tap(find.text('立即支付'));
+    await tester.pumpAndSettle();
+    expect(h.submittedInitiation, [false, true]);
+    expect(h.submittedIds.toSet(), hasLength(1));
+    expect(h.launched, 1);
+    await h.finish(tester);
+  });
+  for (final result in ['expired', 'paid', 'pending', 'unknown']) {
+    testWidgets('explicit cancellation honors authoritative result: $result', (tester) async {
+      final h = _Harness()..cancelStatus = result == 'unknown' ? 'pending' : result..cancelUnknown = result == 'unknown';
+      await h.mount(tester);
+      final cancel = find.byKey(const ValueKey('order-cancel'));
+      await tester.ensureVisible(cancel);
+      await tester.tap(cancel);
+      await tester.pumpAndSettle();
+      expect(h.cancelled, 1);
+      expect(h.launched, 0);
+      expect(h.confirmed, result == 'paid' ? 1 : 0);
+      expect(await const FlutterSecureStorage().read(key: _storageKey), result == 'expired' || result == 'paid' ? isNull : isNotNull);
+      await h.finish(tester);
+    });
+  }
   for (final result in ['expired','pending','missing','paid']) {
     testWidgets('sold-out retry clears saved request only after terminal proof: $result', (tester) async {
       final h=_Harness()..soldOut=true..status=result=='missing'?'pending':result..missing=result=='missing';

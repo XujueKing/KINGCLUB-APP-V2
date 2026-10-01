@@ -254,11 +254,57 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     }
   }
 
-  Future<void> _pay() async {
+  Future<void> _cancelOrder() async {
+    final order = _receipt;
+    if (_busy ||
+        order == null ||
+        order.status == 'paid' ||
+        order.status == 'expired') {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final next = await widget.repository.cancel(
+        context: widget.quote.orderingContext!,
+        orderRef: order.orderRef,
+      );
+      if (!mounted) return;
+      _applyReceipt(next);
+      if (next.status != 'paid' && next.status != 'expired') {
+        setState(
+          () => _message = _paymentText([
+            '正在关闭原支付单，请稍候。',
+            'Closing the original payment. Please wait.',
+            '正在關閉原支付單，請稍候。',
+            'กำลังปิดการชำระเงินเดิม โปรดรอสักครู่',
+          ]),
+        );
+      }
+      _startPolling();
+      await _refresh();
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _message = _paymentText([
+            '取消结果待确认，请查询原订单。',
+            'Cancellation is unconfirmed. Check this order.',
+            '取消結果待確認，請查詢原訂單。',
+            'ยังไม่ยืนยันการยกเลิก โปรดตรวจสอบคำสั่งซื้อเดิม',
+          ]),
+        );
+        _startPolling();
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _pay({bool initiatePayment = true}) async {
     if (_busy ||
         !_ready ||
         !_receiptMatchesQuote ||
-        _creationBlockReason != null ||
+        _receipt?.cancellationRequested == true ||
+        (initiatePayment && _creationBlockReason != null) ||
         _receipt?.status == 'paid' ||
         _receipt?.status == 'expired') {
       return;
@@ -268,7 +314,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       _message = null;
     });
     try {
-      if (_provider == OrderingPaymentProvider.alipay) {
+      if (initiatePayment && _provider == OrderingPaymentProvider.alipay) {
         if (!await AlipayAppPayment.prepare()) {
           if (mounted) {
             setState(
@@ -283,7 +329,8 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
           return;
         }
         if (!mounted) return;
-      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      } else if (initiatePayment &&
+          defaultTargetPlatform == TargetPlatform.iOS) {
         if (!await IosWechatPayment.prepare()) {
           if (mounted) setState(() => _message = '请先安装微信，并确认微信支付配置已启用');
           return;
@@ -307,6 +354,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         requestId: _requestId,
         lines: lines,
         paymentProvider: _provider,
+        initiatePayment: initiatePayment,
       );
       if (!mounted) return;
       setState(() => _receipt = receipt);
@@ -316,6 +364,17 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         return;
       }
       _startPolling();
+      if (!initiatePayment) {
+        setState(
+          () => _message = _paymentText([
+            '订单已提交，付款时确认库存；请在到期前付款。',
+            'Order submitted. Stock is checked when paying. Pay before expiry.',
+            '訂單已提交，付款時確認庫存；請在到期前付款。',
+            'ส่งคำสั่งซื้อแล้ว ตรวจสอบสต็อกเมื่อชำระเงิน โปรดชำระก่อนหมดอายุ',
+          ]),
+        );
+        return;
+      }
       if (receipt.payment == null) {
         setState(() => _message = '订单已创建，正在确认支付状态');
         return;
@@ -353,7 +412,8 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         // must prove that the original order is terminal before another basket.
         try {
           final closed = await widget.repository.findByRequest(
-            context: widget.quote.orderingContext!, requestId: _requestId,
+            context: widget.quote.orderingContext!,
+            requestId: _requestId,
           );
           if (!mounted) return;
           if (closed?.status == 'expired') {
@@ -394,16 +454,18 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         }
       }
       if (mounted) {
-        setState(() => _message = error.code == 'ORDERING_OUT_OF_STOCK'
-          ? _paymentText([
-              '商品已售罄，未发起扣款，请返回修改订单。',
-              'Item sold out. No charge was initiated. Go back to change the order.',
-              '商品已售罄，未發起扣款，請返回修改訂單。',
-              'สินค้าหมด ยังไม่ได้เรียกเก็บเงิน โปรดย้อนกลับไปแก้ไขคำสั่งซื้อ',
-            ])
-          : error.code == 'ORDERING_PAYMENT_IN_PROGRESS'
+        setState(
+          () => _message = error.code == 'ORDERING_OUT_OF_STOCK'
+              ? _paymentText([
+                  '商品已售罄，未发起扣款，请返回修改订单。',
+                  'Item sold out. No charge was initiated. Go back to change the order.',
+                  '商品已售罄，未發起扣款，請返回修改訂單。',
+                  'สินค้าหมด ยังไม่ได้เรียกเก็บเงิน โปรดย้อนกลับไปแก้ไขคำสั่งซื้อ',
+                ])
+              : error.code == 'ORDERING_PAYMENT_IN_PROGRESS'
               ? _checkingOriginalMessage
-              : error.message);
+              : error.message,
+        );
       }
     } on MissingPluginException catch (_) {
       if (mounted) {
@@ -784,6 +846,19 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                       ),
                     if (_receipt != null && !terminal)
                       TextButton(
+                        key: const ValueKey('order-cancel'),
+                        onPressed: _busy ? null : _cancelOrder,
+                        child: Text(
+                          _paymentText([
+                            '取消订单',
+                            'Cancel order',
+                            '取消訂單',
+                            'ยกเลิกคำสั่งซื้อ',
+                          ]),
+                        ),
+                      ),
+                    if (_receipt != null && !terminal)
+                      TextButton(
                         onPressed: _refresh,
                         child: const Text('刷新支付结果'),
                       ),
@@ -835,6 +910,21 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                         ),
                       ),
                     ),
+                    if (!terminal && _receipt == null)
+                      TextButton(
+                        key: const ValueKey('order-create-only'),
+                        onPressed: _busy || !_ready
+                            ? null
+                            : () => _pay(initiatePayment: false),
+                        child: Text(
+                          _paymentText([
+                            '提交订单',
+                            'Place order',
+                            '提交訂單',
+                            'ส่งคำสั่งซื้อ',
+                          ]),
+                        ),
+                      ),
                     SizedBox(width: r(20)),
                     SizedBox(
                       width: r(190),
@@ -842,7 +932,11 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                       child: FilledButton(
                         onPressed: terminal
                             ? widget.onBack
-                            : (_busy || !_ready ? null : _pay),
+                            : (_busy ||
+                                      !_ready ||
+                                      _receipt?.cancellationRequested == true
+                                  ? null
+                                  : _pay),
                         style: FilledButton.styleFrom(
                           padding: EdgeInsets.zero,
                           shape: const StadiumBorder(),

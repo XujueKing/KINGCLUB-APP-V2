@@ -25,6 +25,7 @@ class OrderingOrderReceipt {
     required this.currency,
     required this.expiresAt,
     this.payment,
+    this.cancellationRequested = false,
   });
 
   final String orderRef;
@@ -36,6 +37,7 @@ class OrderingOrderReceipt {
   final String currency;
   final DateTime expiresAt;
   final Map<String, String>? payment;
+  final bool cancellationRequested;
 }
 
 typedef OrderingOrderSessionReader = OrderingSessionReader;
@@ -69,6 +71,7 @@ class OrderingOrderRepository {
     required String requestId,
     required List<OrderingOrderLine> lines,
     OrderingPaymentProvider paymentProvider = OrderingPaymentProvider.wechat,
+    bool initiatePayment = true,
   }) async {
     if (context.tableId == null ||
         !_ref.hasMatch(context.tableId!) ||
@@ -107,6 +110,7 @@ class OrderingOrderRepository {
       'requestId': requestId,
       'items': items,
       'paymentProvider': paymentProvider.name,
+      'initiatePayment': initiatePayment,
     }, session!);
     final current = await readSession();
     if (!_sameIdentity(_identity(current), identity)) {
@@ -117,6 +121,25 @@ class OrderingOrderRepository {
         (receipt.payment!['provider'] ?? 'wechat') != paymentProvider.name) {
       _invalid();
     }
+    return receipt;
+  }
+
+  Future<OrderingOrderReceipt> cancel({
+    required OrderingContext context,
+    required String orderRef,
+  }) async {
+    if (!_ref.hasMatch(orderRef)) _invalid();
+    final session = await readSession();
+    final identity = _identity(session);
+    if (identity == null) throw const AuthFailure('SESSION_EXPIRED', '请重新登录');
+    final response = await request('K261001001958', {
+      'orderRef': orderRef,
+    }, session!);
+    if (!_sameIdentity(_identity(await readSession()), identity)) {
+      throw const AuthFailure('SESSION_CHANGED', '登录状态已变更，请重试');
+    }
+    final receipt = _parse(response, context);
+    if (receipt.orderRef != orderRef) _invalid();
     return receipt;
   }
 
@@ -194,7 +217,8 @@ class OrderingOrderRepository {
         currency != context.currency ||
         totalCents is! int ||
         totalCents < 0 ||
-        expiresAt == null) {
+        expiresAt == null ||
+        (result['cancellationRequested'] != null && result['cancellationRequested'] is! bool)) {
       _invalid();
     }
     Map<String, String>? payment;
@@ -246,6 +270,7 @@ class OrderingOrderRepository {
       currency: currency,
       expiresAt: expiresAt,
       payment: payment,
+      cancellationRequested: result['cancellationRequested'] == true,
     );
   }
 
