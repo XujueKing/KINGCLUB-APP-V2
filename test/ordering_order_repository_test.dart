@@ -40,6 +40,63 @@ void main() {
     2,
   );
 
+  test(
+    'postpay submits without payment and accepts authoritative null expiry',
+    () async {
+      final postpay = OrderingContext(
+        contextRef: context.contextRef,
+        memberRef: context.memberRef,
+        storeRef: context.storeRef,
+        tableSessionRef: context.tableSessionRef,
+        tableId: context.tableId,
+        storeName: context.storeName,
+        storeAddress: context.storeAddress,
+        tableName: context.tableName,
+        businessDate: context.businessDate,
+        currency: 'CNY',
+        paymentTiming: 'postpay',
+      );
+      var responseTiming = 'postpay';
+      Object? expiry;
+      Object? payment;
+      final repo = OrderingOrderRepository(
+        readSession: () async => session,
+        request: (id, params, _) async {
+          expect(params['initiatePayment'], false);
+          return {
+            'result': {
+              'orderRef': 'D00000000001',
+              'storeRef': context.storeRef,
+              'tableId': context.tableId,
+              'tableSessionRef': context.tableSessionRef,
+              'status': 'pending',
+              'totalCents': 38800,
+              'currency': 'CNY',
+              'paymentTiming': responseTiming,
+              'expiresAt': expiry,
+              'payment': payment,
+            },
+          };
+        },
+      );
+      Future<OrderingOrderReceipt> submit() => repo.submit(
+        context: postpay,
+        requestId: '44444444-4444-4444-4444-444444444444',
+        lines: [const OrderingOrderLine(product: product, quantity: 1)],
+      );
+      final receipt = await submit();
+      expect(receipt.expiresAt, isNull);
+      expect(receipt.paymentTiming, 'postpay');
+      expiry = '2030-01-01T00:00:00Z';
+      await expectLater(submit(), throwsA(isA<AuthFailure>()));
+      expiry = null;
+      responseTiming = 'prepay';
+      await expectLater(submit(), throwsA(isA<AuthFailure>()));
+      responseTiming = 'postpay';
+      payment = {'provider': 'alipay', 'orderString': 'must-not-launch'};
+      await expectLater(submit(), throwsA(isA<AuthFailure>()));
+    },
+  );
   test('submits only server re-pricing fields and parses receipt', () async {
     Map<String, dynamic>? sent;
     final repo = OrderingOrderRepository(

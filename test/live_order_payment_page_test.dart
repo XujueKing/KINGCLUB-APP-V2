@@ -43,6 +43,99 @@ void main() {
     2,
   );
 
+  testWidgets(
+    'postpay has one submit action and never launches payment or clears cart twice',
+    (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final postpay = OrderingContext(
+        contextRef: context.contextRef,
+        memberRef: context.memberRef,
+        storeRef: context.storeRef,
+        tableSessionRef: context.tableSessionRef,
+        tableId: context.tableId,
+        storeName: context.storeName,
+        storeAddress: context.storeAddress,
+        tableName: context.tableName,
+        businessDate: context.businessDate,
+        currency: 'CNY',
+        paymentTiming: 'postpay',
+      );
+      var submissions = 0, cleared = 0, paid = 0, back = 0;
+      final repo = OrderingOrderRepository(
+        readSession: () async => session,
+        request: (id, params, _) async {
+          if (id == 'K260919000814') {
+            submissions++;
+            expect(params['initiatePayment'], false);
+          }
+          return {
+            'result': {
+              'orderRef': 'D00000000001',
+              'storeRef': context.storeRef,
+              'tableId': context.tableId,
+              'tableSessionRef': context.tableSessionRef,
+              'status': 'pending',
+              'totalCents': 38800,
+              'currency': 'CNY',
+              'paymentTiming': 'postpay',
+              'expiresAt': null,
+            },
+          };
+        },
+      );
+      final quote = FakeOrderingQuote(
+        itemCount: 1,
+        total: 388,
+        orderingContext: postpay,
+        onOrderSubmitted: () => cleared++,
+        onPaymentConfirmed: () => paid++,
+        items: [
+          const FakeOrderingQuoteItem(
+            name: 'Test wine',
+            detail: '750ml',
+            asset: '',
+            quantity: 1,
+            unitPrice: 388,
+            unitPriceCents: 38800,
+            catalogProduct: product,
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOrderPaymentPage(
+            quote: quote,
+            repository: repo,
+            onBack: () => back++,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('payment-provider-wechat')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('payment-provider-alipay')),
+        findsNothing,
+      );
+      expect(find.text('Place order'), findsOneWidget);
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+      expect(submissions, 1);
+      expect(cleared, 1);
+      expect(paid, 0);
+      expect(find.byKey(const ValueKey('order-cancel')), findsNothing);
+      expect(find.byKey(const ValueKey('live-payment-success')), findsNothing);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(cleared, 1);
+      await tester.tap(find.text('Continue ordering'));
+      expect(back, 1);
+      expect(submissions, 1);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   for (final size in [
     const Size(320, 568),
     const Size(393, 852),
@@ -126,17 +219,25 @@ void main() {
         await tester.pumpAndSettle();
         expect(submitted, 1);
         expect(launches, 1);
-        expect(find.byKey(const ValueKey('live-payment-success')), findsNothing);
+        expect(
+          find.byKey(const ValueKey('live-payment-success')),
+          findsNothing,
+        );
         paid = true;
         await tester.ensureVisible(find.text('刷新支付结果'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('刷新支付结果'));
         await tester.pumpAndSettle();
-        expect(find.byKey(const ValueKey('live-payment-success')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('live-payment-success')),
+          findsOneWidget,
+        );
         expect(returned, 0);
         expect(find.text('D00000000001'), findsNothing);
         expect(find.textContaining('D00000000001'), findsOneWidget);
-        await tester.tap(find.byKey(const ValueKey('live-payment-success-return')));
+        await tester.tap(
+          find.byKey(const ValueKey('live-payment-success-return')),
+        );
         expect(returned, 1);
         await tester.pumpWidget(const SizedBox());
         tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(

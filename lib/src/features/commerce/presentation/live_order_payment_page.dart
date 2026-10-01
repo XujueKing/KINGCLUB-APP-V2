@@ -60,7 +60,15 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     '正在核對原訂單，請勿重複付款',
     'กำลังตรวจสอบคำสั่งซื้อเดิม โปรดอย่าชำระเงินซ้ำ',
   ]);
+  bool get _postpay => widget.quote.orderingContext!.paymentTiming == 'postpay';
+  String get _postpayMessage => _paymentText([
+    '订单已提交门店，消费结束后结账；已出酒商品如需变更请联系店员。',
+    'Order sent to the store. Pay after your visit; ask staff to change delivered items.',
+    '訂單已提交門店，消費結束後結帳；已出酒商品如需變更請聯繫店員。',
+    'ส่งคำสั่งซื้อให้ร้านแล้ว ชำระเมื่อใช้บริการเสร็จ หากต้องการยกเลิกโปรดติดต่อพนักงาน',
+  ]);
   String? get _creationBlockReason {
+    if (_postpay) return null;
     if (widget.quote.orderingContext!.paymentTiming != 'prepay') {
       return '当前版本尚未开放后付费下单，请联系门店处理。';
     }
@@ -162,6 +170,18 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
           }
           return;
         }
+        if (_postpay && _receipt!.status == 'pending') {
+          _applyReceipt(_receipt!);
+          await _storage.delete(key: _storageKey!);
+          if (mounted) {
+            setState(() {
+              _ready = true;
+              _restorationComplete = true;
+            });
+          }
+          _startPolling();
+          return;
+        }
         if (_receipt!.status == 'paid' || _receipt!.status == 'expired') {
           // Keep the terminal receipt on screen. Never turn a paid order into
           // a fresh request just because its confirmation arrived while away.
@@ -217,6 +237,13 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         _message = '订单已关闭，请返回重新选购；如已扣款请联系门店核对。';
       }
     });
+    if (_postpay && receipt.status == 'pending') {
+      setState(() => _message = _postpayMessage);
+      if (_receiptMatchesQuote && !_confirmed) {
+        _confirmed = true;
+        widget.quote.onOrderSubmitted?.call();
+      }
+    }
     if (receipt.status == 'paid' && _receiptMatchesQuote && !_confirmed) {
       _confirmed = true;
       widget.quote.onPaymentConfirmed?.call();
@@ -302,6 +329,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   }
 
   Future<void> _pay({bool initiatePayment = true}) async {
+    if (_postpay) initiatePayment = false;
     if (_busy ||
         !_ready ||
         !_receiptMatchesQuote ||
@@ -359,8 +387,13 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         initiatePayment: initiatePayment,
       );
       if (!mounted) return;
-      setState(() => _receipt = receipt);
+      _applyReceipt(receipt);
       await _save();
+      if (_postpay && receipt.status == 'pending') {
+        await _storage.delete(key: _storageKey!);
+        _startPolling();
+        return;
+      }
       if (receipt.status == 'paid' || receipt.status == 'expired') {
         await _refresh();
         return;
@@ -771,60 +804,61 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                         SizedBox(height: r(24)),
                         line('商品总价', '¥${_money(_total)}'),
                       ]),
-                    card([
-                      InkWell(
-                        key: const ValueKey('payment-provider-wechat'),
-                        onTap: _channelLocked || _busy
-                            ? null
-                            : () => _selectProvider(
-                                OrderingPaymentProvider.wechat,
+                    if (!_postpay)
+                      card([
+                        InkWell(
+                          key: const ValueKey('payment-provider-wechat'),
+                          onTap: _channelLocked || _busy
+                              ? null
+                              : () => _selectProvider(
+                                  OrderingPaymentProvider.wechat,
+                                ),
+                          child: Row(
+                            children: [
+                              Image.asset(
+                                'assets/legacy/ordering/WEIPAY.png',
+                                width: r(44),
+                                height: r(44),
                               ),
-                        child: Row(
-                          children: [
-                            Image.asset(
-                              'assets/legacy/ordering/WEIPAY.png',
-                              width: r(44),
-                              height: r(44),
-                            ),
-                            SizedBox(width: r(15)),
-                            const Expanded(child: Text('微信支付')),
-                            Icon(
-                              _provider == OrderingPaymentProvider.wechat
-                                  ? Icons.check_circle
-                                  : Icons.radio_button_unchecked,
-                              color: const Color(0xFF55493C),
-                              size: r(36),
-                            ),
-                          ],
-                        ),
-                      ),
-                      StoreAlipayPaymentOption(
-                        storeRef: widget.quote.orderingContext!.storeRef,
-                        repository: StorePaymentAvailabilityRepository(
-                          readSession: widget.repository.readSession,
-                          request: widget.repository.request,
-                        ),
-                        unit: r(1),
-                        label: _paymentText([
-                          '支付宝', 'Alipay', '支付寶', 'Alipay',
-                        ]),
-                        selected: _provider == OrderingPaymentProvider.alipay,
-                        onUnavailable: () {
-                          if (!_channelLocked &&
-                              !_busy &&
-                              _restorationComplete &&
-                              _receipt == null &&
-                              _provider == OrderingPaymentProvider.alipay) {
-                            _selectProvider(OrderingPaymentProvider.wechat);
-                          }
-                        },
-                        onTap: _channelLocked || _busy
-                            ? null
-                            : () => _selectProvider(
-                                OrderingPaymentProvider.alipay,
+                              SizedBox(width: r(15)),
+                              const Expanded(child: Text('微信支付')),
+                              Icon(
+                                _provider == OrderingPaymentProvider.wechat
+                                    ? Icons.check_circle
+                                    : Icons.radio_button_unchecked,
+                                color: const Color(0xFF55493C),
+                                size: r(36),
                               ),
-                      ),
-                    ]),
+                            ],
+                          ),
+                        ),
+                        StoreAlipayPaymentOption(
+                          storeRef: widget.quote.orderingContext!.storeRef,
+                          repository: StorePaymentAvailabilityRepository(
+                            readSession: widget.repository.readSession,
+                            request: widget.repository.request,
+                          ),
+                          unit: r(1),
+                          label: _paymentText([
+                            '支付宝', 'Alipay', '支付寶', 'Alipay',
+                          ]),
+                          selected: _provider == OrderingPaymentProvider.alipay,
+                          onUnavailable: () {
+                            if (!_channelLocked &&
+                                !_busy &&
+                                _restorationComplete &&
+                                _receipt == null &&
+                                _provider == OrderingPaymentProvider.alipay) {
+                              _selectProvider(OrderingPaymentProvider.wechat);
+                            }
+                          },
+                          onTap: _channelLocked || _busy
+                              ? null
+                              : () => _selectProvider(
+                                  OrderingPaymentProvider.alipay,
+                                ),
+                        ),
+                      ]),
                     if (_message != null)
                       Padding(
                         padding: EdgeInsets.all(r(20)),
@@ -836,7 +870,9 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                           ),
                         ),
                       ),
-                    if (_receipt != null && !terminal)
+                    if ((!_postpay || _receipt?.canCancel == true) &&
+                        _receipt != null &&
+                        !terminal)
                       TextButton(
                         key: const ValueKey('order-cancel'),
                         onPressed: _busy ? null : _cancelOrder,
@@ -852,7 +888,16 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                     if (_receipt != null && !terminal)
                       TextButton(
                         onPressed: _refresh,
-                        child: const Text('刷新支付结果'),
+                        child: Text(
+                          _postpay
+                              ? _paymentText([
+                                  '刷新订单',
+                                  'Refresh order',
+                                  '重新整理訂單',
+                                  'รีเฟรชคำสั่งซื้อ',
+                                ])
+                              : '刷新支付结果',
+                        ),
                       ),
                   ],
                 ),
@@ -902,7 +947,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                         ),
                       ),
                     ),
-                    if (!terminal && _receipt == null)
+                    if (!_postpay && !terminal && _receipt == null)
                       TextButton(
                         key: const ValueKey('order-create-only'),
                         onPressed: _busy || !_ready
@@ -922,7 +967,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                       width: r(190),
                       height: r(80),
                       child: FilledButton(
-                        onPressed: terminal
+                        onPressed: terminal || (_postpay && _receipt != null)
                             ? widget.onBack
                             : (_busy ||
                                       !_ready ||
@@ -946,6 +991,20 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                               ? '支付成功 · 返回'
                               : status == 'expired'
                               ? '重新选购'
+                              : _postpay
+                              ? (_receipt == null
+                                    ? _paymentText([
+                                        '提交订单',
+                                        'Place order',
+                                        '提交訂單',
+                                        'ส่งคำสั่งซื้อ',
+                                      ])
+                                    : _paymentText([
+                                        '继续点单',
+                                        'Continue ordering',
+                                        '繼續點單',
+                                        'สั่งเพิ่ม',
+                                      ]))
                               : '立即支付',
                         ),
                       ),

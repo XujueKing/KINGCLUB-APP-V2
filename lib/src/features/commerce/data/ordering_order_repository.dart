@@ -25,7 +25,9 @@ class OrderingOrderReceipt {
     required this.currency,
     required this.expiresAt,
     this.payment,
+    this.paymentTiming = 'prepay',
     this.cancellationRequested = false,
+    this.canCancel = false,
   });
 
   final String orderRef;
@@ -35,9 +37,11 @@ class OrderingOrderReceipt {
   final String status;
   final int totalCents;
   final String currency;
-  final DateTime expiresAt;
+  final DateTime? expiresAt;
+  final String paymentTiming;
   final Map<String, String>? payment;
   final bool cancellationRequested;
+  final bool canCancel;
 }
 
 typedef OrderingOrderSessionReader = OrderingSessionReader;
@@ -76,7 +80,7 @@ class OrderingOrderRepository {
     if (context.tableId == null ||
         !_ref.hasMatch(context.tableId!) ||
         !_sessionReference.hasMatch(context.tableSessionRef) ||
-        context.paymentTiming != 'prepay' ||
+        !{'prepay', 'postpay'}.contains(context.paymentTiming) ||
         !_uuid.hasMatch(requestId) ||
         lines.isEmpty ||
         lines.length > 50) {
@@ -110,7 +114,7 @@ class OrderingOrderRepository {
       'requestId': requestId,
       'items': items,
       'paymentProvider': paymentProvider.name,
-      'initiatePayment': initiatePayment,
+      'initiatePayment': context.paymentTiming == 'prepay' && initiatePayment,
     }, session!);
     final current = await readSession();
     if (!_sameIdentity(_identity(current), identity)) {
@@ -200,7 +204,21 @@ class OrderingOrderRepository {
     final status = text('status');
     final currency = text('currency');
     final totalCents = result['totalCents'];
-    final expiresAt = DateTime.tryParse(text('expiresAt'));
+    if (result['canCancel'] != null && result['canCancel'] is! bool) {
+      _invalid();
+    }
+    final timing = result['paymentTiming'] ?? 'prepay';
+    final rawExpiry = result['expiresAt'];
+    final expiresAt = rawExpiry is String ? DateTime.tryParse(rawExpiry) : null;
+    if (timing != context.paymentTiming ||
+        (timing == 'prepay'
+            ? expiresAt == null
+            : timing != 'postpay' || rawExpiry != null) ||
+        (timing == 'postpay' &&
+            (result['payment'] != null ||
+                !{'pending', 'paid', 'expired'}.contains(status)))) {
+      _invalid();
+    }
     if (!RegExp(
           r'^(?:D[0-9]{11}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$',
         ).hasMatch(orderRef) ||
@@ -217,8 +235,8 @@ class OrderingOrderRepository {
         currency != context.currency ||
         totalCents is! int ||
         totalCents < 0 ||
-        expiresAt == null ||
-        (result['cancellationRequested'] != null && result['cancellationRequested'] is! bool)) {
+        (result['cancellationRequested'] != null &&
+            result['cancellationRequested'] is! bool)) {
       _invalid();
     }
     Map<String, String>? payment;
@@ -269,8 +287,10 @@ class OrderingOrderRepository {
       totalCents: totalCents,
       currency: currency,
       expiresAt: expiresAt,
+      paymentTiming: timing as String,
       payment: payment,
       cancellationRequested: result['cancellationRequested'] == true,
+      canCancel: result['canCancel'] == true,
     );
   }
 

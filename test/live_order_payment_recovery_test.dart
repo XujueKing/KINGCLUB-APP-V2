@@ -53,7 +53,9 @@ OrderingContext _context({String timing = 'prepay'}) => OrderingContext(
 class _Harness {
   int submitted = 0, queried = 0, confirmed = 0, launched = 0;
   String status = 'pending';
+  String paymentTiming = 'prepay';
   bool missing = false;
+  bool canCancelPostpay = false;
   bool alipayUnavailable = false;
   bool soldOut = false;
   bool cancelUnknown = false;
@@ -76,7 +78,9 @@ class _Harness {
         submittedInitiation.add(params['initiatePayment']);
         submittedIds.add(params['requestId']);
         submittedProviders.add(params['paymentProvider']);
-        if (soldOut) throw const AuthFailure('ORDERING_OUT_OF_STOCK','Sold out');
+        if (soldOut) {
+          throw const AuthFailure('ORDERING_OUT_OF_STOCK', 'Sold out');
+        }
         if (alipayUnavailable && params['paymentProvider'] == 'alipay') {
           throw const AuthFailure('ALIPAY_NOT_READY', 'Alipay unavailable');
         }
@@ -102,7 +106,14 @@ class _Harness {
           'tableSessionRef': _tableSession,
           'totalCents': 100,
           'currency': 'CNY',
-          'expiresAt': '2030-01-01T00:00:00Z',
+          'expiresAt': paymentTiming == 'postpay'
+              ? null
+              : '2030-01-01T00:00:00Z',
+          'paymentTiming': paymentTiming,
+          'canCancel':
+              paymentTiming == 'postpay' &&
+              canCancelPostpay &&
+              status == 'pending',
           'status': status,
           'cancellationRequested': cancellationRequested,
           if (id == 'K260919000814' && params['initiatePayment'] != false)
@@ -130,6 +141,7 @@ class _Harness {
     String timing = 'prepay',
     String? savedProvider,
   }) async {
+    paymentTiming = timing;
     FlutterSecureStorage.setMockInitialValues({
       if (saved)
         _storageKey: jsonEncode({
@@ -191,25 +203,35 @@ class _Harness {
 }
 
 void main() {
-  testWidgets('create only avoids SDK and later payment reuses original request', (tester) async {
-    final h = _Harness();
-    await h.mount(tester, saved: false);
-    await tester.tap(find.byKey(const ValueKey('order-create-only')));
-    await tester.pumpAndSettle();
-    expect(h.submittedInitiation, [false]);
-    expect(h.launched, 0);
-    expect(h.confirmed, 0);
-    expect(await const FlutterSecureStorage().read(key: _storageKey), isNotNull);
-    await tester.tap(find.text('立即支付'));
-    await tester.pumpAndSettle();
-    expect(h.submittedInitiation, [false, true]);
-    expect(h.submittedIds.toSet(), hasLength(1));
-    expect(h.launched, 1);
-    await h.finish(tester);
-  });
+  testWidgets(
+    'create only avoids SDK and later payment reuses original request',
+    (tester) async {
+      final h = _Harness();
+      await h.mount(tester, saved: false);
+      await tester.tap(find.byKey(const ValueKey('order-create-only')));
+      await tester.pumpAndSettle();
+      expect(h.submittedInitiation, [false]);
+      expect(h.launched, 0);
+      expect(h.confirmed, 0);
+      expect(
+        await const FlutterSecureStorage().read(key: _storageKey),
+        isNotNull,
+      );
+      await tester.tap(find.text('立即支付'));
+      await tester.pumpAndSettle();
+      expect(h.submittedInitiation, [false, true]);
+      expect(h.submittedIds.toSet(), hasLength(1));
+      expect(h.launched, 1);
+      await h.finish(tester);
+    },
+  );
   for (final result in ['expired', 'paid', 'pending', 'unknown']) {
-    testWidgets('explicit cancellation honors authoritative result: $result', (tester) async {
-      final h = _Harness()..cancelStatus = result == 'unknown' ? 'pending' : result..cancelUnknown = result == 'unknown';
+    testWidgets('explicit cancellation honors authoritative result: $result', (
+      tester,
+    ) async {
+      final h = _Harness()
+        ..cancelStatus = result == 'unknown' ? 'pending' : result
+        ..cancelUnknown = result == 'unknown';
       await h.mount(tester);
       final cancel = find.byKey(const ValueKey('order-cancel'));
       await tester.ensureVisible(cancel);
@@ -218,25 +240,47 @@ void main() {
       expect(h.cancelled, 1);
       expect(h.launched, 0);
       expect(h.confirmed, result == 'paid' ? 1 : 0);
-      expect(await const FlutterSecureStorage().read(key: _storageKey), result == 'expired' || result == 'paid' ? isNull : isNotNull);
+      expect(
+        await const FlutterSecureStorage().read(key: _storageKey),
+        result == 'expired' || result == 'paid' ? isNull : isNotNull,
+      );
       await h.finish(tester);
     });
   }
-  for (final result in ['expired','pending','missing','paid']) {
-    testWidgets('sold-out retry clears saved request only after terminal proof: $result', (tester) async {
-      final h=_Harness()..soldOut=true..status=result=='missing'?'pending':result..missing=result=='missing';
-      await h.mount(tester,saved:false);
-      await tester.tap(find.text('立即支付'));
-      await tester.pumpAndSettle();
-      expect(h.submitted,1);
-      expect(h.launched,0);
-      final saved=await const FlutterSecureStorage().read(key:_storageKey);
-      expect(saved,result=='expired'||result=='paid'?isNull:isNotNull);
-      expect(h.confirmed,result=='paid'?1:0);
-      if(result=='expired')expect(find.textContaining('No charge was initiated'),findsOneWidget);
-      if(result=='pending'||result=='missing')expect(find.textContaining('Checking the original order'),findsOneWidget);
-      await h.finish(tester);
-    });
+  for (final result in ['expired', 'pending', 'missing', 'paid']) {
+    testWidgets(
+      'sold-out retry clears saved request only after terminal proof: $result',
+      (tester) async {
+        final h = _Harness()
+          ..soldOut = true
+          ..status = result == 'missing' ? 'pending' : result
+          ..missing = result == 'missing';
+        await h.mount(tester, saved: false);
+        await tester.tap(find.text('立即支付'));
+        await tester.pumpAndSettle();
+        expect(h.submitted, 1);
+        expect(h.launched, 0);
+        final saved = await const FlutterSecureStorage().read(key: _storageKey);
+        expect(
+          saved,
+          result == 'expired' || result == 'paid' ? isNull : isNotNull,
+        );
+        expect(h.confirmed, result == 'paid' ? 1 : 0);
+        if (result == 'expired') {
+          expect(
+            find.textContaining('No charge was initiated'),
+            findsOneWidget,
+          );
+        }
+        if (result == 'pending' || result == 'missing') {
+          expect(
+            find.textContaining('Checking the original order'),
+            findsOneWidget,
+          );
+        }
+        await h.finish(tester);
+      },
+    );
   }
   for (final orderExists in [false, true]) {
     testWidgets(
@@ -497,22 +541,42 @@ void main() {
     await h.finish(tester);
   }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
-  testWidgets(
-    'postpay fails before submission with an explicit capability message',
-    (tester) async {
-      final h = _Harness();
-      await h.mount(tester, saved: false, timing: 'postpay');
-      expect(find.textContaining('尚未开放后付费下单'), findsOneWidget);
-      expect(
-        tester
-            .widget<FilledButton>(find.widgetWithText(FilledButton, '立即支付'))
-            .onPressed,
-        isNull,
-      );
-      expect(h.submitted, 0);
-      await h.finish(tester);
-    },
-  );
+  testWidgets('postpay cancellation is offered only from server eligibility', (
+    tester,
+  ) async {
+    final h = _Harness()..canCancelPostpay = true;
+    await h.mount(tester, timing: 'postpay');
+    expect(find.byKey(const ValueKey('order-cancel')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('order-cancel')));
+    await tester.tap(find.byKey(const ValueKey('order-cancel')));
+    await tester.pumpAndSettle();
+    expect(h.cancelled, 1);
+    expect(h.launched, 0);
+    expect(h.confirmed, 0);
+    expect(find.text('重新选购'), findsOneWidget);
+    expect(find.byKey(const ValueKey('order-cancel')), findsNothing);
+    await h.finish(tester);
+  });
+
+  testWidgets('postpay can submit on iOS without a native payment bridge', (
+    tester,
+  ) async {
+    final h = _Harness();
+    await h.mount(tester, saved: false, timing: 'postpay');
+    expect(find.text('立即支付'), findsNothing);
+    await tester.tap(find.text('Place order'));
+    await tester.pumpAndSettle();
+    expect(h.submitted, 1);
+    expect(h.submittedInitiation, [false]);
+    expect(h.launched, 0);
+    expect(h.confirmed, 0);
+    await h.finish(tester);
+    await h.mount(tester, timing: 'postpay');
+    expect(find.text('Continue ordering'), findsOneWidget);
+    expect(h.submitted, 1);
+    expect(h.launched, 0);
+    await h.finish(tester);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
   testWidgets(
     'missing native bridge disables relaunch and retains status recovery',

@@ -31,6 +31,7 @@ class FakeOrderingQuote {
     required this.items,
     this.orderingContext,
     this.onPaymentConfirmed,
+    this.onOrderSubmitted,
   });
 
   final int itemCount;
@@ -38,6 +39,7 @@ class FakeOrderingQuote {
   final List<FakeOrderingQuoteItem> items;
   final OrderingContext? orderingContext;
   final VoidCallback? onPaymentConfirmed;
+  final VoidCallback? onOrderSubmitted;
 }
 
 class FakeOrderingQuoteItem {
@@ -1256,25 +1258,26 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
     final purchased = Map<String, int>.fromEntries(
       _quantities.entries.where((entry) => !_unchecked.contains(entry.key)),
     );
-    final quote = FakeOrderingQuote(
-      onPaymentConfirmed: _live
-          ? () {
-              if (mounted && generation == _scopeGeneration) {
-                setState(() {
-                  for (final entry in purchased.entries) {
-                    final remaining =
-                        (_quantities[entry.key] ?? 0) - entry.value;
-                    if (remaining <= 0) {
-                      _quantities.remove(entry.key);
-                      _unchecked.remove(entry.key);
-                    } else {
-                      _quantities[entry.key] = remaining;
-                    }
+    final VoidCallback? clearSubmittedItems = _live
+        ? () {
+            if (mounted && generation == _scopeGeneration) {
+              setState(() {
+                for (final entry in purchased.entries) {
+                  final remaining = (_quantities[entry.key] ?? 0) - entry.value;
+                  if (remaining <= 0) {
+                    _quantities.remove(entry.key);
+                    _unchecked.remove(entry.key);
+                  } else {
+                    _quantities[entry.key] = remaining;
                   }
-                });
-              }
+                }
+              });
             }
-          : null,
+          }
+        : null;
+    final quote = FakeOrderingQuote(
+      onPaymentConfirmed: clearSubmittedItems,
+      onOrderSubmitted: clearSubmittedItems,
       orderingContext: widget.orderingContext,
       itemCount: _selectedCount,
       total: _total,
