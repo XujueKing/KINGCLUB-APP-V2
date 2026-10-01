@@ -44,11 +44,12 @@ void main() {
     'table bill expands items and rereads authenticated table on notification',
     (tester) async {
       final events = StreamController<Map<String, dynamic>>.broadcast();
-      var reads = 0, cancelled = false;
+      var reads = 0, cancelled = false, closed = false;
       final repository = MemberOrdersRepository(
         readSession: () async => data.sessionFixture,
         request: (id, params, session) async {
           reads++;
+          if (closed) throw StateError('TABLE_SCOPE_CLOSED');
           expect(params, {
             'tableRef': 'test-table',
             'sessionRef': 'H00000000001',
@@ -92,6 +93,21 @@ void main() {
       });
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
       expect(reads, 2);
+      expect(find.text('Test product'), findsNothing);
+      cancelled = false;
+      await tester.pump(const Duration(seconds: 20));
+      await tester.pumpAndSettle(const Duration(milliseconds: 500));
+      expect(reads, 3);
+      expect(find.text('Test product'), findsOneWidget);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump(const Duration(seconds: 40));
+      expect(reads, 3);
+      closed = true;
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(reads, 4);
       expect(find.text('Test product'), findsNothing);
       await tester.pumpWidget(const SizedBox());
       await events.close();

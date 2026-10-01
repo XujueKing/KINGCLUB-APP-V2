@@ -40,6 +40,9 @@ class _TableBillPageState extends State<TableBillPage> {
     load: load,
     events: widget.events,
     expandItems: true,
+    // Table closure may have no order event. Revalidate visible seating scope
+    // even when the socket remains connected; personal order history needn't poll.
+    refreshInterval: const Duration(seconds: 20),
     title:
         '${widget.table.tableName} · ${OrderingEntryStatus.text(Localizations.localeOf(context), ['本桌账单', 'Table bill', '本桌帳單', 'บิลโต๊ะนี้'])}',
   );

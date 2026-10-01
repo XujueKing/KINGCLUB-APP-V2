@@ -24,9 +24,11 @@ class MemberOrdersPage extends StatefulWidget {
     this.events,
     this.title,
     this.expandItems = false,
+    this.refreshInterval,
   });
   final String? title;
   final bool expandItems;
+  final Duration? refreshInterval;
   final VoidCallback onBack;
   final ValueChanged<String>? onOpenOrder;
   final String? orderRef;
@@ -43,6 +45,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
   bool loading = false, failed = false, foreground = true, queued = false;
   int epoch = 0;
   Timer? debounce;
+  Timer? refreshTimer;
   StreamSubscription<void>? sessionChanges;
   StreamSubscription<Map<String, dynamic>>? changes;
   late final repository = MemberOrdersRepository.secure(kingclubApiBaseUrl);
@@ -74,6 +77,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
       if (foreground) unawaited(reload());
     });
     subscribe();
+    startRefreshTimer();
     if (foreground) unawaited(reload());
   }
 
@@ -95,10 +99,25 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
     });
   }
 
+  void startRefreshTimer() {
+    refreshTimer?.cancel();
+    refreshTimer = null;
+    final interval = widget.refreshInterval;
+    if (!foreground || interval == null || interval <= Duration.zero) return;
+    refreshTimer = Timer.periodic(interval, (_) {
+      if (!mounted || !foreground) return;
+      queued = true;
+      schedule();
+    });
+  }
+
   @override
   void didUpdateWidget(covariant MemberOrdersPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.events != widget.events) subscribe();
+    if (oldWidget.refreshInterval != widget.refreshInterval) {
+      startRefreshTimer();
+    }
     if (oldWidget.orderRef != widget.orderRef ||
         oldWidget.load != widget.load) {
       invalidate();
@@ -184,6 +203,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     foreground = state == AppLifecycleState.resumed;
+    startRefreshTimer();
     invalidate();
     if (foreground) unawaited(reload());
   }
@@ -191,6 +211,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
   @override
   void dispose() {
     epoch++;
+    refreshTimer?.cancel();
     debounce?.cancel();
     sessionChanges?.cancel();
     changes?.cancel();
