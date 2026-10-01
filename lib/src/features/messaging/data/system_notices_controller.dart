@@ -60,11 +60,13 @@ class SystemNoticesController extends ChangeNotifier {
     }
   }
 
-  Future<void> markRead({String? id}) async {
+  Future<void> markRead({String? id, String? throughSequence}) async {
     if (_disposed ||
         reading ||
         loading ||
-        (id == null && summary.highWaterSequence == null)) {
+        (id == null &&
+            throughSequence == null &&
+            summary.highWaterSequence == null)) {
       return;
     }
     final epoch = ++_epoch;
@@ -74,7 +76,9 @@ class SystemNoticesController extends ChangeNotifier {
     try {
       final result = await repository.markRead(
         ids: id == null ? null : [id],
-        throughSequence: id == null ? summary.highWaterSequence : null,
+        throughSequence: id == null
+            ? throughSequence ?? summary.highWaterSequence
+            : null,
       );
       if (_disposed || epoch != _epoch) return;
       notices = [

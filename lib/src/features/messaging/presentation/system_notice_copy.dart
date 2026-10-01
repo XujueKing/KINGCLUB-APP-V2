@@ -28,6 +28,8 @@ const _copy = {
   'store': '门店：|Store:|門店：|ร้าน:',
   'table': '卡座：|Table:|卡座：|โต๊ะ:',
   'order': '订单编号：|Order:|訂單編號：|คำสั่งซื้อ:',
+  'paid_at': '付款时间：|Paid at:|付款時間：|เวลาชำระเงิน:',
+  'completed_at': '办理时间：|Completed at:|辦理時間：|เวลาดำเนินการ:',
   'products': '商品：|Products:|商品：|สินค้า:',
   'receipt': '业务编号：|Receipt:|業務編號：|ใบเสร็จ:',
   'quantity': '存入数量：|Stored quantity:|存入數量：|จำนวนที่ฝาก:',

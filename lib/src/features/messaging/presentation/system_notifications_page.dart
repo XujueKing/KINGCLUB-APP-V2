@@ -30,9 +30,12 @@ class SystemNotificationsPage extends StatefulWidget {
       _SystemNotificationsPageState();
 }
 
-class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
+class _SystemNotificationsPageState extends State<SystemNotificationsPage>
+    with WidgetsBindingObserver {
   SystemNoticesController? _controller;
   bool _ownsController = false;
+  bool _wasLoading = false, _autoReadScheduled = false;
+  String? _pendingReadSequence;
   late final List<_NoticeDisplay> _notices = [
     _NoticeDisplay(
       source: 'GOLDCOIN 仓库',
@@ -63,6 +66,7 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (!widget.demo) _notices.clear();
     final unreadCount = widget.initialUnreadCount.clamp(0, _notices.length);
     for (var index = 0; index < _notices.length; index++) {
@@ -76,6 +80,7 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
       _ownsController = true;
     }
     _controller?.addListener(_changed);
+    _wasLoading = _controller?.loading ?? false;
     if (_controller != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_controller!.refresh());
@@ -85,13 +90,62 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
 
   void _changed() {
     if (mounted) {
+      final controller = _controller!;
+      if (controller.summary.highWaterSequence == null) {
+        _pendingReadSequence = null;
+      }
+      if (_wasLoading &&
+          !controller.loading &&
+          !controller.failed &&
+          controller.summary.unreadCount > 0) {
+        _pendingReadSequence = controller.summary.highWaterSequence;
+      }
+      _wasLoading = controller.loading;
       setState(() {});
       widget.onUnreadChanged?.call(_controller!.summary.unreadCount);
+      _scheduleAutoRead();
     }
+  }
+
+  void _scheduleAutoRead() {
+    final controller = _controller;
+    if (widget.demo ||
+        _autoReadScheduled ||
+        _pendingReadSequence == null ||
+        controller == null ||
+        controller.loading ||
+        controller.reading ||
+        controller.failed) {
+      return;
+    }
+    _autoReadScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoReadScheduled = false;
+      if (!mounted ||
+          ModalRoute.of(context)?.isCurrent == false ||
+          WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed ||
+          controller.loading ||
+          controller.reading ||
+          controller.failed) {
+        return;
+      }
+      final sequence = _pendingReadSequence;
+      _pendingReadSequence = null;
+      if (sequence != null) {
+        // Only acknowledge the successfully loaded snapshot, not later arrivals.
+        unawaited(controller.markRead(throughSequence: sequence));
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _scheduleAutoRead();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.removeListener(_changed);
     if (_ownsController) _controller?.dispose();
     super.dispose();
@@ -130,6 +184,15 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
                     ? _expiry(d.$2 as String)
                     : d.$2 as String,
               ),
+            (
+              systemNoticeText(
+                context,
+                {'purchase_paid', 'aa_paid'}.contains(n.kind)
+                    ? 'paid_at'
+                    : 'completed_at',
+              ),
+              _receiptTime(n.occurredAt),
+            ),
           ],
           notice: n,
         )..read = n.read,
@@ -139,6 +202,13 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
   String _expiry(String value) {
     final date = DateTime.tryParse(value)?.toLocal();
     return date == null ? value : '${date.year}/${date.month}/${date.day}';
+  }
+
+  String _receiptTime(DateTime value) {
+    final date = value.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${date.year}/${two(date.month)}/${two(date.day)} '
+        '${two(date.hour)}:${two(date.minute)}:${two(date.second)}';
   }
 
   String _time(DateTime value) {

@@ -179,6 +179,7 @@ void main() {
   testWidgets(
     'real receipt uses legacy card geometry and opens its owned order',
     (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       tester.view.physicalSize = const Size(750, 1500);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -207,6 +208,18 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('购买付款成功'), findsOneWidget);
+      expect(find.text('付款时间：'), findsOneWidget);
+      final local = DateTime.parse(notice(1)['occurredAt'] as String).toLocal();
+      String two(int n) => n.toString().padLeft(2, '0');
+      expect(
+        find.text(
+          '${local.year}/${two(local.month)}/${two(local.day)} '
+          '${two(local.hour)}:${two(local.minute)}:${two(local.second)}',
+        ),
+        findsOneWidget,
+      );
+      // Entering the loaded conversation updates the shared shell badge.
+      expect(controller.summary.unreadCount, 0);
       expect(find.text('签到获得'), findsNothing);
       expect(find.text('¥388.00'), findsOneWidget);
       final material = find
@@ -228,6 +241,90 @@ void main() {
       await tester.tap(find.text('购买付款成功'));
       await tester.pumpAndSettle();
       expect(target, {'kind': 'order', 'reference': 'test-order'});
+      expect(controller.summary.unreadCount, 0);
+      await tester.pumpWidget(const SizedBox());
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
+    'entry acknowledges loaded watermark without reading later arrivals',
+    (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final selectors = <Map<String, dynamic>>[];
+      final controller = SystemNoticesController(
+        SystemNoticesRepository(
+          readSession: () async => session('one'),
+          request: (api, params, s) async {
+            if (api == 'K261002001961') {
+              selectors.add(params);
+              return {
+                'result': {
+                  ...page([notice(2)], unread: 1),
+                  'highWaterSequence': '23',
+                },
+              };
+            }
+            return {
+              'result': page([notice(1)]),
+            };
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh', 'CN'),
+          supportedLocales: const [Locale('zh', 'CN')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          home: SystemNotificationsPage(demo: false, controller: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(selectors, [
+        {'throughSequence': '22'},
+      ]);
+      expect(controller.notices.single.read, isTrue);
+      expect(controller.summary.unreadCount, 1);
+      await tester.pumpWidget(const SizedBox());
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
+    'background loading waits for foreground before clearing the badge',
+    (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final loading = Completer<Map<String, dynamic>>();
+      var reads = 0;
+      final controller = SystemNoticesController(
+        SystemNoticesRepository(
+          readSession: () async => session('one'),
+          request: (api, p, s) async {
+            if (api == 'K261002001960') return loading.future;
+            if (api == 'K261002001961') reads++;
+            return {
+              'result': page([notice(1, read: reads > 0)]),
+            };
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SystemNotificationsPage(demo: false, controller: controller),
+        ),
+      );
+      await tester.pump();
+      expect(controller.loading, isTrue);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      loading.complete({
+        'result': page([notice(1)]),
+      });
+      await tester.pump();
+      expect(reads, 0);
+      expect(controller.summary.unreadCount, 1);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(reads, 1);
       expect(controller.summary.unreadCount, 0);
       await tester.pumpWidget(const SizedBox());
       controller.dispose();
