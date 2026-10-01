@@ -1,4 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../../auth/data/auth_repository_provider.dart';
+import '../data/system_notices_repository.dart';
+import '../data/system_notices_controller.dart';
+import 'system_notice_copy.dart';
 
 import 'legacy_messaging_components.dart';
 
@@ -8,11 +15,15 @@ class SystemNotificationsPage extends StatefulWidget {
     this.initialUnreadCount = 3,
     this.onUnreadChanged,
     this.demo = true,
+    this.controller,
+    this.onOpenTarget,
   });
 
   final int initialUnreadCount;
   final bool demo;
   final ValueChanged<int>? onUnreadChanged;
+  final SystemNoticesController? controller;
+  final ValueChanged<Map<String, String>>? onOpenTarget;
 
   @override
   State<SystemNotificationsPage> createState() =>
@@ -20,8 +31,10 @@ class SystemNotificationsPage extends StatefulWidget {
 }
 
 class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
-  late final List<_FakeNotice> _notices = [
-    _FakeNotice(
+  SystemNoticesController? _controller;
+  bool _ownsController = false;
+  late final List<_NoticeDisplay> _notices = [
+    _NoticeDisplay(
       source: 'GOLDCOIN 仓库',
       title: '签到获得',
       value: '+ 50 枚',
@@ -29,7 +42,7 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
       kingClub: false,
       details: const [('签到门店：', '株洲 KINGCLUB 清吧')],
     ),
-    _FakeNotice(
+    _NoticeDisplay(
       source: 'KING CLUB',
       title: '预订状态更新',
       value: '预订成功',
@@ -37,7 +50,7 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
       kingClub: true,
       details: const [('套餐：', '微醺畅饮套餐'), ('卡座：', '营业日前一天揭晓')],
     ),
-    _FakeNotice(
+    _NoticeDisplay(
       source: 'KING CLUB',
       title: '服务维护提醒',
       value: '查看详情',
@@ -55,26 +68,122 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
     for (var index = 0; index < _notices.length; index++) {
       _notices[index].read = index >= unreadCount;
     }
+    _controller = widget.controller;
+    if (!widget.demo && _controller == null && kingclubApiBaseUrl.isNotEmpty) {
+      _controller = SystemNoticesController(
+        SystemNoticesRepository.secure(kingclubApiBaseUrl),
+      );
+      _ownsController = true;
+    }
+    _controller?.addListener(_changed);
+    if (_controller != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_controller!.refresh());
+      });
+    }
+  }
+
+  void _changed() {
+    if (mounted) {
+      setState(() {});
+      widget.onUnreadChanged?.call(_controller!.summary.unreadCount);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_changed);
+    if (_ownsController) _controller?.dispose();
+    super.dispose();
+  }
+
+  List<_NoticeDisplay> get _displayNotices {
+    if (widget.demo) return _notices;
+    final locale = Localizations.localeOf(context);
+    final language = locale.languageCode == 'en'
+        ? 'en'
+        : locale.languageCode == 'th'
+        ? 'th'
+        : locale.scriptCode == 'Hant' ||
+              {'TW', 'HK', 'MO'}.contains(locale.countryCode)
+        ? 'zh-TW'
+        : 'zh-CN';
+    return [
+      for (final n in _controller?.notices ?? <SystemNotice>[])
+        _NoticeDisplay(
+          source: 'KINGCLUB',
+          title: systemNoticeText(context, n.kind),
+          value: n.amountCents == null
+              ? systemNoticeText(context, 'success')
+              : '${n.amountCents! ~/ 100}.${(n.amountCents! % 100).toString().padLeft(2, '0')}',
+          time: _time(n.occurredAt),
+          kingClub: true,
+          details: [
+            for (final d in n.details)
+              (
+                systemNoticeText(context, d.$1),
+                d.$2 is Map
+                    ? (d.$2[language] as String)
+                    : d.$1 == 'account'
+                    ? systemNoticeText(context, d.$2 as String)
+                    : d.$1 == 'expires'
+                    ? _expiry(d.$2 as String)
+                    : d.$2 as String,
+              ),
+          ],
+          notice: n,
+        )..read = n.read,
+    ];
+  }
+
+  String _expiry(String value) {
+    final date = DateTime.tryParse(value)?.toLocal();
+    return date == null ? value : '${date.year}/${date.month}/${date.day}';
+  }
+
+  String _time(DateTime value) {
+    final date = value.toLocal(), now = DateTime.now();
+    final day = DateTime(now.year, now.month, now.day),
+        other = DateTime(date.year, date.month, date.day);
+    final days = day.difference(other).inDays;
+    final time =
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    return days == 0
+        ? time
+        : days == 1
+        ? '${systemNoticeText(context, 'yesterday')} $time'
+        : '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')} $time';
   }
 
   @override
   Widget build(BuildContext context) {
+    final notices = _displayNotices;
     return Scaffold(
       backgroundColor: const Color(0xFF101010),
       body: SafeArea(
         child: Column(
           children: [
             LegacyMessagingHeader(
-              title: '系统消息',
+              title: widget.demo ? '系统消息' : systemNoticeText(context, 'title'),
               backgroundColor: const Color(0xFF101010),
               lineColor: const Color(0x1CC9B69E),
               lineWidth: .5,
               onBack: () => Navigator.pop(context),
               trailing: TextButton(
                 key: const ValueKey('system-notifications-read-all'),
-                onPressed: _notices.every((item) => item.read)
+                onPressed:
+                    (widget.demo
+                        ? notices.every((item) => item.read)
+                        : _controller == null ||
+                              _controller!.summary.unreadCount == 0 ||
+                              _controller!.loading ||
+                              _controller!.reading)
                     ? null
                     : () {
+                        if (!widget.demo) {
+                          unawaited(_controller!.markRead());
+                          return;
+                        }
                         setState(() {
                           for (final item in _notices) {
                             item.read = true;
@@ -82,40 +191,77 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
                         });
                         _notifyUnreadChanged();
                       },
-                child: const Text(
-                  '全部已读',
-                  style: TextStyle(color: legacyMessageGold, fontSize: 12),
+                child: Text(
+                  systemNoticeText(context, 'read_all'),
+                  style: const TextStyle(
+                    color: legacyMessageGold,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
+            if (_controller?.failed == true)
+              TextButton(
+                onPressed: () => _controller!.refresh(),
+                child: Text(systemNoticeText(context, 'retry')),
+              ),
+            if (_controller?.loading == true && notices.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(),
+              ),
             Expanded(
-              child: _notices.isEmpty
-                  ? const Center(
+              child: notices.isEmpty
+                  ? Center(
                       child: Text(
-                        '暂无系统消息',
-                        style: TextStyle(color: Color(0x66FFFFFF)),
+                        _controller?.loading == true ||
+                                _controller?.failed == true
+                            ? ''
+                            : systemNoticeText(context, 'empty'),
+                        style: const TextStyle(color: Color(0x66FFFFFF)),
                       ),
                     )
                   : ListView.builder(
                       key: const ValueKey('system-notifications-list'),
+                      reverse: !widget.demo,
                       padding: EdgeInsets.fromLTRB(
                         45 * MediaQuery.sizeOf(context).width / 750,
                         0,
                         45 * MediaQuery.sizeOf(context).width / 750,
                         30,
                       ),
-                      itemCount: _notices.length,
-                      itemBuilder: (context, index) => _NoticeCard(
-                        key: ValueKey('system-notice-$index'),
-                        notice: _notices[index],
-                        onTap: () {
-                          final wasUnread = !_notices[index].read;
-                          setState(() {
-                            _notices[index].read = true;
-                          });
-                          if (wasUnread) _notifyUnreadChanged();
-                        },
-                      ),
+                      itemCount:
+                          notices.length + (_controller?.next != null ? 1 : 0),
+                      itemBuilder: (context, index) => index == notices.length
+                          ? TextButton(
+                              onPressed: _controller!.loading
+                                  ? null
+                                  : () => _controller!.refresh(more: true),
+                              child: Text(systemNoticeText(context, 'more')),
+                            )
+                          : _NoticeCard(
+                              key: ValueKey('system-notice-$index'),
+                              notice: notices[index],
+                              onTap: () {
+                                if (!widget.demo) {
+                                  unawaited(
+                                    _controller!.markRead(
+                                      id: notices[index].notice!.id,
+                                    ),
+                                  );
+                                  final target = notices[index].notice!.target;
+                                  if (target != null) {
+                                    widget.onOpenTarget?.call(target);
+                                  }
+                                  return;
+                                }
+                                final wasUnread = !_notices[index].read;
+                                setState(() {
+                                  _notices[index].read = true;
+                                });
+                                if (wasUnread) _notifyUnreadChanged();
+                              },
+                            ),
                     ),
             ),
           ],
@@ -132,7 +278,7 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage> {
 class _NoticeCard extends StatelessWidget {
   const _NoticeCard({super.key, required this.notice, required this.onTap});
 
-  final _FakeNotice notice;
+  final _NoticeDisplay notice;
   final VoidCallback onTap;
 
   @override
@@ -199,8 +345,17 @@ class _NoticeCard extends StatelessWidget {
                             horizontal: 20 * r,
                             vertical: 20 * r,
                           ),
-                          child: Text(
-                            notice.value,
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                if (notice.notice?.amountCents != null)
+                                  TextSpan(
+                                    text: '¥',
+                                    style: TextStyle(fontSize: 40 * r),
+                                  ),
+                                TextSpan(text: notice.value),
+                              ],
+                            ),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
@@ -263,14 +418,15 @@ class _NoticeCard extends StatelessWidget {
   }
 }
 
-class _FakeNotice {
-  _FakeNotice({
+class _NoticeDisplay {
+  _NoticeDisplay({
     required this.source,
     required this.title,
     required this.value,
     required this.time,
     required this.kingClub,
     required this.details,
+    this.notice,
   });
 
   final String source;
@@ -279,5 +435,6 @@ class _FakeNotice {
   final String time;
   final bool kingClub;
   final List<(String, String)> details;
+  final SystemNotice? notice;
   bool read = false;
 }

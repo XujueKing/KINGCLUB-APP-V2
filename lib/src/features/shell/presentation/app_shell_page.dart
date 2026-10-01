@@ -20,6 +20,13 @@ import '../../home/presentation/home_page.dart';
 import '../../messaging/presentation/conversations_page.dart';
 import '../../messaging/presentation/direct_chat_page.dart';
 import '../../messaging/presentation/system_notifications_page.dart';
+import '../../messaging/presentation/system_notice_copy.dart';
+import '../../messaging/data/system_notices_controller.dart';
+import '../../messaging/data/system_notices_repository.dart';
+import '../../auth/data/auth_repository_provider.dart';
+import '../../../core/networking/kingclub_realtime.dart';
+import '../../../core/session/secure_session_store.dart';
+import '../../commerce/presentation/member_orders_page.dart';
 import '../../membership_wallet/presentation/asset_ledger_page.dart';
 import '../../profile_settings/presentation/edit_profile_page.dart';
 import '../../profile_settings/data/profile_cover_store.dart';
@@ -60,6 +67,7 @@ class AppShellPage extends StatefulWidget {
     this.realChat = false,
     this.initialSystemUnreadCount = 3,
     this.initialFriendUnreadCount = 2,
+    this.systemNotices,
   });
 
   final Future<SafeScanDestination?> Function(
@@ -95,12 +103,20 @@ class AppShellPage extends StatefulWidget {
   final int initialIndex;
   final int initialSystemUnreadCount;
   final int initialFriendUnreadCount;
+  final SystemNoticesController? systemNotices;
 
   @override
   State<AppShellPage> createState() => _AppShellPageState();
 }
 
-class _AppShellPageState extends State<AppShellPage> {
+class _AppShellPageState extends State<AppShellPage>
+    with WidgetsBindingObserver {
+  SystemNoticesController? _systemNotices;
+  StreamSubscription<Map<String, dynamic>>? _businessEvents;
+  StreamSubscription<void>? _systemSession;
+  Timer? _systemPoll;
+  bool _foreground = true;
+  bool _ownsSystemNotices = false;
   late int _selectedIndex;
   bool _scannerOpening = false;
   int _messagesPageIndex = 1;
@@ -131,11 +147,91 @@ class _AppShellPageState extends State<AppShellPage> {
         ? 0
         : widget.initialFriendUnreadCount.clamp(0, 9999);
     _shellState = widget.initialDemoState;
+    WidgetsBinding.instance.addObserver(this);
+    _bindSystemNotices();
+  }
+
+  void _bindSystemNotices() {
+    if (!widget.realChat) return;
+    _systemNotices =
+        widget.systemNotices ??
+        SystemNoticesController(
+          SystemNoticesRepository.secure(kingclubApiBaseUrl),
+        );
+    _ownsSystemNotices = widget.systemNotices == null;
+    _systemNotices!.addListener(_systemChanged);
+    _systemSession = SecureSessionStore.changes.stream.listen((_) {
+      if (_foreground) scheduleMicrotask(_refreshSystem);
+    });
+    _businessEvents = KingclubRealtime.shared.events.listen((event) {
+      if (_foreground &&
+          {
+            'connection.ready',
+            'commerce.changed',
+            'storage.changed',
+            'balance.changed',
+            'system.changed',
+          }.contains(event['eventType'])) {
+        _refreshSystem();
+      }
+    });
+    _systemPoll = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (_foreground && _selectedIndex == 1) _refreshSystem();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshSystem();
+    });
+  }
+
+  void _systemChanged() {
+    if (!mounted) return;
+    setState(
+      () => _systemNotificationsUnread = _systemNotices!.summary.unreadCount,
+    );
+    unawaited(
+      DesktopBadge.update(
+        _friendConversationUnread + _systemNotificationsUnread,
+      ),
+    );
+  }
+
+  void _refreshSystem() {
+    if (mounted && _foreground && _systemNotices != null) {
+      unawaited(_systemNotices!.refresh());
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) _refreshSystem();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _unbindSystemNotices();
+    super.dispose();
+  }
+
+  void _unbindSystemNotices() {
+    _systemPoll?.cancel();
+    _businessEvents?.cancel();
+    _systemSession?.cancel();
+    _systemNotices?.removeListener(_systemChanged);
+    if (_ownsSystemNotices) _systemNotices?.dispose();
+    _systemNotices = null;
+    _ownsSystemNotices = false;
   }
 
   @override
   void didUpdateWidget(covariant AppShellPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.realChat != oldWidget.realChat ||
+        widget.systemNotices != oldWidget.systemNotices) {
+      _unbindSystemNotices();
+      _bindSystemNotices();
+    }
     if (widget.realChat && !oldWidget.realChat) {
       _systemNotificationsUnread = 0;
       _friendConversationUnread = 0;
@@ -203,6 +299,15 @@ class _AppShellPageState extends State<AppShellPage> {
                       friendMuted: _friendMuted,
                       active: _selectedIndex == 1 && _messagesPageIndex == 1,
                       systemUnreadCount: _systemNotificationsUnread,
+                      systemMessageDate:
+                          _systemNotices?.summary.latest?.occurredAt,
+                      systemMessagePreview:
+                          _systemNotices?.summary.latest == null
+                          ? null
+                          : systemNoticeText(
+                              context,
+                              _systemNotices!.summary.latest!.kind,
+                            ),
                       initialFriendUnreadCount: _friendConversationUnread,
                       onFriendUnreadChanged: (count) {
                         if (!mounted || count == _friendConversationUnread) {
@@ -210,7 +315,11 @@ class _AppShellPageState extends State<AppShellPage> {
                         }
                         setState(() => _friendConversationUnread = count);
                         if (widget.realChat) {
-                          unawaited(DesktopBadge.update(count));
+                          unawaited(
+                            DesktopBadge.update(
+                              count + _systemNotificationsUnread,
+                            ),
+                          );
                         }
                       },
                       onOpenContacts: () =>
@@ -310,6 +419,7 @@ class _AppShellPageState extends State<AppShellPage> {
 
   void _selectDestination(int index) {
     if (_navigationLocked) return;
+    if (index == 1) _refreshSystem();
     if (_selectedIndex != index) {
       setState(() => _selectedIndex = index);
       return;
@@ -340,6 +450,22 @@ class _AppShellPageState extends State<AppShellPage> {
         allowSnapshotting: false,
         builder: (_) => SystemNotificationsPage(
           demo: !widget.realChat,
+          controller: _systemNotices,
+          onOpenTarget: (target) {
+            if (target['kind'] == 'order') {
+              Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => MemberOrdersPage(
+                    orderRef: target['reference'],
+                    onBack: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              );
+            } else if ({'storage', 'vouchers'}.contains(target['kind'])) {
+              Navigator.of(context).pop();
+              setState(() => _selectedIndex = 3);
+            }
+          },
           initialUnreadCount: _systemNotificationsUnread,
           onUnreadChanged: (count) {
             if (!mounted || count == _systemNotificationsUnread) return;
@@ -348,6 +474,7 @@ class _AppShellPageState extends State<AppShellPage> {
         ),
       ),
     );
+    _refreshSystem();
   }
 
   void _handleContactIntent(ContactRouteIntent intent) {

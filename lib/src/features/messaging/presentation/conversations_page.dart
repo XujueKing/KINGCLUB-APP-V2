@@ -61,6 +61,7 @@ class ConversationsPage extends StatefulWidget {
     this.mobileNotificationsDisabled = false,
     required this.systemUnreadCount,
     this.systemMessageDate,
+    this.systemMessagePreview,
     required this.initialFriendUnreadCount,
     required this.onFriendUnreadChanged,
     required this.onOpenContacts,
@@ -86,6 +87,7 @@ class ConversationsPage extends StatefulWidget {
   final bool mobileNotificationsDisabled;
   final int systemUnreadCount;
   final DateTime? systemMessageDate;
+  final String? systemMessagePreview;
   final int initialFriendUnreadCount;
   final ValueChanged<int> onFriendUnreadChanged;
   final VoidCallback onOpenContacts;
@@ -1042,6 +1044,7 @@ class _ConversationsPageState extends State<ConversationsPage>
             onTap: widget.onOpenSystemNotifications,
             realData: true,
             messageDate: widget.systemMessageDate,
+            preview: widget.systemMessagePreview,
           ),
         if (i < ordinary.length) _realRow(ordinary[i]),
       ],
@@ -1599,9 +1602,11 @@ class _KingClubConversation extends StatelessWidget {
     required this.onTap,
     this.realData = false,
     this.messageDate,
+    this.preview,
   });
   final bool realData;
   final DateTime? messageDate;
+  final String? preview;
   final int unreadCount;
   final VoidCallback onTap;
   @override
@@ -1611,7 +1616,7 @@ class _KingClubConversation extends StatelessWidget {
       onTap: onTap,
       child: _ConversationContent(
         name: realData ? 'KINGCLUB' : 'KING CLUB',
-        preview: realData ? '系统消息' : '收到50枚金币',
+        preview: realData ? preview ?? '系统消息' : '收到50枚金币',
         date: realData
             ? conversationTimestampLabel(messageDate?.toIso8601String())
             : '08月23日',
