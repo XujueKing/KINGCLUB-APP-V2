@@ -149,6 +149,10 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   ];
 
   bool get _live => widget.catalog != null;
+  bool get _paymentTimeStock =>
+      _live && widget.orderingContext?.paymentTiming == 'prepay';
+  int _quantityLimit(_OrderingProduct product) =>
+      _paymentTimeStock ? 1000 : product.limit;
   String _localized(Map<String, String> names) => OrderingEntryStatus.text(
     widget.locale,
     [names['zh-CN']!, names['en']!, names['zh-TW']!, names['th']!],
@@ -893,7 +897,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
         product.limit == 0 ||
         (_scenario == ScanOrderingScenario.soldOut &&
             product.id == 'chivas-12');
-    final limitReached = quantity >= product.limit;
+    final limitReached = quantity >= _quantityLimit(product);
     return Semantics(
       container: true,
       label: '${product.name}，价格 ${_money(product.price)} 元，已选 $quantity 件',
@@ -985,7 +989,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                             ),
                           ),
                           SizedBox(width: _rpx(5)),
-                          if (soldOut)
+                          if (soldOut && !_paymentTimeStock)
                             const Text(
                               '已售罄',
                               key: ValueKey('ordering-sold-out'),
@@ -1003,11 +1007,18 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                             ),
                         ],
                       ),
-                      if ((!soldOut && limitReached) ||
+                      if (((!soldOut || _paymentTimeStock) && limitReached) ||
                           (_scenario == ScanOrderingScenario.limitReached &&
                               product.id == 'hennessy-xo'))
                         Text(
-                          _live
+                          _paymentTimeStock
+                              ? OrderingEntryStatus.text(widget.locale, [
+                                  '每种商品最多 1000 份',
+                                  'Maximum 1000 per item',
+                                  '每種商品最多 1000 份',
+                                  'สินค้าละไม่เกิน 1000 ชิ้น',
+                                ])
+                              : _live
                               ? OrderingEntryStatus.text(widget.locale, [
                                   '可选库存 ${product.limit} 份',
                                   '${product.limit} available',
@@ -1185,7 +1196,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   void _changeQuantity(_OrderingProduct product, int delta) {
     if (!_canEdit) return;
     final current = _quantities[product.id] ?? 0;
-    final next = (current + delta).clamp(0, product.limit);
+    final next = (current + delta).clamp(0, _quantityLimit(product));
     setState(() {
       if (next == 0) {
         _quantities.remove(product.id);
@@ -1591,7 +1602,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                         productId: 'sheet-${product.id}',
                         quantity: quantity,
                         canDecrease: _canEdit,
-                        canIncrease: _canEdit && quantity < product.limit,
+                        canIncrease:
+                            _canEdit && quantity < _quantityLimit(product),
                         onDecrease: () {
                           _changeQuantity(product, -1);
                           if (_itemCount == 0) _setCartOpen(false);

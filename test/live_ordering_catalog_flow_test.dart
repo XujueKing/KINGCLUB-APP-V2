@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/commerce/data/ordering_catalog_repository.dart';
+import 'package:kingclub/src/features/commerce/data/ordering_context.dart';
 import 'package:kingclub/src/features/commerce/presentation/scan_ordering_cart_page.dart';
 import 'package:kingclub/src/features/commerce/presentation/table_ordering_entry_page.dart';
 
@@ -34,6 +35,67 @@ OrderingCatalog catalog({
 );
 
 void main() {
+  testWidgets(
+    'prepay can exceed stock in menu and cart and quote full selection',
+    (tester) async {
+      FakeOrderingQuote? quote;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScanOrderingCartPage(
+            onBack: () {},
+            orderingContext: fixture.scope,
+            catalog: catalog(available: 1),
+            onQuoteReady: (value) => quote = value,
+          ),
+        ),
+      );
+      final add = find.byKey(const ValueKey('ordering-add-real-sku'));
+      await tester.tap(add);
+      await tester.pumpAndSettle();
+      await tester.tap(add);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ordering-cart-bag')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('ordering-add-sheet-real-sku')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ordering-confirm')));
+      await tester.pumpAndSettle();
+      expect(quote!.itemCount, 3);
+    },
+  );
+  testWidgets('postpay zero stock continues to block selection', (
+    tester,
+  ) async {
+    const scope = OrderingContext(
+      contextRef: 'test',
+      memberRef: 'member',
+      storeRef: 'store',
+      tableSessionRef: 'session',
+      storeName: 'Test',
+      storeAddress: 'Test',
+      tableName: 'T',
+      businessDate: '2026-10-01',
+      paymentTiming: 'postpay',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScanOrderingCartPage(
+          onBack: () {},
+          orderingContext: scope,
+          catalog: OrderingCatalog(
+            scope,
+            catalog().categories,
+            catalog(available: 0).products,
+          ),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('ordering-add-real-sku')), findsNothing);
+    expect(find.byKey(const ValueKey('ordering-sold-out')), findsOneWidget);
+  });
+
   testWidgets(
     'remote material is shared by menu and cart with private stable caching',
     (tester) async {
@@ -99,7 +161,7 @@ void main() {
     },
   );
   testWidgets(
-    'zero stock has no add button and empty catalog has no demo fallback',
+    'prepay zero stock allows selecting and empty catalog has no demo fallback',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -110,8 +172,14 @@ void main() {
           ),
         ),
       );
-      expect(find.byKey(const ValueKey('ordering-add-real-sku')), findsNothing);
-      expect(find.byKey(const ValueKey('ordering-sold-out')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('ordering-add-real-sku')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('ordering-add-real-sku')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ordering-add-real-sku')));
+      await tester.pumpAndSettle();
       await tester.pumpWidget(
         MaterialApp(
           home: ScanOrderingCartPage(
