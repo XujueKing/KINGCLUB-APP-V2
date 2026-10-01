@@ -477,9 +477,9 @@ private final class AppleChatMapPreview {
       guard let coordinate = coordinate else { result(nil); return }
       let options = MKMapSnapshotter.Options()
       options.region = MKCoordinateRegion(center: coordinate,
-        latitudinalMeters: 650, longitudinalMeters: 1500)
-      options.size = CGSize(width: 250, height: 96)
-      options.scale = 2
+        latitudinalMeters: 1750, longitudinalMeters: 1500)
+      options.size = CGSize(width: 600, height: 700)
+      options.scale = 1
       options.traitCollection = UITraitCollection(userInterfaceStyle: .dark)
       let snapshotter = MKMapSnapshotter(options: options)
       let id = UUID()

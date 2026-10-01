@@ -102,6 +102,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Awaiting checkout'), findsOneWidget);
+    final heading = tester.widget<Text>(find.text('Order details'));
+    expect(heading.style!.fontSize, 17);
+    expect(heading.style!.color, Colors.white);
+    expect(find.byKey(const ValueKey('member-orders-refresh')), findsNothing);
     expect(
       tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
       const Color(0xFF101010),

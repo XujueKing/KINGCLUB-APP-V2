@@ -70,8 +70,7 @@ void main() {
           ),
         ),
       );
-      final current = tester.widget<ListTile>(find.byType(ListTile).first);
-      current.onTap!();
+      await tester.tap(find.byTooltip('使用当前位置'));
       await tester.pumpAndSettle();
       await tester.tap(find.text(place.name));
       await tester.pump();

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../core/design_system/king_components.dart';
@@ -17,7 +16,6 @@ import '../data/chat_saved_locations.dart';
 import '../data/chat_place_search.dart';
 import '../data/chat_map_preview_cache.dart';
 import 'chat_map_consent.dart';
-import 'deferred_chat_map.dart';
 
 class ChatLocationMessage extends StatelessWidget {
   const ChatLocationMessage({
@@ -138,6 +136,7 @@ class _LocationMapPreviewState extends State<_LocationMapPreview> {
       color: const Color(0xFF222627),
       child: FutureBuilder<Uint8List?>(
         future: _image,
+        initialData: ChatMapPreviewCache.peek(widget.location),
         builder: (context, snapshot) => Stack(
           fit: StackFit.expand,
           children: [
@@ -148,11 +147,14 @@ class _LocationMapPreviewState extends State<_LocationMapPreview> {
                 gaplessPlayback: true,
                 errorBuilder: (_, _, _) => const SizedBox.shrink(),
               ),
-            const Center(
-              child: Icon(
-                Icons.location_on,
-                size: 42,
-                color: Color(0xFF07C160),
+            Center(
+              child: Transform.translate(
+                offset: const Offset(0, -21),
+                child: const Icon(
+                  Icons.location_on,
+                  size: 42,
+                  color: Color(0xFF07C160),
+                ),
               ),
             ),
             if (snapshot.data != null)
@@ -209,10 +211,7 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
   bool _deleted = false;
   bool _valid = true;
   bool _openingMap = false;
-  MethodChannel? _mapView;
-  Timer? _mapTimeout;
-  String _mapStatus = 'loading';
-  int _mapGeneration = 0;
+  final _transform = TransformationController();
   ChatSavedLocations? _bookmarks;
   List<ChatLocation> _saved = [];
   bool _saving = false;
@@ -229,49 +228,6 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
               widget.location.coordinateSystem == 'wgs84') ||
           (_androidAvailable && _androidMapAllowed));
   bool get _isSaved => _saved.any((p) => p.sameAs(widget.location));
-
-  void _mapState(String? state, int generation) {
-    if (!mounted || !_valid || generation != _mapGeneration) return;
-    if (state != 'ready' && state != 'failed') return;
-    _mapTimeout?.cancel();
-    setState(() => _mapStatus = state!);
-  }
-
-  Future<void> _attachMap(int id) async {
-    final generation = _mapGeneration;
-    final channel = MethodChannel(
-      defaultTargetPlatform == TargetPlatform.android
-          ? 'kingclub/location-picker-map/$id'
-          : 'kingclub/location-map/$id',
-    );
-    _mapView = channel;
-    channel.setMethodCallHandler((call) async {
-      if (call.method == 'status') {
-        _mapState(call.arguments as String?, generation);
-      }
-    });
-    _mapTimeout?.cancel();
-    _mapTimeout = Timer(
-      const Duration(seconds: 15),
-      () => _mapState('failed', generation),
-    );
-    try {
-      _mapState(await channel.invokeMethod<String>('status'), generation);
-    } catch (_) {
-      _mapState('failed', generation);
-    }
-  }
-
-  void _retryMap() {
-    if (!_valid) return;
-    _mapView?.setMethodCallHandler(null);
-    _mapView = null;
-    _mapTimeout?.cancel();
-    setState(() {
-      _mapGeneration++;
-      _mapStatus = 'loading';
-    });
-  }
 
   Future<void> _loadBookmarks() async {
     try {
@@ -330,14 +286,6 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
             widget.location.longitudeE6 / 1e6,
           ),
         );
-        await _mapView?.invokeMethod(
-          'locate',
-          _mapArguments({
-            'latitudeE6': (position.latitude * 1e6).round(),
-            'longitudeE6': (position.longitude * 1e6).round(),
-            'coordinateSystem': 'wgs84',
-          }),
-        );
       }
     } catch (error) {
       if (mounted && _valid) {
@@ -363,11 +311,6 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
     );
     if (mounted && _valid) KingNotice.of(context).show('地点信息已复制');
   }
-
-  Map<String, dynamic> _mapArguments(Map<String, dynamic> data) =>
-      defaultTargetPlatform == TargetPlatform.android
-      ? ChatMapCoordinates.tencentArguments(data)
-      : ChatMapCoordinates.appleArguments(data);
 
   Future<void> _allowAndroidMap() async {
     final agreed = await requestTencentChatMapConsent(context);
@@ -406,7 +349,7 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
     }
     if (action == 'target') {
       try {
-        await _mapView?.invokeMethod('target');
+        _transform.value = Matrix4.identity();
       } catch (_) {
         if (mounted && _valid) KingNotice.of(context).show('地图暂不可用，请重试');
       }
@@ -504,13 +447,12 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
   }
 
   void _invalidate(bool deleted) {
-    _mapTimeout?.cancel();
-    _mapView?.setMethodCallHandler(null);
     final route = ModalRoute.of(context);
     if (route != null && route.isActive && !route.isCurrent) {
       Navigator.of(context)
           .popUntil((candidate) => identical(candidate, route));
     }
+    if (deleted) ChatMapPreviewCache.evict(widget.location);
     setState(() {
       _deleted = deleted;
       _valid = false;
@@ -521,8 +463,7 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
 
   @override
   void dispose() {
-    _mapTimeout?.cancel();
-    _mapView?.setMethodCallHandler(null);
+    _transform.dispose();
     _session?.cancel();
     _removeDeletionListener?.call();
     super.dispose();
@@ -558,47 +499,15 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
                     fit: StackFit.expand,
                     children: [
                       if (_nativeMap)
-                        DeferredChatMap(
-                          key: ValueKey(_mapGeneration),
-                          ready: _mapStatus == 'ready',
-                          placeholder: _LocationMapPreview(
+                        InteractiveViewer(
+                          key: const ValueKey('chat-location-cached-map'),
+                          transformationController: _transform,
+                          minScale: 1,
+                          maxScale: 3,
+                          child: _LocationMapPreview(
                             location: location,
                             height: null,
                           ),
-                          map: defaultTargetPlatform == TargetPlatform.android
-                              ? AndroidView(
-                                  key: ValueKey(_mapGeneration),
-                                  viewType: 'kingclub/location-picker-map',
-                                  creationParams: {
-                                    ..._mapArguments(location.toJson()),
-                                    'role': 'details',
-                                    'key': TencentChatPlaceSearch.configuredKey,
-                                    'privacyAccepted': _androidMapAllowed,
-                                  },
-                                  creationParamsCodec:
-                                      const StandardMessageCodec(),
-                                  gestureRecognizers: {
-                                    Factory<OneSequenceGestureRecognizer>(
-                                      () => EagerGestureRecognizer(),
-                                    ),
-                                  },
-                                  onPlatformViewCreated: _attachMap,
-                                )
-                              : UiKitView(
-                                  key: ValueKey(_mapGeneration),
-                                  viewType: 'kingclub/location-map',
-                                  creationParams: _mapArguments(
-                                    location.toJson(),
-                                  ),
-                                  creationParamsCodec:
-                                      const StandardMessageCodec(),
-                                  gestureRecognizers: {
-                                    Factory<OneSequenceGestureRecognizer>(
-                                      () => EagerGestureRecognizer(),
-                                    ),
-                                  },
-                                  onPlatformViewCreated: _attachMap,
-                                ),
                         )
                       else
                         Center(
@@ -627,42 +536,9 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
                               if (_androidAvailable)
                                 TextButton(
                                   onPressed: _allowAndroidMap,
-                                  child: const Text('使用内嵌地图'),
+                                  child: const Text('显示地图预览'),
                                 ),
                             ],
-                          ),
-                        ),
-                      if (_nativeMap && _mapStatus != 'ready')
-                        Positioned(
-                          top: MediaQuery.paddingOf(context).top + 64,
-                          left: 20,
-                          right: 20,
-                          child: Material(
-                            color: const Color(0xEE303030),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      _mapStatus == 'failed'
-                                          ? '地图暂未加载，可重试或直接导航'
-                                          : '正在加载地图',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                  if (_mapStatus == 'failed')
-                                    TextButton(
-                                      onPressed: _retryMap,
-                                      child: const Text('重试'),
-                                    ),
-                                ],
-                              ),
-                            ),
                           ),
                         ),
                       Positioned(
@@ -683,7 +559,7 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
                           left: 16,
                           bottom: 28,
                           child: IconButton.filled(
-                            tooltip: '我的位置',
+                            tooltip: '距目的地距离',
                             style: IconButton.styleFrom(
                               backgroundColor: const Color(0xFF303234),
                               foregroundColor: const Color(0xFF2196F3),

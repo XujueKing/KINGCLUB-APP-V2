@@ -14,10 +14,20 @@ class ChatMapPreviewCache {
   static const consentKey = 'tencent-chat-map-consent-v1';
   static final androidConsent = ValueNotifier(false);
   static final _images = <String, Future<Uint8List?>>{};
+  static final _ready = <String, Uint8List>{};
+  static String _key(ChatLocation p) =>
+      '$defaultTargetPlatform/${p.coordinateSystem}/${p.latitudeE6}/${p.longitudeE6}';
+  static Uint8List? peek(ChatLocation p) => _ready[_key(p)];
+  static void evict(ChatLocation p) {
+    _images.remove(_key(p));
+    _ready.remove(_key(p));
+  }
+
   static var _epoch = 0;
   static final _session = SecureSessionStore.changes.stream.listen((_) {
     _epoch++;
     _images.clear();
+    _ready.clear();
   });
 
   static Future<bool> restoreConsent() async {
@@ -44,23 +54,25 @@ class ChatMapPreviewCache {
             platform != TargetPlatform.android)) {
       return Future.value();
     }
-    final key =
-        '$platform/${location.coordinateSystem}/'
-        '${location.latitudeE6}/${location.longitudeE6}';
+    final key = _key(location);
     final cached = _images.remove(key);
     if (cached != null) {
       _images[key] = cached;
       return cached;
     }
     final epoch = _epoch;
-    final request = _load(location, platform).then((bytes) {
-      if (epoch != _epoch) return null;
+    late final Future<Uint8List?> request;
+    request = _load(location, platform).then((bytes) {
+      if (epoch != _epoch || !identical(_images[key], request)) return null;
+      if (bytes != null) _ready[key] = bytes;
       if (bytes == null) _images.remove(key);
       return bytes;
     });
     _images[key] = request;
     while (_images.length > 24) {
-      _images.remove(_images.keys.first);
+      final oldest = _images.keys.first;
+      _images.remove(oldest);
+      _ready.remove(oldest);
     }
     return request;
   }
@@ -106,8 +118,8 @@ class ChatMapPreviewCache {
             'key': key,
             'center':
                 '${point.lat.toStringAsFixed(6)},${point.lon.toStringAsFixed(6)}',
-            'size': '250*96',
-            'scale': 2,
+            'size': '600*700',
+            'scale': 1,
             'zoom': 16,
             'format': 'png',
           },
@@ -115,7 +127,7 @@ class ChatMapPreviewCache {
         );
         final bytes = response.data;
         if (bytes == null ||
-            bytes.length > 1024 * 1024 ||
+            bytes.length > 4 * 1024 * 1024 ||
             bytes.length < 8 ||
             bytes[0] != 137 ||
             bytes[1] != 80 ||

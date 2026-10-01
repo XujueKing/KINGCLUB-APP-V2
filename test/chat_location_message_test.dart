@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:kingclub/src/features/messaging/data/chat_map_preview_cache.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -23,66 +27,58 @@ void main() {
           null,
         );
   });
-  testWidgets('native map timeout offers retry and preserves navigation', (
-    tester,
-  ) async {
-    var created = 0;
-    final channels = <MethodChannel>[];
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      SystemChannels.platform_views,
-      (call) async {
-        if (call.method == 'create') {
-          created++;
-          final channel = MethodChannel(
-            'kingclub/location-map/${call.arguments['id']}',
-          );
-          channels.add(channel);
-          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-            channel,
-            (call) async => call.method == 'status' ? 'loading' : true,
-          );
-        }
-        return null;
-      },
-    );
-    addTearDown(() {
+  testWidgets(
+    'detail displays the cached snapshot immediately without creating a native map',
+    (tester) async {
+      const channel = MethodChannel('kingclub/chat-map-preview');
+      var snapshots = 0, nativeMaps = 0;
+      final png = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=',
+      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        _,
+      ) async {
+        snapshots++;
+        return png;
+      });
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform_views,
-        null,
+        (_) async {
+          nativeMaps++;
+          return null;
+        },
       );
-      for (final channel in channels) {
-        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          channel,
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform_views,
           null,
-        );
-      }
-    });
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ChatLocationDetailsPage(
-          location: ChatLocation.fromJson({
-            'latitudeE6': 28000000,
-            'longitudeE6': 113000000,
-            'coordinateSystem': 'wgs84',
-            'name': '地点',
-          }),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    expect(find.text('正在加载地图'), findsOneWidget);
-    await tester.pump(const Duration(seconds: 16));
-    expect(find.text('重试'), findsOneWidget);
-    expect(find.text('导航'), findsOneWidget);
-    await tester.tap(find.text('重试'));
-    await tester.pump();
-    await tester.pump();
-    expect(created, 2);
-    expect(find.text('正在加载地图'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox());
-    expect(tester.takeException(), isNull);
-  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+      );
+      final location = ChatLocation.fromJson({
+        'latitudeE6': 28000000,
+        'longitudeE6': 113000000,
+        'coordinateSystem': 'wgs84',
+        'name': 'Synthetic location',
+      });
+      await ChatMapPreviewCache.load(location);
+      expect(ChatMapPreviewCache.peek(location), isNotNull);
+      await tester.pumpWidget(
+        MaterialApp(home: ChatLocationDetailsPage(location: location)),
+      );
+      expect(
+        find.byKey(const ValueKey('chat-location-cached-map')),
+        findsOneWidget,
+      );
+      expect(find.byType(Image), findsOneWidget);
+      expect(find.text('地图加载中'), findsNothing);
+      await tester.pumpAndSettle();
+      expect(nativeMaps, 0);
+      expect(snapshots, 1);
+      expect(find.text('导航'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
   testWidgets(
     'long location remains actionable on a small phone with large text',
     (tester) async {

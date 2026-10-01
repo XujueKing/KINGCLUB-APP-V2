@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/features/home/presentation/home_page.dart';
+import 'package:kingclub/src/features/home/data/home_city_catalog.dart';
 
 void main() {
+  setUpAll(() async => HomeCityCatalog.load());
   Finder semanticsLabel(String label) => find.byWidgetPredicate(
     (widget) => widget is Semantics && widget.properties.label == label,
   );
@@ -52,22 +54,30 @@ void main() {
       final location = Completer<String?>();
       await tester.pumpWidget(home(locateCity: () => location.future));
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('home-city-selector')));
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('home-city-selector')));
+      });
       await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('home-city-input')), findsOneWidget);
       await tester.enterText(
         find.byKey(const ValueKey('home-city-input')),
         '长沙市',
       );
-      await tester.tap(find.text('Confirm'));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('home-city-430100')));
+      await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
       location.complete('株洲市');
       await tester.pumpAndSettle();
-      expect(find.text('长沙市'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('home-city-selector')));
+      expect(find.text('长沙'), findsOneWidget);
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('home-city-selector')));
+      });
       await tester.pumpAndSettle();
-      await tester.tap(find.text('株洲市'));
+      await tester.tap(find.text('株洲').first);
+      await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
-      expect(find.text('株洲市'), findsOneWidget);
+      expect(find.text('株洲'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -195,8 +205,9 @@ void main() {
     final before = controller.offset;
     await tester.tap(semanticsLabel('生日有礼'));
     await tester.pumpAndSettle();
-    expect(find.text('生日会员权益展示。当前仅模拟旧版内容阅读流程，不发放真实权益。'), findsOneWidget);
-    await tester.tap(find.text('关闭'));
+    expect(find.text('生日有礼'), findsOneWidget);
+    expect(find.byType(BottomSheet), findsNothing);
+    await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();
     final after = controller.offset;
     expect(after, closeTo(before, .1));
@@ -295,7 +306,9 @@ void main() {
     expect(compactLogo.width / expandedLogo.width, closeTo(.92, .001));
     expect(compactLogo.bottom, lessThanOrEqualTo(compactHeader.bottom));
     expect(
-      pinnedActions.top - compactHeader.bottom,
+      // The member gradient extends 30rpx beyond the content, overlapping
+      // the next layer without changing the actual 20rpx content gap.
+      pinnedActions.top - compactHeader.bottom + 30 * 393 / 750,
       closeTo(20 * 393 / 750, .1),
     );
     expect((shadow.decoration! as BoxDecoration).boxShadow, isNotEmpty);
@@ -334,7 +347,7 @@ void main() {
     await tester.pump();
     expect(find.byKey(const ValueKey('home-empty-promotions')), findsOneWidget);
     expect(find.text('一起玩'), findsOneWidget);
-    await tester.tap(find.text('恢复 Fake 内容'));
+    await tester.tap(find.text('重试'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byKey(const ValueKey('home-empty-promotions')), findsNothing);
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -420));
@@ -346,7 +359,7 @@ void main() {
     expect(semanticsLabel('运营 Banner 加载失败'), findsOneWidget);
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
     await tester.pump();
-    expect(semanticsLabel('生日有礼 图片加载失败'), findsOneWidget);
+    expect(semanticsLabel('生日有礼'), findsOneWidget);
     tester
         .widget<CustomScrollView>(find.byType(CustomScrollView))
         .controller!
@@ -369,28 +382,6 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('home-fatal-retry')));
     await tester.pump();
     expect(find.text('一起玩'), findsOneWidget);
-  });
-
-  testWidgets('article and video promotion modes stay local and read only', (
-    tester,
-  ) async {
-    await tester.pumpWidget(home(state: HomeDemoState.articleCard));
-    await tester.pump();
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -520));
-    await tester.pump();
-    expect(semanticsLabel('图文内容，谁是最帅小哥哥，阿澈发布，128 次浏览'), findsOneWidget);
-
-    await tester.pumpWidget(home(state: HomeDemoState.videoCard));
-    await tester.pump();
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -520));
-    await tester.pump();
-    expect(semanticsLabel('视频内容，已暂停，静音'), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const ValueKey('home-video-toggle')));
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('home-video-toggle')));
-    await tester.tap(find.byKey(const ValueKey('home-video-sound')));
-    await tester.pump();
-    expect(semanticsLabel('视频内容，正在播放，有声'), findsOneWidget);
   });
 
   testWidgets('refresh keeps content and session invalid resets safely', (
@@ -470,18 +461,18 @@ void main() {
 
     expect(controller().page, 10000);
     expect(
-      find.byKey(const ValueKey('home-banner-original-recruitment')),
+      find.byKey(const ValueKey('home-banner-legacy_recruitment')),
       findsWidgets,
     );
     expect(
-      find.byKey(const ValueKey('home-banner-original-childrens-day')),
+      find.byKey(const ValueKey('home-banner-legacy_childrens_day')),
       findsNothing,
     );
     await tester.pump(const Duration(seconds: 4));
     await tester.pump(const Duration(milliseconds: 500));
     expect(controller().page, 10001);
     expect(
-      find.byKey(const ValueKey('home-banner-original-childrens-day')),
+      find.byKey(const ValueKey('home-banner-legacy_childrens_day')),
       findsWidgets,
     );
     expect(

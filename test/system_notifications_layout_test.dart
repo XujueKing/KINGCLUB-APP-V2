@@ -26,5 +26,19 @@ void main() {
       final titleCenter = tester.getCenter(find.text(title));
       expect(titleCenter.dx, closeTo(375, 1));
     }
+    final firstCard = tester.widget<Column>(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('system-notice-0')),
+            matching: find.byType(Column),
+          )
+          .first,
+    );
+    final timestamp = (firstCard.children.first as Padding).child!;
+    expect(timestamp, isA<Text>());
+    expect(
+      tester.getRect(find.byWidget(timestamp)).bottom,
+      lessThan(tester.getRect(find.text('签到获得')).top),
+    );
   });
 }

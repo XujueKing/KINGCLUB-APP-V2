@@ -1,3 +1,4 @@
+import '../../home/data/home_content_repository.dart';
 import '../../contacts/presentation/public_member_page.dart';
 
 import 'package:kingclub/src/core/design_system/king_notice.dart';
@@ -268,6 +269,7 @@ class _AppShellPageState extends State<AppShellPage>
               index: _selectedIndex,
               children: [
                 HomePage(
+                  repository: HomeContentRepository.secure(kingclubApiBaseUrl),
                   reselectSignal: _homeReselectSignal,
                   onOpenTogether: widget.onOpenTogether,
                   onOpenParty: widget.onOpenParty,

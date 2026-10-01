@@ -538,17 +538,27 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
     backgroundColor: const Color(0xFF101010),
     appBar: kingAppBar(
       context: context,
-      title: Text(widget.title ?? t(widget.orderRef == null ? 'title' : 'detail')),
+      title: Text(
+        widget.title ?? t(widget.orderRef == null ? 'title' : 'detail'),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       backgroundColor: const Color(0xFF101010),
       foregroundColor: Colors.white,
       leading: KingBackButton(onPressed: widget.onBack),
       actions: [
-        IconButton(
-          key: const ValueKey('member-orders-refresh'),
-          tooltip: t('refresh'),
-          onPressed: loading || !foreground ? null : () => unawaited(reload()),
-          icon: const Icon(Icons.refresh),
-        ),
+        if (widget.orderRef == null)
+          IconButton(
+            key: const ValueKey('member-orders-refresh'),
+            tooltip: t('refresh'),
+            onPressed: loading || !foreground
+                ? null
+                : () => unawaited(reload()),
+            icon: const Icon(Icons.refresh),
+          ),
       ],
     ),
     body: !foreground

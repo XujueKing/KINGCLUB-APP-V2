@@ -1,4 +1,9 @@
-import 'legacy_home_image.dart';
+import '../data/home_content_repository.dart';
+import 'home_content_cards.dart';
+import '../../../core/design_system/king_notice.dart';
+import '../../../core/session/secure_session_store.dart';
+import '../data/home_city_catalog.dart';
+import 'home_city_page.dart';
 import '../data/home_city_location.dart';
 
 import 'dart:async';
@@ -34,6 +39,7 @@ class HomePage extends StatefulWidget {
     this.initialState = HomeDemoState.ready,
     this.reselectSignal = 0,
     this.locateCity,
+    this.repository,
   });
 
   final VoidCallback onOpenTogether;
@@ -43,6 +49,7 @@ class HomePage extends StatefulWidget {
   final HomeDemoState initialState;
   final int reselectSignal;
   final Future<String?> Function()? locateCity;
+  final HomeContentRepository? repository;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -56,15 +63,40 @@ class _HomePageState extends State<HomePage> {
   late HomeDemoState _state;
   String? _city, _locatedCity;
   bool _citySelected = false;
+  HomeCityCatalog? _cityCatalog;
+  HomeCity? _selectedCity;
+  List<HomeContent> _content = legacyHomeContent();
+  int _contentEpoch = 0;
+  bool _contentFailed = false;
+  final _likesPending = <String>{};
+  StreamSubscription<void>? _session;
 
   @override
   void initState() {
     super.initState();
     _state = widget.initialState;
+    unawaited(_loadContent());
+    _session = SecureSessionStore.changes.stream.listen((_) {
+      if (!mounted) return;
+      _contentEpoch++;
+      setState(() => _content = legacyHomeContent());
+      unawaited(_loadContent());
+    });
+    unawaited(_loadCityCatalog());
     unawaited(_loadCity());
     if (_state == HomeDemoState.sessionInvalid) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _showSessionReset());
     }
+  }
+
+  Future<void> _loadCityCatalog() async {
+    final catalog = await HomeCityCatalog.load();
+    if (!mounted) return;
+    setState(() {
+      _cityCatalog = catalog;
+      _selectedCity = catalog.named(_city);
+    });
+    unawaited(_loadContent());
   }
 
   Future<void> _loadCity({bool requestPermission = false}) async {
@@ -75,10 +107,67 @@ class _HomePageState extends State<HomePage> {
       if (!mounted || city == null || city.isEmpty) return;
       setState(() {
         _locatedCity = city;
-        if (!_citySelected) _city = city;
+        if (!_citySelected) {
+          _city = city;
+          _selectedCity = _cityCatalog?.named(city);
+        }
       });
+      unawaited(_loadContent());
     } catch (_) {
       /* Keep manual city selection available when location fails. */
+    }
+  }
+
+  Future<void> _loadContent({bool clear = false}) async {
+    final repository = widget.repository;
+    if (repository == null) return;
+    final epoch = ++_contentEpoch;
+    if (clear) {
+      setState(() {
+        _content = [];
+        _contentFailed = false;
+      });
+    }
+    try {
+      final items = await repository.list(_selectedCity?.code);
+      if (mounted && epoch == _contentEpoch) {
+        setState(() {
+          _content = items;
+          _contentFailed = false;
+        });
+      }
+    } catch (_) {
+      if (mounted && epoch == _contentEpoch) {
+        setState(() => _contentFailed = true);
+      }
+    }
+  }
+
+  Future<void> _like(HomeContent item) async {
+    if (!_likesPending.add(item.ref)) return;
+    final epoch = _contentEpoch;
+    try {
+      final repo = widget.repository;
+      if (repo == null) throw StateError('Unavailable');
+      final state = await repo.like(item, !item.liked, _selectedCity?.code);
+      if (!mounted || epoch != _contentEpoch) return;
+      setState(() {
+        item.liked = state.liked;
+        item.likeCount = state.count;
+      });
+    } catch (_) {
+      if (mounted) {
+        KingNotice.of(context).show(
+          _cityCopy(
+            '点赞未成功，请重试',
+            'Could not update like. Please retry.',
+            '點讚未成功，請重試',
+            'กดถูกใจไม่สำเร็จ กรุณาลองอีกครั้ง',
+          ),
+        );
+      }
+    } finally {
+      _likesPending.remove(item.ref);
     }
   }
 
@@ -94,95 +183,24 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _selectCity() async {
-    final input = TextEditingController();
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF1F1F1F),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            20 + MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                _cityCopy('选择城市', 'Choose city', '選擇城市', 'เลือกเมือง'),
-                style: const TextStyle(fontSize: 18),
-              ),
-              const SizedBox(height: 16),
-              if (_locatedCity != null)
-                ListTile(
-                  leading: const Icon(Icons.my_location, color: _gold),
-                  title: Text(_locatedCity!),
-                  onTap: () => Navigator.pop(context, _locatedCity),
-                ),
-              TextField(
-                key: const ValueKey('home-city-input'),
-                controller: input,
-                maxLength: 40,
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: const Color(0x0FFFFFFF),
-                  border: const OutlineInputBorder(borderSide: BorderSide.none),
-                  hintText: _cityCopy(
-                    '输入城市名称',
-                    'City name',
-                    '輸入城市名稱',
-                    'ชื่อเมือง',
-                  ),
-                ),
-                onSubmitted: (value) {
-                  if (value.trim().isNotEmpty) {
-                    Navigator.pop(context, value.trim());
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: () {
-                  if (input.text.trim().isNotEmpty) {
-                    Navigator.pop(context, input.text.trim());
-                  }
-                },
-                child: Text(_cityCopy('确认', 'Confirm', '確認', 'ยืนยัน')),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, ''),
-                child: Text(
-                  _cityCopy(
-                    '使用定位城市',
-                    'Use current city',
-                    '使用定位城市',
-                    'ใช้เมืองปัจจุบัน',
-                  ),
-                ),
-              ),
-            ],
-          ),
+    final catalog = _cityCatalog ?? await HomeCityCatalog.load();
+    if (!mounted) return;
+    final selected = await Navigator.of(context).push<HomeCity>(
+      MaterialPageRoute(
+        builder: (_) => HomeCityPage(
+          catalog: catalog,
+          current: _selectedCity,
+          located: catalog.named(_locatedCity),
         ),
       ),
     );
-    // Let the closing route finish disposing its text field first.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    input.dispose();
     if (!mounted || selected == null) return;
-    if (selected.isEmpty) {
-      _citySelected = false;
-      setState(() => _city = _locatedCity);
-      await _loadCity(requestPermission: true);
-    } else {
-      setState(() {
-        _citySelected = true;
-        _city = selected;
-      });
-    }
+    setState(() {
+      _citySelected = true;
+      _selectedCity = selected;
+      _city = selected.shortName;
+    });
+    unawaited(_loadContent(clear: true));
   }
 
   @override
@@ -212,6 +230,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _actionTimer?.cancel();
+    _session?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -219,7 +238,10 @@ class _HomePageState extends State<HomePage> {
   Future<void> _refresh() async {
     if (_refreshing) return;
     setState(() => _refreshing = true);
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await _loadContent();
+    if (widget.repository == null) {
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+    }
     if (mounted) {
       setState(() {
         _refreshing = false;
@@ -259,83 +281,6 @@ class _HomePageState extends State<HomePage> {
             child: const Text('返回登录'),
           ),
         ],
-      ),
-    );
-  }
-
-  Future<void> _showMock(String label) async {
-    final details = switch (label) {
-      '兼职探店品鉴官' => (
-        'assets/legacy/home/legacy_banner_recruitment.webp',
-        'KINGCLUB 正在招募兼职探店品鉴官。当前页面使用固定 Fake 内容，只用于还原旧版运营详情的展开与返回流程。',
-      ),
-      '最帅小哥哥活动' => (
-        'assets/legacy/home/legacy_poster_handsome.webp',
-        '谁是最帅小哥哥 · 投稿有奖。活动投稿、审核和奖励均未连接服务器。',
-      ),
-      'AI 卡颜局' => (
-        'assets/legacy/home/legacy_poster_party.webp',
-        '男女会员 1:1 随机组局。点击下方按钮可继续查看现有 VIP 组局 Fake 页面。',
-      ),
-      '生日有礼' => (
-        'assets/legacy/home/legacy_poster_birthday.webp',
-        '生日会员权益展示。当前仅模拟旧版内容阅读流程，不发放真实权益。',
-      ),
-      _ => (
-        'assets/legacy/home/legacy_poster_music.webp',
-        '玩音乐能赚钱。当前仅模拟旧版运营内容，不提交报名或产生真实收益。',
-      ),
-    };
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF15120F),
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: LegacyHomeImage(
-                  details.$1,
-                  height: label == '兼职探店品鉴官' ? 190 : 300,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: _gold,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                details.$2,
-                style: const TextStyle(
-                  color: Color(0xBBFFFFFF),
-                  fontSize: 14,
-                  height: 1.55,
-                ),
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: () => Navigator.pop(sheetContext),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _gold,
-                  foregroundColor: Colors.black,
-                ),
-                child: const Text('关闭'),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -403,6 +348,8 @@ class _HomePageState extends State<HomePage> {
       _ => const _MemberPresentation(),
     };
 
+    final banners = _content.where((c) => c.placement == 'banner').toList();
+    final cards = _content.where((c) => c.placement == 'card').toList();
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewportWidth = constraints.maxWidth;
@@ -424,11 +371,16 @@ class _HomePageState extends State<HomePage> {
                       presentation: member,
                       textScale: MediaQuery.textScalerOf(context).scale(1),
                       viewportWidth: viewportWidth,
-                      showHero: !empty,
+                      showHero: !empty && banners.isNotEmpty,
                       hero: _HeroBanner(
+                        key: ValueKey(
+                          'home-banners-${_selectedCity?.code}-${banners.map((b) => '${b.ref}/${b.revision}').join(',')}',
+                        ),
+                        items: banners,
                         loading: loading,
                         imageError: _state == HomeDemoState.partialImageError,
-                        onTap: () => _showMock('兼职探店品鉴官'),
+                        onTap: (content) =>
+                            openHomeContent(context, content, _like),
                         onRetry: () =>
                             setState(() => _state = HomeDemoState.ready),
                       ),
@@ -469,21 +421,27 @@ class _HomePageState extends State<HomePage> {
                             onRestore: () =>
                                 setState(() => _state = HomeDemoState.ready),
                           )
-                        else
-                          _PromotionGrid(
-                            unit: viewportWidth / 750,
-                            loading: loading,
-                            imageError:
-                                _state == HomeDemoState.partialImageError,
-                            mode: _state == HomeDemoState.articleCard
-                                ? _PromotionMode.article
-                                : _state == HomeDemoState.videoCard
-                                ? _PromotionMode.video
-                                : _PromotionMode.poster,
-                            onTap: _showMock,
-                            onRecover: () =>
-                                setState(() => _state = HomeDemoState.ready),
+                        else if (_contentFailed)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: TextButton(
+                              onPressed: () => unawaited(_loadContent()),
+                              child: Text(
+                                _cityCopy(
+                                  '内容更新失败，点击重试',
+                                  'Could not refresh. Retry',
+                                  '內容更新失敗，點擊重試',
+                                  'อัปเดตไม่สำเร็จ แตะเพื่อลองใหม่',
+                                ),
+                              ),
+                            ),
                           ),
+                        HomeContentMasonry(
+                          items: cards,
+                          onOpen: (content) =>
+                              openHomeContent(context, content, _like),
+                          onLike: _like,
+                        ),
                       ],
                     ),
                   ),
@@ -544,18 +502,17 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get _actionGap => 20 * _unit;
   double get _heroHeight => showHero ? 417 * _unit : 0;
   double get _quickHeight => _contentWidth * 140 / 680;
-  double get _shadowExtent => 0;
+  double get _shadowExtent => 40 * _unit;
   double get _expandedHeroTop => _expandedMemberExtent - 20 * _unit;
   double get _expandedQuickTop => showHero
       ? _expandedHeroTop + _heroHeight + _actionGap
       : _expandedMemberExtent + _actionGap;
 
   @override
-  double get maxExtent => _expandedQuickTop + _quickHeight + _shadowExtent;
+  double get maxExtent => _expandedQuickTop + _quickHeight;
 
   @override
-  double get minExtent =>
-      _compactMemberExtent + _actionGap + _quickHeight + _shadowExtent;
+  double get minExtent => _compactMemberExtent + _actionGap + _quickHeight;
 
   @override
   Widget build(
@@ -573,9 +530,8 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
     final quickTop = _expandedQuickTop - collapseOffset;
     final heroTop = _expandedHeroTop - collapseOffset;
 
-    return ColoredBox(
+    return Container(
       key: const ValueKey('home-sticky-header'),
-      color: Colors.black,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -592,11 +548,23 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
             left: 0,
             right: 0,
             top: 0,
-            height: memberExtent,
-            child: ColoredBox(
-              color: Colors.black,
+            height: memberExtent + 30 * _unit,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black, Color(0xDD000000), Colors.transparent],
+                  stops: [0, .65, 1],
+                ),
+              ),
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, memberTop, 16, memberBottom),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  memberTop,
+                  16,
+                  memberBottom + 30 * _unit,
+                ),
                 child: _MemberHeader(
                   presentation: presentation,
                   compactProgress: progress,
@@ -621,7 +589,16 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
                 _shadowExtent,
               ),
               decoration: BoxDecoration(
-                color: Colors.black,
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xCC000000),
+                    Color(0xCC000000),
+                    Colors.transparent,
+                  ],
+                  stops: [0, .75, 1],
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: .78 * progress),
@@ -715,7 +692,10 @@ class _MemberHeader extends StatelessWidget {
                       city,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   const Icon(Icons.keyboard_arrow_down, size: 16),
@@ -899,13 +879,16 @@ class _AssetPill extends StatelessWidget {
 
 class _HeroBanner extends StatefulWidget {
   const _HeroBanner({
+    super.key,
+    required this.items,
     required this.onTap,
     required this.loading,
     required this.imageError,
     required this.onRetry,
   });
 
-  final VoidCallback onTap;
+  final List<HomeContent> items;
+  final ValueChanged<HomeContent> onTap;
   final bool loading;
   final bool imageError;
   final VoidCallback onRetry;
@@ -915,11 +898,12 @@ class _HeroBanner extends StatefulWidget {
 }
 
 class _HeroBannerState extends State<_HeroBanner> {
-  static const _initialVirtualPage = 10000;
-
-  final _controller = PageController(initialPage: _initialVirtualPage);
+  late final _initialVirtualPage = widget.items.isEmpty
+      ? 10000
+      : (10000 ~/ widget.items.length) * widget.items.length;
+  late final _controller = PageController(initialPage: _initialVirtualPage);
   Timer? _timer;
-  int _virtualIndex = _initialVirtualPage;
+  late int _virtualIndex = _initialVirtualPage;
   int _index = 0;
   bool? _motionDisabled;
 
@@ -930,7 +914,10 @@ class _HeroBannerState extends State<_HeroBanner> {
     if (_motionDisabled == disabled) return;
     _motionDisabled = disabled;
     _timer?.cancel();
-    if (!disabled && !widget.loading && !widget.imageError) {
+    if (!disabled &&
+        !widget.loading &&
+        !widget.imageError &&
+        widget.items.length > 1) {
       _timer = Timer.periodic(const Duration(seconds: 4), (_) {
         if (!mounted || !_controller.hasClients) return;
         _controller.animateToPage(
@@ -963,9 +950,18 @@ class _HeroBannerState extends State<_HeroBanner> {
   Widget build(BuildContext context) {
     return Semantics(
       button: !widget.imageError,
-      label: widget.imageError ? '运营 Banner 加载失败' : '招募兼职探店品鉴官',
+      label: widget.imageError || widget.items.isEmpty
+          ? '运营 Banner 加载失败'
+          : widget.items[_virtualIndex % widget.items.length].copy(
+              widget.items[_virtualIndex % widget.items.length].titles,
+              homeLocale(context),
+            ),
       child: GestureDetector(
-        onTap: widget.imageError ? null : widget.onTap,
+        onTap: widget.imageError || widget.items.isEmpty
+            ? null
+            : () => widget.onTap(
+                widget.items[_virtualIndex % widget.items.length],
+              ),
         child: AspectRatio(
           aspectRatio: 690 / 417,
           child: widget.imageError
@@ -984,10 +980,26 @@ class _HeroBannerState extends State<_HeroBanner> {
                       physics: const _LeftOnlyPageScrollPhysics(),
                       onPageChanged: (value) => setState(() {
                         _virtualIndex = value;
-                        _index = value % 2;
+                        _index = value % widget.items.length;
                       }),
-                      itemBuilder: (context, index) =>
-                          _RecruitmentBanner(alternate: index.isOdd),
+                      itemCount: widget.items.isEmpty ? 0 : null,
+                      itemBuilder: (context, index) {
+                        final item = widget.items[index % widget.items.length];
+                        return HeroMode(
+                          enabled: index == _virtualIndex,
+                          child: Hero(
+                            tag: 'home-content-${item.ref}',
+                            child: ClipRRect(
+                              key: ValueKey('home-banner-${item.ref}'),
+                              borderRadius: BorderRadius.circular(8),
+                              child: HomeContentImage(
+                                content: item,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     Positioned(
                       bottom: 7,
@@ -996,7 +1008,7 @@ class _HeroBannerState extends State<_HeroBanner> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(
-                          2,
+                          widget.items.length,
                           (index) => Container(
                             key: ValueKey(
                               'home-banner-indicator-$index-${index == _index}',
@@ -1049,27 +1061,6 @@ class _LeftOnlyPageScrollPhysics extends PageScrollPhysics {
   double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
     if (offset > 0) return 0;
     return super.applyPhysicsToUserOffset(position, offset);
-  }
-}
-
-class _RecruitmentBanner extends StatelessWidget {
-  const _RecruitmentBanner({this.alternate = false});
-
-  final bool alternate;
-
-  @override
-  Widget build(BuildContext context) {
-    final asset = alternate
-        ? 'assets/legacy/home/legacy_banner_childrens_day.webp'
-        : 'assets/legacy/home/legacy_banner_recruitment.webp';
-
-    return LegacyHomeImage(
-      asset,
-      key: ValueKey(
-        'home-banner-original-${alternate ? 'childrens-day' : 'recruitment'}',
-      ),
-      fit: BoxFit.contain,
-    );
   }
 }
 
@@ -1459,314 +1450,6 @@ class _LegacyShinePainter extends CustomPainter {
       oldDelegate.cardOffset != cardOffset;
 }
 
-enum _PromotionMode { poster, article, video }
-
-class _PromotionGrid extends StatelessWidget {
-  const _PromotionGrid({
-    required this.unit,
-    required this.onTap,
-    required this.loading,
-    required this.imageError,
-    required this.mode,
-    required this.onRecover,
-  });
-
-  final double unit;
-  final ValueChanged<String> onTap;
-  final bool loading;
-  final bool imageError;
-  final _PromotionMode mode;
-  final VoidCallback onRecover;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 332 * unit,
-          child: Column(
-            children: [
-              if (mode == _PromotionMode.article)
-                _ArticlePromotionCard(onTap: () => onTap('最帅小哥哥活动'))
-              else if (mode == _PromotionMode.video)
-                const _VideoPromotionCard()
-              else
-                _PosterCard(
-                  unit: unit,
-                  asset: 'assets/legacy/home/legacy_poster_handsome.webp',
-                  title: '谁是最帅小哥哥',
-                  loading: loading,
-                  onTap: () => onTap('最帅小哥哥活动'),
-                ),
-              const SizedBox(height: 6),
-              if (imageError)
-                _PromotionImageError(title: '生日有礼', onRetry: onRecover)
-              else
-                _PosterCard(
-                  unit: unit,
-                  asset: 'assets/legacy/home/legacy_poster_birthday.webp',
-                  title: '生日有礼',
-                  loading: loading,
-                  onTap: () => onTap('生日有礼'),
-                ),
-            ],
-          ),
-        ),
-        SizedBox(
-          width: 332 * unit,
-          child: Column(
-            children: [
-              _PosterCard(
-                unit: unit,
-                asset: 'assets/legacy/home/legacy_poster_party.webp',
-                title: 'AI 卡颜局',
-                loading: loading,
-                onTap: () => onTap('AI 卡颜局'),
-              ),
-              const SizedBox(height: 6),
-              _PosterCard(
-                unit: unit,
-                asset: 'assets/legacy/home/legacy_poster_music.webp',
-                title: '玩音乐能赚钱',
-                loading: loading,
-                onTap: () => onTap('玩音乐能赚钱'),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PosterCard extends StatelessWidget {
-  const _PosterCard({
-    required this.asset,
-    required this.title,
-    required this.unit,
-    required this.onTap,
-    this.loading = false,
-  });
-
-  final double unit;
-  final String asset;
-  final String title;
-  final VoidCallback onTap;
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: title,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AspectRatio(
-          aspectRatio: 332 / 460,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10 * unit),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                LegacyHomeImage(asset, key: ValueKey('home-poster-$asset')),
-                if (loading)
-                  const ColoredBox(
-                    color: Color(0x66000000),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ArticlePromotionCard extends StatelessWidget {
-  const _ArticlePromotionCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '图文内容，谁是最帅小哥哥，阿澈发布，128 次浏览',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(7),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: const Color(0xFF17130F),
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AspectRatio(
-                aspectRatio: .82,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(7),
-                  ),
-                  child: const LegacyHomeImage(
-                    'assets/legacy/home/legacy_poster_handsome.webp',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(10, 9, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '谁是最帅小哥哥',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    SizedBox(height: 7),
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 10,
-                          backgroundColor: Color(0xFF3A3026),
-                          child: Text('阿', style: TextStyle(fontSize: 9)),
-                        ),
-                        SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '阿澈',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Color(0x99FFFFFF),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                        Icon(Icons.visibility_outlined, size: 12),
-                        SizedBox(width: 3),
-                        Text('128', style: TextStyle(fontSize: 10)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VideoPromotionCard extends StatefulWidget {
-  const _VideoPromotionCard();
-
-  @override
-  State<_VideoPromotionCard> createState() => _VideoPromotionCardState();
-}
-
-class _VideoPromotionCardState extends State<_VideoPromotionCard> {
-  bool _playing = false;
-  bool _muted = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: '视频内容，${_playing ? '正在播放' : '已暂停'}，${_muted ? '静音' : '有声'}',
-      child: AspectRatio(
-        aspectRatio: .72,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(7),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              const LegacyHomeImage(
-                'assets/legacy/home/legacy_poster_music.webp',
-                fit: BoxFit.cover,
-              ),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Color(0xCC000000)],
-                  ),
-                ),
-              ),
-              Center(
-                child: IconButton.filledTonal(
-                  key: const ValueKey('home-video-toggle'),
-                  tooltip: _playing ? '暂停' : '播放',
-                  onPressed: () => setState(() => _playing = !_playing),
-                  icon: Icon(
-                    _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 10,
-                bottom: 10,
-                child: Text(_playing ? '正在播放' : '默认暂停'),
-              ),
-              Positioned(
-                right: 6,
-                bottom: 4,
-                child: IconButton(
-                  key: const ValueKey('home-video-sound'),
-                  tooltip: _muted ? '开启声音' : '静音',
-                  onPressed: () => setState(() => _muted = !_muted),
-                  icon: Icon(
-                    _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PromotionImageError extends StatelessWidget {
-  const _PromotionImageError({required this.title, required this.onRetry});
-
-  final String title;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: '$title 图片加载失败',
-      child: AspectRatio(
-        aspectRatio: .72,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: const Color(0xFF17130F),
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(color: const Color(0x557E6951)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.image_not_supported_outlined, color: _gold),
-              const SizedBox(height: 8),
-              Text(title),
-              TextButton(onPressed: onRetry, child: const Text('查看文字详情')),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _EmptyPromotions extends StatelessWidget {
   const _EmptyPromotions({required this.onRestore});
 
@@ -1789,7 +1472,7 @@ class _EmptyPromotions extends StatelessWidget {
           const SizedBox(height: 10),
           const Text('暂无运营内容'),
           const SizedBox(height: 12),
-          OutlinedButton(onPressed: onRestore, child: const Text('恢复 Fake 内容')),
+          OutlinedButton(onPressed: onRestore, child: const Text('重试')),
         ],
       ),
     );

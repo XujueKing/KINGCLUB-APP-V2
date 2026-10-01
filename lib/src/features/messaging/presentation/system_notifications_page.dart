@@ -332,6 +332,13 @@ class _NoticeCard extends StatelessWidget {
     return Column(
       children: [
         Padding(
+          padding: EdgeInsets.fromLTRB(0, 20 * r, 0, 10 * r),
+          child: Text(
+            notice.time,
+            style: TextStyle(color: const Color(0x66FFFFFF), fontSize: 24 * r),
+          ),
+        ),
+        Padding(
           padding: EdgeInsets.symmetric(vertical: 20 * r),
           child: Material(
             color: const Color(0x0FFFFFFF),
@@ -444,13 +451,6 @@ class _NoticeCard extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(0, 30 * r, 0, 10 * r),
-          child: Text(
-            notice.time,
-            style: TextStyle(color: const Color(0x66FFFFFF), fontSize: 24 * r),
           ),
         ),
       ],
