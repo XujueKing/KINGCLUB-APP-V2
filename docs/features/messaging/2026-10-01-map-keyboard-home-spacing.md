@@ -12,4 +12,14 @@
 
 46 项相关回归和截图基线验证通过；14 个修改/新增 Dart 文件静态分析无问题。地图截图验证包括同坐标复用、切换账号丢弃迟到图片；转场测试发现 Navigator 的 offstage 预布局会暂时把 animation 显示成 completed，现延迟到正常布局并等待真正滑入结束。地图已经显示后不会在拖动/重选时重复覆盖预览。
 
-腾讯官方静态图接口 `https://lbs.qq.com/service/staticV2/staticGuide/staticDoc` 已核对，现有配置返回有效 PNG；图片请求只传坐标、尺寸和地图 Key。原生 iOS MapKit 缩略图也采用同一会话内存缓存。安装结果待记录。不得把构建或安装成功当成真机体验验收。
+腾讯官方静态图接口 `https://lbs.qq.com/service/staticV2/staticGuide/staticDoc` 已核对，现有配置返回有效 PNG；图片请求只传坐标、尺寸和地图 Key。原生 iOS MapKit 缩略图也采用同一会话内存缓存。不得把构建或安装成功当成真机体验验收。
+
+## 构建、安装和现场核对
+
+- 实现提交 `61f9dc452ca6d85d2279bdc9018eb2eccd2b2083` 已推送并核对远端 SHA。
+- A（462606d8）同签名覆盖安装成功，数据保留。profile APK SHA256：`082C50189F15D0625927DCF46559BB0CC03969C1A85BD60C212AF597D3A87716`。
+- A 真机已核对：首页素材/间距、徐珏测试会话位置卡片静态缩略图、点击已有位置后的完整腾讯地图，以及“＋→位置”选择页、重新定位蓝点和多个地点选项。未发送测试位置。重新定位显示约 30 米的系统精度；截图只能证明地图与点位呈现，不代表定位精度已验收。
+- A 画面证据位于本机私有目录 `C:/Users/xiaoshafa/.kingclub-private/maps/`：`android-current43.png`（首页），`android-conversation43.png`（卡片），`android-map-details43.png`（详情），`android-picker43.png` / `android-picker-located43.png`（选点与重新定位）。含真实会话/地理信息的图片不提交仓库。
+- iPhone CI 第 43 版（run `36797729046`，同一实现提交）编译产物已校验并覆盖安装成功，远程启动成功。IPA SHA256：`2F7C43876D34E83D70D3DEF61461178F5A907C98BAB48740B0FE0C0D30C6CD33`。已抓取启动画面 `ios43-installed.png`；PushKit/CallKit 构建配置保留。随后 USB 枚举不再识别 iPhone，不影响此前安装成功的证据。
+- 标题小红点与基线/位置由回归确认；当前 A 没有标题未读状态，未伪造新消息来制造红点。桌面数字角标和会话行数字不在本次修改范围。
+- 已向用户请求新版 iPhone 键盘“两段推升”和地图闪屏体验复核；尚未收到结果。A 无系统 screenrecord 命令，静态截图不能证明动画流畅，因此两端动画体验仍待真机反馈，不能标整体体验验收完成。
