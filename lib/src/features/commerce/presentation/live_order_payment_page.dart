@@ -14,6 +14,8 @@ import '../../auth/domain/auth_repository.dart';
 import '../data/ordering_order_repository.dart';
 import '../data/ios_wechat_payment.dart';
 import '../data/alipay_app_payment.dart';
+import '../data/store_payment_availability_repository.dart';
+import 'store_alipay_payment_option.dart';
 import 'scan_ordering_cart_page.dart';
 import 'ordering_entry_status.dart';
 
@@ -796,41 +798,31 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                           ],
                         ),
                       ),
-                      SizedBox(height: r(24)),
-                      InkWell(
-                        key: const ValueKey('payment-provider-alipay'),
+                      StoreAlipayPaymentOption(
+                        storeRef: widget.quote.orderingContext!.storeRef,
+                        repository: StorePaymentAvailabilityRepository(
+                          readSession: widget.repository.readSession,
+                          request: widget.repository.request,
+                        ),
+                        unit: r(1),
+                        label: _paymentText([
+                          '支付宝', 'Alipay', '支付寶', 'Alipay',
+                        ]),
+                        selected: _provider == OrderingPaymentProvider.alipay,
+                        onUnavailable: () {
+                          if (!_channelLocked &&
+                              !_busy &&
+                              _restorationComplete &&
+                              _receipt == null &&
+                              _provider == OrderingPaymentProvider.alipay) {
+                            _selectProvider(OrderingPaymentProvider.wechat);
+                          }
+                        },
                         onTap: _channelLocked || _busy
                             ? null
                             : () => _selectProvider(
                                 OrderingPaymentProvider.alipay,
                               ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.account_balance_wallet_outlined,
-                              size: r(44),
-                              color: const Color(0xFF1677FF),
-                            ),
-                            SizedBox(width: r(15)),
-                            Expanded(
-                              child: Text(
-                                _paymentText([
-                                  '支付宝',
-                                  'Alipay',
-                                  '支付寶',
-                                  'Alipay',
-                                ]),
-                              ),
-                            ),
-                            Icon(
-                              _provider == OrderingPaymentProvider.alipay
-                                  ? Icons.check_circle
-                                  : Icons.radio_button_unchecked,
-                              color: const Color(0xFF55493C),
-                              size: r(36),
-                            ),
-                          ],
-                        ),
                       ),
                     ]),
                     if (_message != null)

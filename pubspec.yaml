@@ -129,6 +129,7 @@ flutter:
     - assets/legacy/ordering/enlarge.png
     - assets/legacy/ordering/WEIPAY.png
     - assets/legacy/payment/
+    - assets/legacy/payment/legacy_alipay.png
     - assets/legacy/aa/
     - assets/legacy/aa/positioningCard.png
     - assets/legacy/aa/man.png

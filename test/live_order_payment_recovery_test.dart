@@ -68,6 +68,9 @@ class _Harness {
   late final repository = OrderingOrderRepository(
     readSession: () async => _session,
     request: (id, params, _) async {
+      if (id == 'K261002001959') {
+        return {'result': {'storeRef': params['storeRef'], 'alipayAvailable': true}};
+      }
       if (id == 'K260919000814') {
         submitted++;
         submittedInitiation.add(params['initiatePayment']);
