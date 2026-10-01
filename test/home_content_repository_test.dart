@@ -35,7 +35,7 @@ Map<String, dynamic> homeSession(String id) => {
   'apiKey': 'fixture-secret',
 };
 Map<String, dynamic> envelope(Map<String, dynamic> result) => {
-  'data': {'result': result},
+  'result': result,
 };
 void main() {
   test(

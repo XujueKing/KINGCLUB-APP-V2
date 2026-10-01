@@ -5,6 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/features/home/presentation/home_page.dart';
 import 'package:kingclub/src/features/home/data/home_city_catalog.dart';
+import 'package:kingclub/src/features/home/data/home_content_repository.dart';
+
+import 'home_content_repository_test.dart'
+    show homeFixture, homeSession, envelope;
 
 void main() {
   setUpAll(() async => HomeCityCatalog.load());
@@ -22,6 +26,7 @@ void main() {
     double textScale = 1,
     bool disableAnimations = false,
     Future<String?> Function()? locateCity,
+    HomeContentRepository? repository,
   }) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -43,6 +48,7 @@ void main() {
           onOpenScanner: onScan ?? () {},
           onSessionResetRequested: onSessionReset,
           locateCity: locateCity ?? () async => null,
+          repository: repository,
         ),
       ),
     );
@@ -86,6 +92,94 @@ void main() {
     await tester.pumpWidget(home(locateCity: () async => '株洲市'));
     await tester.pump();
     expect(find.text('株洲市'), findsOneWidget);
+  });
+
+  testWidgets('late old-city content cannot overwrite a newly selected city', (
+    tester,
+  ) async {
+    final location = Completer<String?>();
+    final oldCity = Completer<Map<String, dynamic>>();
+    var oldCityReads = 0;
+    final repository = HomeContentRepository(
+      readSession: () async => homeSession('fixture'),
+      request: (id, params, actor) async {
+        final city = params['cityCode'];
+        if (city == '430200') {
+          oldCityReads++;
+          return oldCity.future;
+        }
+        return envelope({
+          'cityCode': city,
+          'items': city == '430100' ? [homeFixture(ref: 'new-city')] : [],
+        });
+      },
+    );
+    await tester.pumpWidget(
+      home(repository: repository, locateCity: () => location.future),
+    );
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    location.complete('株洲市');
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(oldCityReads, greaterThan(0));
+    await tester.runAsync(
+      () async => tester.tap(find.byKey(const ValueKey('home-city-selector'))),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('home-city-input')), '长沙');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('home-city-430100')));
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('home-card-new-city')), findsOneWidget);
+    oldCity.complete(
+      envelope({
+        'cityCode': '430200',
+        'items': [homeFixture(ref: 'old-city')],
+      }),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('home-card-old-city')), findsNothing);
+    expect(find.byKey(const ValueKey('home-card-new-city')), findsOneWidget);
+  });
+
+  testWidgets('failed content refresh keeps artwork without an error row', (
+    tester,
+  ) async {
+    var calls = 0;
+    final repository = HomeContentRepository(
+      readSession: () async => homeSession('fixture'),
+      request: (id, params, actor) async {
+        calls++;
+        throw StateError('offline');
+      },
+    );
+    await tester.pumpWidget(home(repository: repository));
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+    expect(calls, greaterThan(0));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('home-card-legacy_handsome')),
+      findsOneWidget,
+    );
+    expect(find.text('内容更新失败，点击重试'), findsNothing);
+    await tester.runAsync(
+      () async => tester.tap(find.byKey(const ValueKey('home-city-selector'))),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('home-city-input')), '长沙');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('home-city-430100')));
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('home-card-legacy_handsome')),
+      findsOneWidget,
+    );
+    expect(find.text('内容更新失败，点击重试'), findsNothing);
   });
 
   testWidgets('ready home keeps legacy content and deduplicates actions', (

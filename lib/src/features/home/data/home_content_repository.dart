@@ -152,7 +152,8 @@ class HomeContentRepository {
     if (_identity(await readSession()) != identity) {
       throw const AuthFailure('SESSION_EXPIRED', '登录状态已变化');
     }
-    final result = (response['data'] as Map?)?['result'];
+    // KingclubSecureClient has already decrypted the HTTP data envelope.
+    final result = response['result'];
     if (result is! Map) _invalid();
     return result;
   }

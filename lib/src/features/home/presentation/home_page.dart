@@ -67,7 +67,6 @@ class _HomePageState extends State<HomePage> {
   HomeCity? _selectedCity;
   List<HomeContent> _content = legacyHomeContent();
   int _contentEpoch = 0;
-  bool _contentFailed = false;
   final _likesPending = <String>{};
   StreamSubscription<void>? _session;
 
@@ -124,8 +123,8 @@ class _HomePageState extends State<HomePage> {
     final epoch = ++_contentEpoch;
     if (clear) {
       setState(() {
-        _content = [];
-        _contentFailed = false;
+        // These original artworks are global; never keep another city's cards.
+        _content = legacyHomeContent();
       });
     }
     try {
@@ -133,13 +132,11 @@ class _HomePageState extends State<HomePage> {
       if (mounted && epoch == _contentEpoch) {
         setState(() {
           _content = items;
-          _contentFailed = false;
         });
       }
     } catch (_) {
-      if (mounted && epoch == _contentEpoch) {
-        setState(() => _contentFailed = true);
-      }
+      // Keep the available content without an error row disrupting the layout.
+      // A pull to refresh or the next city/session change retries the request.
     }
   }
 
@@ -420,21 +417,6 @@ class _HomePageState extends State<HomePage> {
                           _EmptyPromotions(
                             onRestore: () =>
                                 setState(() => _state = HomeDemoState.ready),
-                          )
-                        else if (_contentFailed)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: TextButton(
-                              onPressed: () => unawaited(_loadContent()),
-                              child: Text(
-                                _cityCopy(
-                                  '内容更新失败，点击重试',
-                                  'Could not refresh. Retry',
-                                  '內容更新失敗，點擊重試',
-                                  'อัปเดตไม่สำเร็จ แตะเพื่อลองใหม่',
-                                ),
-                              ),
-                            ),
                           ),
                         HomeContentMasonry(
                           items: cards,
