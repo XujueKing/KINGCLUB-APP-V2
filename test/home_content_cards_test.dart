@@ -124,6 +124,34 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.getTopLeft(panel).dy, closeTo(initialTop, 1));
       expect(tester.widget<Opacity>(shade).opacity, closeTo(0, .001));
+      // Release above the resting position: inertia crosses it afterwards.
+      await tester.dragFrom(
+        Offset(150, initialTop + 25),
+        const Offset(0, -300),
+      );
+      await tester.pumpAndSettle();
+      await tester.flingFrom(
+        Offset(150, tester.getTopLeft(panel).dy + 25),
+        const Offset(0, 100),
+        1800,
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(panel).dy, lessThanOrEqualTo(initialTop + 1));
+      // Interrupt a return with another pull, as in repeated real finger gestures.
+      for (var attempt = 0; attempt < 2; attempt++) {
+        final pull = await tester.startGesture(
+          Offset(150, tester.getTopLeft(panel).dy + 20),
+        );
+        await pull.moveBy(const Offset(0, 30));
+        await tester.pump();
+        await pull.moveBy(const Offset(0, 160));
+        await tester.pump();
+        await pull.up();
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(panel).dy, closeTo(initialTop, 1));
+
       expect(find.byKey(const ValueKey('home-detail-close')), findsOneWidget);
 
       await tester.tap(find.byTooltip('Close'));

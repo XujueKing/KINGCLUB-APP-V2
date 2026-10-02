@@ -323,11 +323,16 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
   bool _sheetStarted = false;
   final _dragSheet = DraggableScrollableController();
   bool _restoringSheet = false;
+  bool _restoreScheduled = false;
+  final Set<int> _sheetPointers = {};
+  double _initialExtent = .12;
+  int _restoreGeneration = 0;
   bool _playing = false, _foreground = true;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _dragSheet.addListener(_onSheetExtentChanged);
     _sheet = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -366,29 +371,53 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
     super.dispose();
   }
 
-  void _restoreSheet(double initialExtent) {
+  void _onSheetExtentChanged() {
+    // A released fling can cross the resting position after pointer-up.
+    if (_sheetPointers.isEmpty && !_restoringSheet) _restoreSheet();
+  }
+
+  void _restoreSheet() {
+    if (_restoreScheduled) return;
+    _restoreScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _restoreScheduled = false;
       if (!mounted ||
           !_dragSheet.isAttached ||
+          _sheetPointers.isNotEmpty ||
           _restoringSheet ||
-          _dragSheet.size >= initialExtent - .001) {
+          _dragSheet.size >= _initialExtent - .001) {
         return;
       }
+      final generation = ++_restoreGeneration;
       _restoringSheet = true;
       try {
         if (MediaQuery.disableAnimationsOf(context)) {
-          _dragSheet.jumpTo(initialExtent);
+          _dragSheet.jumpTo(_initialExtent);
         } else {
           await _dragSheet.animateTo(
-            initialExtent,
+            _initialExtent,
             duration: const Duration(milliseconds: 280),
             curve: Curves.easeOutCubic,
           );
         }
       } finally {
-        _restoringSheet = false;
+        if (generation == _restoreGeneration) _restoringSheet = false;
       }
     });
+    // Pointer-up can arrive after rendering has stopped (a held drag).
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _onSheetPointerDown(PointerDownEvent event) {
+    _sheetPointers.add(event.pointer);
+    // A new drag cancels animateTo; its Future need not complete on cancel.
+    ++_restoreGeneration;
+    _restoringSheet = false;
+  }
+
+  void _onSheetPointerEnd(PointerEvent event) {
+    _sheetPointers.remove(event.pointer);
+    if (_sheetPointers.isEmpty) _restoreSheet();
   }
 
   @override
@@ -408,6 +437,7 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
         ? (imageHeight * .6).clamp(0.0, size.height * .55)
         : imageHeight;
     final initialExtent = (1 - sheetTop / size.height).clamp(.12, .9);
+    _initialExtent = initialExtent;
     final maxExtent =
         (1 - (MediaQuery.paddingOf(context).top + 56) / size.height).clamp(
           .9,
@@ -487,8 +517,9 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
               child: child,
             ),
             child: Listener(
-              onPointerUp: (_) => _restoreSheet(initialExtent),
-              onPointerCancel: (_) => _restoreSheet(initialExtent),
+              onPointerDown: _onSheetPointerDown,
+              onPointerUp: _onSheetPointerEnd,
+              onPointerCancel: _onSheetPointerEnd,
               child: DraggableScrollableSheet(
                 controller: _dragSheet,
                 initialChildSize: initialExtent,
