@@ -12,7 +12,7 @@ void main() {
       const destination = Rect.fromLTWH(0, 0, 393, 545);
       final tween = HomeContentRectTween(begin: origin, end: destination);
       expect(tween.lerp(0), origin);
-      final mid = tween.lerp(150 / 700)!;
+      final mid = tween.lerp(.5)!;
       final fraction =
           (mid.left - origin.left) / (destination.left - origin.left);
       expect(mid.top, closeTo(origin.top * (1 - fraction), .001));
@@ -23,7 +23,7 @@ void main() {
           .001,
         ),
       );
-      expect(tween.lerp(300 / 700), destination);
+      expect(tween.lerp(1), destination);
       expect(tween.lerp(1), destination);
     }
   });

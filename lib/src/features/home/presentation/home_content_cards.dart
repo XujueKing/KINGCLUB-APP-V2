@@ -40,16 +40,12 @@ class HomeContentImage extends StatelessWidget {
 }
 
 // The mini-program expands the tapped image in 300ms, while its content
-// sheet rises over 700ms. Interpolate every edge directly, without a Hero arc.
+// sheet rises independently over 700ms. Interpolate each edge without an arc.
 class HomeContentRectTween extends RectTween {
   HomeContentRectTween({super.begin, super.end});
 
   @override
-  Rect? lerp(double t) => Rect.lerp(
-    begin,
-    end,
-    const Interval(0, 300 / 700, curve: Curves.ease).transform(t),
-  );
+  Rect? lerp(double t) => Rect.lerp(begin, end, Curves.ease.transform(t));
 }
 
 RectTween _contentRectTween(Rect? begin, Rect? end) =>
@@ -284,10 +280,10 @@ Future<void> openHomeContent(
   PageRouteBuilder(
     transitionDuration: MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
-        : const Duration(milliseconds: 700),
+        : const Duration(milliseconds: 300),
     reverseTransitionDuration: MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
-        : const Duration(milliseconds: 700),
+        : const Duration(milliseconds: 300),
     pageBuilder: (context, animation, secondary) => HomeContentDetailPage(
       content: content,
       onLike: () => onLike(content),
@@ -312,17 +308,36 @@ class HomeContentDetailPage extends StatefulWidget {
 }
 
 class _HomeContentDetailPageState extends State<HomeContentDetailPage>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   Timer? _playTimer;
+  late final AnimationController _sheet;
+  bool _sheetStarted = false;
   bool _playing = false, _foreground = true;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _sheet = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
     if (widget.content.video != null) {
       _playTimer = Timer(const Duration(milliseconds: 350), () {
         if (mounted) setState(() => _playing = true);
       });
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_sheetStarted) {
+      _sheetStarted = true;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _sheet.value = 1;
+      } else {
+        _sheet.forward();
+      }
     }
   }
 
@@ -334,6 +349,7 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
   @override
   void dispose() {
     _playTimer?.cancel();
+    _sheet.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -341,6 +357,13 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
   @override
   Widget build(BuildContext context) {
     final content = widget.content;
+    final size = MediaQuery.sizeOf(context);
+    final imageHeight = size.width / content.ratio;
+    // Keep the poster overlap visual, but ensure content remains reachable
+    // on short screens and with unusually tall artwork.
+    final sheetTop = content.mode == 'poster'
+        ? (imageHeight * .6).clamp(0.0, size.height * .55)
+        : imageHeight;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -351,120 +374,128 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
               child: const ColoredBox(color: Color(0xFF101010)),
             ),
           ),
-          ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              Hero(
-                tag: 'home-content-${content.ref}',
-                createRectTween: _contentRectTween,
-                flightShuttleBuilder: (
-                  context,
-                  animation,
-                  direction,
-                  from,
-                  to,
-                ) => HomeContentImage(content: content),
-                child: AspectRatio(
-                  aspectRatio: content.ratio,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      HomeContentImage(content: content),
-                      if (content.video != null && _playing)
-                        CachedMediaVideo(
-                          url: content.video!,
-                          scope: 'public',
-                          contentKey: '${content.cacheKey}/video',
-                          active: _foreground && _playing,
-                          muted: false,
-                        ),
-                      if (content.video != null)
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: SafeArea(
-                            child: IconButton.filledTonal(
-                              tooltip: homeCopy(
-                                context,
-                                _playing ? '暂停' : '播放',
-                                _playing ? 'Pause' : 'Play',
-                                _playing ? '暫停' : '播放',
-                                _playing ? 'หยุด' : 'เล่น',
-                              ),
-                              onPressed: () =>
-                                  setState(() => _playing = !_playing),
-                              icon: Icon(
-                                _playing ? Icons.pause : Icons.play_arrow,
-                              ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Hero(
+              tag: 'home-content-${content.ref}',
+              createRectTween: _contentRectTween,
+              flightShuttleBuilder: (context, animation, direction, from, to) =>
+                  HomeContentImage(content: content),
+              child: AspectRatio(
+                aspectRatio: content.ratio,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    HomeContentImage(content: content),
+                    if (content.video != null && _playing)
+                      CachedMediaVideo(
+                        url: content.video!,
+                        scope: 'public',
+                        contentKey: '${content.cacheKey}/video',
+                        active: _foreground && _playing,
+                        muted: false,
+                      ),
+                    if (content.video != null)
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: SafeArea(
+                          child: IconButton.filledTonal(
+                            tooltip: homeCopy(
+                              context,
+                              _playing ? '暂停' : '播放',
+                              _playing ? 'Pause' : 'Play',
+                              _playing ? '暫停' : '播放',
+                              _playing ? 'หยุด' : 'เล่น',
+                            ),
+                            onPressed: () =>
+                                setState(() => _playing = !_playing),
+                            icon: Icon(
+                              _playing ? Icons.pause : Icons.play_arrow,
                             ),
                           ),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
               ),
-              AnimatedBuilder(
-                animation: widget.animation,
-                builder: (context, child) => Transform.translate(
-                  offset: Offset(
-                    0,
-                    MediaQuery.sizeOf(context).height *
-                        (1 - Curves.ease.transform(widget.animation.value)),
-                  ),
-                  child: child,
+            ),
+          ),
+          AnimatedBuilder(
+            animation: Listenable.merge([_sheet, widget.animation]),
+            builder: (context, child) => Transform.translate(
+              offset: Offset(
+                0,
+                widget.animation.status == AnimationStatus.reverse
+                    ? size.height * (1 - widget.animation.value)
+                    : (size.height - sheetTop) *
+                          (1 - Curves.ease.transform(_sheet.value)),
+              ),
+              child: child,
+            ),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(top: sheetTop),
+              child: Container(
+                key: const ValueKey('home-detail-sheet'),
+                constraints: BoxConstraints(
+                  minHeight: (size.height - sheetTop).clamp(0, size.height),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                ),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  26,
+                  20,
+                  24 + MediaQuery.paddingOf(context).bottom,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      content.copy(content.titles, homeLocale(context)),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (content.author != null) ...[
+                      const SizedBox(height: 12),
                       Text(
-                        content.copy(content.titles, homeLocale(context)),
+                        content.author!,
+                        style: const TextStyle(color: Colors.white60),
+                      ),
+                    ],
+                    if (content
+                        .copy(content.descriptions, homeLocale(context))
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        content.copy(content.descriptions, homeLocale(context)),
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFCCCCCC),
+                          fontSize: 16,
+                          height: 1.6,
                         ),
                       ),
-                      if (content.author != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          content.author!,
-                          style: const TextStyle(color: Colors.white60),
-                        ),
-                      ],
-                      if (content
-                          .copy(content.descriptions, homeLocale(context))
-                          .isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          content.copy(
-                            content.descriptions,
-                            homeLocale(context),
-                          ),
-                          style: const TextStyle(
-                            color: Color(0xFFCCCCCC),
-                            fontSize: 16,
-                            height: 1.6,
-                          ),
-                        ),
-                      ],
-                      if (content.placement == 'card') ...[
-                        const SizedBox(height: 20),
-                        HomeLikeButton(content: content, onTap: widget.onLike),
-                      ],
                     ],
-                  ),
+                    if (content.placement == 'card') ...[
+                      const SizedBox(height: 20),
+                      HomeLikeButton(content: content, onTap: widget.onLike),
+                    ],
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
           Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
             left: 8,
             child: FadeTransition(
-              opacity: widget.animation.drive(
-                CurveTween(curve: const Interval(300 / 700, 1)),
-              ),
+              opacity: widget.animation.drive(CurveTween(curve: Curves.ease)),
               child: IconButton.filledTonal(
                 tooltip: homeCopy(context, '关闭', 'Close', '關閉', 'ปิด'),
                 onPressed: () => Navigator.pop(context),
