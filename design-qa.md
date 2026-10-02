@@ -2146,3 +2146,10 @@ final result: passed
 - 本轮指定的字号、下划线间距、勾选尺寸、输入居中与按钮金色层级无剩余 P0/P1/P2 问题。
 
 final result: passed
+
+
+# 2026-10-02 Together play (in progress)
+
+Source: user supplied ce0e9c42bfbcee1ca1f4d68677bc52bc.jpg and old Choose.wxss. Implementation capture: build/together-preview.png at 393x852 using test-only records. Date/card hierarchy and dynamic theme/participation projections are implemented; full visual acceptance is pending production-font/device capture and connected activity flow. The local golden uses a test font and does not establish native typography fidelity. No iPhone installation or live activity/payment claim.
+
+final result: blocked ? final product entry, real media/financial services and device QA are not yet connected. This is a development node, not a prototype handoff.
