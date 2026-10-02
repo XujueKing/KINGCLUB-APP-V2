@@ -76,6 +76,7 @@ class _LayoutExamples implements TogetherPlayRepository {
     cityName: '当前城市',
     storeRef: 'review-store',
     storeName: '店铺名称展示位',
+    storeLogo: 'assets/club/king-wordmark.svg',
     startsAt: DateTime(date.year, date.month, date.day, 21),
     endsAt: DateTime(date.year, date.month, date.day + 1, 2),
     hostName: '发起人展示位',
@@ -84,7 +85,16 @@ class _LayoutExamples implements TogetherPlayRepository {
     capacity: capacity,
     participants: List.generate(
       count,
-      (i) => TogetherParticipant(name: '头像占位 ${i + 1}'),
+      (i) => TogetherParticipant(
+        name: '头像占位 ${i + 1}',
+        seatIndex: i.isEven ? i ~/ 2 : (capacity + 1) ~/ 2 + i ~/ 2,
+        gender: i.isEven ? TogetherGender.male : TogetherGender.female,
+      ),
+    ),
+    seatGenders: List.generate(
+      capacity,
+      (i) =>
+          i < (capacity + 1) ~/ 2 ? TogetherGender.male : TogetherGender.female,
     ),
     feeMode: mode,
     priceMinor: price,

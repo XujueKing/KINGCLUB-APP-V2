@@ -35,6 +35,8 @@ TogetherParty fixture({
   int capacity = 10,
   int count = 3,
   int day = 2,
+  List<TogetherParticipant>? participants,
+  List<TogetherGender> seatGenders = const [],
 }) => TogetherParty(
   ref: ref,
   theme: ref == 'night' ? '周末微醺交友局' : '一起听歌 · 认识新朋友',
@@ -48,10 +50,10 @@ TogetherParty fixture({
   merchantHost: true,
   place: '样例活动地点',
   capacity: capacity,
-  participants: List.generate(
-    count,
-    (i) => TogetherParticipant(name: '样例会员$i'),
-  ),
+  seatGenders: seatGenders,
+  participants:
+      participants ??
+      List.generate(count, (i) => TogetherParticipant(name: '样例会员$i')),
   feeMode: fee,
   priceMinor: 38850,
   state: state,
@@ -79,6 +81,63 @@ class Repository implements TogetherPlayRepository {
 }
 
 void main() {
+  testWidgets(
+    'flat ticket preserves all square seats and member avatar placement',
+    (tester) async {
+      final party = fixture(
+        capacity: 14,
+        participants: const [
+          TogetherParticipant(
+            name: 'Member',
+            seatIndex: 7,
+            gender: TogetherGender.female,
+            avatar: 'assets/legacy/home/legacy_poster_handsome.webp',
+          ),
+        ],
+        seatGenders: List.generate(
+          14,
+          (i) => i < 7 ? TogetherGender.male : TogetherGender.female,
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 339,
+                child: TogetherPartyCard(party: party, onTap: () {}),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final cardSize = tester.getSize(
+        find.byKey(const ValueKey('together-card-night')),
+      );
+      expect(cardSize.width / cardSize.height, closeTo(690 / 240, .01));
+      for (var i = 0; i < 14; i++) {
+        final seat = find.byKey(ValueKey('seat-night-$i'));
+        expect(seat, findsOneWidget);
+        final size = tester.getSize(seat);
+        expect(size.width, size.height);
+      }
+      final image = tester.widget<Image>(
+        find.descendant(
+          of: find.byKey(const ValueKey('seat-night-7')),
+          matching: find.byType(Image),
+        ),
+      );
+      expect(
+        (image.image as AssetImage).assetName,
+        'assets/legacy/home/legacy_poster_handsome.webp',
+      );
+      expect(find.byType(CircleAvatar), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('legacy date geometry is independent of app body typography', (
     tester,
   ) async {

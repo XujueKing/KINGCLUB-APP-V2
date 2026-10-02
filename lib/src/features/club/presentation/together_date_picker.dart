@@ -207,8 +207,8 @@ class _TogetherDateStripState extends State<TogetherDateStrip> {
                   children: [
                     SvgPicture.asset(
                       'assets/club/calendar.svg',
-                      width: 25,
-                      height: 25,
+                      width: 20,
+                      height: 20,
                       colorFilter: const ColorFilter.mode(
                         legacyGold,
                         BlendMode.srcIn,

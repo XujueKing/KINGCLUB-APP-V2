@@ -1,5 +1,7 @@
 enum TogetherFeeMode { aa, menPay, hostTreat }
 
+enum TogetherGender { male, female, unspecified }
+
 enum TogetherJoinState {
   available,
   pendingPayment,
@@ -10,9 +12,16 @@ enum TogetherJoinState {
 }
 
 class TogetherParticipant {
-  const TogetherParticipant({required this.name, this.avatar});
+  const TogetherParticipant({
+    required this.name,
+    this.avatar,
+    this.gender = TogetherGender.unspecified,
+    this.seatIndex,
+  });
   final String name;
   final String? avatar;
+  final TogetherGender gender;
+  final int? seatIndex;
 }
 
 /// Read projection. Prices, membership state and capacity come from the service.
@@ -38,6 +47,8 @@ class TogetherParty {
     required this.rules,
     this.backgroundUrl,
     this.posterUrl,
+    this.storeLogo,
+    this.seatGenders = const [],
   });
   final String ref,
       theme,
@@ -56,6 +67,10 @@ class TogetherParty {
   final TogetherFeeMode feeMode;
   final TogetherJoinState state;
   final String? backgroundUrl, posterUrl;
+
+  /// Merchant-provided image reference; never assume every store is KING.
+  final String? storeLogo;
+  final List<TogetherGender> seatGenders;
 
   int get remaining => (capacity - participants.length).clamp(0, capacity);
   String get feeLabel => switch (feeMode) {

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+import '../../../core/media/cached_media_image.dart';
 
 import '../data/together_play.dart';
 import 'legacy_club_components.dart';
@@ -181,203 +184,365 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
   );
 }
 
+/// Ticket geometry follows Choose.wxss: 690 by 240 rpx, 20 rpx corners.
 class TogetherPartyCard extends StatelessWidget {
   const TogetherPartyCard({
     super.key,
     required this.party,
     required this.onTap,
+    this.logoColor = Colors.white,
   });
   final TogetherParty party;
   final VoidCallback onTap;
+  final Color logoColor;
+
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: InkWell(
-      key: ValueKey('together-card-${party.ref}'),
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: const RadialGradient(
-            center: Alignment.bottomRight,
-            radius: 1.6,
-            colors: [legacyMagenta, Color(0xFF5A1E80)],
+  Widget build(BuildContext context) => AspectRatio(
+    aspectRatio: 690 / 240,
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey('together-card-${party.ref}'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            gradient: const RadialGradient(
+              center: Alignment.bottomRight,
+              radius: 1.45,
+              colors: [Color(0xFFAD016A), Color(0xFF5A1E80)],
+            ),
+            image: party.backgroundUrl == null
+                ? null
+                : DecorationImage(
+                    image: NetworkImage(party.backgroundUrl!),
+                    fit: BoxFit.cover,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0x66000000),
+                      BlendMode.darken,
+                    ),
+                  ),
           ),
-          image: party.backgroundUrl == null
-              ? null
-              : DecorationImage(
-                  image: NetworkImage(party.backgroundUrl!),
-                  fit: BoxFit.cover,
-                  colorFilter: const ColorFilter.mode(
-                    Color(0x66000000),
-                    BlendMode.darken,
+          child: FittedBox(
+            fit: BoxFit.contain,
+            child: SizedBox(
+              width: 345,
+              height: 120,
+              child: MediaQuery.withClampedTextScaling(
+                maxScaleFactor: 1,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(15, 10, 12.5, 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(height: 23, child: _logo()),
+                            const SizedBox(height: 3),
+                            Text(
+                              party.theme,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                height: 1.12,
+                              ),
+                            ),
+                            const Spacer(),
+                            FittedBox(
+                              alignment: Alignment.centerLeft,
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                togetherTimeRange(party),
+                                style: togetherLegacyDateStyle(11, legacyPink),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              party.storeName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: legacyPink,
+                                fontSize: 10,
+                                height: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        width: 138,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            TogetherParticipants(
+                              party: party,
+                              showCount: false,
+                            ),
+                            const Spacer(),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          party.feeLabel,
+                                          style: const TextStyle(
+                                            color: legacyPink,
+                                            fontSize: 10,
+                                            height: 1.2,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          party.priceLabel,
+                                          style: const TextStyle(
+                                            color: legacyPink,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w600,
+                                            height: 1,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                if (party.actionState ==
+                                    TogetherJoinState.joined)
+                                  const Icon(
+                                    Icons.qr_code_2,
+                                    size: 40,
+                                    color: Colors.white,
+                                    semanticLabel: '入场码',
+                                  )
+                                else
+                                  Container(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 42,
+                                      minHeight: 32,
+                                    ),
+                                    alignment: Alignment.center,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: party.canAct
+                                          ? legacyPink
+                                          : Colors.white12,
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Text(
+                                      party.actionLabel,
+                                      style: TextStyle(
+                                        color: party.canAct
+                                            ? const Color(0xFF65084E)
+                                            : Colors.white54,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          party.theme,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 25,
-                            fontWeight: FontWeight.w600,
-                            height: 1.15,
-                          ),
-                        ),
-                        const SizedBox(height: 9),
-                        Text(
-                          '${party.merchantHost ? '商家' : '会员'}发起 · ${party.hostName}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: legacyPink,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 122,
-                    child: TogetherParticipants(party: party),
-                  ),
-                ],
               ),
-              const SizedBox(height: 14),
-              Text(
-                togetherTimeRange(party),
-                style: togetherLegacyDateStyle(
-                  MediaQuery.sizeOf(context).width * 24 / 750,
-                  legacyPink,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${party.storeName} · ${party.place}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: legacyPink, fontSize: 12),
-              ),
-              const SizedBox(height: 13),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          party.feeLabel,
-                          style: const TextStyle(
-                            color: legacyPink,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          party.priceLabel,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (party.actionState == TogetherJoinState.joined)
-                    const Icon(
-                      Icons.qr_code_2,
-                      size: 46,
-                      color: Colors.white,
-                      semanticLabel: '入场码',
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 17,
-                        vertical: 9,
-                      ),
-                      decoration: BoxDecoration(
-                        color: party.canAct ? legacyGold : Colors.white12,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Text(
-                        party.actionLabel,
-                        style: TextStyle(
-                          color: party.canAct ? Colors.black : Colors.white54,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
     ),
   );
+
+  Widget _logo() {
+    final source = party.storeLogo;
+    if (source == null || source.isEmpty) {
+      return Text(
+        party.storeName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: legacyPink, fontSize: 12),
+      );
+    }
+    final asset = source.startsWith('assets/');
+    if (Uri.parse(source).path.endsWith('.svg')) {
+      final filter = ColorFilter.mode(logoColor, BlendMode.srcIn);
+      return asset
+          ? SvgPicture.asset(
+              source,
+              width: 44,
+              colorFilter: filter,
+              semanticsLabel: party.storeName,
+            )
+          : SvgPicture.network(
+              source,
+              width: 44,
+              colorFilter: filter,
+              semanticsLabel: party.storeName,
+            );
+    }
+    return asset
+        ? Image.asset(source, fit: BoxFit.contain)
+        : CachedMediaImage(source, fit: BoxFit.contain);
+  }
 }
 
+/// Two rows of square seats, keeping the configured capacity visible.
+/// Unknown gender remains neutral rather than inventing a male/female quota.
 class TogetherParticipants extends StatelessWidget {
-  const TogetherParticipants({super.key, required this.party});
+  const TogetherParticipants({
+    super.key,
+    required this.party,
+    this.showCount = true,
+  });
   final TogetherParty party;
+  final bool showCount;
   @override
   Widget build(BuildContext context) {
-    final visible = party.capacity.clamp(0, 10);
+    final columns = (party.capacity + 1) ~/ 2;
+    final members = <int, TogetherParticipant>{};
+    for (var i = 0; i < party.participants.length; i++) {
+      final member = party.participants[i];
+      members[member.seatIndex ?? i] = member;
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Wrap(
-          spacing: 4,
-          runSpacing: 4,
-          children: List.generate(visible, (index) {
-            final member = index < party.participants.length
-                ? party.participants[index]
-                : null;
-            return Semantics(
-              label: member == null ? '待加入' : '${member.name}已报名',
-              child: CircleAvatar(
-                radius: 10,
-                backgroundColor: member == null ? Colors.white12 : legacyGold,
-                backgroundImage: member?.avatar == null
-                    ? null
-                    : NetworkImage(member!.avatar!),
-                child: member?.avatar != null
-                    ? null
-                    : Icon(
-                        Icons.person_outline,
-                        size: 14,
-                        color: member == null ? Colors.white24 : Colors.black87,
+        SizedBox(
+          height: 50,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final slotSize = columns == 0
+                  ? 24.0
+                  : ((constraints.maxWidth - (columns - 1) * 2) / columns)
+                        .clamp(18.0, 24.0);
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(
+                    2,
+                    (row) => Padding(
+                      padding: EdgeInsets.only(top: row == 0 ? 0 : 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(columns, (col) {
+                          final index = row * columns + col;
+                          if (index >= party.capacity) {
+                            return SizedBox(width: slotSize);
+                          }
+                          final member = members[index];
+                          final gender =
+                              member?.gender != null &&
+                                  member!.gender != TogetherGender.unspecified
+                              ? member.gender
+                              : index < party.seatGenders.length
+                              ? party.seatGenders[index]
+                              : TogetherGender.unspecified;
+                          final symbol = switch (gender) {
+                            TogetherGender.male => 'assets/legacy/aa/man2.png',
+                            TogetherGender.female =>
+                              'assets/legacy/aa/woman.png',
+                            TogetherGender.unspecified => null,
+                          };
+                          final fallback = Center(
+                            child: symbol == null
+                                ? Icon(
+                                    Icons.person_outline,
+                                    size: 16,
+                                    color: const Color(0xFF9C277E),
+                                  )
+                                : Image.asset(
+                                    symbol,
+                                    height: 15,
+                                    fit: BoxFit.contain,
+                                  ),
+                          );
+                          final avatar = member?.avatar;
+                          return Padding(
+                            padding: EdgeInsets.only(left: col == 0 ? 0 : 2),
+                            child: Semantics(
+                              label: member == null
+                                  ? '待加入'
+                                  : '${member.name}已报名',
+                              child: Opacity(
+                                opacity: member == null ? .3 : 1,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(1),
+                                  child: Container(
+                                    key: ValueKey('seat-${party.ref}-$index'),
+                                    width: slotSize,
+                                    height: slotSize,
+                                    decoration: BoxDecoration(
+                                      color: legacyPink,
+                                      gradient: member == null
+                                          ? null
+                                          : const RadialGradient(
+                                              colors: [
+                                                Colors.white,
+                                                legacyPink,
+                                              ],
+                                              radius: .9,
+                                            ),
+                                    ),
+                                    child: avatar == null || avatar.isEmpty
+                                        ? fallback
+                                        : avatar.startsWith('assets/')
+                                        ? Image.asset(
+                                            avatar,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) => fallback,
+                                          )
+                                        : CachedMediaImage(
+                                            avatar,
+                                            width: slotSize,
+                                            height: slotSize,
+                                            placeholder: fallback,
+                                            errorBuilder: (_, _, _) => fallback,
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
                       ),
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          '${party.participants.length}/${party.capacity} 人',
-          style: const TextStyle(color: legacyPink, fontSize: 11),
-        ),
-        if (party.capacity > 10)
-          Text(
-            '还有 ${party.remaining} 个空位',
-            style: const TextStyle(color: legacyPink, fontSize: 10),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
+        ),
+        if (showCount) ...[
+          const SizedBox(height: 6),
+          Text(
+            '${party.participants.length}/${party.capacity} 人',
+            style: const TextStyle(color: legacyPink, fontSize: 11),
+          ),
+        ],
       ],
     );
   }
