@@ -470,15 +470,43 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    HomeContentImage(content: content),
-                    if (content.video != null && _playing)
-                      CachedMediaVideo(
-                        url: content.video!,
-                        scope: 'public',
-                        contentKey: '${content.cacheKey}/video',
-                        active: _foreground && _playing,
-                        muted: false,
+                    AnimatedBuilder(
+                      animation: _dragSheet,
+                      builder: (context, child) {
+                        final panelTop = _dragSheet.isAttached
+                            ? size.height * (1 - _dragSheet.size)
+                            : sheetTop;
+                        // Only stretch once the full image has been revealed.
+                        // Top anchoring keeps the upper edge fixed; uniform
+                        // scaling fills the gap without distorting the artwork.
+                        final scale = imageHeight > 0
+                            ? (panelTop / imageHeight).clamp(
+                                1.0,
+                                double.infinity,
+                              )
+                            : 1.0;
+                        return Transform.scale(
+                          key: const ValueKey('home-detail-image-stretch'),
+                          scale: scale,
+                          alignment: Alignment.topCenter,
+                          child: child,
+                        );
+                      },
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          HomeContentImage(content: content),
+                          if (content.video != null && _playing)
+                            CachedMediaVideo(
+                              url: content.video!,
+                              scope: 'public',
+                              contentKey: '${content.cacheKey}/video',
+                              active: _foreground && _playing,
+                              muted: false,
+                            ),
+                        ],
                       ),
+                    ),
                     if (content.video != null)
                       Align(
                         alignment: Alignment.topRight,

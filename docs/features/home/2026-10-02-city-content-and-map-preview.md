@@ -65,3 +65,8 @@
 ### iPhone build 61 installed
 
 GitHub run 37002409041 built revision 140db6bea5519bc448b11cdd7bdb897d7a79ae4a successfully. Download integrity, bundle, provisioning device and build number verified. Preserving-data USB installation succeeded; installed app metadata confirms CFBundleVersion 61. Physical gesture acceptance remains for the user.
+
+
+## 2026-10-02 Stretch artwork beyond full reveal
+
+User requested continued downward dragging to enlarge the image instead of exposing empty background between artwork and content. The image/video scales uniformly from top center only when panel top exceeds natural image height. It follows the same sheet extent during release restoration, with no separate lagging animation. Close and video controls remain outside the scaling layer. Tests use actual phone logical dimensions and verify equal X/Y scaling, image bottom meeting panel top, scale restoring to 1, and released-fling rebound. Targeted widget tests and analysis pass. Not yet installed on iPhone.

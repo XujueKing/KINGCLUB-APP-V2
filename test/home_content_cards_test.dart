@@ -31,6 +31,10 @@ void main() {
   testWidgets(
     'three content types form unequal columns and open the selected hero',
     (tester) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       await tester.binding.setSurfaceSize(const Size(393, 852));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final poster = HomeContent.parse(
@@ -120,10 +124,20 @@ void main() {
       await drag.moveBy(const Offset(0, 700));
       await tester.pump();
       expect(tester.getTopLeft(panel).dy, greaterThan(740));
+      final stretch = find.byKey(const ValueKey('home-detail-image-stretch'));
+      final matrix = tester.widget<Transform>(stretch).transform;
+      final imageHeight = 393 / article.ratio;
+      expect(matrix.entry(0, 0), greaterThan(1));
+      expect(matrix.entry(0, 0), matrix.entry(1, 1));
+      expect(
+        imageHeight * matrix.entry(1, 1),
+        closeTo(tester.getTopLeft(panel).dy, 1),
+      );
       await drag.up();
       await tester.pumpAndSettle();
       expect(tester.getTopLeft(panel).dy, closeTo(initialTop, 1));
       expect(tester.widget<Opacity>(shade).opacity, closeTo(0, .001));
+      expect(tester.widget<Transform>(stretch).transform.entry(0, 0), 1);
       // Release above the resting position: inertia crosses it afterwards.
       await tester.dragFrom(
         Offset(150, initialTop + 25),
