@@ -145,6 +145,17 @@ class _LocationMapPreviewState extends State<_LocationMapPreview> {
                 snapshot.data!,
                 fit: BoxFit.cover,
                 gaplessPlayback: true,
+                frameBuilder: (context, child, frame, synchronous) {
+                  if (synchronous) return child;
+                  return AnimatedOpacity(
+                    opacity: frame == null ? 0 : 1,
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    child: child,
+                  );
+                },
                 errorBuilder: (_, _, _) => const SizedBox.shrink(),
               ),
             Center(
@@ -168,15 +179,14 @@ class _LocationMapPreviewState extends State<_LocationMapPreview> {
                   style: const TextStyle(fontSize: 9, color: Colors.white70),
                 ),
               ),
-            if (snapshot.data == null)
+            if (snapshot.data == null &&
+                snapshot.connectionState == ConnectionState.done)
               Positioned(
                 left: 8,
                 right: 8,
                 bottom: 6,
                 child: Text(
-                  snapshot.connectionState == ConnectionState.done
-                      ? '点击查看位置'
-                      : '地图加载中',
+                  '点击查看位置',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 11,
