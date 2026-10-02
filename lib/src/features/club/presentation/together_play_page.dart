@@ -16,6 +16,18 @@ String togetherTimeRange(TogetherParty party) {
       '${sameDay ? '' : '${_date(party.endsAt)} '}${_time(party.endsAt)}';
 }
 
+String togetherCardTimeRange(TogetherParty party) {
+  final start = party.startsAt;
+  final end = party.endsAt;
+  final days = DateTime.utc(
+    end.year,
+    end.month,
+    end.day,
+  ).difference(DateTime.utc(start.year, start.month, start.day)).inDays;
+  if (days < 0 || days > 1) return togetherTimeRange(party);
+  return '${_date(start)} ${_time(start)}–${_time(end)}';
+}
+
 class TogetherPlayPage extends StatefulWidget {
   const TogetherPlayPage({
     super.key,
@@ -158,7 +170,12 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
                   ),
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                  padding: EdgeInsets.fromLTRB(
+                    MediaQuery.sizeOf(context).width * 30 / 750,
+                    16,
+                    MediaQuery.sizeOf(context).width * 30 / 750,
+                    28,
+                  ),
                   itemCount: _items.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 16),
                   itemBuilder: (_, index) => Column(
@@ -241,13 +258,13 @@ class TogetherPartyCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(height: 64, child: _logo()),
+                            SizedBox(height: 54, child: _logo()),
                             const Spacer(),
                             FittedBox(
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                togetherTimeRange(party),
+                                togetherCardTimeRange(party),
                                 style: togetherLegacyDateStyle(12, legacyPink),
                               ),
                             ),
@@ -293,7 +310,7 @@ class TogetherPartyCard extends StatelessWidget {
                                       FittedBox(
                                         fit: BoxFit.scaleDown,
                                         alignment: Alignment.centerRight,
-                                        child: _price(),
+                                        child: _price(context),
                                       ),
                                     ],
                                   ),
@@ -350,23 +367,35 @@ class TogetherPartyCard extends StatelessWidget {
     ),
   );
 
-  Widget _price() {
+  Widget _price(BuildContext context) {
     final parts = party.priceLabel.split('/');
-    return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(text: parts.first.replaceFirst('¥', '￥')),
-          if (parts.length > 1)
-            TextSpan(
-              text: '/${parts.last}',
-              style: const TextStyle(fontSize: 12),
-            ),
-        ],
-      ),
+    final span = TextSpan(
       style: togetherLegacyDateStyle(
         20,
         legacyPink,
       ).copyWith(fontWeight: FontWeight.w600),
+      children: [
+        TextSpan(text: parts.first.replaceFirst('¥', '￥')),
+        if (parts.length > 1)
+          TextSpan(
+            text: '/${parts.last}',
+            style: const TextStyle(fontSize: 12),
+          ),
+      ],
+    );
+    // Align the amount's baseline with the bottom of the uppercase artwork,
+    // rather than leaving the platform font's unused descender space below it.
+    final painter = TextPainter(
+      text: span,
+      textDirection: Directionality.of(context),
+      textScaler: TextScaler.noScaling,
+      locale: Localizations.maybeLocaleOf(context),
+    )..layout();
+    final descent = painter.computeLineMetrics().first.descent;
+    painter.dispose();
+    return Transform.translate(
+      offset: Offset(0, descent),
+      child: Text.rich(span, textScaler: TextScaler.noScaling),
     );
   }
 
@@ -386,13 +415,13 @@ class TogetherPartyCard extends StatelessWidget {
       return asset
           ? SvgPicture.asset(
               source,
-              width: 120,
+              width: 100,
               colorFilter: filter,
               semanticsLabel: party.storeName,
             )
           : SvgPicture.network(
               source,
-              width: 120,
+              width: 100,
               colorFilter: filter,
               semanticsLabel: party.storeName,
             );

@@ -375,6 +375,7 @@ void main() {
       '入场码',
     );
     expect(togetherTimeRange(free), '10.02 21:00–10.03 02:00');
+    expect(togetherCardTimeRange(free), '10.02 21:00–02:00');
   });
 
   testWidgets('date switch rejects late responses and other cities', (
