@@ -6,6 +6,28 @@ import 'package:kingclub/src/features/home/presentation/home_content_cards.dart'
 import 'home_content_repository_test.dart' show homeFixture;
 
 void main() {
+  test('card flight expands directly from either column and finishes before the sheet', () {
+    for (final left in [18.0, 201.0]) {
+      final origin = Rect.fromLTWH(left, 400, 174, 241);
+      const destination = Rect.fromLTWH(0, 0, 393, 545);
+      final tween = HomeContentRectTween(begin: origin, end: destination);
+      expect(tween.lerp(0), origin);
+      final mid = tween.lerp(150 / 700)!;
+      final fraction =
+          (mid.left - origin.left) / (destination.left - origin.left);
+      expect(mid.top, closeTo(origin.top * (1 - fraction), .001));
+      expect(
+        mid.width,
+        closeTo(
+          origin.width + (destination.width - origin.width) * fraction,
+          .001,
+        ),
+      );
+      expect(tween.lerp(300 / 700), destination);
+      expect(tween.lerp(1), destination);
+    }
+  });
+
   testWidgets(
     'three content types form unequal columns and open the selected hero',
     (tester) async {

@@ -39,6 +39,22 @@ class HomeContentImage extends StatelessWidget {
         );
 }
 
+// The mini-program expands the tapped image in 300ms, while its content
+// sheet rises over 700ms. Interpolate every edge directly, without a Hero arc.
+class HomeContentRectTween extends RectTween {
+  HomeContentRectTween({super.begin, super.end});
+
+  @override
+  Rect? lerp(double t) => Rect.lerp(
+    begin,
+    end,
+    const Interval(0, 300 / 700, curve: Curves.ease).transform(t),
+  );
+}
+
+RectTween _contentRectTween(Rect? begin, Rect? end) =>
+    HomeContentRectTween(begin: begin, end: end);
+
 class HomeContentMasonry extends StatelessWidget {
   const HomeContentMasonry({
     super.key,
@@ -127,6 +143,9 @@ class _ContentCard extends StatelessWidget {
           children: [
             Hero(
               tag: 'home-content-${content.ref}',
+              createRectTween: _contentRectTween,
+              flightShuttleBuilder: (context, animation, direction, from, to) =>
+                  HomeContentImage(content: content),
               transitionOnUserGestures: true,
               child: AspectRatio(
                 aspectRatio: content.ratio,
@@ -265,15 +284,16 @@ Future<void> openHomeContent(
   PageRouteBuilder(
     transitionDuration: MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
-        : const Duration(milliseconds: 300),
-    reverseTransitionDuration: const Duration(milliseconds: 300),
+        : const Duration(milliseconds: 700),
+    reverseTransitionDuration: MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 700),
     pageBuilder: (context, animation, secondary) => HomeContentDetailPage(
       content: content,
       onLike: () => onLike(content),
       animation: animation,
     ),
-    transitionsBuilder: (context, animation, secondary, child) =>
-        FadeTransition(opacity: animation, child: child),
+    transitionsBuilder: (context, animation, secondary, child) => child,
   ),
 );
 
@@ -322,14 +342,28 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
   Widget build(BuildContext context) {
     final content = widget.content;
     return Scaffold(
-      backgroundColor: const Color(0xFF101010),
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          Positioned.fill(
+            child: FadeTransition(
+              opacity: widget.animation,
+              child: const ColoredBox(color: Color(0xFF101010)),
+            ),
+          ),
           ListView(
             padding: EdgeInsets.zero,
             children: [
               Hero(
                 tag: 'home-content-${content.ref}',
+                createRectTween: _contentRectTween,
+                flightShuttleBuilder: (
+                  context,
+                  animation,
+                  direction,
+                  from,
+                  to,
+                ) => HomeContentImage(content: content),
                 child: AspectRatio(
                   aspectRatio: content.ratio,
                   child: Stack(
@@ -368,10 +402,15 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
                   ),
                 ),
               ),
-              FadeTransition(
-                opacity: CurvedAnimation(
-                  parent: widget.animation,
-                  curve: const Interval(.45, 1),
+              AnimatedBuilder(
+                animation: widget.animation,
+                builder: (context, child) => Transform.translate(
+                  offset: Offset(
+                    0,
+                    MediaQuery.sizeOf(context).height *
+                        (1 - Curves.ease.transform(widget.animation.value)),
+                  ),
+                  child: child,
                 ),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
@@ -422,10 +461,15 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
           Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
             left: 8,
-            child: IconButton.filledTonal(
-              tooltip: homeCopy(context, '关闭', 'Close', '關閉', 'ปิด'),
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.close),
+            child: FadeTransition(
+              opacity: widget.animation.drive(
+                CurveTween(curve: const Interval(300 / 700, 1)),
+              ),
+              child: IconButton.filledTonal(
+                tooltip: homeCopy(context, '关闭', 'Close', '關閉', 'ปิด'),
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
             ),
           ),
         ],
