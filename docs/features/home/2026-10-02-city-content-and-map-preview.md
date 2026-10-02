@@ -60,3 +60,8 @@
 - Build 60 user report: push content up, then pull down; content remains collapsed. Regression fails before the fix: pointer-up occurs above the resting position, and subsequent inertia crosses it without triggering restoration.
 - Observe extent changes after release and restore below the resting extent. Preserve full-image inspection while held. Reset restoration state when a new touch interrupts an animation, whose cancelled Future may never complete. Schedule a frame even when the user holds still before releasing.
 - Targeted widget tests and Flutter analysis pass. Covers inertial crossing, pull/release, and repeated interrupted returns. No new iPhone build or installation yet.
+
+
+### iPhone build 61 installed
+
+GitHub run 37002409041 built revision 140db6bea5519bc448b11cdd7bdb897d7a79ae4a successfully. Download integrity, bundle, provisioning device and build number verified. Preserving-data USB installation succeeded; installed app metadata confirms CFBundleVersion 61. Physical gesture acceptance remains for the user.
