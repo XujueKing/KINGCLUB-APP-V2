@@ -39,6 +39,24 @@ Map<String, dynamic> envelope(Map<String, dynamic> result) => {
 };
 void main() {
   test(
+    'detail background accepts editor hex colours with a legacy default',
+    () {
+      expect(HomeContent.parse(homeFixture()).backgroundColor, 0xFF000000);
+      for (final hex in ['#FFFFFF', '#934Ab2']) {
+        final row = homeFixture();
+        (row['document'] as Map)['backgroundColor'] = hex;
+        expect(
+          HomeContent.parse(row).backgroundColor,
+          0xFF000000 | int.parse(hex.substring(1), radix: 16),
+        );
+      }
+      final row = homeFixture();
+      (row['document'] as Map)['backgroundColor'] = 'url(private)';
+      expect(() => HomeContent.parse(row), throwsA(isA<AuthFailure>()));
+    },
+  );
+
+  test(
     'city echo, duplicate refs, private media and missing video are rejected',
     () async {
       var result = <String, dynamic>{

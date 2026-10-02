@@ -146,6 +146,8 @@ class _ContentCard extends StatelessWidget {
           children: [
             Hero(
               tag: 'home-content-${content.ref}',
+              curve: Curves.linear,
+              reverseCurve: Curves.linear,
               createRectTween: _contentRectTween,
               flightShuttleBuilder: (context, animation, direction, from, to) =>
                   HomeContentImage(content: content),
@@ -394,6 +396,12 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
     final content = widget.content;
     final size = MediaQuery.sizeOf(context);
     final imageHeight = size.width / content.ratio;
+    final background = Color(content.backgroundColor);
+    final foreground =
+        ThemeData.estimateBrightnessForColor(background) == Brightness.dark
+        ? Colors.white
+        : const Color(0xFF171717);
+    final secondaryText = foreground.withValues(alpha: .7);
     // Keep the poster overlap visual, but ensure content remains reachable
     // on short screens and with unusually tall artwork.
     final sheetTop = content.mode == 'poster'
@@ -413,7 +421,7 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
           Positioned.fill(
             child: FadeTransition(
               opacity: widget.animation,
-              child: const ColoredBox(color: Color(0xFF101010)),
+              child: ColoredBox(color: background),
             ),
           ),
           Positioned(
@@ -422,6 +430,8 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
             right: 0,
             child: Hero(
               tag: 'home-content-${content.ref}',
+              curve: Curves.linear,
+              reverseCurve: Curves.linear,
               createRectTween: _contentRectTween,
               flightShuttleBuilder: (context, animation, direction, from, to) =>
                   HomeContentImage(content: content),
@@ -490,7 +500,7 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
                   ),
                   child: ColoredBox(
                     key: const ValueKey('home-detail-panel'),
-                    color: Colors.black,
+                    color: background,
                     child: SingleChildScrollView(
                       key: const ValueKey('home-detail-scroll'),
                       controller: scrollController,
@@ -498,8 +508,8 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
                       child: Container(
                         key: const ValueKey('home-detail-sheet'),
 
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
+                        decoration: BoxDecoration(
+                          color: background,
                           borderRadius: BorderRadius.vertical(
                             top: Radius.circular(14),
                           ),
@@ -515,8 +525,8 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
                           children: [
                             Text(
                               content.copy(content.titles, homeLocale(context)),
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: foreground,
                                 fontSize: 22,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -525,7 +535,7 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
                               const SizedBox(height: 12),
                               Text(
                                 content.author!,
-                                style: const TextStyle(color: Colors.white60),
+                                style: TextStyle(color: secondaryText),
                               ),
                             ],
                             if (content
@@ -537,8 +547,8 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
                                   content.descriptions,
                                   homeLocale(context),
                                 ),
-                                style: const TextStyle(
-                                  color: Color(0xFFCCCCCC),
+                                style: TextStyle(
+                                  color: secondaryText,
                                   fontSize: 16,
                                   height: 1.6,
                                 ),

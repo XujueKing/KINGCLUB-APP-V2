@@ -36,7 +36,9 @@ void main() {
       final poster = HomeContent.parse(
         homeFixture(ref: 'poster', mode: 'poster'),
       );
-      final article = HomeContent.parse(homeFixture(ref: 'article'));
+      final articleRow = homeFixture(ref: 'article');
+      (articleRow['document'] as Map)['backgroundColor'] = '#FFFFFF';
+      final article = HomeContent.parse(articleRow);
       final video = HomeContent.parse(homeFixture(ref: 'video', mode: 'video'));
       await tester.pumpWidget(
         MaterialApp(
@@ -72,6 +74,9 @@ void main() {
         (w) => w is Hero && w.tag == 'home-content-article',
       );
       expect(flight, findsWidgets);
+      for (final hero in tester.widgetList<Hero>(flight)) {
+        expect(hero.curve, Curves.linear);
+      }
       await tester.pumpAndSettle();
       expect(find.byType(HomeContentDetailPage), findsOneWidget);
       expect(
@@ -79,6 +84,20 @@ void main() {
         393,
       );
       expect(find.text('Fixture body'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.text('Fixture body'))
+            .style!
+            .color!
+            .computeLuminance(),
+        lessThan(.5),
+      );
+      expect(
+        tester
+            .widget<ColoredBox>(find.byKey(const ValueKey('home-detail-panel')))
+            .color,
+        Colors.white,
+      );
       final panel = find.byKey(const ValueKey('home-detail-panel'));
       final initialTop = tester.getTopLeft(panel).dy;
       await tester.dragFrom(

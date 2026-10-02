@@ -48,6 +48,14 @@ Map<String, String> _localized(dynamic value) {
   };
 }
 
+int _background(dynamic value) {
+  if (value == null) return 0xFF000000;
+  if (value is! String || !RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)) {
+    _invalid();
+  }
+  return 0xFF000000 | int.parse(value.substring(1), radix: 16);
+}
+
 class HomeContent {
   HomeContent({
     required this.ref,
@@ -58,6 +66,7 @@ class HomeContent {
     required this.titles,
     required this.descriptions,
     this.revision = 1,
+    this.backgroundColor = 0xFF000000,
     this.video,
     this.author,
     this.avatar,
@@ -68,6 +77,7 @@ class HomeContent {
   final Map<String, String> titles, descriptions;
   final double ratio;
   final int revision;
+  final int backgroundColor;
   final String? video, author, avatar;
   int likeCount;
   bool liked;
@@ -104,6 +114,7 @@ class HomeContent {
       mode: mode,
       cover: homeMedia(doc['cover']),
       ratio: ratio.toDouble(),
+      backgroundColor: _background(doc['backgroundColor']),
       revision: revision,
       titles: _localized(doc['titles']),
       descriptions: _localized(doc['descriptions']),
