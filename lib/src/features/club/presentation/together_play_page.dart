@@ -236,49 +236,34 @@ class TogetherPartyCard extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
+                      SizedBox(
+                        width: 135,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(height: 23, child: _logo()),
-                            const SizedBox(height: 3),
-                            Text(
-                              party.theme,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                height: 1.12,
-                              ),
-                            ),
+                            SizedBox(height: 64, child: _logo()),
                             const Spacer(),
                             FittedBox(
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
                               child: Text(
                                 togetherTimeRange(party),
-                                style: togetherLegacyDateStyle(11, legacyPink),
+                                style: togetherLegacyDateStyle(12, legacyPink),
                               ),
                             ),
-                            const SizedBox(height: 3),
-                            Text(
-                              party.storeName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: legacyPink,
-                                fontSize: 10,
-                                height: 1,
-                              ),
+                            const SizedBox(height: 4),
+                            Image.asset(
+                              'assets/legacy/aa/positioningCard.png',
+                              width: 135,
+                              height: 18,
+                              fit: BoxFit.contain,
+                              semanticLabel: 'POSITIONING CARD',
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 10),
-                      SizedBox(
-                        width: 138,
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -292,39 +277,28 @@ class TogetherPartyCard extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          party.feeLabel,
-                                          style: const TextStyle(
-                                            color: legacyPink,
-                                            fontSize: 10,
-                                            height: 1.2,
-                                          ),
+                                      Text(
+                                        party.theme,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.right,
+                                        style: togetherLegacyDateStyle(
+                                          13,
+                                          legacyPink,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
                                       FittedBox(
                                         fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          party.priceLabel,
-                                          style: const TextStyle(
-                                            color: legacyPink,
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w600,
-                                            height: 1,
-                                          ),
-                                        ),
+                                        alignment: Alignment.centerRight,
+                                        child: _price(),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 10),
                                 if (party.actionState ==
                                     TogetherJoinState.joined)
                                   const Icon(
@@ -376,6 +350,26 @@ class TogetherPartyCard extends StatelessWidget {
     ),
   );
 
+  Widget _price() {
+    final parts = party.priceLabel.split('/');
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: parts.first.replaceFirst('¥', '￥')),
+          if (parts.length > 1)
+            TextSpan(
+              text: '/${parts.last}',
+              style: const TextStyle(fontSize: 12),
+            ),
+        ],
+      ),
+      style: togetherLegacyDateStyle(
+        20,
+        legacyPink,
+      ).copyWith(fontWeight: FontWeight.w600),
+    );
+  }
+
   Widget _logo() {
     final source = party.storeLogo;
     if (source == null || source.isEmpty) {
@@ -392,13 +386,13 @@ class TogetherPartyCard extends StatelessWidget {
       return asset
           ? SvgPicture.asset(
               source,
-              width: 44,
+              width: 120,
               colorFilter: filter,
               semanticsLabel: party.storeName,
             )
           : SvgPicture.network(
               source,
-              width: 44,
+              width: 120,
               colorFilter: filter,
               semanticsLabel: party.storeName,
             );
