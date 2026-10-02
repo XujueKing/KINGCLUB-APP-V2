@@ -111,6 +111,29 @@ void main() {
       expect(() => result.orders.clear(), throwsUnsupportedError);
     },
   );
+  test(
+    'partial refund preserves gross and excludes returned units from delivery',
+    () {
+      final raw = orderFixture()
+        ..addAll({
+          'status': 'paid',
+          'refundedCents': 1000,
+          'refundedAt': '2030-01-01T01:00:00.000Z',
+        });
+      (raw['items'] as List).first['refundedQuantity'] = 1;
+      final order = MemberOrder.parse(raw);
+      expect(order.totalCents, 2000);
+      expect(order.netPaidCents, 1000);
+      expect(order.fullyRefunded, isFalse);
+      expect(order.items.single.activeQuantity, 1);
+      expect(order.items.single.remainingQuantity, 0);
+      (raw['items'] as List).first['servedQuantity'] = 2;
+      expect(() => MemberOrder.parse(raw), throwsA(isA<AuthFailure>()));
+      (raw['items'] as List).first['servedQuantity'] = 1;
+      (raw['items'] as List).first.remove('refundedQuantity');
+      expect(() => MemberOrder.parse(raw), throwsA(isA<AuthFailure>()));
+    },
+  );
   test('retains paid total separately from refund', () {
     final order = orderFixture()
       ..addAll({

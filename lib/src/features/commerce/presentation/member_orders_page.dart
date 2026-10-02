@@ -220,7 +220,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
   }
 
   String status(MemberOrder order) => order.refundedCents > 0
-      ? t('refunded')
+      ? t(order.fullyRefunded ? 'refunded' : 'partialRefund')
       : order.status == 'paid'
       ? t('paid')
       : order.status == 'expired'
@@ -228,6 +228,15 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
       : order.paymentTiming == 'postpay'
       ? t('postpayPending')
       : t('prepayPending');
+  String deliveryText(MemberOrder order, MemberOrderItem item) {
+    if (order.fullyRefunded) return '${t('returned')} ${item.quantity}';
+    if ((item.refundedQuantity ?? 0) == 0) {
+      return '${t('served')} ${item.servedQuantity}/${item.quantity}';
+    }
+    return '${t('served')} ${item.servedQuantity}/${item.activeQuantity} · '
+        '${t('unserved')} ${item.remainingQuantity} · ${t('returned')} ${item.refundedQuantity}';
+  }
+
   Widget orderCard(MemberOrder order) {
     final detail = widget.orderRef != null;
     if (detail) return orderReceipt(order);
@@ -312,7 +321,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                           ),
                         ),
                         Text(
-                          '${t('served')} ${item.servedQuantity}/${item.quantity}',
+                          deliveryText(order, item),
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 12,
@@ -357,7 +366,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    '${t('refunded')} ${money(order.refundedCents)}',
+                    '${t('refunded')} ${money(order.refundedCents)} · ${t('netPaid')} ${money(order.netPaidCents)}',
                     style: const TextStyle(color: Colors.white70),
                   ),
                 ),
@@ -470,6 +479,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
               field(t('orderNumber'), order.orderRef),
               if (order.refundedCents > 0) ...[
                 field(t('refunded'), money(order.refundedCents)),
+                field(t('netPaid'), money(order.netPaidCents)),
                 if (order.refundedAt != null)
                   field(t('refundedAt'), date(order.refundedAt!)),
               ],
@@ -531,7 +541,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                     children: [
                       Expanded(
                         child: Text(
-                          '${t('served')} ${item.servedQuantity}/${item.quantity}',
+                          deliveryText(order, item),
                           style: const TextStyle(
                             color: Color(0x80FFFFFF),
                             fontSize: 12,
@@ -653,6 +663,10 @@ const _copy = {
   'paid': '已支付|Paid|已支付|ชำระแล้ว',
   'expired': '已失效|Expired|已失效|หมดอายุ',
   'refunded': '已退款|Refunded|已退款|คืนเงินแล้ว',
+  'partialRefund': '部分退款|Partially refunded|部分退款|คืนเงินบางส่วน',
+  'returned': '已退|Returned|已退|คืนแล้ว',
+  'unserved': '未上|Unserved|未上|ยังไม่เสิร์ฟ',
+  'netPaid': '剩余实收|Net paid|剩餘實收|ยอดรับสุทธิ',
   'served': '已上|Served|已上|เสิร์ฟแล้ว',
   'total': '合计|Total|合計|รวม',
   'orderNumber': '订单号|Order number|訂單號|เลขคำสั่งซื้อ',

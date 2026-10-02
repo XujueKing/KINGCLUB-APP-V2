@@ -12,6 +12,34 @@ import 'member_orders_repository_test.dart' as data;
 MemberOrdersSnapshot snapshot() =>
     MemberOrdersSnapshot.parse(data.pageFixture());
 void main() {
+  testWidgets(
+    'partial refund shows retained payment and only active delivery units',
+    (tester) async {
+      final raw = data.orderFixture()
+        ..addAll({
+          'status': 'paid',
+          'refundedCents': 1000,
+          'refundedAt': '2030-01-01T01:00:00.000Z',
+        });
+      (raw['items'] as List).first['refundedQuantity'] = 1;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MemberOrdersPage(
+            onBack: () {},
+            events: const Stream.empty(),
+            expandItems: true,
+            load: ({orderRef, beforeOrder}) async =>
+                MemberOrdersSnapshot.parse(data.pageFixture(orders: [raw])),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Partially refunded'), findsOneWidget);
+      expect(find.text('Served 1/1 · Unserved 0 · Returned 1'), findsOneWidget);
+      expect(find.textContaining('Net paid'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('session change invalidates an older response before rereading', (
     tester,
   ) async {

@@ -48,22 +48,29 @@ class MemberOrderItem {
     this.quantity,
     this.priceCents,
     this.servedQuantity,
+    this.refundedQuantity,
     this.names,
     this.specifications,
   );
   final String productRef;
   final int quantity, priceCents, servedQuantity;
   final Map<String, String> names, specifications;
-  int get remainingQuantity => quantity - servedQuantity;
+  final int? refundedQuantity;
+  int get activeQuantity => quantity - (refundedQuantity ?? 0);
+  int get remainingQuantity => activeQuantity - servedQuantity;
   factory MemberOrderItem.parse(dynamic raw) {
     final value = _map(raw), snapshot = _map(value['snapshot']);
     final quantity = _integer(value['quantity'], 1000, 1);
+    final refunded = value['refundedQuantity'] == null
+        ? null
+        : _integer(value['refundedQuantity'], quantity);
     _integer(snapshot['revision'], 4294967295, 1);
     return MemberOrderItem._(
       _text(value['productRef'], pattern: _ref),
       quantity,
       _integer(value['priceCents'], 100000000, 1),
-      _integer(value['servedQuantity'], quantity),
+      _integer(value['servedQuantity'], quantity - (refunded ?? 0)),
+      refunded,
       _localized(snapshot['names']),
       _localized(snapshot['specifications']),
     );
@@ -103,6 +110,8 @@ class MemberOrder {
   final DateTime createdAt;
   final DateTime? expiresAt, refundedAt;
   final List<MemberOrderItem> items;
+  bool get fullyRefunded => refundedCents == totalCents;
+  int get netPaidCents => status == 'paid' ? totalCents - refundedCents : 0;
   factory MemberOrder.parse(dynamic raw) {
     final value = _map(raw);
     final source = _enum(value['source'], {'cashier', 'app'});
@@ -117,8 +126,7 @@ class MemberOrder {
         ? null
         : _date(value['expiresAt']);
     if ((refunded == 0) != (refundedAt == null) ||
-        (refunded > 0 &&
-            (source != 'cashier' || status != 'paid' || refunded != total)) ||
+        (refunded > 0 && (source != 'cashier' || status != 'paid')) ||
         (status == 'pending' && timing == 'prepay' && expires == null)) {
       _invalid();
     }
@@ -133,6 +141,18 @@ class MemberOrder {
               (sum, item) => sum + item.priceCents * item.quantity,
             ) !=
             total) {
+      _invalid();
+    }
+    final hasQuantities = items.any((item) => item.refundedQuantity != null);
+    if ((refunded > 0 && refunded < total && !hasQuantities) ||
+        (hasQuantities &&
+            (items.any((item) => item.refundedQuantity == null) ||
+                items.fold<int>(
+                      0,
+                      (sum, item) =>
+                          sum + item.priceCents * item.refundedQuantity!,
+                    ) !=
+                    refunded))) {
       _invalid();
     }
     return MemberOrder._(
