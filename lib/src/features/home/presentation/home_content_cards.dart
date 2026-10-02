@@ -319,6 +319,8 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
   Timer? _playTimer;
   late final AnimationController _sheet;
   bool _sheetStarted = false;
+  final _dragSheet = DraggableScrollableController();
+  bool _restoringSheet = false;
   bool _playing = false, _foreground = true;
   @override
   void initState() {
@@ -357,8 +359,33 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
   void dispose() {
     _playTimer?.cancel();
     _sheet.dispose();
+    _dragSheet.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _restoreSheet(double initialExtent) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted ||
+          !_dragSheet.isAttached ||
+          _restoringSheet ||
+          _dragSheet.size >= initialExtent - .001)
+        return;
+      _restoringSheet = true;
+      try {
+        if (MediaQuery.disableAnimationsOf(context)) {
+          _dragSheet.jumpTo(initialExtent);
+        } else {
+          await _dragSheet.animateTo(
+            initialExtent,
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      } finally {
+        _restoringSheet = false;
+      }
+    });
   }
 
   @override
@@ -371,6 +398,12 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
     final sheetTop = content.mode == 'poster'
         ? (imageHeight * .6).clamp(0.0, size.height * .55)
         : imageHeight;
+    final initialExtent = (1 - sheetTop / size.height).clamp(.12, .9);
+    final maxExtent =
+        (1 - (MediaQuery.paddingOf(context).top + 56) / size.height).clamp(
+          .9,
+          .98,
+        );
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -442,81 +475,114 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
               ),
               child: child,
             ),
-            child: DraggableScrollableSheet(
-              initialChildSize: (1 - sheetTop / size.height).clamp(.12, .9),
-              minChildSize: .08,
-              maxChildSize:
-                  (1 - (MediaQuery.paddingOf(context).top + 56) / size.height)
-                      .clamp(.9, .98),
-              builder: (context, scrollController) => ClipRRect(
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(26 * size.width / 750),
-                ),
-                child: ColoredBox(
-                  key: const ValueKey('home-detail-panel'),
-                  color: Colors.black,
-                  child: SingleChildScrollView(
-                    key: const ValueKey('home-detail-scroll'),
-                    controller: scrollController,
-                    physics: const ClampingScrollPhysics(),
-                    child: Container(
-                      key: const ValueKey('home-detail-sheet'),
+            child: Listener(
+              onPointerUp: (_) => _restoreSheet(initialExtent),
+              onPointerCancel: (_) => _restoreSheet(initialExtent),
+              child: DraggableScrollableSheet(
+                controller: _dragSheet,
+                initialChildSize: initialExtent,
+                minChildSize: .08,
+                maxChildSize: maxExtent,
+                builder: (context, scrollController) => ClipRRect(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(26 * size.width / 750),
+                  ),
+                  child: ColoredBox(
+                    key: const ValueKey('home-detail-panel'),
+                    color: Colors.black,
+                    child: SingleChildScrollView(
+                      key: const ValueKey('home-detail-scroll'),
+                      controller: scrollController,
+                      physics: const ClampingScrollPhysics(),
+                      child: Container(
+                        key: const ValueKey('home-detail-sheet'),
 
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(14),
+                        decoration: const BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(14),
+                          ),
+                        ),
+                        padding: EdgeInsets.fromLTRB(
+                          20,
+                          26,
+                          20,
+                          24 + MediaQuery.paddingOf(context).bottom,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              content.copy(content.titles, homeLocale(context)),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (content.author != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                content.author!,
+                                style: const TextStyle(color: Colors.white60),
+                              ),
+                            ],
+                            if (content
+                                .copy(content.descriptions, homeLocale(context))
+                                .isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              Text(
+                                content.copy(
+                                  content.descriptions,
+                                  homeLocale(context),
+                                ),
+                                style: const TextStyle(
+                                  color: Color(0xFFCCCCCC),
+                                  fontSize: 16,
+                                  height: 1.6,
+                                ),
+                              ),
+                            ],
+                            if (content.placement == 'card') ...[
+                              const SizedBox(height: 20),
+                              HomeLikeButton(
+                                content: content,
+                                onTap: widget.onLike,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      padding: EdgeInsets.fromLTRB(
-                        20,
-                        26,
-                        20,
-                        24 + MediaQuery.paddingOf(context).bottom,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            content.copy(content.titles, homeLocale(context)),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (content.author != null) ...[
-                            const SizedBox(height: 12),
-                            Text(
-                              content.author!,
-                              style: const TextStyle(color: Colors.white60),
-                            ),
-                          ],
-                          if (content
-                              .copy(content.descriptions, homeLocale(context))
-                              .isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            Text(
-                              content.copy(
-                                content.descriptions,
-                                homeLocale(context),
-                              ),
-                              style: const TextStyle(
-                                color: Color(0xFFCCCCCC),
-                                fontSize: 16,
-                                height: 1.6,
-                              ),
-                            ),
-                          ],
-                          if (content.placement == 'card') ...[
-                            const SizedBox(height: 20),
-                            HomeLikeButton(
-                              content: content,
-                              onTap: widget.onLike,
-                            ),
-                          ],
-                        ],
-                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: MediaQuery.paddingOf(context).top + 112,
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _dragSheet,
+                builder: (context, child) => Opacity(
+                  key: const ValueKey('home-detail-header-shade'),
+                  opacity: _dragSheet.isAttached && maxExtent > initialExtent
+                      ? ((_dragSheet.size - initialExtent) /
+                                (maxExtent - initialExtent))
+                            .clamp(0.0, 1.0)
+                      : 0,
+                  child: child,
+                ),
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.black, Colors.black, Colors.transparent],
+                      stops: [0, .6, 1],
                     ),
                   ),
                 ),
@@ -528,14 +594,14 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
                 MediaQuery.paddingOf(context).top +
                 8 -
                 (44 - 50 * size.width / 750) / 2,
-            right: 40 * size.width / 750 - (44 - 50 * size.width / 750) / 2,
+            left: 40 * size.width / 750 - (44 - 50 * size.width / 750) / 2,
             child: FadeTransition(
               opacity: widget.animation.drive(CurveTween(curve: Curves.ease)),
               child: Tooltip(
                 message: homeCopy(context, '关闭', 'Close', '關閉', 'ปิด'),
                 child: Semantics(
                   button: true,
-                  label: homeCopy(context, '??', 'Close', '??', '???'),
+                  label: homeCopy(context, '关闭', 'Close', '關閉', 'ปิด'),
                   child: GestureDetector(
                     key: const ValueKey('home-detail-close'),
                     behavior: HitTestBehavior.opaque,

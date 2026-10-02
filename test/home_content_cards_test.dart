@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/home/data/home_content_repository.dart';
 import 'package:kingclub/src/features/home/presentation/home_content_cards.dart';
@@ -87,12 +87,24 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.getTopLeft(panel).dy, lessThan(initialTop - 80));
-      await tester.dragFrom(
-        Offset(150, tester.getTopLeft(panel).dy + 25),
-        const Offset(0, 700),
+      final shade = find.byKey(const ValueKey('home-detail-header-shade'));
+      expect(tester.widget<Opacity>(shade).opacity, greaterThan(0));
+      expect(
+        tester.getCenter(find.byKey(const ValueKey('home-detail-close'))).dx,
+        lessThan(393 / 4),
       );
-      await tester.pumpAndSettle();
+      final drag = await tester.startGesture(
+        Offset(150, tester.getTopLeft(panel).dy + 25),
+      );
+      await drag.moveBy(const Offset(0, 30));
+      await tester.pump();
+      await drag.moveBy(const Offset(0, 700));
+      await tester.pump();
       expect(tester.getTopLeft(panel).dy, greaterThan(740));
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(panel).dy, closeTo(initialTop, 1));
+      expect(tester.widget<Opacity>(shade).opacity, closeTo(0, .001));
       expect(find.byKey(const ValueKey('home-detail-close')), findsOneWidget);
 
       await tester.tap(find.byTooltip('Close'));
@@ -105,3 +117,4 @@ void main() {
     },
   );
 }
+
