@@ -84,6 +84,33 @@ class HomeCityCatalog {
     return null;
   }
 
+  bool selectable(HomeCity city) {
+    if (city.code.startsWith('INT_') ||
+        {
+          '110000',
+          '120000',
+          '310000',
+          '500000',
+          '810000',
+          '820000',
+        }.contains(city.code)) {
+      return true;
+    }
+    return city.code.endsWith('00') &&
+        !city.code.endsWith('0000') &&
+        !city.name.endsWith('县') &&
+        !(city.name.endsWith('区') && !city.name.endsWith('地区')) &&
+        !city.name.contains('行政区划') &&
+        !city.name.contains('行政单位');
+  }
+
+  HomeCity? namedCity(String? name) {
+    final raw = named(name);
+    if (raw == null) return null;
+    final city = parent(raw);
+    return selectable(city) ? city : null;
+  }
+
   HomeCity parent(HomeCity city) {
     if (city.code.startsWith('INT_') || city.code.endsWith('0000')) return city;
     final municipality = '${city.code.substring(0, 2)}0000';
@@ -96,12 +123,13 @@ class HomeCityCatalog {
   List<HomeCity> related(HomeCity city) {
     if (city.code.startsWith('INT_')) return [];
     final p = parent(city);
-    final prefix = p.code.endsWith('0000')
-        ? p.code.substring(0, 2)
-        : p.code.substring(0, 4);
+    final prefix = p.code.substring(0, 2);
     return cities
-        .where((c) => c.code.startsWith(prefix) && !c.code.endsWith('00'))
-        .toList();
+        .where(
+          (c) => c.code.startsWith(prefix) && c.code != p.code && selectable(c),
+        )
+        .toList()
+      ..sort((a, b) => a.pinyin.compareTo(b.pinyin));
   }
 
   List<HomeCity> popular(bool international) {
@@ -133,17 +161,8 @@ class HomeCityCatalog {
           .where(
             (c) =>
                 c.international == international &&
-                (query.isNotEmpty
-                    ? c.matches(query)
-                    : c.code.startsWith('INT_') ||
-                          !c.code.endsWith('0000') ||
-                          c.international ||
-                          {
-                            '110000',
-                            '120000',
-                            '310000',
-                            '500000',
-                          }.contains(c.code)),
+                selectable(c) &&
+                c.matches(query),
           )
           .toList()
         ..sort((a, b) => a.pinyin.compareTo(b.pinyin));

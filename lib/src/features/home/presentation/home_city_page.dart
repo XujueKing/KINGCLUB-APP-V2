@@ -148,7 +148,8 @@ class _HomeCityPageState extends State<HomeCityPage> {
       ?widget.located,
       for (final code in _history)
         if (widget.catalog.byCode[code] case final c?)
-          if (code != widget.located?.code) c,
+          if (widget.catalog.selectable(c))
+            if (code != widget.located?.code) c,
     ].where((c) => c.international == _international).take(8).toList();
     final related = widget.current == null
         ? <HomeCity>[]
@@ -175,10 +176,10 @@ class _HomeCityPageState extends State<HomeCityPage> {
                       maxLength: 100,
                       hint: homeCopy(
                         context,
-                        '搜索城市/区县',
-                        'Search cities / districts',
-                        '搜尋城市/區縣',
-                        'ค้นหาเมือง / เขต',
+                        '搜索城市',
+                        'Search cities',
+                        '搜尋城市',
+                        'ค้นหาเมือง',
                       ),
                       onClear: () {
                         _input.clear();
@@ -268,10 +269,10 @@ class _HomeCityPageState extends State<HomeCityPage> {
                         child: _section(
                           homeCopy(
                             context,
-                            '${widget.catalog.parent(widget.current!).shortName}的相关市/区/县',
-                            'Related cities / districts',
-                            '相關市/區/縣',
-                            'เมือง / เขตที่เกี่ยวข้อง',
+                            '同省城市',
+                            'Cities in the same province',
+                            '同省城市',
+                            'เมืองในจังหวัดเดียวกัน',
                           ),
                           _chips(
                             _expanded ? related : related.take(4).toList(),

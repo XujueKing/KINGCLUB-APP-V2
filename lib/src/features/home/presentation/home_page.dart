@@ -93,7 +93,8 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     setState(() {
       _cityCatalog = catalog;
-      _selectedCity = catalog.named(_city);
+      _selectedCity = catalog.namedCity(_city);
+      _city = _selectedCity?.name ?? _city;
     });
     unawaited(_loadContent());
   }
@@ -108,7 +109,8 @@ class _HomePageState extends State<HomePage> {
         _locatedCity = city;
         if (!_citySelected) {
           _city = city;
-          _selectedCity = _cityCatalog?.named(city);
+          _selectedCity = _cityCatalog?.namedCity(city);
+          _city = _selectedCity?.name ?? city;
         }
       });
       unawaited(_loadContent());
@@ -187,7 +189,7 @@ class _HomePageState extends State<HomePage> {
         builder: (_) => HomeCityPage(
           catalog: catalog,
           current: _selectedCity,
-          located: catalog.named(_locatedCity),
+          located: catalog.namedCity(_locatedCity),
         ),
       ),
     );
