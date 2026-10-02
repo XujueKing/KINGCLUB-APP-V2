@@ -251,21 +251,22 @@ class TogetherPartyCard extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(15, 10, 12.5, 10),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       SizedBox(
                         width: 135,
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(height: 54, child: _logo()),
-                            const Spacer(),
+                            SizedBox(height: 45, child: _logo()),
+                            const SizedBox(height: 7.5),
                             FittedBox(
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
                               child: Text(
                                 togetherCardTimeRange(party),
-                                style: togetherLegacyDateStyle(12, legacyPink),
+                                style: _ticketStyle(context, 12),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -282,18 +283,20 @@ class TogetherPartyCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             TogetherParticipants(
                               party: party,
                               showCount: false,
                             ),
-                            const Spacer(),
+                            const SizedBox(height: 5),
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Expanded(
                                   child: Column(
+                                    mainAxisSize: MainAxisSize.min,
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
@@ -301,12 +304,8 @@ class TogetherPartyCard extends StatelessWidget {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         textAlign: TextAlign.right,
-                                        style: togetherLegacyDateStyle(
-                                          13,
-                                          legacyPink,
-                                        ),
+                                        style: _ticketStyle(context, 13),
                                       ),
-                                      const SizedBox(height: 4),
                                       FittedBox(
                                         fit: BoxFit.scaleDown,
                                         alignment: Alignment.centerRight,
@@ -318,10 +317,15 @@ class TogetherPartyCard extends StatelessWidget {
                                 const SizedBox(width: 10),
                                 if (party.actionState ==
                                     TogetherJoinState.joined)
-                                  const Icon(
-                                    Icons.qr_code_2,
-                                    size: 40,
+                                  Image.asset(
+                                    'assets/legacy/aa/qrcode2.png',
+                                    key: const ValueKey(
+                                      'together-admission-icon',
+                                    ),
+                                    width: 40,
+                                    height: 40,
                                     color: Colors.white,
+                                    colorBlendMode: BlendMode.srcIn,
                                     semanticLabel: '入场码',
                                   )
                                 else
@@ -367,13 +371,21 @@ class TogetherPartyCard extends StatelessWidget {
     ),
   );
 
+  // The old global view rule sets gold; the ticket's inherited pink applies
+  // to image artwork, not to these view text nodes. Keep the platform family
+  // explicitly while discarding Material's extra tracking and line spacing.
+  TextStyle _ticketStyle(BuildContext context, double size) {
+    final platformStyle = Theme.of(context).textTheme.bodyMedium;
+    return togetherLegacyDateStyle(size, legacyGold).copyWith(
+      fontFamily: platformStyle?.fontFamily,
+      fontFamilyFallback: platformStyle?.fontFamilyFallback,
+    );
+  }
+
   Widget _price(BuildContext context) {
     final parts = party.priceLabel.split('/');
     final span = TextSpan(
-      style: togetherLegacyDateStyle(
-        20,
-        legacyPink,
-      ).copyWith(fontWeight: FontWeight.w600),
+      style: _ticketStyle(context, 20).copyWith(fontWeight: FontWeight.w600),
       children: [
         TextSpan(text: parts.first.replaceFirst('¥', '￥')),
         if (parts.length > 1)
@@ -383,20 +395,7 @@ class TogetherPartyCard extends StatelessWidget {
           ),
       ],
     );
-    // Align the amount's baseline with the bottom of the uppercase artwork,
-    // rather than leaving the platform font's unused descender space below it.
-    final painter = TextPainter(
-      text: span,
-      textDirection: Directionality.of(context),
-      textScaler: TextScaler.noScaling,
-      locale: Localizations.maybeLocaleOf(context),
-    )..layout();
-    final descent = painter.computeLineMetrics().first.descent;
-    painter.dispose();
-    return Transform.translate(
-      offset: Offset(0, descent),
-      child: Text.rich(span, textScaler: TextScaler.noScaling),
-    );
+    return Text.rich(span, textScaler: TextScaler.noScaling);
   }
 
   Widget _logo() {
@@ -415,13 +414,13 @@ class TogetherPartyCard extends StatelessWidget {
       return asset
           ? SvgPicture.asset(
               source,
-              width: 100,
+              width: 80,
               colorFilter: filter,
               semanticsLabel: party.storeName,
             )
           : SvgPicture.network(
               source,
-              width: 100,
+              width: 80,
               colorFilter: filter,
               semanticsLabel: party.storeName,
             );

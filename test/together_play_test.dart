@@ -448,7 +448,10 @@ void main() {
           ),
         ),
       );
-      expect(find.byIcon(Icons.qr_code_2), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('together-admission-icon')),
+        findsOneWidget,
+      );
       expect(find.text('抢定'), findsNothing);
       expect(tester.takeException(), isNull);
     },
