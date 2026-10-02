@@ -995,11 +995,11 @@ class AaReservationsRoute extends GoRouteData with $AaReservationsRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    final canPop = context.canPop();
-    void back() => canPop ? context.pop() : const AppShellRoute().go(context);
+    void back() =>
+        context.canPop() ? context.pop() : const AppShellRoute().go(context);
 
     return PopScope<void>(
-      canPop: canPop,
+      canPop: true,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) const AppShellRoute().go(context);
       },

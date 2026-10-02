@@ -137,7 +137,13 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
           ),
         ),
         SizedBox(
-          height: 76,
+          height:
+              76 +
+              (MediaQuery.textScalerOf(context).scale(33) - 33).clamp(
+                    0,
+                    double.infinity,
+                  ) *
+                  1.3,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
             scrollDirection: Axis.horizontal,
@@ -188,6 +194,7 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
                           softWrap: false,
                           style: TextStyle(
                             fontSize: 13,
+                            height: 1.3,
                             color: selected ? Colors.black : legacyGold,
                           ),
                         ),
@@ -197,6 +204,7 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
                           softWrap: false,
                           style: TextStyle(
                             fontSize: 20,
+                            height: 1.3,
                             color: selected ? Colors.black : legacyGold,
                           ),
                         ),

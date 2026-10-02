@@ -8,6 +8,8 @@ import 'package:kingclub/src/core/networking/kingclub_secure_client.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/auth/data/auth_repository_provider.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
+import 'package:kingclub/src/features/club/presentation/together_review_page.dart';
+import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/navigation/app_router.dart';
 import 'package:kingclub/src/navigation/live_feature_gate.dart';
 import 'package:kingclub/src/navigation/unavailable_feature_page.dart';
@@ -32,7 +34,6 @@ void main() {
     '/commerce/orders',
     '/commerce/orders/detail?orderRef=fixture',
     '/commerce/payment', // Deliberately no typed extra.
-    '/club/aa',
     '/club/aa/positioning-card',
     '/club/parties',
     '/club/parties/create?date=2026-09-29',
@@ -53,6 +54,7 @@ void main() {
     }
     for (final path in [
       '/home',
+      '/club/aa',
       '/me/settings',
       '/auth/mobile',
       '/messages/contacts',
@@ -74,6 +76,10 @@ void main() {
     testWidgets(
       'real mode guards all demo routes before building: repository=$useRealRepository',
       (tester) async {
+        tester.view.physicalSize = const Size(393, 852);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
         final container = ProviderContainer(
           overrides: [
             if (useRealRepository)
@@ -120,6 +126,27 @@ void main() {
           );
           expect(tester.takeException(), isNull, reason: path);
         }
+        // Exercise the actual typed entry with the same live-mode redirect
+        // used by the iPhone build, not just the isolated page widget.
+        const AaReservationsRoute().push<void>(
+          tester.element(find.byType(UnavailableFeaturePage)),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(TogetherReviewPage), findsOneWidget);
+        expect(find.text('布局样例 · 非真实活动'), findsOneWidget);
+        expect(find.text('周末微醺交友局'), findsOneWidget);
+        expect(
+          router.routerDelegate.currentConfiguration.last.matchedLocation,
+          '/club/aa',
+        );
+        await tester.tap(find.text('周末微醺交友局'));
+        await tester.pumpAndSettle();
+        expect(find.byType(TogetherReviewPage), findsOneWidget);
+        await tester.tap(find.byType(KingBackButton));
+        await tester.pumpAndSettle();
+        expect(find.byType(UnavailableFeaturePage), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
         // Pushed blocked destinations must still return to the prior route.
         router.go('/feature-unavailable?feature=orders');
         await tester.pumpAndSettle();

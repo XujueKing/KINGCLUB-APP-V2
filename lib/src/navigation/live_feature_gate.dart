@@ -29,7 +29,9 @@ UnavailableLiveFeature? unavailableLiveFeature(
       path == '/commerce/payment') {
     return UnavailableLiveFeature.orders;
   }
-  if (path == '/club/aa' || path.startsWith('/club/aa/')) {
+  // The landing route now renders the explicitly labelled, non-transactional
+  // Together layout review. Legacy reservation actions remain unavailable.
+  if (path.startsWith('/club/aa/')) {
     return UnavailableLiveFeature.reservation;
   }
   if (path == '/club/parties' || path.startsWith('/club/parties/')) {
