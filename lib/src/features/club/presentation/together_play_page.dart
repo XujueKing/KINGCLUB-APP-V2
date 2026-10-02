@@ -375,7 +375,9 @@ class TogetherPartyCard extends StatelessWidget {
   // to image artwork, not to these view text nodes. Keep the platform family
   // explicitly while discarding Material's extra tracking and line spacing.
   TextStyle _ticketStyle(BuildContext context, double size) {
-    final platformStyle = Theme.of(context).textTheme.bodyMedium;
+    final platformStyle = Typography.material2021(
+      platform: Theme.of(context).platform,
+    ).white.bodyMedium;
     return togetherLegacyDateStyle(size, legacyGold).copyWith(
       fontFamily: platformStyle?.fontFamily,
       fontFamilyFallback: platformStyle?.fontFamilyFallback,

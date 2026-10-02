@@ -101,6 +101,7 @@ void main() {
       );
       await tester.pumpWidget(
         MaterialApp(
+          theme: KingTheme.dark.copyWith(platform: TargetPlatform.iOS),
           home: Scaffold(
             body: Align(
               alignment: Alignment.topLeft,
@@ -113,6 +114,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      final dateText = tester.widget<Text>(find.text('10.02 21:00–02:00'));
+      expect(dateText.style?.fontFamily, 'CupertinoSystemText');
+      expect(dateText.style?.color, const Color(0xFFC9B69E));
+      final priceText = tester.widget<Text>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Text && widget.textSpan?.toPlainText() == '￥388.50/人',
+        ),
+      );
+      expect(priceText.textSpan?.style?.fontFamily, 'CupertinoSystemText');
       final cardSize = tester.getSize(
         find.byKey(const ValueKey('together-card-night')),
       );
