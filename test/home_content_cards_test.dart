@@ -79,6 +79,22 @@ void main() {
         393,
       );
       expect(find.text('Fixture body'), findsOneWidget);
+      final panel = find.byKey(const ValueKey('home-detail-panel'));
+      final initialTop = tester.getTopLeft(panel).dy;
+      await tester.dragFrom(
+        Offset(150, initialTop + 25),
+        const Offset(0, -180),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(panel).dy, lessThan(initialTop - 80));
+      await tester.dragFrom(
+        Offset(150, tester.getTopLeft(panel).dy + 25),
+        const Offset(0, 700),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(panel).dy, greaterThan(740));
+      expect(find.byKey(const ValueKey('home-detail-close')), findsOneWidget);
+
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
       expect(

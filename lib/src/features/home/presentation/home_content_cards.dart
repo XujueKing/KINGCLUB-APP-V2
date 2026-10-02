@@ -442,72 +442,124 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
               ),
               child: child,
             ),
-            child: SingleChildScrollView(
-              padding: EdgeInsets.only(top: sheetTop),
-              child: Container(
-                key: const ValueKey('home-detail-sheet'),
-                constraints: BoxConstraints(
-                  minHeight: (size.height - sheetTop).clamp(0, size.height),
+            child: DraggableScrollableSheet(
+              initialChildSize: (1 - sheetTop / size.height).clamp(.12, .9),
+              minChildSize: .08,
+              maxChildSize:
+                  (1 - (MediaQuery.paddingOf(context).top + 56) / size.height)
+                      .clamp(.9, .98),
+              builder: (context, scrollController) => ClipRRect(
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(26 * size.width / 750),
                 ),
-                decoration: const BoxDecoration(
+                child: ColoredBox(
+                  key: const ValueKey('home-detail-panel'),
                   color: Colors.black,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-                ),
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  26,
-                  20,
-                  24 + MediaQuery.paddingOf(context).bottom,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      content.copy(content.titles, homeLocale(context)),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (content.author != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        content.author!,
-                        style: const TextStyle(color: Colors.white60),
-                      ),
-                    ],
-                    if (content
-                        .copy(content.descriptions, homeLocale(context))
-                        .isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        content.copy(content.descriptions, homeLocale(context)),
-                        style: const TextStyle(
-                          color: Color(0xFFCCCCCC),
-                          fontSize: 16,
-                          height: 1.6,
+                  child: SingleChildScrollView(
+                    key: const ValueKey('home-detail-scroll'),
+                    controller: scrollController,
+                    physics: const ClampingScrollPhysics(),
+                    child: Container(
+                      key: const ValueKey('home-detail-sheet'),
+
+                      decoration: const BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(14),
                         ),
                       ),
-                    ],
-                    if (content.placement == 'card') ...[
-                      const SizedBox(height: 20),
-                      HomeLikeButton(content: content, onTap: widget.onLike),
-                    ],
-                  ],
+                      padding: EdgeInsets.fromLTRB(
+                        20,
+                        26,
+                        20,
+                        24 + MediaQuery.paddingOf(context).bottom,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            content.copy(content.titles, homeLocale(context)),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (content.author != null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              content.author!,
+                              style: const TextStyle(color: Colors.white60),
+                            ),
+                          ],
+                          if (content
+                              .copy(content.descriptions, homeLocale(context))
+                              .isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Text(
+                              content.copy(
+                                content.descriptions,
+                                homeLocale(context),
+                              ),
+                              style: const TextStyle(
+                                color: Color(0xFFCCCCCC),
+                                fontSize: 16,
+                                height: 1.6,
+                              ),
+                            ),
+                          ],
+                          if (content.placement == 'card') ...[
+                            const SizedBox(height: 20),
+                            HomeLikeButton(
+                              content: content,
+                              onTap: widget.onLike,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
           Positioned(
-            top: MediaQuery.paddingOf(context).top + 8,
-            left: 8,
+            top:
+                MediaQuery.paddingOf(context).top +
+                8 -
+                (44 - 50 * size.width / 750) / 2,
+            right: 40 * size.width / 750 - (44 - 50 * size.width / 750) / 2,
             child: FadeTransition(
               opacity: widget.animation.drive(CurveTween(curve: Curves.ease)),
-              child: IconButton.filledTonal(
-                tooltip: homeCopy(context, '关闭', 'Close', '關閉', 'ปิด'),
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
+              child: Tooltip(
+                message: homeCopy(context, '关闭', 'Close', '關閉', 'ปิด'),
+                child: Semantics(
+                  button: true,
+                  label: homeCopy(context, '??', 'Close', '??', '???'),
+                  child: GestureDetector(
+                    key: const ValueKey('home-detail-close'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.pop(context),
+                    child: SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Center(
+                        child: Container(
+                          width: 50 * size.width / 750,
+                          height: 50 * size.width / 750,
+                          decoration: const BoxDecoration(
+                            color: Color(0x88000000),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Opacity(
+                            opacity: .8,
+                            child: Image.asset('assets/legacy/home/close3.png'),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
