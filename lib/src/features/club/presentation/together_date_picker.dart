@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'legacy_club_components.dart';
 
@@ -201,15 +202,20 @@ class _TogetherDateStripState extends State<TogetherDateStrip> {
                 tooltip: '选择日期',
                 onPressed: _calendar,
                 padding: EdgeInsets.zero,
-                icon: const Column(
+                icon: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.calendar_month_outlined,
-                      size: 25,
-                      color: legacyGold,
+                    SvgPicture.asset(
+                      'assets/club/calendar.svg',
+                      width: 25,
+                      height: 25,
+                      colorFilter: const ColorFilter.mode(
+                        legacyGold,
+                        BlendMode.srcIn,
+                      ),
+                      excludeFromSemantics: true,
                     ),
-                    Icon(
+                    const Icon(
                       Icons.keyboard_arrow_down,
                       size: 14,
                       color: legacyGold,
