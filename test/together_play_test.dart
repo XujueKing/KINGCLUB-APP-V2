@@ -7,6 +7,7 @@ import 'package:kingclub/src/features/club/data/together_party_draft.dart';
 import 'package:kingclub/src/features/club/data/together_store.dart';
 import 'package:kingclub/src/features/club/presentation/together_play_page.dart';
 import 'package:kingclub/src/features/club/presentation/together_party_create_page.dart';
+import 'package:kingclub/src/features/club/presentation/together_review_page.dart';
 
 class Stores implements TogetherStoreRepository {
   @override
@@ -74,6 +75,31 @@ class Repository implements TogetherPlayRepository {
 }
 
 void main() {
+  testWidgets(
+    'explicit landing review fits small screens and does not enter later pages',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(home: TogetherReviewPage(onBack: () {})),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('布局样例 · 非真实活动'), findsOneWidget);
+      expect(find.text('一起玩'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('together-card-friends')));
+      await tester.pumpAndSettle();
+      expect(find.byType(TogetherPartyDetailPage), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('together-date-1')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('together-card-friends')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('store selection filters city and resets table on store change', (
     tester,
   ) async {

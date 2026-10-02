@@ -1,3 +1,4 @@
+import '../features/club/presentation/together_review_page.dart';
 import '../features/commerce/presentation/live_order_payment_page.dart';
 import '../features/commerce/data/ordering_order_repository.dart';
 import '../features/commerce/presentation/managed_tables_page.dart';
@@ -27,7 +28,6 @@ import '../features/auth/presentation/welcome_video_background.dart';
 import '../features/auth/presentation/mobile_login_page.dart';
 import '../features/auth/presentation/sms_verification_page.dart';
 import '../features/auth/presentation/terms_consent_page.dart';
-import '../features/club/presentation/aa_reservations_page.dart';
 import '../features/club/presentation/aa_positioning_card_page.dart';
 import '../features/club/presentation/admission_ticket_page.dart';
 import '../features/club/presentation/vip_party_page.dart';
@@ -1003,13 +1003,7 @@ class AaReservationsRoute extends GoRouteData with $AaReservationsRoute {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) const AppShellRoute().go(context);
       },
-      child: AaReservationsPage(
-        repository: _commerce(context),
-        onBack: back,
-        onSessionResetRequested: () => _clearCommerceAndLogin(context),
-        onOpenAdmissionTicket: () =>
-            const AaPositioningCardRoute().push<void>(context),
-      ),
+      child: TogetherReviewPage(onBack: back),
     );
   }
 }

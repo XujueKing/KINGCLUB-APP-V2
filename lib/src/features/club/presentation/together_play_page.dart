@@ -23,12 +23,14 @@ class TogetherPlayPage extends StatefulWidget {
     required this.onAdmission,
     required this.onCreate,
     this.today,
+    this.reviewOnly = false,
   });
   final TogetherPlayRepository repository;
   final String cityCode, cityName;
   final VoidCallback onBack, onCreate;
   final Future<void> Function(TogetherParty) onJoin, onAdmission;
   final DateTime? today;
+  final bool reviewOnly;
   @override
   State<TogetherPlayPage> createState() => _TogetherPlayPageState();
 }
@@ -92,6 +94,7 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
   }
 
   Future<void> _open(TogetherParty party) async {
+    if (widget.reviewOnly) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => TogetherPartyDetailPage(
@@ -225,12 +228,24 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
                   ),
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
                   itemCount: _items.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 16),
-                  itemBuilder: (_, index) => TogetherPartyCard(
-                    party: _items[index],
-                    onTap: () => _open(_items[index]),
+                  itemBuilder: (_, index) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.reviewOnly && index == 0) ...[
+                        const Text(
+                          '布局样例 · 非真实活动',
+                          style: TextStyle(color: Colors.white38, fontSize: 12),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      TogetherPartyCard(
+                        party: _items[index],
+                        onTap: () => _open(_items[index]),
+                      ),
+                    ],
                   ),
                 ),
         ),
