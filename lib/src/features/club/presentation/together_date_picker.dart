@@ -2,6 +2,20 @@ import 'package:flutter/material.dart';
 
 import 'legacy_club_components.dart';
 
+// Choose uses the platform sans-serif, normal weight/line-height and no
+// letter-spacing. Do not merge Material body typography into these CSS values.
+TextStyle togetherLegacyDateStyle(double fontSize, Color color) => TextStyle(
+  inherit: false,
+  fontSize: fontSize,
+  fontWeight: FontWeight.w400,
+  fontStyle: FontStyle.normal,
+  height: kTextHeightNone,
+  letterSpacing: 0,
+  wordSpacing: 0,
+  color: color,
+  decoration: TextDecoration.none,
+);
+
 /// Choose.wxss geometry; the fixed calendar is outside the scrolling dates.
 class TogetherDateStrip extends StatefulWidget {
   const TogetherDateStrip({
@@ -83,15 +97,29 @@ class _TogetherDateStripState extends State<TogetherDateStrip> {
   Widget build(BuildContext context) {
     final unit = MediaQuery.sizeOf(context).width / 750;
     final scaler = MediaQuery.textScalerOf(context);
-    final width =
-        (80 * unit).clamp(40.0, double.infinity) *
-        (scaler.scale(28 * unit) / (28 * unit)).clamp(1.0, double.infinity);
+    Size measure(String value, double fontSize) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: value,
+          style: togetherLegacyDateStyle(fontSize, legacyGold),
+        ),
+        textDirection: Directionality.of(context),
+        textScaler: scaler,
+        locale: Localizations.maybeLocaleOf(context),
+      )..layout();
+      final size = painter.size;
+      painter.dispose();
+      return size;
+    }
+
+    final week = measure('周六', 22 * unit);
+    final date = measure('00.00', 28 * unit);
+    final width = date.width.clamp(80 * unit, double.infinity);
     _extent = width + 40 * unit;
-    final textHeight =
-        scaler.scale(22 * unit) * 1.4 +
-        4 * unit +
-        scaler.scale(28 * unit) * 1.4;
-    final height = (textHeight.ceilToDouble() + 2).clamp(48.0, double.infinity);
+    final height = (week.height + 4 * unit + date.height).clamp(
+      80 * unit,
+      double.infinity,
+    );
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 30 * unit, vertical: 30 * unit),
       child: SizedBox(
@@ -124,6 +152,7 @@ class _TogetherDateStripState extends State<TogetherDateStrip> {
                       key: ValueKey('together-date-$index'),
                       onTap: () => widget.onSelected(date),
                       child: Container(
+                        key: ValueKey('together-date-box-$index'),
                         margin: EdgeInsets.symmetric(horizontal: 20 * unit),
                         decoration: BoxDecoration(
                           color: selected ? legacyGold : Colors.transparent,
@@ -145,24 +174,14 @@ class _TogetherDateStripState extends State<TogetherDateStrip> {
                               ][date.weekday - 1],
                               maxLines: 1,
                               softWrap: false,
-                              style: TextStyle(
-                                fontSize: 22 * unit,
-                                height: 1.4,
-                                fontWeight: FontWeight.w400,
-                                color: color,
-                              ),
+                              style: togetherLegacyDateStyle(22 * unit, color),
                             ),
                             SizedBox(height: 4 * unit),
                             Text(
                               '${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}',
                               maxLines: 1,
                               softWrap: false,
-                              style: TextStyle(
-                                fontSize: 28 * unit,
-                                height: 1.4,
-                                fontWeight: FontWeight.w400,
-                                color: color,
-                              ),
+                              style: togetherLegacyDateStyle(28 * unit, color),
                             ),
                           ],
                         ),

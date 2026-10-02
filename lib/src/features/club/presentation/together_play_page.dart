@@ -261,7 +261,10 @@ class TogetherPartyCard extends StatelessWidget {
               const SizedBox(height: 14),
               Text(
                 togetherTimeRange(party),
-                style: const TextStyle(color: legacyPink, fontSize: 13),
+                style: togetherLegacyDateStyle(
+                  MediaQuery.sizeOf(context).width * 24 / 750,
+                  legacyPink,
+                ),
               ),
               const SizedBox(height: 4),
               Text(

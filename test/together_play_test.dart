@@ -79,6 +79,47 @@ class Repository implements TogetherPlayRepository {
 }
 
 void main() {
+  testWidgets('legacy date geometry is independent of app body typography', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    Rect? original;
+    for (final body in [
+      const TextStyle(fontSize: 15, height: 1.6),
+      const TextStyle(
+        fontSize: 28,
+        height: 2,
+        letterSpacing: 3,
+        fontFamily: 'monospace',
+        fontWeight: FontWeight.w800,
+      ),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(textTheme: TextTheme(bodyMedium: body)),
+          home: Scaffold(
+            body: TogetherDateStrip(
+              firstDate: DateTime(2026, 10, 2),
+              lastDate: DateTime(2026, 10, 31),
+              selectedDate: DateTime(2026, 10, 2),
+              onSelected: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final box = tester.getRect(
+        find.byKey(const ValueKey('together-date-box-0')),
+      );
+      expect(box.height, closeTo(393 * 80 / 750, .01));
+      if (original != null) expect(box, original);
+      original = box;
+      expect(tester.takeException(), isNull);
+    }
+  });
   testWidgets(
     'calendar crosses year, updates query and strip, cancel preserves selection',
     (tester) async {
