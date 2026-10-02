@@ -369,8 +369,9 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
       if (!mounted ||
           !_dragSheet.isAttached ||
           _restoringSheet ||
-          _dragSheet.size >= initialExtent - .001)
+          _dragSheet.size >= initialExtent - .001) {
         return;
+      }
       _restoringSheet = true;
       try {
         if (MediaQuery.disableAnimationsOf(context)) {
