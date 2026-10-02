@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/media/cached_media_image.dart';
 import '../data/together_party_draft.dart';
 import '../data/together_play.dart';
+import '../data/together_store.dart';
 import 'legacy_club_components.dart';
 
 class TogetherPartyCreatePage extends StatefulWidget {
@@ -14,12 +15,10 @@ class TogetherPartyCreatePage extends StatefulWidget {
     required this.loadLibrary,
     required this.uploadArtwork,
     required this.onReview,
-    this.tableRef,
-    this.maximumTableSeats,
+    required this.stores,
   });
   final String cityCode, cityName;
-  final String? tableRef;
-  final int? maximumTableSeats;
+  final TogetherStoreRepository stores;
   final VoidCallback onBack;
   final Future<List<TogetherArtwork>> Function() loadLibrary;
   final Future<TogetherArtwork?> Function() uploadArtwork;
@@ -43,6 +42,99 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
   TogetherArtwork? _background, _poster;
   bool _busy = false;
   String? _error;
+  TogetherStore? _store;
+  TogetherTable? _table;
+
+  @override
+  void didUpdateWidget(covariant TogetherPartyCreatePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cityCode != widget.cityCode ||
+        oldWidget.stores != widget.stores) {
+      _store = null;
+      _table = null;
+      _place.clear();
+    }
+  }
+
+  Future<void> _pickVenue({bool table = false}) async {
+    if (_busy || (table && _store == null)) return;
+    final city = widget.cityCode;
+    final repository = widget.stores;
+    final store = _store;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final entries = table
+          ? (await repository.tables(storeRef: store!.ref))
+                .where((v) => v.storeRef == store.ref && v.maximumSeats >= 2)
+                .toList()
+          : (await repository.list(cityCode: city))
+                .where((v) => v.cityCode == city && v.ref.isNotEmpty)
+                .toList();
+      if (!mounted || city != widget.cityCode || repository != widget.stores) {
+        return;
+      }
+      final selected = await showModalBottomSheet<Object>(
+        context: context,
+        backgroundColor: const Color(0xFF191919),
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: entries.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    table ? '该门店暂无可用桌台' : '当前城市暂无可选门店',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: entries.length,
+                  itemBuilder: (_, index) {
+                    final entry = entries[index];
+                    final title = entry is TogetherStore
+                        ? entry.name
+                        : (entry as TogetherTable).name;
+                    final subtitle = entry is TogetherStore
+                        ? entry.address
+                        : '最多 ${(entry as TogetherTable).maximumSeats} 人';
+                    return ListTile(
+                      title: Text(
+                        title,
+                        style: const TextStyle(color: legacyGold),
+                      ),
+                      subtitle: Text(
+                        subtitle,
+                        style: const TextStyle(color: Colors.white54),
+                      ),
+                      onTap: () => Navigator.pop(sheetContext, entry),
+                    );
+                  },
+                ),
+        ),
+      );
+      if (!mounted || city != widget.cityCode || repository != widget.stores) {
+        return;
+      }
+      setState(() {
+        if (selected is TogetherStore) {
+          _store = selected;
+          _table = null;
+          _place.text = selected.address;
+        } else if (selected is TogetherTable &&
+            selected.storeRef == _store?.ref) {
+          _table = selected;
+        }
+      });
+    } catch (_) {
+      if (mounted) setState(() => _error = '暂时无法读取门店或桌台，请重试');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   void dispose() {
     for (final controller in [
@@ -160,6 +252,10 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
 
   Future<void> _review() async {
     if (_busy) return;
+    if (_store == null) {
+      setState(() => _error = '请先选择活动门店');
+      return;
+    }
     final count = int.tryParse(_capacity.text.trim());
     final price = _fee == TogetherFeeMode.hostTreat
         ? 0
@@ -178,6 +274,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     final draft = TogetherPartyDraft(
       theme: _theme.text.trim(),
       cityCode: widget.cityCode,
+      store: _store!,
       place: _place.text.trim(),
       startsAt: _start!,
       endsAt: _end!,
@@ -188,12 +285,9 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       description: _description.text.trim(),
       background: _background!,
       poster: _poster!,
-      tableRef: widget.tableRef,
+      table: _table,
     );
-    final error = draft.validate(
-      now: DateTime.now(),
-      maximumTableSeats: widget.maximumTableSeats,
-    );
+    final error = draft.validate(now: DateTime.now());
     if (error != null) {
       setState(() => _error = error);
       return;
@@ -286,6 +380,32 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         ),
         const SizedBox(height: 18),
         _field('派对主题', _theme),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            _store?.name ?? '选择活动门店',
+            style: const TextStyle(color: legacyGold),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: legacyGold),
+          onTap: _busy ? null : () => _pickVenue(),
+        ),
+        if (_store != null)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              _table?.name ?? '选择卡座 / 桌台（可选）',
+              style: const TextStyle(color: legacyGold),
+            ),
+            trailing: _table == null
+                ? const Icon(Icons.chevron_right, color: legacyGold)
+                : IconButton(
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _table = null),
+                    icon: const Icon(Icons.close, color: legacyGold),
+                  ),
+            onTap: _busy ? null : () => _pickVenue(table: true),
+          ),
         _field('活动地点', _place),
         for (final start in [true, false])
           ListTile(
@@ -304,7 +424,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           ),
         const SizedBox(height: 16),
         _field(
-          '总人数${widget.maximumTableSeats == null ? '' : '（最多${widget.maximumTableSeats}人）'}',
+          '总人数${_table == null ? '' : '（最多${_table!.maximumSeats}人）'}',
           _capacity,
           number: true,
         ),
@@ -336,7 +456,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           ),
         _field('整场费用（元）', _total, number: true),
         const Text(
-          '发起前将确认并冻结整场押金。参加者支付成功后，解冻对应实付金额。',
+          '从 APP 余额冻结整场押金。参加者付款给商家后，等额押金解冻回 APP 可用余额。',
           style: TextStyle(color: Colors.white54, height: 1.5),
         ),
         const SizedBox(height: 18),

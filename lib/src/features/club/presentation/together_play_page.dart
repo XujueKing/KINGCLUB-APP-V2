@@ -181,8 +181,8 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
                                   '周六',
                                   '周日',
                                 ][date.weekday - 1],
-                      maxLines: 1,
-                      softWrap: false,
+                          maxLines: 1,
+                          softWrap: false,
                           style: TextStyle(
                             fontSize: 13,
                             color: selected ? Colors.black : legacyGold,
@@ -190,8 +190,8 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
                         ),
                         Text(
                           _date(date),
-                      maxLines: 1,
-                      softWrap: false,
+                          maxLines: 1,
+                          softWrap: false,
                           style: TextStyle(
                             fontSize: 20,
                             color: selected ? Colors.black : legacyGold,
@@ -323,7 +323,7 @@ class TogetherPartyCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                party.place,
+                '${party.storeName} · ${party.place}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: legacyPink, fontSize: 12),
@@ -519,7 +519,7 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
               ),
               const SizedBox(height: 10),
               Text(
-                '${_party.startsAt.year}年 ${togetherTimeRange(_party)}\n${_party.cityName} · ${_party.place}',
+                '${_party.startsAt.year}年 ${togetherTimeRange(_party)}\n${_party.cityName} · ${_party.storeName}\n${_party.place}',
                 style: const TextStyle(color: Colors.white70, height: 1.8),
               ),
               const SizedBox(height: 22),

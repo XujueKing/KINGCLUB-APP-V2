@@ -4,7 +4,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/club/data/together_play.dart';
 import 'package:kingclub/src/features/club/data/together_party_draft.dart';
+import 'package:kingclub/src/features/club/data/together_store.dart';
 import 'package:kingclub/src/features/club/presentation/together_play_page.dart';
+import 'package:kingclub/src/features/club/presentation/together_party_create_page.dart';
+
+class Stores implements TogetherStoreRepository {
+  @override
+  Future<List<TogetherStore>> list({required String cityCode}) async => const [
+    TogetherStore(ref: 'a', name: '门店甲', cityCode: '430200', address: '地址甲'),
+    TogetherStore(ref: 'b', name: '门店乙', cityCode: '430200', address: '地址乙'),
+    TogetherStore(ref: 'c', name: '外市门店', cityCode: '430100', address: '外市地址'),
+  ];
+  @override
+  Future<List<TogetherTable>> tables({
+    required String storeRef,
+  }) async => const [
+    TogetherTable(ref: 't-a', storeRef: 'a', name: '甲店卡座', maximumSeats: 8),
+    TogetherTable(ref: 't-b', storeRef: 'b', name: '乙店卡座', maximumSeats: 12),
+  ];
+}
 
 TogetherParty fixture({
   String ref = 'night',
@@ -19,6 +37,8 @@ TogetherParty fixture({
   theme: ref == 'night' ? '周末微醺交友局' : '一起听歌 · 认识新朋友',
   cityCode: city,
   cityName: '株洲市',
+  storeRef: 'fixture-store',
+  storeName: '样例门店',
   startsAt: DateTime(2026, 10, day, 21),
   endsAt: DateTime(2026, 10, day + 1, 2),
   hostName: '样例发起人',
@@ -54,8 +74,48 @@ class Repository implements TogetherPlayRepository {
 }
 
 void main() {
+  testWidgets('store selection filters city and resets table on store change', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TogetherPartyCreatePage(
+          cityCode: '430200',
+          cityName: '株洲市',
+          stores: Stores(),
+          onBack: () {},
+          loadLibrary: () async => [],
+          uploadArtwork: () async => null,
+          onReview: (_) async {},
+        ),
+      ),
+    );
+    await tester.tap(find.text('选择活动门店'));
+    await tester.pumpAndSettle();
+    expect(find.text('外市门店'), findsNothing);
+    await tester.tap(find.text('门店甲'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('选择卡座 / 桌台（可选）'));
+    await tester.pumpAndSettle();
+    expect(find.text('乙店卡座'), findsNothing);
+    await tester.tap(find.text('甲店卡座'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('门店甲'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('门店乙'));
+    await tester.pumpAndSettle();
+    expect(find.text('甲店卡座'), findsNothing);
+    expect(find.text('选择卡座 / 桌台（可选）'), findsOneWidget);
+    expect(find.text('地址乙'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   test('creation blocks capacity overflow and unreviewed artwork; money stays integer cents', () {
-    TogetherPartyDraft draft(TogetherArtworkStatus status) {
+    TogetherPartyDraft draft(
+      TogetherArtworkStatus status, {
+      int seats = 10,
+      String storeCity = '430200',
+      String tableStore = 'fixture-store',
+    }) {
       final artwork = TogetherArtwork(
         ref: 'fixture',
         name: 'Test',
@@ -65,6 +125,12 @@ void main() {
       return TogetherPartyDraft(
         theme: '聚会',
         cityCode: '430200',
+        store: TogetherStore(
+          ref: 'fixture-store',
+          name: '样例门店',
+          cityCode: storeCity,
+          address: '样例地点',
+        ),
         place: '样例地点',
         startsAt: DateTime(2026, 10, 10),
         endsAt: DateTime(2026, 10, 11),
@@ -75,30 +141,43 @@ void main() {
         description: '',
         background: artwork,
         poster: artwork,
-        tableRef: 'fixture-table',
+        table: TogetherTable(
+          ref: 'fixture-table',
+          storeRef: tableStore,
+          name: '样例桌台',
+          maximumSeats: seats,
+        ),
       );
     }
 
     final now = DateTime(2026, 10, 2);
     expect(
-      draft(TogetherArtworkStatus.approved)
-          .validate(now: now, maximumTableSeats: 8),
+      draft(TogetherArtworkStatus.approved, seats: 8).validate(now: now),
       '总人数不能超过桌台容量',
     );
     expect(
-      draft(TogetherArtworkStatus.pending)
-          .validate(now: now, maximumTableSeats: 10),
+      draft(TogetherArtworkStatus.pending).validate(now: now),
       '背景和海报审核通过后才能发布',
     );
-    expect(
-      draft(TogetherArtworkStatus.approved)
-          .validate(now: now, maximumTableSeats: 10),
-      isNull,
-    );
+    expect(draft(TogetherArtworkStatus.approved).validate(now: now), isNull);
     expect(TogetherPartyDraft.parseMoney('388.50'), 38850);
     expect(TogetherPartyDraft.parseMoney('0.01'), 1);
     expect(TogetherPartyDraft.parseMoney('1.001'), isNull);
     expect(TogetherPartyDraft.parseMoney('-1'), isNull);
+    expect(
+      draft(
+        TogetherArtworkStatus.approved,
+        storeCity: '430100',
+      ).validate(now: now),
+      '请选择当前城市的门店',
+    );
+    expect(
+      draft(
+        TogetherArtworkStatus.approved,
+        tableStore: 'another-store',
+      ).validate(now: now),
+      '请重新选择该门店的桌台',
+    );
   });
   test('fee labels preserve cents and free attendance is not joined', () {
     expect(fixture().priceLabel, '¥388.50/人');
