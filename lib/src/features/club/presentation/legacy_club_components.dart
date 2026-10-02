@@ -17,6 +17,7 @@ class LegacyClubScaffold extends StatelessWidget {
     this.titleFontSize = 18,
     this.titleFontWeight = FontWeight.w600,
     this.headerHeight = 54,
+    this.headerAction,
   });
 
   final String title;
@@ -27,6 +28,7 @@ class LegacyClubScaffold extends StatelessWidget {
   final double titleFontSize;
   final FontWeight titleFontWeight;
   final double headerHeight;
+  final Widget? headerAction;
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +68,9 @@ class LegacyClubScaffold extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (showMockLabel)
+                    if (headerAction != null)
+                      Positioned(right: 15, child: headerAction!),
+                    if (showMockLabel && headerAction == null)
                       const Positioned(
                         right: 18,
                         child: Text(

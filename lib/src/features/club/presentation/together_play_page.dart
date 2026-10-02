@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/together_play.dart';
 import 'legacy_club_components.dart';
+import 'together_date_picker.dart';
 
 String _two(int value) => value.toString().padLeft(2, '0');
 String _date(DateTime value) => '${_two(value.month)}.${_two(value.day)}';
@@ -39,7 +40,9 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
   late final DateTime _today = DateUtils.dateOnly(
     widget.today ?? DateTime.now(),
   );
-  int _day = 0, _generation = 0;
+  late DateTime _selectedDate = _today;
+  late final DateTime _lastDate = DateTime(_today.year, _today.month + 6, 0);
+  int _generation = 0;
   bool _loading = true;
   String? _error;
   List<TogetherParty> _items = [];
@@ -61,7 +64,7 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
 
   Future<void> _load() async {
     final generation = ++_generation;
-    final date = DateTime(_today.year, _today.month, _today.day + _day);
+    final date = _selectedDate;
     setState(() {
       _loading = true;
       _error = null;
@@ -111,110 +114,26 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
   @override
   Widget build(BuildContext context) => LegacyClubScaffold(
     title: '一起玩',
+    titleFontWeight: FontWeight.w400,
     onBack: widget.onBack,
     showMockLabel: false,
+    headerAction: TextButton(
+      onPressed: widget.onCreate,
+      style: TextButton.styleFrom(foregroundColor: legacyGold),
+      child: const Text('发起组局', style: TextStyle(fontSize: 13)),
+    ),
     child: Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                color: legacyGold,
-                size: 17,
-              ),
-              const SizedBox(width: 5),
-              Text(widget.cityName, style: const TextStyle(color: legacyGold)),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: widget.onCreate,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('发起组局'),
-                style: TextButton.styleFrom(foregroundColor: legacyGold),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height:
-              76 +
-              (MediaQuery.textScalerOf(context).scale(33) - 33).clamp(
-                    0,
-                    double.infinity,
-                  ) *
-                  1.3,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
-            scrollDirection: Axis.horizontal,
-            itemCount: 14,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (_, index) {
-              final date = DateTime(
-                _today.year,
-                _today.month,
-                _today.day + index,
-              );
-              final selected = index == _day;
-              return Semantics(
-                selected: selected,
-                button: true,
-                child: InkWell(
-                  key: ValueKey('together-date-$index'),
-                  borderRadius: BorderRadius.circular(5),
-                  onTap: () {
-                    if (_day != index) {
-                      _day = index;
-                      _load();
-                    }
-                  },
-                  child: Container(
-                    width: 57,
-                    padding: const EdgeInsets.symmetric(vertical: 7),
-                    decoration: BoxDecoration(
-                      color: selected ? legacyGold : Colors.transparent,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          index == 0
-                              ? '今天'
-                              : [
-                                  '周一',
-                                  '周二',
-                                  '周三',
-                                  '周四',
-                                  '周五',
-                                  '周六',
-                                  '周日',
-                                ][date.weekday - 1],
-                          maxLines: 1,
-                          softWrap: false,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.3,
-                            color: selected ? Colors.black : legacyGold,
-                          ),
-                        ),
-                        Text(
-                          _date(date),
-                          maxLines: 1,
-                          softWrap: false,
-                          style: TextStyle(
-                            fontSize: 20,
-                            height: 1.3,
-                            color: selected ? Colors.black : legacyGold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
+        TogetherDateStrip(
+          firstDate: _today,
+          lastDate: _lastDate,
+          selectedDate: _selectedDate,
+          onSelected: (date) {
+            if (!DateUtils.isSameDay(date, _selectedDate)) {
+              _selectedDate = date;
+              _load();
+            }
+          },
         ),
         Expanded(
           child: _loading

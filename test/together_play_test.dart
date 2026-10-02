@@ -8,6 +8,8 @@ import 'package:kingclub/src/features/club/data/together_store.dart';
 import 'package:kingclub/src/features/club/presentation/together_play_page.dart';
 import 'package:kingclub/src/features/club/presentation/together_party_create_page.dart';
 import 'package:kingclub/src/features/club/presentation/together_review_page.dart';
+import 'package:kingclub/src/core/design_system/king_theme.dart';
+import 'package:kingclub/src/features/club/presentation/together_date_picker.dart';
 
 class Stores implements TogetherStoreRepository {
   @override
@@ -59,12 +61,14 @@ TogetherParty fixture({
 
 class Repository implements TogetherPlayRepository {
   final requests = <Completer<List<TogetherParty>>>[];
+  final dates = <DateTime>[];
   TogetherParty current = fixture();
   @override
   Future<List<TogetherParty>> list({
     required String cityCode,
     required DateTime date,
   }) {
+    dates.add(date);
     final request = Completer<List<TogetherParty>>();
     requests.add(request);
     return request.future;
@@ -75,6 +79,60 @@ class Repository implements TogetherPlayRepository {
 }
 
 void main() {
+  testWidgets(
+    'calendar crosses year, updates query and strip, cancel preserves selection',
+    (tester) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final repository = Repository();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: KingTheme.dark,
+          home: TogetherPlayPage(
+            repository: repository,
+            cityCode: '430200',
+            cityName: '株洲市',
+            today: DateTime(2026, 12, 30),
+            onBack: () {},
+            onCreate: () {},
+            onJoin: (_) async {},
+            onAdmission: (_) async {},
+          ),
+        ),
+      );
+      repository.requests.last.complete([]);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('together-calendar-open')));
+      await tester.pumpAndSettle();
+      final past = find.byKey(const ValueKey('together-calendar-2026-12-29'));
+      expect(tester.widget<InkWell>(past).onTap, isNull);
+      final next = find.byKey(const ValueKey('together-calendar-2027-1-25'));
+      await tester.drag(
+        find.byKey(const ValueKey('together-calendar-months')),
+        const Offset(0, -360),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(next);
+      await tester.pump();
+      expect(repository.dates.last, DateTime(2027, 1, 25));
+      repository.requests.last.complete([]);
+      await tester.pumpAndSettle();
+      expect(find.byType(TogetherCalendarSheet), findsNothing);
+      final selected = find.byKey(const ValueKey('together-date-26'));
+      expect(selected.hitTestable(), findsOneWidget);
+      final requestCount = repository.requests.length;
+      await tester.tap(find.byKey(const ValueKey('together-calendar-open')));
+      await tester.pumpAndSettle();
+      expect(next.hitTestable(), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('together-calendar-close')));
+      await tester.pumpAndSettle();
+      expect(repository.requests.length, requestCount);
+      expect(repository.dates.last, DateTime(2027, 1, 25));
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     'explicit landing review fits small screens and does not enter later pages',
     (tester) async {
