@@ -74,6 +74,10 @@ void main() {
       expect(flight, findsWidgets);
       await tester.pumpAndSettle();
       expect(find.byType(HomeContentDetailPage), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('home-detail-sheet'))).width,
+        393,
+      );
       expect(find.text('Fixture body'), findsOneWidget);
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();

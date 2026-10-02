@@ -29,7 +29,14 @@ class HomeContentImage extends StatelessWidget {
   final BoxFit fit;
   @override
   Widget build(BuildContext context) => content.cover.startsWith('assets/')
-      ? LegacyHomeImage(content.cover, fit: fit)
+      ? LegacyHomeImage(
+          content.cover,
+          fit: fit,
+          cacheWidth:
+              (MediaQuery.sizeOf(context).width *
+                      MediaQuery.devicePixelRatioOf(context))
+                  .ceil(),
+        )
       : CachedMediaImage(
           content.cover,
           contentKey: '${content.cacheKey}/cover',
@@ -367,6 +374,7 @@ class _HomeContentDetailPageState extends State<HomeContentDetailPage>
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           Positioned.fill(
             child: FadeTransition(

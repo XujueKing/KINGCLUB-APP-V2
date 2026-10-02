@@ -8,11 +8,13 @@ class LegacyHomeImage extends StatelessWidget {
     super.key,
     this.fit = BoxFit.cover,
     this.height,
+    this.cacheWidth,
   });
 
   final String asset;
   final BoxFit fit;
   final double? height;
+  final int? cacheWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -21,10 +23,13 @@ class LegacyHomeImage extends StatelessWidget {
         asset,
         fit: fit,
         height: height,
-        cacheWidth: constraints.maxWidth.isFinite
-            ? (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context))
-                  .ceil()
-            : null,
+        cacheWidth:
+            cacheWidth ??
+            (constraints.maxWidth.isFinite
+                ? (constraints.maxWidth *
+                          MediaQuery.devicePixelRatioOf(context))
+                      .ceil()
+                : null),
         filterQuality: FilterQuality.medium,
       ),
     );
