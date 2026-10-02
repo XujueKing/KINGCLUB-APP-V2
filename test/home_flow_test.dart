@@ -343,11 +343,8 @@ void main() {
     final viewportWidth = tester.getSize(find.byType(HomePage)).width;
     expect(logoRect.width / viewportWidth, closeTo(140 / 750, .001));
     expect(logoRect.height / logoRect.width, closeTo(213 / 400, .001));
-    expect(progressRect.width / logoRect.width, closeTo(245 / 140, .01));
-    expect(
-      progressRect.right,
-      closeTo(diamondRect.right - 10 * viewportWidth / 750, .1),
-    );
+    expect(progressRect.width / logoRect.width, closeTo(255 / 140, .01));
+    expect(progressRect.right, closeTo(diamondRect.right, .1));
     expect(goldRect.width / logoRect.width, closeTo(120 / 140, .01));
     expect(goldRect.height / logoRect.width, closeTo(26 / 140, .01));
     expect(diamondRect.width, closeTo(goldRect.width, .01));
@@ -452,7 +449,7 @@ void main() {
     await tester.pump();
     expect(semanticsLabel('运营 Banner 加载失败'), findsOneWidget);
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(semanticsLabel('生日有礼'), findsOneWidget);
     tester
         .widget<CustomScrollView>(find.byType(CustomScrollView))
@@ -485,9 +482,16 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(home());
     await tester.pump();
-    tester.widget<RefreshIndicator>(find.byType(RefreshIndicator)).onRefresh();
+    final logo = find.byKey(const ValueKey('home-member-logo'));
+    final initialY = tester.getTopLeft(logo).dy;
+    final gesture = await tester.startGesture(const Offset(190, 300));
+    await gesture.moveBy(const Offset(0, 30));
     await tester.pump();
-    expect(find.text('正在刷新，当前内容继续保留'), findsOneWidget);
+    await gesture.moveBy(const Offset(0, 220));
+    await tester.pump();
+    expect(tester.getTopLeft(logo).dy, greaterThan(initialY + 20));
+    await gesture.up();
+    await tester.pump();
     expect(semanticsLabel('谁是最帅小哥哥'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 700));
 

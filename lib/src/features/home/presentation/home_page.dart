@@ -1,3 +1,5 @@
+import 'package:flutter/cupertino.dart';
+
 import '../data/home_content_repository.dart';
 import 'home_content_cards.dart';
 import '../../../core/design_system/king_notice.dart';
@@ -356,81 +358,71 @@ class _HomePageState extends State<HomePage> {
           color: Colors.black,
           child: SafeArea(
             bottom: false,
-            child: RefreshIndicator(
-              onRefresh: _refresh,
-              color: Colors.black,
-              backgroundColor: _gold,
-              child: CustomScrollView(
-                controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _HomeStickyHeaderDelegate(
-                      presentation: member,
-                      textScale: MediaQuery.textScalerOf(context).scale(1),
-                      viewportWidth: viewportWidth,
-                      showHero: !empty && banners.isNotEmpty,
-                      hero: _HeroBanner(
-                        key: ValueKey(
-                          'home-banners-${_selectedCity?.code}-${banners.map((b) => '${b.ref}/${b.revision}').join(',')}',
-                        ),
-                        items: banners,
-                        loading: loading,
-                        imageError: _state == HomeDemoState.partialImageError,
-                        onTap: (content) =>
-                            openHomeContent(context, content, _like),
-                        onRetry: () =>
-                            setState(() => _state = HomeDemoState.ready),
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              slivers: [
+                CupertinoSliverRefreshControl(onRefresh: _refresh),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _HomeStickyHeaderDelegate(
+                    presentation: member,
+                    textScale: MediaQuery.textScalerOf(context).scale(1),
+                    viewportWidth: viewportWidth,
+                    showHero: !empty && banners.isNotEmpty,
+                    hero: _HeroBanner(
+                      key: ValueKey(
+                        'home-banners-${_selectedCity?.code}-${banners.map((b) => '${b.ref}/${b.revision}').join(',')}',
                       ),
-                      quickActions: _QuickActions(
-                        onTogether: () => _runAction(widget.onOpenTogether),
-                        onParty: () => _runAction(widget.onOpenParty),
-                        onScan: () => _runAction(widget.onOpenScanner),
-                      ),
-                      city: _city ?? _cityCopy('城市', 'City', '城市', 'เมือง'),
-                      onCity: _selectCity,
+                      items: banners,
+                      loading: loading,
+                      imageError: _state == HomeDemoState.partialImageError,
+                      onTap: (content) =>
+                          openHomeContent(context, content, _like),
+                      onRetry: () =>
+                          setState(() => _state = HomeDemoState.ready),
                     ),
+                    quickActions: _QuickActions(
+                      onTogether: () => _runAction(widget.onOpenTogether),
+                      onParty: () => _runAction(widget.onOpenParty),
+                      onScan: () => _runAction(widget.onOpenScanner),
+                    ),
+                    city: _city ?? _cityCopy('城市', 'City', '城市', 'เมือง'),
+                    onCity: _selectCity,
                   ),
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(
-                      35 * viewportWidth / 750,
-                      22 * viewportWidth / 750,
-                      35 * viewportWidth / 750,
-                      230,
-                    ),
-                    sliver: SliverList.list(
-                      children: [
-                        if (offline) ...[
-                          const _HomeStatusBanner(
-                            icon: Icons.wifi_off_rounded,
-                            label: '离线内容 · 最近更新 5 分钟前',
-                          ),
-                        ],
-                        if (_refreshing) ...[
-                          const SizedBox(height: 8),
-                          const _HomeStatusBanner(
-                            icon: Icons.refresh_rounded,
-                            label: '正在刷新，当前内容继续保留',
-                            busy: true,
-                          ),
-                        ],
-                        if (empty)
-                          _EmptyPromotions(
-                            onRestore: () =>
-                                setState(() => _state = HomeDemoState.ready),
-                          ),
-                        HomeContentMasonry(
-                          items: cards,
-                          onOpen: (content) =>
-                              openHomeContent(context, content, _like),
-                          onLike: _like,
+                ),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    35 * viewportWidth / 750,
+                    22 * viewportWidth / 750,
+                    35 * viewportWidth / 750,
+                    230,
+                  ),
+                  sliver: SliverList.list(
+                    children: [
+                      if (offline) ...[
+                        const _HomeStatusBanner(
+                          icon: Icons.wifi_off_rounded,
+                          label: '离线内容 · 最近更新 5 分钟前',
                         ),
                       ],
-                    ),
+                      if (empty)
+                        _EmptyPromotions(
+                          onRestore: () =>
+                              setState(() => _state = HomeDemoState.ready),
+                        ),
+                      HomeContentMasonry(
+                        items: cards,
+                        onOpen: (content) =>
+                            openHomeContent(context, content, _like),
+                        onLike: _like,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -534,12 +526,21 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
             top: 0,
             height: memberExtent + 30 * _unit,
             child: DecoratedBox(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black, Color(0xDD000000), Colors.transparent],
-                  stops: [0, .65, 1],
+                  colors: const [
+                    Colors.black,
+                    Colors.black,
+                    Colors.transparent,
+                  ],
+                  stops: [
+                    0,
+                    (memberExtent + _actionGap * progress) /
+                        (memberExtent + 30 * _unit),
+                    1,
+                  ],
                 ),
               ),
               child: Padding(
@@ -783,7 +784,7 @@ class _MemberHeader extends StatelessWidget {
                   ),
                   SizedBox(height: progressTopGap),
                   SizedBox(
-                    width: 245 * legacyScale,
+                    width: (120 + 15 + 120) * legacyScale,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(2 * legacyScale),
                       child: LinearProgressIndicator(
@@ -1464,15 +1465,10 @@ class _EmptyPromotions extends StatelessWidget {
 }
 
 class _HomeStatusBanner extends StatelessWidget {
-  const _HomeStatusBanner({
-    required this.icon,
-    required this.label,
-    this.busy = false,
-  });
+  const _HomeStatusBanner({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
-  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -1492,14 +1488,6 @@ class _HomeStatusBanner extends StatelessWidget {
             Icon(icon, size: 17, color: _gold),
             const SizedBox(width: 8),
             Expanded(child: Text(label, style: const TextStyle(fontSize: 12))),
-            if (busy) ...[
-              const SizedBox(width: 8),
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ],
           ],
         ),
       ),

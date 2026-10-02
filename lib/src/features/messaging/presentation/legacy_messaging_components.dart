@@ -428,6 +428,9 @@ class LegacyConversationSearch extends StatefulWidget {
     this.maxLength = 40,
     this.inputKey,
     this.autofocus = false,
+    this.height,
+    this.padding = const EdgeInsets.fromLTRB(10, 0, 10, 12),
+    this.fillColor = const Color(0xB3191715),
   });
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
@@ -438,6 +441,9 @@ class LegacyConversationSearch extends StatefulWidget {
   final int maxLength;
   final Key? inputKey;
   final bool autofocus;
+  final double? height;
+  final EdgeInsetsGeometry padding;
+  final Color fillColor;
   @override
   State<LegacyConversationSearch> createState() =>
       _LegacyConversationSearchState();
@@ -464,11 +470,11 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+    padding: widget.padding,
     child: ValueListenableBuilder<TextEditingValue>(
       valueListenable: widget.controller,
       builder: (context, value, _) => SizedBox(
-        height: 84 * MediaQuery.sizeOf(context).width / 750,
+        height: widget.height ?? 84 * MediaQuery.sizeOf(context).width / 750,
         child: TextField(
           key: widget.inputKey,
           autofocus: widget.autofocus,
@@ -491,7 +497,7 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
             hintStyle: const TextStyle(color: Color(0x59C9B69E), fontSize: 14),
             counterText: '',
             filled: true,
-            fillColor: const Color(0xB3191715),
+            fillColor: widget.fillColor,
             isDense: true,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,

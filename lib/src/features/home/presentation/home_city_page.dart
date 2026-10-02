@@ -162,7 +162,7 @@ class _HomeCityPageState extends State<HomeCityPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 8, 6, 8),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   IconButton(
                     tooltip: homeCopy(context, '关闭', 'Close', '關閉', 'ปิด'),
@@ -172,6 +172,9 @@ class _HomeCityPageState extends State<HomeCityPage> {
                   Expanded(
                     child: LegacyConversationSearch(
                       inputKey: const ValueKey('home-city-input'),
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      fillColor: const Color(0xFF252525),
                       controller: _input,
                       maxLength: 100,
                       hint: homeCopy(
