@@ -8,6 +8,7 @@ import '../data/together_play.dart';
 import 'legacy_club_components.dart';
 import 'together_date_picker.dart';
 import 'together_play_page.dart';
+import 'together_removal_page.dart';
 
 /// Old ticket.wxml geometry, populated only by the selected member ticket.
 class TogetherTicketPage extends StatefulWidget {
@@ -15,11 +16,13 @@ class TogetherTicketPage extends StatefulWidget {
     super.key,
     required this.party,
     this.reload,
+    this.removalRepository,
     this.clock = DateTime.now,
   });
   final TogetherParty party;
   final Future<TogetherParty> Function()? reload;
   final DateTime Function() clock;
+  final TogetherRemovalRepository? removalRepository;
 
   @override
   State<TogetherTicketPage> createState() => _TogetherTicketPageState();
@@ -320,6 +323,21 @@ class _TogetherTicketPageState extends State<TogetherTicketPage>
                         ],
                       ),
                     ),
+                    if (widget.removalRepository != null)
+                      TextButton(
+                        onPressed: () async {
+                          await Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => TogetherRemovalPage(
+                                partyRef: party.ref,
+                                repository: widget.removalRepository!,
+                              ),
+                            ),
+                          );
+                          if (mounted) await _refresh();
+                        },
+                        child: const Text('查看本场参加者'),
+                      ),
                     Container(
                       width: 650 * unit,
                       margin: EdgeInsets.symmetric(vertical: 40 * unit),

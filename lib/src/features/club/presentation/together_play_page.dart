@@ -9,6 +9,7 @@ import 'legacy_club_components.dart';
 import 'positioning_card_label.dart';
 import 'together_date_picker.dart';
 import 'together_ticket_page.dart';
+import 'together_removal_page.dart';
 
 String _two(int value) => value.toString().padLeft(2, '0');
 String _date(DateTime value) => '${_two(value.month)}.${_two(value.day)}';
@@ -126,6 +127,11 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
         MaterialPageRoute(
           builder: (_) => TogetherTicketPage(
             party: party,
+            removalRepository:
+                !widget.reviewOnly &&
+                    widget.repository is TogetherRemovalRepository
+                ? widget.repository as TogetherRemovalRepository
+                : null,
             reload: widget.reviewOnly
                 ? null
                 : () => widget.repository is TogetherAdmissionRepository
@@ -1059,6 +1065,27 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
                   child: TogetherParticipants(party: _party),
                 ),
               ),
+              if (widget.repository is TogetherRemovalRepository)
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          await Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => TogetherRemovalPage(
+                                partyRef: _party.ref,
+                                repository:
+                                    widget.repository
+                                        as TogetherRemovalRepository,
+                              ),
+                            ),
+                          );
+                          if (mounted) {
+                            await _refresh();
+                          }
+                        },
+                  child: const Text('查看本场参加者'),
+                ),
               const SizedBox(height: 22),
               Text(
                 _party.feeLabel,

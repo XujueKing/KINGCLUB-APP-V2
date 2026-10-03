@@ -186,6 +186,7 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
                 MaterialPageRoute(
                   builder: (_) => TogetherTicketPage(
                     party: widget.party,
+                    removalRepository: widget.repository,
                     reload: () => widget.repository.admission(widget.party.ref),
                   ),
                 ),

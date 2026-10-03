@@ -29,7 +29,10 @@ class TogetherBooking {
 
 /// The catalogue contains published invitations, not payment confirmations.
 class SecureTogetherPlayRepository
-    implements TogetherPlayRepository, TogetherAdmissionRepository {
+    implements
+        TogetherPlayRepository,
+        TogetherAdmissionRepository,
+        TogetherRemovalRepository {
   SecureTogetherPlayRepository({
     required this.readSession,
     required this.request,
@@ -348,6 +351,118 @@ class SecureTogetherPlayRepository
       code: code,
       expiresAt: expires,
     );
+  }
+
+  Future<Map> _removal(Map<String, dynamic> params) async {
+    final session = await readSession();
+    final identity = _identity(session);
+    return _call('K261004001993', params, session!, identity);
+  }
+
+  @override
+  Future<TogetherRemovalMembers> removalMembers(
+    String partyRef, {
+    String? after,
+  }) async {
+    final r = await _removal({
+      'action': 'list',
+      'partyRef': partyRef,
+      'after': ?after,
+    });
+    if (r['partyRef'] != partyRef ||
+        r['canManage'] is! bool ||
+        r['items'] is! List) {
+      _invalid();
+    }
+    final items = <TogetherRemovalMember>[];
+    for (final item in r['items'] as List) {
+      if (item is! Map || item['admitted'] is! bool) {
+        _invalid();
+      }
+      items.add(
+        TogetherRemovalMember(
+          _ref(item['bookingRef']),
+          _text(item['name']),
+          item['admitted'] as bool,
+        ),
+      );
+    }
+    if (items.map((m) => m.bookingRef).toSet().length != items.length) {
+      _invalid();
+    }
+    return TogetherRemovalMembers(
+      r['canManage'] as bool,
+      items,
+      r['next'] == null ? null : _ref(r['next']),
+    );
+  }
+
+  @override
+  Future<TogetherRemovalQuote> removalQuote(
+    String partyRef,
+    String bookingRef,
+  ) async {
+    final r = await _removal({
+      'action': 'quote',
+      'partyRef': partyRef,
+      'bookingRef': bookingRef,
+    });
+    if (r['partyRef'] != partyRef ||
+        r['bookingRef'] != bookingRef ||
+        r['currency'] != 'CNY' ||
+        r['methods'] is! List) {
+      _invalid();
+    }
+    final refund = _money(r['refundCents']),
+        participant = _money(r['participantCompensationCents']),
+        merchant = _money(r['merchantCompensationCents']),
+        total = _money(r['totalCents']);
+    final methods = (r['methods'] as List).map((v) => _text(v)).toList();
+    if (total != refund + participant + merchant ||
+        methods.isEmpty ||
+        methods.any((v) => !['platform_cash', 'wechat'].contains(v))) {
+      _invalid();
+    }
+    return TogetherRemovalQuote(
+      bookingRef,
+      refund,
+      participant,
+      merchant,
+      total,
+      methods,
+    );
+  }
+
+  @override
+  Future<void> payRemoval(
+    String partyRef,
+    TogetherRemovalQuote quote, {
+    required String requestRef,
+    required String method,
+  }) async {
+    final r = await _removal({
+      'action': 'pay',
+      'partyRef': partyRef,
+      'bookingRef': quote.bookingRef,
+      'requestRef': requestRef,
+      'expectedCents': quote.totalMinor.toString(),
+      'method': method,
+    });
+    if (r['partyRef'] != partyRef ||
+        r['bookingRef'] != quote.bookingRef ||
+        r['refundRef'] != requestRef ||
+        r['removal'] is! Map ||
+        r['replayed'] is! bool) {
+      _invalid();
+    }
+    final removal = r['removal'] as Map;
+    if (_money(removal['payerCents']) != quote.totalMinor ||
+        _money(removal['participantCompensationCents']) !=
+            quote.participantCompensationMinor ||
+        _money(removal['merchantCompensationCents']) !=
+            quote.merchantCompensationMinor) {
+      _invalid();
+    }
   }
 
   Future<List<TogetherCoupon>> coupons(

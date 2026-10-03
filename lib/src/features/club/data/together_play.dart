@@ -197,3 +197,47 @@ abstract interface class TogetherPlayRepository {
 abstract interface class TogetherAdmissionRepository {
   Future<TogetherParty> admission(String ref);
 }
+
+class TogetherRemovalMember {
+  const TogetherRemovalMember(this.bookingRef, this.name, this.admitted);
+  final String bookingRef, name;
+  final bool admitted;
+}
+
+class TogetherRemovalMembers {
+  const TogetherRemovalMembers(this.canManage, this.items, this.next);
+  final bool canManage;
+  final List<TogetherRemovalMember> items;
+  final String? next;
+}
+
+class TogetherRemovalQuote {
+  const TogetherRemovalQuote(
+    this.bookingRef,
+    this.refundMinor,
+    this.participantCompensationMinor,
+    this.merchantCompensationMinor,
+    this.totalMinor,
+    this.methods,
+  );
+  final String bookingRef;
+  final int refundMinor,
+      participantCompensationMinor,
+      merchantCompensationMinor,
+      totalMinor;
+  final List<String> methods;
+}
+
+abstract interface class TogetherRemovalRepository {
+  Future<TogetherRemovalMembers> removalMembers(
+    String partyRef, {
+    String? after,
+  });
+  Future<TogetherRemovalQuote> removalQuote(String partyRef, String bookingRef);
+  Future<void> payRemoval(
+    String partyRef,
+    TogetherRemovalQuote quote, {
+    required String requestRef,
+    required String method,
+  });
+}

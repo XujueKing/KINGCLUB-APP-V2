@@ -129,6 +129,7 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
         MaterialPageRoute(
           builder: (_) => TogetherTicketPage(
             party: party,
+            removalRepository: repository,
             reload: () => repository.admission(party.ref),
           ),
         ),
