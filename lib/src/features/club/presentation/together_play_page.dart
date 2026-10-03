@@ -987,14 +987,10 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
           child: ListView(
             padding: const EdgeInsets.all(18),
             children: [
-              if (_party.posterUrl != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    _party.posterUrl!,
-                    fit: BoxFit.fitWidth,
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                  ),
+              if (_party.detailPosters.isNotEmpty)
+                _TogetherPosters(
+                  key: ValueKey(_party.detailPosters.join('\n')),
+                  urls: _party.detailPosters,
                 ),
               const SizedBox(height: 16),
               Text(
@@ -1084,6 +1080,70 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
           ),
         ),
       ],
+    ),
+  );
+}
+
+class _TogetherPosters extends StatefulWidget {
+  const _TogetherPosters({super.key, required this.urls});
+  final List<String> urls;
+
+  @override
+  State<_TogetherPosters> createState() => _TogetherPostersState();
+}
+
+class _TogetherPostersState extends State<_TogetherPosters> {
+  int _page = 0;
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(12),
+    child: AspectRatio(
+      aspectRatio: 3 / 4,
+      child: Stack(
+        children: [
+          PageView.builder(
+            itemCount: widget.urls.length,
+            onPageChanged: (page) => setState(() => _page = page),
+            itemBuilder: (context, index) => ColoredBox(
+              color: Colors.black,
+              child: CachedMediaImage(
+                widget.urls[index],
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Center(
+                  child: Text(
+                    '海报暂未加载',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (widget.urls.length > 1)
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    child: Text(
+                      '${_page + 1}/${widget.urls.length}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     ),
   );
 }

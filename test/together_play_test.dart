@@ -45,6 +45,8 @@ TogetherParty fixture({
   bool admissionUsed = false,
   List<TogetherParticipant>? participants,
   List<TogetherGender> seatGenders = const [],
+  String? posterUrl,
+  List<String> posterUrls = const [],
 }) => TogetherParty(
   ref: ref,
   theme: ref == 'night' ? '周末微醺交友局' : '一起听歌 · 认识新朋友',
@@ -63,6 +65,8 @@ TogetherParty fixture({
   place: '样例活动地点',
   capacity: capacity,
   seatGenders: seatGenders,
+  posterUrl: posterUrl,
+  posterUrls: posterUrls,
   participants:
       participants ??
       List.generate(count, (i) => TogetherParticipant(name: '样例会员$i')),
@@ -93,6 +97,51 @@ class Repository implements TogetherPlayRepository {
 }
 
 void main() {
+  testWidgets(
+    'detail posters swipe, show page count and keep legacy single image',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final party = fixture(
+        posterUrl: 'https://example.com/old.jpg',
+        posterUrls: [
+          'https://example.com/one.jpg',
+          'https://example.com/two.jpg',
+          'https://example.com/three.jpg',
+        ],
+      );
+      expect(party.detailPosters.length, 3);
+      expect(party.detailPosters, isNot(contains(party.posterUrl)));
+      expect(fixture(posterUrl: 'https://example.com/old.jpg').detailPosters, [
+        'https://example.com/old.jpg',
+      ]);
+      expect(fixture().detailPosters, isEmpty);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TogetherPartyDetailPage(
+            party: party,
+            repository: Repository(),
+            onJoin: (_) async {},
+            onAdmission: (_) async {},
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('1/3'), findsOneWidget);
+      await tester.drag(find.byType(PageView), const Offset(-260, 0));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('2/3'), findsOneWidget);
+      await tester.drag(find.byType(PageView), const Offset(-260, 0));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('3/3'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'back position matches chat across safe areas and dates keep taps',
     (tester) async {

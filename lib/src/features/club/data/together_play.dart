@@ -47,6 +47,7 @@ class TogetherParty {
     required this.rules,
     this.backgroundUrl,
     this.posterUrl,
+    this.posterUrls = const [],
     this.storeLogo,
     this.assignedTable,
     this.ticketNumber,
@@ -71,6 +72,12 @@ class TogetherParty {
   final TogetherFeeMode feeMode;
   final TogetherJoinState state;
   final String? backgroundUrl, posterUrl;
+  final List<String> posterUrls;
+
+  /// Multi-poster activities take precedence over the original single image.
+  List<String> get detailPosters => posterUrls.isNotEmpty
+      ? posterUrls.take(3).toList(growable: false)
+      : [if (posterUrl != null && posterUrl!.isNotEmpty) posterUrl!];
 
   /// Merchant-provided image reference; never assume every store is KING.
   final String? storeLogo;
