@@ -131,16 +131,10 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
   }
 
   @override
-  Widget build(BuildContext context) => LegacyClubScaffold(
+  Widget build(BuildContext context) => _TogetherScaffold(
     title: '一起玩',
-    titleFontWeight: FontWeight.w400,
     onBack: widget.onBack,
-    showMockLabel: false,
-    headerAction: TextButton(
-      onPressed: widget.onCreate,
-      style: TextButton.styleFrom(foregroundColor: legacyGold),
-      child: const Text('发起组局', style: TextStyle(fontSize: 13)),
-    ),
+    onCreate: widget.onCreate,
     child: Column(
       children: [
         TogetherDateStrip(
@@ -176,12 +170,14 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
               : ListView.separated(
                   padding: EdgeInsets.fromLTRB(
                     MediaQuery.sizeOf(context).width * 30 / 750,
-                    16,
+                    0,
                     MediaQuery.sizeOf(context).width * 30 / 750,
                     28,
                   ),
                   itemCount: _items.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 16),
+                  separatorBuilder: (_, _) => SizedBox(
+                    height: MediaQuery.sizeOf(context).width * 30 / 750,
+                  ),
                   itemBuilder: (_, index) => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -204,6 +200,110 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
   );
 }
 
+/// Choose.wxss starts at 130rpx from the screen, not below a second app bar.
+/// Keep this page-specific so other screens retain their shared navigation.
+class _TogetherScaffold extends StatelessWidget {
+  const _TogetherScaffold({
+    required this.title,
+    required this.onBack,
+    required this.onCreate,
+    required this.child,
+  });
+  final String title;
+  final VoidCallback onBack, onCreate;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final unit = MediaQuery.sizeOf(context).width / 750;
+    final top = (130 * unit).clamp(
+      MediaQuery.paddingOf(context).top,
+      double.infinity,
+    );
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -.5),
+            radius: 600 / 750,
+            colors: [Color(0xEF252018), Colors.black],
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  SizedBox(height: top),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 39 * unit,
+                    child: Center(
+                      child: Text(
+                        title,
+                        key: const ValueKey('together-title'),
+                        style: togetherLegacyDateStyle(
+                          28 * unit,
+                          legacyGold,
+                        ).copyWith(height: 39 / 28),
+                      ),
+                    ),
+                  ),
+                  Expanded(child: child),
+                ],
+              ),
+              Positioned(
+                left: 55 * unit,
+                top: top - 20 * unit,
+                child: Semantics(
+                  button: true,
+                  label: '返回',
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onBack,
+                    child: SizedBox(
+                      width: (70 * unit).clamp(44, double.infinity),
+                      height: (72 * unit).clamp(44, double.infinity),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            left: 20 * unit,
+                            top: 20 * unit,
+                            child: Image.asset(
+                              'assets/legacy/friendship/back.png',
+                              width: 20 * unit,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 30 * unit,
+                top: top + (39 * unit - 44) / 2,
+                child: TextButton(
+                  onPressed: onCreate,
+                  style: TextButton.styleFrom(
+                    foregroundColor: legacyGold,
+                    minimumSize: const Size(44, 44),
+                    padding: EdgeInsets.zero,
+                    textStyle: togetherLegacyDateStyle(26 * unit, legacyGold),
+                  ),
+                  child: const Text('发起组局'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Ticket geometry follows Choose.wxss: 690 by 240 rpx, 20 rpx corners.
 class TogetherPartyCard extends StatelessWidget {
   const TogetherPartyCard({
@@ -222,10 +322,14 @@ class TogetherPartyCard extends StatelessWidget {
       child: InkWell(
         key: ValueKey('together-card-${party.ref}'),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(
+          MediaQuery.sizeOf(context).width * 20 / 750,
+        ),
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(
+              MediaQuery.sizeOf(context).width * 20 / 750,
+            ),
             gradient: const RadialGradient(
               center: Alignment.bottomRight,
               // CSS circle 500rpx; Flutter measures radius against the
@@ -483,85 +587,90 @@ class TogetherAvailableRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: const Color(0x33C9B69E),
-    borderRadius: BorderRadius.circular(10),
-    child: InkWell(
-      key: ValueKey('together-card-${party.ref}'),
-      borderRadius: BorderRadius.circular(10),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    party.theme,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 16, color: legacyGold),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    '${party.participants.length}/${party.capacity}人 · ${party.feeLabel}',
-                    style: const TextStyle(fontSize: 12, color: Colors.white54),
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
+  Widget build(BuildContext context) {
+    final unit = MediaQuery.sizeOf(context).width / 750;
+    TextStyle style(double rpx, Color color) =>
+        togetherLegacyDateStyle(rpx * unit, color).copyWith(height: 1.2);
+    return SizedBox(
+      height: 140 * unit,
+      child: Material(
+        color: const Color(0x55C9B69E),
+        borderRadius: BorderRadius.circular(20 * unit),
+        child: InkWell(
+          key: ValueKey('together-card-${party.ref}'),
+          borderRadius: BorderRadius.circular(20 * unit),
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 30 * unit),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TogetherStoreLogo(party: party),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          party.storeName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
+                      Text(
+                        party.theme,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: style(28, legacyGold),
+                      ),
+                      SizedBox(height: 4 * unit),
+                      Text(
+                        '${party.participants.length}/${party.capacity}人 · ${party.feeLabel}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: style(22, Colors.white54),
+                      ),
+                      SizedBox(height: 4 * unit),
+                      Row(
+                        children: [
+                          TogetherStoreLogo(party: party),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              party.storeName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: style(24, Colors.white),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  party.priceLabel,
-                  style: const TextStyle(fontSize: 14, color: legacyGold),
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF281903),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    party.state == TogetherJoinState.joined
-                        ? '待分配卡座'
-                        : party.actionLabel,
-                    style: const TextStyle(fontSize: 13, color: legacyGold),
-                  ),
+                const SizedBox(width: 10),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(party.priceLabel, style: style(26, legacyGold)),
+                    SizedBox(height: 10 * unit),
+                    Container(
+                      width: 190 * unit,
+                      height: 60 * unit,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF281903),
+                        borderRadius: BorderRadius.circular(30 * unit),
+                      ),
+                      child: Text(
+                        party.state == TogetherJoinState.joined
+                            ? '待分配卡座'
+                            : party.actionLabel,
+                        style: style(26, legacyGold),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Two rows of square seats, keeping the configured capacity visible.

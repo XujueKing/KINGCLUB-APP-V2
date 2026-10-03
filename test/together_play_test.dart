@@ -262,6 +262,23 @@ void main() {
       expect(find.byType(TogetherPartyCard), findsOneWidget);
       expect(find.text('888'), findsOneWidget);
       expect(find.byType(TogetherAvailableRow), findsNWidgets(2));
+      // Old Choose CSS: top130 + title39 + margin30 + date80 + margin30.
+      final ticket = tester.getRect(
+        find.byKey(const ValueKey('together-card-friends')),
+      );
+      expect(ticket.left, closeTo(30 * .5, .1));
+      expect(ticket.top, closeTo(309 * .5, .1));
+      expect(ticket.width, closeTo(690 * .5, .1));
+      expect(ticket.height, closeTo(240 * .5, .1));
+      final date = tester.getRect(
+        find.byKey(const ValueKey('together-date-box-0')),
+      );
+      expect(date.top, closeTo(199 * .5, .1));
+      final nextRow = tester.getRect(
+        find.byKey(const ValueKey('together-card-music')),
+      );
+      expect(nextRow.top - ticket.bottom, closeTo(30 * .5, .1));
+      expect(nextRow.height, closeTo(140 * .5, .1));
       expect(
         tester
             .getTopLeft(find.byKey(const ValueKey('together-card-friends')))
