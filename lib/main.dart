@@ -14,6 +14,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks([
+      'Bebas Neue',
+    ], await rootBundle.loadString('assets/licenses/BebasNeue-OFL.txt'));
+    yield LicenseEntryWithLineBreaks([
       'eviltransform',
     ], await rootBundle.loadString('assets/licenses/eviltransform.txt'));
   });

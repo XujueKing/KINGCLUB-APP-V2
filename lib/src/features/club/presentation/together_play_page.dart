@@ -5,6 +5,7 @@ import '../../../core/media/cached_media_image.dart';
 
 import '../data/together_play.dart';
 import 'legacy_club_components.dart';
+import 'positioning_card_label.dart';
 import 'together_date_picker.dart';
 
 String _two(int value) => value.toString().padLeft(2, '0');
@@ -403,13 +404,7 @@ class TogetherPartyCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Image.asset(
-                              'assets/legacy/aa/positioningCard.png',
-                              width: 135,
-                              height: 18,
-                              fit: BoxFit.contain,
-                              semanticLabel: 'POSITIONING CARD',
-                            ),
+                            const PositioningCardLabel(),
                           ],
                         ),
                       ),

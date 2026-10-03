@@ -107,9 +107,13 @@ flutter:
     - family: AaRuizhi
       fonts:
         - asset: assets/fonts/AaRuizhi.ttf
+    - family: BebasNeue
+      fonts:
+        - asset: assets/fonts/BebasNeue-Regular.ttf
 
   assets:
     - assets/licenses/eviltransform.txt
+    - assets/licenses/BebasNeue-OFL.txt
     - assets/commerce/bottle_preview/
     - assets/legacy/home/
     - assets/legacy/onboarding/
@@ -138,7 +142,6 @@ flutter:
     - assets/legacy/aa/
     - assets/club/calendar.svg
     - assets/club/king-wordmark.svg
-    - assets/legacy/aa/positioningCard.png
     - assets/legacy/aa/man.png
     - assets/legacy/aa/man2.png
     - assets/legacy/aa/woman.png

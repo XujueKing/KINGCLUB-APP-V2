@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import 'legacy_club_components.dart';
+import 'positioning_card_label.dart';
 
 class AaPositioningCardPage extends StatefulWidget {
   const AaPositioningCardPage({super.key, required this.onBack});
@@ -286,11 +287,7 @@ class AaLegacyConfirmedReservationCard extends StatelessWidget {
                       style: TextStyle(color: legacyPink, fontSize: 12),
                     ),
                     SizedBox(height: 5),
-                    Image(
-                      image: AssetImage('assets/legacy/aa/positioningCard.png'),
-                      width: 138,
-                      fit: BoxFit.contain,
-                    ),
+                    PositioningCardLabel(width: 138, height: 18.4),
                   ],
                 ),
               ),
