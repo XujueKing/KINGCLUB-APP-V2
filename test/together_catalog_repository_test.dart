@@ -9,6 +9,8 @@ void main() {
     'apiKey': 'secret-test',
   };
   Map<String, dynamic> row(String ref) => {
+    'confirmedCount': 0,
+    'myBookingStatus': null,
     'ref': ref,
     'theme': '活动',
     'cityCode': '430200',
@@ -24,6 +26,44 @@ void main() {
     'backgroundUrl': 'https://example.test/a.jpg',
     'posterUrl': 'https://example.test/b.jpg',
   };
+  test(
+    'booking state and paid count control action without fabricated QR',
+    () async {
+      for (final state in [null, 'pending', 'paid', 'refunded']) {
+        final repo = SecureTogetherPlayRepository(
+          readSession: () async => session,
+          request: (_, p, _) async => {
+            'result': {
+              'item': {
+                ...row('a'),
+                'myBookingStatus': state,
+                'confirmedCount': 10,
+                'eligibility': {
+                  'eligible': true,
+                  'reasons': [],
+                  'payableCents': '15000',
+                },
+              },
+            },
+          },
+        );
+        final party = await repo.detail('a');
+        expect(party.participantCount, 10);
+        expect(
+          party.actionLabel,
+          state == null
+              ? '已满员'
+              : state == 'pending'
+              ? '继续支付'
+              : state == 'paid'
+              ? '入场码'
+              : '已取消',
+        );
+        expect(party.admissionCode, isNull);
+        expect(party.participants, isEmpty);
+      }
+    },
+  );
   test(
     'pages by venue date at midnight and never invents paid tickets',
     () async {

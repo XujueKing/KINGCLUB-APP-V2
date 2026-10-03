@@ -57,6 +57,7 @@ class TogetherParty {
     this.eligible,
     this.eligibilityReasons = const [],
     this.personalPriceMinor,
+    this.confirmedCount,
   });
   final String ref,
       theme,
@@ -103,8 +104,10 @@ class TogetherParty {
   final bool? eligible;
   final List<String> eligibilityReasons;
   final int? personalPriceMinor;
+  final int? confirmedCount;
+  int get participantCount => confirmedCount ?? participants.length;
 
-  int get remaining => (capacity - participants.length).clamp(0, capacity);
+  int get remaining => (capacity - participantCount).clamp(0, capacity);
   String get feeLabel => switch (feeMode) {
     TogetherFeeMode.aa => 'AA 制',
     TogetherFeeMode.menPay => '男 A 女免',

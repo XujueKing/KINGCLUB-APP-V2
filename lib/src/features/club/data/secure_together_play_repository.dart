@@ -94,6 +94,19 @@ class SecureTogetherPlayRepository implements TogetherPlayRepository {
   TogetherParty _party(dynamic value, {bool detail = false}) {
     if (value is! Map) _invalid();
     final r = value;
+    final confirmed = r['confirmedCount'];
+    final bookingStatus = r['myBookingStatus'];
+    if (confirmed is! int ||
+        confirmed < 0 ||
+        ![
+          null,
+          'pending',
+          'paid',
+          'cancelled',
+          'refunded',
+        ].contains(bookingStatus)) {
+      _invalid();
+    }
     final start = _date(r['startsAt']), end = _date(r['endsAt']);
     final capacity = r['capacity'];
     if (capacity is! int ||
@@ -168,11 +181,18 @@ class SecureTogetherPlayRepository implements TogetherPlayRepository {
       place: _text(r['place']),
       capacity: capacity,
       participants: const [],
+      confirmedCount: confirmed,
       feeMode: fee,
       priceMinor: _money(r['priceCents']),
-      state: end.isAfter(DateTime.now().toUtc())
-          ? TogetherJoinState.available
-          : TogetherJoinState.closed,
+      state: bookingStatus == 'paid'
+          ? TogetherJoinState.joined
+          : !end.isAfter(DateTime.now().toUtc())
+          ? TogetherJoinState.closed
+          : bookingStatus == 'pending'
+          ? TogetherJoinState.pendingPayment
+          : bookingStatus == 'cancelled' || bookingStatus == 'refunded'
+          ? TogetherJoinState.cancelled
+          : TogetherJoinState.available,
       description: _text(r['description']),
       rules: '',
       backgroundUrl: _media(r['backgroundUrl']),

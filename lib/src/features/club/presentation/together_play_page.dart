@@ -742,7 +742,7 @@ class TogetherAvailableRow extends StatelessWidget {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                '${party.participants.length}/${party.capacity}人 · ${party.feeLabel}',
+                                '${party.participantCount}/${party.capacity}人 · ${party.feeLabel}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: style(22, Colors.white54),
@@ -922,7 +922,7 @@ class TogetherParticipants extends StatelessWidget {
         if (showCount) ...[
           const SizedBox(height: 6),
           Text(
-            '${party.participants.length}/${party.capacity} 人',
+            '${party.participantCount}/${party.capacity} 人',
             style: const TextStyle(color: legacyPink, fontSize: 11),
           ),
         ],
