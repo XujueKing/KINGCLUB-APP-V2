@@ -340,7 +340,11 @@ void main() {
       final nextRow = tester.getRect(
         find.byKey(const ValueKey('together-card-music')),
       );
-      expect(nextRow.top - ticket.bottom, closeTo(30 * .5, .1));
+      final reminder = tester.getRect(
+        find.byKey(const ValueKey('together-use-reminder-friends')),
+      );
+      expect(reminder.top - ticket.bottom, closeTo(20 * .5, .1));
+      expect(nextRow.top - reminder.bottom, closeTo(30 * .5, .1));
       expect(nextRow.height, closeTo(140 * .5, .1));
       expect(
         tester

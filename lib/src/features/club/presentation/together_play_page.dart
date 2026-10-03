@@ -183,12 +183,28 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
                   itemBuilder: (_, index) => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_items[index].hasAssignedTable)
+                      if (_items[index].hasAssignedTable) ...[
                         TogetherPartyCard(
                           party: _items[index],
                           onTap: () => _open(_items[index]),
-                        )
-                      else
+                        ),
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: MediaQuery.sizeOf(context).width * 20 / 750,
+                          ),
+                          child: Text(
+                            '请按时到场并出示入场码，过期作废。\n'
+                            '请衣着整洁、文明礼貌，适量饮酒、尊重同桌。',
+                            key: ValueKey(
+                              'together-use-reminder-${_items[index].ref}',
+                            ),
+                            style: togetherLegacyDateStyle(
+                              MediaQuery.sizeOf(context).width * 26 / 750,
+                              const Color(0x66FFFFFF),
+                            ).copyWith(height: 1.55),
+                          ),
+                        ),
+                      ] else
                         TogetherAvailableRow(
                           party: _items[index],
                           onTap: () => _open(_items[index]),
