@@ -5,6 +5,8 @@ import '../../auth/domain/auth_repository.dart';
 import '../data/together_party_draft.dart';
 import '../data/together_play.dart';
 import '../data/together_store.dart';
+import '../data/secure_together_publication.dart';
+import 'together_publish_confirmation_page.dart';
 import 'legacy_club_components.dart';
 
 class TogetherPartyCreatePage extends StatefulWidget {
@@ -15,10 +17,11 @@ class TogetherPartyCreatePage extends StatefulWidget {
     required this.onBack,
     required this.loadLibrary,
     required this.uploadArtwork,
-    required this.onReview,
+    this.onReview,
+    this.publication,
     required this.stores,
     this.loadPackages,
-  });
+  }) : assert(onReview != null || publication != null);
   final String cityCode, cityName;
   final TogetherStoreRepository stores;
   final Future<List<TogetherPackage>> Function(String storeRef)? loadPackages;
@@ -27,7 +30,8 @@ class TogetherPartyCreatePage extends StatefulWidget {
   final Future<TogetherArtwork?> Function() uploadArtwork;
 
   /// Opens the authoritative deposit quote/terms confirmation. Not publication.
-  final Future<void> Function(TogetherPartyDraft) onReview;
+  final Future<void> Function(TogetherPartyDraft)? onReview;
+  final SecureTogetherPublication? publication;
   @override
   State<TogetherPartyCreatePage> createState() =>
       _TogetherPartyCreatePageState();
@@ -406,7 +410,20 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _error = null;
     });
     try {
-      await widget.onReview(draft);
+      final publication = widget.publication;
+      if (publication != null) {
+        final partyRef = await Navigator.of(context).push<String>(
+          MaterialPageRoute(
+            builder: (_) => TogetherPublishConfirmationPage(
+              draft: draft,
+              publication: publication,
+            ),
+          ),
+        );
+        if (mounted && partyRef != null) Navigator.of(context).pop(partyRef);
+      } else {
+        await widget.onReview!(draft);
+      }
     } on AuthFailure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
     } catch (_) {
