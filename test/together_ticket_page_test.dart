@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -23,7 +25,12 @@ void main() {
         capacity: 14,
       );
       await tester.pumpWidget(
-        MaterialApp(home: TogetherTicketPage(party: party)),
+        MaterialApp(
+          home: TogetherTicketPage(
+            party: party,
+            clock: () => DateTime(2026, 10, 3, 21),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.text('V15'), findsOneWidget);
@@ -81,7 +88,12 @@ void main() {
       ),
     ]) {
       await tester.pumpWidget(
-        MaterialApp(home: TogetherTicketPage(party: party)),
+        MaterialApp(
+          home: TogetherTicketPage(
+            party: party,
+            clock: () => DateTime(2026, 10, 2, 21),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.byType(QrImageView), findsNothing);
@@ -92,4 +104,132 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+
+  testWidgets('overnight ticket expires while its page stays open', (
+    tester,
+  ) async {
+    var now = DateTime(2026, 10, 3, 1, 59, 59);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TogetherTicketPage(
+          party: fixture(
+            state: TogetherJoinState.joined,
+            admissionCode: 'ticket',
+          ),
+          clock: () => now,
+        ),
+      ),
+    );
+    expect(find.byType(QrImageView), findsOneWidget);
+    now = DateTime(2026, 10, 3, 2);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(QrImageView), findsNothing);
+    expect(find.text('已过期'), findsOneWidget);
+  });
+
+  testWidgets('resume waits for verification and removes a used credential', (
+    tester,
+  ) async {
+    final party = fixture(
+      state: TogetherJoinState.joined,
+      admissionCode: 'ticket',
+    );
+    var pending = Completer<TogetherParty>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TogetherTicketPage(
+          party: party,
+          clock: () => DateTime(2026, 10, 2, 21),
+          reload: () => pending.future,
+        ),
+      ),
+    );
+    expect(find.byType(QrImageView), findsNothing);
+    pending.complete(party);
+    await tester.pump();
+    expect(find.byType(QrImageView), findsOneWidget);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    pending = Completer<TogetherParty>();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(find.byType(QrImageView), findsNothing);
+    pending.complete(
+      fixture(
+        state: TogetherJoinState.joined,
+        admissionCode: 'ticket',
+        admissionUsed: true,
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.text('已入场'), findsOneWidget);
+    expect(find.byType(QrImageView), findsNothing);
+  });
+
+  testWidgets('periodic verification observes cancellation', (tester) async {
+    final party = fixture(
+      state: TogetherJoinState.joined,
+      admissionCode: 'ticket',
+    );
+    var updated = party;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TogetherTicketPage(
+          party: party,
+          clock: () => DateTime(2026, 10, 2, 21),
+          reload: () async => updated,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(QrImageView), findsOneWidget);
+    updated = fixture(
+      state: TogetherJoinState.cancelled,
+      admissionCode: 'ticket',
+    );
+    await tester.pump(const Duration(seconds: 30));
+    expect(find.byType(QrImageView), findsNothing);
+    expect(find.text('活动已取消'), findsOneWidget);
+  });
+
+  testWidgets(
+    'wrong ticket and failed refresh stay hidden until retry succeeds',
+    (tester) async {
+      final party = fixture(
+        state: TogetherJoinState.joined,
+        admissionCode: 'ticket',
+      );
+      var attempts = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TogetherTicketPage(
+            party: party,
+            clock: () => DateTime(2026, 10, 2, 21),
+            reload: () async {
+              attempts++;
+              if (attempts == 1) {
+                return fixture(
+                  ref: 'other',
+                  state: TogetherJoinState.joined,
+                  admissionCode: 'wrong',
+                );
+              }
+              if (attempts == 2) throw StateError('offline');
+              return party;
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(QrImageView), findsNothing);
+      await tester.ensureVisible(find.text('重新加载'));
+      await tester.tap(find.text('重新加载'));
+      await tester.pump();
+      expect(find.byType(QrImageView), findsNothing);
+      await tester.tap(find.text('重新加载'));
+      await tester.pump();
+      expect(find.byType(QrImageView), findsOneWidget);
+    },
+  );
 }

@@ -121,7 +121,14 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
   Future<void> _open(TogetherParty party) async {
     if (party.hasAdmissionTicket) {
       await Navigator.of(context).push<void>(
-        MaterialPageRoute(builder: (_) => TogetherTicketPage(party: party)),
+        MaterialPageRoute(
+          builder: (_) => TogetherTicketPage(
+            party: party,
+            reload: widget.reviewOnly
+                ? null
+                : () => widget.repository.detail(party.ref),
+          ),
+        ),
       );
       if (mounted && !widget.reviewOnly) await _load();
       return;

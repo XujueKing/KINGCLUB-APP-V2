@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -9,8 +11,15 @@ import 'together_play_page.dart';
 
 /// Old ticket.wxml geometry, populated only by the selected member ticket.
 class TogetherTicketPage extends StatefulWidget {
-  const TogetherTicketPage({super.key, required this.party});
+  const TogetherTicketPage({
+    super.key,
+    required this.party,
+    this.reload,
+    this.clock = DateTime.now,
+  });
   final TogetherParty party;
+  final Future<TogetherParty> Function()? reload;
+  final DateTime Function() clock;
 
   @override
   State<TogetherTicketPage> createState() => _TogetherTicketPageState();
@@ -19,27 +28,107 @@ class TogetherTicketPage extends StatefulWidget {
 class _TogetherTicketPageState extends State<TogetherTicketPage>
     with WidgetsBindingObserver {
   bool _covered = false;
+  late TogetherParty _party;
+  bool _checking = false;
+  bool _refreshFailed = false;
+  int _generation = 0;
+  Timer? _timer;
+
+  bool get _expired => !widget.clock().isBefore(_party.endsAt);
 
   @override
   void initState() {
     super.initState();
+    _party = widget.party;
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    _covered = lifecycle != null && lifecycle != AppLifecycleState.resumed;
     WidgetsBinding.instance.addObserver(this);
+    if (!_covered) _refresh();
+  }
+
+  @override
+  void didUpdateWidget(TogetherTicketPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.party != widget.party || oldWidget.reload != widget.reload) {
+      _generation++;
+      _timer?.cancel();
+      _party = widget.party;
+      _checking = false;
+      _refreshFailed = false;
+      if (!_covered) _refresh();
+    }
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    if (_covered || _expired) return;
+    final remaining = _party.endsAt.difference(widget.clock());
+    final delay =
+        widget.reload != null && remaining > const Duration(seconds: 30)
+        ? const Duration(seconds: 30)
+        : remaining;
+    _timer = Timer(delay, () {
+      if (!mounted || _covered) return;
+      setState(() {});
+      if (!_expired) _refresh(hideUntilChecked: false);
+    });
+  }
+
+  Future<void> _refresh({bool hideUntilChecked = true}) async {
+    final reload = widget.reload;
+    if (reload == null || _expired) {
+      _schedule();
+      return;
+    }
+    final generation = ++_generation;
+    _timer?.cancel();
+    setState(() => _checking = hideUntilChecked || _refreshFailed);
+    try {
+      final updated = await reload().timeout(const Duration(seconds: 10));
+      if (!mounted || generation != _generation || _covered) return;
+      if (updated.ref != widget.party.ref ||
+          updated.storeRef != widget.party.storeRef ||
+          updated.ticketNumber != widget.party.ticketNumber) {
+        throw StateError('Ticket identity changed');
+      }
+      setState(() {
+        _party = updated;
+        _refreshFailed = false;
+      });
+    } catch (_) {
+      if (!mounted || generation != _generation || _covered) return;
+      setState(() => _refreshFailed = true);
+    } finally {
+      if (mounted && generation == _generation && !_covered) {
+        setState(() => _checking = false);
+        _schedule();
+      }
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (mounted) setState(() => _covered = state != AppLifecycleState.resumed);
+    if (!mounted) return;
+    _generation++;
+    _timer?.cancel();
+    setState(() {
+      _covered = state != AppLifecycleState.resumed;
+      _checking = false;
+    });
+    if (!_covered) _refresh();
   }
 
   @override
   void dispose() {
+    _generation++;
+    _timer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final party = widget.party;
+    final party = _party;
     final unit = MediaQuery.sizeOf(context).width / 750;
     final safeTop = MediaQuery.paddingOf(context).top;
     final cardTop = (130 * unit).clamp(safeTop, double.infinity) + 89 * unit;
@@ -59,7 +148,23 @@ class _TogetherTicketPageState extends State<TogetherTicketPage>
         !party.admissionUsed &&
         code != null &&
         code.isNotEmpty &&
-        !_covered;
+        !_covered &&
+        !_expired &&
+        !_checking &&
+        !_refreshFailed;
+    final codeStatus = _covered
+        ? '入场码已遮盖'
+        : party.admissionUsed
+        ? '已入场'
+        : party.state == TogetherJoinState.cancelled
+        ? '活动已取消'
+        : _expired
+        ? '已过期'
+        : _checking
+        ? '正在更新入场码'
+        : _refreshFailed
+        ? '入场码暂未更新'
+        : '入场码暂不可用';
     return Scaffold(
       backgroundColor: const Color(0xFF12020C),
       body: DecoratedBox(
@@ -165,14 +270,26 @@ class _TogetherTicketPageState extends State<TogetherTicketPage>
                                     semanticsLabel: '${party.theme}入场二维码',
                                   )
                                 : Center(
-                                    child: Text(
-                                      _covered
-                                          ? '入场码已遮盖'
-                                          : party.admissionUsed
-                                          ? '已入场'
-                                          : '入场码暂不可用',
-                                      textAlign: TextAlign.center,
-                                      style: style(30, const Color(0xFF5A1E80)),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          codeStatus,
+                                          textAlign: TextAlign.center,
+                                          style: style(
+                                            30,
+                                            const Color(0xFF5A1E80),
+                                          ),
+                                        ),
+                                        if (_refreshFailed &&
+                                            !_covered &&
+                                            !_expired &&
+                                            !_checking)
+                                          TextButton(
+                                            onPressed: _refresh,
+                                            child: const Text('重新加载'),
+                                          ),
+                                      ],
                                     ),
                                   ),
                           ),
