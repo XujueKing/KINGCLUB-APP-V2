@@ -9,6 +9,28 @@ import 'package:kingclub/src/features/club/presentation/together_ticket_page.dar
 import 'together_play_test.dart' show fixture;
 
 void main() {
+  testWidgets('server credential expires independently of the activity end', (
+    tester,
+  ) async {
+    var now = DateTime(2026, 10, 3, 21);
+    final party = fixture(state: TogetherJoinState.joined, day: 3)
+        .withAdmission(
+          number: 'booking-test',
+          code: 'server-code',
+          expiresAt: now.toUtc().add(const Duration(seconds: 5)),
+        );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TogetherTicketPage(party: party, clock: () => now),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(QrImageView), findsOneWidget);
+    now = now.add(const Duration(seconds: 5));
+    await tester.pump(const Duration(seconds: 5));
+    expect(find.byType(QrImageView), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets(
     'selected ticket uses its own table, date, seats and credential',
     (tester) async {

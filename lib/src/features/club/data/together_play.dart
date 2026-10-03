@@ -52,6 +52,7 @@ class TogetherParty {
     this.assignedTable,
     this.ticketNumber,
     this.admissionCode,
+    this.admissionExpiresAt,
     this.admissionUsed = false,
     this.seatGenders = const [],
     this.eligible,
@@ -93,6 +94,45 @@ class TogetherParty {
   /// Authenticated member's credential projection; never derive from party ID.
   final String? ticketNumber, admissionCode;
   final bool admissionUsed;
+  final DateTime? admissionExpiresAt;
+  TogetherParty withAdmission({
+    required String number,
+    required String code,
+    required DateTime expiresAt,
+  }) => TogetherParty(
+    ref: ref,
+    theme: theme,
+    cityCode: cityCode,
+    cityName: cityName,
+    storeRef: storeRef,
+    storeName: storeName,
+    startsAt: startsAt,
+    endsAt: endsAt,
+    hostName: hostName,
+    merchantHost: merchantHost,
+    place: place,
+    capacity: capacity,
+    participants: participants,
+    feeMode: feeMode,
+    priceMinor: priceMinor,
+    state: state,
+    description: description,
+    rules: rules,
+    backgroundUrl: backgroundUrl,
+    posterUrl: posterUrl,
+    posterUrls: posterUrls,
+    storeLogo: storeLogo,
+    assignedTable: assignedTable,
+    ticketNumber: number,
+    admissionCode: code,
+    admissionExpiresAt: expiresAt,
+    admissionUsed: admissionUsed,
+    seatGenders: seatGenders,
+    eligible: eligible,
+    eligibilityReasons: eligibilityReasons,
+    personalPriceMinor: personalPriceMinor,
+    confirmedCount: confirmedCount,
+  );
 
   /// Confirmed participation; pending payment is never an admission ticket.
   bool get hasAdmissionTicket => state == TogetherJoinState.joined;
@@ -150,4 +190,8 @@ abstract interface class TogetherPlayRepository {
     required DateTime date,
   });
   Future<TogetherParty> detail(String ref);
+}
+
+abstract interface class TogetherAdmissionRepository {
+  Future<TogetherParty> admission(String ref);
 }

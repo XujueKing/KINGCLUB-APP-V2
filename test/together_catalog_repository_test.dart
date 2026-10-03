@@ -26,6 +26,65 @@ void main() {
     'backgroundUrl': 'https://example.test/a.jpg',
     'posterUrl': 'https://example.test/b.jpg',
   };
+  test('admission requires paid booking and validates scoped unexpired server code', () async {
+    for (final mode in [
+      'ok',
+      'pending',
+      'scope',
+      'expired',
+      'code',
+      'session',
+    ]) {
+      var current = session;
+      var issueCalls = 0;
+      final repo = SecureTogetherPlayRepository(
+        readSession: () async => current,
+        request: (id, p, _) async {
+          if (id == 'K261004001986') {
+            return {
+              'result': {
+                'item': {
+                  ...row('a'),
+                  'myBookingStatus': mode == 'pending' ? 'pending' : 'paid',
+                  'eligibility': {
+                    'eligible': true,
+                    'reasons': [],
+                    'payableCents': '15000',
+                  },
+                },
+              },
+            };
+          }
+          expect(id, 'K261004001989');
+          issueCalls++;
+          if (mode == 'session') current = {...session, 'sessionId': 'changed'};
+          return {
+            'result': {
+              'partyRef': mode == 'scope' ? 'other' : 'a',
+              'ticketNumber': 'booking-a',
+              'admissionCode': mode == 'code'
+                  ? 'invented'
+                  : 'KCTICKET1:${List.filled(43, 'a').join()}',
+              'expiresAt': DateTime.now()
+                  .toUtc()
+                  .add(Duration(minutes: mode == 'expired' ? -1 : 5))
+                  .toIso8601String(),
+            },
+          };
+        },
+      );
+      if (mode == 'ok') {
+        final ticket = await repo.admission('a');
+        expect(ticket.ticketNumber, 'booking-a');
+        expect(ticket.admissionCode, startsWith('KCTICKET1:'));
+        expect(ticket.admissionExpiresAt, isNotNull);
+        expect(ticket.storeName, '门店');
+      } else {
+        await expectLater(repo.admission('a'), throwsA(anything));
+      }
+      expect(issueCalls, mode == 'pending' ? 0 : 1);
+    }
+  });
   test(
     'booking uses stable request and validates authoritative amount and scope',
     () async {

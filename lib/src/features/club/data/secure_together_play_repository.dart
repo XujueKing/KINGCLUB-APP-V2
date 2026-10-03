@@ -18,7 +18,8 @@ class TogetherBooking {
 }
 
 /// The catalogue contains published invitations, not payment confirmations.
-class SecureTogetherPlayRepository implements TogetherPlayRepository {
+class SecureTogetherPlayRepository
+    implements TogetherPlayRepository, TogetherAdmissionRepository {
   SecureTogetherPlayRepository({
     required this.readSession,
     required this.request,
@@ -295,6 +296,37 @@ class SecureTogetherPlayRepository implements TogetherPlayRepository {
     final party = _party(result['item'], detail: true);
     if (party.ref != ref) _invalid();
     return party;
+  }
+
+  @override
+  Future<TogetherParty> admission(String ref) async {
+    final session = await readSession();
+    final identity = _identity(session);
+    final party = await detail(ref);
+    if (_identity(await readSession()) != identity) {
+      throw const AuthFailure('SESSION_EXPIRED', '登录状态已变化');
+    }
+    if (!party.hasAdmissionTicket) {
+      throw const AuthFailure('TOGETHER_PAID_ADMISSION_REQUIRED', '请先完成报名付款');
+    }
+    final result = await _call(
+      'K261004001989',
+      {'partyRef': ref},
+      session!,
+      identity,
+    );
+    final code = _text(result['admissionCode']);
+    final expires = _date(result['expiresAt']);
+    if (result['partyRef'] != ref ||
+        !RegExp(r'^KCTICKET1:[A-Za-z0-9_-]{43}$').hasMatch(code) ||
+        !expires.isAfter(DateTime.now().toUtc())) {
+      _invalid();
+    }
+    return party.withAdmission(
+      number: _ref(result['ticketNumber']),
+      code: code,
+      expiresAt: expires,
+    );
   }
 
   /// Creates/retrieves an unpaid booking. Never interprets creation as admission.

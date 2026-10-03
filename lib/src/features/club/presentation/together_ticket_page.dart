@@ -34,6 +34,10 @@ class _TogetherTicketPageState extends State<TogetherTicketPage>
   int _generation = 0;
   Timer? _timer;
 
+  bool get _codeExpired =>
+      _party.admissionExpiresAt != null &&
+      !widget.clock().toUtc().isBefore(_party.admissionExpiresAt!);
+
   bool get _expired => !widget.clock().isBefore(_party.endsAt);
 
   @override
@@ -63,14 +67,18 @@ class _TogetherTicketPageState extends State<TogetherTicketPage>
     _timer?.cancel();
     if (_covered || _expired) return;
     final remaining = _party.endsAt.difference(widget.clock());
-    final delay =
-        widget.reload != null && remaining > const Duration(seconds: 30)
+    var delay = widget.reload != null && remaining > const Duration(seconds: 30)
         ? const Duration(seconds: 30)
         : remaining;
+    final expiry = _party.admissionExpiresAt;
+    if (expiry != null && !_codeExpired) {
+      final codeRemaining = expiry.difference(widget.clock().toUtc());
+      if (codeRemaining < delay) delay = codeRemaining;
+    }
     _timer = Timer(delay, () {
       if (!mounted || _covered) return;
       setState(() {});
-      if (!_expired) _refresh(hideUntilChecked: false);
+      if (!_expired) _refresh();
     });
   }
 
@@ -88,7 +96,8 @@ class _TogetherTicketPageState extends State<TogetherTicketPage>
       if (!mounted || generation != _generation || _covered) return;
       if (updated.ref != widget.party.ref ||
           updated.storeRef != widget.party.storeRef ||
-          updated.ticketNumber != widget.party.ticketNumber) {
+          (_party.ticketNumber != null &&
+              updated.ticketNumber != _party.ticketNumber)) {
         throw StateError('Ticket identity changed');
       }
       setState(() {
@@ -150,6 +159,7 @@ class _TogetherTicketPageState extends State<TogetherTicketPage>
         code.isNotEmpty &&
         !_covered &&
         !_expired &&
+        !_codeExpired &&
         !_checking &&
         !_refreshFailed;
     final codeStatus = _covered
@@ -284,6 +294,7 @@ class _TogetherTicketPageState extends State<TogetherTicketPage>
                                         if (_refreshFailed &&
                                             !_covered &&
                                             !_expired &&
+                                            !_codeExpired &&
                                             !_checking)
                                           TextButton(
                                             onPressed: _refresh,

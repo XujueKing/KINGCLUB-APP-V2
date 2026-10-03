@@ -126,7 +126,10 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
             party: party,
             reload: widget.reviewOnly
                 ? null
-                : () => widget.repository.detail(party.ref),
+                : () => widget.repository is TogetherAdmissionRepository
+                      ? (widget.repository as TogetherAdmissionRepository)
+                            .admission(party.ref)
+                      : widget.repository.detail(party.ref),
           ),
         ),
       );
