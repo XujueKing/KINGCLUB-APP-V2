@@ -4,6 +4,19 @@ import '../../auth/domain/auth_repository.dart';
 import '../../commerce/data/ordering_table_repository.dart';
 import 'together_play.dart';
 
+class TogetherBooking {
+  const TogetherBooking({
+    required this.ref,
+    required this.partyRef,
+    required this.status,
+    required this.basePriceMinor,
+    required this.ageSurchargeMinor,
+    required this.payableMinor,
+  });
+  final String ref, partyRef, status;
+  final int basePriceMinor, ageSurchargeMinor, payableMinor;
+}
+
 /// The catalogue contains published invitations, not payment confirmations.
 class SecureTogetherPlayRepository implements TogetherPlayRepository {
   SecureTogetherPlayRepository({
@@ -282,5 +295,42 @@ class SecureTogetherPlayRepository implements TogetherPlayRepository {
     final party = _party(result['item'], detail: true);
     if (party.ref != ref) _invalid();
     return party;
+  }
+
+  /// Creates/retrieves an unpaid booking. Never interprets creation as admission.
+  Future<TogetherBooking> prepareBooking(
+    String partyRef, {
+    required String requestRef,
+  }) async {
+    _ref(partyRef);
+    _ref(requestRef);
+    final session = await readSession();
+    final identity = _identity(session);
+    final result = await _call(
+      'K261004001988',
+      {'partyRef': partyRef, 'requestRef': requestRef},
+      session!,
+      identity,
+    );
+    final quote = result['quote'];
+    final status = result['status'];
+    if (result['partyRef'] != partyRef ||
+        quote is! Map ||
+        quote['currency'] != 'CNY' ||
+        !['pending', 'paid', 'cancelled', 'refunded'].contains(status)) {
+      _invalid();
+    }
+    final base = _money(quote['basePriceCents']);
+    final surcharge = _money(quote['ageSurchargeCents']);
+    final payable = _money(quote['payableCents']);
+    if (base + surcharge != payable) _invalid();
+    return TogetherBooking(
+      ref: _ref(result['bookingRef']),
+      partyRef: partyRef,
+      status: status as String,
+      basePriceMinor: base,
+      ageSurchargeMinor: surcharge,
+      payableMinor: payable,
+    );
   }
 }

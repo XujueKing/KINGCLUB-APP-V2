@@ -27,6 +27,47 @@ void main() {
     'posterUrl': 'https://example.test/b.jpg',
   };
   test(
+    'booking uses stable request and validates authoritative amount and scope',
+    () async {
+      for (final mode in ['ok', 'amount', 'scope']) {
+        final calls = <Map<String, dynamic>>[];
+        final repo = SecureTogetherPlayRepository(
+          readSession: () async => session,
+          request: (id, p, _) async {
+            expect(id, 'K261004001988');
+            calls.add(p);
+            return {
+              'result': {
+                'bookingRef': 'booking-test',
+                'partyRef': mode == 'scope' ? 'other' : 'a',
+                'status': 'pending',
+                'quote': {
+                  'currency': 'CNY',
+                  'basePriceCents': '15000',
+                  'ageSurchargeCents': '1000',
+                  'payableCents': mode == 'amount' ? '1' : '16000',
+                },
+              },
+            };
+          },
+        );
+        if (mode == 'ok') {
+          final booking = await repo.prepareBooking('a', requestRef: 'stable');
+          final retry = await repo.prepareBooking('a', requestRef: 'stable');
+          expect(booking.status, 'pending');
+          expect(booking.payableMinor, 16000);
+          expect(retry.ref, booking.ref);
+          expect(calls[0], calls[1]);
+        } else {
+          await expectLater(
+            repo.prepareBooking('a', requestRef: 'stable'),
+            throwsA(anything),
+          );
+        }
+      }
+    },
+  );
+  test(
     'booking state and paid count control action without fabricated QR',
     () async {
       for (final state in [null, 'pending', 'paid', 'refunded']) {
