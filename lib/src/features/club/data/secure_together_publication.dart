@@ -214,6 +214,7 @@ class SecureTogetherPublication {
         'draft': {
           'requestRef': requestRef,
           'cityCode': draft.cityCode,
+          'publisherType': draft.official ? 'official' : 'personal',
           'storeRef': draft.storeRef,
           'packageRef': draft.package!.ref,
           if (draft.eligibilityRules.isNotEmpty)
@@ -254,9 +255,16 @@ class SecureTogetherPublication {
         policy.isEmpty) {
       _invalid();
     }
+    final deposit = _money(
+      result['depositCents'] ?? (draft.official ? null : result['totalCents']),
+    );
+    if (_money(result['totalCents']) != '${draft.totalCostMinor}' ||
+        deposit != (draft.official ? '0' : '${draft.totalCostMinor}')) {
+      _invalid();
+    }
     return TogetherPublicationQuote(
       ref: _ref(result['quoteRef']),
-      depositCents: _money(result['totalCents']),
+      depositCents: deposit,
       priceCents: _money(result['priceCents']),
       expiresAt: expiresAt,
       policyVersion: policy,

@@ -115,7 +115,9 @@ class _ConfirmationState extends State<TogetherPublishConfirmationPage> {
             const SizedBox(height: 24),
             if (q != null) ...[
               Text(
-                '冻结 APP 余额 ¥${_money(q.depositCents)}',
+                widget.draft.official
+                    ? '商家官方活动 · 无需押金'
+                    : '冻结 APP 余额 ¥${_money(q.depositCents)}',
                 style: const TextStyle(color: legacyPink, fontSize: 22),
               ),
               const SizedBox(height: 12),
@@ -126,9 +128,11 @@ class _ConfirmationState extends State<TogetherPublishConfirmationPage> {
                 style: const TextStyle(color: legacyGold, fontSize: 16),
               ),
               const SizedBox(height: 20),
-              const Text(
-                '个人发起按商家基础消费冻结 APP 余额。参加者付款并入场核销后，按实收口径立即解冻，最多解冻原押金。',
-                style: TextStyle(color: legacyGold, height: 1.6),
+              Text(
+                widget.draft.official
+                    ? '本店官方活动不冻结个人 APP 余额。'
+                    : '个人发起按商家基础消费冻结 APP 余额。参加者付款并入场核销后，按实收口径立即解冻，最多解冻原押金。',
+                style: const TextStyle(color: legacyGold, height: 1.6),
               ),
               const SizedBox(height: 12),
               const Text(

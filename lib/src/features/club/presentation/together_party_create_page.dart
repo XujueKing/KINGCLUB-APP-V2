@@ -47,6 +47,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _capacity = TextEditingController(text: '6'),
       _price = TextEditingController(),
       _total = TextEditingController();
+  bool _official = false;
   TogetherFeeMode _fee = TogetherFeeMode.aa;
   bool _genderRatio = false;
   bool _allowOverage = false;
@@ -375,6 +376,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       return;
     }
     final draft = TogetherPartyDraft(
+      official: _official,
       theme: _theme.text.trim(),
       cityCode: widget.cityCode,
       store: _store!,
@@ -575,6 +577,15 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           _capacity,
           number: true,
         ),
+        SwitchListTile(
+          title: const Text('门店官方发起', style: TextStyle(color: legacyGold)),
+          subtitle: const Text(
+            '仅本店官方账号所属商家可用，服务器核验后免押金',
+            style: TextStyle(color: legacyGold),
+          ),
+          value: _official,
+          onChanged: _busy ? null : (v) => setState(() => _official = v),
+        ),
         DropdownButtonFormField<TogetherFeeMode>(
           initialValue: _fee,
           dropdownColor: const Color(0xFF202020),
@@ -635,9 +646,11 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                   ),
             onTap: _busy || _store == null ? null : _pickPackage,
           ),
-        const Text(
-          '个人发起按商家基础消费冻结 APP 余额。参加者付款并入场核销后，等额押金立即解冻回 APP 可用余额。',
-          style: TextStyle(color: Colors.white54, height: 1.5),
+        Text(
+          _official
+              ? '本店官方活动经服务器核验商家身份后，无需冻结押金。'
+              : '个人发起按商家基础消费冻结 APP 余额。参加者付款并入场核销后，等额押金立即解冻回 APP 可用余额。',
+          style: const TextStyle(color: Colors.white54, height: 1.5),
         ),
         const SizedBox(height: 18),
         _field('最低年龄（可不填，按活动当天周岁）', _minimumAge, number: true),
