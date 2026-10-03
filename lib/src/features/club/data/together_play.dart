@@ -75,8 +75,11 @@ class TogetherParty {
   /// Server-assigned table for this member's confirmed booking; never infer
   /// it from a party title, store reference or payment alone.
   final String? assignedTable;
+
+  /// Confirmed participation; pending payment is never an admission ticket.
+  bool get hasAdmissionTicket => state == TogetherJoinState.joined;
   bool get hasAssignedTable =>
-      state == TogetherJoinState.joined &&
+      hasAdmissionTicket &&
       assignedTable != null &&
       assignedTable!.trim().isNotEmpty;
   final List<TogetherGender> seatGenders;

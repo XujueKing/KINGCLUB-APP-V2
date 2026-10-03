@@ -346,7 +346,9 @@ void main() {
       );
       expect(reminder.top - ticket.bottom, closeTo(20 * .5, .1));
       expect(nextRow.top - reminder.bottom, closeTo(30 * .5, .1));
-      expect(nextRow.height, closeTo(140 * .5, .1));
+      expect(find.text('商家发起 · KINGCLUB官方'), findsOneWidget);
+      expect(find.text('男士AA，女士免票；请按时到场，文明交流。'), findsOneWidget);
+      expect(find.text('抢位'), findsWidgets);
       expect(
         tester
             .getTopLeft(find.byKey(const ValueKey('together-card-friends')))
@@ -362,14 +364,22 @@ void main() {
       expect(find.byType(TogetherPartyDetailPage), findsNothing);
       await tester.tap(find.byKey(const ValueKey('together-date-1')));
       await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('together-card-friends')), findsNothing);
+      expect(find.byType(TogetherPartyCard), findsNothing);
+      expect(find.textContaining('请按时到场并出示入场码'), findsNothing);
       expect(
-        find.byKey(const ValueKey('together-card-friends')),
-        findsOneWidget,
+        tester.getTopLeft(find.byKey(const ValueKey('together-card-music'))).dy,
+        closeTo(ticket.top, .1),
       );
       expect(tester.takeException(), isNull);
     },
   );
   test('only a confirmed assigned table qualifies as a positioning ticket', () {
+    expect(fixture(state: TogetherJoinState.joined).hasAdmissionTicket, isTrue);
+    expect(
+      fixture(state: TogetherJoinState.pendingPayment).hasAdmissionTicket,
+      isFalse,
+    );
     expect(fixture(state: TogetherJoinState.joined).hasAssignedTable, isFalse);
     expect(fixture(assignedTable: '888').hasAssignedTable, isFalse);
     expect(
@@ -380,6 +390,105 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets('paid ticket without table is above unpaid invitations', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = Repository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TogetherPlayPage(
+          repository: repository,
+          cityCode: '430200',
+          cityName: '株洲市',
+          today: DateTime(2026, 10, 2),
+          onBack: () {},
+          onCreate: () {},
+          onJoin: (_) async {},
+          onAdmission: (_) async {},
+        ),
+      ),
+    );
+    repository.requests.single.complete([
+      fixture(ref: 'pending', state: TogetherJoinState.pendingPayment),
+      fixture(state: TogetherJoinState.joined),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.byType(TogetherPartyCard), findsOneWidget);
+    expect(find.text('待分配'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('together-use-reminder-night')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('together-use-reminder-pending')),
+      findsNothing,
+    );
+    expect(find.text('继续支付'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('together-card-night'))).dy,
+      lessThan(
+        tester
+            .getTopLeft(find.byKey(const ValueKey('together-card-pending')))
+            .dy,
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'invitation identifies host, rules and price and gates the action',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 780);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var taps = 0;
+      for (final state in [
+        TogetherJoinState.available,
+        TogetherJoinState.full,
+        TogetherJoinState.closed,
+        TogetherJoinState.cancelled,
+      ]) {
+        final party = fixture(state: state);
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: const TextScaler.linear(1.5)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: TogetherAvailableRow(party: party, onTap: () => taps++),
+              ),
+            ),
+          ),
+        );
+        expect(find.text(party.storeName), findsOneWidget);
+        expect(find.text('商家发起 · ${party.hostName}'), findsOneWidget);
+        expect(find.text(party.theme), findsOneWidget);
+        expect(find.text(party.rules), findsOneWidget);
+        expect(find.text(party.priceLabel), findsOneWidget);
+        final action = find.byKey(
+          const ValueKey('together-invitation-action-night'),
+        );
+        expect(
+          tester.widget<FilledButton>(action).onPressed != null,
+          state == TogetherJoinState.available,
+        );
+        if (state == TogetherJoinState.available) {
+          await tester.tap(action);
+          expect(taps, 1);
+        }
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
   testWidgets('store selection filters city and resets table on store change', (
     tester,
   ) async {

@@ -11,7 +11,7 @@ class TogetherReviewPage extends StatelessWidget {
   final VoidCallback onBack;
   @override
   Widget build(BuildContext context) => TogetherPlayPage(
-    repository: const _LayoutExamples(),
+    repository: _LayoutExamples(DateUtils.dateOnly(DateTime.now())),
     cityCode: 'review',
     cityName: '同城一起玩',
     onBack: onBack,
@@ -23,22 +23,24 @@ class TogetherReviewPage extends StatelessWidget {
 }
 
 class _LayoutExamples implements TogetherPlayRepository {
-  const _LayoutExamples();
+  const _LayoutExamples(this.ticketDate);
+  final DateTime ticketDate;
   @override
   Future<List<TogetherParty>> list({
     required String cityCode,
     required DateTime date,
   }) async => [
-    _card(
-      date,
-      'friends',
-      '卡颜AA交友局',
-      TogetherFeeMode.aa,
-      TogetherJoinState.joined,
-      10,
-      1,
-      38800,
-    ),
+    if (DateUtils.isSameDay(date, ticketDate))
+      _card(
+        date,
+        'friends',
+        '卡颜AA交友局',
+        TogetherFeeMode.aa,
+        TogetherJoinState.joined,
+        10,
+        1,
+        38800,
+      ),
     _card(
       date,
       'music',
@@ -80,7 +82,7 @@ class _LayoutExamples implements TogetherPlayRepository {
     assignedTable: state == TogetherJoinState.joined ? '888' : null,
     startsAt: DateTime(date.year, date.month, date.day, 21),
     endsAt: DateTime(date.year, date.month, date.day + 1, 2),
-    hostName: '发起人展示位',
+    hostName: ref == 'music' ? 'KINGCLUB官方' : '会员发起人',
     merchantHost: ref == 'music',
     place: '门店地址展示位',
     capacity: capacity,
@@ -101,7 +103,11 @@ class _LayoutExamples implements TogetherPlayRepository {
     priceMinor: price,
     state: state,
     description: '',
-    rules: '',
+    rules: switch (mode) {
+      TogetherFeeMode.aa => '费用AA；请按时到场，文明交流。',
+      TogetherFeeMode.menPay => '男士AA，女士免票；请按时到场，文明交流。',
+      TogetherFeeMode.hostTreat => '发起者请客，参加免费；请衣着整洁，尊重同桌。',
+    },
   );
   @override
   Future<TogetherParty> detail(String ref) =>

@@ -133,13 +133,13 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.byType(TogetherReviewPage), findsOneWidget);
-        expect(find.text('布局样例 · 非真实活动'), findsOneWidget);
-        expect(find.text('周末微醺交友局'), findsOneWidget);
+        expect(find.text('布局样例 · 非真实活动'), findsNothing);
+        expect(find.text('卡颜AA交友局'), findsOneWidget);
         expect(
           router.routerDelegate.currentConfiguration.last.matchedLocation,
           '/club/aa',
         );
-        await tester.tap(find.text('周末微醺交友局'));
+        await tester.tap(find.text('卡颜AA交友局'));
         await tester.pumpAndSettle();
         expect(find.byType(TogetherReviewPage), findsOneWidget);
         await tester.tap(find.byType(KingBackButton));
