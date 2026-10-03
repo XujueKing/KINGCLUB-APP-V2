@@ -39,7 +39,9 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _total = TextEditingController();
   TogetherFeeMode _fee = TogetherFeeMode.aa;
   DateTime? _start, _end;
-  TogetherArtwork? _background, _poster;
+  TogetherArtwork? _background;
+  final List<TogetherArtwork> _posters = [];
+  TogetherArtwork? get _poster => _posters.firstOrNull;
   bool _busy = false;
   String? _error;
   TogetherStore? _store;
@@ -238,7 +240,11 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       if (!mounted || selected == null) return;
       setState(() {
         if (poster) {
-          _poster = selected;
+          if (_posters.any((p) => p.ref == selected!.ref)) {
+            _error = '这张海报已选择';
+          } else if (_posters.length < 3) {
+            _posters.add(selected!);
+          }
         } else {
           _background = selected;
         }
@@ -285,6 +291,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       description: _description.text.trim(),
       background: _background!,
       poster: _poster!,
+      additionalPosters: _posters.skip(1).toList(),
       table: _table,
     );
     final error = draft.validate(now: DateTime.now());
@@ -338,6 +345,19 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(color: legacyGold)),
+        if (poster && _posters.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            children: [
+              for (var i = 0; i < _posters.length; i++)
+                InputChip(
+                  label: Text('海报${i + 1} · ${_posters[i].name}'),
+                  onDeleted: _busy
+                      ? null
+                      : () => setState(() => _posters.removeAt(i)),
+                ),
+            ],
+          ),
         if (asset != null) ...[
           const SizedBox(height: 8),
           SizedBox(height: 90, child: CachedMediaImage(asset.url)),
@@ -351,11 +371,13 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         Row(
           children: [
             TextButton(
-              onPressed: _busy ? null : () => _pickArtwork(poster),
+              onPressed: _busy || (poster && _posters.length == 3)
+                  ? null
+                  : () => _pickArtwork(poster),
               child: const Text('样例库'),
             ),
             TextButton(
-              onPressed: _busy
+              onPressed: _busy || (poster && _posters.length == 3)
                   ? null
                   : () => _pickArtwork(poster, upload: true),
               child: const Text('自行上传'),

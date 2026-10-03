@@ -33,6 +33,7 @@ class TogetherPartyDraft {
     required this.description,
     required this.background,
     required this.poster,
+    this.additionalPosters = const [],
     this.table,
   });
   final String theme, cityCode, place, description;
@@ -44,6 +45,8 @@ class TogetherPartyDraft {
   final int capacity, priceMinor, totalCostMinor;
   final TogetherFeeMode feeMode;
   final TogetherArtwork background, poster;
+  final List<TogetherArtwork> additionalPosters;
+  List<TogetherArtwork> get posters => [poster, ...additionalPosters];
 
   String? validate({required DateTime now}) {
     if (theme.trim().isEmpty || theme.trim().length > 30) {
@@ -66,8 +69,12 @@ class TogetherPartyDraft {
     if (feeMode == TogetherFeeMode.hostTreat && priceMinor != 0) {
       return '请客局参加者费用应为零';
     }
+    if (posters.length > 3 ||
+        posters.map((p) => p.ref).toSet().length != posters.length) {
+      return '活动海报最多三张，请勿重复选择';
+    }
     if (background.status != TogetherArtworkStatus.approved ||
-        poster.status != TogetherArtworkStatus.approved) {
+        posters.any((p) => p.status != TogetherArtworkStatus.approved)) {
       return '背景和海报审核通过后才能发布';
     }
     return null;
