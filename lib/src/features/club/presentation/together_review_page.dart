@@ -75,7 +75,7 @@ class _LayoutExamples implements TogetherPlayRepository {
     cityCode: 'review',
     cityName: '当前城市',
     storeRef: 'review-store',
-    storeName: '店铺名称展示位',
+    storeName: 'KINGCLUB湖南工大店',
     storeLogo: 'assets/club/king-wordmark.svg',
     startsAt: DateTime(date.year, date.month, date.day, 21),
     endsAt: DateTime(date.year, date.month, date.day + 1, 2),

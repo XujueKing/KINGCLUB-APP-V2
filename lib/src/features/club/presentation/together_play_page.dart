@@ -207,7 +207,7 @@ class TogetherPartyCard extends StatelessWidget {
     super.key,
     required this.party,
     required this.onTap,
-    this.logoColor = Colors.white,
+    this.logoColor = legacyPink,
   });
   final TogetherParty party;
   final VoidCallback onTap;
@@ -227,7 +227,9 @@ class TogetherPartyCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             gradient: const RadialGradient(
               center: Alignment.bottomRight,
-              radius: 1.45,
+              // CSS circle 500rpx; Flutter measures radius against the
+              // shortest side of this 690 by 240rpx ticket.
+              radius: 500 / 240,
               colors: [Color(0xFFAD016A), Color(0xFF5A1E80)],
             ),
             image: party.backgroundUrl == null
@@ -265,8 +267,11 @@ class TogetherPartyCard extends StatelessWidget {
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                togetherCardTimeRange(party),
-                                style: _ticketStyle(context, 12),
+                                party.storeName,
+                                style: _ticketStyle(
+                                  context,
+                                  12,
+                                ).copyWith(color: Colors.white),
                               ),
                             ),
                             const SizedBox(height: 4),

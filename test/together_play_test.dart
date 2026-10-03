@@ -114,9 +114,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final dateText = tester.widget<Text>(find.text('10.02 21:00–02:00'));
-      expect(dateText.style?.fontFamily, 'CupertinoSystemText');
-      expect(dateText.style?.color, const Color(0xFFC9B69E));
+      final storeText = tester.widget<Text>(find.text(party.storeName).last);
+      expect(storeText.style?.fontFamily, 'CupertinoSystemText');
+      expect(storeText.style?.color, Colors.white);
       final priceText = tester.widget<Text>(
         find.byWidgetPredicate(
           (widget) =>
