@@ -218,10 +218,8 @@ class _TogetherScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unit = MediaQuery.sizeOf(context).width / 750;
-    final top = (130 * unit).clamp(
-      MediaQuery.paddingOf(context).top,
-      double.infinity,
-    );
+    final safeTop = MediaQuery.paddingOf(context).top;
+    final top = (130 * unit).clamp(safeTop, double.infinity);
     return Scaffold(
       backgroundColor: Colors.black,
       body: DecoratedBox(
@@ -236,46 +234,54 @@ class _TogetherScaffold extends StatelessWidget {
           top: false,
           child: Stack(
             children: [
-              Column(
-                children: [
-                  SizedBox(height: top),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 39 * unit,
-                    child: Center(
-                      child: Text(
-                        title,
-                        key: const ValueKey('together-title'),
-                        style: togetherLegacyDateStyle(
-                          28 * unit,
-                          legacyGold,
-                        ).copyWith(height: 39 / 28),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: safeTop,
+                height: 56,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Text(
+                      title,
+                      key: const ValueKey('together-title'),
+                      style: togetherLegacyDateStyle(
+                        28 * unit,
+                        legacyGold,
+                      ).copyWith(height: 39 / 28),
+                    ),
+                    Positioned(
+                      left: KingBackButton.leftOffset(context),
+                      top: KingBackButton.safeAreaOffset.dy,
+                      child: KingBackButton(onPressed: onBack),
+                    ),
+                    Positioned(
+                      right: 30 * unit,
+                      top: 6,
+                      child: TextButton(
+                        onPressed: onCreate,
+                        style: TextButton.styleFrom(
+                          foregroundColor: legacyGold,
+                          minimumSize: const Size(44, 44),
+                          padding: EdgeInsets.zero,
+                          textStyle: togetherLegacyDateStyle(
+                            26 * unit,
+                            legacyGold,
+                          ),
+                        ),
+                        child: const Text('发起组局'),
                       ),
                     ),
-                  ),
+                  ],
+                ),
+              ),
+              // Keep the accepted content coordinates. Date hit targets paint
+              // above the navigation row where the compact layouts overlap.
+              Column(
+                children: [
+                  SizedBox(height: top + 39 * unit),
                   Expanded(child: child),
                 ],
-              ),
-              Positioned(
-                left: KingBackButton.leftOffset(context),
-                // Align the shared 48dp control with this compact title row;
-                // keep the approved date/card geometry below it unchanged.
-                top: top + (39 * unit - 48) / 2,
-                child: KingBackButton(onPressed: onBack),
-              ),
-              Positioned(
-                right: 30 * unit,
-                top: top + (39 * unit - 44) / 2,
-                child: TextButton(
-                  onPressed: onCreate,
-                  style: TextButton.styleFrom(
-                    foregroundColor: legacyGold,
-                    minimumSize: const Size(44, 44),
-                    padding: EdgeInsets.zero,
-                    textStyle: togetherLegacyDateStyle(26 * unit, legacyGold),
-                  ),
-                  child: const Text('发起组局'),
-                ),
               ),
             ],
           ),
@@ -365,24 +371,27 @@ class TogetherPartyCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 7.5),
-                            Row(
-                              children: [
-                                TogetherStoreLogo(party: party),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: FittedBox(
-                                    alignment: Alignment.centerLeft,
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      party.storeName,
-                                      style: _ticketStyle(
-                                        context,
-                                        12,
-                                      ).copyWith(color: Colors.white),
+                            SizedBox(
+                              height: 29,
+                              child: Row(
+                                children: [
+                                  TogetherStoreLogo(party: party),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: FittedBox(
+                                      alignment: Alignment.centerLeft,
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        party.storeName,
+                                        style: _ticketStyle(
+                                          context,
+                                          12,
+                                        ).copyWith(color: Colors.white),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 4),
                             const PositioningCardLabel(),

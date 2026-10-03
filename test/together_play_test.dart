@@ -9,6 +9,9 @@ import 'package:kingclub/src/features/club/presentation/together_play_page.dart'
 import 'package:kingclub/src/features/club/presentation/together_party_create_page.dart';
 import 'package:kingclub/src/features/club/presentation/together_review_page.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
+import 'package:kingclub/src/core/design_system/king_components.dart';
+import 'package:kingclub/src/features/messaging/presentation/legacy_messaging_components.dart';
+import 'package:kingclub/src/features/club/presentation/positioning_card_label.dart';
 import 'package:kingclub/src/features/club/presentation/together_date_picker.dart';
 
 class Stores implements TogetherStoreRepository {
@@ -84,6 +87,62 @@ class Repository implements TogetherPlayRepository {
 
 void main() {
   testWidgets(
+    'back position matches chat across safe areas and dates keep taps',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      for (final size in [const Size(375, 812), const Size(402, 874)]) {
+        tester.view.physicalSize = size;
+        final safeTop = size.width == 375 ? 44.0 : 62.0;
+        Widget app(Widget page) => MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              padding: EdgeInsets.only(top: safeTop),
+              viewPadding: EdgeInsets.only(top: safeTop),
+            ),
+            child: child!,
+          ),
+          home: page,
+        );
+        await tester.pumpWidget(
+          app(
+            Scaffold(
+              body: SafeArea(
+                child: Column(
+                  children: [LegacyMessagingHeader(title: '会话', onBack: () {})],
+                ),
+              ),
+            ),
+          ),
+        );
+        final chatBack = tester.getRect(find.byType(KingBackButton));
+        var backs = 0;
+        await tester.pumpWidget(app(TogetherReviewPage(onBack: () => backs++)));
+        await tester.pumpAndSettle();
+        expect(tester.getRect(find.byType(KingBackButton)), chatBack);
+        expect(
+          tester.getCenter(find.byKey(const ValueKey('together-title'))).dy,
+          chatBack.center.dy,
+        );
+        await tester.tap(find.byKey(const ValueKey('together-date-1')));
+        await tester.pumpAndSettle();
+        final firstDate = find.byKey(const ValueKey('together-date-box-0'));
+        await tester.tapAt(tester.getTopLeft(firstDate) + const Offset(2, 2));
+        await tester.pumpAndSettle();
+        expect(backs, 0);
+        expect(
+          (tester.widget<Container>(firstDate).decoration as BoxDecoration)
+              .color,
+          const Color(0xFFC9B69E),
+        );
+        await tester.tap(find.byType(KingBackButton));
+        expect(backs, 1);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+  testWidgets(
     'flat ticket preserves all square seats and member avatar placement',
     (tester) async {
       final party = fixture(
@@ -130,6 +189,10 @@ void main() {
         find.byKey(const ValueKey('together-card-night')),
       );
       expect(cardSize.width / cardSize.height, closeTo(690 / 256, .01));
+      final logo = tester.getRect(find.byType(TogetherStoreLogo));
+      final label = tester.getRect(find.byType(PositioningCardLabel));
+      // Extra ticket height belongs inside the merchant row, not the outer rim.
+      expect(label.top - logo.bottom, closeTo(8.5 * 339 / 345, .1));
       for (var i = 0; i < 14; i++) {
         final seat = find.byKey(ValueKey('seat-night-$i'));
         expect(seat, findsOneWidget);
