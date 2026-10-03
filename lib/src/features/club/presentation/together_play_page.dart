@@ -435,15 +435,36 @@ class TogetherPartyCard extends StatelessWidget {
                                     children: [
                                       Text(
                                         party.theme,
-                                        maxLines: 1,
+                                        maxLines:
+                                            party.actionState ==
+                                                TogetherJoinState.joined
+                                            ? 2
+                                            : 1,
                                         overflow: TextOverflow.ellipsis,
                                         textAlign: TextAlign.right,
-                                        style: _ticketStyle(context, 13),
+                                        style: _ticketStyle(
+                                          context,
+                                          13,
+                                        ).copyWith(height: 1.15),
                                       ),
+                                      if (party.actionState ==
+                                          TogetherJoinState.joined)
+                                        const SizedBox(height: 3),
                                       FittedBox(
                                         fit: BoxFit.scaleDown,
                                         alignment: Alignment.centerRight,
-                                        child: _price(context),
+                                        child:
+                                            party.actionState ==
+                                                TogetherJoinState.joined
+                                            ? Text(
+                                                togetherCardTimeRange(party),
+                                                style: _ticketStyle(context, 10)
+                                                    .copyWith(
+                                                      height: 1.2,
+                                                      color: Colors.white70,
+                                                    ),
+                                              )
+                                            : _price(context),
                                       ),
                                     ],
                                   ),

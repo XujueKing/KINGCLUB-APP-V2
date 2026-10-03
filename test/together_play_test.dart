@@ -574,6 +574,9 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('抢定'), findsNothing);
+      expect(find.text(fixture().theme), findsOneWidget);
+      expect(find.text('10.02 21:00–02:00'), findsOneWidget);
+      expect(find.text('￥388.50/人', findRichText: true), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
