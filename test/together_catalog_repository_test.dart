@@ -26,6 +26,38 @@ void main() {
     'backgroundUrl': 'https://example.test/a.jpg',
     'posterUrl': 'https://example.test/b.jpg',
   };
+  test(
+    'redeemed ticket preserves assigned table without issuing another code',
+    () async {
+      final repo = SecureTogetherPlayRepository(
+        readSession: () async => session,
+        request: (id, p, _) async {
+          expect(id, 'K261004001986');
+          return {
+            'result': {
+              'item': {
+                ...row('a'),
+                'myBookingStatus': 'paid',
+                'ticketNumber': 'booking-a',
+                'assignedTable': 'V15',
+                'admissionUsed': true,
+                'eligibility': {
+                  'eligible': true,
+                  'reasons': [],
+                  'payableCents': '15000',
+                },
+              },
+            },
+          };
+        },
+      );
+      final ticket = await repo.admission('a');
+      expect(ticket.admissionUsed, true);
+      expect(ticket.assignedTable, 'V15');
+      expect(ticket.ticketNumber, 'booking-a');
+      expect(ticket.admissionCode, isNull);
+    },
+  );
   test('admission requires paid booking and validates scoped unexpired server code', () async {
     for (final mode in [
       'ok',

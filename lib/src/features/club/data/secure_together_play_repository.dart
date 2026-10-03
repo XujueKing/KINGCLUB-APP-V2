@@ -196,6 +196,13 @@ class SecureTogetherPlayRepository
       capacity: capacity,
       participants: const [],
       confirmedCount: confirmed,
+      ticketNumber: bookingStatus == 'paid' && r['ticketNumber'] != null
+          ? _ref(r['ticketNumber'])
+          : null,
+      assignedTable: bookingStatus == 'paid' && r['assignedTable'] != null
+          ? _text(r['assignedTable'])
+          : null,
+      admissionUsed: bookingStatus == 'paid' && r['admissionUsed'] == true,
       feeMode: fee,
       priceMinor: _money(r['priceCents']),
       state: bookingStatus == 'paid'
@@ -309,12 +316,15 @@ class SecureTogetherPlayRepository
     if (!party.hasAdmissionTicket) {
       throw const AuthFailure('TOGETHER_PAID_ADMISSION_REQUIRED', '请先完成报名付款');
     }
+    if (party.admissionUsed) return party;
     final result = await _call(
       'K261004001989',
       {'partyRef': ref},
       session!,
       identity,
     );
+    final number = _ref(result['ticketNumber']);
+    if (party.ticketNumber != null && number != party.ticketNumber) _invalid();
     final code = _text(result['admissionCode']);
     final expires = _date(result['expiresAt']);
     if (result['partyRef'] != ref ||
