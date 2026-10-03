@@ -68,7 +68,7 @@ class MemberOrderItem {
     return MemberOrderItem._(
       _text(value['productRef'], pattern: _ref),
       quantity,
-      _integer(value['priceCents'], 100000000, 1),
+      _integer(value['priceCents'], 100000000),
       _integer(value['servedQuantity'], quantity - (refunded ?? 0)),
       refunded,
       _localized(snapshot['names']),
@@ -110,14 +110,24 @@ class MemberOrder {
   final DateTime createdAt;
   final DateTime? expiresAt, refundedAt;
   final List<MemberOrderItem> items;
-  bool get fullyRefunded => refundedCents == totalCents;
+  bool get fullyRefunded => status == 'paid' && refundedCents == totalCents;
   int get netPaidCents => status == 'paid' ? totalCents - refundedCents : 0;
   factory MemberOrder.parse(dynamic raw) {
     final value = _map(raw);
     final source = _enum(value['source'], {'cashier', 'app'});
     final timing = _enum(value['paymentTiming'], {'prepay', 'postpay'});
-    final status = _enum(value['status'], {'pending', 'paid', 'expired'});
-    final total = _integer(value['totalCents'], 100000000, 1);
+    final status = _enum(value['status'], {
+      'pending',
+      'paid',
+      'expired',
+      'waived',
+    });
+    final total = _integer(
+      value['totalCents'],
+      100000000,
+      status == 'waived' ? 0 : 1,
+    );
+    if (status == 'waived' && total != 0) _invalid();
     final refunded = _integer(value['refundedCents'], total);
     final refundedAt = value['refundedAt'] == null
         ? null

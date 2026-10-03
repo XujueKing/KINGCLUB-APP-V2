@@ -221,6 +221,8 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
 
   String status(MemberOrder order) => order.refundedCents > 0
       ? t(order.fullyRefunded ? 'refunded' : 'partialRefund')
+      : order.status == 'waived'
+      ? t('waived')
       : order.status == 'paid'
       ? t('paid')
       : order.status == 'expired'
@@ -661,6 +663,7 @@ const _copy = {
   'prepayPending': '待付款|Awaiting payment|待付款|รอชำระเงิน',
   'postpayPending': '待结账|Awaiting checkout|待結帳|รอคิดเงิน',
   'paid': '已支付|Paid|已支付|ชำระแล้ว',
+  'waived': '免单|Complimentary|免單|ฟรี',
   'expired': '已失效|Expired|已失效|หมดอายุ',
   'refunded': '已退款|Refunded|已退款|คืนเงินแล้ว',
   'partialRefund': '部分退款|Partially refunded|部分退款|คืนเงินบางส่วน',

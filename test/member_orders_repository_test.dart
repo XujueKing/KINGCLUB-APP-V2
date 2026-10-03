@@ -61,6 +61,16 @@ const sessionFixture = <String, dynamic>{
 };
 
 void main() {
+  test('complimentary goods have no payment or refund and retain delivery progress', () {
+    final raw = orderFixture();
+    raw['status'] = 'waived';
+    raw['totalCents'] = 0;
+    ((raw['items'] as List).single as Map)['priceCents'] = 0;
+    final order = MemberOrder.parse(raw);
+    expect(order.fullyRefunded, false);
+    expect(order.netPaidCents, 0);
+    expect(order.items.single.remainingQuantity, 1);
+  });
   test(
     'table read requires matching server scope and rejects foreign rows',
     () async {
