@@ -16,9 +16,11 @@ class TogetherPartyCreatePage extends StatefulWidget {
     required this.uploadArtwork,
     required this.onReview,
     required this.stores,
+    this.loadPackages,
   });
   final String cityCode, cityName;
   final TogetherStoreRepository stores;
+  final Future<List<TogetherPackage>> Function(String storeRef)? loadPackages;
   final VoidCallback onBack;
   final Future<List<TogetherArtwork>> Function() loadLibrary;
   final Future<TogetherArtwork?> Function() uploadArtwork;
@@ -45,6 +47,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
   bool _busy = false;
   String? _error;
   TogetherStore? _store;
+  TogetherPackage? _package;
   TogetherTable? _table;
 
   @override
@@ -53,6 +56,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     if (oldWidget.cityCode != widget.cityCode ||
         oldWidget.stores != widget.stores) {
       _store = null;
+      _package = null;
       _table = null;
       _place.clear();
     }
@@ -123,6 +127,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       setState(() {
         if (selected is TogetherStore) {
           _store = selected;
+          _package = null;
           _table = null;
           _place.text = selected.address;
         } else if (selected is TogetherTable &&
@@ -256,6 +261,58 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     }
   }
 
+  Future<void> _pickPackage() async {
+    final store = _store;
+    if (store == null || widget.loadPackages == null || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final packages = await widget.loadPackages!(store.ref);
+      if (!mounted || _store != store) return;
+      final selected = await showModalBottomSheet<TogetherPackage>(
+        context: context,
+        backgroundColor: const Color(0xFF191919),
+        builder: (sheet) => SafeArea(
+          child: packages.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('该门店暂无组局套餐', style: TextStyle(color: legacyGold)),
+                )
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final p in packages.where(
+                      (p) => p.storeRef == store.ref,
+                    ))
+                      ListTile(
+                        title: Text(
+                          p.name,
+                          style: const TextStyle(color: legacyGold),
+                        ),
+                        subtitle: Text(
+                          '¥${(p.baseTotalMinor / 100).toStringAsFixed(2)}',
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        onTap: () => Navigator.pop(sheet, p),
+                      ),
+                  ],
+                ),
+        ),
+      );
+      if (!mounted || _store != store || selected == null) return;
+      setState(() {
+        _package = selected;
+        _total.text = (selected.baseTotalMinor / 100).toStringAsFixed(2);
+      });
+    } catch (_) {
+      if (mounted) setState(() => _error = '暂时无法读取套餐，请重试');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _review() async {
     if (_busy) return;
     if (_store == null) {
@@ -267,6 +324,10 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         ? 0
         : TogetherPartyDraft.parseMoney(_price.text);
     final total = TogetherPartyDraft.parseMoney(_total.text);
+    if (widget.loadPackages != null && _package == null) {
+      setState(() => _error = '请选择门店组局套餐');
+      return;
+    }
     if (count == null ||
         price == null ||
         total == null ||
@@ -293,6 +354,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       poster: _poster!,
       additionalPosters: _posters.skip(1).toList(),
       table: _table,
+      package: _package,
     );
     final error = draft.validate(now: DateTime.now());
     if (error != null) {
@@ -476,7 +538,23 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
             _price,
             number: true,
           ),
-        _field('整场费用（元）', _total, number: true),
+        if (widget.loadPackages == null)
+          _field('整场费用（元）', _total, number: true)
+        else
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              _package?.name ?? '选择门店组局套餐',
+              style: const TextStyle(color: legacyGold),
+            ),
+            subtitle: _package == null
+                ? null
+                : Text(
+                    '基础消费 ¥${(_package!.baseTotalMinor / 100).toStringAsFixed(2)}',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+            onTap: _busy || _store == null ? null : _pickPackage,
+          ),
         const Text(
           '从 APP 余额冻结整场押金。参加者付款给商家后，等额押金解冻回 APP 可用余额。',
           style: TextStyle(color: Colors.white54, height: 1.5),

@@ -3,6 +3,17 @@ import 'together_store.dart';
 
 enum TogetherArtworkStatus { approved, pending, rejected }
 
+class TogetherPackage {
+  const TogetherPackage({
+    required this.ref,
+    required this.storeRef,
+    required this.name,
+    required this.baseTotalMinor,
+  });
+  final String ref, storeRef, name;
+  final int baseTotalMinor;
+}
+
 class TogetherArtwork {
   const TogetherArtwork({
     required this.ref,
@@ -35,10 +46,12 @@ class TogetherPartyDraft {
     required this.poster,
     this.additionalPosters = const [],
     this.table,
+    this.package,
   });
   final String theme, cityCode, place, description;
   final TogetherStore store;
   final TogetherTable? table;
+  final TogetherPackage? package;
   String get storeRef => store.ref;
   String? get tableRef => table?.ref;
   final DateTime startsAt, endsAt;
@@ -54,6 +67,11 @@ class TogetherPartyDraft {
     }
     if (cityCode.isEmpty || place.trim().isEmpty) return '请选择城市并填写活动地点';
     if (store.ref.isEmpty || store.cityCode != cityCode) return '请选择当前城市的门店';
+    if (package != null &&
+        (package!.storeRef != storeRef ||
+            package!.baseTotalMinor != totalCostMinor)) {
+      return '请重新选择该门店的套餐';
+    }
     if (table != null && (table!.ref.isEmpty || table!.storeRef != store.ref)) {
       return '请重新选择该门店的桌台';
     }

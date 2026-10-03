@@ -8,6 +8,37 @@ void main() {
     'apiKeyId': 'k',
     'apiKey': 'test-secret',
   };
+  test('packages use authoritative store scope and prices', () async {
+    for (final returnedStore in ['store', 'other']) {
+      final repo = SecureTogetherPublication(
+        readSession: () async => session,
+        request: (id, params, _) async {
+          expect(id, 'K261004001987');
+          expect(params['storeRef'], 'store');
+          return {
+            'result': {
+              'storeRef': returnedStore,
+              'next': null,
+              'items': [
+                {
+                  'ref': 'package',
+                  'names': {'zh-CN': '套餐'},
+                  'baseTotalCents': '100000',
+                },
+              ],
+            },
+          };
+        },
+      );
+      if (returnedStore == 'store') {
+        final packages = await repo.packages('store');
+        expect(packages.single.baseTotalMinor, 100000);
+        expect(packages.single.storeRef, 'store');
+      } else {
+        await expectLater(repo.packages('store'), throwsA(anything));
+      }
+    }
+  });
   TogetherPublicationQuote quote() => TogetherPublicationQuote(
     ref: 'quote',
     depositCents: '100000',

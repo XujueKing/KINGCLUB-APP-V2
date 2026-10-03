@@ -61,7 +61,8 @@ class SecureTogetherPublication {
   }
 
   String _money(dynamic value) {
-    if (value is! String || !RegExp(r'^(0|[1-9][0-9]{0,17})$').hasMatch(value)) {
+    if (value is! String ||
+        !RegExp(r'^(0|[1-9][0-9]{0,17})$').hasMatch(value)) {
       _invalid();
     }
     return value;
@@ -82,11 +83,65 @@ class SecureTogetherPublication {
     return result;
   }
 
+  Future<List<TogetherPackage>> packages(String storeRef) async {
+    _ref(storeRef);
+    final session = await readSession();
+    final identity = _identity(session);
+    final items = <TogetherPackage>[];
+    final seen = <String>{};
+    String? after;
+    do {
+      final result = await _call(
+        'K261004001987',
+        {'storeRef': storeRef, 'after': ?after},
+        session!,
+        identity,
+      );
+      if (result['storeRef'] != storeRef || result['items'] is! List) {
+        _invalid();
+      }
+      final page = result['items'] as List;
+      if (page.length > 100) _invalid();
+      for (final row in page) {
+        if (row is! Map || row['names'] is! Map) _invalid();
+        final name = row['names']['zh-CN'];
+        final ref = _ref(row['ref']);
+        final amount = int.tryParse(_money(row['baseTotalCents']));
+        if (name is! String ||
+            name.isEmpty ||
+            amount == null ||
+            amount < 1 ||
+            amount > 100000000 ||
+            !seen.add(ref)) {
+          _invalid();
+        }
+        items.add(
+          TogetherPackage(
+            ref: ref,
+            storeRef: storeRef,
+            name: name,
+            baseTotalMinor: amount,
+          ),
+        );
+      }
+      final next = result['next'];
+      if (next != null &&
+          (page.isEmpty || _ref(next) != items.last.ref || next == after)) {
+        _invalid();
+      }
+      after = next as String?;
+    } while (after != null);
+    return items;
+  }
+
   Future<TogetherPublicationQuote> quote(
     TogetherPartyDraft draft, {
     required String requestRef,
   }) async {
     _ref(requestRef);
+    if (draft.package == null) {
+      throw const AuthFailure('TOGETHER_PACKAGE_REQUIRED', '请选择门店组局套餐');
+    }
     final error = draft.validate(now: DateTime.now());
     if (error != null) throw AuthFailure('TOGETHER_DRAFT_INVALID', error);
     final session = await readSession();
@@ -98,6 +153,7 @@ class SecureTogetherPublication {
           'requestRef': requestRef,
           'cityCode': draft.cityCode,
           'storeRef': draft.storeRef,
+          'packageRef': draft.package!.ref,
           'tableRef': draft.tableRef,
           'theme': draft.theme,
           'place': draft.place,
