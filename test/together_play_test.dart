@@ -47,6 +47,9 @@ TogetherParty fixture({
   List<TogetherGender> seatGenders = const [],
   String? posterUrl,
   List<String> posterUrls = const [],
+  bool? eligible,
+  List<String> eligibilityReasons = const [],
+  int? personalPriceMinor,
 }) => TogetherParty(
   ref: ref,
   theme: ref == 'night' ? '周末微醺交友局' : '一起听歌 · 认识新朋友',
@@ -67,6 +70,9 @@ TogetherParty fixture({
   seatGenders: seatGenders,
   posterUrl: posterUrl,
   posterUrls: posterUrls,
+  eligible: eligible,
+  eligibilityReasons: eligibilityReasons,
+  personalPriceMinor: personalPriceMinor,
   participants:
       participants ??
       List.generate(count, (i) => TogetherParticipant(name: '样例会员$i')),
@@ -97,6 +103,36 @@ class Repository implements TogetherPlayRepository {
 }
 
 void main() {
+  testWidgets('unmatched activity explains requirements and disables joining', (
+    tester,
+  ) async {
+    var attempts = 0;
+    final party = fixture(eligible: false, eligibilityReasons: ['活动年龄上限为29周岁']);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TogetherPartyDetailPage(
+          party: party,
+          repository: Repository(),
+          onJoin: (_) async {
+            attempts++;
+          },
+          onAdmission: (_) async {},
+        ),
+      ),
+    );
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    await tester.ensureVisible(find.text('活动年龄上限为29周岁'));
+    await tester.pumpAndSettle();
+    expect(find.text('活动年龄上限为29周岁'), findsOneWidget);
+    expect(attempts, 0);
+    expect(
+      fixture(state: TogetherJoinState.joined, eligible: false).canAct,
+      isTrue,
+    );
+  });
   testWidgets(
     'detail posters swipe, show page count and keep legacy single image',
     (tester) async {

@@ -1033,6 +1033,18 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
                   height: 1.7,
                 ),
               ),
+              if (_party.eligible != null) ...[
+                const SizedBox(height: 20),
+                Text(
+                  _party.eligible!
+                      ? '你符合本场活动要求'
+                      : _party.eligibilityReasons.join('\n'),
+                  style: TextStyle(
+                    color: _party.eligible! ? legacyGold : legacyPink,
+                    height: 1.6,
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               const Text(
                 '报名须知',
@@ -1054,7 +1066,9 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
             children: [
               Expanded(
                 child: Text(
-                  _party.priceLabel,
+                  _party.personalPriceMinor == null
+                      ? _party.priceLabel
+                      : '应付 ¥${(_party.personalPriceMinor! / 100).toStringAsFixed(2)}',
                   style: const TextStyle(color: legacyGold, fontSize: 23),
                 ),
               ),

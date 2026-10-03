@@ -42,6 +42,10 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _total = TextEditingController();
   TogetherFeeMode _fee = TogetherFeeMode.aa;
   bool _genderRatio = false;
+  bool _allowOverage = false;
+  final _minimumAge = TextEditingController(),
+      _maximumAge = TextEditingController(),
+      _overagePrice = TextEditingController(text: '10');
   final _maleSeats = TextEditingController(text: '3'),
       _femaleSeats = TextEditingController(text: '3');
   bool get _usesGenderPricing => _genderRatio || _fee == TogetherFeeMode.menPay;
@@ -158,6 +162,9 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _total,
       _maleSeats,
       _femaleSeats,
+      _minimumAge,
+      _maximumAge,
+      _overagePrice,
     ]) {
       controller.dispose();
     }
@@ -346,6 +353,19 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       setState(() => _error = '请完整填写时间、人数、费用，并选择背景和海报');
       return;
     }
+    final minimumAge = int.tryParse(_minimumAge.text.trim());
+    final maximumAge = int.tryParse(_maximumAge.text.trim());
+    final overagePrice = TogetherPartyDraft.parseMoney(_overagePrice.text);
+    final allowOverage = _allowOverage && _fee != TogetherFeeMode.hostTreat;
+    if ((_minimumAge.text.isNotEmpty &&
+            (minimumAge == null || minimumAge < 18 || minimumAge > 120)) ||
+        (_maximumAge.text.isNotEmpty &&
+            (maximumAge == null || maximumAge < 18 || maximumAge > 120)) ||
+        (minimumAge != null && maximumAge != null && minimumAge > maximumAge) ||
+        (allowOverage && (maximumAge == null || overagePrice == null))) {
+      setState(() => _error = '请检查年龄范围；超龄加价需要设置年龄上限和每岁金额');
+      return;
+    }
     final draft = TogetherPartyDraft(
       theme: _theme.text.trim(),
       cityCode: widget.cityCode,
@@ -363,6 +383,11 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       additionalPosters: _posters.skip(1).toList(),
       table: _table,
       package: _package,
+      eligibilityRules: {
+        'minAge': ?minimumAge,
+        'maxAge': ?maximumAge,
+        if (allowOverage) 'overageCentsPerYear': '$overagePrice',
+      },
       maleSeats: _usesGenderPricing
           ? int.tryParse(_maleSeats.text.trim())
           : null,
@@ -594,6 +619,18 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           style: TextStyle(color: Colors.white54, height: 1.5),
         ),
         const SizedBox(height: 18),
+        _field('最低年龄（可不填，按活动当天周岁）', _minimumAge, number: true),
+        _field('最高年龄（可不填）', _maximumAge, number: true),
+        if (_fee != TogetherFeeMode.hostTreat) ...[
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('允许超龄加价参加', style: TextStyle(color: legacyGold)),
+            value: _allowOverage,
+            onChanged: (value) =>
+                setState(() => _allowOverage = value ?? false),
+          ),
+          if (_allowOverage) _field('每超一岁加收（元）', _overagePrice, number: true),
+        ],
         _field('活动介绍与包含内容', _description, lines: 4),
         _artwork(false),
         const SizedBox(height: 14),

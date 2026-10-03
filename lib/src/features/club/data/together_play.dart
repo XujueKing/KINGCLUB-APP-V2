@@ -54,6 +54,9 @@ class TogetherParty {
     this.admissionCode,
     this.admissionUsed = false,
     this.seatGenders = const [],
+    this.eligible,
+    this.eligibilityReasons = const [],
+    this.personalPriceMinor,
   });
   final String ref,
       theme,
@@ -97,6 +100,9 @@ class TogetherParty {
       assignedTable != null &&
       assignedTable!.trim().isNotEmpty;
   final List<TogetherGender> seatGenders;
+  final bool? eligible;
+  final List<String> eligibilityReasons;
+  final int? personalPriceMinor;
 
   int get remaining => (capacity - participants.length).clamp(0, capacity);
   String get feeLabel => switch (feeMode) {
@@ -126,11 +132,13 @@ class TogetherParty {
     TogetherJoinState.closed => '已截止',
     TogetherJoinState.cancelled => '已取消',
   };
-  bool get canAct => const {
-    TogetherJoinState.available,
-    TogetherJoinState.pendingPayment,
-    TogetherJoinState.joined,
-  }.contains(actionState);
+  bool get canAct =>
+      (eligible != false || hasAdmissionTicket) &&
+      const {
+        TogetherJoinState.available,
+        TogetherJoinState.pendingPayment,
+        TogetherJoinState.joined,
+      }.contains(actionState);
 }
 
 abstract interface class TogetherPlayRepository {

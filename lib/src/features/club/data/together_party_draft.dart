@@ -50,12 +50,14 @@ class TogetherPartyDraft {
     this.maleSeats,
     this.femaleSeats,
     this.femaleBasePriceMinor,
+    this.eligibilityRules = const {},
   });
   final String theme, cityCode, place, description;
   final TogetherStore store;
   final TogetherTable? table;
   final TogetherPackage? package;
   final int? maleSeats, femaleSeats, femaleBasePriceMinor;
+  final Map<String, dynamic> eligibilityRules;
   String get storeRef => store.ref;
   String? get tableRef => table?.ref;
   final DateTime startsAt, endsAt;

@@ -157,6 +157,8 @@ class SecureTogetherPublication {
           'cityCode': draft.cityCode,
           'storeRef': draft.storeRef,
           'packageRef': draft.package!.ref,
+          if (draft.eligibilityRules.isNotEmpty)
+            'eligibilityRules': draft.eligibilityRules,
           if (draft.maleSeats != null)
             'genderPricing': {
               'maleSeats': draft.maleSeats,
