@@ -319,7 +319,7 @@ class TogetherPartyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AspectRatio(
-    aspectRatio: 690 / 256,
+    aspectRatio: 690 / 232,
     child: Material(
       color: Colors.transparent,
       child: InkWell(
@@ -336,8 +336,8 @@ class TogetherPartyCard extends StatelessWidget {
             gradient: const RadialGradient(
               center: Alignment.bottomRight,
               // CSS circle 500rpx; Flutter measures radius against the
-              // shortest side of this 690 by 256rpx ticket.
-              radius: 500 / 256,
+              // shortest side of this 690 by 232rpx ticket.
+              radius: 500 / 232,
               colors: [Color(0xFFAD016A), Color(0xFF5A1E80)],
             ),
             image: party.backgroundUrl == null
@@ -355,11 +355,11 @@ class TogetherPartyCard extends StatelessWidget {
             fit: BoxFit.contain,
             child: SizedBox(
               width: 345,
-              height: 128,
+              height: 116,
               child: MediaQuery.withClampedTextScaling(
                 maxScaleFactor: 1,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(15, 10, 12.5, 10),
+                  padding: const EdgeInsets.fromLTRB(15, 8, 12.5, 8),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -446,10 +446,11 @@ class TogetherPartyCard extends StatelessWidget {
                                               : 1,
                                           overflow: TextOverflow.ellipsis,
                                           textAlign: TextAlign.right,
-                                          style: _ticketStyle(context, 15)
+                                          style: _ticketStyle(context, 16)
                                               .copyWith(
-                                                height: 1.05,
+                                                height: 1,
                                                 fontWeight: FontWeight.w600,
+                                                color: Colors.white,
                                               ),
                                         ),
                                         if (party.actionState ==

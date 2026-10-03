@@ -188,7 +188,7 @@ void main() {
       final cardSize = tester.getSize(
         find.byKey(const ValueKey('together-card-night')),
       );
-      expect(cardSize.width / cardSize.height, closeTo(690 / 256, .01));
+      expect(cardSize.width / cardSize.height, closeTo(690 / 232, .01));
       final logo = tester.getRect(find.byType(TogetherStoreLogo));
       final label = tester.getRect(find.byType(PositioningCardLabel));
       // Extra ticket height belongs inside the merchant row, not the outer rim.
@@ -332,7 +332,7 @@ void main() {
       expect(ticket.left, closeTo(30 * .5, .1));
       expect(ticket.top, closeTo(309 * .5, .1));
       expect(ticket.width, closeTo(690 * .5, .1));
-      expect(ticket.height, closeTo(256 * .5, .1));
+      expect(ticket.height, closeTo(232 * .5, .1));
       final date = tester.getRect(
         find.byKey(const ValueKey('together-date-box-0')),
       );
@@ -608,8 +608,9 @@ void main() {
         expect(date.bottom, closeTo(label.bottom, .1));
         expect(qr.bottom, closeTo(label.bottom, .1));
         final theme = tester.widget<Text>(find.text(party.theme));
-        expect(theme.style?.fontSize, 15);
+        expect(theme.style?.fontSize, 16);
         expect(theme.style?.fontWeight, FontWeight.w600);
+        expect(theme.style?.color, Colors.white);
         final seats = tester.getRect(find.byType(TogetherParticipants));
         expect(
           tester.getRect(find.text(party.theme)).top,
