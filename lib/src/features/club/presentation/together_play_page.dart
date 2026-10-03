@@ -416,13 +416,13 @@ class TogetherPartyCard extends StatelessWidget {
       return asset
           ? SvgPicture.asset(
               source,
-              width: 80,
+              width: 64,
               colorFilter: filter,
               semanticsLabel: party.storeName,
             )
           : SvgPicture.network(
               source,
-              width: 80,
+              width: 64,
               colorFilter: filter,
               semanticsLabel: party.storeName,
             );
