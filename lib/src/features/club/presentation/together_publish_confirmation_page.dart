@@ -127,7 +127,7 @@ class _ConfirmationState extends State<TogetherPublishConfirmationPage> {
               ),
               const SizedBox(height: 20),
               const Text(
-                '押金按商家基础消费冻结，不扣本店储值。参加者付款后，按商家实际收到的金额解冻，最多解冻原押金。',
+                '个人发起按商家基础消费冻结 APP 余额。参加者付款并入场核销后，按实收口径立即解冻，最多解冻原押金。',
                 style: TextStyle(color: legacyGold, height: 1.6),
               ),
               const SizedBox(height: 12),

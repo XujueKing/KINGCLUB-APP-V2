@@ -636,7 +636,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
             onTap: _busy || _store == null ? null : _pickPackage,
           ),
         const Text(
-          '从 APP 余额冻结整场押金。参加者付款给商家后，等额押金解冻回 APP 可用余额。',
+          '个人发起按商家基础消费冻结 APP 余额。参加者付款并入场核销后，等额押金立即解冻回 APP 可用余额。',
           style: TextStyle(color: Colors.white54, height: 1.5),
         ),
         const SizedBox(height: 18),
