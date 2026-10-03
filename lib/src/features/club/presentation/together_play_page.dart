@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../core/design_system/king_components.dart';
 import '../../../core/media/cached_media_image.dart';
 
 import '../data/together_play.dart';
@@ -256,32 +257,11 @@ class _TogetherScaffold extends StatelessWidget {
                 ],
               ),
               Positioned(
-                left: 55 * unit,
-                top: top - 20 * unit,
-                child: Semantics(
-                  button: true,
-                  label: '返回',
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: onBack,
-                    child: SizedBox(
-                      width: (70 * unit).clamp(44, double.infinity),
-                      height: (72 * unit).clamp(44, double.infinity),
-                      child: Stack(
-                        children: [
-                          Positioned(
-                            left: 20 * unit,
-                            top: 20 * unit,
-                            child: Image.asset(
-                              'assets/legacy/friendship/back.png',
-                              width: 20 * unit,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                left: KingBackButton.leftOffset(context),
+                // Align the shared 48dp control with this compact title row;
+                // keep the approved date/card geometry below it unchanged.
+                top: top + (39 * unit - 48) / 2,
+                child: KingBackButton(onPressed: onBack),
               ),
               Positioned(
                 right: 30 * unit,
