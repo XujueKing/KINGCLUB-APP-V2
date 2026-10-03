@@ -19,6 +19,17 @@ void main() {
           'apiKey': 'secret',
         },
         request: (id, params, _) async {
+          if (id == 'K261004001992') {
+            return {
+              'result': {
+                'bookingRef': params['bookingRef'],
+                'storeRef': party.storeRef,
+                'items': [
+                  {'itemRef': 'coupon', 'name': '门店券', 'discountCents': '500'},
+                ],
+              },
+            };
+          }
           if (id == 'K261004001988') {
             return {
               'result': {
@@ -47,6 +58,8 @@ void main() {
               'method': 'store_balance',
               'totalCents': '1000',
               'coinsUsed': '0',
+              'couponDiscountCents': '500',
+              'coupon': {'itemRef': 'coupon'},
               'replayed': true,
             },
           };
@@ -72,13 +85,20 @@ void main() {
       );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('不使用商家券'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('门店券 · 抵¥5.00').last);
+      await tester.pumpAndSettle();
+      expect(find.text('抵扣后应付 ¥5.00'), findsOneWidget);
       await tester.ensureVisible(find.text('确认付款'));
       await tester.tap(find.text('确认付款'));
       await tester.pumpAndSettle();
       expect(find.text('核对原付款结果'), findsOneWidget);
       expect(
         tester
-            .widget<DropdownButton<String>>(find.byType(DropdownButton<String>))
+            .widget<DropdownButton<String>>(
+              find.byType(DropdownButton<String>).first,
+            )
             .onChanged,
         isNull,
       );
@@ -87,6 +107,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(payments.length, 2);
       expect(payments.first, payments.last);
+      expect(payments.first['coupon'], {
+        'itemRef': 'coupon',
+        'expectedDiscountCents': '500',
+      });
       expect(find.text('open'), findsOneWidget);
       expect(find.byType(TogetherBookingPage), findsNothing);
     },
@@ -105,6 +129,15 @@ void main() {
           'apiKey': 'test-only',
         },
         request: (id, params, _) async {
+          if (id == 'K261004001992') {
+            return {
+              'result': {
+                'bookingRef': params['bookingRef'],
+                'storeRef': party.storeRef,
+                'items': [],
+              },
+            };
+          }
           expect(id, 'K261004001988');
           expect(params['partyRef'], party.ref);
           requests.add(params['requestRef'] as String);

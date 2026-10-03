@@ -4,6 +4,16 @@ import '../../auth/domain/auth_repository.dart';
 import '../../commerce/data/ordering_table_repository.dart';
 import 'together_play.dart';
 
+class TogetherCoupon {
+  const TogetherCoupon({
+    required this.ref,
+    required this.name,
+    required this.discountMinor,
+  });
+  final String ref, name;
+  final int discountMinor;
+}
+
 class TogetherBooking {
   const TogetherBooking({
     required this.ref,
@@ -340,11 +350,46 @@ class SecureTogetherPlayRepository
     );
   }
 
+  Future<List<TogetherCoupon>> coupons(
+    TogetherBooking booking,
+    String storeRef,
+  ) async {
+    final session = await readSession();
+    final identity = _identity(session);
+    final result = await _call(
+      'K261004001992',
+      {'bookingRef': booking.ref},
+      session!,
+      identity,
+    );
+    if (result['bookingRef'] != booking.ref ||
+        result['storeRef'] != storeRef ||
+        result['items'] is! List) {
+      _invalid();
+    }
+    final items = <TogetherCoupon>[];
+    for (final raw in result['items'] as List) {
+      if (raw is! Map) _invalid();
+      final amount = _money(raw['discountCents']);
+      if (amount <= 0 || amount > booking.payableMinor) _invalid();
+      items.add(
+        TogetherCoupon(
+          ref: _ref(raw['itemRef']),
+          name: _text(raw['name']),
+          discountMinor: amount,
+        ),
+      );
+    }
+    if (items.map((c) => c.ref).toSet().length != items.length) _invalid();
+    return items;
+  }
+
   Future<TogetherBooking> payBooking(
     TogetherBooking booking, {
     required String method,
     required int coins,
     required String storeRef,
+    TogetherCoupon? coupon,
   }) async {
     if (coins < 0 ||
         !['free', 'store_balance', 'platform_cash'].contains(method)) {
@@ -359,6 +404,11 @@ class SecureTogetherPlayRepository
         'expectedCents': booking.payableMinor.toString(),
         'method': method,
         'coins': coins.toString(),
+        if (coupon != null)
+          'coupon': {
+            'itemRef': coupon.ref,
+            'expectedDiscountCents': coupon.discountMinor.toString(),
+          },
       },
       session!,
       identity,
@@ -371,6 +421,11 @@ class SecureTogetherPlayRepository
         result['method'] != method ||
         _money(result['totalCents']) != booking.payableMinor ||
         _money(result['coinsUsed']) != coins ||
+        _money(result['couponDiscountCents'] ?? '0') !=
+            (coupon?.discountMinor ?? 0) ||
+        (coupon != null &&
+            (result['coupon'] is! Map ||
+                result['coupon']['itemRef'] != coupon.ref)) ||
         result['replayed'] is! bool) {
       _invalid();
     }

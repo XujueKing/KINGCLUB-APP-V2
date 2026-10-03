@@ -29,6 +29,8 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
   bool uncertain = false;
   int? sentCoins;
   String? sentMethod;
+  List<TogetherCoupon> coupons = [];
+  TogetherCoupon? coupon, sentCoupon;
 
   @override
   void dispose() {
@@ -40,13 +42,16 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
     final b = booking;
     if (busy || b == null || b.status != 'pending') return;
     final coins = uncertain ? sentCoins : int.tryParse(coinsInput.text);
-    if (coins == null || coins < 0 || coins * 10 > b.payableMinor) {
+    final selectedCoupon = uncertain ? sentCoupon : coupon;
+    final afterCoupon = b.payableMinor - (selectedCoupon?.discountMinor ?? 0);
+    if (coins == null || coins < 0 || coins * 10 > afterCoupon) {
       setState(() => error = '请填写有效金币数，10金币抵1元');
       return;
     }
     final selected = uncertain
         ? sentMethod!
-        : (b.payableMinor == coins * 10 ? 'free' : method);
+        : (afterCoupon == coins * 10 ? 'free' : method);
+    sentCoupon = selectedCoupon;
     sentCoins = coins;
     sentMethod = selected;
     setState(() {
@@ -58,6 +63,7 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
         b,
         method: selected,
         coins: coins,
+        coupon: selectedCoupon,
         storeRef: widget.party.storeRef,
       );
       if (mounted) {
@@ -73,6 +79,7 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
           uncertain =
               !(e is AuthFailure &&
                   const {
+                    'TOGETHER_COUPON_UNAVAILABLE',
                     'TOGETHER_COINS_NOT_ALLOWED',
                     'TOGETHER_COINS_EXCESS',
                     'TOGETHER_BALANCE_INSUFFICIENT',
@@ -111,7 +118,16 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
         widget.party.ref,
         requestRef: requestRef,
       );
-      if (mounted) setState(() => booking = result);
+      final available = result.status == 'pending'
+          ? await widget.repository.coupons(result, widget.party.storeRef)
+          : <TogetherCoupon>[];
+      if (mounted) {
+        setState(() {
+          booking = result;
+          coupons = available;
+          coupon = null;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() => error = e is AuthFailure ? e.message : '暂时无法确认报名，请重试');
@@ -175,6 +191,31 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
           else if (b.status == 'pending') ...[
             const Text('待付款，尚未扣款或占位。', style: TextStyle(color: legacyGold)),
             const SizedBox(height: 12),
+            if (coupons.isNotEmpty)
+              DropdownButton<String>(
+                value: coupon?.ref ?? '',
+                dropdownColor: Colors.black,
+                style: const TextStyle(color: legacyGold),
+                isExpanded: true,
+                onChanged: busy || uncertain
+                    ? null
+                    : (v) => setState(
+                        () => coupon = v == ''
+                            ? null
+                            : coupons.firstWhere((c) => c.ref == v),
+                      ),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('不使用商家券')),
+                  for (final c in coupons)
+                    DropdownMenuItem(
+                      value: c.ref,
+                      child: Text(
+                        '${c.name} · 抵${money(c.discountMinor)}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+              ),
             DropdownButton<String>(
               value: method,
               dropdownColor: Colors.black,
@@ -203,7 +244,7 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
               ),
             const SizedBox(height: 16),
             Text(
-              '抵扣后应付 ${money((b.payableMinor - ((int.tryParse(coinsInput.text) ?? 0) * 10)).clamp(0, b.payableMinor))}',
+              '抵扣后应付 ${money((b.payableMinor - (coupon?.discountMinor ?? 0) - ((int.tryParse(coinsInput.text) ?? 0) * 10)).clamp(0, b.payableMinor))}',
               style: const TextStyle(color: legacyGold, fontSize: 20),
             ),
             const SizedBox(height: 12),
