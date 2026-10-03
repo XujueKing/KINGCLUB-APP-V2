@@ -416,103 +416,112 @@ class TogetherPartyCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            TogetherParticipants(
-                              party: party,
-                              showCount: false,
-                            ),
-                            const SizedBox(height: 5),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        party.theme,
-                                        maxLines:
-                                            party.actionState ==
-                                                TogetherJoinState.joined
-                                            ? 2
-                                            : 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.right,
-                                        style: _ticketStyle(
-                                          context,
-                                          13,
-                                        ).copyWith(height: 1.15),
-                                      ),
-                                      if (party.actionState ==
-                                          TogetherJoinState.joined)
-                                        const SizedBox(height: 3),
-                                      FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerRight,
-                                        child:
-                                            party.actionState ==
-                                                TogetherJoinState.joined
-                                            ? Text(
-                                                togetherCardTimeRange(party),
-                                                style: _ticketStyle(context, 10)
-                                                    .copyWith(
-                                                      height: 1.2,
-                                                      color: Colors.white70,
-                                                    ),
-                                              )
-                                            : _price(context),
-                                      ),
-                                    ],
+                        child: SizedBox(
+                          // Match the left column's content height so the
+                          // date, QR and English label share one bottom edge.
+                          height: 98.5,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              TogetherParticipants(
+                                party: party,
+                                showCount: false,
+                              ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          party.theme,
+                                          maxLines:
+                                              party.actionState ==
+                                                  TogetherJoinState.joined
+                                              ? 2
+                                              : 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.right,
+                                          style: _ticketStyle(context, 15)
+                                              .copyWith(
+                                                height: 1.05,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                        if (party.actionState ==
+                                            TogetherJoinState.joined)
+                                          const SizedBox(height: 3),
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerRight,
+                                          child:
+                                              party.actionState ==
+                                                  TogetherJoinState.joined
+                                              ? Text(
+                                                  togetherCardTimeRange(party),
+                                                  style:
+                                                      _ticketStyle(
+                                                        context,
+                                                        10,
+                                                      ).copyWith(
+                                                        height: 1.2,
+                                                        color: Colors.white70,
+                                                      ),
+                                                )
+                                              : _price(context),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 10),
-                                if (party.actionState ==
-                                    TogetherJoinState.joined)
-                                  Image.asset(
-                                    'assets/legacy/aa/qrcode2.png',
-                                    key: const ValueKey(
-                                      'together-admission-icon',
-                                    ),
-                                    width: 40,
-                                    height: 40,
-                                    color: Colors.white,
-                                    colorBlendMode: BlendMode.srcIn,
-                                    semanticLabel: '入场码',
-                                  )
-                                else
-                                  Container(
-                                    constraints: const BoxConstraints(
-                                      minWidth: 42,
-                                      minHeight: 32,
-                                    ),
-                                    alignment: Alignment.center,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 7,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: party.canAct
-                                          ? legacyPink
-                                          : Colors.white12,
-                                      borderRadius: BorderRadius.circular(5),
-                                    ),
-                                    child: Text(
-                                      party.actionLabel,
-                                      style: TextStyle(
+                                  const SizedBox(width: 10),
+                                  if (party.actionState ==
+                                      TogetherJoinState.joined)
+                                    Image.asset(
+                                      'assets/legacy/aa/qrcode2.png',
+                                      key: const ValueKey(
+                                        'together-admission-icon',
+                                      ),
+                                      width: 40,
+                                      height: 40,
+                                      color: Colors.white,
+                                      colorBlendMode: BlendMode.srcIn,
+                                      semanticLabel: '入场码',
+                                    )
+                                  else
+                                    Container(
+                                      constraints: const BoxConstraints(
+                                        minWidth: 42,
+                                        minHeight: 32,
+                                      ),
+                                      alignment: Alignment.center,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                      ),
+                                      decoration: BoxDecoration(
                                         color: party.canAct
-                                            ? const Color(0xFF65084E)
-                                            : Colors.white54,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
+                                            ? legacyPink
+                                            : Colors.white12,
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: Text(
+                                        party.actionLabel,
+                                        style: TextStyle(
+                                          color: party.canAct
+                                              ? const Color(0xFF65084E)
+                                              : Colors.white54,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],

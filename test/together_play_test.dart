@@ -580,4 +580,43 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('ticket date and QR align with label for short and long themes', (
+    tester,
+  ) async {
+    for (final width in [320.0, 370.0]) {
+      for (final ref in ['night', 'long-theme']) {
+        final party = fixture(ref: ref, state: TogetherJoinState.joined);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: width,
+                  child: TogetherPartyCard(party: party, onTap: () {}),
+                ),
+              ),
+            ),
+          ),
+        );
+        final label = tester.getRect(find.byType(PositioningCardLabel));
+        final date = tester.getRect(find.text(togetherCardTimeRange(party)));
+        final qr = tester.getRect(
+          find.byKey(const ValueKey('together-admission-icon')),
+        );
+        expect(date.bottom, closeTo(label.bottom, .1));
+        expect(qr.bottom, closeTo(label.bottom, .1));
+        final theme = tester.widget<Text>(find.text(party.theme));
+        expect(theme.style?.fontSize, 15);
+        expect(theme.style?.fontWeight, FontWeight.w600);
+        final seats = tester.getRect(find.byType(TogetherParticipants));
+        expect(
+          tester.getRect(find.text(party.theme)).top,
+          greaterThan(seats.bottom),
+        );
+        expect(tester.takeException(), isNull);
+      }
+    }
+  });
 }
