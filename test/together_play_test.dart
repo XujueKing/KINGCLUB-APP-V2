@@ -129,7 +129,7 @@ void main() {
       final cardSize = tester.getSize(
         find.byKey(const ValueKey('together-card-night')),
       );
-      expect(cardSize.width / cardSize.height, closeTo(690 / 240, .01));
+      expect(cardSize.width / cardSize.height, closeTo(690 / 256, .01));
       for (var i = 0; i < 14; i++) {
         final seat = find.byKey(ValueKey('seat-night-$i'));
         expect(seat, findsOneWidget);
@@ -269,7 +269,7 @@ void main() {
       expect(ticket.left, closeTo(30 * .5, .1));
       expect(ticket.top, closeTo(309 * .5, .1));
       expect(ticket.width, closeTo(690 * .5, .1));
-      expect(ticket.height, closeTo(240 * .5, .1));
+      expect(ticket.height, closeTo(256 * .5, .1));
       final date = tester.getRect(
         find.byKey(const ValueKey('together-date-box-0')),
       );

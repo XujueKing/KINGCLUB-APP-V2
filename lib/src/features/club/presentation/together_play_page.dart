@@ -305,7 +305,7 @@ class _TogetherScaffold extends StatelessWidget {
   }
 }
 
-/// Ticket geometry follows Choose.wxss: 690 by 240 rpx, 20 rpx corners.
+/// Legacy proportions, with the requested extra height for the merchant mark.
 class TogetherPartyCard extends StatelessWidget {
   const TogetherPartyCard({
     super.key,
@@ -317,7 +317,7 @@ class TogetherPartyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AspectRatio(
-    aspectRatio: 690 / 240,
+    aspectRatio: 690 / 256,
     child: Material(
       color: Colors.transparent,
       child: InkWell(
@@ -334,8 +334,8 @@ class TogetherPartyCard extends StatelessWidget {
             gradient: const RadialGradient(
               center: Alignment.bottomRight,
               // CSS circle 500rpx; Flutter measures radius against the
-              // shortest side of this 690 by 240rpx ticket.
-              radius: 500 / 240,
+              // shortest side of this 690 by 256rpx ticket.
+              radius: 500 / 256,
               colors: [Color(0xFFAD016A), Color(0xFF5A1E80)],
             ),
             image: party.backgroundUrl == null
@@ -353,7 +353,7 @@ class TogetherPartyCard extends StatelessWidget {
             fit: BoxFit.contain,
             child: SizedBox(
               width: 345,
-              height: 120,
+              height: 128,
               child: MediaQuery.withClampedTextScaling(
                 maxScaleFactor: 1,
                 child: Padding(
@@ -368,7 +368,7 @@ class TogetherPartyCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             SizedBox(
-                              height: 45,
+                              height: 40,
                               child: FittedBox(
                                 alignment: Alignment.centerLeft,
                                 fit: BoxFit.contain,
@@ -376,7 +376,7 @@ class TogetherPartyCard extends StatelessWidget {
                                   party.assignedTable ?? '待分配',
                                   style: const TextStyle(
                                     fontFamily: 'AaRuizhi',
-                                    fontSize: 50,
+                                    fontSize: 45,
                                     // Exclude leading to match the old outline.
                                     height: .8,
                                     color: Colors.white,
@@ -385,23 +385,24 @@ class TogetherPartyCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 7.5),
-                            FittedBox(
-                              alignment: Alignment.centerLeft,
-                              fit: BoxFit.scaleDown,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  TogetherStoreLogo(party: party),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    party.storeName,
-                                    style: _ticketStyle(
-                                      context,
-                                      12,
-                                    ).copyWith(color: Colors.white),
+                            Row(
+                              children: [
+                                TogetherStoreLogo(party: party),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: FittedBox(
+                                    alignment: Alignment.centerLeft,
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      party.storeName,
+                                      style: _ticketStyle(
+                                        context,
+                                        12,
+                                      ).copyWith(color: Colors.white),
+                                    ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 4),
                             const PositioningCardLabel(),
@@ -535,10 +536,10 @@ class TogetherStoreLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(3),
+    borderRadius: BorderRadius.circular(4),
     child: Container(
-      width: 16,
-      height: 16,
+      width: 20,
+      height: 20,
       color: Colors.black,
       child: _image(),
     ),
@@ -547,7 +548,7 @@ class TogetherStoreLogo extends StatelessWidget {
   Widget _image() {
     final source = party.storeLogo;
     if (source == null || source.isEmpty) {
-      return const Icon(Icons.storefront, size: 12, color: Colors.white);
+      return const Icon(Icons.storefront, size: 15, color: Colors.white);
     }
     final asset = source.startsWith('assets/');
     if (Uri.parse(source).path.endsWith('.svg')) {
