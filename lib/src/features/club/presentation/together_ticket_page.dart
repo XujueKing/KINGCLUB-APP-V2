@@ -297,12 +297,20 @@ class _TogetherTicketPageState extends State<TogetherTicketPage>
                           if (party.ticketNumber?.isNotEmpty == true)
                             line(party.ticketNumber!),
                           line(party.theme),
-                          line(party.storeName),
+                          Row(
+                            key: const ValueKey('together-ticket-store'),
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TogetherStoreLogo(party: party, size: 34 * unit),
+                              SizedBox(width: 8 * unit),
+                              Flexible(child: line(party.storeName)),
+                            ],
+                          ),
                         ],
                       ),
                     ),
                     Container(
-                      width: 550 * unit,
+                      width: 650 * unit,
                       margin: EdgeInsets.symmetric(vertical: 40 * unit),
                       child: DefaultTextStyle(
                         style: style(26, const Color(0x99C9B69E)),
@@ -319,11 +327,11 @@ class _TogetherTicketPageState extends State<TogetherTicketPage>
                             ),
                             Padding(
                               padding: EdgeInsets.symmetric(vertical: 3),
-                              child: Text('2、票券权益以活动说明为准，额外消费另行支付。'),
+                              child: Text('2、票券权益以活动说明为准，额外消费另付。'),
                             ),
                             Padding(
                               padding: EdgeInsets.symmetric(vertical: 3),
-                              child: Text('3、请在票面活动时段内出示入场码，过期作废。'),
+                              child: Text('3、请按活动时间出示入场码，过期作废。'),
                             ),
                           ],
                         ),
