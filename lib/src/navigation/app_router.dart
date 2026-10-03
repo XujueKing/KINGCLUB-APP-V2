@@ -1,4 +1,4 @@
-import '../features/club/presentation/together_review_page.dart';
+import '../features/club/presentation/together_entry_page.dart';
 import '../features/commerce/presentation/live_order_payment_page.dart';
 import '../features/commerce/data/ordering_order_repository.dart';
 import '../features/commerce/presentation/managed_tables_page.dart';
@@ -1003,7 +1003,7 @@ class AaReservationsRoute extends GoRouteData with $AaReservationsRoute {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) const AppShellRoute().go(context);
       },
-      child: TogetherReviewPage(onBack: back),
+      child: TogetherEntryPage(onBack: back),
     );
   }
 }

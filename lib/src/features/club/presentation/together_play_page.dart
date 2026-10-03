@@ -42,6 +42,7 @@ class TogetherPlayPage extends StatefulWidget {
     required this.onAdmission,
     required this.onCreate,
     this.today,
+    this.onSelectCity,
     this.reviewOnly = false,
   });
   final TogetherPlayRepository repository;
@@ -49,6 +50,7 @@ class TogetherPlayPage extends StatefulWidget {
   final VoidCallback onBack, onCreate;
   final Future<void> Function(TogetherParty) onJoin, onAdmission;
   final DateTime? today;
+  final VoidCallback? onSelectCity;
   final bool reviewOnly;
   @override
   State<TogetherPlayPage> createState() => _TogetherPlayPageState();
@@ -152,7 +154,8 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
 
   @override
   Widget build(BuildContext context) => _TogetherScaffold(
-    title: '一起玩',
+    title: widget.onSelectCity == null ? '一起玩' : '${widget.cityName} · 一起玩⌄',
+    onSelectCity: widget.onSelectCity,
     onBack: widget.onBack,
     onCreate: widget.onCreate,
     child: Column(
@@ -241,11 +244,13 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
 class _TogetherScaffold extends StatelessWidget {
   const _TogetherScaffold({
     required this.title,
+    this.onSelectCity,
     required this.onBack,
     required this.onCreate,
     required this.child,
   });
   final String title;
+  final VoidCallback? onSelectCity;
   final VoidCallback onBack, onCreate;
   final Widget child;
 
@@ -276,13 +281,16 @@ class _TogetherScaffold extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Text(
-                      title,
-                      key: const ValueKey('together-title'),
-                      style: togetherLegacyDateStyle(
-                        28 * unit,
-                        legacyGold,
-                      ).copyWith(height: 39 / 28),
+                    GestureDetector(
+                      onTap: onSelectCity,
+                      child: Text(
+                        title,
+                        key: const ValueKey('together-title'),
+                        style: togetherLegacyDateStyle(
+                          28 * unit,
+                          legacyGold,
+                        ).copyWith(height: 39 / 28),
+                      ),
                     ),
                     Positioned(
                       left: KingBackButton.leftOffset(context),
