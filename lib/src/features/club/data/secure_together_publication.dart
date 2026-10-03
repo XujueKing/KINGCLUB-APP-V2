@@ -137,6 +137,65 @@ class SecureTogetherPublication {
     return items;
   }
 
+  Future<List<TogetherArtwork>> artwork() async {
+    final session = await readSession();
+    final identity = _identity(session);
+    final items = <TogetherArtwork>[];
+    final seen = <String>{};
+    String? after;
+    do {
+      final result = await _call(
+        'K261002001983',
+        {'after': ?after},
+        session!,
+        identity,
+      );
+      final page = result['items'];
+      if (page is! List || page.length > 100) _invalid();
+      for (final row in page) {
+        if (row is! Map || row['status'] != 'approved') _invalid();
+        final ref = _ref(row['ref']);
+        final name = row['name'];
+        final url = row['url'];
+        if (!seen.add(ref) ||
+            name is! String ||
+            name.length > 128 ||
+            url is! String ||
+            url.length > 2048) {
+          _invalid();
+        }
+        final uri = Uri.tryParse(url);
+        if (uri == null ||
+            uri.scheme != 'https' ||
+            uri.host.isEmpty ||
+            uri.userInfo.isNotEmpty ||
+            uri.queryParameters.keys.any(
+              (key) => RegExp(
+                r'token|signature|credential|secret|authorization',
+                caseSensitive: false,
+              ).hasMatch(key),
+            )) {
+          _invalid();
+        }
+        items.add(
+          TogetherArtwork(
+            ref: ref,
+            name: name,
+            url: url,
+            status: TogetherArtworkStatus.approved,
+          ),
+        );
+      }
+      final next = result['next'];
+      if (next != null &&
+          (page.isEmpty || _ref(next) != page.last['ref'] || next == after)) {
+        _invalid();
+      }
+      after = next as String?;
+    } while (after != null);
+    return items;
+  }
+
   Future<TogetherPublicationQuote> quote(
     TogetherPartyDraft draft, {
     required String requestRef,

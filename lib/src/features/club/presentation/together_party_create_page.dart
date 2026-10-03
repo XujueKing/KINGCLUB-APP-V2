@@ -15,18 +15,19 @@ class TogetherPartyCreatePage extends StatefulWidget {
     required this.cityCode,
     required this.cityName,
     required this.onBack,
-    required this.loadLibrary,
+    this.loadLibrary,
     required this.uploadArtwork,
     this.onReview,
     this.publication,
     required this.stores,
     this.loadPackages,
-  }) : assert(onReview != null || publication != null);
+  }) : assert(onReview != null || publication != null),
+       assert(loadLibrary != null || publication != null);
   final String cityCode, cityName;
   final TogetherStoreRepository stores;
   final Future<List<TogetherPackage>> Function(String storeRef)? loadPackages;
   final VoidCallback onBack;
-  final Future<List<TogetherArtwork>> Function() loadLibrary;
+  final Future<List<TogetherArtwork>> Function()? loadLibrary;
   final Future<TogetherArtwork?> Function() uploadArtwork;
 
   /// Opens the authoritative deposit quote/terms confirmation. Not publication.
@@ -38,6 +39,8 @@ class TogetherPartyCreatePage extends StatefulWidget {
 }
 
 class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
+  Future<List<TogetherPackage>> Function(String)? get _loadPackages =>
+      widget.loadPackages ?? widget.publication?.packages;
   final _theme = TextEditingController(),
       _place = TextEditingController(),
       _description = TextEditingController(),
@@ -217,9 +220,10 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       if (upload) {
         selected = await widget.uploadArtwork();
       } else {
-        final library = (await widget.loadLibrary())
-            .where((a) => a.status == TogetherArtworkStatus.approved)
-            .toList();
+        final library =
+            (await (widget.loadLibrary ?? widget.publication!.artwork)())
+                .where((a) => a.status == TogetherArtworkStatus.approved)
+                .toList();
         if (!mounted) return;
         selected = await showModalBottomSheet<TogetherArtwork>(
           context: context,
@@ -281,13 +285,13 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
 
   Future<void> _pickPackage() async {
     final store = _store;
-    if (store == null || widget.loadPackages == null || _busy) return;
+    if (store == null || _loadPackages == null || _busy) return;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final packages = await widget.loadPackages!(store.ref);
+      final packages = await _loadPackages!(store.ref);
       if (!mounted || _store != store) return;
       final selected = await showModalBottomSheet<TogetherPackage>(
         context: context,
@@ -343,7 +347,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         ? 0
         : TogetherPartyDraft.parseMoney(_price.text);
     final total = TogetherPartyDraft.parseMoney(_total.text);
-    if (widget.loadPackages != null && _package == null) {
+    if (_loadPackages != null && _package == null) {
       setState(() => _error = '请选择门店组局套餐');
       return;
     }
@@ -614,7 +618,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
             _price,
             number: true,
           ),
-        if (widget.loadPackages == null)
+        if (_loadPackages == null)
           _field('整场费用（元）', _total, number: true)
         else
           ListTile(

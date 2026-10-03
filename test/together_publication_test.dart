@@ -47,6 +47,36 @@ void main() {
     policyVersion: 'test',
     sessionIdentity: 'member-test\u0000s\u0000k',
   );
+  test('artwork paginates approved assets and rejects unsafe or unapproved responses', () async {
+    for (final mode in ['ok', 'pending', 'unsafe', 'duplicate']) {
+      final repo = SecureTogetherPublication(
+        readSession: () async => session,
+        request: (id, p, _) async {
+          expect(id, 'K261002001983');
+          return {
+            'result': {
+              'items': [
+                {
+                  'ref': p['after'] == null || mode == 'duplicate' ? 'a' : 'b',
+                  'name': '海报',
+                  'status': mode == 'pending' ? 'pending' : 'approved',
+                  'url': mode == 'unsafe'
+                      ? 'https://example.test/art?token=private'
+                      : 'https://example.test/art.png',
+                },
+              ],
+              'next': p['after'] == null ? 'a' : null,
+            },
+          };
+        },
+      );
+      if (mode == 'ok') {
+        expect((await repo.artwork()).map((a) => a.ref), ['a', 'b']);
+      } else {
+        await expectLater(repo.artwork(), throwsA(anything));
+      }
+    }
+  });
   test(
     'unknown publication retries preserve reference even after quote expiry',
     () async {
