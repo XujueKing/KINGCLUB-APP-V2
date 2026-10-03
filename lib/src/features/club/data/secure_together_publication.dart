@@ -214,6 +214,7 @@ class SecureTogetherPublication {
         'draft': {
           'requestRef': requestRef,
           'cityCode': draft.cityCode,
+          'allowCoins': draft.allowCoins,
           'publisherType': draft.official ? 'official' : 'personal',
           'storeRef': draft.storeRef,
           'packageRef': draft.package!.ref,

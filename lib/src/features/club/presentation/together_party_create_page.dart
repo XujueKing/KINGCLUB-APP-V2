@@ -48,6 +48,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _price = TextEditingController(),
       _total = TextEditingController();
   bool _official = false;
+  bool _allowCoins = false;
   TogetherFeeMode _fee = TogetherFeeMode.aa;
   bool _genderRatio = false;
   bool _allowOverage = false;
@@ -377,6 +378,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     }
     final draft = TogetherPartyDraft(
       official: _official,
+      allowCoins: _allowCoins,
       theme: _theme.text.trim(),
       cityCode: widget.cityCode,
       store: _store!,
@@ -585,6 +587,15 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           ),
           value: _official,
           onChanged: _busy ? null : (v) => setState(() => _official = v),
+        ),
+        SwitchListTile(
+          title: const Text('允许金币抵扣', style: TextStyle(color: legacyGold)),
+          subtitle: const Text(
+            '10金币抵1元，由平台补贴给门店',
+            style: TextStyle(color: legacyGold),
+          ),
+          value: _allowCoins,
+          onChanged: _busy ? null : (v) => setState(() => _allowCoins = v),
         ),
         DropdownButtonFormField<TogetherFeeMode>(
           initialValue: _fee,

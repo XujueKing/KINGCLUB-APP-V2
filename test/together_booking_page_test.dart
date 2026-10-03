@@ -7,6 +7,92 @@ import 'together_play_test.dart' show fixture;
 
 void main() {
   testWidgets(
+    'lost payment response retries unchanged payment and returns after confirmation',
+    (tester) async {
+      final party = fixture();
+      final payments = <Map<String, dynamic>>[];
+      final repo = SecureTogetherPlayRepository(
+        readSession: () async => {
+          'account': {'userAccount': 'member'},
+          'sessionId': 's',
+          'apiKeyId': 'k',
+          'apiKey': 'secret',
+        },
+        request: (id, params, _) async {
+          if (id == 'K261004001988') {
+            return {
+              'result': {
+                'bookingRef': 'booking',
+                'partyRef': party.ref,
+                'status': 'pending',
+                'quote': {
+                  'currency': 'CNY',
+                  'basePriceCents': '1000',
+                  'ageSurchargeCents': '0',
+                  'payableCents': '1000',
+                },
+              },
+            };
+          }
+          expect(id, 'K261004001991');
+          payments.add(Map.from(params));
+          if (payments.length == 1) throw StateError('response lost');
+          return {
+            'result': {
+              'bookingRef': 'booking',
+              'paymentRef': 'booking',
+              'partyRef': party.ref,
+              'storeRef': party.storeRef,
+              'currency': 'CNY',
+              'method': 'store_balance',
+              'totalCents': '1000',
+              'coinsUsed': '0',
+              'replayed': true,
+            },
+          };
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        TogetherBookingPage(party: party, repository: repo),
+                  ),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('确认付款'));
+      await tester.tap(find.text('确认付款'));
+      await tester.pumpAndSettle();
+      expect(find.text('核对原付款结果'), findsOneWidget);
+      expect(
+        tester
+            .widget<DropdownButton<String>>(find.byType(DropdownButton<String>))
+            .onChanged,
+        isNull,
+      );
+      await tester.ensureVisible(find.text('核对原付款结果'));
+      await tester.tap(find.text('核对原付款结果'));
+      await tester.pumpAndSettle();
+      expect(payments.length, 2);
+      expect(payments.first, payments.last);
+      expect(find.text('open'), findsOneWidget);
+      expect(find.byType(TogetherBookingPage), findsNothing);
+    },
+  );
+
+  testWidgets(
     'lost preparation response retries the same request and stays unpaid',
     (tester) async {
       final party = fixture();

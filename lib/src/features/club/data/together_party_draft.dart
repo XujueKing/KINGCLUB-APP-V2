@@ -46,6 +46,7 @@ class TogetherPartyDraft {
     required this.poster,
     this.additionalPosters = const [],
     this.official = false,
+    this.allowCoins = false,
     this.table,
     this.package,
     this.maleSeats,
@@ -55,7 +56,7 @@ class TogetherPartyDraft {
   });
   final String theme, cityCode, place, description;
   final TogetherStore store;
-  final bool official;
+  final bool official, allowCoins;
   final TogetherTable? table;
   final TogetherPackage? package;
   final int? maleSeats, femaleSeats, femaleBasePriceMinor;

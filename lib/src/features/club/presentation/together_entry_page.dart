@@ -167,12 +167,15 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
       onSelectCity: _chooseCity,
       onCreate: _create,
       onAdmission: _admission,
-      onJoin: (party) => Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) =>
-              TogetherBookingPage(party: party, repository: repository),
-        ),
-      ),
+      onJoin: (party) async {
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) =>
+                TogetherBookingPage(party: party, repository: repository),
+          ),
+        );
+        if (mounted) setState(() => revision++);
+      },
     );
   }
 }

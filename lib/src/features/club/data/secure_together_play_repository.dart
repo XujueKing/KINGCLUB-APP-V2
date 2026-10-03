@@ -192,6 +192,7 @@ class SecureTogetherPlayRepository
       endsAt: venue(end),
       hostName: r['publisherType'] == 'official' ? _text(r['storeName']) : '',
       merchantHost: r['publisherType'] == 'official',
+      allowCoins: r['allowCoins'] == true,
       place: _text(r['place']),
       capacity: capacity,
       participants: const [],
@@ -336,6 +337,50 @@ class SecureTogetherPlayRepository
       number: _ref(result['ticketNumber']),
       code: code,
       expiresAt: expires,
+    );
+  }
+
+  Future<TogetherBooking> payBooking(
+    TogetherBooking booking, {
+    required String method,
+    required int coins,
+    required String storeRef,
+  }) async {
+    if (coins < 0 ||
+        !['free', 'store_balance', 'platform_cash'].contains(method)) {
+      _invalid();
+    }
+    final session = await readSession();
+    final identity = _identity(session);
+    final result = await _call(
+      'K261004001991',
+      {
+        'bookingRef': booking.ref,
+        'expectedCents': booking.payableMinor.toString(),
+        'method': method,
+        'coins': coins.toString(),
+      },
+      session!,
+      identity,
+    );
+    if (result['bookingRef'] != booking.ref ||
+        result['paymentRef'] != booking.ref ||
+        result['partyRef'] != booking.partyRef ||
+        result['storeRef'] != storeRef ||
+        result['currency'] != 'CNY' ||
+        result['method'] != method ||
+        _money(result['totalCents']) != booking.payableMinor ||
+        _money(result['coinsUsed']) != coins ||
+        result['replayed'] is! bool) {
+      _invalid();
+    }
+    return TogetherBooking(
+      ref: booking.ref,
+      partyRef: booking.partyRef,
+      status: 'paid',
+      basePriceMinor: booking.basePriceMinor,
+      ageSurchargeMinor: booking.ageSurchargeMinor,
+      payableMinor: booking.payableMinor,
     );
   }
 

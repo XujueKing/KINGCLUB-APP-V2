@@ -54,6 +54,7 @@ class TogetherParty {
     this.admissionCode,
     this.admissionExpiresAt,
     this.admissionUsed = false,
+    this.allowCoins = false,
     this.seatGenders = const [],
     this.eligible,
     this.eligibilityReasons = const [],
@@ -93,7 +94,7 @@ class TogetherParty {
 
   /// Authenticated member's credential projection; never derive from party ID.
   final String? ticketNumber, admissionCode;
-  final bool admissionUsed;
+  final bool admissionUsed, allowCoins;
   final DateTime? admissionExpiresAt;
   TogetherParty withAdmission({
     required String number,
@@ -127,6 +128,7 @@ class TogetherParty {
     admissionCode: code,
     admissionExpiresAt: expiresAt,
     admissionUsed: admissionUsed,
+    allowCoins: allowCoins,
     seatGenders: seatGenders,
     eligible: eligible,
     eligibilityReasons: eligibilityReasons,
