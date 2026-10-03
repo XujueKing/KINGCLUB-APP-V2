@@ -103,6 +103,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  fonts:
+    - family: AaRuizhi
+      fonts:
+        - asset: assets/fonts/AaRuizhi.ttf
+
   assets:
     - assets/licenses/eviltransform.txt
     - assets/commerce/bottle_preview/
@@ -138,6 +143,7 @@ flutter:
     - assets/legacy/aa/man2.png
     - assets/legacy/aa/woman.png
     - assets/legacy/aa/kingLogo.png
+    - assets/legacy/aa/kingclub-store.png
     - assets/legacy/aa/qrcode2.png
     - assets/legacy/messaging/
     - assets/legacy/messaging/notification_kingclub.png

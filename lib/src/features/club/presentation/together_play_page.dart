@@ -91,14 +91,18 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
         date: date,
       );
       if (!mounted || generation != _generation) return;
+      final matching = items
+          .where(
+            (p) =>
+                p.cityCode == widget.cityCode &&
+                DateUtils.isSameDay(p.startsAt, date),
+          )
+          .toList();
       setState(
-        () => _items = items
-            .where(
-              (p) =>
-                  p.cityCode == widget.cityCode &&
-                  DateUtils.isSameDay(p.startsAt, date),
-            )
-            .toList(),
+        () => _items = [
+          ...matching.where((p) => p.hasAssignedTable),
+          ...matching.where((p) => !p.hasAssignedTable),
+        ],
       );
     } catch (_) {
       if (mounted && generation == _generation) {
@@ -188,10 +192,16 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
                         ),
                         const SizedBox(height: 12),
                       ],
-                      TogetherPartyCard(
-                        party: _items[index],
-                        onTap: () => _open(_items[index]),
-                      ),
+                      if (_items[index].hasAssignedTable)
+                        TogetherPartyCard(
+                          party: _items[index],
+                          onTap: () => _open(_items[index]),
+                        )
+                      else
+                        TogetherAvailableRow(
+                          party: _items[index],
+                          onTap: () => _open(_items[index]),
+                        ),
                     ],
                   ),
                 ),
@@ -207,11 +217,9 @@ class TogetherPartyCard extends StatelessWidget {
     super.key,
     required this.party,
     required this.onTap,
-    this.logoColor = legacyPink,
   });
   final TogetherParty party;
   final VoidCallback onTap;
-  final Color logoColor;
 
   @override
   Widget build(BuildContext context) => AspectRatio(
@@ -261,17 +269,40 @@ class TogetherPartyCard extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(height: 45, child: _logo()),
+                            SizedBox(
+                              height: 45,
+                              child: FittedBox(
+                                alignment: Alignment.centerLeft,
+                                fit: BoxFit.contain,
+                                child: Text(
+                                  party.assignedTable ?? '待分配',
+                                  style: const TextStyle(
+                                    fontFamily: 'AaRuizhi',
+                                    fontSize: 50,
+                                    // Exclude leading to match the old outline.
+                                    height: .8,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
                             const SizedBox(height: 7.5),
                             FittedBox(
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
-                              child: Text(
-                                party.storeName,
-                                style: _ticketStyle(
-                                  context,
-                                  12,
-                                ).copyWith(color: Colors.white),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TogetherStoreLogo(party: party),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    party.storeName,
+                                    style: _ticketStyle(
+                                      context,
+                                      12,
+                                    ).copyWith(color: Colors.white),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -404,30 +435,39 @@ class TogetherPartyCard extends StatelessWidget {
     );
     return Text.rich(span, textScaler: TextScaler.noScaling);
   }
+}
 
-  Widget _logo() {
+class TogetherStoreLogo extends StatelessWidget {
+  const TogetherStoreLogo({super.key, required this.party});
+  final TogetherParty party;
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(3),
+    child: Container(
+      width: 16,
+      height: 16,
+      color: Colors.black,
+      child: _image(),
+    ),
+  );
+
+  Widget _image() {
     final source = party.storeLogo;
     if (source == null || source.isEmpty) {
-      return Text(
-        party.storeName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: legacyPink, fontSize: 12),
-      );
+      return const Icon(Icons.storefront, size: 12, color: Colors.white);
     }
     final asset = source.startsWith('assets/');
     if (Uri.parse(source).path.endsWith('.svg')) {
-      final filter = ColorFilter.mode(logoColor, BlendMode.srcIn);
+      const filter = ColorFilter.mode(Colors.white, BlendMode.srcIn);
       return asset
           ? SvgPicture.asset(
               source,
-              width: 64,
               colorFilter: filter,
               semanticsLabel: party.storeName,
             )
           : SvgPicture.network(
               source,
-              width: 64,
               colorFilter: filter,
               semanticsLabel: party.storeName,
             );
@@ -436,6 +476,99 @@ class TogetherPartyCard extends StatelessWidget {
         ? Image.asset(source, fit: BoxFit.contain)
         : CachedMediaImage(source, fit: BoxFit.contain);
   }
+}
+
+/// Available parties stay in quiet, compact rows; a colored positioning
+/// ticket is reserved for the member's confirmed table allocation.
+class TogetherAvailableRow extends StatelessWidget {
+  const TogetherAvailableRow({
+    super.key,
+    required this.party,
+    required this.onTap,
+  });
+  final TogetherParty party;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: const Color(0x33C9B69E),
+    borderRadius: BorderRadius.circular(10),
+    child: InkWell(
+      key: ValueKey('together-card-${party.ref}'),
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    party.theme,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 16, color: legacyGold),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '${party.participants.length}/${party.capacity}人 · ${party.feeLabel}',
+                    style: const TextStyle(fontSize: 12, color: Colors.white54),
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      TogetherStoreLogo(party: party),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          party.storeName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  party.priceLabel,
+                  style: const TextStyle(fontSize: 14, color: legacyGold),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF281903),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    party.state == TogetherJoinState.joined
+                        ? '待分配卡座'
+                        : party.actionLabel,
+                    style: const TextStyle(fontSize: 13, color: legacyGold),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 /// Two rows of square seats, keeping the configured capacity visible.

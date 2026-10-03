@@ -48,6 +48,7 @@ class TogetherParty {
     this.backgroundUrl,
     this.posterUrl,
     this.storeLogo,
+    this.assignedTable,
     this.seatGenders = const [],
   });
   final String ref,
@@ -70,6 +71,14 @@ class TogetherParty {
 
   /// Merchant-provided image reference; never assume every store is KING.
   final String? storeLogo;
+
+  /// Server-assigned table for this member's confirmed booking; never infer
+  /// it from a party title, store reference or payment alone.
+  final String? assignedTable;
+  bool get hasAssignedTable =>
+      state == TogetherJoinState.joined &&
+      assignedTable != null &&
+      assignedTable!.trim().isNotEmpty;
   final List<TogetherGender> seatGenders;
 
   int get remaining => (capacity - participants.length).clamp(0, capacity);

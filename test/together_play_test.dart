@@ -35,6 +35,7 @@ TogetherParty fixture({
   int capacity = 10,
   int count = 3,
   int day = 2,
+  String? assignedTable,
   List<TogetherParticipant>? participants,
   List<TogetherGender> seatGenders = const [],
 }) => TogetherParty(
@@ -44,6 +45,7 @@ TogetherParty fixture({
   cityName: '株洲市',
   storeRef: 'fixture-store',
   storeName: '样例门店',
+  assignedTable: assignedTable,
   startsAt: DateTime(2026, 10, day, 21),
   endsAt: DateTime(2026, 10, day + 1, 2),
   hostName: '样例发起人',
@@ -257,6 +259,19 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('布局样例 · 非真实活动'), findsOneWidget);
       expect(find.text('一起玩'), findsOneWidget);
+      expect(find.byType(TogetherPartyCard), findsOneWidget);
+      expect(find.text('888'), findsOneWidget);
+      expect(find.byType(TogetherAvailableRow), findsNWidgets(2));
+      expect(
+        tester
+            .getTopLeft(find.byKey(const ValueKey('together-card-friends')))
+            .dy,
+        lessThan(
+          tester
+              .getTopLeft(find.byKey(const ValueKey('together-card-music')))
+              .dy,
+        ),
+      );
       await tester.tap(find.byKey(const ValueKey('together-card-friends')));
       await tester.pumpAndSettle();
       expect(find.byType(TogetherPartyDetailPage), findsNothing);
@@ -269,6 +284,17 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  test('only a confirmed assigned table qualifies as a positioning ticket', () {
+    expect(fixture(state: TogetherJoinState.joined).hasAssignedTable, isFalse);
+    expect(fixture(assignedTable: '888').hasAssignedTable, isFalse);
+    expect(
+      fixture(
+        state: TogetherJoinState.joined,
+        assignedTable: '888',
+      ).hasAssignedTable,
+      isTrue,
+    );
+  });
   testWidgets('store selection filters city and resets table on store change', (
     tester,
   ) async {
