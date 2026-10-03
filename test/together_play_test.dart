@@ -177,7 +177,7 @@ void main() {
       await tester.pumpAndSettle();
       final storeText = tester.widget<Text>(find.text(party.storeName).last);
       expect(storeText.style?.fontFamily, 'CupertinoSystemText');
-      expect(storeText.style?.color, Colors.white);
+      expect(storeText.style?.color, const PositioningCardLabel().color);
       final priceText = tester.widget<Text>(
         find.byWidgetPredicate(
           (widget) =>
@@ -322,6 +322,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('布局样例 · 非真实活动'), findsNothing);
       expect(find.text('一起玩'), findsOneWidget);
+      expect(find.text('卡颜AA交友局'), findsOneWidget);
       expect(find.byType(TogetherPartyCard), findsOneWidget);
       expect(find.text('888'), findsOneWidget);
       expect(find.byType(TogetherAvailableRow), findsNWidgets(2));
@@ -610,7 +611,7 @@ void main() {
         final theme = tester.widget<Text>(find.text(party.theme));
         expect(theme.style?.fontSize, 16);
         expect(theme.style?.fontWeight, FontWeight.w600);
-        expect(theme.style?.color, Colors.white);
+        expect(theme.style?.color, const Color(0xFFC9B69E));
         final seats = tester.getRect(find.byType(TogetherParticipants));
         expect(
           tester.getRect(find.text(party.theme)).top,

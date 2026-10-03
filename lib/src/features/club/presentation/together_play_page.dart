@@ -402,7 +402,7 @@ class TogetherPartyCard extends StatelessWidget {
                                         style: _ticketStyle(
                                           context,
                                           12,
-                                        ).copyWith(color: Colors.white),
+                                        ).copyWith(color: legacyPink),
                                       ),
                                     ),
                                   ),
@@ -450,7 +450,6 @@ class TogetherPartyCard extends StatelessWidget {
                                               .copyWith(
                                                 height: 1,
                                                 fontWeight: FontWeight.w600,
-                                                color: Colors.white,
                                               ),
                                         ),
                                         if (party.actionState ==

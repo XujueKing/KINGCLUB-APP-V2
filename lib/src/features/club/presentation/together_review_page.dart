@@ -32,7 +32,7 @@ class _LayoutExamples implements TogetherPlayRepository {
     _card(
       date,
       'friends',
-      '周末微醺交友局',
+      '卡颜AA交友局',
       TogetherFeeMode.aa,
       TogetherJoinState.joined,
       10,
