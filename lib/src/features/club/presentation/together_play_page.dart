@@ -185,13 +185,6 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
                   itemBuilder: (_, index) => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (widget.reviewOnly && index == 0) ...[
-                        const Text(
-                          '布局样例 · 非真实活动',
-                          style: TextStyle(color: Colors.white38, fontSize: 12),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
                       if (_items[index].hasAssignedTable)
                         TogetherPartyCard(
                           party: _items[index],

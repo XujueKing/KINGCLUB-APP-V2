@@ -257,7 +257,7 @@ void main() {
         MaterialApp(home: TogetherReviewPage(onBack: () {})),
       );
       await tester.pumpAndSettle();
-      expect(find.text('布局样例 · 非真实活动'), findsOneWidget);
+      expect(find.text('布局样例 · 非真实活动'), findsNothing);
       expect(find.text('一起玩'), findsOneWidget);
       expect(find.byType(TogetherPartyCard), findsOneWidget);
       expect(find.text('888'), findsOneWidget);
