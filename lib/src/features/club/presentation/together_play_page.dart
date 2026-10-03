@@ -951,6 +951,35 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
   late TogetherParty _party = widget.party;
   bool _busy = false;
   String? _error;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final party = await widget.repository.detail(widget.party.ref);
+      if (party.ref != widget.party.ref) throw StateError('Activity mismatch');
+      if (mounted) {
+        setState(() {
+          _party = party;
+          _loaded = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _error = '暂时无法加载活动详情');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _act() async {
     if (_busy) return;
     setState(() {
@@ -1059,7 +1088,13 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
           ),
         ),
         if (_error != null)
-          Text(_error!, style: const TextStyle(color: legacyPink)),
+          TextButton(
+            onPressed: _busy ? null : _refresh,
+            child: Text(
+              '$_error · 重试',
+              style: const TextStyle(color: legacyPink),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
           child: Row(
@@ -1073,7 +1108,7 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
                 ),
               ),
               FilledButton.icon(
-                onPressed: !_busy && _party.canAct ? _act : null,
+                onPressed: !_busy && _loaded && _party.canAct ? _act : null,
                 style: FilledButton.styleFrom(
                   backgroundColor: legacyGold,
                   foregroundColor: Colors.black,

@@ -112,7 +112,7 @@ void main() {
       MaterialApp(
         home: TogetherPartyDetailPage(
           party: party,
-          repository: Repository(),
+          repository: Repository()..current = party,
           onJoin: (_) async {
             attempts++;
           },
@@ -158,7 +158,7 @@ void main() {
         MaterialApp(
           home: TogetherPartyDetailPage(
             party: party,
-            repository: Repository(),
+            repository: Repository()..current = party,
             onJoin: (_) async {},
             onAdmission: (_) async {},
           ),
@@ -756,6 +756,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
       repo.current = fixture(state: TogetherJoinState.full);
       await tester.tap(find.text('抢定'));
       await tester.pumpAndSettle();

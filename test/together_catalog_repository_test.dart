@@ -1,0 +1,121 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/club/data/secure_together_play_repository.dart';
+
+void main() {
+  final session = <String, dynamic>{
+    'account': {'userAccount': 'member-test'},
+    'sessionId': 'session-test',
+    'apiKeyId': 'key-test',
+    'apiKey': 'secret-test',
+  };
+  Map<String, dynamic> row(String ref) => {
+    'ref': ref,
+    'theme': '活动',
+    'cityCode': '430200',
+    'storeRef': 'store-test',
+    'storeName': '门店',
+    'startsAt': '2030-01-01T16:00:00.000Z',
+    'endsAt': '2030-01-01T20:00:00.000Z',
+    'capacity': 10,
+    'priceCents': '15000',
+    'feeMode': 'aa',
+    'place': '活动地点',
+    'description': '说明',
+    'backgroundUrl': 'https://example.test/a.jpg',
+    'posterUrl': 'https://example.test/b.jpg',
+  };
+  test(
+    'pages by venue date at midnight and never invents paid tickets',
+    () async {
+      final calls = <Map<String, dynamic>>[];
+      final repo = SecureTogetherPlayRepository(
+        readSession: () async => session,
+        request: (id, p, _) async {
+          expect(id, 'K261004001985');
+          calls.add(p);
+          return {
+            'result': {
+              'cityCode': p['cityCode'],
+              'startsFrom': p['startsFrom'],
+              'startsBefore': p['startsBefore'],
+              'items': [row(p['after'] == null ? 'a' : 'b')],
+              'next': p['after'] == null ? 'a' : null,
+            },
+          };
+        },
+      );
+      final items = await repo.list(
+        cityCode: '430200',
+        date: DateTime(2030, 1, 2),
+      );
+      expect(calls.first['startsFrom'], '2030-01-01T16:00:00.000Z');
+      expect(calls.last['after'], 'a');
+      expect(items.map((p) => p.ref), ['a', 'b']);
+      expect(items.first.startsAt, DateTime(2030, 1, 2));
+      expect(items.first.hasAdmissionTicket, false);
+      expect(items.first.admissionCode, isNull);
+    },
+  );
+  test('rejects foreign date or city and repeated pagination', () async {
+    for (final mode in ['date', 'city', 'cursor']) {
+      final repo = SecureTogetherPlayRepository(
+        readSession: () async => session,
+        request: (_, p, _) async {
+          final r = row('a');
+          if (mode == 'date') r['startsAt'] = '2030-01-01T15:59:00.000Z';
+          if (mode == 'city') r['cityCode'] = '430100';
+          return {
+            'result': {
+              'cityCode': p['cityCode'],
+              'startsFrom': p['startsFrom'],
+              'startsBefore': p['startsBefore'],
+              'items': [r],
+              'next': mode == 'cursor' ? 'a' : null,
+            },
+          };
+        },
+      );
+      await expectLater(
+        repo.list(cityCode: '430200', date: DateTime(2030, 1, 2)),
+        throwsA(anything),
+      );
+    }
+  });
+  test(
+    'detail maps personal price and rejects changed session or wrong activity',
+    () async {
+      for (final mode in ['ok', 'session', 'ref', 'missing']) {
+        var current = session;
+        final repo = SecureTogetherPlayRepository(
+          readSession: () async => current,
+          request: (id, p, _) async {
+            expect(id, 'K261004001986');
+            if (mode == 'session') {
+              current = {...session, 'sessionId': 'changed'};
+            }
+            return {
+              'result': {
+                'item': {
+                  ...row(mode == 'ref' ? 'other' : 'a'),
+                  if (mode != 'missing')
+                    'eligibility': {
+                      'eligible': true,
+                      'reasons': [],
+                      'payableCents': '5000',
+                    },
+                },
+              },
+            };
+          },
+        );
+        if (mode == 'ok') {
+          final party = await repo.detail('a');
+          expect(party.personalPriceMinor, 5000);
+          expect(party.eligible, true);
+        } else {
+          await expectLater(repo.detail('a'), throwsA(anything));
+        }
+      }
+    },
+  );
+}
