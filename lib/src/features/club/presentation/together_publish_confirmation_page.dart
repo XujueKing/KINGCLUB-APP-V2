@@ -1,3 +1,5 @@
+import '../data/together_rule_summary.dart';
+
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -112,6 +114,14 @@ class _ConfirmationState extends State<TogetherPublishConfirmationPage> {
               widget.draft.store.name,
               style: const TextStyle(color: legacyGold),
             ),
+            if (widget.draft.eligibilityRules.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  togetherRuleSummary(widget.draft.eligibilityRules),
+                  style: const TextStyle(color: legacyGold, height: 1.6),
+                ),
+              ),
             const SizedBox(height: 24),
             if (q != null) ...[
               Text(

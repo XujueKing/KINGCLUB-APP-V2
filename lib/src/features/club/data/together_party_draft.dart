@@ -1,4 +1,5 @@
 import 'together_play.dart';
+import 'together_rule_summary.dart';
 import 'together_store.dart';
 
 enum TogetherArtworkStatus { approved, pending, rejected }
@@ -71,6 +72,11 @@ class TogetherPartyDraft {
   List<TogetherArtwork> get posters => [poster, ...additionalPosters];
 
   String? validate({required DateTime now}) {
+    try {
+      togetherRuleSummary(eligibilityRules);
+    } on FormatException {
+      return '请检查活动参加条件';
+    }
     if (theme.trim().isEmpty || theme.trim().length > 30) {
       return '请填写30字以内的派对主题';
     }

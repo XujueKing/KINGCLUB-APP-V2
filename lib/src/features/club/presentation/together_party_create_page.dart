@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/media/cached_media_image.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../data/together_party_draft.dart';
+import '../data/together_rule_summary.dart';
 import '../data/together_play.dart';
 import '../data/together_store.dart';
 import '../data/secure_together_publication.dart';
@@ -52,6 +53,9 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
   TogetherFeeMode _fee = TogetherFeeMode.aa;
   bool _genderRatio = false;
   bool _allowOverage = false;
+  final _maleScore = TextEditingController(),
+      _femaleScore = TextEditingController();
+  final Set<String> _excludedSigns = {};
   final _minimumAge = TextEditingController(),
       _maximumAge = TextEditingController(),
       _overagePrice = TextEditingController(text: '10');
@@ -174,6 +178,8 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _minimumAge,
       _maximumAge,
       _overagePrice,
+      _maleScore,
+      _femaleScore,
     ]) {
       controller.dispose();
     }
@@ -376,6 +382,21 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       setState(() => _error = '请检查年龄范围；超龄加价需要设置年龄上限和每岁金额');
       return;
     }
+    final maleScore = double.tryParse(_maleScore.text.trim());
+    final femaleScore = double.tryParse(_femaleScore.text.trim());
+    if ((_maleScore.text.trim().isNotEmpty &&
+            (maleScore == null ||
+                !maleScore.isFinite ||
+                maleScore < 0 ||
+                maleScore > 100)) ||
+        (_femaleScore.text.trim().isNotEmpty &&
+            (femaleScore == null ||
+                !femaleScore.isFinite ||
+                femaleScore < 0 ||
+                femaleScore > 100))) {
+      setState(() => _error = '男女颜值评分须为0至100分，不限制可留空');
+      return;
+    }
     final draft = TogetherPartyDraft(
       official: _official,
       allowCoins: _allowCoins,
@@ -398,6 +419,10 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       eligibilityRules: {
         'minAge': ?minimumAge,
         'maxAge': ?maximumAge,
+        'minimumMaleScore': ?maleScore,
+        'minimumFemaleScore': ?femaleScore,
+        if (_excludedSigns.isNotEmpty)
+          'excludedStarSigns': _excludedSigns.toList(),
         if (allowOverage) 'overageCentsPerYear': '$overagePrice',
       },
       maleSeats: _usesGenderPricing
@@ -676,6 +701,37 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           ),
           if (_allowOverage) _field('每超一岁加收（元）', _overagePrice, number: true),
         ],
+        ExpansionTile(
+          title: const Text('颜值与星座要求', style: TextStyle(color: legacyGold)),
+          subtitle: const Text(
+            '可选，不设置则不限制',
+            style: TextStyle(color: Colors.white54),
+          ),
+          children: [
+            _field('男士最低颜值评分（0—100）', _maleScore, number: true),
+            _field('女士最低颜值评分（0—100）', _femaleScore, number: true),
+            const Text('不接受的星座（可多选）', style: TextStyle(color: legacyGold)),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final sign in togetherStarSigns)
+                  FilterChip(
+                    label: Text(sign),
+                    selected: _excludedSigns.contains(sign),
+                    onSelected: _busy
+                        ? null
+                        : (selected) => setState(() {
+                            if (selected) {
+                              _excludedSigns.add(sign);
+                            } else {
+                              _excludedSigns.remove(sign);
+                            }
+                          }),
+                  ),
+              ],
+            ),
+          ],
+        ),
         _field('活动介绍与包含内容', _description, lines: 4),
         _artwork(false),
         const SizedBox(height: 14),

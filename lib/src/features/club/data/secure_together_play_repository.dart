@@ -1,3 +1,4 @@
+import 'together_rule_summary.dart';
 import '../../../core/networking/kingclub_secure_client.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
@@ -229,7 +230,11 @@ class SecureTogetherPlayRepository
           ? TogetherJoinState.cancelled
           : TogetherJoinState.available,
       description: _text(r['description']),
-      rules: '',
+      rules: r['eligibilityRules'] == null
+          ? ''
+          : r['eligibilityRules'] is Map
+          ? togetherRuleSummary(r['eligibilityRules'] as Map)
+          : _invalid(),
       backgroundUrl: _media(r['backgroundUrl']),
       posterUrl: _media(r['posterUrl']),
       posterUrls: posters == null

@@ -26,6 +26,39 @@ void main() {
     'backgroundUrl': 'https://example.test/a.jpg',
     'posterUrl': 'https://example.test/b.jpg',
   };
+  test('saved participation rules are visible without overriding server eligibility', () async {
+    final repo = SecureTogetherPlayRepository(
+      readSession: () async => session,
+      request: (_, _, _) async => {
+        'result': {
+          'item': {
+            ...row('rules'),
+            'eligibilityRules': {
+              'minAge': 18,
+              'maxAge': 30,
+              'overageCentsPerYear': '1000',
+              'minimumMaleScore': 80,
+              'minimumFemaleScore': 85.5,
+              'excludedStarSigns': ['双鱼座'],
+            },
+            'eligibility': {
+              'eligible': false,
+              'reasons': ['不符合本场星座要求'],
+              'payableCents': null,
+            },
+          },
+        },
+      },
+    );
+    final party = await repo.detail('rules');
+    expect(party.rules, contains('18—30周岁'));
+    expect(party.rules, contains('超龄每岁加¥10.00'));
+    expect(party.rules, contains('男士颜值80分起'));
+    expect(party.rules, contains('女士颜值85.5分起'));
+    expect(party.rules, contains('不接受双鱼座'));
+    expect(party.eligible, false);
+    expect(party.personalPriceMinor, isNull);
+  });
   test(
     'redeemed ticket preserves assigned table without issuing another code',
     () async {
