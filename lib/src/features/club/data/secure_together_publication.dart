@@ -13,10 +13,13 @@ class TogetherPublicationQuote {
     required this.expiresAt,
     required this.policyVersion,
     required this.sessionIdentity,
+    this.malePriceCents,
+    this.femalePriceCents,
   });
   final String ref, depositCents, priceCents, policyVersion;
   final DateTime expiresAt;
   final String sessionIdentity;
+  final String? malePriceCents, femalePriceCents;
 }
 
 /// Uses the existing quote and atomic deposit/publication interfaces.
@@ -154,6 +157,12 @@ class SecureTogetherPublication {
           'cityCode': draft.cityCode,
           'storeRef': draft.storeRef,
           'packageRef': draft.package!.ref,
+          if (draft.maleSeats != null)
+            'genderPricing': {
+              'maleSeats': draft.maleSeats,
+              'femaleSeats': draft.femaleSeats,
+              'femaleBasePriceCents': '${draft.femaleBasePriceMinor}',
+            },
           'tableRef': draft.tableRef,
           'theme': draft.theme,
           'place': draft.place,
@@ -191,6 +200,12 @@ class SecureTogetherPublication {
       expiresAt: expiresAt,
       policyVersion: policy,
       sessionIdentity: identity,
+      malePriceCents: result['genderPricing'] is Map
+          ? _money(result['genderPricing']['malePriceCents'])
+          : null,
+      femalePriceCents: result['genderPricing'] is Map
+          ? _money(result['genderPricing']['femalePriceCents'])
+          : null,
     );
   }
 

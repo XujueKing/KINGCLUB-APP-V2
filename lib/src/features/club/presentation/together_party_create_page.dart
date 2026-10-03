@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/media/cached_media_image.dart';
+import '../../auth/domain/auth_repository.dart';
 import '../data/together_party_draft.dart';
 import '../data/together_play.dart';
 import '../data/together_store.dart';
@@ -40,6 +41,10 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _price = TextEditingController(),
       _total = TextEditingController();
   TogetherFeeMode _fee = TogetherFeeMode.aa;
+  bool _genderRatio = false;
+  final _maleSeats = TextEditingController(text: '3'),
+      _femaleSeats = TextEditingController(text: '3');
+  bool get _usesGenderPricing => _genderRatio || _fee == TogetherFeeMode.menPay;
   DateTime? _start, _end;
   TogetherArtwork? _background;
   final List<TogetherArtwork> _posters = [];
@@ -151,6 +156,8 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _capacity,
       _price,
       _total,
+      _maleSeats,
+      _femaleSeats,
     ]) {
       controller.dispose();
     }
@@ -320,7 +327,8 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       return;
     }
     final count = int.tryParse(_capacity.text.trim());
-    final price = _fee == TogetherFeeMode.hostTreat
+    final price =
+        _fee == TogetherFeeMode.hostTreat || _fee == TogetherFeeMode.menPay
         ? 0
         : TogetherPartyDraft.parseMoney(_price.text);
     final total = TogetherPartyDraft.parseMoney(_total.text);
@@ -355,6 +363,13 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       additionalPosters: _posters.skip(1).toList(),
       table: _table,
       package: _package,
+      maleSeats: _usesGenderPricing
+          ? int.tryParse(_maleSeats.text.trim())
+          : null,
+      femaleSeats: _usesGenderPricing
+          ? int.tryParse(_femaleSeats.text.trim())
+          : null,
+      femaleBasePriceMinor: _usesGenderPricing ? price : null,
     );
     final error = draft.validate(now: DateTime.now());
     if (error != null) {
@@ -367,6 +382,8 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     });
     try {
       await widget.onReview(draft);
+    } on AuthFailure catch (failure) {
+      if (mounted) setState(() => _error = failure.message);
     } catch (_) {
       if (mounted) setState(() => _error = '暂时无法获取确认信息，请重试');
     } finally {
@@ -532,9 +549,26 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           },
         ),
         const SizedBox(height: 18),
-        if (_fee != TogetherFeeMode.hostTreat)
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('设置男女比例', style: TextStyle(color: legacyGold)),
+          value: _usesGenderPricing,
+          onChanged: _fee == TogetherFeeMode.menPay
+              ? null
+              : (value) => setState(() => _genderRatio = value ?? false),
+        ),
+        if (_usesGenderPricing) ...[
+          _field('计划男士人数', _maleSeats, number: true),
+          _field('计划女士人数', _femaleSeats, number: true),
+          const Text(
+            '男女人数合计须等于总人数。按套餐基础消费计算男士分摊金额。',
+            style: TextStyle(color: Colors.white54),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (_fee == TogetherFeeMode.aa)
           _field(
-            _fee == TogetherFeeMode.menPay ? '每位男士费用（元）' : '每人费用（元）',
+            _usesGenderPricing ? '女士基础分摊金额（元）' : '每人费用（元）',
             _price,
             number: true,
           ),

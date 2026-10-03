@@ -47,11 +47,15 @@ class TogetherPartyDraft {
     this.additionalPosters = const [],
     this.table,
     this.package,
+    this.maleSeats,
+    this.femaleSeats,
+    this.femaleBasePriceMinor,
   });
   final String theme, cityCode, place, description;
   final TogetherStore store;
   final TogetherTable? table;
   final TogetherPackage? package;
+  final int? maleSeats, femaleSeats, femaleBasePriceMinor;
   String get storeRef => store.ref;
   String? get tableRef => table?.ref;
   final DateTime startsAt, endsAt;
@@ -79,6 +83,19 @@ class TogetherPartyDraft {
       return '请检查活动开始和结束时间';
     }
     if (capacity < 2) return '总人数至少为2人';
+    if (maleSeats != null ||
+        femaleSeats != null ||
+        femaleBasePriceMinor != null) {
+      if (maleSeats == null ||
+          femaleSeats == null ||
+          femaleBasePriceMinor == null ||
+          maleSeats! < 0 ||
+          femaleSeats! < 0 ||
+          femaleBasePriceMinor! < 0 ||
+          maleSeats! + femaleSeats! != capacity) {
+        return '男女人数合计必须等于总人数';
+      }
+    }
     if (table != null && table!.maximumSeats < 2) return '该桌台暂不可用于组局';
     if (table != null && capacity > table!.maximumSeats) {
       return '总人数不能超过桌台容量';
