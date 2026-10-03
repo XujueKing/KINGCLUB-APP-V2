@@ -80,6 +80,13 @@ class _LayoutExamples implements TogetherPlayRepository {
     storeName: 'KINGCLUB湖南工大店',
     storeLogo: 'assets/legacy/aa/kingclub-store.png',
     assignedTable: state == TogetherJoinState.joined ? '888' : null,
+    ticketNumber: state == TogetherJoinState.joined
+        ? 'KC${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}0001'
+        : null,
+    // Reserved preview namespace, intentionally not a legacy redeemable URL.
+    admissionCode: state == TogetherJoinState.joined
+        ? 'KINGCLUB-LAYOUT-PREVIEW:$ref:${date.toIso8601String()}'
+        : null,
     startsAt: DateTime(date.year, date.month, date.day, 21),
     endsAt: DateTime(date.year, date.month, date.day + 1, 2),
     hostName: ref == 'music' ? 'KINGCLUB官方' : '会员发起人',

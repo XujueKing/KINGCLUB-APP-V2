@@ -13,6 +13,7 @@ import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/features/messaging/presentation/legacy_messaging_components.dart';
 import 'package:kingclub/src/features/club/presentation/positioning_card_label.dart';
 import 'package:kingclub/src/features/club/presentation/together_date_picker.dart';
+import 'package:kingclub/src/features/club/presentation/together_ticket_page.dart';
 
 class Stores implements TogetherStoreRepository {
   @override
@@ -39,6 +40,9 @@ TogetherParty fixture({
   int count = 3,
   int day = 2,
   String? assignedTable,
+  String? ticketNumber,
+  String? admissionCode,
+  bool admissionUsed = false,
   List<TogetherParticipant>? participants,
   List<TogetherGender> seatGenders = const [],
 }) => TogetherParty(
@@ -49,6 +53,9 @@ TogetherParty fixture({
   storeRef: 'fixture-store',
   storeName: '样例门店',
   assignedTable: assignedTable,
+  ticketNumber: ticketNumber,
+  admissionCode: admissionCode,
+  admissionUsed: admissionUsed,
   startsAt: DateTime(2026, 10, day, 21),
   endsAt: DateTime(2026, 10, day + 1, 2),
   hostName: '样例发起人',
@@ -362,6 +369,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('together-card-friends')));
       await tester.pumpAndSettle();
       expect(find.byType(TogetherPartyDetailPage), findsNothing);
+      expect(find.byType(TogetherTicketPage), findsOneWidget);
+      await tester.tap(find.byType(KingBackButton));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('together-date-1')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('together-card-friends')), findsNothing);

@@ -49,6 +49,9 @@ class TogetherParty {
     this.posterUrl,
     this.storeLogo,
     this.assignedTable,
+    this.ticketNumber,
+    this.admissionCode,
+    this.admissionUsed = false,
     this.seatGenders = const [],
   });
   final String ref,
@@ -75,6 +78,10 @@ class TogetherParty {
   /// Server-assigned table for this member's confirmed booking; never infer
   /// it from a party title, store reference or payment alone.
   final String? assignedTable;
+
+  /// Authenticated member's credential projection; never derive from party ID.
+  final String? ticketNumber, admissionCode;
+  final bool admissionUsed;
 
   /// Confirmed participation; pending payment is never an admission ticket.
   bool get hasAdmissionTicket => state == TogetherJoinState.joined;

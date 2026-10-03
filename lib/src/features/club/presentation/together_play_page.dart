@@ -8,6 +8,7 @@ import '../data/together_play.dart';
 import 'legacy_club_components.dart';
 import 'positioning_card_label.dart';
 import 'together_date_picker.dart';
+import 'together_ticket_page.dart';
 
 String _two(int value) => value.toString().padLeft(2, '0');
 String _date(DateTime value) => '${_two(value.month)}.${_two(value.day)}';
@@ -118,6 +119,13 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
   }
 
   Future<void> _open(TogetherParty party) async {
+    if (party.hasAdmissionTicket) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => TogetherTicketPage(party: party)),
+      );
+      if (mounted && !widget.reviewOnly) await _load();
+      return;
+    }
     if (widget.reviewOnly) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -778,9 +786,13 @@ class TogetherParticipants extends StatelessWidget {
     super.key,
     required this.party,
     this.showCount = true,
+    this.seatSize = 24,
+    this.seatGap = 2,
+    this.iconHeight = 15,
   });
   final TogetherParty party;
   final bool showCount;
+  final double seatSize, seatGap, iconHeight;
   @override
   Widget build(BuildContext context) {
     final columns = (party.capacity + 1) ~/ 2;
@@ -793,13 +805,13 @@ class TogetherParticipants extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         SizedBox(
-          height: 50,
+          height: seatSize * 2 + seatGap,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final slotSize = columns == 0
-                  ? 24.0
-                  : ((constraints.maxWidth - (columns - 1) * 2) / columns)
-                        .clamp(18.0, 24.0);
+                  ? seatSize
+                  : ((constraints.maxWidth - (columns - 1) * seatGap) / columns)
+                        .clamp(18.0, seatSize);
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Column(
@@ -807,7 +819,7 @@ class TogetherParticipants extends StatelessWidget {
                   children: List.generate(
                     2,
                     (row) => Padding(
-                      padding: EdgeInsets.only(top: row == 0 ? 0 : 2),
+                      padding: EdgeInsets.only(top: row == 0 ? 0 : seatGap),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: List.generate(columns, (col) {
@@ -833,18 +845,20 @@ class TogetherParticipants extends StatelessWidget {
                             child: symbol == null
                                 ? Icon(
                                     Icons.person_outline,
-                                    size: 16,
+                                    size: iconHeight,
                                     color: const Color(0xFF9C277E),
                                   )
                                 : Image.asset(
                                     symbol,
-                                    height: 15,
+                                    height: iconHeight,
                                     fit: BoxFit.contain,
                                   ),
                           );
                           final avatar = member?.avatar;
                           return Padding(
-                            padding: EdgeInsets.only(left: col == 0 ? 0 : 2),
+                            padding: EdgeInsets.only(
+                              left: col == 0 ? 0 : seatGap,
+                            ),
                             child: Semantics(
                               label: member == null
                                   ? '待加入'

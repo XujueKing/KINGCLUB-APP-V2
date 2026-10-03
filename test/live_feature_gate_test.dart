@@ -141,6 +141,12 @@ void main() {
         );
         await tester.tap(find.text('卡颜AA交友局'));
         await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('together-ticket-sheet')),
+          findsOneWidget,
+        );
+        await tester.tap(find.byType(KingBackButton));
+        await tester.pumpAndSettle();
         expect(find.byType(TogetherReviewPage), findsOneWidget);
         await tester.tap(find.byType(KingBackButton));
         await tester.pumpAndSettle();
