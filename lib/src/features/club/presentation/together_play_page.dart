@@ -160,10 +160,10 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
 
   @override
   Widget build(BuildContext context) => _TogetherScaffold(
-    title: widget.onSelectCity == null ? '一起玩' : '${widget.cityName} · 一起玩⌄',
+    title: '一起玩',
+    cityName: widget.cityName,
     onSelectCity: widget.onSelectCity,
     onBack: widget.onBack,
-    onCreate: widget.onCreate,
     child: Column(
       children: [
         TogetherDateStrip(
@@ -250,14 +250,14 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
 class _TogetherScaffold extends StatelessWidget {
   const _TogetherScaffold({
     required this.title,
+    required this.cityName,
     this.onSelectCity,
     required this.onBack,
-    required this.onCreate,
     required this.child,
   });
-  final String title;
+  final String title, cityName;
   final VoidCallback? onSelectCity;
-  final VoidCallback onBack, onCreate;
+  final VoidCallback onBack;
   final Widget child;
 
   @override
@@ -287,8 +287,7 @@ class _TogetherScaffold extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    GestureDetector(
-                      onTap: onSelectCity,
+                    Center(
                       child: Text(
                         title,
                         key: const ValueKey('together-title'),
@@ -303,23 +302,42 @@ class _TogetherScaffold extends StatelessWidget {
                       top: KingBackButton.safeAreaOffset.dy,
                       child: KingBackButton(onPressed: onBack),
                     ),
-                    Positioned(
-                      right: 30 * unit,
-                      top: 6,
-                      child: TextButton(
-                        onPressed: onCreate,
-                        style: TextButton.styleFrom(
-                          foregroundColor: legacyGold,
-                          minimumSize: const Size(44, 44),
-                          padding: EdgeInsets.zero,
-                          textStyle: togetherLegacyDateStyle(
-                            26 * unit,
-                            legacyGold,
+                    if (onSelectCity != null)
+                      Positioned(
+                        right: 30 * unit,
+                        top: 6,
+                        width: 90,
+                        child: TextButton(
+                          key: const ValueKey('together-city-selector'),
+                          onPressed: onSelectCity,
+                          style: TextButton.styleFrom(
+                            foregroundColor: legacyGold,
+                            minimumSize: const Size(44, 44),
+                            padding: EdgeInsets.zero,
+                            textStyle: togetherLegacyDateStyle(
+                              26 * unit,
+                              legacyGold,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  cityName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.keyboard_arrow_down, size: 16),
+                            ],
                           ),
                         ),
-                        child: const Text('发起组局'),
                       ),
-                    ),
                   ],
                 ),
               ),

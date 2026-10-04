@@ -62,7 +62,12 @@ void main() {
     expect(find.text('这一天还没有同城组局'), findsOneWidget);
     expect(find.text('888'), findsNothing);
     expect(find.textContaining('请按时到场'), findsNothing);
-    expect(find.text('发起组局'), findsOneWidget);
+    expect(find.text('发起组局'), findsNothing);
+    expect(find.text('一起玩'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('together-city-selector')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

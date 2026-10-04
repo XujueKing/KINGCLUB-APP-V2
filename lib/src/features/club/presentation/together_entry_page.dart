@@ -172,7 +172,7 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
       key: ValueKey('${selected.code}:$revision'),
       repository: repository,
       cityCode: selected.code,
-      cityName: selected.shortName,
+      cityName: selected.name,
       onBack: widget.onBack,
       onSelectCity: _chooseCity,
       onCreate: _create,
