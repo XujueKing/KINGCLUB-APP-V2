@@ -306,6 +306,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
               allowSnapshotting: false,
               builder: (pageContext) => TableBillPage(
                 table: resolved,
+                products: _catalog?.products ?? const [],
                 events: widget.events,
                 onBack: () => Navigator.of(pageContext).pop(),
               ),

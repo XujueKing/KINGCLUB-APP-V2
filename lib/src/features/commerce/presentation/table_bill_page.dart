@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../data/member_orders_repository.dart';
 import '../data/ordering_context.dart';
+import '../data/ordering_catalog_repository.dart';
 import 'member_orders_page.dart';
 import 'ordering_entry_status.dart';
 
@@ -14,8 +15,10 @@ class TableBillPage extends StatefulWidget {
     required this.onBack,
     this.repository,
     this.events,
+    this.products = const [],
   });
   final OrderingContext table;
+  final List<OrderingCatalogProduct> products;
   final VoidCallback onBack;
   final MemberOrdersRepository? repository;
   final Stream<Map<String, dynamic>>? events;
@@ -41,6 +44,8 @@ class _TableBillPageState extends State<TableBillPage> {
     load: load,
     events: widget.events,
     retainDuringRefresh: true,
+    tableBill: true,
+    products: widget.products,
     onOpenOrder: (orderRef) => Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         allowSnapshotting: false,
@@ -49,6 +54,8 @@ class _TableBillPageState extends State<TableBillPage> {
           load: load,
           events: widget.events,
           retainDuringRefresh: true,
+          tableBill: true,
+          products: widget.products,
           refreshInterval: const Duration(seconds: 20),
           onBack: () => Navigator.of(detailContext).pop(),
         ),

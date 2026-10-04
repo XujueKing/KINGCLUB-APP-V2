@@ -13,6 +13,10 @@ void main() {
   testWidgets('table receipt opens scoped live detail and returns to list', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(320, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final calls = <Map<String, dynamic>>[];
     final pending = Completer<Map<String, dynamic>>();
     final repository = MemberOrdersRepository(
@@ -63,6 +67,9 @@ void main() {
       'orderRef': 'D00000000001',
     });
     expect(find.text('D00000000001'), findsOneWidget);
+    expect(find.text('Test product'), findsOneWidget);
+    expect(find.textContaining('Unit price'), findsOneWidget);
+    expect(tester.takeException(), isNull);
     // Detail's periodic refresh retains its receipt while the request is pending.
     await tester.pump(const Duration(seconds: 20));
     await tester.pump(const Duration(milliseconds: 400));

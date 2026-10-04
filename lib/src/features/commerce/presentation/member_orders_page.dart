@@ -7,7 +7,10 @@ import '../../../core/networking/kingclub_realtime.dart';
 import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
+import '../../auth/domain/auth_repository.dart';
 import '../data/member_orders_repository.dart';
+import '../data/ordering_catalog_repository.dart';
+import '../../../core/media/cached_media_image.dart';
 
 typedef MemberOrdersLoad = Future<MemberOrdersSnapshot> Function({
   String? orderRef,
@@ -24,11 +27,15 @@ class MemberOrdersPage extends StatefulWidget {
     this.events,
     this.title,
     this.expandItems = false,
+    this.tableBill = false,
+    this.products = const [],
     this.refreshInterval,
     this.retainDuringRefresh = false,
   });
   final String? title;
   final bool expandItems;
+  final bool tableBill;
+  final List<OrderingCatalogProduct> products;
   final Duration? refreshInterval;
   final bool retainDuringRefresh;
   final VoidCallback onBack;
@@ -46,6 +53,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
   String? next;
   bool loading = false, failed = false, foreground = true, queued = false;
   int epoch = 0;
+  String? failureCode;
   Timer? debounce;
   Timer? refreshTimer;
   StreamSubscription<void>? sessionChanges;
@@ -191,12 +199,13 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
         next = data.nextBeforeOrder;
         loading = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!current()) return;
       setState(() {
         orders = [];
         next = null;
         failed = true;
+        failureCode = error is AuthFailure ? error.code : null;
         loading = false;
       });
     } finally {
@@ -245,6 +254,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
 
   Widget orderCard(MemberOrder order) {
     final detail = widget.orderRef != null;
+    if (widget.tableBill) return tableReceipt(order);
     if (detail) return orderReceipt(order);
     final color = order.refundedCents > 0 || order.status == 'expired'
         ? Colors.grey
@@ -395,6 +405,140 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                   ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget tableReceipt(MemberOrder order) {
+    const ink = Color(0xFF181205);
+    Widget field(String label, String value) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label),
+          const SizedBox(width: 16),
+          Expanded(child: Text(value, textAlign: TextAlign.right)),
+        ],
+      ),
+    );
+    return Container(
+      key: ValueKey('member-order-${order.orderRef}'),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFC9B69E),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: widget.orderRef != null || widget.onOpenOrder == null
+            ? null
+            : () => widget.onOpenOrder!(order.orderRef),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+          child: DefaultTextStyle(
+            style: const TextStyle(color: ink, fontSize: 15, height: 1.35),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                field(t('store'), order.storeName),
+                field(t('table'), order.tableName),
+                field(t('currentStatus'), status(order)),
+                field(t('orderNumber'), order.orderRef),
+                const Divider(color: Color(0x26000000), height: 24),
+                Text(t('products')),
+                for (final item in order.items)
+                  Builder(
+                    builder: (context) {
+                      final product = widget.products
+                          .where((p) => p.reference == item.productRef)
+                          .firstOrNull;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Color(0x16000000)),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 38,
+                              height: 60,
+                              child: product?.thumbnailUrl == null
+                                  ? const Icon(
+                                      Icons.local_bar_outlined,
+                                      color: ink,
+                                    )
+                                  : CachedMediaImage(
+                                      product!.thumbnailUrl!,
+                                      contentKey: product.imageCacheKey,
+                                      private: true,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (_, _, _) => const Icon(
+                                        Icons.local_bar_outlined,
+                                        color: ink,
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.names[localeKey]!),
+                                  Text(
+                                    item.specifications[localeKey]!,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  Text(
+                                    '${t('unitPrice')} ${money(item.priceCents)}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  Text(
+                                    deliveryText(order, item),
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 90),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '× ${item.quantity}',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                  Text(
+                                    money(item.quantity * item.priceCents),
+                                    style: const TextStyle(fontSize: 17),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                const SizedBox(height: 14),
+                field(t('total'), money(order.totalCents)),
+                if (order.refundedCents > 0) ...[
+                  field(t('refunded'), money(order.refundedCents)),
+                  field(t('netPaid'), money(order.netPaidCents)),
+                ],
+                field(
+                  t('createdAt'),
+                  order.createdAt.toLocal().toString().substring(0, 16),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -572,7 +716,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF101010),
+    backgroundColor: widget.tableBill ? Colors.black : const Color(0xFF101010),
     appBar: kingAppBar(
       context: context,
       title: Text(
@@ -583,7 +727,9 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
           fontWeight: FontWeight.w600,
         ),
       ),
-      backgroundColor: const Color(0xFF101010),
+      backgroundColor: widget.tableBill
+          ? Colors.black
+          : const Color(0xFF101010),
       foregroundColor: Colors.white,
       leading: KingBackButton(onPressed: widget.onBack),
       actions: [
@@ -610,7 +756,14 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    t('failed'),
+                    t(switch (failureCode) {
+                      'MEMBER_TABLE_BILL_UNAVAILABLE' => 'tableUnavailable',
+                      'MEMBER_ORDER_NOT_FOUND' when widget.tableBill =>
+                        'tableAccess',
+                      'SESSION_EXPIRED' ||
+                      'SESSION_CHANGED' => 'sessionExpired',
+                      _ => 'failed',
+                    }),
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white70),
                   ),
@@ -634,7 +787,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
             onRefresh: reload,
             child: ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(widget.tableBill ? 10 : 16),
               itemCount: orders.length + (next == null ? 0 : 1),
               itemBuilder: (context, index) => index < orders.length
                   ? orderCard(orders[index])
@@ -654,6 +807,9 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
 }
 
 const _copy = {
+  'tableUnavailable': '当前桌台场次已结束或不可用，请返回重新扫码|This table session is no longer available. Go back and scan again.|目前桌台場次已結束或無法使用，請返回重新掃碼|รอบการใช้โต๊ะนี้สิ้นสุดแล้วหรือไม่พร้อมใช้งาน โปรดย้อนกลับแล้วสแกนใหม่',
+  'tableAccess': '暂时无法查看本桌账单，请返回重新扫码|This table bill is unavailable. Go back and scan again.|暫時無法查看本桌帳單，請返回重新掃碼|ไม่สามารถดูบิลโต๊ะนี้ได้ โปรดย้อนกลับแล้วสแกนใหม่',
+  'sessionExpired': '登录已失效，请重新登录后查看|Your session has expired. Please log in again.|登入已失效，請重新登入後查看|เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง',
   'title': '我的订单|My orders|我的訂單|คำสั่งซื้อของฉัน',
   'detail': '订单详情|Order details|訂單詳情|รายละเอียดคำสั่งซื้อ',
   'refresh': '刷新|Refresh|重新整理|รีเฟรช',
@@ -684,6 +840,7 @@ const _copy = {
   'source': '订单来源|Source|訂單來源|ช่องทาง',
   'paymentTiming': '付款模式|Payment timing|付款模式|รูปแบบชำระเงิน',
   'refundedAt': '退款时间|Refund time|退款時間|เวลาคืนเงิน',
+  'unitPrice': '单价|Unit price|單價|ราคาต่อหน่วย',
   'products': '商品明细|Items|商品明細|รายการสินค้า',
   'cashierPayment': '请在收银台核对并结账|Please check and settle at the cashier.|請在收銀台核對並結帳|กรุณาตรวจสอบและชำระที่แคชเชียร์',
 };
