@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/club/data/secure_together_publication.dart';
 
@@ -8,6 +10,34 @@ void main() {
     'apiKeyId': 'k',
     'apiKey': 'test-secret',
   };
+  test(
+    'artwork upload retry preserves payload and rejects a changed login',
+    () async {
+      var current = session;
+      final calls = <Map<String, dynamic>>[];
+      final repo = SecureTogetherPublication(
+        readSession: () async => current,
+        request: (id, p, _) async {
+          expect(id, 'K261004001994');
+          calls.add(p);
+          if (calls.length == 1) throw Exception('lost response');
+          if (calls.length == 3) current = {...session, 'sessionId': 'changed'};
+          return {
+            'result': {'ref': 'art', 'status': 'pending', 'replayed': true},
+          };
+        },
+      );
+      Future<String> submit() => repo.submitArtwork(
+        requestRef: 'stable',
+        name: 'Poster',
+        bytes: Uint8List.fromList([1, 2, 3]),
+      );
+      await expectLater(submit(), throwsException);
+      expect(await submit(), 'pending');
+      expect(calls[0], calls[1]);
+      await expectLater(submit(), throwsA(anything));
+    },
+  );
   test('packages use authoritative store scope and prices', () async {
     for (final returnedStore in ['store', 'other']) {
       final repo = SecureTogetherPublication(

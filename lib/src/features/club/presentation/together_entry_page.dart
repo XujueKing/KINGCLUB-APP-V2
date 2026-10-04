@@ -1,8 +1,9 @@
+import 'together_artwork_upload_page.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/design_system/king_notice.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../../home/data/home_city_catalog.dart';
@@ -115,7 +116,15 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
           stores: SecureTogetherStoreRepository.secure(kingclubApiBaseUrl),
           publication: SecureTogetherPublication.secure(kingclubApiBaseUrl),
           uploadArtwork: () async {
-            KingNotice.of(pageContext).show('自定义图片上传暂不可用，请先选择素材库图片');
+            await Navigator.of(pageContext).push<void>(
+              MaterialPageRoute(
+                builder: (_) => TogetherArtworkUploadPage(
+                  repository: SecureTogetherPublication.secure(
+                    kingclubApiBaseUrl,
+                  ),
+                ),
+              ),
+            );
             return null;
           },
         ),

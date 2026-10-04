@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import '../../../core/networking/kingclub_secure_client.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
@@ -135,6 +138,68 @@ class SecureTogetherPublication {
       after = next as String?;
     } while (after != null);
     return items;
+  }
+
+  Future<String> submitArtwork({
+    required String requestRef,
+    required String name,
+    required Uint8List bytes,
+  }) async {
+    if (bytes.isEmpty || bytes.length > 800000) {
+      throw const AuthFailure('TOGETHER_IMAGE_SIZE', '图片须小于800KB');
+    }
+    final session = await readSession();
+    final identity = _identity(session);
+    final result = await _call(
+      'K261004001994',
+      {
+        'action': 'submit',
+        'requestRef': requestRef,
+        'name': name,
+        'base64': base64Encode(bytes),
+      },
+      session!,
+      identity,
+    );
+    _ref(result['ref']);
+    final status = result['status'];
+    if (!['pending', 'approved', 'rejected', 'revoked'].contains(status) ||
+        result['replayed'] is! bool) {
+      _invalid();
+    }
+    return status as String;
+  }
+
+  Future<List<Map<String, String>>> myArtwork() async {
+    final session = await readSession();
+    final identity = _identity(session);
+    final result = await _call(
+      'K261004001994',
+      {'action': 'mine'},
+      session!,
+      identity,
+    );
+    final rows = result['items'];
+    if (rows is! List || rows.length > 100) _invalid();
+    return rows.map((row) {
+      if (row is! Map ||
+          row['name'] is! String ||
+          ![
+            'pending',
+            'approved',
+            'rejected',
+            'revoked',
+          ].contains(row['status']) ||
+          (row['reason'] != null && row['reason'] is! String)) {
+        _invalid();
+      }
+      return <String, String>{
+        'ref': _ref(row['ref']),
+        'name': row['name'] as String,
+        'status': row['status'] as String,
+        'reason': row['reason'] as String? ?? '',
+      };
+    }).toList();
   }
 
   Future<List<TogetherArtwork>> artwork() async {
