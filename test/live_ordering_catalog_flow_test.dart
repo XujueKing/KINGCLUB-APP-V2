@@ -35,6 +35,36 @@ OrderingCatalog catalog({
 );
 
 void main() {
+  testWidgets('ordered list opens from the category row below the table', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var opened = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScanOrderingCartPage(
+          onBack: () {},
+          orderingContext: fixture.scope,
+          catalog: OrderingCatalog(fixture.scope, const [], const []),
+          onOpenTableBill: () => opened = true,
+        ),
+      ),
+    );
+    final entry = find.byKey(const ValueKey('ordering-table-bill'));
+    expect(
+      tester.getRect(entry).top,
+      greaterThan(
+        tester
+            .getRect(find.byKey(const ValueKey('ordering-table-name')))
+            .bottom,
+      ),
+    );
+    expect(find.text('已点清单'), findsOneWidget);
+    await tester.tap(entry);
+    expect(opened, isTrue);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'prepay can exceed stock in menu and cart and quote full selection',
     (tester) async {
@@ -92,8 +122,16 @@ void main() {
         ),
       ),
     );
-    expect(find.byKey(const ValueKey('ordering-add-real-sku')), findsNothing);
-    expect(find.byKey(const ValueKey('ordering-sold-out')), findsOneWidget);
+    final add = find.byKey(const ValueKey('ordering-add-real-sku'));
+    expect(add, findsOneWidget);
+    expect(
+      tester
+          .widget<InkWell>(
+            find.descendant(of: add, matching: find.byType(InkWell)),
+          )
+          .onTap,
+      isNull,
+    );
   });
 
   testWidgets(
@@ -161,7 +199,7 @@ void main() {
     },
   );
   testWidgets(
-    'prepay zero stock allows selecting and empty catalog has no demo fallback',
+    'prepay zero stock disables add and empty catalog has no demo fallback',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -178,6 +216,21 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('ordering-add-real-sku')));
       await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<InkWell>(
+              find.descendant(
+                of: find.byKey(const ValueKey('ordering-add-real-sku')),
+                matching: find.byType(InkWell),
+              ),
+            )
+            .onTap,
+        isNull,
+      );
+      expect(
+        find.byKey(const ValueKey('ordering-remove-real-sku')),
+        findsNothing,
+      );
       await tester.tap(find.byKey(const ValueKey('ordering-add-real-sku')));
       await tester.pumpAndSettle();
       await tester.pumpWidget(

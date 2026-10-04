@@ -158,7 +158,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   bool get _paymentTimeStock =>
       _live && widget.orderingContext?.paymentTiming == 'prepay';
   int _quantityLimit(_OrderingProduct product) =>
-      _paymentTimeStock ? 1000 : product.limit;
+      _paymentTimeStock && product.limit > 0 ? 1000 : product.limit;
   String _localized(Map<String, String> names) => OrderingEntryStatus.text(
     widget.locale,
     [names['zh-CN']!, names['en']!, names['zh-TW']!, names['th']!],
@@ -485,22 +485,6 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
             ),
           ),
           const SizedBox(width: 2),
-          if (widget.onOpenTableBill != null)
-            TextButton(
-              key: const ValueKey('ordering-table-bill'),
-              child: Text(
-                widget.locale.languageCode == 'en'
-                    ? 'Table bill'
-                    : widget.locale.languageCode == 'th'
-                    ? 'บิลโต๊ะนี้'
-                    : widget.locale.scriptCode == 'Hant' ||
-                          ['TW', 'HK', 'MO'].contains(widget.locale.countryCode)
-                    ? '本桌帳單'
-                    : '本桌账单',
-                style: const TextStyle(color: legacyGold),
-              ),
-              onPressed: widget.onOpenTableBill,
-            ),
           Expanded(
             child: SizedBox(
               // Legacy input: 36rpx content + 20rpx padding per side.
@@ -719,6 +703,27 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
               ),
             );
           }),
+          if (widget.onOpenTableBill != null) ...[
+            const Spacer(),
+            TextButton.icon(
+              key: const ValueKey('ordering-table-bill'),
+              onPressed: widget.onOpenTableBill,
+              icon: const Icon(Icons.receipt_long_outlined, size: 18),
+              label: Text(
+                OrderingEntryStatus.text(widget.locale, [
+                  '已点清单',
+                  'Ordered',
+                  '已點清單',
+                  'รายการที่สั่ง',
+                ]),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: legacyGold,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+            SizedBox(width: _rpx(12)),
+          ],
         ],
       ),
     );
@@ -1041,25 +1046,18 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                             ),
                           ),
                           SizedBox(width: _rpx(5)),
-                          if (soldOut && !_paymentTimeStock)
-                            const Text(
-                              '已售罄',
-                              key: ValueKey('ordering-sold-out'),
-                              style: TextStyle(color: Color(0xFF8C8177)),
-                            )
-                          else
-                            _QuantityControl(
-                              bagAnchor: _bagAnchor,
-                              productId: product.id,
-                              quantity: quantity,
-                              canDecrease: _canEdit && quantity > 0,
-                              canIncrease: _canEdit && !limitReached,
-                              onDecrease: () => _changeQuantity(product, -1),
-                              onIncrease: () => _changeQuantity(product, 1),
-                            ),
+                          _QuantityControl(
+                            bagAnchor: _bagAnchor,
+                            productId: product.id,
+                            quantity: quantity,
+                            canDecrease: _canEdit && quantity > 0,
+                            canIncrease: _canEdit && !soldOut && !limitReached,
+                            onDecrease: () => _changeQuantity(product, -1),
+                            onIncrease: () => _changeQuantity(product, 1),
+                          ),
                         ],
                       ),
-                      if (((!soldOut || _paymentTimeStock) && limitReached) ||
+                      if ((!soldOut && limitReached) ||
                           (_scenario == ScanOrderingScenario.limitReached &&
                               product.id == 'hennessy-xo'))
                         Text(
@@ -1899,14 +1897,14 @@ class _RoundQuantityButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: filled
-                ? (enabled ? const Color(0xFFFFB400) : const Color(0xFF39332D))
+                ? (enabled ? const Color(0xFFFFB400) : const Color(0xFF555555))
                 : Colors.transparent,
             border: filled
                 ? null
                 : Border.all(
                     color: enabled
                         ? const Color(0xFFFFB400)
-                        : const Color(0xFF39332D),
+                        : const Color(0xFF555555),
                   ),
           ),
           child: Center(

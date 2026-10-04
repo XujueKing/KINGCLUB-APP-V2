@@ -86,6 +86,15 @@ void main() {
     await tester.tap(find.text('局部售罄'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('ordering-sold-out')), findsOneWidget);
+    final add = find.byKey(const ValueKey('ordering-add-chivas-12'));
+    expect(add, findsOneWidget);
+    expect(
+      tester
+          .widget<InkWell>(
+            find.descendant(of: add, matching: find.byType(InkWell)),
+          )
+          .onTap,
+      isNull,
+    );
   });
 }
