@@ -112,7 +112,14 @@ void main() {
             .bottom,
       ),
     );
-    expect(find.text('已点清单'), findsOneWidget);
+    expect(find.bySemanticsLabel('已点清单'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('ordering-table-name')))
+          .style!
+          .fontFamily,
+      'AaRuizhi',
+    );
     await tester.tap(entry);
     expect(opened, isTrue);
     expect(tester.takeException(), isNull);

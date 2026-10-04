@@ -609,10 +609,10 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
+                          fontFamily: 'AaRuizhi',
                           color: Color(0xFFC9B69E),
                           fontSize: 42,
                           height: 1,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -696,24 +696,30 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
           }),
           if (widget.onOpenTableBill != null) ...[
             const Spacer(),
-            TextButton.icon(
+            Semantics(
               key: const ValueKey('ordering-table-bill'),
-              onPressed: widget.onOpenTableBill,
-              icon: const Icon(Icons.receipt_long_outlined, size: 18),
-              label: Text(
-                OrderingEntryStatus.text(widget.locale, [
-                  '已点清单',
-                  'Ordered',
-                  '已點清單',
-                  'รายการที่สั่ง',
-                ]),
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: legacyGold,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+              button: true,
+              label: OrderingEntryStatus.text(widget.locale, [
+                '已点清单',
+                'Ordered',
+                '已點清單',
+                'รายการที่สั่ง',
+              ]),
+              child: InkWell(
+                onTap: widget.onOpenTableBill,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: _rpx(3)),
+                  child: Image.asset(
+                    'assets/legacy/ordering/yifu.png',
+                    width: _rpx(120),
+                    height: _rpx(84),
+                    fit: BoxFit.contain,
+                    excludeFromSemantics: true,
+                  ),
+                ),
               ),
             ),
-            SizedBox(width: _rpx(12)),
+            SizedBox(width: _rpx(50)),
           ],
         ],
       ),
