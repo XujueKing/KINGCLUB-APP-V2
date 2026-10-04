@@ -127,29 +127,6 @@ class WineDetailPage extends StatelessWidget {
                     height: 1.8,
                   ),
                 ),
-                const SizedBox(height: 28),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFE8D7BD),
-                      side: const BorderSide(color: Color(0xFF655440)),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(
-                      _text([
-                        '返回点单',
-                        'Back to menu',
-                        '返回點單',
-                        'กลับไปสั่งเครื่องดื่ม',
-                      ]),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

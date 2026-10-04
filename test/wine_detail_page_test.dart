@@ -115,7 +115,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text(story.introductions[i]), findsOneWidget);
-      await tester.ensureVisible(find.byType(OutlinedButton));
+      expect(find.byType(OutlinedButton), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }
