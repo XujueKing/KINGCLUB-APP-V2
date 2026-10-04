@@ -254,27 +254,25 @@ class _SettingsPageState extends State<SettingsPage>
           children: [
             Icon(entry.$4, color: _gold, size: 22),
             const SizedBox(width: 15),
-            Flexible(
+            Expanded(
               child: Text(
                 _entryTitle(entry),
                 style: const TextStyle(color: _gold, fontSize: 16),
               ),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: info.isEmpty
-                    ? const SizedBox.shrink()
-                    : Text(
-                        info,
-                        maxLines: 1,
-                        textAlign: TextAlign.right,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _muted, fontSize: 12),
-                      ),
+            if (info.isNotEmpty) ...[
+              const SizedBox(width: 14),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 100),
+                child: Text(
+                  info,
+                  maxLines: 1,
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: _muted, fontSize: 12),
+                ),
               ),
-            ),
+            ],
             const SizedBox(width: 10),
             SizedBox(
               key: ValueKey('settings-arrow-${entry.$1}'),

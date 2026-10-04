@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
+import 'package:kingclub/src/core/design_system/king_localizations.dart';
 import 'package:kingclub/src/core/media/media_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/settings_page.dart';
@@ -32,6 +34,69 @@ Widget _frame(
 }
 
 void main() {
+  testWidgets('settings rows share a trailing edge and Chinese titles fit', (
+    tester,
+  ) async {
+    addTearDown(() => tester.view.resetPhysicalSize());
+    addTearDown(() => tester.view.resetDevicePixelRatio());
+    tester.view.devicePixelRatio = 1;
+    for (final width in [360.0, 393.0, 430.0]) {
+      tester.view.physicalSize = Size(width, 900);
+      for (final locale in kingSupportedLocales) {
+        for (final scale in [1.0, 1.3]) {
+          await tester.pumpWidget(
+            MaterialApp(
+              locale: locale,
+              supportedLocales: kingSupportedLocales,
+              localizationsDelegates: kingLocalizationDelegates,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: TextScaler.linear(scale)),
+                child: child!,
+              ),
+              home: SettingsPage(mediaCache: _Cache()),
+            ),
+          );
+          await tester.pumpAndSettle();
+          for (final id in [
+            'profile',
+            'security',
+            'notification',
+            'language',
+            'cache',
+            'privacy',
+            'terms',
+            'about',
+          ]) {
+            final arrow = tester.getRect(
+              find.byKey(ValueKey('settings-arrow-$id')),
+            );
+            expect(arrow.right, closeTo(width - 28, 0.01));
+          }
+          if (locale.languageCode == 'zh' && scale == 1) {
+            for (final id in ['security', 'about']) {
+              final title = find
+                  .descendant(
+                    of: find.byKey(ValueKey('settings-$id')),
+                    matching: find.byType(Text),
+                  )
+                  .first;
+              final paragraph = tester.renderObject<RenderParagraph>(title);
+              final boxes = paragraph.getBoxesForSelection(
+                TextSelection(
+                  baseOffset: 0,
+                  extentOffset: paragraph.text.toPlainText().length,
+                ),
+              );
+              expect(boxes.map((box) => box.top).toSet(), hasLength(1));
+            }
+          }
+          expect(tester.takeException(), isNull);
+        }
+      }
+    }
+  });
+
   testWidgets('normal settings keeps all fixed safety entries', (tester) async {
     await tester.pumpWidget(_frame(SettingsScenario.normal));
 
