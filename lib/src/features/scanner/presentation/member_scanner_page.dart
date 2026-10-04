@@ -241,6 +241,37 @@ class _MemberScannerPageState extends State<MemberScannerPage>
     }
   }
 
+  Future<void> _switchCamera() async {
+    if (_busy || _pickingPhoto || _invalid) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await _controller.switchCamera();
+    } catch (_) {
+      if (mounted && !_invalid) setState(() => _error = '切换摄像头失败，请重试');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _roundControl({
+    required String label,
+    required IconData icon,
+    required VoidCallback? onPressed,
+  }) => IconButton(
+    tooltip: label,
+    onPressed: onPressed,
+    style: IconButton.styleFrom(
+      backgroundColor: const Color(0x70554E46),
+      foregroundColor: Colors.white,
+      disabledForegroundColor: Colors.white38,
+      fixedSize: const Size(54, 54),
+    ),
+    icon: Icon(icon, size: 27),
+  );
+
   @override
   Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
     value: SystemUiOverlayStyle.light.copyWith(
@@ -272,13 +303,42 @@ class _MemberScannerPageState extends State<MemberScannerPage>
                 MediaQuery.paddingOf(context).top +
                 KingBackButton.safeAreaOffset.dy,
             left: KingBackButton.leftOffset(context),
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                color: Colors.black38,
-                shape: BoxShape.circle,
+            child: IconButton(
+              tooltip: '返回',
+              onPressed: () => Navigator.maybePop(context),
+              icon: Container(
+                width: 26,
+                height: 26,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.chevron_left_rounded,
+                  color: Color(0xFF223039),
+                  size: 25,
+                ),
               ),
-              child: KingBackButton(
-                onPressed: () => Navigator.maybePop(context),
+            ),
+          ),
+          Positioned(
+            top:
+                MediaQuery.paddingOf(context).top +
+                KingBackButton.safeAreaOffset.dy,
+            right: 16,
+            child: ValueListenableBuilder<MobileScannerState>(
+              valueListenable: _controller,
+              builder: (context, state, _) => IconButton(
+                tooltip: '切换摄像头',
+                onPressed:
+                    _busy || _pickingPhoto || _invalid || !state.isRunning
+                    ? null
+                    : _switchCamera,
+                icon: const Icon(
+                  Icons.cameraswitch,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
             ),
           ),
@@ -287,13 +347,7 @@ class _MemberScannerPageState extends State<MemberScannerPage>
             child: SafeArea(
               child: Container(
                 padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black54],
-                  ),
-                ),
+                key: const ValueKey('scanner-controls'),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -301,17 +355,20 @@ class _MemberScannerPageState extends State<MemberScannerPage>
                       _error ??
                           (_busy || _pickingPhoto
                               ? '正在读取二维码…'
-                              : '请扫描桌卡、个人或群二维码'),
-                      style: const TextStyle(color: Colors.white),
+                              : '扫描桌卡、会员、群或收银登录二维码'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        shadows: [Shadow(blurRadius: 6, color: Colors.black87)],
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ValueListenableBuilder<MobileScannerState>(
                           valueListenable: _controller,
-                          builder: (context, state, _) => TextButton.icon(
+                          builder: (context, state, _) => _roundControl(
                             onPressed:
                                 _busy ||
                                     _pickingPhoto ||
@@ -320,31 +377,20 @@ class _MemberScannerPageState extends State<MemberScannerPage>
                                     state.torchState == TorchState.unavailable
                                 ? null
                                 : _toggleTorch,
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              disabledForegroundColor: Colors.white38,
-                            ),
-                            icon: Icon(
-                              state.torchState == TorchState.on
-                                  ? Icons.flashlight_on
-                                  : Icons.flashlight_off,
-                            ),
-                            label: Text(
-                              state.torchState == TorchState.on
-                                  ? '关闭闪光灯'
-                                  : '闪光灯',
-                            ),
+                            icon: state.torchState == TorchState.on
+                                ? Icons.flashlight_on
+                                : Icons.flashlight_off,
+                            label: state.torchState == TorchState.on
+                                ? '关闭闪光灯'
+                                : '闪光灯',
                           ),
                         ),
-                        TextButton.icon(
+                        _roundControl(
                           onPressed: _busy || _pickingPhoto || _invalid
                               ? null
                               : _pickPhoto,
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.white,
-                          ),
-                          icon: const Icon(Icons.photo_library_outlined),
-                          label: const Text('相册'),
+                          icon: Icons.image_outlined,
+                          label: '相册',
                         ),
                       ],
                     ),

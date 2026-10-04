@@ -16,8 +16,8 @@ class _Camera extends MobileScannerPlatform {
   @override
   Future<MobileScannerViewAttributes> start(StartOptions options) async {
     starts++;
-    return const MobileScannerViewAttributes(
-      cameraDirection: CameraFacing.back,
+    return MobileScannerViewAttributes(
+      cameraDirection: options.cameraDirection,
       currentTorchMode: TorchState.off,
       size: Size(800, 600),
     );
@@ -67,16 +67,23 @@ void main() {
         tester.getRect(find.byType(MobileScanner)),
         tester.getRect(find.byType(Scaffold)),
       );
-      await tester.tap(find.text('闪光灯'));
+      await tester.tap(find.byTooltip('闪光灯'));
       await tester.pump();
       expect(camera.torches, 1);
-      await tester.tap(find.text('相册'));
+      await tester.tap(find.byTooltip('相册'));
       await tester.pumpAndSettle();
       expect(camera.analyzed, '/test/qr.png');
       expect(find.text('照片中未识别到二维码，请选择清晰的二维码照片'), findsOneWidget);
       await tester.tap(find.text('重新扫描'));
       await tester.pumpAndSettle();
       expect(camera.starts, 2);
+      final controls = tester.widget<Container>(
+        find.byKey(const ValueKey('scanner-controls')),
+      );
+      expect(controls.decoration, isNull);
+      await tester.tap(find.byTooltip('切换摄像头'));
+      await tester.pumpAndSettle();
+      expect(camera.starts, 3);
       await tester.pumpWidget(const SizedBox());
       await tester.pump();
     },
