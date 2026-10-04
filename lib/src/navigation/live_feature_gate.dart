@@ -29,12 +29,12 @@ UnavailableLiveFeature? unavailableLiveFeature(
       path == '/commerce/payment') {
     return UnavailableLiveFeature.orders;
   }
-  // The landing route now renders the explicitly labelled, non-transactional
-  // Together layout review. Legacy reservation actions remain unavailable.
+  // Landing pages use the real Together catalog and personal publication flow.
+  // Legacy child routes still contain demo transactions and remain blocked.
   if (path.startsWith('/club/aa/')) {
     return UnavailableLiveFeature.reservation;
   }
-  if (path == '/club/parties' || path.startsWith('/club/parties/')) {
+  if (path.startsWith('/club/parties/')) {
     return UnavailableLiveFeature.party;
   }
   if (path == '/club/admission') return UnavailableLiveFeature.admission;

@@ -8,7 +8,7 @@ import 'package:kingclub/src/core/networking/kingclub_secure_client.dart';
 import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/auth/data/auth_repository_provider.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
-import 'package:kingclub/src/features/club/presentation/together_review_page.dart';
+import 'package:kingclub/src/features/club/presentation/together_entry_page.dart';
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/navigation/app_router.dart';
 import 'package:kingclub/src/navigation/live_feature_gate.dart';
@@ -35,7 +35,6 @@ void main() {
     '/commerce/orders/detail?orderRef=fixture',
     '/commerce/payment', // Deliberately no typed extra.
     '/club/aa/positioning-card',
-    '/club/parties',
     '/club/parties/create?date=2026-09-29',
     '/club/parties/manage',
     '/club/admission',
@@ -55,6 +54,7 @@ void main() {
     for (final path in [
       '/home',
       '/club/aa',
+      '/club/parties',
       '/me/settings',
       '/auth/mobile',
       '/messages/contacts',
@@ -126,32 +126,34 @@ void main() {
           );
           expect(tester.takeException(), isNull, reason: path);
         }
-        // Exercise the actual typed entry with the same live-mode redirect
-        // used by the iPhone build, not just the isolated page widget.
-        const AaReservationsRoute().push<void>(
-          tester.element(find.byType(UnavailableFeaturePage)),
-        );
-        await tester.pumpAndSettle();
-        expect(find.byType(TogetherReviewPage), findsOneWidget);
-        expect(find.text('布局样例 · 非真实活动'), findsNothing);
-        expect(find.text('卡颜AA交友局'), findsOneWidget);
-        expect(
-          router.routerDelegate.currentConfiguration.last.matchedLocation,
-          '/club/aa',
-        );
-        await tester.tap(find.text('卡颜AA交友局'));
-        await tester.pumpAndSettle();
-        expect(
-          find.byKey(const ValueKey('together-ticket-sheet')),
-          findsOneWidget,
-        );
-        await tester.tap(find.byType(KingBackButton));
-        await tester.pumpAndSettle();
-        expect(find.byType(TogetherReviewPage), findsOneWidget);
-        await tester.tap(find.byType(KingBackButton));
-        await tester.pumpAndSettle();
-        expect(find.byType(UnavailableFeaturePage), findsOneWidget);
-        expect(tester.takeException(), isNull);
+        // Exercise the actual typed entries through the live-mode redirect.
+        for (final personal in [false, true]) {
+          final context = tester.element(find.byType(UnavailableFeaturePage));
+          if (personal) {
+            const VipPartyRoute().push<void>(context);
+          } else {
+            const AaReservationsRoute().push<void>(context);
+          }
+          // City restoration can remain pending; verify routing independently.
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 1));
+          expect(find.byType(TogetherEntryPage), findsOneWidget);
+          expect(
+            tester
+                .widget<TogetherEntryPage>(find.byType(TogetherEntryPage))
+                .personalCreation,
+            personal,
+          );
+          expect(find.byType(UnavailableFeaturePage), findsNothing);
+          expect(
+            router.routerDelegate.currentConfiguration.last.matchedLocation,
+            personal ? '/club/parties' : '/club/aa',
+          );
+          await tester.tap(find.byType(KingBackButton));
+          await tester.pumpAndSettle();
+          expect(find.byType(UnavailableFeaturePage), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        }
 
         // Pushed blocked destinations must still return to the prior route.
         router.go('/feature-unavailable?feature=orders');
