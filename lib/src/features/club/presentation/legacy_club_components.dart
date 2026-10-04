@@ -14,6 +14,7 @@ class LegacyClubScaffold extends StatelessWidget {
     required this.child,
     this.showMockLabel = true,
     this.onTitleLongPress,
+    this.titleColor = legacyGold,
     this.titleFontSize = 18,
     this.titleFontWeight = FontWeight.w600,
     this.headerHeight = 54,
@@ -25,6 +26,7 @@ class LegacyClubScaffold extends StatelessWidget {
   final Widget child;
   final bool showMockLabel;
   final VoidCallback? onTitleLongPress;
+  final Color titleColor;
   final double titleFontSize;
   final FontWeight titleFontWeight;
   final double headerHeight;
@@ -62,7 +64,7 @@ class LegacyClubScaffold extends StatelessWidget {
                       child: Text(
                         title,
                         style: TextStyle(
-                          color: legacyGold,
+                          color: titleColor,
                           fontSize: titleFontSize,
                           fontWeight: titleFontWeight,
                         ),

@@ -209,10 +209,24 @@ void main() {
           ),
         );
         final chatBack = tester.getRect(find.byType(KingBackButton));
+        final chatTitleRect = tester.getRect(find.text('\u4f1a\u8bdd'));
+        final chatTitleStyle = tester
+            .widget<Text>(find.text('\u4f1a\u8bdd'))
+            .style!;
         var backs = 0;
         await tester.pumpWidget(app(TogetherReviewPage(onBack: () => backs++)));
         await tester.pumpAndSettle();
         expect(tester.getRect(find.byType(KingBackButton)), chatBack);
+        final title = find.byKey(const ValueKey('together-title'));
+        final titleStyle = tester.widget<Text>(title).style!;
+        expect(
+          tester.getRect(title).center.dy,
+          closeTo(chatTitleRect.center.dy, 0.5),
+        );
+        expect(tester.getRect(title).height, chatTitleRect.height);
+        expect(titleStyle.color, chatTitleStyle.color);
+        expect(titleStyle.fontSize, chatTitleStyle.fontSize);
+        expect(titleStyle.fontWeight, chatTitleStyle.fontWeight);
         expect(
           tester.getCenter(find.byKey(const ValueKey('together-title'))).dy,
           chatBack.center.dy,

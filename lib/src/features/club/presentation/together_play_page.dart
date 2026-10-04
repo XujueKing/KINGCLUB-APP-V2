@@ -291,10 +291,13 @@ class _TogetherScaffold extends StatelessWidget {
                       child: Text(
                         title,
                         key: const ValueKey('together-title'),
-                        style: togetherLegacyDateStyle(
-                          28 * unit,
-                          legacyGold,
-                        ).copyWith(height: 39 / 28),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     Positioned(
@@ -341,11 +344,15 @@ class _TogetherScaffold extends StatelessWidget {
                   ],
                 ),
               ),
-              // Keep the accepted content coordinates. Date hit targets paint
-              // above the navigation row where the compact layouts overlap.
+              // Keep content below the shared 56 dp conversation header.
               Column(
                 children: [
-                  SizedBox(height: top + 39 * unit),
+                  SizedBox(
+                    height: (top + 39 * unit).clamp(
+                      safeTop + 56,
+                      double.infinity,
+                    ),
+                  ),
                   Expanded(child: child),
                 ],
               ),

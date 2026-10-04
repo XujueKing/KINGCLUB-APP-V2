@@ -9,6 +9,7 @@ import '../data/together_play.dart';
 import '../data/together_store.dart';
 import '../data/secure_together_publication.dart';
 import 'together_publish_confirmation_page.dart';
+import 'together_store_picker_page.dart';
 import 'legacy_club_components.dart';
 
 class TogetherPartyCreatePage extends StatefulWidget {
@@ -24,10 +25,12 @@ class TogetherPartyCreatePage extends StatefulWidget {
     required this.stores,
     this.loadPackages,
     this.personal = false,
+    this.onSelectCity,
   }) : assert(onReview != null || publication != null),
        assert(loadLibrary != null || publication != null);
   final String cityCode, cityName;
   final bool personal;
+  final VoidCallback? onSelectCity;
   final TogetherStoreRepository stores;
   final Future<List<TogetherPackage>> Function(String storeRef)? loadPackages;
   final VoidCallback onBack;
@@ -52,6 +55,9 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _price = TextEditingController(),
       _total = TextEditingController();
   bool _official = false;
+  final _welcome = TextEditingController();
+  int _step = 0;
+  String? _plan;
   bool _allowCoins = false;
   int? _minimumExperience;
   TogetherFeeMode _fee = TogetherFeeMode.aa;
@@ -66,7 +72,9 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _overagePrice = TextEditingController(text: '10');
   final _maleSeats = TextEditingController(text: '3'),
       _femaleSeats = TextEditingController(text: '3');
-  bool get _usesGenderPricing => _genderRatio || _fee == TogetherFeeMode.menPay;
+  bool get _usesGenderPricing =>
+      _fee != TogetherFeeMode.hostTreat &&
+      (_genderRatio || _fee == TogetherFeeMode.menPay);
   DateTime? _start, _end;
   TogetherArtwork? _background;
   final List<TogetherArtwork> _posters = [];
@@ -86,11 +94,37 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _package = null;
       _table = null;
       _place.clear();
+      _total.clear();
+      _step = 0;
     }
   }
 
   Future<void> _pickVenue({bool table = false}) async {
     if (_busy || (table && _store == null)) return;
+    if (widget.personal && !table) {
+      final city = widget.cityCode;
+      final selected = await TogetherStorePickerPage.open(
+        context,
+        repository: widget.stores,
+        cityCode: city,
+        cityName: widget.cityName,
+      );
+      if (!mounted ||
+          city != widget.cityCode ||
+          selected == null ||
+          selected.ref == _store?.ref) {
+        return;
+      }
+      setState(() {
+        _store = selected;
+        _table = null;
+        _package = null;
+        _total.clear();
+        _place.text = selected.address;
+        _error = null;
+      });
+      return;
+    }
     final city = widget.cityCode;
     final repository = widget.stores;
     final store = _store;
@@ -175,6 +209,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
 
   @override
   void dispose() {
+    _welcome.dispose();
     for (final controller in [
       _theme,
       _place,
@@ -427,7 +462,10 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       feeMode: _fee,
       priceMinor: price,
       totalCostMinor: total,
-      description: _description.text.trim(),
+      description: [
+        if (widget.personal) _welcome.text.trim(),
+        _description.text.trim(),
+      ].where((text) => text.isNotEmpty).join('\n\n'),
       background: _background!,
       poster: _poster!,
       additionalPosters: _posters.skip(1).toList(),
@@ -788,245 +826,418 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         : '男 ${a.isEmpty ? '不限' : a} / 女 ${b.isEmpty ? '不限' : b}';
   }
 
-  Widget _personalPage() => LegacyClubScaffold(
-    title: '预定一个卡颜局',
-    onBack: widget.onBack,
-    showMockLabel: false,
-    titleFontSize: 18,
-    titleFontWeight: FontWeight.w400,
-    child: ColoredBox(
-      color: Colors.black,
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              key: const ValueKey('personal-party-form'),
-              padding: EdgeInsets.zero,
-              children: [
-                _group([
-                  _selection(
-                    '选择门店：',
-                    _store?.name ?? '${widget.cityName} · 请选择',
-                    () => _pickVenue(),
+  static const _steps = ['选择门店与方案', '预订卡座与套餐', '设置参加规则', '完善活动介绍'];
+
+  void _previous() {
+    if (_step == 0) {
+      widget.onBack();
+      return;
+    }
+    setState(() {
+      _step--;
+      _error = null;
+    });
+  }
+
+  void _next() {
+    String? error;
+    if (_step == 0) {
+      if (_store == null) {
+        error = '请选择允许组局的商家';
+      } else if (_plan == null) {
+        error = '请选择组局方案或自定义';
+      } else if (_theme.text.trim().isEmpty) {
+        error = '请输入活动主题';
+      } else if (_theme.text.trim().length > 30) {
+        error = '活动主题请控制在30字以内';
+      } else if (_welcome.text.trim().isEmpty) {
+        error = '请输入欢迎语';
+      } else if (_welcome.text.trim().length > 500) {
+        error = '欢迎语请控制在500字以内';
+      }
+    } else if (_step == 1) {
+      if (_start == null || _end == null) {
+        error = '请选择活动开始和结束时间';
+      } else if (!_end!.isAfter(_start!)) {
+        error = '结束时间需晚于开始时间';
+      } else if (!_start!.isAfter(DateTime.now())) {
+        error = '活动开始时间需晚于当前时间';
+      } else if (_table == null) {
+        error = '请选择卡座';
+      } else if (_package == null) {
+        error = '请选择活动套餐';
+      }
+    } else if (_step == 2) {
+      final count = int.tryParse(_capacity.text);
+      final male = int.tryParse(_maleSeats.text);
+      final female = int.tryParse(_femaleSeats.text);
+      final price = TogetherPartyDraft.parseMoney(_price.text);
+      final minAge = int.tryParse(_minimumAge.text);
+      final maxAge = int.tryParse(_maximumAge.text);
+      if (_fee == TogetherFeeMode.aa && price == null) {
+        error = '请输入精确到分的每人金额';
+      } else if (_usesGenderPricing &&
+          (male == null ||
+              female == null ||
+              male <= 0 ||
+              female < 0 ||
+              male + female != count)) {
+        error = '男女人数合计必须等于总人数，男士至少1人';
+      } else if (minAge != null && maxAge != null && minAge > maxAge) {
+        error = '年龄下限不能超过上限';
+      }
+    }
+    if (error != null) {
+      setState(() => _error = error);
+      return;
+    }
+    if (_step == 3) {
+      _review();
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _step++;
+      _error = null;
+    });
+  }
+
+  Widget _planOption(
+    String title,
+    String description,
+    TogetherFeeMode mode,
+  ) => Padding(
+    padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+    child: Material(
+      color: _plan == title ? const Color(0xFF302A22) : const Color(0xFF191816),
+      borderRadius: BorderRadius.circular(10),
+      child: ListTile(
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: legacyGold,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          description,
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+        ),
+        trailing: Icon(
+          _plan == title ? Icons.radio_button_checked : Icons.radio_button_off,
+          color: _plan == title ? legacyGold : Colors.white38,
+        ),
+        onTap: () => setState(() {
+          _plan = title;
+          _fee = mode;
+          _error = null;
+        }),
+      ),
+    ),
+  );
+
+  Widget _personalPage() => PopScope(
+    canPop: _step == 0,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) _previous();
+    },
+    child: LegacyClubScaffold(
+      title: '组局玩',
+      onBack: _previous,
+      showMockLabel: false,
+      titleColor: Colors.white,
+      titleFontSize: 17,
+      titleFontWeight: FontWeight.w600,
+      headerHeight: 56,
+      child: ColoredBox(
+        color: Colors.black,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _steps[_step],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${_step + 1} / 4',
+                        style: const TextStyle(color: legacyGold),
+                      ),
+                    ],
                   ),
-                  _selection(
-                    '预订时间：',
-                    _start == null
-                        ? '选择日期时间'
-                        : _start.toString().substring(0, 16),
-                    () => _pickTime(true),
-                    accent: true,
-                  ),
-                  _selection(
-                    '结束时间：',
-                    _end == null ? '选择日期时间' : _end.toString().substring(0, 16),
-                    () => _pickTime(false),
-                    accent: true,
-                  ),
-                  _selection(
-                    '选择卡座：',
-                    _table?.name ?? '请选择',
-                    _store == null ? null : () => _pickVenue(table: true),
-                  ),
-                  _selection(
-                    '聚会人数：',
-                    '${_capacity.text} 人',
-                    _table == null
-                        ? null
-                        : () {
-                            final max = _table!.maximumSeats;
-                            _wheel(
-                              '聚会人数 · 最多 $max 人',
-                              [
-                                [for (var i = 2; i <= max; i++) '$i 人'],
-                              ],
-                              [
-                                ((int.tryParse(_capacity.text) ?? 2) - 2).clamp(
-                                  0,
-                                  max - 2,
-                                ),
-                              ],
-                              (v) => _capacity.text = '${v[0] + 2}',
-                            );
-                          },
-                  ),
-                  _selection(
-                    '选套餐：',
-                    _package?.name ?? '请选择',
-                    _store == null ? null : _pickPackage,
-                  ),
-                  _selection(
-                    '套餐价格：',
-                    _package == null
-                        ? '—'
-                        : '¥${(_package!.baseTotalMinor / 100).toStringAsFixed(2)} 元',
-                    null,
-                    accent: true,
-                  ),
-                ]),
-                _group([
-                  _selection(
-                    'AI卡颜：',
-                    _limitText(false),
-                    () => _pickLimits(false),
-                  ),
-                  _selection(
-                    '年龄限制：',
-                    _limitText(true),
-                    () => _pickLimits(true),
-                  ),
-                ]),
-                _group([
-                  _selection(
-                    '费用方式：',
-                    switch (_fee) {
-                      TogetherFeeMode.aa => 'AA制',
-                      TogetherFeeMode.menPay => '男A女免',
-                      TogetherFeeMode.hostTreat => '我请客',
-                    },
-                    () => _wheel(
-                      '费用方式',
-                      [
-                        ['AA制', '男A女免', '我请客'],
-                      ],
-                      [
-                        [
-                          TogetherFeeMode.aa,
-                          TogetherFeeMode.menPay,
-                          TogetherFeeMode.hostTreat,
-                        ].indexOf(_fee),
-                      ],
-                      (v) => _fee = [
-                        TogetherFeeMode.aa,
-                        TogetherFeeMode.menPay,
-                        TogetherFeeMode.hostTreat,
-                      ][v[0]],
+                  const SizedBox(height: 14),
+                  Row(
+                    children: List.generate(
+                      4,
+                      (i) => Expanded(
+                        child: Container(
+                          height: 3,
+                          margin: EdgeInsets.only(right: i == 3 ? 0 : 6),
+                          color: i <= _step ? legacyGold : Colors.white12,
+                        ),
+                      ),
                     ),
                   ),
-                  if (_fee != TogetherFeeMode.hostTreat) ...[
-                    _toggle('设置男女配比', '按人数分摊套餐', _usesGenderPricing, (v) {
-                      if (_fee != TogetherFeeMode.menPay) _genderRatio = v;
-                    }),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                key: ValueKey('personal-party-step-$_step'),
+                padding: EdgeInsets.zero,
+                children: [
+                  if (_step == 0) ...[
+                    _group([
+                      _selection('所在城市', widget.cityName, widget.onSelectCity),
+                      _selection(
+                        '选择门店：',
+                        _store?.name ?? '${widget.cityName} · 请选择',
+                        () => _pickVenue(),
+                      ),
+                    ]),
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(24, 12, 24, 14),
+                      child: Text(
+                        '选择组局方案',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    _planOption('AA组局', '按套餐消费分摊，可调整男女收费', TogetherFeeMode.aa),
+                    _planOption('男A女免', '男士分摊，女士免费参加', TogetherFeeMode.menPay),
+                    _planOption(
+                      '我请客',
+                      '由我承担套餐消费，邀请朋友参加',
+                      TogetherFeeMode.hostTreat,
+                    ),
+                    _planOption('自定义', '自行设置人数、收费和参加规则', TogetherFeeMode.aa),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      padding: const EdgeInsets.all(24),
                       child: Column(
                         children: [
-                          if (_usesGenderPricing) ...[
-                            _field('男士人数', _maleSeats, number: true),
-                            _field('女士人数', _femaleSeats, number: true),
-                          ],
-                          if (_fee == TogetherFeeMode.aa)
-                            _field(
-                              _usesGenderPricing ? '女士每人金额（元）' : '每人金额（元）',
-                              _price,
-                              number: true,
-                            ),
+                          _field('活动主题', _theme),
+                          _field('欢迎语', _welcome, lines: 2),
                         ],
                       ),
                     ),
                   ],
-                  _toggle(
-                    '接受金币',
-                    '10金币抵1元',
-                    _allowCoins,
-                    (v) => _allowCoins = v,
-                  ),
-                ]),
-                _group([
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(28, 16, 28, 0),
-                    child: Column(
-                      children: [
-                        _field('活动主题', _theme),
-                        _field('活动介绍与包含内容', _description, lines: 3),
-                        _artwork(false),
-                        _artwork(true),
+                  if (_step == 1)
+                    _group([
+                      _selection(
+                        '预订时间：',
+                        _start == null
+                            ? '选择日期时间'
+                            : _start.toString().substring(0, 16),
+                        () => _pickTime(true),
+                        accent: true,
+                      ),
+                      _selection(
+                        '结束时间：',
+                        _end == null
+                            ? '选择日期时间'
+                            : _end.toString().substring(0, 16),
+                        () => _pickTime(false),
+                        accent: true,
+                      ),
+                      _selection(
+                        '选择卡座：',
+                        _table?.name ?? '请选择',
+                        _store == null ? null : () => _pickVenue(table: true),
+                      ),
+                      _selection(
+                        '聚会人数：',
+                        '${_capacity.text} 人',
+                        _table == null
+                            ? null
+                            : () {
+                                final max = _table!.maximumSeats;
+                                _wheel(
+                                  '聚会人数 · 最多 $max 人',
+                                  [
+                                    [for (var i = 2; i <= max; i++) '$i 人'],
+                                  ],
+                                  [
+                                    ((int.tryParse(_capacity.text) ?? 2) - 2)
+                                        .clamp(0, max - 2),
+                                  ],
+                                  (v) => _capacity.text = '${v[0] + 2}',
+                                );
+                              },
+                      ),
+                      _selection(
+                        '选套餐：',
+                        _package?.name ?? '请选择',
+                        _store == null ? null : _pickPackage,
+                      ),
+                      _selection(
+                        '套餐价格：',
+                        _package == null
+                            ? '—'
+                            : '¥${(_package!.baseTotalMinor / 100).toStringAsFixed(2)} 元',
+                        null,
+                        accent: true,
+                      ),
+                    ]),
+                  if (_step == 2)
+                    _group([
+                      _selection(
+                        'AI卡颜：',
+                        _limitText(false),
+                        () => _pickLimits(false),
+                      ),
+                      _selection(
+                        '年龄限制：',
+                        _limitText(true),
+                        () => _pickLimits(true),
+                      ),
+                    ]),
+                  if (_step == 2)
+                    _group([
+                      _selection(
+                        '费用方式：',
+                        switch (_fee) {
+                          TogetherFeeMode.aa => 'AA制',
+                          TogetherFeeMode.menPay => '男A女免',
+                          TogetherFeeMode.hostTreat => '我请客',
+                        },
+                        () => _wheel(
+                          '费用方式',
+                          [
+                            ['AA制', '男A女免', '我请客'],
+                          ],
+                          [
+                            [
+                              TogetherFeeMode.aa,
+                              TogetherFeeMode.menPay,
+                              TogetherFeeMode.hostTreat,
+                            ].indexOf(_fee),
+                          ],
+                          (v) => _fee = [
+                            TogetherFeeMode.aa,
+                            TogetherFeeMode.menPay,
+                            TogetherFeeMode.hostTreat,
+                          ][v[0]],
+                        ),
+                      ),
+                      if (_fee != TogetherFeeMode.hostTreat) ...[
+                        _toggle('设置男女配比', '按人数分摊套餐', _usesGenderPricing, (v) {
+                          if (_fee != TogetherFeeMode.menPay) _genderRatio = v;
+                        }),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
+                          child: Column(
+                            children: [
+                              if (_usesGenderPricing) ...[
+                                _field('男士人数', _maleSeats, number: true),
+                                _field('女士人数', _femaleSeats, number: true),
+                              ],
+                              if (_fee == TogetherFeeMode.aa)
+                                _field(
+                                  _usesGenderPricing ? '女士每人金额（元）' : '每人金额（元）',
+                                  _price,
+                                  number: true,
+                                ),
+                            ],
+                          ),
+                        ),
                       ],
-                    ),
-                  ),
-                ]),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(28, 4, 28, 20),
-                  child: Text(
-                    '押金从APP余额冻结。参加者付款并入场核销后，按实收金额解冻。',
-                    style: TextStyle(
-                      color: Color(0xFF8B8174),
-                      fontSize: 12,
-                      height: 1.6,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
-              child: Text(
-                _error!,
-                key: const ValueKey('personal-party-error'),
-                style: const TextStyle(color: legacyPink),
-              ),
-            ),
-          Container(
-            key: const ValueKey('personal-party-deposit'),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFDDCCB8), Color(0xFF978774)],
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text.rich(
-                        TextSpan(
-                          style: const TextStyle(color: Color(0xFF271F15)),
+                      _toggle(
+                        '接受金币',
+                        '10金币抵1元',
+                        _allowCoins,
+                        (v) => _allowCoins = v,
+                      ),
+                    ]),
+                  if (_step == 3)
+                    _group([
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(28, 16, 28, 0),
+                        child: Column(
                           children: [
-                            const TextSpan(
-                              text: '押金 ¥ ',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                            TextSpan(
-                              text: _package == null
-                                  ? '—'
-                                  : (_package!.baseTotalMinor / 100)
-                                        .toStringAsFixed(2),
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                            _field('活动介绍与包含内容', _description, lines: 3),
+                            _artwork(false),
+                            _artwork(true),
                           ],
                         ),
                       ),
-                      const Text(
-                        '冻结APP余额',
+                    ]),
+                  if (_step == 3)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(28, 4, 28, 20),
+                      child: Text(
+                        '押金从APP余额冻结。参加者付款并入场核销后，按实收金额解冻。',
                         style: TextStyle(
-                          color: Color(0xFF493C2C),
+                          color: Color(0xFF8B8174),
                           fontSize: 12,
+                          height: 1.6,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                FilledButton(
-                  onPressed: _busy ? null : _review,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF271705),
-                    foregroundColor: legacyGold,
-                    minimumSize: const Size(100, 46),
-                    shape: const StadiumBorder(),
-                  ),
-                  child: Text(_busy ? '请稍候' : '下一步'),
-                ),
-              ],
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 10,
+                ),
+                child: Text(
+                  _error!,
+                  key: const ValueKey('personal-party-error'),
+                  style: const TextStyle(color: legacyPink),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 18),
+              child: Row(
+                children: [
+                  if (_step > 0) ...[
+                    TextButton(
+                      onPressed: _busy ? null : _previous,
+                      child: const Text(
+                        '\u4e0a\u4e00\u6b65',
+                        style: TextStyle(color: legacyGold),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                  ],
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _busy ? null : _next,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: legacyGold,
+                        foregroundColor: Colors.black,
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      child: Text(
+                        _busy
+                            ? '\u8bf7\u7a0d\u5019'
+                            : _step == 3
+                            ? '\u786e\u8ba4\u65b9\u6848\u4e0e\u62bc\u91d1'
+                            : '\u4e0b\u4e00\u6b65',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );

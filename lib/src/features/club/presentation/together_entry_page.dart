@@ -164,6 +164,10 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
     if (selected == null) {
       return LegacyClubScaffold(
         title: widget.personalCreation ? '组局玩' : '一起玩',
+        titleColor: Colors.white,
+        titleFontSize: 17,
+        titleFontWeight: FontWeight.w600,
+        headerHeight: 56,
         onBack: widget.onBack,
         showMockLabel: false,
         child: Center(
@@ -181,8 +185,9 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
     }
     if (widget.personalCreation) {
       return TogetherPartyCreatePage(
-        key: ValueKey(selected.code),
+        key: const ValueKey('personal-together-create'),
         personal: true,
+        onSelectCity: _chooseCity,
         cityCode: selected.code,
         cityName: selected.name,
         onBack: widget.onBack,

@@ -5,9 +5,18 @@ class TogetherStore {
     required this.name,
     required this.cityCode,
     required this.address,
+    this.logoUrl,
+    this.backgroundUrl,
+    this.rating,
+    this.personalPartyEnabled = false,
   });
 
   final String ref, name, cityCode, address;
+  final String? logoUrl, backgroundUrl;
+  final double? rating;
+
+  /// Only explicit server permission allows personal party creation.
+  final bool personalPartyEnabled;
 }
 
 /// Capacity and ownership are supplied by the service, not a typed table name.

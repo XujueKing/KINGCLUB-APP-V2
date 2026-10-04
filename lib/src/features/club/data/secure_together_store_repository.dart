@@ -17,6 +17,21 @@ String _ref(dynamic value) {
   return text;
 }
 
+String? _media(dynamic value) {
+  if (value == null) return null;
+  final text = _text(value, 2048);
+  final uri = Uri.tryParse(text);
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty ||
+      uri.hasFragment ||
+      text.trim() != text) {
+    _invalid();
+  }
+  return text;
+}
+
 class SecureTogetherStoreRepository implements TogetherStoreRepository {
   SecureTogetherStoreRepository({
     required this.readSession,
@@ -70,7 +85,9 @@ class SecureTogetherStoreRepository implements TogetherStoreRepository {
         throw const AuthFailure('SESSION_EXPIRED', '登录状态已变化');
       }
       final result = response['result'];
-      if (result is! Map || result[scope] != value || result['items'] is! List) {
+      if (result is! Map ||
+          result[scope] != value ||
+          result['items'] is! List) {
         _invalid();
       }
       final page = result['items'] as List;
@@ -98,11 +115,22 @@ class SecureTogetherStoreRepository implements TogetherStoreRepository {
       ) {
         final address = r['address'];
         if (address is! String || address.length > 300) _invalid();
+        final enabled = r['personalPartyEnabled'];
+        if (enabled != null && enabled is! bool) _invalid();
+        final rating = r['rating'];
+        if (rating != null &&
+            (rating is! num || !rating.isFinite || rating < 0 || rating > 5)) {
+          _invalid();
+        }
         return TogetherStore(
           ref: _ref(r['storeRef']),
           name: _text(r['name'], 128),
           cityCode: _ref(r['cityCode']),
           address: address,
+          personalPartyEnabled: enabled == true,
+          logoUrl: _media(r['logoUrl']),
+          backgroundUrl: _media(r['backgroundUrl']),
+          rating: (rating as num?)?.toDouble(),
         );
       }).toList();
 

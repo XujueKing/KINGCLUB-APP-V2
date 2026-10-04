@@ -33,6 +33,60 @@ void main() {
     expect((await repo.list(cityCode: '430200')).map((s) => s.ref), ['a', 'b']);
     expect(requests.last['after'], 'a');
   });
+  test(
+    'personal creation requires explicit permission and optional real media',
+    () async {
+      final repo = SecureTogetherStoreRepository(
+        readSession: () async => session,
+        request: (_, _, _) async => {
+          'result': {
+            'cityCode': '430200',
+            'next': null,
+            'items': [
+              store('legacy'),
+              {
+                ...store('enabled'),
+                'personalPartyEnabled': true,
+                'logoUrl': 'https://example.test/logo.png',
+                'backgroundUrl': 'https://example.test/background.jpg',
+                'rating': 4.7,
+              },
+            ],
+          },
+        },
+      );
+      final stores = await repo.list(cityCode: '430200');
+      expect(stores.first.personalPartyEnabled, isFalse);
+      expect(stores.first.rating, isNull);
+      expect(stores.last.personalPartyEnabled, isTrue);
+      expect(stores.last.rating, 4.7);
+      expect(stores.last.logoUrl, 'https://example.test/logo.png');
+    },
+  );
+  test('rejects malformed permission ratings and unsafe image urls', () async {
+    for (final fields in [
+      {'personalPartyEnabled': 'true'},
+      {'rating': 5.1},
+      {'rating': '4.5'},
+      {'logoUrl': 'http://example.test/a'},
+      {'backgroundUrl': 'javascript:alert(1)'},
+      {'logoUrl': 'https://name:password@example.test/a'},
+    ]) {
+      final repo = SecureTogetherStoreRepository(
+        readSession: () async => session,
+        request: (_, _, _) async => {
+          'result': {
+            'cityCode': '430200',
+            'items': [
+              {...store('a'), ...fields},
+            ],
+            'next': null,
+          },
+        },
+      );
+      await expectLater(repo.list(cityCode: '430200'), throwsA(anything));
+    }
+  });
   test('rejects foreign city, duplicate pages and invalid cursors', () async {
     for (final mode in ['foreign', 'duplicate', 'cursor']) {
       final repo = SecureTogetherStoreRepository(
