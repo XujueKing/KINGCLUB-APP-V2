@@ -113,8 +113,11 @@ class _MemberScannerPageState extends State<MemberScannerPage>
         return;
       }
       if (route.kind == ScanRouteKind.tableOrdering) {
-        // The scanner has completed its job; Back should return to its caller.
-        context.pushReplacement(route.location!);
+        // Complete the caller's pending push so its scan-entry lock is released.
+        // pushReplacement removes the scanner without completing that Future.
+        final router = GoRouter.of(context);
+        router.pop();
+        unawaited(router.push<void>(route.location!));
         replacedScanner = true;
         return;
       }

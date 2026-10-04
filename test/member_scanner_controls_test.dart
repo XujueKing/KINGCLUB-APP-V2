@@ -59,13 +59,19 @@ void main() {
       );
     MobileScannerPlatform.instance = camera;
     addTearDown(() => MobileScannerPlatform.instance = original);
+    var scannerOpening = false;
     final router = GoRouter(
       routes: [
         GoRoute(
           path: '/',
           builder: (context, state) => Scaffold(
             body: TextButton(
-              onPressed: () => context.push('/scanner'),
+              onPressed: () async {
+                if (scannerOpening) return;
+                scannerOpening = true;
+                await context.push('/scanner');
+                scannerOpening = false;
+              },
               child: const Text('打开扫码'),
             ),
           ),
@@ -99,6 +105,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('打开扫码'), findsOneWidget);
     expect(find.byType(MemberScannerPage), findsNothing);
+    expect(scannerOpening, isFalse);
+    await tester.tap(find.text('打开扫码'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MemberScannerPage), findsOneWidget);
+    await tester.tap(find.byTooltip('相册'));
+    await tester.pumpAndSettle();
+    expect(find.text('返回 V2'), findsOneWidget);
+    await tester.tap(find.text('返回 V2'));
+    await tester.pumpAndSettle();
+    expect(find.text('打开扫码'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
