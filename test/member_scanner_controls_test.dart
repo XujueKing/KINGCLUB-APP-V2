@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:kingclub/src/features/scanner/presentation/member_scanner_page.dart';
@@ -7,6 +8,7 @@ import 'package:kingclub/src/features/scanner/presentation/member_scanner_page.d
 class _Camera extends MobileScannerPlatform {
   int starts = 0, torches = 0;
   String? analyzed;
+  BarcodeCapture? capture;
   @override
   Stream<BarcodeCapture?> get barcodesStream => const Stream.empty();
   @override
@@ -42,11 +44,64 @@ class _Camera extends MobileScannerPlatform {
     List<BarcodeFormat> formats = const [],
   }) async {
     analyzed = path;
-    return null;
+    return capture;
   }
 }
 
 void main() {
+  testWidgets('table scan replaces camera and Back returns to caller', (
+    tester,
+  ) async {
+    final original = MobileScannerPlatform.instance;
+    final camera = _Camera()
+      ..capture = BarcodeCapture(
+        barcodes: [Barcode(rawValue: 'type=9&tableId=V2')],
+      );
+    MobileScannerPlatform.instance = camera;
+    addTearDown(() => MobileScannerPlatform.instance = original);
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: TextButton(
+              onPressed: () => context.push('/scanner'),
+              child: const Text('打开扫码'),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/scanner',
+          builder: (context, state) => MemberScannerPage(
+            pickPhoto: () async => XFile('/test/table.png'),
+          ),
+        ),
+        GoRoute(
+          path: '/commerce/ordering',
+          builder: (context, state) => Scaffold(
+            body: TextButton(
+              onPressed: () => context.pop(),
+              child: Text('返回 ${state.uri.queryParameters['tableId']}'),
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.tap(find.text('打开扫码'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('相册'));
+    await tester.pumpAndSettle();
+    expect(find.text('返回 V2'), findsOneWidget);
+    expect(find.byType(MemberScannerPage), findsNothing);
+    await tester.tap(find.text('返回 V2'));
+    await tester.pumpAndSettle();
+    expect(find.text('打开扫码'), findsOneWidget);
+    expect(find.byType(MemberScannerPage), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
   testWidgets(
     'camera fills page, toolbar toggles light and analyzes selected photo',
     (tester) async {

@@ -103,6 +103,7 @@ class _MemberScannerPageState extends State<MemberScannerPage>
       _error = null;
     });
     final generation = ++_generation;
+    var replacedScanner = false;
     try {
       await _controller.stop();
       if (!mounted || !_active || _invalid || generation != _generation) return;
@@ -112,7 +113,9 @@ class _MemberScannerPageState extends State<MemberScannerPage>
         return;
       }
       if (route.kind == ScanRouteKind.tableOrdering) {
-        await context.push<void>(route.location!);
+        // The scanner has completed its job; Back should return to its caller.
+        context.pushReplacement(route.location!);
+        replacedScanner = true;
         return;
       }
       if (route.kind == ScanRouteKind.cashierLogin) {
@@ -165,8 +168,8 @@ class _MemberScannerPageState extends State<MemberScannerPage>
         setState(() => _error = '无法识别或二维码已失效，请对方刷新二维码');
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
-      if (mounted && _active && !_invalid && _error == null) {
+      if (mounted && !replacedScanner) setState(() => _busy = false);
+      if (!replacedScanner && mounted && _active && !_invalid && _error == null) {
         try {
           await _controller.start();
         } catch (_) {
