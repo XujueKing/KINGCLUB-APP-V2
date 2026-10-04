@@ -247,11 +247,13 @@ class MemberOrdersRepository {
     required String storeRef,
     required String tableRef,
     required String sessionRef,
+    String? orderRef,
     String? beforeOrder,
   }) => _read(
     storeRef: storeRef,
     tableRef: tableRef,
     sessionRef: sessionRef,
+    orderRef: orderRef,
     beforeOrder: beforeOrder,
   );
 

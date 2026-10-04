@@ -31,6 +31,7 @@ class _TableBillPageState extends State<TableBillPage> {
         storeRef: widget.table.storeRef,
         tableRef: widget.table.tableId ?? '',
         sessionRef: widget.table.tableSessionRef,
+        orderRef: orderRef,
         beforeOrder: beforeOrder,
       );
   @override
@@ -39,6 +40,20 @@ class _TableBillPageState extends State<TableBillPage> {
     onBack: widget.onBack,
     load: load,
     events: widget.events,
+    retainDuringRefresh: true,
+    onOpenOrder: (orderRef) => Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        allowSnapshotting: false,
+        builder: (detailContext) => MemberOrdersPage(
+          orderRef: orderRef,
+          load: load,
+          events: widget.events,
+          retainDuringRefresh: true,
+          refreshInterval: const Duration(seconds: 20),
+          onBack: () => Navigator.of(detailContext).pop(),
+        ),
+      ),
+    ),
     expandItems: true,
     // Table closure may have no order event. Revalidate visible seating scope
     // even when the socket remains connected; personal order history needn't poll.

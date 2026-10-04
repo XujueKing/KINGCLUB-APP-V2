@@ -25,10 +25,12 @@ class MemberOrdersPage extends StatefulWidget {
     this.title,
     this.expandItems = false,
     this.refreshInterval,
+    this.retainDuringRefresh = false,
   });
   final String? title;
   final bool expandItems;
   final Duration? refreshInterval;
+  final bool retainDuringRefresh;
   final VoidCallback onBack;
   final ValueChanged<String>? onOpenOrder;
   final String? orderRef;
@@ -125,15 +127,17 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
     }
   }
 
-  void invalidate() {
+  void invalidate({bool retain = false}) {
     epoch++;
     debounce?.cancel();
     debounce = null;
     queued = false;
     if (mounted) {
       setState(() {
-        orders = [];
-        next = null;
+        if (!retain) {
+          orders = [];
+          next = null;
+        }
         loading = false;
         failed = false;
       });
@@ -161,7 +165,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
     setState(() {
       loading = true;
       failed = false;
-      if (!more) {
+      if (!more && !widget.retainDuringRefresh) {
         orders = [];
         next = null;
       }
@@ -204,7 +208,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     foreground = state == AppLifecycleState.resumed;
     startRefreshTimer();
-    invalidate();
+    invalidate(retain: widget.retainDuringRefresh);
     if (foreground) unawaited(reload());
   }
 
@@ -594,7 +598,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
           ),
       ],
     ),
-    body: !foreground
+    body: !foreground && !widget.retainDuringRefresh
         ? const SizedBox.shrink()
         : loading && orders.isEmpty
         ? const Center(child: CircularProgressIndicator())

@@ -10,6 +10,80 @@ import 'package:kingclub/src/features/commerce/presentation/scan_ordering_cart_p
 import 'member_orders_repository_test.dart' as data;
 
 void main() {
+  testWidgets('table receipt opens scoped live detail and returns to list', (
+    tester,
+  ) async {
+    final calls = <Map<String, dynamic>>[];
+    final pending = Completer<Map<String, dynamic>>();
+    final repository = MemberOrdersRepository(
+      readSession: () async => data.sessionFixture,
+      request: (id, params, session) async {
+        expect(id, 'K261001001955');
+        calls.add(Map<String, dynamic>.from(params));
+        if (calls.length == 3) return pending.future;
+        return {
+          'result': {
+            ...data.pageFixture(),
+            'tableScope': {
+              'storeRef': 'test-store',
+              'tableRef': 'test-table',
+              'sessionRef': 'H00000000001',
+            },
+          },
+        };
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TableBillPage(
+          table: const OrderingContext(
+            contextRef: 'H00000000001',
+            memberRef: 'test-member',
+            storeRef: 'test-store',
+            tableId: 'test-table',
+            tableSessionRef: 'H00000000001',
+            storeName: 'Test store',
+            storeAddress: '',
+            tableName: 'T1',
+            businessDate: '2030-01-01',
+          ),
+          onBack: () {},
+          repository: repository,
+          events: const Stream.empty(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('member-order-D00000000001')));
+    await tester.pumpAndSettle();
+    expect(find.text('Order details'), findsOneWidget);
+    expect(calls.last, {
+      'tableRef': 'test-table',
+      'sessionRef': 'H00000000001',
+      'orderRef': 'D00000000001',
+    });
+    expect(find.text('D00000000001'), findsOneWidget);
+    // Detail's periodic refresh retains its receipt while the request is pending.
+    await tester.pump(const Duration(seconds: 20));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('D00000000001'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    pending.complete({
+      'result': {
+        ...data.pageFixture(),
+        'tableScope': {
+          'storeRef': 'test-store',
+          'tableRef': 'test-table',
+          'sessionRef': 'H00000000001',
+        },
+      },
+    });
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.text('Order details'))).pop();
+    await tester.pumpAndSettle();
+    expect(find.text('T1 · Table bill'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
   for (final locale in [
     const Locale('zh'),
     const Locale('en'),
