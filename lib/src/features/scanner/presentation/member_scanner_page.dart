@@ -8,6 +8,9 @@ import 'package:uuid/uuid.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/scan_route.dart';
+import '../data/cashier_login_repository.dart';
+import 'cashier_login_page.dart';
+import '../../auth/data/auth_repository_provider.dart';
 
 import '../../messaging/data/messaging_repository.dart';
 import '../../../core/design_system/king_notice.dart';
@@ -110,6 +113,21 @@ class _MemberScannerPageState extends State<MemberScannerPage>
       }
       if (route.kind == ScanRouteKind.tableOrdering) {
         await context.push<void>(route.location!);
+        return;
+      }
+      if (route.kind == ScanRouteKind.cashierLogin) {
+        final repository = SecureCashierLoginRepository.secure(
+          kingclubApiBaseUrl,
+        );
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            allowSnapshotting: false,
+            builder: (_) => CashierLoginPage(
+              challengeId: route.challengeId!,
+              repository: repository,
+            ),
+          ),
+        );
         return;
       }
       final messaging = await MessagingRepository.open();

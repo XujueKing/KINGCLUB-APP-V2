@@ -9,7 +9,7 @@ class _Stores implements TogetherStoreRepository {
   Future<List<TogetherStore>> list({required String cityCode}) async => [
     TogetherStore(
       ref: 'store',
-      name: '测试门店',
+      name: 'KINGCLUB湖南工业大学南门测试门店',
       cityCode: cityCode,
       address: '地址',
     ),
@@ -50,13 +50,24 @@ void main() {
       expect(find.text('门店官方发起'), findsNothing);
       await tester.tap(find.text('株洲市 · 请选择'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('测试门店'));
+      await tester.tap(find.text('KINGCLUB湖南工业大学南门测试门店'));
       await tester.pumpAndSettle();
+      final storeButton = find.ancestor(
+        of: find.text('KINGCLUB湖南工业大学南门测试门店'),
+        matching: find.byType(TextButton),
+      );
+      expect(tester.getRect(storeButton).right, closeTo(390 - 28, 0.1));
+      expect(tester.takeException(), isNull);
       await tester.tap(find.text('请选择').first);
       await tester.pumpAndSettle();
       await tester.tap(find.text('V1'));
       await tester.pumpAndSettle();
       expect(find.text('4 人'), findsOneWidget);
+      final seatsButton = find.ancestor(
+        of: find.text('4 人'),
+        matching: find.byType(TextButton),
+      );
+      expect(tester.getRect(seatsButton).right, closeTo(390 - 28, 0.1));
       await tester.tap(find.text('4 人'));
       await tester.pumpAndSettle();
       expect(find.byType(CupertinoPicker), findsOneWidget);
@@ -74,6 +85,13 @@ void main() {
       );
       await tester.tap(find.text('下一步'));
       await tester.pumpAndSettle();
+      final error = find.byKey(const ValueKey('personal-party-error'));
+      final deposit = find.byKey(const ValueKey('personal-party-deposit'));
+      expect(error.hitTestable(), findsOneWidget);
+      expect(
+        tester.getRect(error).bottom,
+        lessThan(tester.getRect(deposit).top),
+      );
       expect(tester.takeException(), isNull);
     },
   );

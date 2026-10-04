@@ -590,45 +590,50 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
               style: const TextStyle(color: legacyGold, fontSize: 16),
             ),
           ),
-          Flexible(
+          Expanded(
             flex: 2,
-            child: TextButton(
-              onPressed: _busy ? null : action,
-              style: TextButton.styleFrom(
-                backgroundColor: action == null || accent
-                    ? Colors.transparent
-                    : const Color(0x15C9B69E),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _busy ? null : action,
+                style: TextButton.styleFrom(
+                  backgroundColor: action == null || accent
+                      ? Colors.transparent
+                      : const Color(0x15C9B69E),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      value,
-                      textAlign: TextAlign.right,
-                      style: TextStyle(
-                        color: accent ? const Color(0xFFFCA800) : legacyGold,
-                        fontSize: 16,
-                        fontWeight: accent ? FontWeight.w400 : FontWeight.w600,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        value,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: accent ? const Color(0xFFFCA800) : legacyGold,
+                          fontSize: 16,
+                          fontWeight: accent
+                              ? FontWeight.w400
+                              : FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                  if (action != null && !accent) ...[
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 16,
-                      color: legacyGold,
-                    ),
+                    if (action != null && !accent) ...[
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 16,
+                        color: legacyGold,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -940,15 +945,6 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                     ),
                   ),
                 ]),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Text(
-                      _error!,
-                      key: const ValueKey('personal-party-error'),
-                      style: const TextStyle(color: legacyPink),
-                    ),
-                  ),
                 const Padding(
                   padding: EdgeInsets.fromLTRB(28, 4, 28, 20),
                   child: Text(
@@ -963,6 +959,15 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
               ],
             ),
           ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
+              child: Text(
+                _error!,
+                key: const ValueKey('personal-party-error'),
+                style: const TextStyle(color: legacyPink),
+              ),
+            ),
           Container(
             key: const ValueKey('personal-party-deposit'),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),

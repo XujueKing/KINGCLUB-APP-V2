@@ -2,6 +2,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/scanner/data/scan_route.dart';
 
 void main() {
+  test('cashier login requires the complete exact challenge protocol', () {
+    final code = 'kingclub://cashier-login/v1/${'a' * 64}';
+    final route = ScanRoute.parse(code);
+    expect(route.kind, ScanRouteKind.cashierLogin);
+    expect(route.challengeId, 'a' * 64);
+    for (final bad in [
+      '$code?type=9&tableId=x',
+      '$code#x',
+      '$code\n',
+      ' $code',
+      code.toUpperCase(),
+      code.substring(0, code.length - 1),
+    ]) {
+      expect(ScanRoute.parse(bad).kind, ScanRouteKind.unsupported);
+    }
+  });
   test('实际 V1 印刷码进入点单而不是无效码', () {
     final route = ScanRoute.parse(
       'https://www.wuyexin.cn/view/static/kingclubaddfriend/?type=9&tableld=K24000000001&shopld=0&tableName=V1',
