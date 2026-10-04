@@ -16,6 +16,7 @@ void main() {
     'cityCode': '430200',
     'storeRef': 'store-test',
     'storeName': '门店',
+    'storeLogo': 'https://example.test/store-logo.png',
     'startsAt': '2030-01-01T16:00:00.000Z',
     'endsAt': '2030-01-01T20:00:00.000Z',
     'capacity': 10,
@@ -51,6 +52,7 @@ void main() {
       },
     );
     final party = await repo.detail('rules');
+    expect(party.storeLogo, 'https://example.test/store-logo.png');
     expect(party.rules, contains('18—30周岁'));
     expect(party.rules, contains('超龄每岁加¥10.00'));
     expect(party.rules, contains('男士颜值80分起'));

@@ -209,6 +209,7 @@ class SecureTogetherPlayRepository
       cityName: '',
       storeRef: _ref(r['storeRef']),
       storeName: _text(r['storeName']),
+      storeLogo: r['storeLogo'] == null ? null : _media(r['storeLogo']),
       startsAt: venue(start),
       endsAt: venue(end),
       hostName: r['publisherType'] == 'official'
