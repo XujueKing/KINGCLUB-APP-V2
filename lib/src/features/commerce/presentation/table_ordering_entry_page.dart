@@ -264,6 +264,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
       );
       return ScanOrderingCartPage(
         key: ValueKey(preview.contextRef),
+        locale: widget.locale,
         orderingContext: preview,
         onBack: widget.onBack,
         onQuoteReady: (_) => ScaffoldMessenger.of(context)

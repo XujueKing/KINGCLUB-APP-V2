@@ -1193,6 +1193,7 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
       );
     }
     return ScanOrderingCartPage(
+      locale: Localizations.localeOf(context),
       onBack: () =>
           context.canPop() ? context.pop() : const AppShellRoute().go(context),
       onQuoteReady: (quote) =>
