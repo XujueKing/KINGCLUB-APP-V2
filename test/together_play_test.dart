@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_localizations.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -110,6 +112,9 @@ void main() {
     final party = fixture(eligible: false, eligibilityReasons: ['活动年龄上限为29周岁']);
     await tester.pumpWidget(
       MaterialApp(
+        locale: kingSupportedLocales.first,
+        supportedLocales: kingSupportedLocales,
+        localizationsDelegates: kingLocalizationDelegates,
         home: TogetherPartyDetailPage(
           party: party,
           repository: Repository()..current = party,
@@ -156,6 +161,9 @@ void main() {
       expect(fixture().detailPosters, isEmpty);
       await tester.pumpWidget(
         MaterialApp(
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
           home: TogetherPartyDetailPage(
             party: party,
             repository: Repository()..current = party,
@@ -188,6 +196,9 @@ void main() {
         tester.view.physicalSize = size;
         final safeTop = size.width == 375 ? 44.0 : 62.0;
         Widget app(Widget page) => MaterialApp(
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(context).copyWith(
               padding: EdgeInsets.only(top: safeTop),
@@ -268,6 +279,9 @@ void main() {
       );
       await tester.pumpWidget(
         MaterialApp(
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
           theme: KingTheme.dark.copyWith(platform: TargetPlatform.iOS),
           home: Scaffold(
             body: Align(
@@ -340,6 +354,9 @@ void main() {
     ]) {
       await tester.pumpWidget(
         MaterialApp(
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
           theme: ThemeData(textTheme: TextTheme(bodyMedium: body)),
           home: Scaffold(
             body: TogetherDateStrip(
@@ -371,6 +388,9 @@ void main() {
       final repository = Repository();
       await tester.pumpWidget(
         MaterialApp(
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
           theme: KingTheme.dark,
           home: TogetherPlayPage(
             repository: repository,
@@ -423,11 +443,16 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(
-        MaterialApp(home: TogetherReviewPage(onBack: () {})),
+        MaterialApp(
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
+          home: TogetherReviewPage(onBack: () {}),
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.text('布局样例 · 非真实活动'), findsNothing);
-      expect(find.text('一起玩'), findsOneWidget);
+      expect(find.text('加入派对'), findsOneWidget);
       expect(find.text('卡颜AA交友局'), findsOneWidget);
       expect(find.byType(TogetherPartyCard), findsOneWidget);
       expect(find.text('888'), findsOneWidget);
@@ -518,6 +543,9 @@ void main() {
     final repository = Repository();
     await tester.pumpWidget(
       MaterialApp(
+        locale: kingSupportedLocales.first,
+        supportedLocales: kingSupportedLocales,
+        localizationsDelegates: kingLocalizationDelegates,
         home: TogetherPlayPage(
           repository: repository,
           cityCode: '430200',
@@ -574,6 +602,9 @@ void main() {
         final party = fixture(state: state);
         await tester.pumpWidget(
           MaterialApp(
+            locale: kingSupportedLocales.first,
+            supportedLocales: kingSupportedLocales,
+            localizationsDelegates: kingLocalizationDelegates,
             builder: (context, child) => MediaQuery(
               data: MediaQuery.of(context)
                   .copyWith(textScaler: const TextScaler.linear(1.5)),
@@ -611,6 +642,9 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
+        locale: kingSupportedLocales.first,
+        supportedLocales: kingSupportedLocales,
+        localizationsDelegates: kingLocalizationDelegates,
         home: TogetherPartyCreatePage(
           cityCode: '430200',
           cityName: '株洲市',
@@ -732,6 +766,9 @@ void main() {
     final repo = Repository();
     await tester.pumpWidget(
       MaterialApp(
+        locale: kingSupportedLocales.first,
+        supportedLocales: kingSupportedLocales,
+        localizationsDelegates: kingLocalizationDelegates,
         home: TogetherPlayPage(
           repository: repo,
           cityCode: '430200',
@@ -768,6 +805,9 @@ void main() {
       var joined = 0;
       await tester.pumpWidget(
         MaterialApp(
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
           home: TogetherPartyDetailPage(
             party: fixture(),
             repository: repo,
@@ -786,6 +826,9 @@ void main() {
       expect(find.text('已满员'), findsOneWidget);
       await tester.pumpWidget(
         MaterialApp(
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
           home: Scaffold(
             body: SizedBox(
               width: 360,
@@ -817,6 +860,9 @@ void main() {
         final party = fixture(ref: ref, state: TogetherJoinState.joined);
         await tester.pumpWidget(
           MaterialApp(
+            locale: kingSupportedLocales.first,
+            supportedLocales: kingSupportedLocales,
+            localizationsDelegates: kingLocalizationDelegates,
             home: Scaffold(
               body: Align(
                 alignment: Alignment.topLeft,

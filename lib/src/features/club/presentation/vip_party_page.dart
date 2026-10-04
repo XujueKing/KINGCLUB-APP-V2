@@ -105,7 +105,7 @@ class _VipPartyPageState extends State<VipPartyPage> {
           ],
           const SizedBox(height: 22),
           const Text(
-            '规则：【组局玩】由开台会员先预定卡座和酒水套餐，可设置参加人数，并选择公开AA凑人数或邀请制模式。局长可维护组局成员；费用、赔付与退款以提交订单时确认的规则为准。\n\n请注意穿着精致、文明饮酒并尊重同桌会员。',
+            '规则：【创建派对】由开台会员先预定卡座和酒水套餐，可设置参加人数，并选择公开AA凑人数或邀请制模式。局长可维护组局成员；费用、赔付与退款以提交订单时确认的规则为准。\n\n请注意穿着精致、文明饮酒并尊重同桌会员。',
             style: TextStyle(
               color: Color(0x66FFFFFF),
               fontSize: 12,

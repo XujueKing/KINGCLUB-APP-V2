@@ -52,7 +52,7 @@ class _AaReservationsPageState extends State<AaReservationsPage> {
   Widget build(BuildContext context) {
     final date = LegacyDateStrip.dates[_selectedDate].$2;
     return LegacyClubScaffold(
-      title: '一起玩AA预定',
+      title: '加入派对AA预定',
       onBack: widget.onBack,
       showMockLabel: false,
       onTitleLongPress: _showScenarioSheet,
@@ -79,7 +79,7 @@ class _AaReservationsPageState extends State<AaReservationsPage> {
           ),
           const SizedBox(height: 18),
           const Text(
-            '预定规则：【一起玩】是会员加入随机配对局，消费为AA制套餐。预定好后凭入场凭证到店，请注意穿着精致、文明饮酒并尊重同桌会员。最终价格和规则以确认页为准。',
+            '预定规则：【加入派对】是会员加入随机配对局，消费为AA制套餐。预定好后凭入场凭证到店，请注意穿着精致、文明饮酒并尊重同桌会员。最终价格和规则以确认页为准。',
             style: TextStyle(
               color: Color(0x66FFFFFF),
               fontSize: 12,

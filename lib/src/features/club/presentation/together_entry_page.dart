@@ -1,3 +1,4 @@
+import '../../../core/design_system/king_language.dart';
 import 'together_artwork_upload_page.dart';
 
 import 'dart:async';
@@ -163,7 +164,12 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
     final selected = city;
     if (selected == null) {
       return LegacyClubScaffold(
-        title: widget.personalCreation ? '组局玩' : '一起玩',
+        title: kingText(
+          Localizations.localeOf(context),
+          widget.personalCreation
+              ? ['创建派对', 'Create a party', '建立派對', 'สร้างปาร์ตี้']
+              : ['加入派对', 'Join a party', '加入派對', 'เข้าร่วมปาร์ตี้'],
+        ),
         titleColor: Colors.white,
         titleFontSize: 17,
         titleFontWeight: FontWeight.w600,

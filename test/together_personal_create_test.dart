@@ -170,7 +170,7 @@ void main() {
             .maxScrollExtent,
         0,
       );
-      expect(find.text('组局玩'), findsNothing);
+      expect(find.text('创建派对'), findsNothing);
       expect(find.byTooltip('返回'), findsNothing);
       expect(find.byTooltip('关闭'), findsOneWidget);
       expect(

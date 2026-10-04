@@ -15,6 +15,8 @@ import '../../../core/media/media_cache.dart';
 import 'about_legal_page.dart';
 import 'account_deletion_page.dart';
 import 'payment_security_page.dart';
+import 'language_settings_page.dart';
+import '../../../core/design_system/king_language.dart';
 
 enum SettingsScenario {
   normal,
@@ -80,6 +82,7 @@ class _SettingsPageState extends State<SettingsPage>
     ('profile', '个人信息', '', Icons.account_circle_outlined),
     ('security', '账号与支付安全', '', Icons.verified_user_outlined),
     ('notification', '通知权限', '', Icons.notifications_none),
+    ('language', '语言', '', Icons.language),
     ('cache', '清理缓存', '', Icons.cleaning_services_outlined),
     ('privacy', '隐私政策', '', Icons.policy_outlined),
     ('terms', '用户协议', '', Icons.description_outlined),
@@ -123,10 +126,10 @@ class _SettingsPageState extends State<SettingsPage>
                       child: GestureDetector(
                         key: const ValueKey('settings-title'),
                         onLongPress: _showScenarioPanel,
-                        child: const Center(
+                        child: Center(
                           child: Text(
-                            '设置',
-                            style: TextStyle(color: _gold, fontSize: 14),
+                            _text(['设置', 'Settings', '設定', 'การตั้งค่า']),
+                            style: const TextStyle(color: _gold, fontSize: 14),
                           ),
                         ),
                       ),
@@ -180,9 +183,12 @@ class _SettingsPageState extends State<SettingsPage>
                   shape: const StadiumBorder(),
                 ),
                 onPressed: _confirmLogout,
-                child: const Text(
-                  '注销登录',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                child: Text(
+                  _text(['注销登录', 'Log out', '登出', 'ออกจากระบบ']),
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -192,8 +198,37 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
+  String _text(List<String> values) =>
+      kingText(Localizations.localeOf(context), values);
+
+  String _entryTitle((String, String, String, IconData) entry) => _text(
+    switch (entry.$1) {
+      'profile' => ['个人信息', 'Personal information', '個人資訊', 'ข้อมูลส่วนตัว'],
+      'security' => [
+        '账号与支付安全',
+        'Account and payment security',
+        '帳號與支付安全',
+        'ความปลอดภัยบัญชีและการชำระเงิน',
+      ],
+      'notification' => ['通知权限', 'Notifications', '通知權限', 'การแจ้งเตือน'],
+      'language' => ['语言', 'Language', '語言', 'ภาษา'],
+      'cache' => ['清理缓存', 'Clear cache', '清除快取', 'ล้างแคช'],
+      'privacy' => ['隐私政策', 'Privacy policy', '隱私政策', 'นโยบายความเป็นส่วนตัว'],
+      'terms' => ['用户协议', 'Terms of service', '用戶協議', 'ข้อกำหนดการใช้งาน'],
+      'about' => [
+        '关于 KINGCLUB',
+        'About KINGCLUB',
+        '關於 KINGCLUB',
+        'เกี่ยวกับ KINGCLUB',
+      ],
+      _ => List.filled(4, entry.$2),
+    },
+  );
+
   Widget _settingRow((String, String, String, IconData) entry) {
-    final info = entry.$1 == 'cache'
+    final info = entry.$1 == 'language'
+        ? kingLanguageNames[kingLanguageIndex(Localizations.localeOf(context))]
+        : entry.$1 == 'cache'
         ? _cache
         : entry.$1 == 'notification'
         ? (_scenario == SettingsScenario.notificationDisabled
@@ -207,7 +242,11 @@ class _SettingsPageState extends State<SettingsPage>
     return InkWell(
       key: ValueKey('settings-${entry.$1}'),
       borderRadius: BorderRadius.circular(28),
-      onTap: entry.$1 == 'cache' ? _clearCache : () => _openChild(entry.$2),
+      onTap: entry.$1 == 'language'
+          ? () => _push(const LanguageSettingsPage())
+          : entry.$1 == 'cache'
+          ? _clearCache
+          : () => _openChild(entry.$2),
       child: Container(
         constraints: const BoxConstraints(minHeight: 53),
         padding: const EdgeInsets.symmetric(horizontal: 0),
@@ -215,7 +254,12 @@ class _SettingsPageState extends State<SettingsPage>
           children: [
             Icon(entry.$4, color: _gold, size: 22),
             const SizedBox(width: 15),
-            Text(entry.$2, style: const TextStyle(color: _gold, fontSize: 16)),
+            Flexible(
+              child: Text(
+                _entryTitle(entry),
+                style: const TextStyle(color: _gold, fontSize: 16),
+              ),
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Align(

@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_language.dart';
+
 import 'package:flutter/cupertino.dart';
 
 import '../data/home_content_repository.dart';
@@ -1149,8 +1151,13 @@ class _QuickActionsState extends State<_QuickActions> {
                 height: height,
                 child: _LegacyAction(
                   actionId: 'together',
-                  title: '一起玩',
-                  subtitle: 'TOGETHER PLAY',
+                  title: kingText(Localizations.localeOf(context), [
+                    '加入派对',
+                    'Join a party',
+                    '加入派對',
+                    'เข้าร่วมปาร์ตี้',
+                  ]),
+                  subtitle: 'JOIN PARTY',
                   backgroundAsset: 'assets/legacy/home/H01.png',
                   scale: scale,
                   shineProgress: _progress(),
@@ -1165,8 +1172,13 @@ class _QuickActionsState extends State<_QuickActions> {
                 height: height,
                 child: _LegacyAction(
                   actionId: 'party',
-                  title: '组局玩',
-                  subtitle: 'EXCLUSIVE SEATS',
+                  title: kingText(Localizations.localeOf(context), [
+                    '创建派对',
+                    'Create a party',
+                    '建立派對',
+                    'สร้างปาร์ตี้',
+                  ]),
+                  subtitle: 'CREATE PARTY',
                   backgroundAsset: 'assets/legacy/home/H02.png',
                   scale: scale,
                   shineProgress: _progress(),
@@ -1329,15 +1341,19 @@ class _LegacyActionState extends State<_LegacyAction> {
         children: [
           Padding(
             padding: EdgeInsets.symmetric(vertical: 6 * scale),
-            child: Text(
-              widget.title,
-              maxLines: 1,
-              textScaler: TextScaler.noScaling,
-              style: TextStyle(
-                color: _darkBrown,
-                fontSize: 38 * scale,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                widget.title,
+                maxLines: 1,
+                textScaler: TextScaler.noScaling,
+                style: TextStyle(
+                  color: _darkBrown,
+                  fontSize: 38 * scale,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
               ),
             ),
           ),

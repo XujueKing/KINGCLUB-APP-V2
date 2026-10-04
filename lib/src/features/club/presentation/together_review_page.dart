@@ -13,7 +13,7 @@ class TogetherReviewPage extends StatelessWidget {
   Widget build(BuildContext context) => TogetherPlayPage(
     repository: _LayoutExamples(DateUtils.dateOnly(DateTime.now())),
     cityCode: 'review',
-    cityName: '同城一起玩',
+    cityName: '同城加入派对',
     onBack: onBack,
     reviewOnly: true,
     onCreate: () => KingNotice.of(context).show('本轮先验收列表页，发起组局稍后接入'),

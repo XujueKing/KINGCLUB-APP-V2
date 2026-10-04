@@ -439,8 +439,8 @@ void main() {
 
     expect(find.text('青铜'), findsOneWidget);
     expect(find.text('L-0 EXP:50'), findsOneWidget);
-    expect(find.text('一起玩'), findsOneWidget);
-    expect(find.text('组局玩'), findsOneWidget);
+    expect(find.byKey(const ValueKey('home-quick-together')), findsOneWidget);
+    expect(find.byKey(const ValueKey('home-quick-party')), findsOneWidget);
     expect(find.text('SCAN QR'), findsOneWidget);
     expect(find.bySemanticsLabel('首页，标签，已选中'), findsOneWidget);
     expect(find.bySemanticsLabel('消息，标签，5 条未读'), findsOneWidget);
@@ -455,7 +455,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('home-quick-together')));
     await tester.pumpAndSettle();
-    expect(find.text('一起玩AA预定'), findsOneWidget);
+    expect(find.text('加入派对AA预定'), findsOneWidget);
     expect(find.text('随机预订'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));

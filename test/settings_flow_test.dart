@@ -41,6 +41,7 @@ void main() {
       'privacy',
       'terms',
       'notification',
+      'language',
       'cache',
       'about',
     ]) {
@@ -72,6 +73,17 @@ void main() {
   testWidgets('notification disabled gives a formal system-settings handoff', (
     tester,
   ) async {
+    const connection = MethodChannel('kingclub/connection-service');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      connection,
+      (_) async => false,
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        connection,
+        null,
+      ),
+    );
     const channel = MethodChannel('kingclub/push-registration');
     var enabled = false;
     var opened = false;

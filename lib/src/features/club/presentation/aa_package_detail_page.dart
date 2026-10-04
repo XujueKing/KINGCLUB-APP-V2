@@ -68,7 +68,7 @@ class _AaPackageDetailPageState extends State<AaPackageDetailPage> {
           child: Column(
             children: [
               _LegacyHeader(
-                title: '一起玩套餐',
+                title: '加入派对套餐',
                 onBack: () => Navigator.pop(context),
                 onTitleLongPress: _showScenarioSheet,
               ),

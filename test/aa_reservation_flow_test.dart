@@ -17,14 +17,14 @@ void main() {
       ),
     );
 
-    expect(find.text('一起玩AA预定'), findsOneWidget);
+    expect(find.text('加入派对AA预定'), findsOneWidget);
     expect(find.text('3880卡座套餐'), findsOneWidget);
     expect(find.textContaining('Fake'), findsNothing);
     expect(find.textContaining('Mock'), findsNothing);
 
     await tester.tap(find.text('加入').first);
     await tester.pumpAndSettle();
-    expect(find.text('一起玩套餐'), findsOneWidget);
+    expect(find.text('加入派对套餐'), findsOneWidget);
     expect(find.text('随机卡座'), findsOneWidget);
     expect(find.textContaining('V5'), findsNothing);
     expect(find.text('抢订'), findsOneWidget);
@@ -274,7 +274,7 @@ void main() {
       find.byKey(const ValueKey('aa-submission-outcome-action')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('一起玩AA预定'), findsOneWidget);
+    expect(find.text('加入派对AA预定'), findsOneWidget);
     expect(find.text('确认订单'), findsNothing);
   });
 

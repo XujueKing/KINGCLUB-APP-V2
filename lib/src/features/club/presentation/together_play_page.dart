@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_language.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -160,7 +162,12 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
 
   @override
   Widget build(BuildContext context) => _TogetherScaffold(
-    title: '一起玩',
+    title: kingText(Localizations.localeOf(context), [
+      '加入派对',
+      'Join a party',
+      '加入派對',
+      'เข้าร่วมปาร์ตี้',
+    ]),
     cityName: widget.cityName,
     onSelectCity: widget.onSelectCity,
     onBack: widget.onBack,

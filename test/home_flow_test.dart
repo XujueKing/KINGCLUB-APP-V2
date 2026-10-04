@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_localizations.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -29,6 +31,9 @@ void main() {
     HomeContentRepository? repository,
   }) {
     return MaterialApp(
+      locale: kingSupportedLocales.first,
+      supportedLocales: kingSupportedLocales,
+      localizationsDelegates: kingLocalizationDelegates,
       debugShowCheckedModeBanner: false,
       theme: KingTheme.dark,
       builder: (context, child) => MediaQuery(
@@ -203,17 +208,17 @@ void main() {
     expect(find.text('L-0 EXP:50'), findsOneWidget);
     expect(find.text('50'), findsOneWidget);
     expect(find.text('0'), findsOneWidget);
-    expect(find.text('一起玩'), findsOneWidget);
-    expect(find.text('组局玩'), findsOneWidget);
+    expect(find.text('加入派对'), findsOneWidget);
+    expect(find.text('创建派对'), findsOneWidget);
     expect(find.text('SCAN QR'), findsOneWidget);
     expect(semanticsLabel('谁是最帅小哥哥'), findsOneWidget);
     expect(semanticsLabel('AI 卡颜局'), findsOneWidget);
 
-    await tester.tap(find.text('一起玩'));
-    await tester.tap(find.text('一起玩'));
+    await tester.tap(find.text('加入派对'));
+    await tester.tap(find.text('加入派对'));
     await tester.pump(const Duration(milliseconds: 310));
-    await tester.tap(find.text('组局玩'));
-    await tester.tap(find.text('组局玩'));
+    await tester.tap(find.text('创建派对'));
+    await tester.tap(find.text('创建派对'));
     await tester.pump(const Duration(milliseconds: 310));
     await tester.tap(find.text('SCAN QR'));
     await tester.tap(find.text('SCAN QR'));
@@ -241,8 +246,8 @@ void main() {
     expect(tester.getTopLeft(together).dy, tester.getTopLeft(scan).dy);
     expect(tester.getBottomRight(together).dy, tester.getBottomRight(scan).dy);
 
-    final chinese = tester.widget<Text>(find.text('一起玩'));
-    final english = tester.widget<Text>(find.text('TOGETHER PLAY'));
+    final chinese = tester.widget<Text>(find.text('加入派对'));
+    final english = tester.widget<Text>(find.text('JOIN PARTY'));
     expect(chinese.style?.fontSize, closeTo(38 * scale, .01));
     expect(chinese.style?.fontWeight, FontWeight.w600);
     expect(english.style?.fontSize, closeTo(20 * scale, .01));
@@ -301,7 +306,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('生日有礼'), findsOneWidget);
     expect(find.byType(BottomSheet), findsNothing);
-    await tester.tap(find.byTooltip('Close'));
+    await tester.tap(
+      find.byTooltip(
+        MaterialLocalizations.of(tester.element(find.text('生日有礼')))
+            .closeButtonTooltip,
+      ),
+    );
     await tester.pumpAndSettle();
     final after = controller.offset;
     expect(after, closeTo(before, .1));
@@ -403,7 +413,7 @@ void main() {
       closeTo(20 * 393 / 750, .1),
     );
     expect((shadow.decoration! as BoxDecoration).boxShadow, isNotEmpty);
-    expect(find.text('一起玩'), findsOneWidget);
+    expect(find.text('加入派对'), findsOneWidget);
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -240));
     await tester.pumpAndSettle();
@@ -432,12 +442,12 @@ void main() {
     await tester.pumpWidget(home(state: HomeDemoState.initialLoading));
     await tester.pump();
     expect(find.byType(LinearProgressIndicator), findsWidgets);
-    expect(find.text('一起玩'), findsOneWidget);
+    expect(find.text('加入派对'), findsOneWidget);
 
     await tester.pumpWidget(home(state: HomeDemoState.emptyPromotion));
     await tester.pump();
     expect(find.byKey(const ValueKey('home-empty-promotions')), findsOneWidget);
-    expect(find.text('一起玩'), findsOneWidget);
+    expect(find.text('加入派对'), findsOneWidget);
     await tester.tap(find.text('重试'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byKey(const ValueKey('home-empty-promotions')), findsNothing);
@@ -472,7 +482,7 @@ void main() {
     expect(find.text('首页暂时无法显示'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('home-fatal-retry')));
     await tester.pump();
-    expect(find.text('一起玩'), findsOneWidget);
+    expect(find.text('加入派对'), findsOneWidget);
   });
 
   testWidgets('refresh keeps content and session invalid resets safely', (
@@ -605,8 +615,8 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(home(textScale: 2, disableAnimations: true));
       await tester.pump();
-      expect(find.text('一起玩'), findsOneWidget);
-      expect(find.text('组局玩'), findsOneWidget);
+      expect(find.text('加入派对'), findsOneWidget);
+      expect(find.text('创建派对'), findsOneWidget);
       expect(find.text('SCAN QR'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

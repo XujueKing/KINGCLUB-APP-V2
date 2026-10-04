@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'src/app.dart';
+import 'src/core/design_system/king_language.dart';
 import 'src/features/auth/data/auth_repository_provider.dart';
 import 'src/features/messaging/data/background_connection.dart';
 
@@ -12,6 +13,7 @@ Future<void> backgroundMessageReceiver() => runBackgroundMessageReceiver();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await KingLanguage.shared.load();
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks([
       'Bebas Neue',

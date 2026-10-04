@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/club/data/secure_together_play_repository.dart';
@@ -10,6 +11,9 @@ void main() {
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
           home: TogetherEntryPage(onBack: () {}, restoreCity: () async => null),
         ),
       );
@@ -45,6 +49,9 @@ void main() {
     );
     await tester.pumpWidget(
       MaterialApp(
+        locale: kingSupportedLocales.first,
+        supportedLocales: kingSupportedLocales,
+        localizationsDelegates: kingLocalizationDelegates,
         home: TogetherEntryPage(
           onBack: () {},
           repository: repo,
@@ -63,7 +70,7 @@ void main() {
     expect(find.text('888'), findsNothing);
     expect(find.textContaining('请按时到场'), findsNothing);
     expect(find.text('发起组局'), findsNothing);
-    expect(find.text('一起玩'), findsOneWidget);
+    expect(find.text('加入派对'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('together-city-selector')),
       findsOneWidget,

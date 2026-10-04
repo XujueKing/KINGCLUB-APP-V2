@@ -11,6 +11,7 @@ import 'features/messaging/data/chat_outbox_recovery.dart';
 import 'features/messaging/data/chat_outbox.dart';
 import 'core/design_system/king_text_scale.dart';
 import 'core/design_system/king_localizations.dart';
+import 'core/design_system/king_language.dart';
 import 'features/messaging/data/call_presentation_lease.dart';
 import 'features/messaging/data/foreground_call_inbox.dart';
 import 'features/messaging/data/call_launch_coordinator.dart';
@@ -650,9 +651,14 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     }
   }
 
+  void _languageChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
+    KingLanguage.shared.addListener(_languageChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_checkMobileWindow());
     });
@@ -698,6 +704,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
 
   @override
   void dispose() {
+    KingLanguage.shared.removeListener(_languageChanged);
     _voipRegistration?.close();
     _systemCallRuntime?.close();
     _backgroundNotifications.reset();
@@ -778,6 +785,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     });
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
+      locale: KingLanguage.shared.value,
       supportedLocales: kingSupportedLocales,
       localizationsDelegates: kingLocalizationDelegates,
       title: 'KingClub',
