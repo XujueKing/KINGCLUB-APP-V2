@@ -9,7 +9,7 @@ import 'live_ordering_catalog_flow_test.dart' as flow;
 import 'ordering_catalog_repository_test.dart' as fixture;
 
 void main() {
-  testWidgets('zero stock dims only the picture, not adjacent menu content', (
+  testWidgets('stock changes do not alter product pictures or menu brightness', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(800, 1000));
@@ -45,9 +45,9 @@ void main() {
         final image = await boundary.toImage();
         final data = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
         final sample = <int>[];
-        // The right half contains names, prices and the enabled prepay button.
+        // Include the bottle as well as names, prices and the prepay button.
         for (var y = rect.top.ceil(); y < rect.bottom.floor(); y++) {
-          for (var x = 440; x < 780; x++) {
+          for (var x = rect.left.ceil(); x < rect.right.floor(); x++) {
             final offset = (y * image.width + x) * 4;
             sample.add(data.getUint32(offset));
           }

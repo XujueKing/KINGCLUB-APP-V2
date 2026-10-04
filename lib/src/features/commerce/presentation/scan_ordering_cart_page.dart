@@ -965,7 +965,6 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                 product: product,
                 width: MediaQuery.sizeOf(context).width * 190 / 750,
                 height: contentHeight,
-                soldOut: soldOut,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -2033,11 +2032,9 @@ class _OrderingProductImage extends StatelessWidget {
     required this.product,
     required this.width,
     required this.height,
-    this.soldOut = false,
   });
   final _OrderingProduct product;
   final double width, height;
-  final bool soldOut;
   @override
   Widget build(BuildContext context) {
     final placeholder = SizedBox(
@@ -2069,13 +2066,6 @@ class _OrderingProductImage extends StatelessWidget {
     } else {
       image = placeholder;
     }
-    return soldOut
-        ? Opacity(
-            // Dim only the bottle. A darken color filter also colors transparent
-            // pixels and can flood the list's clip on the iOS renderer.
-            opacity: 136 / 255,
-            child: image,
-          )
-        : image;
+    return image;
   }
 }
