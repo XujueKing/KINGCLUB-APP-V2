@@ -159,7 +159,9 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
     if (oldWidget.tableId != widget.tableId ||
         oldWidget.resolveTable != widget.resolveTable ||
         oldWidget.readCatalog != widget.readCatalog) {
-      _resolve();
+      // Parent rebuilds can replace closures without changing the scanned table.
+      // Preserve the catalog and cart while revalidating that same table.
+      _resolve(null, oldWidget.tableId == widget.tableId);
     }
   }
 

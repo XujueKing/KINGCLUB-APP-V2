@@ -322,20 +322,11 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
           (MediaQuery.sizeOf(context).width / 375).clamp(.8, 1.2),
         ),
       ),
-      child: Stack(
-        children: [
-          AbsorbPointer(
-            absorbing: widget.refreshing,
-            child: Builder(builder: _buildOrderingPage),
-          ),
-          if (widget.refreshing)
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(child: LinearProgressIndicator()),
-            ),
-        ],
+      // Revalidation keeps the existing page visible without a loading flash.
+      // Actions remain blocked until the table's current scope is confirmed.
+      child: AbsorbPointer(
+        absorbing: widget.refreshing,
+        child: Builder(builder: _buildOrderingPage),
       ),
     );
   }

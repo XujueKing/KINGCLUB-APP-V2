@@ -35,6 +35,58 @@ OrderingCatalog catalog({
 );
 
 void main() {
+  testWidgets(
+    'resume and parent rebuild preserve catalog and cart without loading flash',
+    (tester) async {
+      var pending = Completer<OrderingContext>()..complete(fixture.scope);
+      Widget page() => MaterialApp(
+        home: TableOrderingEntryPage(
+          tableId: 'table',
+          onBack: () {},
+          resolveTable: (_) => pending.future,
+          readCatalog: (_) async => catalog(),
+        ),
+      );
+      await tester.pumpWidget(page());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ordering-add-real-sku')));
+      await tester.pumpAndSettle();
+      final state = tester.state(find.byType(ScanOrderingCartPage));
+      pending = Completer<OrderingContext>();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpWidget(page());
+      await tester.pump();
+      expect(tester.state(find.byType(ScanOrderingCartPage)), same(state));
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(
+        find.byKey(const ValueKey('ordering-remove-real-sku')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<ScanOrderingCartPage>(find.byType(ScanOrderingCartPage))
+            .refreshing,
+        isTrue,
+      );
+      pending.complete(fixture.scope);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<ScanOrderingCartPage>(find.byType(ScanOrderingCartPage))
+            .refreshing,
+        isFalse,
+      );
+      expect(tester.state(find.byType(ScanOrderingCartPage)), same(state));
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets('ordered list opens from the category row below the table', (
     tester,
   ) async {
