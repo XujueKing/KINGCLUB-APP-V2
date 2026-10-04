@@ -135,6 +135,7 @@ class SecureTogetherPlayRepository
         ![
           null,
           'pending',
+          'paying',
           'paid',
           'cancelled',
           'refunded',
@@ -230,7 +231,7 @@ class SecureTogetherPlayRepository
           ? TogetherJoinState.joined
           : !end.isAfter(DateTime.now().toUtc())
           ? TogetherJoinState.closed
-          : bookingStatus == 'pending'
+          : bookingStatus == 'pending' || bookingStatus == 'paying'
           ? TogetherJoinState.pendingPayment
           : bookingStatus == 'cancelled' || bookingStatus == 'refunded'
           ? TogetherJoinState.cancelled

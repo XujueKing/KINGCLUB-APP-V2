@@ -194,7 +194,7 @@ void main() {
   test(
     'booking state and paid count control action without fabricated QR',
     () async {
-      for (final state in [null, 'pending', 'paid', 'refunded']) {
+      for (final state in [null, 'pending', 'paying', 'paid', 'refunded']) {
         final repo = SecureTogetherPlayRepository(
           readSession: () async => session,
           request: (_, p, _) async => {
@@ -218,7 +218,7 @@ void main() {
           party.actionLabel,
           state == null
               ? '已满员'
-              : state == 'pending'
+              : state == 'pending' || state == 'paying'
               ? '继续支付'
               : state == 'paid'
               ? '入场码'
