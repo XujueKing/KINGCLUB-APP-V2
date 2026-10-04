@@ -11,6 +11,8 @@ import '../../club/presentation/legacy_club_components.dart';
 import '../data/ordering_context.dart';
 import '../data/ordering_catalog_repository.dart';
 import 'ordering_entry_status.dart';
+import '../data/wine_stories.dart';
+import 'wine_detail_page.dart';
 
 enum ScanOrderingScenario {
   ready,
@@ -187,6 +189,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
             category: _major(categories[p.categoryRef]!.majorCategory),
             subcategory: p.categoryRef,
             name: _localized(p.names),
+            story: wineStories[p.names['zh-CN']],
             englishName: p.names['en']!,
             specs: _localized(p.specifications),
             price: p.priceCents,
@@ -993,201 +996,232 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
     return Semantics(
       container: true,
       label: '${product.name}，价格 ${_money(product.price)} 元，已选 $quantity 件',
-      child: SizedBox(
-        height: rowHeight,
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: verticalInset),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _OrderingProductImage(
-                product: product,
-                width: MediaQuery.sizeOf(context).width * 190 / 750,
-                height: contentHeight,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
+      child: InkWell(
+        key: ValueKey('ordering-details-${product.id}'),
+        onTap: product.story == null
+            ? null
+            : () => _openProductDetails(product),
+        child: SizedBox(
+          height: rowHeight,
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: verticalInset),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _OrderingProductImage(
+                  product: product,
+                  width: MediaQuery.sizeOf(context).width * 190 / 750,
                   height: contentHeight,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  product.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFFEEEEEE),
-                                    fontSize: 16,
-                                    height: 1.4,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ),
-                              if (product.isNew)
-                                _productTag('new', [
-                                  '新品',
-                                  'New',
-                                  '新品',
-                                  'ใหม่',
-                                ], const Color(0xFF32C878)),
-                              if (product.isRecommended)
-                                _productTag('recommended', [
-                                  '推荐',
-                                  'Pick',
-                                  '推薦',
-                                  'แนะนำ',
-                                ], const Color(0xFFFFCC36)),
-                              if (product.isHot)
-                                _productTag('hot', [
-                                  '热销',
-                                  'Hot',
-                                  '熱銷',
-                                  'ขายดี',
-                                ], const Color(0xFFE83EAA)),
-                            ],
-                          ),
-                          Text(
-                            product.englishName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFC9B69E),
-                              fontSize: 14,
-                              height: 1.4,
-                            ),
-                          ),
-                          Text(
-                            product.specs,
-                            style: const TextStyle(
-                              color: Color(0xFFC9B69E),
-                              fontSize: 14,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Stack(
-                              clipBehavior: Clip.none,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SizedBox(
+                    height: contentHeight,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
                               children: [
-                                if (soldOut)
-                                  Positioned(
-                                    left: 0,
-                                    bottom: 27 * textScale,
-                                    child: Container(
-                                      key: ValueKey(
-                                        'ordering-stock-label-${product.id}',
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF292929),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        OrderingEntryStatus.text(
-                                          widget.locale,
-                                          [
-                                            '缺货',
-                                            'Out of stock',
-                                            '缺貨',
-                                            'สินค้าหมด',
-                                          ],
-                                        ),
-                                        style: const TextStyle(
-                                          color: Color(0xFFAAAAAA),
-                                          fontSize: 10,
-                                          height: 1.2,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerLeft,
-                                  child: Text.rich(
-                                    TextSpan(
-                                      children: [
-                                        const TextSpan(
-                                          text: '¥ ',
-                                          style: TextStyle(
-                                            color: Color(0xFFC9B69E),
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text: _money(product.price),
-                                          style: const TextStyle(
-                                            color: Color(0xFFE8E3DD),
-                                            fontSize: 18,
-                                            height: 1.2,
-                                            fontWeight: FontWeight.w400,
-                                          ),
-                                        ),
-                                      ],
+                                Flexible(
+                                  child: Text(
+                                    product.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFFEEEEEE),
+                                      fontSize: 16,
+                                      height: 1.4,
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ),
+                                if (product.isNew)
+                                  _productTag('new', [
+                                    '新品',
+                                    'New',
+                                    '新品',
+                                    'ใหม่',
+                                  ], const Color(0xFF32C878)),
+                                if (product.isRecommended)
+                                  _productTag('recommended', [
+                                    '推荐',
+                                    'Pick',
+                                    '推薦',
+                                    'แนะนำ',
+                                  ], const Color(0xFFFFCC36)),
+                                if (product.isHot)
+                                  _productTag('hot', [
+                                    '热销',
+                                    'Hot',
+                                    '熱銷',
+                                    'ขายดี',
+                                  ], const Color(0xFFE83EAA)),
                               ],
                             ),
-                          ),
-                          SizedBox(width: _rpx(5)),
-                          _QuantityControl(
-                            bagAnchor: _bagAnchor,
-                            productId: product.id,
-                            quantity: quantity,
-                            canDecrease: _canEdit && quantity > 0,
-                            canIncrease: _canEdit && !soldOut && !limitReached,
-                            onDecrease: () => _changeQuantity(product, -1),
-                            onIncrease: () => _changeQuantity(product, 1),
-                          ),
-                        ],
-                      ),
-                      if ((!soldOut && limitReached) ||
-                          (_scenario == ScanOrderingScenario.limitReached &&
-                              product.id == 'hennessy-xo'))
-                        Text(
-                          _paymentTimeStock
-                              ? OrderingEntryStatus.text(widget.locale, [
-                                  '每种商品最多 1000 份',
-                                  'Maximum 1000 per item',
-                                  '每種商品最多 1000 份',
-                                  'สินค้าละไม่เกิน 1000 ชิ้น',
-                                ])
-                              : _live
-                              ? OrderingEntryStatus.text(widget.locale, [
-                                  '可选库存 ${product.limit} 份',
-                                  '${product.limit} available',
-                                  '可選庫存 ${product.limit} 份',
-                                  'คงเหลือ ${product.limit}',
-                                ])
-                              : '每桌限购 ${product.limit} 份',
-                          key: const ValueKey('ordering-limit-message'),
-                          style: const TextStyle(
-                            color: Color(0xFFFFC96E),
-                            fontSize: 10,
-                          ),
+                            Text(
+                              product.englishName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFFC9B69E),
+                                fontSize: 14,
+                                height: 1.4,
+                              ),
+                            ),
+                            Text(
+                              product.specs,
+                              style: const TextStyle(
+                                color: Color(0xFFC9B69E),
+                                fontSize: 14,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
                         ),
-                    ],
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  if (soldOut)
+                                    Positioned(
+                                      left: 0,
+                                      bottom: 27 * textScale,
+                                      child: Container(
+                                        key: ValueKey(
+                                          'ordering-stock-label-${product.id}',
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF292929),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          OrderingEntryStatus.text(
+                                            widget.locale,
+                                            [
+                                              '缺货',
+                                              'Out of stock',
+                                              '缺貨',
+                                              'สินค้าหมด',
+                                            ],
+                                          ),
+                                          style: const TextStyle(
+                                            color: Color(0xFFAAAAAA),
+                                            fontSize: 10,
+                                            height: 1.2,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text.rich(
+                                      TextSpan(
+                                        children: [
+                                          const TextSpan(
+                                            text: '¥ ',
+                                            style: TextStyle(
+                                              color: Color(0xFFC9B69E),
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          TextSpan(
+                                            text: _money(product.price),
+                                            style: const TextStyle(
+                                              color: Color(0xFFE8E3DD),
+                                              fontSize: 18,
+                                              height: 1.2,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: _rpx(5)),
+                            _QuantityControl(
+                              bagAnchor: _bagAnchor,
+                              productId: product.id,
+                              quantity: quantity,
+                              canDecrease: _canEdit && quantity > 0,
+                              canIncrease:
+                                  _canEdit && !soldOut && !limitReached,
+                              onDecrease: () => _changeQuantity(product, -1),
+                              onIncrease: () => _changeQuantity(product, 1),
+                            ),
+                          ],
+                        ),
+                        if ((!soldOut && limitReached) ||
+                            (_scenario == ScanOrderingScenario.limitReached &&
+                                product.id == 'hennessy-xo'))
+                          Text(
+                            _paymentTimeStock
+                                ? OrderingEntryStatus.text(widget.locale, [
+                                    '每种商品最多 1000 份',
+                                    'Maximum 1000 per item',
+                                    '每種商品最多 1000 份',
+                                    'สินค้าละไม่เกิน 1000 ชิ้น',
+                                  ])
+                                : _live
+                                ? OrderingEntryStatus.text(widget.locale, [
+                                    '可选库存 ${product.limit} 份',
+                                    '${product.limit} available',
+                                    '可選庫存 ${product.limit} 份',
+                                    'คงเหลือ ${product.limit}',
+                                  ])
+                                : '每桌限购 ${product.limit} 份',
+                            key: const ValueKey('ordering-limit-message'),
+                            style: const TextStyle(
+                              color: Color(0xFFFFC96E),
+                              fontSize: 10,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _openProductDetails(_OrderingProduct product) {
+    final story = product.story;
+    if (story == null) return;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => WineDetailPage(
+          name: product.name,
+          englishName: product.englishName,
+          specifications: product.specs,
+          price: _money(product.price),
+          image: _OrderingProductImage(
+            product: product,
+            width: 180,
+            height: 232,
+          ),
+          story: story,
+          locale: widget.locale,
         ),
       ),
     );
@@ -1892,6 +1926,7 @@ class _OrderingProduct {
     this.isNew = false,
     this.isRecommended = false,
     this.isHot = false,
+    this.story,
   });
 
   final String id;
@@ -1906,6 +1941,7 @@ class _OrderingProduct {
   final int limit;
   final String? thumbnailUrl, imageCacheKey;
   final bool isNew, isRecommended, isHot;
+  final WineStory? story;
 }
 
 class _QuantityControl extends StatelessWidget {
