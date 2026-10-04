@@ -529,8 +529,9 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     TextEditingController controller, {
     bool number = false,
     int lines = 1,
+    bool compact = false,
   }) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
+    padding: EdgeInsets.only(bottom: compact ? 8 : 16),
     child: TextField(
       controller: controller,
       maxLines: lines,
@@ -539,6 +540,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,
       decoration: InputDecoration(
+        contentPadding: compact ? const EdgeInsets.all(12) : null,
         labelText: label,
         labelStyle: const TextStyle(color: legacyGold),
         filled: true,
@@ -826,7 +828,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         : '男 ${a.isEmpty ? '不限' : a} / 女 ${b.isEmpty ? '不限' : b}';
   }
 
-  static const _steps = ['选择门店与方案', '预订卡座与套餐', '设置参加规则', '完善活动介绍'];
+  static const _steps = ['选择城市与门店', '主题与组局方案', '预订卡座与套餐', '设置参加规则', '完善活动介绍'];
 
   void _previous() {
     if (_step == 0) {
@@ -844,7 +846,9 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     if (_step == 0) {
       if (_store == null) {
         error = '请选择允许组局的商家';
-      } else if (_plan == null) {
+      }
+    } else if (_step == 1) {
+      if (_plan == null) {
         error = '请选择组局方案或自定义';
       } else if (_theme.text.trim().isEmpty) {
         error = '请输入活动主题';
@@ -855,7 +859,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       } else if (_welcome.text.trim().length > 500) {
         error = '欢迎语请控制在500字以内';
       }
-    } else if (_step == 1) {
+    } else if (_step == 2) {
       if (_start == null || _end == null) {
         error = '请选择活动开始和结束时间';
       } else if (!_end!.isAfter(_start!)) {
@@ -867,7 +871,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       } else if (_package == null) {
         error = '请选择活动套餐';
       }
-    } else if (_step == 2) {
+    } else if (_step == 3) {
       final count = int.tryParse(_capacity.text);
       final male = int.tryParse(_maleSeats.text);
       final female = int.tryParse(_femaleSeats.text);
@@ -891,7 +895,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       setState(() => _error = error);
       return;
     }
-    if (_step == 3) {
+    if (_step == 4) {
       _review();
       return;
     }
@@ -902,39 +906,59 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     });
   }
 
-  Widget _planOption(
-    String title,
-    String description,
-    TogetherFeeMode mode,
-  ) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
-    child: Material(
-      color: _plan == title ? const Color(0xFF302A22) : const Color(0xFF191816),
-      borderRadius: BorderRadius.circular(10),
-      child: ListTile(
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: legacyGold,
-            fontWeight: FontWeight.w600,
+  bool get _compactWizard =>
+      MediaQuery.sizeOf(context).height -
+          MediaQuery.paddingOf(context).vertical <
+      620;
+
+  Widget _planOption(String title, String description, TogetherFeeMode mode) =>
+      Material(
+        color: _plan == title
+            ? const Color(0xFF302A22)
+            : const Color(0xFF191816),
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => setState(() {
+            _plan = title;
+            _fee = mode;
+            _error = null;
+          }),
+          child: Padding(
+            padding: EdgeInsets.all(_compactWizard ? 8 : 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: legacyGold,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      _plan == title
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_off,
+                      size: 20,
+                      color: _plan == title ? legacyGold : Colors.white38,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ],
+            ),
           ),
         ),
-        subtitle: Text(
-          description,
-          style: const TextStyle(color: Colors.white54, fontSize: 12),
-        ),
-        trailing: Icon(
-          _plan == title ? Icons.radio_button_checked : Icons.radio_button_off,
-          color: _plan == title ? legacyGold : Colors.white38,
-        ),
-        onTap: () => setState(() {
-          _plan = title;
-          _fee = mode;
-          _error = null;
-        }),
-      ),
-    ),
-  );
+      );
 
   Widget _personalPage() => PopScope(
     canPop: _step == 0,
@@ -954,7 +978,12 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                _compactWizard ? 6 : 10,
+                24,
+                _compactWizard ? 8 : 14,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -971,7 +1000,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         ),
                       ),
                       Text(
-                        '${_step + 1} / 4',
+                        '${_step + 1} / ${_steps.length}',
                         style: const TextStyle(color: legacyGold),
                       ),
                     ],
@@ -979,11 +1008,13 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                   const SizedBox(height: 14),
                   Row(
                     children: List.generate(
-                      4,
+                      _steps.length,
                       (i) => Expanded(
                         child: Container(
                           height: 3,
-                          margin: EdgeInsets.only(right: i == 3 ? 0 : 6),
+                          margin: EdgeInsets.only(
+                            right: i == _steps.length - 1 ? 0 : 6,
+                          ),
                           color: i <= _step ? legacyGold : Colors.white12,
                         ),
                       ),
@@ -1006,8 +1037,19 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         () => _pickVenue(),
                       ),
                     ]),
+                  ],
+                  if (_step == 1) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+                      child: Column(
+                        children: [
+                          _field('活动主题', _theme, compact: true),
+                          _field('欢迎语', _welcome, lines: 2, compact: true),
+                        ],
+                      ),
+                    ),
                     const Padding(
-                      padding: EdgeInsets.fromLTRB(24, 12, 24, 14),
+                      padding: EdgeInsets.fromLTRB(24, 0, 24, 10),
                       child: Text(
                         '选择组局方案',
                         style: TextStyle(
@@ -1017,25 +1059,62 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         ),
                       ),
                     ),
-                    _planOption('AA组局', '按套餐消费分摊，可调整男女收费', TogetherFeeMode.aa),
-                    _planOption('男A女免', '男士分摊，女士免费参加', TogetherFeeMode.menPay),
-                    _planOption(
-                      '我请客',
-                      '由我承担套餐消费，邀请朋友参加',
-                      TogetherFeeMode.hostTreat,
-                    ),
-                    _planOption('自定义', '自行设置人数、收费和参加规则', TogetherFeeMode.aa),
                     Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          _field('活动主题', _theme),
-                          _field('欢迎语', _welcome, lines: 2),
-                        ],
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final columns =
+                              constraints.maxWidth >= 260 &&
+                                  MediaQuery.textScalerOf(context).scale(14) <=
+                                      21
+                              ? 2
+                              : 1;
+                          final width =
+                              (constraints.maxWidth - (columns - 1) * 10) /
+                              columns;
+                          return Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              SizedBox(
+                                width: width,
+                                child: _planOption(
+                                  'AA组局',
+                                  '按消费分摊',
+                                  TogetherFeeMode.aa,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: _planOption(
+                                  '男A女免',
+                                  '男士分摊 · 女士免费',
+                                  TogetherFeeMode.menPay,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: _planOption(
+                                  '我请客',
+                                  '我买单 · 邀请参加',
+                                  TogetherFeeMode.hostTreat,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: _planOption(
+                                  '自定义',
+                                  '自行设置参加规则',
+                                  TogetherFeeMode.aa,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ],
-                  if (_step == 1)
+                  if (_step == 2)
                     _group([
                       _selection(
                         '预订时间：',
@@ -1092,7 +1171,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         accent: true,
                       ),
                     ]),
-                  if (_step == 2)
+                  if (_step == 3)
                     _group([
                       _selection(
                         'AI卡颜：',
@@ -1105,7 +1184,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         () => _pickLimits(true),
                       ),
                     ]),
-                  if (_step == 2)
+                  if (_step == 3)
                     _group([
                       _selection(
                         '费用方式：',
@@ -1162,7 +1241,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         (v) => _allowCoins = v,
                       ),
                     ]),
-                  if (_step == 3)
+                  if (_step == 4)
                     _group([
                       Padding(
                         padding: const EdgeInsets.fromLTRB(28, 16, 28, 0),
@@ -1175,7 +1254,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         ),
                       ),
                     ]),
-                  if (_step == 3)
+                  if (_step == 4)
                     const Padding(
                       padding: EdgeInsets.fromLTRB(28, 4, 28, 20),
                       child: Text(
@@ -1203,7 +1282,12 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 18),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                _compactWizard ? 8 : 12,
+                24,
+                _compactWizard ? 10 : 18,
+              ),
               child: Row(
                 children: [
                   if (_step > 0) ...[
@@ -1227,7 +1311,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                       child: Text(
                         _busy
                             ? '\u8bf7\u7a0d\u5019'
-                            : _step == 3
+                            : _step == 4
                             ? '\u786e\u8ba4\u65b9\u6848\u4e0e\u62bc\u91d1'
                             : '\u4e0b\u4e00\u6b65',
                       ),

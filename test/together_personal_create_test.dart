@@ -39,11 +39,13 @@ class _Stores implements TogetherStoreRepository {
   ];
 }
 
-Future<void> mount(WidgetTester t) async {
-  t.view.physicalSize = const Size(390, 844);
+Future<void> mount(WidgetTester t, {Size size = const Size(390, 844)}) async {
+  t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
+  t.view.padding = const FakeViewPadding(top: 24, bottom: 16);
   addTearDown(t.view.resetPhysicalSize);
   addTearDown(t.view.resetDevicePixelRatio);
+  addTearDown(t.view.resetPadding);
   await t.pumpWidget(
     MaterialApp(
       builder: (_, child) =>
@@ -98,6 +100,8 @@ void main() {
     await tap(t, 'Test store A');
     await capture(t, 'personal-step-one');
     await tap(t, '下一步');
+    expect(find.text('2 / 5'), findsOneWidget);
+    await tap(t, '下一步');
     expect(find.text('请选择组局方案或自定义').hitTestable(), findsOneWidget);
     await tap(t, 'AA组局');
     await capture(t, 'personal-step-one');
@@ -107,7 +111,7 @@ void main() {
     await capture(t, 'personal-step-one');
     await tap(t, '下一步');
     expect(find.text('请输入欢迎语').hitTestable(), findsOneWidget);
-    expect(find.text('1 / 4'), findsOneWidget);
+    expect(find.text('2 / 5'), findsOneWidget);
     expect(t.takeException(), isNull);
   });
   testWidgets('back preserves text and store change clears table and package', (
@@ -116,12 +120,13 @@ void main() {
     await mount(t);
     await tap(t, 'Test city · 请选择');
     await tap(t, 'Test store A');
+    await tap(t, '下一步');
     await tap(t, 'AA组局');
     await enter(t, '活动主题', 'Test theme');
     await enter(t, '欢迎语', 'Test welcome');
     await capture(t, 'personal-step-one');
     await tap(t, '下一步');
-    expect(find.text('2 / 4'), findsOneWidget);
+    expect(find.text('3 / 5'), findsOneWidget);
     await tap(t, '请选择');
     await tap(t, 'V1');
     final seats = find.ancestor(
@@ -142,15 +147,67 @@ void main() {
           .text,
       'Test welcome',
     );
+    await tap(t, '上一步');
     await tap(t, 'Test store A');
     await tap(t, 'Test store B');
     await capture(t, 'personal-step-one');
+    await tap(t, '下一步');
     await tap(t, '下一步');
     expect(find.text('V1'), findsNothing);
     expect(find.text('Test package'), findsNothing);
     expect(find.text('请选择'), findsNWidgets(2));
     expect(t.takeException(), isNull);
   });
+  for (final size in [const Size(320, 568), const Size(390, 844)]) {
+    testWidgets('first two steps fit without scrolling at $size', (t) async {
+      await mount(t, size: size);
+      expect(find.widgetWithText(TextField, '活动主题'), findsNothing);
+      expect(find.text('AA组局'), findsNothing);
+      expect(
+        t
+            .state<ScrollableState>(find.byType(Scrollable))
+            .position
+            .maxScrollExtent,
+        0,
+      );
+      await tap(t, 'Test city · 请选择');
+      await tap(t, 'Test store A');
+      await tap(t, '下一步');
+      expect(find.text('2 / 5'), findsOneWidget);
+      expect(find.text('Test store A'), findsNothing);
+      for (final label in [
+        '活动主题',
+        '欢迎语',
+        'AA组局',
+        '男A女免',
+        '我请客',
+        '自定义',
+        '下一步',
+      ]) {
+        expect(
+          (label == '活动主题' || label == '欢迎语'
+                  ? find.widgetWithText(TextField, label)
+                  : find.text(label))
+              .hitTestable(),
+          findsOneWidget,
+        );
+      }
+      final scroll = find
+          .descendant(
+            of: find.byKey(const ValueKey('personal-party-step-1')),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      expect(t.state<ScrollableState>(scroll).position.maxScrollExtent, 0);
+      expect(t.takeException(), isNull);
+      await enter(t, '欢迎语', 'Welcome');
+      t.view.viewInsets = const FakeViewPadding(bottom: 250);
+      addTearDown(t.view.resetViewInsets);
+      await t.pumpAndSettle();
+      expect(find.text('下一步').hitTestable(), findsOneWidget);
+      expect(t.takeException(), isNull);
+    });
+  }
 }
 
 Future<void> capture(WidgetTester t, String name) async {
