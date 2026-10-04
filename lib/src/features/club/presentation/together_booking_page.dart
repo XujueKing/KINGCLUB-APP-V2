@@ -1,3 +1,11 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:fluwx/fluwx.dart' show FluwxCancelable;
+
+import '../../commerce/data/ios_wechat_payment.dart';
+
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -19,7 +27,17 @@ class TogetherBookingPage extends StatefulWidget {
   State<TogetherBookingPage> createState() => _TogetherBookingPageState();
 }
 
-class _TogetherBookingPageState extends State<TogetherBookingPage> {
+class _TogetherBookingPageState extends State<TogetherBookingPage>
+    with WidgetsBindingObserver {
+  static const _wechat = MethodChannel('kingclub/wechat-payment');
+  Timer? _poll;
+  FluwxCancelable? _wechatReturn;
+  bool _foreground = true;
+  bool get _wechatAvailable =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          (defaultTargetPlatform == TargetPlatform.iOS &&
+              IosWechatPayment.enabled));
   final requestRef = const Uuid().v4();
   TogetherBooking? booking;
   bool busy = false;
@@ -34,6 +52,9 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
 
   @override
   void dispose() {
+    _poll?.cancel();
+    _wechatReturn?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     coinsInput.dispose();
     super.dispose();
   }
@@ -59,6 +80,36 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
       error = null;
     });
     try {
+      if (selected == 'wechat') {
+        if (defaultTargetPlatform == TargetPlatform.iOS &&
+            !uncertain &&
+            !await IosWechatPayment.prepare()) {
+          if (mounted) setState(() => error = '请先安装微信，再继续付款');
+          return;
+        }
+        final result = await widget.repository.wechatBooking(
+          b,
+          action: 'prepare',
+          storeRef: widget.party.storeRef,
+          coins: coins,
+          coupon: selectedCoupon,
+        );
+        if (!mounted) return;
+        _applyWechat(result);
+        if (result.payment != null) {
+          final launched = defaultTargetPlatform == TargetPlatform.iOS
+              ? await IosWechatPayment.pay(result.payment!)
+              : await _wechat.invokeMethod<bool>('pay', result.payment);
+          if (mounted) {
+            setState(
+              () => error = launched == true
+                  ? '请在微信确认付款，返回后自动核对结果'
+                  : '未能打开微信，请查询或取消原付款后重试',
+            );
+          }
+        }
+        return;
+      }
       final paid = await widget.repository.payBooking(
         b,
         method: selected,
@@ -108,6 +159,20 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.iOS &&
+        IosWechatPayment.enabled) {
+      _wechatReturn = IosWechatPayment.onReturn(() => _checkWechat());
+    }
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted &&
+          _foreground &&
+          booking?.status == 'paying' &&
+          ModalRoute.of(context)?.isCurrent == true) {
+        _checkWechat();
+      }
+    });
     _prepare();
   }
 
@@ -128,6 +193,10 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
       if (mounted) {
         setState(() {
           booking = result;
+          if (result.status == 'paying') {
+            uncertain = true;
+            sentMethod = 'wechat';
+          }
           coupons = available;
           coupon = null;
         });
@@ -139,6 +208,60 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground && booking?.status == 'paying') _checkWechat();
+  }
+
+  void _applyWechat(TogetherWechatResult result) {
+    if (!mounted || booking == null) return;
+    final b = booking!;
+    setState(() {
+      booking = TogetherBooking(
+        ref: b.ref,
+        partyRef: b.partyRef,
+        status: result.status,
+        basePriceMinor: b.basePriceMinor,
+        ageSurchargeMinor: b.ageSurchargeMinor,
+        payableMinor: b.payableMinor,
+      );
+      uncertain = result.status == 'paying';
+      if (result.status == 'pending') {
+        coupon = null;
+        coinsInput.text = '0';
+      }
+      error = result.status == 'paying' ? '正在核对微信付款，请勿重复付款' : null;
+    });
+    if (result.status == 'paid') Navigator.pop(context);
+  }
+
+  Future<void> _checkWechat({bool cancel = false}) async {
+    final b = booking;
+    if (!mounted || busy || b == null || b.status != 'paying') return;
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final result = await widget.repository.wechatBooking(
+        b,
+        action: cancel ? 'cancel' : 'query',
+        storeRef: widget.party.storeRef,
+      );
+      _applyWechat(result);
+    } catch (e) {
+      if (mounted) {
+        setState(
+          () => error = e is AuthFailure ? e.message : '暂未确认微信付款结果，请继续查询原单',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+    if (mounted && booking?.status == 'pending') await _prepare();
   }
 
   String money(int amount) => '¥${(amount / 100).toStringAsFixed(2)}';
@@ -161,7 +284,11 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
           const Center(child: CircularProgressIndicator(color: legacyGold)),
         if (error != null)
           TextButton(
-            onPressed: busy ? null : (uncertain ? _pay : _prepare),
+            onPressed: busy
+                ? null
+                : (booking?.status == 'paying'
+                      ? () => _checkWechat()
+                      : (uncertain ? _pay : _prepare)),
             child: Text('$error · 重试'),
           ),
         if (booking case final b?) ...[
@@ -193,8 +320,24 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
               ),
               child: const Text('查看入场券'),
             )
-          else if (b.status == 'pending') ...[
-            const Text('待付款，尚未扣款或占位。', style: TextStyle(color: legacyGold)),
+          else if (b.status == 'paying') ...[
+            const Text(
+              '正在核对微信付款，名额和选用权益暂时保留。',
+              style: TextStyle(color: legacyGold),
+            ),
+            FilledButton(
+              onPressed: busy ? null : () => _checkWechat(),
+              child: const Text('查询付款结果'),
+            ),
+            TextButton(
+              onPressed: busy ? null : () => _checkWechat(cancel: true),
+              child: const Text('取消本次微信付款'),
+            ),
+          ] else if (b.status == 'pending') ...[
+            Text(
+              uncertain ? '付款结果待确认，请核对原单。' : '待付款，尚未扣款或占位。',
+              style: const TextStyle(color: legacyGold),
+            ),
             const SizedBox(height: 12),
             if (coupons.isNotEmpty)
               DropdownButton<String>(
@@ -228,12 +371,17 @@ class _TogetherBookingPageState extends State<TogetherBookingPage> {
               onChanged: busy || uncertain
                   ? null
                   : (v) => setState(() => method = v!),
-              items: const [
-                DropdownMenuItem(
+              items: [
+                if (_wechatAvailable)
+                  const DropdownMenuItem(value: 'wechat', child: Text('微信支付')),
+                const DropdownMenuItem(
                   value: 'store_balance',
                   child: Text('本店储值（本金及可用赠送额）'),
                 ),
-                DropdownMenuItem(value: 'platform_cash', child: Text('APP余额')),
+                const DropdownMenuItem(
+                  value: 'platform_cash',
+                  child: Text('APP余额'),
+                ),
               ],
             ),
             if (widget.party.allowCoins)

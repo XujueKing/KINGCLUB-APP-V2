@@ -15,6 +15,12 @@ class TogetherCoupon {
   final int discountMinor;
 }
 
+class TogetherWechatResult {
+  const TogetherWechatResult(this.status, this.payment);
+  final String status;
+  final Map<String, String>? payment;
+}
+
 class TogetherBooking {
   const TogetherBooking({
     required this.ref,
@@ -504,6 +510,87 @@ class SecureTogetherPlayRepository
     return items;
   }
 
+  Future<TogetherWechatResult> wechatBooking(
+    TogetherBooking booking, {
+    required String action,
+    required String storeRef,
+    int coins = 0,
+    TogetherCoupon? coupon,
+  }) async {
+    if (!['prepare', 'query', 'cancel'].contains(action) || coins < 0) {
+      _invalid();
+    }
+    final session = await readSession();
+    final identity = _identity(session);
+    final result = await _call(
+      'K261004001995',
+      {
+        'action': action,
+        'bookingRef': booking.ref,
+        if (action == 'prepare') ...{
+          'expectedCents': booking.payableMinor.toString(),
+          'coins': coins.toString(),
+          if (coupon != null)
+            'coupon': {
+              'itemRef': coupon.ref,
+              'expectedDiscountCents': coupon.discountMinor.toString(),
+            },
+        },
+      },
+      session!,
+      identity,
+    );
+    final status = result['status'];
+    if (result['bookingRef'] != booking.ref ||
+        ![
+          'pending',
+          'paying',
+          'paid',
+          'cancelled',
+          'refunded',
+        ].contains(status)) {
+      _invalid();
+    }
+    if (status == 'paid') {
+      final receipt = result['receipt'];
+      if (receipt is! Map ||
+          receipt['bookingRef'] != booking.ref ||
+          receipt['partyRef'] != booking.partyRef ||
+          receipt['storeRef'] != storeRef ||
+          receipt['method'] != 'wechat' ||
+          receipt['currency'] != 'CNY' ||
+          _money(receipt['totalCents']) != booking.payableMinor) {
+        _invalid();
+      }
+    }
+    Map<String, String>? payment;
+    if (result['payment'] != null) {
+      final raw = result['payment'];
+      if (status != 'paying' || raw is! Map) _invalid();
+      payment = {};
+      for (final key in [
+        'appId',
+        'partnerId',
+        'prepayId',
+        'packageValue',
+        'nonceStr',
+        'timeStamp',
+        'sign',
+      ]) {
+        final value = raw[key];
+        if (value is! String || value.isEmpty || value.length > 2048) {
+          _invalid();
+        }
+        payment[key] = value;
+      }
+      if (payment['packageValue'] != 'Sign=WXPay' ||
+          int.tryParse(payment['timeStamp']!) == null) {
+        _invalid();
+      }
+    }
+    return TogetherWechatResult(status as String, payment);
+  }
+
   Future<TogetherBooking> payBooking(
     TogetherBooking booking, {
     required String method,
@@ -579,7 +666,13 @@ class SecureTogetherPlayRepository
     if (result['partyRef'] != partyRef ||
         quote is! Map ||
         quote['currency'] != 'CNY' ||
-        !['pending', 'paid', 'cancelled', 'refunded'].contains(status)) {
+        ![
+          'pending',
+          'paying',
+          'paid',
+          'cancelled',
+          'refunded',
+        ].contains(status)) {
       _invalid();
     }
     final base = _money(quote['basePriceCents']);
