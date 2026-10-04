@@ -51,10 +51,15 @@ void main() {
             format: ui.ImageByteFormat.rawRgba,
           ))!;
           final sample = <int>[];
-          // Picture and text stay unchanged; only the add button can dim.
+          // Picture and text stay unchanged outside the stock label/button.
           for (var y = rect.top.ceil(); y < rect.bottom.floor(); y++) {
             for (var x = rect.left.ceil(); x < rect.right.floor(); x++) {
               if (addRect.contains(Offset(x.toDouble(), y.toDouble()))) {
+                continue;
+              }
+              if (x > rect.left + 200 &&
+                  y >= addRect.top - 50 &&
+                  y < addRect.top) {
                 continue;
               }
               final offset = (y * image.width + x) * 4;

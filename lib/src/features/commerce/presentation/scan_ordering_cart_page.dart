@@ -1018,31 +1018,70 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Expanded(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text.rich(
-                                TextSpan(
-                                  children: [
-                                    const TextSpan(
-                                      text: '¥ ',
-                                      style: TextStyle(
-                                        color: Color(0xFFC9B69E),
-                                        fontSize: 14,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                if (soldOut)
+                                  Positioned(
+                                    left: 0,
+                                    bottom: 27 * textScale,
+                                    child: Container(
+                                      key: ValueKey(
+                                        'ordering-stock-label-${product.id}',
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF292929),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        OrderingEntryStatus.text(
+                                          widget.locale,
+                                          [
+                                            '缺货',
+                                            'Out of stock',
+                                            '缺貨',
+                                            'สินค้าหมด',
+                                          ],
+                                        ),
+                                        style: const TextStyle(
+                                          color: Color(0xFFAAAAAA),
+                                          fontSize: 10,
+                                          height: 1.2,
+                                        ),
                                       ),
                                     ),
+                                  ),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text.rich(
                                     TextSpan(
-                                      text: _money(product.price),
-                                      style: const TextStyle(
-                                        color: Color(0xFFE8E3DD),
-                                        fontSize: 18,
-                                        height: 1.2,
-                                        fontWeight: FontWeight.w400,
-                                      ),
+                                      children: [
+                                        const TextSpan(
+                                          text: '¥ ',
+                                          style: TextStyle(
+                                            color: Color(0xFFC9B69E),
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: _money(product.price),
+                                          style: const TextStyle(
+                                            color: Color(0xFFE8E3DD),
+                                            fontSize: 18,
+                                            height: 1.2,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                           SizedBox(width: _rpx(5)),
