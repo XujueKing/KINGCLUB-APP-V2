@@ -128,6 +128,7 @@ class SecureTogetherStoreRepository implements TogetherStoreRepository {
           cityCode: _ref(r['cityCode']),
           address: address,
           personalPartyEnabled: enabled == true,
+          personalPartyStatusKnown: enabled is bool,
           logoUrl: _media(r['logoUrl']),
           backgroundUrl: _media(r['backgroundUrl']),
           rating: (rating as num?)?.toDouble(),

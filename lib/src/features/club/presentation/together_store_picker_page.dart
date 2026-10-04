@@ -52,6 +52,14 @@ class _TogetherStorePickerPageState extends State<TogetherStorePickerPage> {
     try {
       final stores = await widget.repository.list(cityCode: widget.cityCode);
       if (!mounted) return;
+      if (stores.any(
+        (store) =>
+            store.cityCode == widget.cityCode &&
+            !store.personalPartyStatusKnown,
+      )) {
+        setState(() => _error = '暂时无法读取商家开放状态，请稍后重试');
+        return;
+      }
       setState(
         () => _stores = stores
             .where(

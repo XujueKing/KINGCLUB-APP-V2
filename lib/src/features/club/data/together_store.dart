@@ -9,6 +9,7 @@ class TogetherStore {
     this.backgroundUrl,
     this.rating,
     this.personalPartyEnabled = false,
+    this.personalPartyStatusKnown = true,
   });
 
   final String ref, name, cityCode, address;
@@ -17,6 +18,7 @@ class TogetherStore {
 
   /// Only explicit server permission allows personal party creation.
   final bool personalPartyEnabled;
+  final bool personalPartyStatusKnown;
 }
 
 /// Capacity and ownership are supplied by the service, not a typed table name.

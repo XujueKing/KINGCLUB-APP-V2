@@ -13,6 +13,30 @@ class _Stores implements TogetherStoreRepository {
 }
 
 void main() {
+  testWidgets('missing opening status is not presented as no stores', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TogetherStorePickerPage(
+          repository: _Stores([
+            const TogetherStore(
+              ref: 'existing',
+              name: 'Existing store',
+              cityCode: '430200',
+              address: '',
+              personalPartyStatusKnown: false,
+            ),
+          ]),
+          cityCode: '430200',
+          cityName: '株洲市',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('暂时无法读取商家开放状态，请稍后重试'), findsOneWidget);
+    expect(find.text('当前城市暂无可发起组局的商家'), findsNothing);
+  });
   const eligible = TogetherStore(
     ref: 'yes',
     name: 'KING 湖南工大店',

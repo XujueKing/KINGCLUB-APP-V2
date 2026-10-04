@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
+import '../../../core/design_system/king_theme.dart';
+
 import '../../../core/media/cached_media_image.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../data/together_party_draft.dart';
@@ -960,23 +962,92 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         ),
       );
 
+  Widget _centeredChoice(String label, String value, VoidCallback? onTap) =>
+      InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: double.infinity,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+            child: Column(
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  value,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: Colors.white54,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
   Widget _personalPage() => PopScope(
     canPop: _step == 0,
     onPopInvokedWithResult: (didPop, _) {
       if (!didPop) _previous();
     },
-    child: LegacyClubScaffold(
-      title: '组局玩',
-      onBack: _previous,
-      showMockLabel: false,
-      titleColor: Colors.white,
-      titleFontSize: 17,
-      titleFontWeight: FontWeight.w600,
-      headerHeight: 56,
-      child: ColoredBox(
-        color: Colors.black,
+    child: Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
         child: Column(
           children: [
+            SizedBox(
+              height: 58,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 18,
+                    top: 10,
+                    right: 64,
+                    child: Text(
+                      _steps[_step],
+                      key: const ValueKey('personal-step-title'),
+                      style: kingSectionTitleStyle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 0,
+                    child: IconButton(
+                      key: const ValueKey('personal-close'),
+                      tooltip: '关闭',
+                      onPressed: widget.onBack,
+                      icon: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Color(0xFF223039),
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Padding(
               padding: EdgeInsets.fromLTRB(
                 24,
@@ -987,25 +1058,17 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _steps[_step],
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '${_step + 1} / ${_steps.length}',
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 12,
                       ),
-                      Text(
-                        '${_step + 1} / ${_steps.length}',
-                        style: const TextStyle(color: legacyGold),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 8),
                   Row(
                     children: List.generate(
                       _steps.length,
@@ -1029,14 +1092,35 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                 padding: EdgeInsets.zero,
                 children: [
                   if (_step == 0) ...[
-                    _group([
-                      _selection('所在城市', widget.cityName, widget.onSelectCity),
-                      _selection(
-                        '选择门店：',
-                        _store?.name ?? '${widget.cityName} · 请选择',
-                        () => _pickVenue(),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                      child: Material(
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(18),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          children: [
+                            _centeredChoice(
+                              '所在城市',
+                              widget.cityName,
+                              widget.onSelectCity,
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 20),
+                              child: Divider(
+                                height: 1,
+                                color: Color(0xFF363638),
+                              ),
+                            ),
+                            _centeredChoice(
+                              '店铺',
+                              _store?.name ?? '选择店铺',
+                              () => _pickVenue(),
+                            ),
+                          ],
+                        ),
                       ),
-                    ]),
+                    ),
                   ],
                   if (_step == 1) ...[
                     Padding(

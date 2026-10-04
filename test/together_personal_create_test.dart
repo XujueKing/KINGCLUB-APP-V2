@@ -92,7 +92,7 @@ void main() {
     await capture(t, 'personal-step-one');
     await tap(t, '下一步');
     expect(find.text('请选择允许组局的商家').hitTestable(), findsOneWidget);
-    await tap(t, 'Test city · 请选择');
+    await tap(t, '选择店铺');
     expect(find.byType(TogetherStorePickerPage), findsOneWidget);
     await capture(t, 'personal-stores');
     expect(find.text('Test store disabled'), findsNothing);
@@ -118,7 +118,7 @@ void main() {
     t,
   ) async {
     await mount(t);
-    await tap(t, 'Test city · 请选择');
+    await tap(t, '选择店铺');
     await tap(t, 'Test store A');
     await tap(t, '下一步');
     await tap(t, 'AA组局');
@@ -170,7 +170,16 @@ void main() {
             .maxScrollExtent,
         0,
       );
-      await tap(t, 'Test city · 请选择');
+      expect(find.text('组局玩'), findsNothing);
+      expect(find.byTooltip('返回'), findsNothing);
+      expect(find.byTooltip('关闭'), findsOneWidget);
+      expect(
+        t.getTopLeft(find.byKey(const ValueKey('personal-step-title'))),
+        const Offset(18, 34),
+      );
+      expect(t.getCenter(find.text('Test city')).dx, size.width / 2);
+      expect(t.getCenter(find.text('选择店铺')).dx, size.width / 2);
+      await tap(t, '选择店铺');
       await tap(t, 'Test store A');
       await tap(t, '下一步');
       expect(find.text('2 / 5'), findsOneWidget);
