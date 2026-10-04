@@ -22,6 +22,9 @@ class OrderingCatalogProduct {
     this.available, {
     this.thumbnailUrl,
     this.imageCacheKey,
+    this.isNew = false,
+    this.isRecommended = false,
+    this.isHot = false,
   });
   final String reference;
   final String categoryRef;
@@ -32,6 +35,9 @@ class OrderingCatalogProduct {
   final int available;
   final String? thumbnailUrl;
   final String? imageCacheKey;
+  final bool isNew;
+  final bool isRecommended;
+  final bool isHot;
   bool get soldOut => available == 0;
   String get priceText =>
       '${priceCents ~/ 100}.${(priceCents % 100).toString().padLeft(2, '0')}';
@@ -42,6 +48,141 @@ class OrderingCatalog {
   final OrderingContext context;
   final List<OrderingCatalogCategory> categories;
   final List<OrderingCatalogProduct> products;
+
+  /// Present one package section, while retaining real product IDs and prices.
+  OrderingCatalog forAppMenu() {
+    const packageNames = {'套餐', '活动套餐', '精选套餐'};
+    final aliases = <String, String>{};
+    final result = <OrderingCatalogCategory>[];
+    String? packageRef;
+    for (final category in categories) {
+      if (category.majorCategory == 'liquor' &&
+          packageNames.contains(category.names['zh-CN'])) {
+        packageRef ??= category.reference;
+        aliases[category.reference] = packageRef;
+        if (category.reference != packageRef) continue;
+        result.add(
+          OrderingCatalogCategory(packageRef, 'liquor', const {
+            'zh-CN': '套餐',
+            'zh-TW': '套餐',
+            'en': 'Packages',
+            'th': 'แพ็กเกจ',
+          }),
+        );
+      } else {
+        result.add(category);
+      }
+    }
+    final liquorRefs = categories
+        .where((c) => c.majorCategory == 'liquor')
+        .map((c) => c.reference)
+        .toSet();
+    final tagged = <OrderingCatalogProduct>[];
+    for (final tag in ['new', 'recommended']) {
+      final selected = products
+          .where(
+            (p) =>
+                liquorRefs.contains(p.categoryRef) &&
+                (tag == 'new' ? p.isNew : p.isRecommended),
+          )
+          .toList();
+      if (selected.isEmpty) continue;
+      final name = tag == 'new' ? '新品' : '推荐';
+      final existing = result
+          .where((c) => c.majorCategory == 'liquor' && c.names['zh-CN'] == name)
+          .firstOrNull;
+      final ref = existing?.reference ?? '__app_$tag';
+      if (existing == null) {
+        result.add(
+          OrderingCatalogCategory(
+            ref,
+            'liquor',
+            tag == 'new'
+                ? const {
+                    'zh-CN': '新品',
+                    'zh-TW': '新品',
+                    'en': 'New',
+                    'th': 'สินค้าใหม่',
+                  }
+                : const {
+                    'zh-CN': '推荐',
+                    'zh-TW': '推薦',
+                    'en': 'Recommended',
+                    'th': 'แนะนำ',
+                  },
+          ),
+        );
+      }
+      for (final p in selected) {
+        if (p.categoryRef == ref) continue;
+        tagged.add(
+          OrderingCatalogProduct(
+            p.reference,
+            ref,
+            p.names,
+            p.specifications,
+            p.priceCents,
+            p.revision,
+            p.available,
+            thumbnailUrl: p.thumbnailUrl,
+            imageCacheKey: p.imageCacheKey,
+            isNew: p.isNew,
+            isRecommended: p.isRecommended,
+            isHot: p.isHot,
+          ),
+        );
+      }
+    }
+    int rank(OrderingCatalogCategory c) => c.majorCategory != 'liquor'
+        ? 4
+        : switch (c.names['zh-CN']) {
+            '新品' => 0,
+            '推荐' => 1,
+            '套餐' => 2,
+            _ => 3,
+          };
+    final originalOrder = {
+      for (var i = 0; i < result.length; i++) result[i].reference: i,
+    };
+    result.sort((a, b) {
+      final priority = rank(a).compareTo(rank(b));
+      return priority != 0
+          ? priority
+          : originalOrder[a.reference]!.compareTo(originalOrder[b.reference]!);
+    });
+    final order = {
+      for (var i = 0; i < result.length; i++) result[i].reference: i,
+    };
+    final mapped = [
+      ...products.map(
+        (p) => OrderingCatalogProduct(
+          p.reference,
+          aliases[p.categoryRef] ?? p.categoryRef,
+          p.names,
+          p.specifications,
+          p.priceCents,
+          p.revision,
+          p.available,
+          thumbnailUrl: p.thumbnailUrl,
+          imageCacheKey: p.imageCacheKey,
+          isNew: p.isNew,
+          isRecommended: p.isRecommended,
+          isHot: p.isHot,
+        ),
+      ),
+      ...tagged,
+    ];
+    final productOrder = {
+      for (var i = 0; i < products.length; i++) products[i].reference: i,
+    };
+    mapped.sort((a, b) {
+      final priority = order[a.categoryRef]!.compareTo(order[b.categoryRef]!);
+      return priority != 0
+          ? priority
+          : productOrder[a.reference]!.compareTo(productOrder[b.reference]!);
+    });
+    return OrderingCatalog(context, result, mapped);
+  }
 }
 
 class OrderingCatalogRepository {
@@ -224,6 +365,9 @@ class OrderingCatalogRepository {
         _invalid();
       }
       final image = _image(row['bottleMaterial'], context.storeRef);
+      for (final field in ['isNew', 'isRecommended', 'isHot']) {
+        if (row[field] != null && row[field] is! bool) _invalid();
+      }
       products.add(
         OrderingCatalogProduct(
           id,
@@ -235,6 +379,9 @@ class OrderingCatalogRepository {
           available,
           thumbnailUrl: image?.$1,
           imageCacheKey: image?.$2,
+          isNew: row['isNew'] == true,
+          isRecommended: row['isRecommended'] == true,
+          isHot: row['isHot'] == true,
         ),
       );
     }

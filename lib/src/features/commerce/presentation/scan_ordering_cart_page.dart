@@ -155,6 +155,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   ];
 
   bool get _live => widget.catalog != null;
+  OrderingCatalog? get _menuCatalog => widget.catalog?.forAppMenu();
   bool get _paymentTimeStock =>
       _live && widget.orderingContext?.paymentTiming == 'prepay';
   int _quantityLimit(_OrderingProduct product) =>
@@ -171,12 +172,12 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   String _categoryLabel(String id) {
     if (!_live) return _legacyCategoryLabel(id);
     return _localized(
-      widget.catalog!.categories.firstWhere((c) => c.reference == id).names,
+      _menuCatalog!.categories.firstWhere((c) => c.reference == id).names,
     );
   }
 
   List<_OrderingProduct> get _products {
-    final catalog = widget.catalog;
+    final catalog = _menuCatalog;
     if (catalog == null) return _demoProducts;
     final categories = {for (final c in catalog.categories) c.reference: c};
     return catalog.products
@@ -193,6 +194,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
             asset: '',
             thumbnailUrl: p.thumbnailUrl,
             imageCacheKey: p.imageCacheKey,
+            isNew: p.isNew,
+            isRecommended: p.isRecommended,
+            isHot: p.isHot,
             limit: p.available,
           ),
         )
@@ -222,9 +226,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
     );
     // Existing no-context route remains the legacy UI demonstration.
     if (widget.orderingContext != null || _live) _quantities.clear();
-    if (_live && widget.catalog!.categories.isNotEmpty) {
-      _category = _major(widget.catalog!.categories.first.majorCategory);
-      _subcategory = widget.catalog!.categories.first.reference;
+    if (_live && _menuCatalog!.categories.isNotEmpty) {
+      _category = _major(_menuCatalog!.categories.first.majorCategory);
+      _subcategory = _menuCatalog!.categories.first.reference;
     }
   }
 
@@ -279,7 +283,10 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
       .where((entry) => !_unchecked.contains(entry.key))
       .fold(0, (sum, entry) => sum + entry.value);
 
-  int get _total => _products.fold(
+  List<_OrderingProduct> get _uniqueProducts =>
+      {for (final p in _products) p.id: p}.values.toList();
+
+  int get _total => _uniqueProducts.fold(
     0,
     (total, product) =>
         total +
@@ -827,7 +834,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                   2)
               .clamp(minimumTail, double.infinity);
     final subcategories = _live
-        ? widget.catalog!.categories
+        ? _menuCatalog!.categories
               .where((c) => _major(c.majorCategory) == _category)
               .map((c) => c.reference)
               .toList()
@@ -944,6 +951,31 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
     return label;
   }
 
+  Widget _productTag(String name, List<String> labels, Color color) => Padding(
+    padding: const EdgeInsets.only(left: 3),
+    child: Container(
+      key: ValueKey('ordering-tag-$name'),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(6),
+          topRight: Radius.circular(6),
+          bottomRight: Radius.circular(6),
+        ),
+      ),
+      child: Text(
+        OrderingEntryStatus.text(widget.locale, labels),
+        style: const TextStyle(
+          color: Color(0xFF171717),
+          fontSize: 9,
+          height: 1.1,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ),
+  );
+
   Widget _buildProductCard(_OrderingProduct product, double rowHeight) {
     final textScale = (MediaQuery.sizeOf(context).width / 375).clamp(.8, 1.2);
     final verticalInset = ((rowHeight - 90 * textScale) / 2).clamp(
@@ -984,16 +1016,43 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            product.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFEEEEEE),
-                              fontSize: 16,
-                              height: 1.4,
-                              fontWeight: FontWeight.w400,
-                            ),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  product.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFFEEEEEE),
+                                    fontSize: 16,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ),
+                              if (product.isNew)
+                                _productTag('new', [
+                                  '新品',
+                                  'New',
+                                  '新品',
+                                  'ใหม่',
+                                ], const Color(0xFF32C878)),
+                              if (product.isRecommended)
+                                _productTag('recommended', [
+                                  '推荐',
+                                  'Pick',
+                                  '推薦',
+                                  'แนะนำ',
+                                ], const Color(0xFFFFCC36)),
+                              if (product.isHot)
+                                _productTag('hot', [
+                                  '热销',
+                                  'Hot',
+                                  '熱銷',
+                                  'ขายดี',
+                                ], const Color(0xFFE83EAA)),
+                            ],
                           ),
                           Text(
                             product.englishName,
@@ -1336,7 +1395,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
       orderingContext: widget.orderingContext,
       itemCount: _selectedCount,
       total: _total,
-      items: _products
+      items: _uniqueProducts
           .where(
             (product) =>
                 (_quantities[product.id] ?? 0) > 0 &&
@@ -1412,7 +1471,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   }
 
   Widget _buildCartOverlay() {
-    final products = _products
+    final products = _uniqueProducts
         .where((product) => (_quantities[product.id] ?? 0) > 0)
         .toList();
     final curve = _cartAnimation.drive(CurveTween(curve: Curves.ease));
@@ -1829,6 +1888,9 @@ class _OrderingProduct {
     required this.limit,
     this.thumbnailUrl,
     this.imageCacheKey,
+    this.isNew = false,
+    this.isRecommended = false,
+    this.isHot = false,
   });
 
   final String id;
@@ -1842,6 +1904,7 @@ class _OrderingProduct {
   final String asset;
   final int limit;
   final String? thumbnailUrl, imageCacheKey;
+  final bool isNew, isRecommended, isHot;
 }
 
 class _QuantityControl extends StatelessWidget {
