@@ -1935,10 +1935,10 @@ class _RoundQuantityButton extends StatelessWidget {
           height: (filled ? 40 : 36) * unit,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: filled
-                ? (enabled ? const Color(0xFFFFB400) : const Color(0xFF555555))
+            color: filled && enabled
+                ? const Color(0xFFFFB400)
                 : Colors.transparent,
-            border: filled
+            border: filled && enabled
                 ? null
                 : Border.all(
                     color: enabled
@@ -1951,11 +1951,11 @@ class _RoundQuantityButton extends StatelessWidget {
               'assets/legacy/ordering/${filled ? 'add4' : 'add4a'}.png',
               width: 20 * unit,
               height: 20 * unit,
-              color: filled
-                  ? (enabled ? Colors.black : const Color(0xFF6D655E))
-                  : (enabled
-                        ? const Color(0xFFFFB400)
-                        : const Color(0xFF6D655E)),
+              color: !enabled
+                  ? const Color(0xFF777777)
+                  : filled
+                  ? Colors.black
+                  : const Color(0xFFFFB400),
             ),
           ),
         ),
