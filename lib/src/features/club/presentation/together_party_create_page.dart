@@ -50,6 +50,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _total = TextEditingController();
   bool _official = false;
   bool _allowCoins = false;
+  int? _minimumExperience;
   TogetherFeeMode _fee = TogetherFeeMode.aa;
   bool _genderRatio = false;
   bool _allowOverage = false;
@@ -335,6 +336,10 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       if (!mounted || _store != store || selected == null) return;
       setState(() {
         _package = selected;
+        if (widget.publication?.memberLevels.containsKey(_minimumExperience) !=
+            true) {
+          _minimumExperience = null;
+        }
         _total.text = (selected.baseTotalMinor / 100).toStringAsFixed(2);
       });
     } catch (_) {
@@ -421,6 +426,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         'minAge': ?minimumAge,
         'maxAge': ?maximumAge,
         'minimumMaleScore': ?maleScore,
+        'minimumExperience': ?_minimumExperience,
         'minimumFemaleScore': ?femaleScore,
         if (_excludedSigns.isNotEmpty)
           'excludedStarSigns': _excludedSigns.toList(),
@@ -758,6 +764,26 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
             ),
           ],
         ),
+        if (widget.publication?.memberLevels.isNotEmpty == true)
+          DropdownButtonFormField<int>(
+            initialValue: _minimumExperience ?? -1,
+            decoration: const InputDecoration(labelText: '最低会员等级'),
+            dropdownColor: const Color(0xFF191919),
+            style: const TextStyle(color: legacyGold),
+            items: [
+              const DropdownMenuItem(value: -1, child: Text('不限等级')),
+              for (final level in widget.publication!.memberLevels.entries)
+                DropdownMenuItem(
+                  value: level.key,
+                  child: Text('${level.value}及以上'),
+                ),
+            ],
+            onChanged: _busy
+                ? null
+                : (value) => setState(() {
+                    _minimumExperience = value == -1 ? null : value;
+                  }),
+          ),
         _field('活动介绍与包含内容', _description, lines: 4),
         _artwork(false),
         const SizedBox(height: 14),

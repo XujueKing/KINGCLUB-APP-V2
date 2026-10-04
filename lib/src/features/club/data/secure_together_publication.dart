@@ -89,8 +89,12 @@ class SecureTogetherPublication {
     return result;
   }
 
+  Map<int, String> _memberLevels = {};
+  Map<int, String> get memberLevels => Map.unmodifiable(_memberLevels);
+
   Future<List<TogetherPackage>> packages(String storeRef) async {
     _ref(storeRef);
+    final levels = <int, String>{};
     final session = await readSession();
     final identity = _identity(session);
     final items = <TogetherPackage>[];
@@ -105,6 +109,21 @@ class SecureTogetherPublication {
       );
       if (result['storeRef'] != storeRef || result['items'] is! List) {
         _invalid();
+      }
+      final options = result['memberLevels'];
+      if (options != null) {
+        if (options is! List || options.length > 100) _invalid();
+        for (final option in options) {
+          if (option is! Map ||
+              option['name'] is! String ||
+              (option['name'] as String).isEmpty ||
+              option['minimumExperience'] is! int ||
+              (option['minimumExperience'] as int) < 0 ||
+              (option['minimumExperience'] as int) > 1000000000) {
+            _invalid();
+          }
+          levels[option['minimumExperience'] as int] = option['name'] as String;
+        }
       }
       final page = result['items'] as List;
       if (page.length > 100) _invalid();
@@ -137,6 +156,7 @@ class SecureTogetherPublication {
       }
       after = next as String?;
     } while (after != null);
+    _memberLevels = levels;
     return items;
   }
 

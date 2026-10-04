@@ -48,6 +48,9 @@ void main() {
           return {
             'result': {
               'storeRef': returnedStore,
+              'memberLevels': [
+                {'name': '白银 L-1', 'minimumExperience': 751},
+              ],
               'next': null,
               'items': [
                 {
@@ -64,6 +67,7 @@ void main() {
         final packages = await repo.packages('store');
         expect(packages.single.baseTotalMinor, 100000);
         expect(packages.single.storeRef, 'store');
+        expect(repo.memberLevels, {751: '白银 L-1'});
       } else {
         await expectLater(repo.packages('store'), throwsA(anything));
       }
