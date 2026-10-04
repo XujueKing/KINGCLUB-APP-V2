@@ -25,8 +25,10 @@ class TogetherEntryPage extends StatefulWidget {
     this.initialCity,
     this.repository,
     this.restoreCity,
+    this.personalCreation = false,
   });
   final VoidCallback onBack;
+  final bool personalCreation;
   final HomeCity? initialCity;
   final SecureTogetherPlayRepository? repository;
   final Future<HomeCity?> Function()? restoreCity;
@@ -38,6 +40,12 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
   late final repository =
       widget.repository ??
       SecureTogetherPlayRepository.secure(kingclubApiBaseUrl);
+  late final personalStores = SecureTogetherStoreRepository.secure(
+    kingclubApiBaseUrl,
+  );
+  late final personalPublication = SecureTogetherPublication.secure(
+    kingclubApiBaseUrl,
+  );
   HomeCity? city;
   bool loading = true;
   String? error;
@@ -155,7 +163,7 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
     final selected = city;
     if (selected == null) {
       return LegacyClubScaffold(
-        title: '一起玩',
+        title: widget.personalCreation ? '组局玩' : '一起玩',
         onBack: widget.onBack,
         showMockLabel: false,
         child: Center(
@@ -163,9 +171,32 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
               ? const CircularProgressIndicator(color: legacyGold)
               : TextButton(
                   onPressed: _chooseCity,
-                  child: Text(error ?? '选择城市，查看同城组局'),
+                  child: Text(
+                    error ??
+                        (widget.personalCreation ? '选择城市，预订卡座' : '选择城市，查看同城组局'),
+                  ),
                 ),
         ),
+      );
+    }
+    if (widget.personalCreation) {
+      return TogetherPartyCreatePage(
+        key: ValueKey(selected.code),
+        personal: true,
+        cityCode: selected.code,
+        cityName: selected.name,
+        onBack: widget.onBack,
+        stores: personalStores,
+        publication: personalPublication,
+        uploadArtwork: () async {
+          await Navigator.of(context).push<void>(
+            MaterialPageRoute(
+              builder: (_) =>
+                  TogetherArtworkUploadPage(repository: personalPublication),
+            ),
+          );
+          return null;
+        },
       );
     }
     return TogetherPlayPage(

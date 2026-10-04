@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../../../core/media/cached_media_image.dart';
 import '../../auth/domain/auth_repository.dart';
@@ -22,9 +23,11 @@ class TogetherPartyCreatePage extends StatefulWidget {
     this.publication,
     required this.stores,
     this.loadPackages,
+    this.personal = false,
   }) : assert(onReview != null || publication != null),
        assert(loadLibrary != null || publication != null);
   final String cityCode, cityName;
+  final bool personal;
   final TogetherStoreRepository stores;
   final Future<List<TogetherPackage>> Function(String storeRef)? loadPackages;
   final VoidCallback onBack;
@@ -157,6 +160,10 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         } else if (selected is TogetherTable &&
             selected.storeRef == _store?.ref) {
           _table = selected;
+          if (widget.personal) {
+            final count = int.tryParse(_capacity.text) ?? 2;
+            _capacity.text = '${count.clamp(2, selected.maximumSeats)}';
+          }
         }
       });
     } catch (_) {
@@ -355,6 +362,10 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       setState(() => _error = '请先选择活动门店');
       return;
     }
+    if (widget.personal && _table == null) {
+      setState(() => _error = '请先选择卡座');
+      return;
+    }
     final count = int.tryParse(_capacity.text.trim());
     final price =
         _fee == TogetherFeeMode.hostTreat || _fee == TogetherFeeMode.menPay
@@ -404,7 +415,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       return;
     }
     final draft = TogetherPartyDraft(
-      official: _official,
+      official: widget.personal ? false : _official,
       allowCoins: _allowCoins,
       theme: _theme.text.trim(),
       cityCode: widget.cityCode,
@@ -551,8 +562,475 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     );
   }
 
+  Widget _group(List<Widget> children) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    decoration: const BoxDecoration(
+      color: Color(0xFF11100D),
+      border: Border.symmetric(
+        horizontal: BorderSide(color: Color(0x22C9B69E)),
+      ),
+    ),
+    child: Column(children: children),
+  );
+
+  Widget _selection(
+    String label,
+    String value,
+    VoidCallback? action, {
+    bool accent = false,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 6),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: legacyGold, fontSize: 16),
+            ),
+          ),
+          Flexible(
+            flex: 2,
+            child: TextButton(
+              onPressed: _busy ? null : action,
+              style: TextButton.styleFrom(
+                backgroundColor: action == null || accent
+                    ? Colors.transparent
+                    : const Color(0x15C9B69E),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      value,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: accent ? const Color(0xFFFCA800) : legacyGold,
+                        fontSize: 16,
+                        fontWeight: accent ? FontWeight.w400 : FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (action != null && !accent) ...[
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 16,
+                      color: legacyGold,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _toggle(
+    String title,
+    String hint,
+    bool value,
+    ValueChanged<bool> change,
+  ) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: title,
+                  style: const TextStyle(color: legacyGold, fontSize: 16),
+                ),
+                TextSpan(
+                  text: '（$hint）',
+                  style: const TextStyle(
+                    color: Color(0xFF77716A),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        CupertinoSwitch(
+          value: value,
+          activeTrackColor: const Color(0xFF9C8B76),
+          onChanged: _busy ? null : (v) => setState(() => change(v)),
+        ),
+      ],
+    ),
+  );
+
+  Future<void> _wheel(
+    String title,
+    List<List<String>> columns,
+    List<int> initial,
+    void Function(List<int>) apply,
+  ) async {
+    final chosen = [...initial];
+    final controllers = [
+      for (final i in initial) FixedExtentScrollController(initialItem: i),
+    ];
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF191714),
+      builder: (sheet) => SafeArea(
+        child: SizedBox(
+          height: 310,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Text(
+                  title,
+                  style: const TextStyle(color: legacyGold, fontSize: 18),
+                ),
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    for (var c = 0; c < columns.length; c++)
+                      Expanded(
+                        child: CupertinoPicker(
+                          scrollController: controllers[c],
+                          itemExtent: 42,
+                          onSelectedItemChanged: (i) => chosen[c] = i,
+                          children: [
+                            for (final value in columns[c])
+                              Center(
+                                child: Text(
+                                  value,
+                                  style: const TextStyle(
+                                    color: legacyGold,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheet, false),
+                    child: const Text('取消'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheet, true),
+                    child: const Text('确定'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    for (final controller in controllers) {
+      controller.dispose();
+    }
+    if (result == true && mounted) setState(() => apply(chosen));
+  }
+
+  Future<void> _pickLimits(bool age) async {
+    final left = age ? _minimumAge : _maleScore;
+    final right = age ? _maximumAge : _femaleScore;
+    final values = [
+      '',
+      for (var i = age ? 18 : 0; i <= (age ? 120 : 100); i++) '$i',
+    ];
+    await _wheel(
+      age ? '年龄范围 · 按活动当天周岁' : 'AI卡颜 · 男 / 女最低分',
+      [
+        for (var c = 0; c < 2; c++)
+          [for (final v in values) v.isEmpty ? '不限制' : '$v${age ? '岁' : '分'}'],
+      ],
+      [
+        values.indexOf(left.text).clamp(0, values.length - 1),
+        values.indexOf(right.text).clamp(0, values.length - 1),
+      ],
+      (indexes) {
+        left.text = values[indexes[0]];
+        right.text = values[indexes[1]];
+      },
+    );
+  }
+
+  String _limitText(bool age) {
+    final a = age ? _minimumAge.text : _maleScore.text;
+    final b = age ? _maximumAge.text : _femaleScore.text;
+    if (a.isEmpty && b.isEmpty) return '不限制';
+    return age
+        ? '${a.isEmpty ? '不限' : a} — ${b.isEmpty ? '不限' : b} 岁'
+        : '男 ${a.isEmpty ? '不限' : a} / 女 ${b.isEmpty ? '不限' : b}';
+  }
+
+  Widget _personalPage() => LegacyClubScaffold(
+    title: '预定一个卡颜局',
+    onBack: widget.onBack,
+    showMockLabel: false,
+    titleFontSize: 18,
+    titleFontWeight: FontWeight.w400,
+    child: ColoredBox(
+      color: Colors.black,
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              key: const ValueKey('personal-party-form'),
+              padding: EdgeInsets.zero,
+              children: [
+                _group([
+                  _selection(
+                    '选择门店：',
+                    _store?.name ?? '${widget.cityName} · 请选择',
+                    () => _pickVenue(),
+                  ),
+                  _selection(
+                    '预订时间：',
+                    _start == null
+                        ? '选择日期时间'
+                        : _start.toString().substring(0, 16),
+                    () => _pickTime(true),
+                    accent: true,
+                  ),
+                  _selection(
+                    '结束时间：',
+                    _end == null ? '选择日期时间' : _end.toString().substring(0, 16),
+                    () => _pickTime(false),
+                    accent: true,
+                  ),
+                  _selection(
+                    '选择卡座：',
+                    _table?.name ?? '请选择',
+                    _store == null ? null : () => _pickVenue(table: true),
+                  ),
+                  _selection(
+                    '聚会人数：',
+                    '${_capacity.text} 人',
+                    _table == null
+                        ? null
+                        : () {
+                            final max = _table!.maximumSeats;
+                            _wheel(
+                              '聚会人数 · 最多 $max 人',
+                              [
+                                [for (var i = 2; i <= max; i++) '$i 人'],
+                              ],
+                              [
+                                ((int.tryParse(_capacity.text) ?? 2) - 2).clamp(
+                                  0,
+                                  max - 2,
+                                ),
+                              ],
+                              (v) => _capacity.text = '${v[0] + 2}',
+                            );
+                          },
+                  ),
+                  _selection(
+                    '选套餐：',
+                    _package?.name ?? '请选择',
+                    _store == null ? null : _pickPackage,
+                  ),
+                  _selection(
+                    '套餐价格：',
+                    _package == null
+                        ? '—'
+                        : '¥${(_package!.baseTotalMinor / 100).toStringAsFixed(2)} 元',
+                    null,
+                    accent: true,
+                  ),
+                ]),
+                _group([
+                  _selection(
+                    'AI卡颜：',
+                    _limitText(false),
+                    () => _pickLimits(false),
+                  ),
+                  _selection(
+                    '年龄限制：',
+                    _limitText(true),
+                    () => _pickLimits(true),
+                  ),
+                ]),
+                _group([
+                  _selection(
+                    '费用方式：',
+                    switch (_fee) {
+                      TogetherFeeMode.aa => 'AA制',
+                      TogetherFeeMode.menPay => '男A女免',
+                      TogetherFeeMode.hostTreat => '我请客',
+                    },
+                    () => _wheel(
+                      '费用方式',
+                      [
+                        ['AA制', '男A女免', '我请客'],
+                      ],
+                      [
+                        [
+                          TogetherFeeMode.aa,
+                          TogetherFeeMode.menPay,
+                          TogetherFeeMode.hostTreat,
+                        ].indexOf(_fee),
+                      ],
+                      (v) => _fee = [
+                        TogetherFeeMode.aa,
+                        TogetherFeeMode.menPay,
+                        TogetherFeeMode.hostTreat,
+                      ][v[0]],
+                    ),
+                  ),
+                  if (_fee != TogetherFeeMode.hostTreat) ...[
+                    _toggle('设置男女配比', '按人数分摊套餐', _usesGenderPricing, (v) {
+                      if (_fee != TogetherFeeMode.menPay) _genderRatio = v;
+                    }),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Column(
+                        children: [
+                          if (_usesGenderPricing) ...[
+                            _field('男士人数', _maleSeats, number: true),
+                            _field('女士人数', _femaleSeats, number: true),
+                          ],
+                          if (_fee == TogetherFeeMode.aa)
+                            _field(
+                              _usesGenderPricing ? '女士每人金额（元）' : '每人金额（元）',
+                              _price,
+                              number: true,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  _toggle(
+                    '接受金币',
+                    '10金币抵1元',
+                    _allowCoins,
+                    (v) => _allowCoins = v,
+                  ),
+                ]),
+                _group([
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(28, 16, 28, 0),
+                    child: Column(
+                      children: [
+                        _field('活动主题', _theme),
+                        _field('活动介绍与包含内容', _description, lines: 3),
+                        _artwork(false),
+                        _artwork(true),
+                      ],
+                    ),
+                  ),
+                ]),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      _error!,
+                      key: const ValueKey('personal-party-error'),
+                      style: const TextStyle(color: legacyPink),
+                    ),
+                  ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(28, 4, 28, 20),
+                  child: Text(
+                    '押金从APP余额冻结。参加者付款并入场核销后，按实收金额解冻。',
+                    style: TextStyle(
+                      color: Color(0xFF8B8174),
+                      fontSize: 12,
+                      height: 1.6,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            key: const ValueKey('personal-party-deposit'),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFDDCCB8), Color(0xFF978774)],
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text.rich(
+                        TextSpan(
+                          style: const TextStyle(color: Color(0xFF271F15)),
+                          children: [
+                            const TextSpan(
+                              text: '押金 ¥ ',
+                              style: TextStyle(fontSize: 14),
+                            ),
+                            TextSpan(
+                              text: _package == null
+                                  ? '—'
+                                  : (_package!.baseTotalMinor / 100)
+                                        .toStringAsFixed(2),
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Text(
+                        '冻结APP余额',
+                        style: TextStyle(
+                          color: Color(0xFF493C2C),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                FilledButton(
+                  onPressed: _busy ? null : _review,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF271705),
+                    foregroundColor: legacyGold,
+                    minimumSize: const Size(100, 46),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: Text(_busy ? '请稍候' : '下一步'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
   @override
-  Widget build(BuildContext context) => LegacyClubScaffold(
+  Widget build(BuildContext context) =>
+      widget.personal ? _personalPage() : _standardPage(context);
+
+  Widget _standardPage(BuildContext context) => LegacyClubScaffold(
     title: '发起组局',
     onBack: widget.onBack,
     showMockLabel: false,
