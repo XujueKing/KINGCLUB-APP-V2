@@ -104,6 +104,9 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
   void _subscribe() {
     _events?.cancel();
     _events = (widget.events ?? KingclubRealtime.shared.events).listen((event) {
+      // Resume already revalidates this table. A reconnect during that read
+      // does not need a second identical full catalog request.
+      if (_loading && event['eventType'] == 'connection.ready') return;
       if (_foreground &&
           [
             'connection.ready',
@@ -157,10 +160,10 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
       _openingCount = null;
     }
     if (oldWidget.tableId != widget.tableId ||
-        oldWidget.resolveTable != widget.resolveTable ||
-        oldWidget.readCatalog != widget.readCatalog) {
-      // Parent rebuilds can replace closures without changing the scanned table.
-      // Preserve the catalog and cart while revalidating that same table.
+        (oldWidget.resolveTable == null) != (widget.resolveTable == null) ||
+        (oldWidget.readCatalog == null) != (widget.readCatalog == null)) {
+      // New callback instances from a parent rebuild are not new table data.
+      // Resume and commerce events already request fresh server state.
       _resolve(null, oldWidget.tableId == widget.tableId);
     }
   }

@@ -296,7 +296,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   );
 
   bool get _canEdit =>
-      !widget.refreshing &&
+      // Refreshing blocks interaction via AbsorbPointer, without changing the
+      // last confirmed stock/button appearance while the request is pending.
       !{
         ScanOrderingScenario.offline,
         ScanOrderingScenario.invalidContext,
@@ -1343,7 +1344,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   }
 
   void _changeQuantity(_OrderingProduct product, int delta) {
-    if (!_canEdit) return;
+    if (widget.refreshing || !_canEdit) return;
     final current = _quantities[product.id] ?? 0;
     final next = (current + delta).clamp(0, _quantityLimit(product));
     setState(() {

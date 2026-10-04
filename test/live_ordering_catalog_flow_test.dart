@@ -39,11 +39,18 @@ void main() {
     'resume and parent rebuild preserve catalog and cart without loading flash',
     (tester) async {
       var pending = Completer<OrderingContext>()..complete(fixture.scope);
+      var resolveCount = 0;
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      addTearDown(events.close);
       Widget page() => MaterialApp(
         home: TableOrderingEntryPage(
           tableId: 'table',
           onBack: () {},
-          resolveTable: (_) => pending.future,
+          events: events.stream,
+          resolveTable: (_) {
+            resolveCount++;
+            return pending.future;
+          },
           readCatalog: (_) async => catalog(),
         ),
       );
@@ -52,6 +59,23 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('ordering-add-real-sku')));
       await tester.pumpAndSettle();
       final state = tester.state(find.byType(ScanOrderingCartPage));
+      expect(resolveCount, 1);
+      BoxDecoration addDecoration() =>
+          tester
+                  .widget<Container>(
+                    find
+                        .descendant(
+                          of: find.byKey(
+                            const ValueKey('ordering-add-real-sku'),
+                          ),
+                          matching: find.byType(Container),
+                        )
+                        .first,
+                  )
+                  .decoration!
+              as BoxDecoration;
+      final beforeRefresh = addDecoration();
+      expect(beforeRefresh.color, const Color(0xFFFFB400));
       pending = Completer<OrderingContext>();
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
@@ -62,9 +86,13 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpWidget(page());
       await tester.pump();
+      events.add({'eventType': 'connection.ready'});
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(resolveCount, 2);
       expect(tester.state(find.byType(ScanOrderingCartPage)), same(state));
       expect(find.byType(LinearProgressIndicator), findsNothing);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(addDecoration(), beforeRefresh);
       expect(
         find.byKey(const ValueKey('ordering-remove-real-sku')),
         findsOneWidget,
@@ -84,6 +112,7 @@ void main() {
         isFalse,
       );
       expect(tester.state(find.byType(ScanOrderingCartPage)), same(state));
+      expect(addDecoration(), beforeRefresh);
       await tester.pumpWidget(const SizedBox());
     },
   );
