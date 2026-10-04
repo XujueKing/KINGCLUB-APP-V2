@@ -709,12 +709,16 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                 onTap: widget.onOpenTableBill,
                 child: Padding(
                   padding: EdgeInsets.only(bottom: _rpx(3)),
-                  child: Image.asset(
-                    'assets/legacy/ordering/yifu.png',
-                    width: _rpx(120),
-                    height: _rpx(84),
-                    fit: BoxFit.contain,
-                    excludeFromSemantics: true,
+                  child: Transform.scale(
+                    scale: 1.1,
+                    alignment: Alignment.bottomRight,
+                    child: Image.asset(
+                      'assets/legacy/ordering/yifu.png',
+                      width: _rpx(120),
+                      height: _rpx(84),
+                      fit: BoxFit.contain,
+                      excludeFromSemantics: true,
+                    ),
                   ),
                 ),
               ),
