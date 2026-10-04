@@ -439,6 +439,14 @@ void main() {
       expect(reminder.top - ticket.bottom, closeTo(20 * .5, .1));
       expect(nextRow.top - reminder.bottom, closeTo(30 * .5, .1));
       expect(find.text('商家发起 · KINGCLUB官方'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('together-official-music')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('together-invitation-time-music')),
+        findsOneWidget,
+      );
       expect(find.text('男士AA，女士免票；请按时到场，文明交流。'), findsOneWidget);
       expect(find.text('抢位'), findsWidgets);
       expect(

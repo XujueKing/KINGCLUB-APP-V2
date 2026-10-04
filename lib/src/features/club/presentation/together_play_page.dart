@@ -714,7 +714,7 @@ class TogetherAvailableRow extends StatelessWidget {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                '${party.merchantHost ? '商家发起' : '会员发起'} · ${party.hostName}',
+                                '${party.merchantHost ? '商家发起' : '会员发起'}${party.hostName.trim().isEmpty ? '' : ' · ${party.hostName}'}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: style(22, Colors.white54),
@@ -722,6 +722,21 @@ class TogetherAvailableRow extends StatelessWidget {
                             ],
                           ),
                         ),
+                        if (party.merchantHost) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            key: ValueKey('together-official-${party.ref}'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: legacyGold.withValues(alpha: .15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text('官方', style: style(22, legacyGold)),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -733,6 +748,12 @@ class TogetherAvailableRow extends StatelessWidget {
                         34,
                         legacyGold,
                       ).copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      togetherCardTimeRange(party),
+                      key: ValueKey('together-invitation-time-${party.ref}'),
+                      style: style(24, legacyGold),
                     ),
                     const SizedBox(height: 5),
                     Text(

@@ -211,7 +211,11 @@ class SecureTogetherPlayRepository
       storeName: _text(r['storeName']),
       startsAt: venue(start),
       endsAt: venue(end),
-      hostName: r['publisherType'] == 'official' ? _text(r['storeName']) : '',
+      hostName: r['publisherType'] == 'official'
+          ? _text(r['storeName'])
+          : r['hostName'] == null
+          ? '会员'
+          : _text(r['hostName']),
       merchantHost: r['publisherType'] == 'official',
       allowCoins: r['allowCoins'] == true,
       place: _text(r['place']),
