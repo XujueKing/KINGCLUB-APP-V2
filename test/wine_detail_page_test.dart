@@ -66,7 +66,17 @@ void main() {
             .onTap,
         isNull,
       );
-      await tester.tap(find.text('獭祭39').first);
+      for (final target in [
+        find.text('獭祭39').first,
+        find.text('300ml').first,
+        find.text('¥ 12.34').first,
+        find.byKey(const ValueKey('ordering-details-unknown')),
+      ]) {
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+        expect(find.byType(WineDetailPage), findsNothing);
+      }
+      await tester.tap(find.byKey(const ValueKey('ordering-details-known')));
       await tester.pumpAndSettle();
       expect(find.byType(WineDetailPage), findsOneWidget);
       expect(find.text('300ml'), findsOneWidget);
