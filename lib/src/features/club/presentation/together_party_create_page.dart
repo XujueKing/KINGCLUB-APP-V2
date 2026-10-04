@@ -56,6 +56,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
   final _maleScore = TextEditingController(),
       _femaleScore = TextEditingController();
   final Set<String> _excludedSigns = {};
+  final Set<String> _excludedAnimals = {};
   final _minimumAge = TextEditingController(),
       _maximumAge = TextEditingController(),
       _overagePrice = TextEditingController(text: '10');
@@ -423,6 +424,8 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         'minimumFemaleScore': ?femaleScore,
         if (_excludedSigns.isNotEmpty)
           'excludedStarSigns': _excludedSigns.toList(),
+        if (_excludedAnimals.isNotEmpty)
+          'excludedChineseZodiacs': _excludedAnimals.toList(),
         if (allowOverage) 'overageCentsPerYear': '$overagePrice',
       },
       maleSeats: _usesGenderPricing
@@ -702,7 +705,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           if (_allowOverage) _field('每超一岁加收（元）', _overagePrice, number: true),
         ],
         ExpansionTile(
-          title: const Text('颜值与星座要求', style: TextStyle(color: legacyGold)),
+          title: const Text('颜值、星座与属相要求', style: TextStyle(color: legacyGold)),
           subtitle: const Text(
             '可选，不设置则不限制',
             style: TextStyle(color: Colors.white54),
@@ -710,6 +713,29 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           children: [
             _field('男士最低颜值评分（0—100）', _maleScore, number: true),
             _field('女士最低颜值评分（0—100）', _femaleScore, number: true),
+            const Text(
+              '不接受的属相（按农历春节划分，可多选）',
+              style: TextStyle(color: legacyGold),
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final animal in togetherChineseZodiacs)
+                  FilterChip(
+                    label: Text(animal),
+                    selected: _excludedAnimals.contains(animal),
+                    onSelected: _busy
+                        ? null
+                        : (selected) => setState(() {
+                            if (selected) {
+                              _excludedAnimals.add(animal);
+                            } else {
+                              _excludedAnimals.remove(animal);
+                            }
+                          }),
+                  ),
+              ],
+            ),
             const Text('不接受的星座（可多选）', style: TextStyle(color: legacyGold)),
             Wrap(
               spacing: 8,

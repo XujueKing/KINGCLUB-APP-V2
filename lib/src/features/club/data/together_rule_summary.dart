@@ -15,6 +15,21 @@ const togetherStarSigns = [
   '双鱼座',
 ];
 
+const togetherChineseZodiacs = [
+  '鼠',
+  '牛',
+  '虎',
+  '兔',
+  '龙',
+  '蛇',
+  '马',
+  '羊',
+  '猴',
+  '鸡',
+  '狗',
+  '猪',
+];
+
 String togetherRuleSummary(Map rules) {
   final parts = <String>[];
   int? integer(String key, int min, int max) {
@@ -71,6 +86,15 @@ String togetherRuleSummary(Map rules) {
       throw const FormatException('Invalid star signs');
     }
     if (signs.isNotEmpty) parts.add('不接受${signs.toSet().join('、')}');
+  }
+  final animals = rules['excludedChineseZodiacs'];
+  if (animals != null) {
+    if (animals is! List ||
+        animals.length > 12 ||
+        animals.any((s) => !togetherChineseZodiacs.contains(s))) {
+      throw const FormatException('Invalid Chinese zodiacs');
+    }
+    if (animals.isNotEmpty) parts.add('不接受属${animals.toSet().join('、')}（按农历年）');
   }
   return parts.join(' · ');
 }
