@@ -2070,11 +2070,10 @@ class _OrderingProductImage extends StatelessWidget {
       image = placeholder;
     }
     return soldOut
-        ? ColorFiltered(
-            colorFilter: const ColorFilter.mode(
-              Color(0x77000000),
-              BlendMode.darken,
-            ),
+        ? Opacity(
+            // Dim only the bottle. A darken color filter also colors transparent
+            // pixels and can flood the list's clip on the iOS renderer.
+            opacity: 136 / 255,
             child: image,
           )
         : image;
