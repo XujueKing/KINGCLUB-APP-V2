@@ -46,21 +46,8 @@ class _TableBillPageState extends State<TableBillPage> {
     retainDuringRefresh: true,
     tableBill: true,
     products: widget.products,
-    onOpenOrder: (orderRef) => Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        allowSnapshotting: false,
-        builder: (detailContext) => MemberOrdersPage(
-          orderRef: orderRef,
-          load: load,
-          events: widget.events,
-          retainDuringRefresh: true,
-          tableBill: true,
-          products: widget.products,
-          refreshInterval: const Duration(seconds: 20),
-          onBack: () => Navigator.of(detailContext).pop(),
-        ),
-      ),
-    ),
+    tableStoreName: widget.table.storeName,
+    tableName: widget.table.tableName,
     expandItems: true,
     // Table closure may have no order event. Revalidate visible seating scope
     // even when the socket remains connected; personal order history needn't poll.

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/design_system/king_components.dart';
 import '../../../core/networking/kingclub_realtime.dart';
@@ -28,6 +29,8 @@ class MemberOrdersPage extends StatefulWidget {
     this.title,
     this.expandItems = false,
     this.tableBill = false,
+    this.tableStoreName,
+    this.tableName,
     this.products = const [],
     this.refreshInterval,
     this.retainDuringRefresh = false,
@@ -35,6 +38,7 @@ class MemberOrdersPage extends StatefulWidget {
   final String? title;
   final bool expandItems;
   final bool tableBill;
+  final String? tableStoreName, tableName;
   final List<OrderingCatalogProduct> products;
   final Duration? refreshInterval;
   final bool retainDuringRefresh;
@@ -184,15 +188,28 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
         ticket == epoch &&
         generation == MemberQrMemory.generation;
     try {
-      final data = await (widget.load ?? repository.read)(
+      var data = await (widget.load ?? repository.read)(
         orderRef: widget.orderRef,
         beforeOrder: cursor,
       );
       if (!current()) return;
       final merged = [...previous, ...data.orders];
-      if (merged.map((order) => order.orderRef).toSet().length !=
-          merged.length) {
-        throw const FormatException('Overlapping order page');
+      final seen = <String>{};
+      for (final order in merged) {
+        if (!seen.add(order.orderRef))
+          throw const FormatException('Overlapping order page');
+      }
+      // Never present a partial page as a complete table total.
+      while (widget.tableBill && data.nextBeforeOrder != null) {
+        data = await (widget.load ?? repository.read)(
+          beforeOrder: data.nextBeforeOrder,
+        );
+        if (!current()) return;
+        for (final order in data.orders) {
+          if (!seen.add(order.orderRef))
+            throw const FormatException('Overlapping order page');
+          merged.add(order);
+        }
       }
       setState(() {
         orders = merged;
@@ -254,7 +271,6 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
 
   Widget orderCard(MemberOrder order) {
     final detail = widget.orderRef != null;
-    if (widget.tableBill) return tableReceipt(order);
     if (detail) return orderReceipt(order);
     final color = order.refundedCents > 0 || order.status == 'expired'
         ? Colors.grey
@@ -411,8 +427,33 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
     );
   }
 
-  Widget tableReceipt(MemberOrder order) {
+  Widget tableReceipt() {
     const ink = Color(0xFF181205);
+    final lines =
+        <
+          String,
+          ({
+            MemberOrderItem item,
+            int quantity,
+            int served,
+            int cents,
+            Set<int> prices,
+          })
+        >{};
+    for (final order in orders) {
+      if (order.status != 'paid' || order.fullyRefunded) continue;
+      for (final item in order.items) {
+        if (item.activeQuantity == 0) continue;
+        final old = lines[item.productRef];
+        lines[item.productRef] = (
+          item: old?.item ?? item,
+          quantity: (old?.quantity ?? 0) + item.activeQuantity,
+          served: (old?.served ?? 0) + item.servedQuantity,
+          cents: (old?.cents ?? 0) + item.activeQuantity * item.priceCents,
+          prices: {...?old?.prices, item.priceCents},
+        );
+      }
+    }
     Widget field(String label, String value) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -424,124 +465,141 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
         ],
       ),
     );
-    return Container(
-      key: ValueKey('member-order-${order.orderRef}'),
-      margin: const EdgeInsets.only(bottom: 12),
+    Widget card(String key, List<Widget> children) => Container(
+      key: ValueKey(key),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
       decoration: BoxDecoration(
         color: const Color(0xFFC9B69E),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: widget.orderRef != null || widget.onOpenOrder == null
-            ? null
-            : () => widget.onOpenOrder!(order.orderRef),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-          child: DefaultTextStyle(
-            style: const TextStyle(color: ink, fontSize: 15, height: 1.35),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                field(t('store'), order.storeName),
-                field(t('table'), order.tableName),
-                field(t('currentStatus'), status(order)),
-                field(t('orderNumber'), order.orderRef),
-                const Divider(color: Color(0x26000000), height: 24),
-                Text(t('products')),
-                for (final item in order.items)
-                  Builder(
-                    builder: (context) {
-                      final product = widget.products
-                          .where((p) => p.reference == item.productRef)
-                          .firstOrNull;
-                      return Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: Color(0x16000000)),
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+      child: DefaultTextStyle(
+        style: const TextStyle(color: ink, fontSize: 15, height: 1.35),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
+      ),
+    );
+    return Column(
+      children: [
+        card('table-bill-store', [
+          field(t('store'), widget.tableStoreName ?? ''),
+          field(t('table'), widget.tableName ?? ''),
+        ]),
+        card('table-bill-products', [
+          Text(t('products')),
+          if (lines.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Text(t('tableEmpty')),
+            ),
+          for (final line in lines.values)
+            Builder(
+              builder: (context) {
+                final item = line.item;
+                final product = widget.products
+                    .where((p) => p.reference == item.productRef)
+                    .firstOrNull;
+                final english = item.names['en'];
+                final detail = language == 0 || language == 2
+                    ? [
+                        if (english != null && english != item.names[localeKey])
+                          english,
+                        item.specifications[localeKey]!,
+                      ].join(' · ')
+                    : item.specifications[localeKey]!;
+                return Container(
+                  key: ValueKey('table-bill-product-${item.productRef}'),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Color(0x16000000)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 38,
+                        height: 60,
+                        child: product?.thumbnailUrl == null
+                            ? const Icon(Icons.local_bar_outlined, color: ink)
+                            : CachedMediaImage(
+                                product!.thumbnailUrl!,
+                                contentKey: product.imageCacheKey,
+                                private: true,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, _, _) => const Icon(
+                                  Icons.local_bar_outlined,
+                                  color: ink,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(
-                              width: 38,
-                              height: 60,
-                              child: product?.thumbnailUrl == null
-                                  ? const Icon(
-                                      Icons.local_bar_outlined,
-                                      color: ink,
-                                    )
-                                  : CachedMediaImage(
-                                      product!.thumbnailUrl!,
-                                      contentKey: product.imageCacheKey,
-                                      private: true,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (_, _, _) => const Icon(
-                                        Icons.local_bar_outlined,
-                                        color: ink,
-                                      ),
+                            Text(item.names[localeKey]!),
+                            Text(detail, style: const TextStyle(fontSize: 12)),
+                            Text(
+                              '${t('unitPrice')} ${(line.prices.toList()..sort()).map(money).join(' / ')}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            Row(
+                              children: [
+                                if (line.served > 0) ...[
+                                  SvgPicture.string(
+                                    '<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><circle cx="512" cy="512" r="500" fill="#FFFFFF"/><path d="M512 1024A512 512 0 1 1 512 0a512 512 0 0 1 0 1024zM448 605.12L277.312 442.176 192 523.648 448 768l384-366.528L746.688 320 448 605.12z" fill="#24A65A"/></svg>',
+                                    key: ValueKey(
+                                      'table-bill-served-${item.productRef}',
                                     ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.names[localeKey]!),
-                                  Text(
-                                    item.specifications[localeKey]!,
-                                    style: const TextStyle(fontSize: 12),
+                                    width: 14,
+                                    height: 14,
+                                    excludeFromSemantics: true,
                                   ),
-                                  Text(
-                                    '${t('unitPrice')} ${money(item.priceCents)}',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  Text(
-                                    deliveryText(order, item),
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
+                                  const SizedBox(width: 4),
                                 ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 90),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    '× ${item.quantity}',
-                                    style: const TextStyle(fontSize: 13),
+                                Flexible(
+                                  child: Text(
+                                    '${t('served')} ${line.served}/${line.quantity}',
+                                    style: const TextStyle(fontSize: 12),
                                   ),
-                                  Text(
-                                    money(item.quantity * item.priceCents),
-                                    style: const TextStyle(fontSize: 17),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      );
-                    },
+                      ),
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 90),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${t('quantity')} × ${line.quantity}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            Text(
+                              money(line.cents),
+                              style: const TextStyle(fontSize: 17),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                const SizedBox(height: 14),
-                field(t('total'), money(order.totalCents)),
-                if (order.refundedCents > 0) ...[
-                  field(t('refunded'), money(order.refundedCents)),
-                  field(t('netPaid'), money(order.netPaidCents)),
-                ],
-                field(
-                  t('createdAt'),
-                  order.createdAt.toLocal().toString().substring(0, 16),
-                ),
-              ],
+                );
+              },
             ),
+          const SizedBox(height: 14),
+          field(
+            t('productTotal'),
+            money(lines.values.fold<int>(0, (sum, line) => sum + line.cents)),
           ),
-        ),
-      ),
+        ]),
+      ],
     );
   }
 
@@ -776,6 +834,15 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
               ),
             ),
           )
+        : widget.tableBill
+        ? RefreshIndicator(
+            onRefresh: reload,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(10),
+              children: [tableReceipt()],
+            ),
+          )
         : orders.isEmpty
         ? Center(
             child: Text(
@@ -840,6 +907,9 @@ const _copy = {
   'source': '订单来源|Source|訂單來源|ช่องทาง',
   'paymentTiming': '付款模式|Payment timing|付款模式|รูปแบบชำระเงิน',
   'refundedAt': '退款时间|Refund time|退款時間|เวลาคืนเงิน',
+  'quantity': '数量|Qty|數量|จำนวน',
+  'productTotal': '商品总价|Items total|商品總價|ยอดรวมสินค้า',
+  'tableEmpty': '本桌暂无已付款商品|No paid items for this table|本桌暫無已付款商品|ยังไม่มีสินค้าที่ชำระเงินแล้วสำหรับโต๊ะนี้',
   'unitPrice': '单价|Unit price|單價|ราคาต่อหน่วย',
   'products': '商品明细|Items|商品明細|รายการสินค้า',
   'cashierPayment': '请在收银台核对并结账|Please check and settle at the cashier.|請在收銀台核對並結帳|กรุณาตรวจสอบและชำระที่แคชเชียร์',

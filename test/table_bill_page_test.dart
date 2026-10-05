@@ -10,24 +10,43 @@ import 'package:kingclub/src/features/commerce/presentation/scan_ordering_cart_p
 import 'member_orders_repository_test.dart' as data;
 
 void main() {
-  testWidgets('table receipt opens scoped live detail and returns to list', (
+  testWidgets('paid table items merge across pages and exclude unpaid orders', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(320, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final calls = <Map<String, dynamic>>[];
+    Map<String, dynamic> order(int n, String status) {
+      final row = data.orderFixture(id: 'D${n.toString().padLeft(11, '0')}');
+      row['status'] = status;
+      row['totalCents'] = 10;
+      final item = (row['items'] as List).single as Map;
+      item['quantity'] = 1;
+      item['priceCents'] = 10;
+      item['servedQuantity'] = n == 1 ? 1 : 0;
+      return row;
+    }
+
     final pending = Completer<Map<String, dynamic>>();
+    final calls = <Map<String, dynamic>>[];
     final repository = MemberOrdersRepository(
       readSession: () async => data.sessionFixture,
-      request: (id, params, session) async {
-        expect(id, 'K261001001955');
-        calls.add(Map<String, dynamic>.from(params));
+      request: (_, params, _) async {
+        calls.add(params);
         if (calls.length == 3) return pending.future;
         return {
           'result': {
-            ...data.pageFixture(),
+            ...data.pageFixture(
+              orders: params['beforeOrder'] == null
+                  ? [
+                      order(1, 'paid'),
+                      for (var i = 2; i <= 20; i++)
+                        order(i, i.isEven ? 'pending' : 'expired'),
+                    ]
+                  : [order(21, 'paid')],
+              next: params['beforeOrder'] == null ? 'D00000000020' : null,
+            ),
             'tableScope': {
               'storeRef': 'test-store',
               'tableRef': 'test-table',
@@ -58,26 +77,28 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('member-order-D00000000001')));
-    await tester.pumpAndSettle();
-    expect(find.text('Order details'), findsOneWidget);
-    expect(calls.last, {
-      'tableRef': 'test-table',
-      'sessionRef': 'H00000000001',
-      'orderRef': 'D00000000001',
-    });
-    expect(find.text('D00000000001'), findsOneWidget);
+    expect(calls, hasLength(2));
+    expect(calls.last['beforeOrder'], 'D00000000020');
+    expect(find.byKey(const ValueKey('table-bill-store')), findsOneWidget);
+    expect(find.byKey(const ValueKey('table-bill-products')), findsOneWidget);
+    expect(find.text('Test store'), findsOneWidget);
     expect(find.text('Test product'), findsOneWidget);
-    expect(find.textContaining('Unit price'), findsOneWidget);
+    expect(find.text('Qty × 2'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('table-bill-served-test-product')),
+      findsOneWidget,
+    );
+    expect(find.text('Served 1/2'), findsOneWidget);
+    expect(find.text('¥0.20'), findsNWidgets(2));
+    expect(find.textContaining('D00000000001'), findsNothing);
     expect(tester.takeException(), isNull);
-    // Detail's periodic refresh retains its receipt while the request is pending.
     await tester.pump(const Duration(seconds: 20));
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('D00000000001'), findsOneWidget);
+    expect(find.text('Qty × 2'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     pending.complete({
       'result': {
-        ...data.pageFixture(),
+        ...data.pageFixture(orders: []),
         'tableScope': {
           'storeRef': 'test-store',
           'tableRef': 'test-table',
@@ -86,9 +107,8 @@ void main() {
       },
     });
     await tester.pumpAndSettle();
-    Navigator.of(tester.element(find.text('Order details'))).pop();
-    await tester.pumpAndSettle();
-    expect(find.text('T1 · Table bill'), findsOneWidget);
+    expect(find.text('Test product'), findsNothing);
+    expect(find.byKey(const ValueKey('table-bill-store')), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
   for (final locale in [
@@ -135,7 +155,13 @@ void main() {
             'tableRef': 'test-table',
             'sessionRef': 'H00000000001',
           });
-          final result = data.pageFixture(orders: cancelled ? [] : null);
+          final result = data.pageFixture(
+            orders: cancelled
+                ? []
+                : [
+                    {...data.orderFixture(), 'status': 'paid'},
+                  ],
+          );
           result['tableScope'] = {'storeRef': 'test-store', ...params};
           return {'result': result};
         },
