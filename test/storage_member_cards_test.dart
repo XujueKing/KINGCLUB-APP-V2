@@ -18,7 +18,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: PrivateStoragePage(
-            repository: PreviewStorageRepository([]),
+            repository: PreviewStorageRepository([
+              const StorageItem(ref: 'wine', name: 'Wine', assetKey: 'chivas'),
+            ]),
             loadCards: () async {
               loads++;
               return raw;
@@ -27,16 +29,18 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(loads, 0);
+      expect(loads, 1);
       expect(
         tester.widget<Text>(find.text('Vouchers')).style?.color,
-        const Color(0xFF827562),
+        const Color(0xFF8D806E),
       );
       await tester.tap(find.text('Cards'));
       await tester.pumpAndSettle();
-      expect(loads, 1);
+      expect(loads, 2);
       expect(
-        find.byKey(const ValueKey('storage-select-card-test-store')),
+        find
+            .byKey(const ValueKey('storage-select-card-test-store'))
+            .hitTestable(),
         findsOneWidget,
       );
       expect(find.byKey(const ValueKey('storage-grid-卡-1')), findsOneWidget);

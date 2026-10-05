@@ -131,6 +131,10 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   void initState() {
     super.initState();
     _load();
+    if (widget.active &&
+        (widget.loadCards != null || _repository is RealStorageRepository)) {
+      _loadCards();
+    }
     _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
       _cardsEpoch++;
       setState(() {
@@ -143,7 +147,10 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     _realtime = KingclubRealtime.shared.events.listen((event) {
       if (widget.active &&
           _category == 'card' &&
-          ['connection.ready', 'balance.changed'].contains(event['eventType'])) {
+          [
+            'connection.ready',
+            'balance.changed',
+          ].contains(event['eventType'])) {
         _loadCards();
       }
       if (event['eventType'] == 'connection.ready' ||
@@ -160,7 +167,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     super.didUpdateWidget(oldWidget);
     if (widget.active && !oldWidget.active) {
       _load();
-      if (_category == 'card') _loadCards();
+      if (widget.loadCards != null || _repository is RealStorageRepository) {
+        _loadCards();
+      }
     }
   }
 
@@ -439,8 +448,8 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
             final u = screenUnit;
             final width = 630 * u;
             final heroHeight = math.min(
-              490 * u,
-              math.max(0.0, c.maxHeight - bottom - 58 - 785 * u),
+              510 * u,
+              math.max(0.0, c.maxHeight - bottom - 58 - 765 * u),
             );
             final content = Column(
               children: [
@@ -523,16 +532,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                 SizedBox(
                   height: heroHeight,
                   width: 750 * u,
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    child: SizedBox(
-                      width: c.maxWidth,
-                      height: 490 * screenUnit,
-                      child: _hero(screenUnit),
-                    ),
-                  ),
+                  child: _hero(screenUnit),
                 ),
-                SizedBox(height: 28 * u),
+                SizedBox(height: 8 * u),
                 SizedBox(
                   width: width,
                   height: 48 * u,
@@ -576,10 +578,10 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                   child: Text(
                                     _categoryLabel(index),
                                     style: TextStyle(
-                                      fontSize: 30 * u,
+                                      fontSize: 32 * u,
                                       color: _categoryIndex == index
                                           ? _gold
-                                          : const Color(0xFF827562),
+                                          : const Color(0xFF8D806E),
                                     ),
                                   ),
                                 ),
@@ -837,7 +839,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                         ..setEntry(3, 2, .0015)
                         ..rotateY(angle),
                       child: SizedBox(
-                        height: _materialPreview ? 490 * u : 460 * u,
+                        height: 490 * u,
                         child: item.category == 'wine'
                             ? (back ? _backFace(item, u) : _frontFace(item, u))
                             : LayoutBuilder(
