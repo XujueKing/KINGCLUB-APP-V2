@@ -41,6 +41,69 @@ class DelayedRepo extends Repo {
 }
 
 void main() {
+  for (final notify in [true, false]) {
+    testWidgets(
+      'collection succeeds and returns directly to bag notify=$notify',
+      (tester) async {
+        final repo = Repo();
+        final events = StreamController<Map<String, dynamic>>.broadcast();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => RealStoragePickupPage(
+                        item: fixture.first,
+                        repository: repo,
+                        events: events.stream,
+                      ),
+                    ),
+                  ),
+                  child: const Text('Storage bag'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Storage bag'));
+        await tester.pumpAndSettle();
+        expect(find.byType(QrImageView), findsOneWidget);
+        // An event alone never asserts collection; the server remains authority.
+        events.add({'eventType': 'storage.changed'});
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('storage-pickup-success')),
+          findsNothing,
+        );
+        repo.available = false;
+        if (notify)
+          events.add({'eventType': 'storage.changed'});
+        else
+          await tester.pump(const Duration(seconds: 3));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('storage-pickup-success')),
+          findsOneWidget,
+        );
+        expect(find.byType(QrImageView), findsNothing);
+        final issued = repo.calls;
+        await tester.pump(const Duration(seconds: 35));
+        expect(repo.calls, issued);
+        await tester.tap(find.text('Back to storage'));
+        await tester.pumpAndSettle();
+        expect(find.text('Storage bag'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('storage-pickup-success')),
+          findsNothing,
+        );
+        await tester.pumpWidget(const SizedBox());
+        await events.close();
+      },
+    );
+  }
+
   testWidgets(
     'refresh keeps code and white panel until atomic replacement, expires on slow network',
     (tester) async {
@@ -103,7 +166,10 @@ void main() {
       repo.available = false;
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpAndSettle();
-      expect(find.text('已取出'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('storage-pickup-success')),
+        findsOneWidget,
+      );
       expect(repo.calls, 2);
       await tester.pumpWidget(const SizedBox());
     },
