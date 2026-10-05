@@ -582,7 +582,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                       fontSize: 32 * u,
                                       color: _categoryIndex == index
                                           ? _gold
-                                          : const Color(0xFF8D806E),
+                                          : const Color(0xFF756A5C),
                                     ),
                                   ),
                                 ),
@@ -733,13 +733,14 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   children: [
                     Center(
                       child: SizedBox(
-                        width: 160 * u,
+                        width: (item is StoreCardItem ? 184 : 160) * u,
                         height: 160 * u,
                         child: item is StoreCardItem
                             ? ClipRect(
                                 child: Padding(
                                   padding: EdgeInsets.all(6 * u),
-                                  child: Center(
+                                  child: Align(
+                                    alignment: const Alignment(0, -.3),
                                     child: StoreCardFace(store: item.balance),
                                   ),
                                 ),
@@ -766,14 +767,32 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                           ),
                         ),
                       ),
-                    Positioned(
-                      left: 24 * u,
-                      top: 16 * u,
-                      child: Text(
-                        '${item.quantity}',
-                        style: TextStyle(color: _gold, fontSize: 28 * u),
+                    if (item is StoreCardItem)
+                      Positioned(
+                        left: 8 * u,
+                        right: 8 * u,
+                        bottom: 12 * u,
+                        child: Text(
+                          '${_cardText('余额|Balance|餘額|ยอดคงเหลือ')} ${balanceMoney(item.balance.principal + item.balance.gift)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _gold,
+                            fontSize: 18 * u,
+                            height: 1.2,
+                          ),
+                        ),
                       ),
-                    ),
+                    if (item is! StoreCardItem)
+                      Positioned(
+                        left: 24 * u,
+                        top: 16 * u,
+                        child: Text(
+                          '${item.quantity}',
+                          style: TextStyle(color: _gold, fontSize: 28 * u),
+                        ),
+                      ),
                   ],
                 ),
         ),
@@ -833,6 +852,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                 height: 64 * u,
               ),
             ),
+            if (item is StoreCardItem) SizedBox(width: 28 * u),
             Expanded(
               child: GestureDetector(
                 onTap: _turn,
@@ -868,6 +888,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                 ),
               ),
             ),
+            if (item is StoreCardItem) SizedBox(width: 28 * u),
             GestureDetector(
               key: const ValueKey('storage-pickup'),
               onTap: _pickup,

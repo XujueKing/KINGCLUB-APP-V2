@@ -123,4 +123,29 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await events.close();
   });
+  for (final size in [const Size(320, 568), const Size(390, 844)]) {
+    testWidgets('member QR is fully visible without scrolling at $size', (
+      tester,
+    ) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 44, bottom: 34);
+      addTearDown(tester.view.reset);
+      final repo = Repo();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StoreCardDetail(
+            store: MemberBalanceSnapshot.parse(repo.raw).stores.first,
+            repository: repo,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final qr = tester.getRect(find.byType(QrImageView));
+      expect(qr.bottom, lessThanOrEqualTo(size.height - 34));
+      expect(qr.top, greaterThan(44));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 }

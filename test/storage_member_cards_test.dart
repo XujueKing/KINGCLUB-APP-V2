@@ -34,7 +34,7 @@ void main() {
       expect(loads, 1);
       expect(
         tester.widget<Text>(find.text('Vouchers')).style?.color,
-        const Color(0xFF8D806E),
+        const Color(0xFF756A5C),
       );
       await tester.tap(find.text('Cards'));
       await tester.pumpAndSettle();

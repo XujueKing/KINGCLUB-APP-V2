@@ -46,68 +46,65 @@ class StoreCardFace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final king = store.name.toUpperCase().startsWith('KINGCLUB');
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
-      child: AspectRatio(
-        aspectRatio: 564 / 333,
-        child: king
-            ? Image.asset(
-                'assets/legacy/storage/store_vip_card.webp',
-                fit: BoxFit.cover,
-              )
-            : FittedBox(
-                fit: BoxFit.contain,
-                child: SizedBox(
-                  width: 340,
-                  height: 201,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF38342D), Color(0xFF101010)],
-                      ),
+    return AspectRatio(
+      aspectRatio: 564 / 333,
+      child: king
+          ? Image.asset(
+              'assets/legacy/storage/store_vip_card.webp',
+              fit: BoxFit.contain,
+            )
+          : FittedBox(
+              fit: BoxFit.contain,
+              child: SizedBox(
+                width: 340,
+                height: 201,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF38342D), Color(0xFF101010)],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (store.logoUrl != null)
-                          SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: CachedMediaImage(
-                              store.logoUrl!,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, _, _) => const Icon(
-                                Icons.storefront,
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 8),
-                        Flexible(
-                          child: Text(
-                            store.name,
-                            maxLines: 2,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (store.logoUrl != null)
+                        SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CachedMediaImage(
+                            store.logoUrl!,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const Icon(
+                              Icons.storefront,
+                              color: Colors.white70,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _text(context, '会员卡|Membership card|會員卡|บัตรสมาชิก'),
+                      const SizedBox(height: 8),
+                      Flexible(
+                        child: Text(
+                          store.name,
+                          maxLines: 2,
                           style: const TextStyle(
-                            color: Color(0xFFC9B69E),
+                            color: Colors.white,
                             fontSize: 16,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _text(context, '会员卡|Membership card|會員卡|บัตรสมาชิก'),
+                        style: const TextStyle(
+                          color: Color(0xFFC9B69E),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-      ),
+            ),
     );
   }
 }
@@ -281,7 +278,7 @@ class _StoreCardDetailState extends State<StoreCardDetail>
       );
     }
     Widget row(String label, String value) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
           Expanded(
@@ -316,118 +313,131 @@ class _StoreCardDetailState extends State<StoreCardDetail>
         ),
         centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
-        children: [
-          StoreCardFace(store: store),
-          const SizedBox(height: 24),
-          row(
-            t('充值金额|Total recharged|充值金額|ยอดเติมเงินสะสม'),
-            store.originalPrincipal == null
-                ? '—'
-                : balanceMoney(store.originalPrincipal!),
-          ),
-          row(
-            t('赠送|Bonus credited|贈送|โบนัสที่ได้รับ'),
-            store.originalGift == null
-                ? '—'
-                : balanceMoney(store.originalGift!),
-          ),
-          row(
-            t('剩余余额|Remaining balance|剩餘餘額|ยอดคงเหลือ'),
-            balanceMoney(store.principal + store.gift),
-          ),
-          const Divider(color: Colors.white24),
-          const SizedBox(height: 16),
-          Text(
-            t('使用说明|How to use|使用說明|วิธีใช้'),
-            style: const TextStyle(color: Colors.white, fontSize: 17),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            t(
-              '仅限本店使用。本金与赠送金额按充值规则抵扣，剩余余额不含已过期赠送金额。|Valid at this store only. Principal and bonus follow the recharge terms. Expired bonus is excluded from the remaining balance.|僅限本店使用。本金與贈送金額按充值規則抵扣，剩餘餘額不含已過期贈送金額。|ใช้ได้เฉพาะร้านนี้ เงินต้นและโบนัสใช้ตามเงื่อนไขการเติมเงิน ยอดคงเหลือไม่รวมโบนัสที่หมดอายุ',
-            ),
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-              height: 1.6,
-            ),
-          ),
-          for (final rule
-              in store.lots
-                  .map((l) => l.rules)
-                  .where((r) => r.isNotEmpty)
-                  .toSet())
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                rule,
+      body: LayoutBuilder(
+        builder: (context, bounds) {
+          final cardHeight = (bounds.maxHeight * .23).clamp(70.0, 160.0);
+          final qrSize = (bounds.maxHeight - cardHeight - 235).clamp(
+            140.0,
+            230.0,
+          );
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
+            children: [
+              SizedBox(
+                height: cardHeight,
+                child: Center(child: StoreCardFace(store: store)),
+              ),
+              const SizedBox(height: 16),
+              row(
+                t('充值金额|Total recharged|充值金額|ยอดเติมเงินสะสม'),
+                store.originalPrincipal == null
+                    ? '—'
+                    : balanceMoney(store.originalPrincipal!),
+              ),
+              row(
+                t('赠送|Bonus credited|贈送|โบนัสที่ได้รับ'),
+                store.originalGift == null
+                    ? '—'
+                    : balanceMoney(store.originalGift!),
+              ),
+              row(
+                t('剩余余额|Remaining balance|剩餘餘額|ยอดคงเหลือ'),
+                balanceMoney(store.principal + store.gift),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Container(
+                  width: qrSize,
+                  height: qrSize,
+                  padding: const EdgeInsets.all(12),
+                  color: Colors.white,
+                  child: code == null
+                      ? Center(
+                          child: TextButton(
+                            onPressed: refresh,
+                            child: Text(
+                              t(
+                                '刷新会员码|Refresh member code|重新整理會員碼|รีเฟรชรหัสสมาชิก',
+                              ),
+                            ),
+                          ),
+                        )
+                      : QrImageView(
+                          data: code!,
+                          backgroundColor: Colors.white,
+                          padding: EdgeInsets.zero,
+                        ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                t(
+                  '请向店员出示会员码|Show your member code to staff|請向店員出示會員碼|แสดงรหัสสมาชิกแก่พนักงาน',
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              if (error != null)
+                TextButton(onPressed: refresh, child: Text(error!)),
+              const SizedBox(height: 24),
+              const Divider(color: Colors.white24),
+              const SizedBox(height: 16),
+              Text(
+                t('使用说明|How to use|使用說明|วิธีใช้'),
+                style: const TextStyle(color: Colors.white, fontSize: 17),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                t(
+                  '仅限本店使用。本金与赠送金额按充值规则抵扣，剩余余额不含已过期赠送金额。|Valid at this store only. Principal and bonus follow the recharge terms. Expired bonus is excluded from the remaining balance.|僅限本店使用。本金與贈送金額按充值規則抵扣，剩餘餘額不含已過期贈送金額。|ใช้ได้เฉพาะร้านนี้ เงินต้นและโบนัสใช้ตามเงื่อนไขการเติมเงิน ยอดคงเหลือไม่รวมโบนัสที่หมดอายุ',
+                ),
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 14,
                   height: 1.6,
                 ),
               ),
-            ),
-          if (store.accountStatus != 'active' || store.status != 'active')
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                t(
-                  '卡片当前不可支付|Card unavailable for payment|卡片目前不可支付|บัตรยังใช้ชำระเงินไม่ได้',
-                ),
-                style: const TextStyle(color: Colors.orangeAccent),
-              ),
-            ),
-          const SizedBox(height: 28),
-          Center(
-            child: Container(
-              width: 230,
-              height: 230,
-              padding: const EdgeInsets.all(12),
-              color: Colors.white,
-              child: code == null
-                  ? Center(
-                      child: TextButton(
-                        onPressed: refresh,
-                        child: Text(
-                          t(
-                            '刷新会员码|Refresh member code|重新整理會員碼|รีเฟรชรหัสสมาชิก',
-                          ),
-                        ),
-                      ),
-                    )
-                  : QrImageView(
-                      data: code!,
-                      backgroundColor: Colors.white,
-                      padding: EdgeInsets.zero,
+              for (final rule
+                  in store.lots
+                      .map((l) => l.rules)
+                      .where((r) => r.isNotEmpty)
+                      .toSet())
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    rule,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      height: 1.6,
                     ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            t(
-              '请向店员出示会员码|Show your member code to staff|請向店員出示會員碼|แสดงรหัสสมาชิกแก่พนักงาน',
-            ),
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          if (error != null)
-            TextButton(onPressed: refresh, child: Text(error!)),
-          const SizedBox(height: 20),
-          Text(
-            t(
-              '使用规则以本店充值时公示的条款为准；如有疑问，请联系门店。|The terms shown by this store at recharge apply. Contact the store with questions.|使用規則以本店充值時公示的條款為準；如有疑問，請聯絡門店。|เป็นไปตามเงื่อนไขของร้านที่แจ้งเมื่อเติมเงิน หากมีคำถามโปรดติดต่อร้าน',
-            ),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              height: 1.5,
-            ),
-          ),
-        ],
+                  ),
+                ),
+              if (store.accountStatus != 'active' || store.status != 'active')
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    t(
+                      '卡片当前不可支付|Card unavailable for payment|卡片目前不可支付|บัตรยังใช้ชำระเงินไม่ได้',
+                    ),
+                    style: const TextStyle(color: Colors.orangeAccent),
+                  ),
+                ),
+              const SizedBox(height: 20),
+              Text(
+                t(
+                  '使用规则以本店充值时公示的条款为准；如有疑问，请联系门店。|The terms shown by this store at recharge apply. Contact the store with questions.|使用規則以本店充值時公示的條款為準；如有疑問，請聯絡門店。|เป็นไปตามเงื่อนไขของร้านที่แจ้งเมื่อเติมเงิน หากมีคำถามโปรดติดต่อร้าน',
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
