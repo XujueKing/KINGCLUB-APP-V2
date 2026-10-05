@@ -18,6 +18,9 @@ import '../../auth/data/auth_repository_provider.dart';
 import '../data/storage_repository.dart';
 import 'storage_liquid_bottle.dart';
 import 'storage_member_cards.dart';
+import '../../profile_settings/data/profile_repository.dart';
+import '../../membership_wallet/data/member_balance_snapshot.dart';
+import '../../../core/session/secure_session_store.dart';
 import 'bottle_material_image.dart';
 import 'real_storage_pickup_page.dart';
 
@@ -64,15 +67,22 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     duration: const Duration(milliseconds: 440),
   );
   List<StorageItem> _items = [];
+  List<StoreCardItem> _cards = [];
+  bool _cardsLoading = false;
+  String? _cardsError;
+  int _cardsEpoch = 0;
+  StreamSubscription<void>? _sessionChanges;
+  Iterable<StorageItem> get _allItems => [..._items, ..._cards];
   String? _selected, _error;
   int _page = 0;
   bool _loading = false, _back = false;
   StreamSubscription<Map<String, dynamic>>? _realtime;
-  StorageItem? get _item => _items.where((i) => i.ref == _selected).firstOrNull;
+  StorageItem? get _item =>
+      _allItems.where((i) => i.ref == _selected).firstOrNull;
   List<List<StorageItem>> get _groups {
     final groups = <List<StorageItem>>[];
     for (final category in _categories) {
-      final items = _items
+      final items = _allItems
           .where((i) => i.storageCategory == category && i.status != 'expired')
           .toList();
       if (items.isEmpty) groups.add([]);
@@ -85,7 +95,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
 
   int _pageCount(int category) => math.max(
     1,
-    (_items
+    (_allItems
                 .where(
                   (i) =>
                       i.storageCategory == _categories[category] &&
@@ -121,8 +131,21 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   void initState() {
     super.initState();
     _load();
+    _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
+      _cardsEpoch++;
+      setState(() {
+        _cards = [];
+        _cardsLoading = false;
+      });
+      if (widget.active && _category == 'card') _loadCards();
+    });
     if (_materialPreview) return;
     _realtime = KingclubRealtime.shared.events.listen((event) {
+      if (widget.active &&
+          _category == 'card' &&
+          ['connection.ready', 'balance.changed'].contains(event['eventType'])) {
+        _loadCards();
+      }
       if (event['eventType'] == 'connection.ready' ||
           event['eventType'] == 'storage.changed') {
         if (widget.active && !_loading) {
@@ -135,11 +158,16 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   @override
   void didUpdateWidget(PrivateStoragePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.active && !oldWidget.active) _load();
+    if (widget.active && !oldWidget.active) {
+      _load();
+      if (_category == 'card') _loadCards();
+    }
   }
 
   @override
   void dispose() {
+    _sessionChanges?.cancel();
+    _cardsEpoch++;
     _realtime?.cancel();
     _pages.dispose();
     for (final controller in _verticalPages) {
@@ -186,6 +214,40 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     }
   }
 
+  Future<void> _loadCards() async {
+    if (_cardsLoading) return;
+    final epoch = ++_cardsEpoch;
+    setState(() {
+      _cardsLoading = true;
+      _cardsError = null;
+    });
+    try {
+      final value = MemberBalanceSnapshot.parse(
+        await (widget.loadCards?.call() ??
+            ProfileRepository().call('K260930000508', {})),
+      );
+      if (!mounted || epoch != _cardsEpoch) return;
+      setState(() {
+        _cards = value.stores.map(StoreCardItem.new).toList();
+        _cardsLoading = false;
+        if (_category == 'card') {
+          _verticalIndex[3] = math.min(_verticalIndex[3], _pageCount(3) - 1);
+          _page = _startPage(3) + _verticalIndex[3];
+          if (!_cards.any((c) => c.ref == _selected)) {
+            _selected = _groups[_page].firstOrNull?.ref;
+          }
+        }
+      });
+    } catch (_) {
+      if (mounted && epoch == _cardsEpoch) {
+        setState(() {
+          _cardsLoading = false;
+          _cardsError = '卡片暂时无法读取，请重试';
+        });
+      }
+    }
+  }
+
   void _changePage(int value) {
     setState(() {
       _page = value;
@@ -193,6 +255,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
       _back = false;
       _flip.value = 0;
     });
+    if (_category == 'card') _loadCards();
   }
 
   void _showShopNotice() => KingNotice.of(context).show('商店暂未开放');
@@ -218,6 +281,14 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   Future<void> _pickup() async {
     final item = _item;
     if (item == null) return;
+    if (item is StoreCardItem) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => StoreCardDetail(store: item.balance),
+        ),
+      );
+      return;
+    }
     if (_materialPreview) {
       KingNotice.of(context).show('素材测试不签发取酒码');
       return;
@@ -450,7 +521,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   ),
                 ),
                 SizedBox(
-                  height: _category == 'card' ? 0 : heroHeight,
+                  height: heroHeight,
                   width: 750 * u,
                   child: FittedBox(
                     fit: BoxFit.contain,
@@ -465,63 +536,63 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                 SizedBox(
                   width: width,
                   height: 48 * u,
-                  child: Row(
-                    children: [
-                      for (final entry in [
-                        ('wine', '酒', 0),
-                        ('coupon', '券', 1),
-                        ('item', '物', 2),
-                        ('card', '卡', 3),
-                      ])
-                        Expanded(
-                          child: Semantics(
-                            key: ValueKey(
-                              'storage-tab-${entry.$2}-${_category == entry.$1 ? 'selected' : 'idle'}',
-                            ),
-                            button: true,
-                            selected: _category == entry.$1,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => _pages.animateToPage(
-                                entry.$3,
-                                duration: const Duration(milliseconds: 260),
-                                curve: Curves.easeOut,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (
+                            var index = 0;
+                            index < _categories.length;
+                            index++
+                          )
+                            Semantics(
+                              key: ValueKey(
+                                'storage-tab-${_labels[index]}-${_categoryIndex == index ? 'selected' : 'idle'}',
                               ),
-                              child: Container(
-                                margin: EdgeInsets.only(right: 12 * u),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 3 * u,
+                              button: true,
+                              selected: _categoryIndex == index,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => _pages.animateToPage(
+                                  index,
+                                  duration: const Duration(milliseconds: 260),
+                                  curve: Curves.easeOut,
                                 ),
-                                decoration: BoxDecoration(
-                                  border: _category == entry.$1
-                                      ? const Border(
-                                          bottom: BorderSide(color: _gold),
-                                        )
-                                      : null,
-                                ),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerLeft,
+                                child: Container(
+                                  margin: EdgeInsets.only(right: 20 * u),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 3 * u,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: _categoryIndex == index
+                                        ? const Border(
+                                            bottom: BorderSide(color: _gold),
+                                          )
+                                        : null,
+                                  ),
                                   child: Text(
-                                    _categoryLabel(entry.$3),
+                                    _categoryLabel(index),
                                     style: TextStyle(
                                       fontSize: 30 * u,
-                                      color: _category == entry.$1
+                                      color: _categoryIndex == index
                                           ? _gold
-                                          : const Color(0xFFB8AD9C),
+                                          : const Color(0xFF827562),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 SizedBox(height: 12 * u),
                 SizedBox(
-                  height: _category == 'card' ? width + heroHeight : width,
+                  height: width,
                   child: Stack(
                     children: [
                       Center(
@@ -534,26 +605,21 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                             onPageChanged: (category) => _changePage(
                               _startPage(category) + _verticalIndex[category],
                             ),
-                            itemBuilder: (context, category) => category == 3
-                                ? StorageMemberCards(
-                                    load: widget.loadCards,
-                                    active:
-                                        widget.active && _categoryIndex == 3,
-                                  )
-                                : PageView.builder(
-                                    key: PageStorageKey(
-                                      'storage-vertical-$category',
-                                    ),
-                                    controller: _verticalPages[category],
-                                    scrollDirection: Axis.vertical,
-                                    itemCount: _pageCount(category),
-                                    onPageChanged: (index) {
-                                      _verticalIndex[category] = index;
-                                      _changePage(_startPage(category) + index);
-                                    },
-                                    itemBuilder: (context, index) =>
-                                        _grid(_startPage(category) + index, u),
+                            itemBuilder: (context, category) =>
+                                PageView.builder(
+                                  key: PageStorageKey(
+                                    'storage-vertical-$category',
                                   ),
+                                  controller: _verticalPages[category],
+                                  scrollDirection: Axis.vertical,
+                                  itemCount: _pageCount(category),
+                                  onPageChanged: (index) {
+                                    _verticalIndex[category] = index;
+                                    _changePage(_startPage(category) + index);
+                                  },
+                                  itemBuilder: (context, index) =>
+                                      _grid(_startPage(category) + index, u),
+                                ),
                           ),
                         ),
                       ),
@@ -666,7 +732,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                       child: SizedBox(
                         width: 160 * u,
                         height: 160 * u,
-                        child: item is BottlePreviewItem
+                        child: item is StoreCardItem
+                            ? Center(child: StoreCardFace(store: item.balance))
+                            : item is BottlePreviewItem
                             ? BottleMaterialImage(item: item, thumbnail: true)
                             : Image.asset(item.thumbnail, fit: BoxFit.contain),
                       ),
@@ -704,6 +772,11 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   );
 
   Widget _hero(double u) {
+    if (_category == 'card' && _cardsError != null) {
+      return Center(
+        child: TextButton(onPressed: _loadCards, child: Text(_cardsError!)),
+      );
+    }
     if (_loading && _item == null) {
       return const SizedBox.shrink();
     }
@@ -791,11 +864,13 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
               behavior: HitTestBehavior.opaque,
               child: Opacity(
                 opacity: 1,
-                child: Image.asset(
-                  'assets/legacy/storage/wine_barcode.png',
-                  width: 64 * u,
-                  height: 64 * u,
-                ),
+                child: item is StoreCardItem
+                    ? Icon(Icons.info_outline, color: _gold, size: 64 * u)
+                    : Image.asset(
+                        'assets/legacy/storage/wine_barcode.png',
+                        width: 64 * u,
+                        height: 64 * u,
+                      ),
               ),
             ),
           ],
@@ -804,7 +879,20 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     );
   }
 
-  Widget _frontFace(StorageItem item, double u) => item.category == 'wine'
+  Widget _frontFace(StorageItem item, double u) => item is StoreCardItem
+      ? Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            StoreCardFace(store: item.balance),
+            SizedBox(height: 16 * u),
+            Text(
+              item.name,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _gold, fontSize: 26 * u),
+            ),
+          ],
+        )
+      : item.category == 'wine'
       ? (item is BottlePreviewItem
             ? BottleMaterialImage(item: item)
             : Image.asset(item.image, fit: BoxFit.contain))
@@ -840,7 +928,23 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
             ),
           ],
         );
-  Widget _backFace(StorageItem item, double u) => item.category == 'wine'
+  Widget _backFace(StorageItem item, double u) => item is StoreCardItem
+      ? Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              item.name,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _gold, fontSize: 26 * u),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              balanceMoney(item.balance.principal + item.balance.gift),
+              style: TextStyle(color: _gold, fontSize: 38 * u),
+            ),
+          ],
+        )
+      : item.category == 'wine'
       ? StorageLiquidBottle(
           key: ValueKey(item.ref),
           item: switch (item) {

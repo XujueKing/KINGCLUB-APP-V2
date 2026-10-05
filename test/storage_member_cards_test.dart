@@ -30,17 +30,21 @@ void main() {
       expect(loads, 0);
       expect(
         tester.widget<Text>(find.text('Vouchers')).style?.color,
-        const Color(0xFFB8AD9C),
+        const Color(0xFF827562),
       );
       await tester.tap(find.text('Cards'));
       await tester.pumpAndSettle();
       expect(loads, 1);
       expect(
-        find.byKey(const ValueKey('storage-card-test-store')),
+        find.byKey(const ValueKey('storage-select-card-test-store')),
         findsOneWidget,
       );
-      expect(find.textContaining('250.00'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('storage-card-test-store')));
+      expect(find.byKey(const ValueKey('storage-grid-卡-1')), findsOneWidget);
+      final grid = tester.widget<GridView>(
+        find.byKey(const ValueKey('storage-grid-卡-1')),
+      );
+      expect(grid.childrenDelegate.estimatedChildCount, 9);
+      await tester.tap(find.byKey(const ValueKey('storage-pickup')));
       await tester.pumpAndSettle();
       expect(find.text('200.00'), findsOneWidget);
       expect(find.text('50.00'), findsOneWidget);

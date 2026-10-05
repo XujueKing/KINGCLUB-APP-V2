@@ -9,10 +9,20 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../data/profile_repository.dart';
+import '../../club/data/storage_repository.dart';
+import '../../../core/networking/kingclub_realtime.dart';
 
 class RealPersonalQrPage extends StatefulWidget {
-  const RealPersonalQrPage({super.key, this.onBack, this.repository});
+  const RealPersonalQrPage({
+    super.key,
+    this.onBack,
+    this.repository,
+    this.storageRepository,
+    this.events,
+  });
   final ProfileRepository? repository;
+  final StorageRepository? storageRepository;
+  final Stream<Map<String, dynamic>>? events;
   final VoidCallback? onBack;
   @override
   State<RealPersonalQrPage> createState() => _RealPersonalQrPageState();
@@ -21,7 +31,57 @@ class RealPersonalQrPage extends StatefulWidget {
 class _RealPersonalQrPageState extends State<RealPersonalQrPage>
     with WidgetsBindingObserver {
   late final _repo = widget.repository ?? ProfileRepository();
-  Timer? _timer;
+  Timer? _timer, _storageTimer;
+  late final StorageRepository _storage =
+      widget.storageRepository ?? RealStorageRepository();
+  StreamSubscription<Map<String, dynamic>>? _storageEvents;
+  Set<String>? _knownStorage;
+  int _storageGeneration = MemberQrMemory.generation;
+  bool _checkingStorage = false;
+  StorageItem? _deposited;
+  Future<void> _checkDeposit() async {
+    if (_checkingStorage || !_foreground || _deposited != null) return;
+    final sessionGeneration = MemberQrMemory.generation;
+    if (_storageGeneration != sessionGeneration) {
+      _knownStorage = null;
+      _storageGeneration = sessionGeneration;
+    }
+    _checkingStorage = true;
+    try {
+      final items = await _storage.list();
+      if (!mounted ||
+          _deposited != null ||
+          sessionGeneration != MemberQrMemory.generation) {
+        return;
+      }
+      final old = _knownStorage;
+      _knownStorage = items.map((i) => i.ref).toSet();
+      if (old == null) return;
+      final deposited = items
+          .where(
+            (i) =>
+                i.category == 'wine' &&
+                i.status == 'available' &&
+                !old.contains(i.ref),
+          )
+          .firstOrNull;
+      if (deposited != null) {
+        _timer?.cancel();
+        _storageTimer?.cancel();
+        _generation++;
+        setState(() {
+          _deposited = deposited;
+          _code = null;
+          _busy = false;
+        });
+      }
+    } catch (_) {
+      /* Realtime and periodic checks retry without changing QR. */
+    } finally {
+      _checkingStorage = false;
+    }
+  }
+
   Stopwatch? _validity;
   int _ttl = 0;
   int _generation = 0;
@@ -47,6 +107,23 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
     }
     if (_profile == null || _avatar == null) _loadProfile();
     _refresh();
+    if (widget.repository == null || widget.storageRepository != null) {
+      _checkDeposit();
+      _storageTimer = Timer.periodic(
+        const Duration(seconds: 3),
+        (_) => _checkDeposit(),
+      );
+      _storageEvents = (widget.events ?? KingclubRealtime.shared.events).listen(
+        (event) {
+          if ([
+            'storage.changed',
+            'connection.ready',
+          ].contains(event['eventType'])) {
+            _checkDeposit();
+          }
+        },
+      );
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && _foreground) {
         setState(() {});
@@ -70,7 +147,7 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
   }
 
   Future<void> _refresh() async {
-    if (_busy || !_foreground) return;
+    if (_busy || !_foreground || _deposited != null) return;
     final gen = ++_generation;
     setState(() {
       _busy = true;
@@ -108,6 +185,7 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
       _busy = false;
     } else {
       _refresh();
+      _checkDeposit();
     }
     if (mounted) setState(() {});
   }
@@ -116,12 +194,96 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
   void dispose() {
     _generation++;
     _timer?.cancel();
+    _storageTimer?.cancel();
+    _storageEvents?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
+  Widget _depositSuccess() {
+    final locale = Localizations.localeOf(context);
+    final index = locale.languageCode == 'en'
+        ? 1
+        : locale.languageCode == 'th'
+        ? 3
+        : locale.scriptCode == 'Hant'
+        ? 2
+        : 0;
+    String t(String v) => v.split('|')[index];
+    void back() {
+      if (widget.onBack != null) {
+        widget.onBack!();
+      } else {
+        Navigator.pop(context);
+      }
+    }
+
+    const gold = Color(0xFFC9B69E);
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: back,
+          child: SizedBox.expand(
+            child: Column(
+              children: [
+                const SizedBox(height: 110),
+                Image.asset(
+                  'assets/legacy/storage/pickup_success.png',
+                  width: 54,
+                  height: 54,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  t('存酒成功|Wine stored successfully|存酒成功|ฝากเครื่องดื่มสำเร็จ'),
+                  key: const ValueKey('wine-deposit-success'),
+                  style: const TextStyle(color: gold, fontSize: 24),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    [
+                      _deposited!.storeName,
+                      _deposited!.name,
+                    ].where((s) => s.isNotEmpty).join('\n'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: gold,
+                      fontSize: 16,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton(
+                      onPressed: back,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF24180A),
+                        foregroundColor: gold,
+                      ),
+                      child: Text(t('完成|Done|完成|เสร็จสิ้น')),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 46),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_deposited != null) return _depositSuccess();
     final ready = _foreground && _code != null && _remaining > 0;
     final r = MediaQuery.sizeOf(context).width.clamp(0, 600) / 750;
     return Scaffold(
