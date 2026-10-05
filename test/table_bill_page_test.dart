@@ -25,12 +25,13 @@ void main() {
       item['quantity'] = 1;
       item['priceCents'] = 10;
       item['servedQuantity'] = status == 'paid' ? 1 : 0;
-      if (status == 'paid')
+      if (status == 'paid') {
         row['payment'] = {
           'amountCents': 10,
           'paidAt': '2030-01-01T12:30:00Z',
           'channel': 'wechat',
         };
+      }
       return row;
     }
 
@@ -96,7 +97,16 @@ void main() {
     );
     expect(find.textContaining('Served '), findsNothing);
     expect(find.byKey(const ValueKey('table-bill-payments')), findsOneWidget);
-    expect(find.byIcon(Icons.wechat), findsNWidgets(2));
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/legacy/ordering/WEIPAY.png',
+      ),
+      findsNWidgets(2),
+    );
     expect(find.text('¥0.20'), findsNWidgets(2));
     expect(find.textContaining('D00000000001'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -117,6 +127,76 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Test product'), findsNothing);
     expect(find.byKey(const ValueKey('table-bill-store')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('payment opens scoped order detail and returns to table bill', (
+    tester,
+  ) async {
+    final requests = <Map<String, dynamic>>[];
+    final repository = MemberOrdersRepository(
+      readSession: () async => data.sessionFixture,
+      request: (_, params, _) async {
+        requests.add(params);
+        return {
+          'result': {
+            ...data.pageFixture(
+              orders: [
+                {
+                  ...data.orderFixture(),
+                  'status': 'paid',
+                  'payment': {
+                    'amountCents': 100,
+                    'paidAt': '2030-01-01T12:30:00Z',
+                    'channel': 'wechat',
+                  },
+                },
+              ],
+            ),
+            'tableScope': {
+              'storeRef': 'test-store',
+              'tableRef': 'test-table',
+              'sessionRef': 'H00000000001',
+            },
+          },
+        };
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TableBillPage(
+          table: const OrderingContext(
+            contextRef: 'H00000000001',
+            memberRef: 'test-member',
+            storeRef: 'test-store',
+            tableId: 'test-table',
+            tableSessionRef: 'H00000000001',
+            storeName: 'Test store',
+            storeAddress: '',
+            tableName: 'T1',
+            businessDate: '2030-01-01',
+          ),
+          onBack: () {},
+          repository: repository,
+          events: const Stream.empty(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final payment = find.byWidgetPredicate(
+      (w) =>
+          w is GestureDetector && w.key.toString().contains('table-payment-'),
+    );
+    await tester.ensureVisible(payment);
+    await tester.tap(payment);
+    await tester.pumpAndSettle();
+    expect(requests.last['orderRef'], isNotNull);
+    expect(requests.last['tableRef'], 'test-table');
+    expect(requests.last['sessionRef'], 'H00000000001');
+    expect(find.text('Order details'), findsOneWidget);
+    Navigator.of(tester.element(find.text('Order details'))).pop();
+    await tester.pumpAndSettle();
+    expect(find.text('T1 · Table bill'), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
   for (final locale in [

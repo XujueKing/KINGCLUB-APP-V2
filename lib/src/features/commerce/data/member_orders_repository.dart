@@ -206,6 +206,7 @@ class MemberOrder {
               'alipay',
               'cash',
               'balance',
+              'pos',
               'other',
             }),
     );

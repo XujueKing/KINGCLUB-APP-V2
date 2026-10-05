@@ -42,6 +42,17 @@ class _TableBillPageState extends State<TableBillPage> {
     key: ValueKey('${widget.table.storeRef}/${widget.table.tableSessionRef}'),
     onBack: widget.onBack,
     load: load,
+    onOpenOrder: (orderRef) => Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        allowSnapshotting: false,
+        builder: (pageContext) => MemberOrdersPage(
+          orderRef: orderRef,
+          load: load,
+          events: widget.events,
+          onBack: () => Navigator.of(pageContext).pop(),
+        ),
+      ),
+    ),
     events: widget.events,
     retainDuringRefresh: true,
     tableBill: true,

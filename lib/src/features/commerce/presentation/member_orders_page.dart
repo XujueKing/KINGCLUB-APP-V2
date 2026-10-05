@@ -430,7 +430,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
   }
 
   Widget tableReceipt() {
-    const ink = Color(0xFF181205);
+    const ink = Color(0xFFDDDDDD);
     final lines =
         <
           String,
@@ -472,15 +472,15 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFC9B69E),
+        color: const Color(0xFF202020),
         borderRadius: BorderRadius.circular(8),
       ),
       child: DefaultTextStyle(
         style: const TextStyle(
           color: ink,
-          fontSize: 15,
-          fontWeight: FontWeight.w400,
-          height: 1.25,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          height: 1.4,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -521,7 +521,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: const BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(color: Color(0x16000000)),
+                      bottom: BorderSide(color: Color(0xFF303030)),
                     ),
                   ),
                   child: Row(
@@ -548,17 +548,26 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(item.names[localeKey]!),
-                            Text(detail, style: const TextStyle(fontSize: 11)),
+                            Text(
+                              detail,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFFAAAAAA),
+                              ),
+                            ),
                             Text(
                               '${t('unitPrice')} ${(line.prices.toList()..sort()).map(money).join(' / ')}',
-                              style: const TextStyle(fontSize: 11),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFFAAAAAA),
+                              ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
                       ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 110),
+                        constraints: const BoxConstraints(maxWidth: 125),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -580,7 +589,10 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                                 ],
                                 Text(
                                   '${t('quantity')} × ${line.quantity}',
-                                  style: const TextStyle(fontSize: 11),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFFAAAAAA),
+                                  ),
                                 ),
                               ],
                             ),
@@ -599,8 +611,8 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
           const SizedBox(height: 14),
           Row(
             children: [
-              Text(t('productTotal')),
-              const Spacer(),
+              Expanded(child: Text(t('productTotal'))),
+              const SizedBox(width: 12),
               Text(
                 money(
                   lines.values.fold<int>(0, (sum, line) => sum + line.cents),
@@ -619,39 +631,60 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
             for (final order in orders.where(
               (o) => o.status == 'paid' && o.paidAt != null,
             ))
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        if (order.paymentChannel == 'wechat') ...[
-                          const Icon(
-                            Icons.wechat,
-                            color: Color(0xFF07B853),
-                            size: 22,
+              GestureDetector(
+                key: ValueKey('table-payment-${order.orderRef}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.onOpenOrder == null
+                    ? null
+                    : () => widget.onOpenOrder!(order.orderRef),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFF383838)),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (order.paymentChannel == 'wechat') ...[
+                            Image.asset(
+                              'assets/legacy/ordering/WEIPAY.png',
+                              width: 24,
+                              height: 24,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Expanded(
+                            child: Text(t('pay_${order.paymentChannel}')),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 12),
+                          Text(
+                            money(order.paidCents!),
+                            style: const TextStyle(fontSize: 17),
+                          ),
                         ],
-                        Text(t('pay_${order.paymentChannel}')),
-                        const Spacer(),
-                        Text(
-                          money(order.paidCents!),
-                          style: const TextStyle(fontSize: 17),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${t('orderNumber')} ${order.orderRef}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFFAAAAAA),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${t('orderNumber')} ${order.orderRef}',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    Text(
-                      order.paidAt!.toLocal().toString().split('.').first,
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                  ],
+                      ),
+                      Text(
+                        order.paidAt!.toLocal().toString().split('.').first,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFFAAAAAA),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ]),
@@ -830,7 +863,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: widget.tableBill ? Colors.black : const Color(0xFF101010),
+    backgroundColor: const Color(0xFF101010),
     appBar: kingAppBar(
       context: context,
       title: Text(
@@ -841,9 +874,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
           fontWeight: FontWeight.w600,
         ),
       ),
-      backgroundColor: widget.tableBill
-          ? Colors.black
-          : const Color(0xFF101010),
+      backgroundColor: const Color(0xFF101010),
       foregroundColor: Colors.white,
       leading: KingBackButton(onPressed: widget.onBack),
       actions: [
@@ -969,6 +1000,7 @@ const _copy = {
   'pay_alipay': '支付宝|Alipay|支付寶|Alipay',
   'pay_cash': '现金|Cash|現金|เงินสด',
   'pay_balance': '余额支付|Balance|餘額支付|ชำระด้วยยอดคงเหลือ',
+  'pay_pos': 'POS刷卡|Card (POS)|POS刷卡|บัตร (POS)',
   'pay_other': '其他支付|Other payment|其他支付|การชำระเงินอื่น',
   'productTotal': '商品总价|Items total|商品總價|ยอดรวมสินค้า',
   'tableEmpty': '本桌暂无已付款商品|No paid items for this table|本桌暫無已付款商品|ยังไม่มีสินค้าที่ชำระเงินแล้วสำหรับโต๊ะนี้',
