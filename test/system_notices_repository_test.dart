@@ -40,6 +40,58 @@ Map<String, dynamic> page(
 };
 
 void main() {
+  testWidgets(
+    'recharge receipt opens from old notice and retains credited breakdown',
+    (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final raw = {
+        ...notice(1),
+        'kind': 'recharge_paid',
+        'target': null,
+        'amountCents': 10000,
+        'rechargeDetails': {
+          'rechargeRef': '00000000-0000-4000-8000-000000000001',
+          'storeName': 'Test store',
+          'principalCents': 10000,
+          'giftCents': 2000,
+          'channel': 'cash',
+          'createdAt': '2030-01-01T12:00:00Z',
+          'creditedAt': '2030-01-01T12:01:00Z',
+          'cashierName': 'Cashier 01',
+        },
+      };
+      expect(
+        SystemNotice.parse(raw).asRead().rechargeDetails?['giftCents'],
+        2000,
+      );
+      final controller = SystemNoticesController(
+        SystemNoticesRepository(
+          readSession: () async => session('one'),
+          request: (api, params, s) async => {
+            'result': page([raw]),
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh', 'CN'),
+          supportedLocales: const [Locale('zh', 'CN')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          home: SystemNotificationsPage(demo: false, controller: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('充值到账成功'));
+      await tester.pumpAndSettle();
+      expect(find.text('充值详情'), findsOneWidget);
+      expect(find.text('+¥120.00'), findsOneWidget);
+      expect(find.text('Cashier 01'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      controller.dispose();
+    },
+  );
+
   test(
     'uses authenticated list only, rejecting late results after account change',
     () async {

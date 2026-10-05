@@ -28,6 +28,7 @@ class SystemNotice {
     required this.amountCents,
     required this.details,
     this.target,
+    this.rechargeDetails,
   });
   final String id, kind;
   final DateTime occurredAt;
@@ -35,6 +36,7 @@ class SystemNotice {
   final int? amountCents;
   final List<(String, dynamic)> details;
   final Map<String, String>? target;
+  final Map<String, dynamic>? rechargeDetails;
   factory SystemNotice.parse(dynamic raw) {
     if (raw is! Map ||
         raw['noticeRef'] is! String ||
@@ -99,7 +101,35 @@ class SystemNotice {
             target['reference'].length > 128)) {
       _invalid();
     }
+    final recharge = raw['rechargeDetails'];
+    if (recharge != null) {
+      if (raw['kind'] != 'recharge_paid' ||
+          recharge is! Map ||
+          recharge['rechargeRef'] is! String ||
+          recharge['storeName'] is! String ||
+          recharge['principalCents'] is! int ||
+          recharge['giftCents'] is! int ||
+          recharge['principalCents'] < 1 ||
+          recharge['giftCents'] < 0 ||
+          !['wechat', 'alipay', 'cash'].contains(recharge['channel']) ||
+          DateTime.tryParse(recharge['createdAt']?.toString() ?? '') == null ||
+          DateTime.tryParse(recharge['creditedAt']?.toString() ?? '') == null) {
+        _invalid();
+      }
+      for (final key in [
+        'logoUrl',
+        'cashierName',
+        'transactionRef',
+        'rulesDescription',
+        'giftExpiresAt',
+      ]) {
+        if (recharge[key] != null && recharge[key] is! String) _invalid();
+      }
+    }
     return SystemNotice(
+      rechargeDetails: recharge == null
+          ? null
+          : Map<String, dynamic>.unmodifiable(recharge),
       id: raw['noticeRef'],
       kind: raw['kind'],
       occurredAt: date,
@@ -117,6 +147,7 @@ class SystemNotice {
     amountCents: amountCents,
     details: details,
     target: target,
+    rechargeDetails: rechargeDetails,
   );
 }
 

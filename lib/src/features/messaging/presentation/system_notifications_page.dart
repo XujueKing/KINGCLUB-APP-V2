@@ -6,6 +6,7 @@ import '../../auth/data/auth_repository_provider.dart';
 import '../data/system_notices_repository.dart';
 import '../data/system_notices_controller.dart';
 import 'system_notice_copy.dart';
+import 'recharge_detail_page.dart';
 
 import 'legacy_messaging_components.dart';
 
@@ -289,7 +290,17 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage>
                                       id: notices[index].notice!.id,
                                     ),
                                   );
-                                  final target = notices[index].notice!.target;
+                                  final notice = notices[index].notice!;
+                                  if (notice.kind == 'recharge_paid') {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            RechargeDetailPage(notice: notice),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  final target = notice.target;
                                   if (target != null) {
                                     widget.onOpenTarget?.call(target);
                                   }
