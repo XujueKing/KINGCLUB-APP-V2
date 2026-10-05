@@ -34,7 +34,7 @@ void main() {
   testWidgets('准备态展示权威金额和服务端方式列表', (tester) async {
     await tester.pumpWidget(subject());
 
-    expect(find.text('¥1156.00'), findsOneWidget);
+    expect(find.text('¥1,156.00'), findsOneWidget);
     expect(find.text('KINGBAR V8 桌点单'), findsOneWidget);
     expect(find.textContaining('V8 卡座'), findsOneWidget);
     expect(find.text('微信支付'), findsOneWidget);
@@ -67,7 +67,7 @@ void main() {
     await finishProviderFlow(tester);
 
     expect(find.text('支付已确认'), findsOneWidget);
-    expect(find.textContaining('服务器已确认 ¥1156.00'), findsOneWidget);
+    expect(find.textContaining('服务器已确认 ¥1,156.00'), findsOneWidget);
     expect(find.textContaining('Fake'), findsNothing);
     expect(find.byKey(const ValueKey('payment-view-order')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('payment-view-order')));

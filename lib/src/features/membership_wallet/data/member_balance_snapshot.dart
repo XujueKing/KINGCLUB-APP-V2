@@ -1,3 +1,5 @@
+import '../../../core/formatters/money.dart';
+
 BigInt balanceCents(Object? value) {
   if (value is! String || !RegExp(r'^(0|[1-9][0-9]{0,29})$').hasMatch(value)) {
     throw const FormatException('Invalid balance');
@@ -5,8 +7,7 @@ BigInt balanceCents(Object? value) {
   return BigInt.parse(value);
 }
 
-String balanceMoney(BigInt cents) =>
-    '${cents ~/ BigInt.from(100)}.${(cents % BigInt.from(100)).toString().padLeft(2, '0')}';
+String balanceMoney(BigInt cents) => moneyCents(cents);
 Map<String, dynamic> _map(Object? value) {
   if (value is! Map<String, dynamic>) {
     throw const FormatException('Invalid balance snapshot');
@@ -47,9 +48,12 @@ class MemberStoreBalance {
     this.expiredGift,
     this.lots, {
     this.logoUrl,
+    this.originalPrincipal,
+    this.originalGift,
   });
   final String ref, name, status, accountStatus;
   final String? logoUrl;
+  final BigInt? originalPrincipal, originalGift;
   final BigInt principal, gift, expiredGift;
   final List<MemberBalanceLot> lots;
 }
@@ -170,6 +174,12 @@ class MemberBalanceSnapshot {
           g,
           e,
           List.unmodifiable(lots),
+          originalPrincipal: row['originalPrincipalCents'] == null
+              ? null
+              : balanceCents(row['originalPrincipalCents']),
+          originalGift: row['originalGiftCents'] == null
+              ? null
+              : balanceCents(row['originalGiftCents']),
           logoUrl: row['logoUrl'] == null ? null : _text(row['logoUrl'], 2048),
         ),
       );

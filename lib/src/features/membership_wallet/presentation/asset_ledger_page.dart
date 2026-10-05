@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 
@@ -809,14 +810,14 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
         : '';
     final absolute = entry.amount.abs();
     if (entry.type == AssetLedgerType.cashBalance) {
-      return '$sign¥${(absolute / 100).toStringAsFixed(2)}';
+      return '$sign¥${moneyAmount((absolute / 100))}';
     }
     return '$sign$absolute 枚';
   }
 
   String _formatSummary(int value) {
     if (_selectedType == AssetLedgerType.cashBalance) {
-      return '¥${(value / 100).toStringAsFixed(2)}';
+      return '¥${moneyAmount((value / 100))}';
     }
     return '$value枚';
   }
@@ -841,10 +842,10 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
         .fold<int>(0, (sum, entry) => sum + entry.amount);
 
     final expenseParts = <String>[
-      if (balanceExpense > 0) '¥${(balanceExpense / 100).toStringAsFixed(2)}',
+      if (balanceExpense > 0) '¥${moneyAmount((balanceExpense / 100))}',
       if (coinExpense > 0) '$coinExpense枚',
     ];
-    final income = '¥${(balanceIncome / 100).toStringAsFixed(2)}';
+    final income = '¥${moneyAmount((balanceIncome / 100))}';
     return '支出 ${expenseParts.join(' · ')}  收入 $income';
   }
 

@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -24,7 +25,7 @@ class _TogetherRemovalPageState extends State<TogetherRemovalPage> {
   String method = 'platform_cash';
   TogetherRemovalMember? selected;
   TogetherRemovalQuote? quote;
-  String money(int n) => '¥${(n / 100).toStringAsFixed(2)}';
+  String money(int n) => '¥${moneyAmount((n / 100))}';
   @override
   void initState() {
     super.initState();

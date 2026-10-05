@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show appFlavor;
 
@@ -735,7 +736,14 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                         width: 160 * u,
                         height: 160 * u,
                         child: item is StoreCardItem
-                            ? Center(child: StoreCardFace(store: item.balance))
+                            ? ClipRect(
+                                child: Padding(
+                                  padding: EdgeInsets.all(6 * u),
+                                  child: Center(
+                                    child: StoreCardFace(store: item.balance),
+                                  ),
+                                ),
+                              )
                             : item is BottlePreviewItem
                             ? BottleMaterialImage(item: item, thumbnail: true)
                             : Image.asset(item.thumbnail, fit: BoxFit.contain),
@@ -866,13 +874,11 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
               behavior: HitTestBehavior.opaque,
               child: Opacity(
                 opacity: 1,
-                child: item is StoreCardItem
-                    ? Icon(Icons.info_outline, color: _gold, size: 64 * u)
-                    : Image.asset(
-                        'assets/legacy/storage/wine_barcode.png',
-                        width: 64 * u,
-                        height: 64 * u,
-                      ),
+                child: Image.asset(
+                  'assets/legacy/storage/wine_barcode.png',
+                  width: 64 * u,
+                  height: 64 * u,
+                ),
               ),
             ),
           ],
@@ -882,18 +888,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   }
 
   Widget _frontFace(StorageItem item, double u) => item is StoreCardItem
-      ? Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            StoreCardFace(store: item.balance),
-            SizedBox(height: 16 * u),
-            Text(
-              item.name,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: _gold, fontSize: 26 * u),
-            ),
-          ],
-        )
+      ? StoreCardFace(store: item.balance)
       : item.category == 'wine'
       ? (item is BottlePreviewItem
             ? BottleMaterialImage(item: item)
@@ -930,6 +925,17 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
             ),
           ],
         );
+  String _cardText(String values) {
+    final locale = Localizations.localeOf(context);
+    return values.split('|')[locale.languageCode == 'en'
+        ? 1
+        : locale.languageCode == 'th'
+        ? 3
+        : locale.scriptCode == 'Hant'
+        ? 2
+        : 0];
+  }
+
   Widget _backFace(StorageItem item, double u) => item is StoreCardItem
       ? Column(
           mainAxisSize: MainAxisSize.min,
@@ -941,7 +947,14 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
             ),
             const SizedBox(height: 12),
             Text(
-              balanceMoney(item.balance.principal + item.balance.gift),
+              _cardText(
+                'VIP 储值卡|VIP stored-value card|VIP 儲值卡|บัตรเติมเงิน VIP',
+              ),
+              style: TextStyle(color: _gold, fontSize: 26 * u),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '${_cardText('余额|Balance|餘額|ยอดคงเหลือ')}：${balanceMoney(item.balance.principal + item.balance.gift)}',
               style: TextStyle(color: _gold, fontSize: 38 * u),
             ),
           ],
@@ -1005,7 +1018,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
             ),
             if (item.maximumValue != null)
               Text(
-                '最大抵用金额：${item.maximumValue!.toStringAsFixed(0)}元',
+                '最大抵用金额：${groupMoney(item.maximumValue!.toStringAsFixed(0))}元',
                 style: TextStyle(
                   fontSize: 22 * u,
                   color: const Color(0x88FFFFFF),

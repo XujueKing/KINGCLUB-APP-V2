@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -77,8 +79,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
 
   String t(String key) => _copy[key]!.split('|')[language];
   String get localeKey => ['zh-CN', 'en', 'zh-TW', 'th'][language];
-  String money(int value) =>
-      '¥${value ~/ 100}.${(value % 100).toString().padLeft(2, '0')}';
+  String money(int value) => '¥${moneyCents(value)}';
   @override
   void initState() {
     super.initState();

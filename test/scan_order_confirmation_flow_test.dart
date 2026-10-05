@@ -159,7 +159,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.text('待支付订单已创建'), findsOneWidget);
-    expect(find.text('应付¥1156'), findsOneWidget);
+    expect(find.text('应付¥1,156'), findsOneWidget);
     expect(find.text('订单已创建，请前往订单中心继续完成支付。'), findsOneWidget);
     expect(find.textContaining('fake-order'), findsNothing);
     expect(find.textContaining('Fake'), findsNothing);
@@ -205,7 +205,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('支付待接入'), findsOneWidget);
-    expect(find.text('¥3380.00'), findsNWidgets(3));
+    expect(find.text('¥3,380.00'), findsNWidgets(3));
     expect(
       tester
           .widget<FilledButton>(find.byKey(const ValueKey('order-submit')))

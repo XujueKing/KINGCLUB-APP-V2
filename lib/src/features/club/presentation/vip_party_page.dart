@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/material.dart';
 
 import 'legacy_club_components.dart';
@@ -153,7 +154,7 @@ class _VipPartyPageState extends State<VipPartyPage> {
         title: Text(sponsored ? '确认免费加入' : '确认申请加入'),
         content: Text(
           '${party.table} · ${party.name}\n'
-          '${sponsored ? '局长请客，本人应付 ¥0.00' : '成员各付 ¥${party.price}.00'}\n\n'
+          '${sponsored ? '局长请客，本人应付 ¥0.00' : '成员各付 ¥${groupMoney('${party.price}.00')}'}\n\n'
           '请文明饮酒、尊重同桌会员；确认后将占用一个席位。',
           style: const TextStyle(color: Color(0xFFD8C8B8), height: 1.6),
         ),
@@ -180,7 +181,7 @@ class _VipPartyPageState extends State<VipPartyPage> {
         content: Text(
           sponsored
               ? '席位已确认，本次实付 ¥0.00，无需支付。'
-              : '席位将保留 10 分钟，待支付 ¥${party.price}.00，请在有效期内完成支付。',
+              : '席位将保留 10 分钟，待支付 ¥${groupMoney('${party.price}.00')}，请在有效期内完成支付。',
           style: const TextStyle(color: Color(0xFFD8C8B8), height: 1.6),
         ),
         actions: [
@@ -366,7 +367,7 @@ class _PartyCard extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 Text(
-                                  '￥${party.price}',
+                                  '￥${groupMoney(party.price.toString())}',
                                   style: const TextStyle(
                                     color: legacyGold,
                                     fontSize: 20,

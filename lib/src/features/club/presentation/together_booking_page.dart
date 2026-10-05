@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -264,7 +266,7 @@ class _TogetherBookingPageState extends State<TogetherBookingPage>
     if (mounted && booking?.status == 'pending') await _prepare();
   }
 
-  String money(int amount) => '¥${(amount / 100).toStringAsFixed(2)}';
+  String money(int amount) => '¥${moneyAmount((amount / 100))}';
   @override
   Widget build(BuildContext context) => LegacyClubScaffold(
     title: '确认报名',

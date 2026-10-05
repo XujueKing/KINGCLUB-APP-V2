@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/material.dart';
 
 import 'legacy_club_components.dart';
@@ -146,7 +147,10 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
                       : () => _pick(
                           title: '选择酒水套餐',
                           options: _packages
-                              .map((item) => '${item.$1}  ¥${item.$2}')
+                              .map(
+                                (item) =>
+                                    '${item.$1}  ¥${groupMoney(item.$2.toString())}',
+                              )
                               .toList(),
                           selected: _packageIndex,
                           onSelected: (index) => _packageIndex = index,
@@ -180,7 +184,7 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
                 _valueRow('创建者身份：', '局长', accent: true),
                 _valueRow(
                   '成员参考应付：',
-                  '¥${_memberDue.toStringAsFixed(2)}',
+                  '¥${moneyAmount(_memberDue)}',
                   accent: true,
                 ),
                 _valueRow(
@@ -372,12 +376,12 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
               ),
             ),
             Text(
-              '¥${package.$2}.00 元',
+              '¥${moneyAmount(package.$2)} 元',
               style: const TextStyle(color: Color(0xFFFCA800), fontSize: 15),
             ),
             const SizedBox(width: 8),
             Text(
-              '原价¥${package.$3}.00',
+              '原价¥${moneyAmount(package.$3)}',
               style: const TextStyle(
                 color: Color(0xFF777777),
                 fontSize: 11,
@@ -474,7 +478,7 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
                 ),
                 Text(
                   _splitPerMember
-                      ? '成员加入时参考应付 ¥$_memberDue.00'
+                      ? '成员加入时参考应付 ¥${moneyAmount(_memberDue)}'
                       : '局长请客，成员加入应付 ¥0.00',
                   style: const TextStyle(
                     color: Color(0xFF493C2C),
@@ -597,7 +601,7 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
     await _resultDialog(
       title: '待支付订单已生成',
       message:
-          '局长待支付 ¥${_hostDue.toStringAsFixed(2)}，席位将保留 10 分钟，请在有效期内完成支付；支付成功前不会标记为已付款。',
+          '局长待支付 ¥${moneyAmount(_hostDue)}，席位将保留 10 分钟，请在有效期内完成支付；支付成功前不会标记为已付款。',
     );
   }
 

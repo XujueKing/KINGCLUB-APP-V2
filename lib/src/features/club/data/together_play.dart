@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 enum TogetherFeeMode { aa, menPay, hostTreat }
 
 enum TogetherGender { male, female, unspecified }
@@ -162,7 +164,7 @@ class TogetherParty {
     final amount = cents == 0
         ? '$whole'
         : '$whole.${cents.toString().padLeft(2, '0')}';
-    return '¥$amount/${feeMode == TogetherFeeMode.menPay ? '男士' : '人'}';
+    return '¥${groupMoney(amount)}/${feeMode == TogetherFeeMode.menPay ? '男士' : '人'}';
   }
 
   TogetherJoinState get actionState =>

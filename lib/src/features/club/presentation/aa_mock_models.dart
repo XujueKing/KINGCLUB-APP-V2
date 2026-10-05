@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 class AaMockPackage {
   const AaMockPackage({
     required this.name,
@@ -23,7 +25,7 @@ class AaMockPackage {
   final int? originalPriceMinor;
   final int partySize;
 
-  String get priceYuan => (priceMinor / 100).toStringAsFixed(0);
+  String get priceYuan => groupMoney((priceMinor / 100).toStringAsFixed(0));
 
   AaMockPackage copyWith({int? priceMinor, bool? available}) => AaMockPackage(
     name: name,
@@ -74,4 +76,4 @@ const aaMockPackages = <AaMockPackage>[
   ),
 ];
 
-String formatAaMoney(int minor) => '¥${(minor / 100).toStringAsFixed(2)}';
+String formatAaMoney(int minor) => '¥${moneyAmount((minor / 100))}';

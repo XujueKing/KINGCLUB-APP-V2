@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:async';
@@ -296,7 +297,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     ),
                   ),
                 Text(
-                  '单价 ¥${item.unitPrice}.00',
+                  '单价 ¥${moneyAmount(item.unitPrice)}',
                   style: const TextStyle(
                     color: Color(0xFF6E604F),
                     fontSize: 11,
@@ -316,7 +317,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               ),
               const SizedBox(height: 7),
               Text(
-                '小计 ¥${item.subtotal}',
+                '小计 ¥${groupMoney(item.subtotal.toString())}',
                 style: const TextStyle(
                   color: Color(0xFF181205),
                   fontSize: 17,

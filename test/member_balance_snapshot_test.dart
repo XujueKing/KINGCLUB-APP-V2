@@ -52,7 +52,10 @@ void main() {
     }
   });
   test('money formatting is exact above JavaScript integer precision', () {
-    expect(balanceMoney(balanceCents('9007199254740993')), '90071992547409.93');
+    expect(
+      balanceMoney(balanceCents('9007199254740993')),
+      '90,071,992,547,409.93',
+    );
     for (final invalid in ['1.1', '-1', '01', '1e3', '', null]) {
       expect(() => balanceCents(invalid), throwsFormatException);
     }

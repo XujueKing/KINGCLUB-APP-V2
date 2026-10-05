@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import '../../../core/networking/kingclub_secure_client.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
@@ -39,8 +41,7 @@ class OrderingCatalogProduct {
   final bool isRecommended;
   final bool isHot;
   bool get soldOut => available == 0;
-  String get priceText =>
-      '${priceCents ~/ 100}.${(priceCents % 100).toString().padLeft(2, '0')}';
+  String get priceText => moneyCents(priceCents);
 }
 
 class OrderingCatalog {

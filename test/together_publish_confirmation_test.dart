@@ -113,7 +113,7 @@ void main() {
         await tester.tap(find.text('发布'));
         await tester.pumpAndSettle();
         expect(
-          find.text(official ? '商家官方活动 · 无需押金' : '冻结 APP 余额 ¥1000.00'),
+          find.text(official ? '商家官方活动 · 无需押金' : '冻结 APP 余额 ¥1,000.00'),
           findsOneWidget,
         );
         expect(find.text('男士 ¥150.00 / 位 · 女士 ¥50.00 / 位'), findsOneWidget);

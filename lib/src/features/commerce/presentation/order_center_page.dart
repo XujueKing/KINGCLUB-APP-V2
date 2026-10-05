@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -517,7 +519,7 @@ class _OrderCenterPageState extends State<OrderCenterPage> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '¥${order.amount}',
+                          '¥${groupMoney(order.amount.toString())}',
                           style: const TextStyle(
                             color: Color(0xFFFFB400),
                             fontSize: 18,

@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import '../data/together_rule_summary.dart';
 
 import 'package:flutter/material.dart';
@@ -84,7 +86,7 @@ class _ConfirmationState extends State<TogetherPublishConfirmationPage> {
 
   String _money(String cents) {
     final n = BigInt.parse(cents);
-    return '${n ~/ BigInt.from(100)}.${(n % BigInt.from(100)).toString().padLeft(2, '0')}';
+    return moneyCents(n);
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -170,7 +172,7 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage>
           title: systemNoticeText(context, n.kind),
           value: n.amountCents == null
               ? systemNoticeText(context, 'success')
-              : '${n.amountCents! ~/ 100}.${(n.amountCents! % 100).toString().padLeft(2, '0')}',
+              : moneyCents(n.amountCents!),
           time: _time(n.occurredAt),
           kingClub: true,
           details: [

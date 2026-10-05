@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import '../../../core/design_system/king_result_page.dart';
 
 import 'package:kingclub/src/core/design_system/king_notice.dart';
@@ -405,7 +407,7 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                           if (_item.maximumValue != null)
                             _detailRow(
                               '最大抵用金额',
-                              '￥${_item.maximumValue!.toStringAsFixed(2)}',
+                              '￥${moneyAmount(_item.maximumValue!)}',
                             ),
                         ] else ...[
                           if (_item.status != 'expired') ...[

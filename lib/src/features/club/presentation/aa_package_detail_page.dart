@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 
@@ -9,7 +10,7 @@ import 'legacy_club_components.dart';
 
 enum AaPackageScenario { ready, priceUpdated, soldOut }
 
-String _moneyValue(int minor) => (minor / 100).toStringAsFixed(2);
+String _moneyValue(int minor) => moneyAmount((minor / 100));
 
 String _legacyFullServiceDate(String serviceDate) => switch (serviceDate) {
   '08.26' => '2026-08-26 周三',
@@ -368,7 +369,7 @@ class _PackageBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final soldOut = scenario == AaPackageScenario.soldOut;
-    final priceParts = (priceMinor / 100).toStringAsFixed(2).split('.');
+    final priceParts = moneyAmount((priceMinor / 100)).split('.');
     final showOriginalPrice =
         !soldOut &&
         originalPriceMinor != null &&

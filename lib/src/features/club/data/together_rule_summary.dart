@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 /// Display the saved activity requirements. Eligibility and prices are decided
 /// by the server using the member profile again at payment time.
 const togetherStarSigns = [
@@ -60,7 +62,7 @@ String togetherRuleSummary(Map rules) {
         !RegExp(r'^(0|[1-9][0-9]{0,7})$').hasMatch(extra)) {
       throw const FormatException('Invalid age surcharge');
     }
-    parts.add('超龄每岁加¥${(int.parse(extra) / 100).toStringAsFixed(2)}');
+    parts.add('超龄每岁加¥${moneyAmount((int.parse(extra) / 100))}');
   }
   for (final entry in {
     'minimumMaleScore': '男士',

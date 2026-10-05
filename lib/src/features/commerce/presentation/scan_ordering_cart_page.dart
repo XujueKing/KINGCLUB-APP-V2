@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import '../../../core/media/cached_media_image.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
@@ -168,9 +170,8 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
   );
   String _major(String value) =>
       const {'liquor': '酒水', 'drinks': '饮料', 'snacks': '小吃'}[value]!;
-  String _money(int amount) => _live
-      ? '${amount ~/ 100}.${(amount % 100).toString().padLeft(2, '0')}'
-      : '$amount';
+  String _money(int amount) =>
+      _live ? moneyCents(amount) : groupMoney('$amount');
   String _categoryLabel(String id) {
     if (!_live) return _legacyCategoryLabel(id);
     return _localized(
@@ -1313,7 +1314,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                     TextSpan(
                       text: _live
                           ? _money(_total)
-                          : (_itemCount > 0 ? _total.toStringAsFixed(0) : '0'),
+                          : (_itemCount > 0
+                                ? groupMoney(_total.toStringAsFixed(0))
+                                : '0'),
                       style: TextStyle(
                         color: _itemCount > 0
                             ? const Color(0xFFE1D3C1)
@@ -1475,7 +1478,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
             ),
             const SizedBox(height: 8),
             Text(
-              '${quote.itemCount} 件商品 · 预估 ¥${quote.total}',
+              '${quote.itemCount} 件商品 · 预估 ¥${groupMoney(quote.total.toString())}',
               style: const TextStyle(color: legacyGold, fontSize: 16),
             ),
             const SizedBox(height: 8),

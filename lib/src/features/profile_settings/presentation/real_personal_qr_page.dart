@@ -1,8 +1,12 @@
+import '../../membership_wallet/data/store_debit_watch.dart';
+import '../../membership_wallet/data/member_balance_snapshot.dart';
+import '../../club/presentation/storage_member_cards.dart';
 import '../../../core/design_system/king_result_page.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
 
 import '../../../core/session/member_qr_memory.dart';
+import '../../../core/session/secure_session_store.dart';
 
 import 'dart:async';
 import 'dart:io';
@@ -21,7 +25,9 @@ class RealPersonalQrPage extends StatefulWidget {
     this.repository,
     this.storageRepository,
     this.events,
+    this.balanceLoader,
   });
+  final Future<Map<String, dynamic>> Function()? balanceLoader;
   final ProfileRepository? repository;
   final StorageRepository? storageRepository;
   final Stream<Map<String, dynamic>>? events;
@@ -34,6 +40,11 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
     with WidgetsBindingObserver {
   late final _repo = widget.repository ?? ProfileRepository();
   Timer? _timer, _storageTimer;
+  StoreDebitWatch? _debitWatch;
+  StoreDebitNotice? _paid;
+  bool _showPaidCard = false;
+  bool _sessionExpired = false;
+  StreamSubscription<void>? _sessionChanges;
   late final StorageRepository _storage =
       widget.storageRepository ?? RealStorageRepository();
   StreamSubscription<Map<String, dynamic>>? _storageEvents;
@@ -42,7 +53,12 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
   bool _checkingStorage = false;
   StorageItem? _deposited;
   Future<void> _checkDeposit() async {
-    if (_checkingStorage || !_foreground || _deposited != null) return;
+    if (_checkingStorage ||
+        !_foreground ||
+        _deposited != null ||
+        _paid != null) {
+      return;
+    }
     final sessionGeneration = MemberQrMemory.generation;
     if (_storageGeneration != sessionGeneration) {
       _knownStorage = null;
@@ -97,6 +113,21 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
+      if (!mounted) return;
+      _generation++;
+      _timer?.cancel();
+      _storageTimer?.cancel();
+      _debitWatch?.dispose();
+      setState(() {
+        _sessionExpired = true;
+        _code = null;
+        _profile = null;
+        _avatar = null;
+        _paid = null;
+        _deposited = null;
+      });
+    });
     if (widget.repository == null) {
       _profile = MemberQrMemory.profile;
       _avatar = MemberQrMemory.avatar;
@@ -109,6 +140,29 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
     }
     if (_profile == null || _avatar == null) _loadProfile();
     _refresh();
+    if (widget.repository == null || widget.balanceLoader != null) {
+      _debitWatch = StoreDebitWatch(
+        events: widget.events,
+        load: widget.balanceLoader,
+        active: () =>
+            mounted &&
+            _foreground &&
+            _paid == null &&
+            _deposited == null &&
+            (ModalRoute.of(context)?.isCurrent ?? true),
+        onPaid: (notice) {
+          if (!mounted || _paid != null) return;
+          _timer?.cancel();
+          _storageTimer?.cancel();
+          _generation++;
+          setState(() {
+            _paid = notice;
+            _code = null;
+            _busy = false;
+          });
+        },
+      );
+    }
     if (widget.repository == null || widget.storageRepository != null) {
       _checkDeposit();
       _storageTimer = Timer.periodic(
@@ -149,7 +203,7 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
   }
 
   Future<void> _refresh() async {
-    if (_busy || !_foreground || _deposited != null) return;
+    if (_busy || !_foreground || _deposited != null || _paid != null) return;
     final gen = ++_generation;
     setState(() {
       _busy = true;
@@ -198,6 +252,8 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
     _timer?.cancel();
     _storageTimer?.cancel();
     _storageEvents?.cancel();
+    _debitWatch?.dispose();
+    _sessionChanges?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -235,6 +291,42 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
 
   @override
   Widget build(BuildContext context) {
+    if (_sessionExpired) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: kingAppBar(context: context),
+      );
+    }
+    if (_paid != null) {
+      if (_showPaidCard) {
+        return StoreCardDetail(
+          store: _paid!.store,
+          repository: widget.repository,
+          events: widget.events,
+        );
+      }
+      final locale = Localizations.localeOf(context);
+      final lang = locale.languageCode == 'en'
+          ? 1
+          : locale.languageCode == 'th'
+          ? 3
+          : locale.scriptCode == 'Hant'
+          ? 2
+          : 0;
+      String t(String v) => v.split('|')[lang];
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) setState(() => _showPaidCard = true);
+        },
+        child: KingResultPage(
+          title: t('扣款成功|Payment successful|扣款成功|ชำระเงินสำเร็จ'),
+          description: '${_paid!.store.name}\n${balanceMoney(_paid!.amount)}',
+          buttonText: t('查看余额|View balance|查看餘額|ดูยอดคงเหลือ'),
+          onReturn: () => setState(() => _showPaidCard = true),
+        ),
+      );
+    }
     if (_deposited != null) return _depositSuccess();
     final ready = _foreground && _code != null && _remaining > 0;
     final r = MediaQuery.sizeOf(context).width.clamp(0, 600) / 750;

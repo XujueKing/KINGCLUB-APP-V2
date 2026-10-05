@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -76,7 +78,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     final remaining = (afterCoupon - coins * 10).clamp(0, _storeAvailableCents);
     final store = _inputStoreCents;
     if (store != null && store > remaining) {
-      final text = _money(remaining);
+      final text = (remaining / 100).toStringAsFixed(2);
       _storeInput.value = TextEditingValue(
         text: text,
         selection: TextSelection.collapsed(offset: text.length),
@@ -96,7 +98,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     final cents =
         int.tryParse(_selection?['storeBalanceCents']?.toString() ?? '') ??
         (_component('storePrincipalCents') + _component('storeGiftCents'));
-    _storeInput.text = _money(cents);
+    _storeInput.text = (cents / 100).toStringAsFixed(2);
   }
 
   int? get _inputStoreCents {
@@ -210,7 +212,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
 
   int get _total =>
       widget.quote.items.fold(0, (sum, item) => sum + item.subtotalCents);
-  String _money(int cents) => (cents / 100).toStringAsFixed(2);
+  String _money(int cents) => moneyAmount((cents / 100));
   @override
   void initState() {
     super.initState();

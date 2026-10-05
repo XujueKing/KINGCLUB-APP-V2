@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import 'dart:async';
@@ -833,7 +834,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
       runSpacing: 8,
       children: [
         _assetChip(
-          '余额：¥ ${_value('assets', 'cashBalance', '0.00')}',
+          '余额：¥ ${groupMoney(_value('assets', 'cashBalance', '0.00'))}',
           null,
           '我的余额',
           AssetLedgerType.cashBalance,

@@ -15,6 +15,8 @@ void main() {
       var loads = 0;
       final raw = fixture();
       raw['stores'][0]['storeName'] = 'KINGCLUB 湖南工大店';
+      raw['stores'][0]['originalPrincipalCents'] = '20000';
+      raw['stores'][0]['originalGiftCents'] = '5000';
       await tester.pumpWidget(
         MaterialApp(
           home: PrivateStoragePage(
@@ -53,6 +55,7 @@ void main() {
       expect(find.text('200.00'), findsOneWidget);
       expect(find.text('50.00'), findsOneWidget);
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
     },
   );
 }

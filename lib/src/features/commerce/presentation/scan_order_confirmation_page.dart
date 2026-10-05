@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -709,10 +711,10 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
   }
 
   String _amountText(int amount) {
-    if (!_liveQuote) return '$amount';
+    if (!_liveQuote) return groupMoney('$amount');
     final whole = amount ~/ 100;
     final cents = (amount % 100).toString().padLeft(2, '0');
-    return '$whole.$cents';
+    return groupMoney('$whole.$cents');
   }
 
   String _formatDuration(int seconds) {
@@ -792,7 +794,7 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '应付¥${intent.amountDue}',
+              '应付¥${groupMoney(intent.amountDue.toString())}',
               style: const TextStyle(color: legacyGold),
             ),
             const SizedBox(height: 8),

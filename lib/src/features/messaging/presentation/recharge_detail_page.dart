@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/king_components.dart';
@@ -20,7 +21,7 @@ class RechargeDetailPage extends StatelessWidget {
         ? 2
         : 0;
     String t(String text) => text.split('|')[index];
-    String money(int cents) => (cents / 100).toStringAsFixed(2);
+    String money(int cents) => moneyAmount((cents / 100));
     String date(Object? v) =>
         DateTime.tryParse(v?.toString() ?? '')
             ?.toLocal()

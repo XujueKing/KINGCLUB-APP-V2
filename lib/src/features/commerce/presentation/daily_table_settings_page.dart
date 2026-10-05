@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
@@ -314,7 +315,7 @@ class _DailyTableSettingsPageState extends State<DailyTableSettingsPage> {
                     '${label(row['rule']['mode'] as String)} · ${row['revision']}',
                   ),
                   subtitle: Text(
-                    '${row['createdDate']}\n${row['operatedBy']}\n${row['rule']['minimumPeople'] ?? (row['rule']['minimumSpendCents'] == null ? '' : ((row['rule']['minimumSpendCents'] as int) / 100).toStringAsFixed(2))}',
+                    '${row['createdDate']}\n${row['operatedBy']}\n${row['rule']['minimumPeople'] ?? (row['rule']['minimumSpendCents'] == null ? '' : moneyAmount(((row['rule']['minimumSpendCents'] as int) / 100)))}',
                   ),
                 ),
               if (_next != null)

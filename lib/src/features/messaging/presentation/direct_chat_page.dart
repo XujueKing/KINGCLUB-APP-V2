@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import 'call_permission_prompt.dart';
 import '../data/chat_coin.dart';
 import '../data/chat_gift.dart';
@@ -3170,7 +3172,7 @@ class _DirectChatPageState extends State<DirectChatPage>
     if (!mounted || amount == null) return;
     _appendFakeMessage(
       _FakeMessage(
-        '恭喜发财 · ¥$amount.00',
+        '恭喜发财 · ¥${moneyAmount(amount)}',
         mine: true,
         kind: _FakeMessageKind.redPacket,
         status: _FakeMessageStatus.sending,

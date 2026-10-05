@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -368,7 +369,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                           style: const TextStyle(color: legacyGold),
                         ),
                         subtitle: Text(
-                          '¥${(p.baseTotalMinor / 100).toStringAsFixed(2)}',
+                          '¥${moneyAmount((p.baseTotalMinor / 100))}',
                           style: const TextStyle(color: Colors.white70),
                         ),
                         onTap: () => Navigator.pop(sheet, p),
@@ -1250,7 +1251,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         '套餐价格：',
                         _package == null
                             ? '—'
-                            : '¥${(_package!.baseTotalMinor / 100).toStringAsFixed(2)} 元',
+                            : '¥${moneyAmount((_package!.baseTotalMinor / 100))} 元',
                         null,
                         accent: true,
                       ),
@@ -1548,7 +1549,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
             subtitle: _package == null
                 ? null
                 : Text(
-                    '基础消费 ¥${(_package!.baseTotalMinor / 100).toStringAsFixed(2)}',
+                    '基础消费 ¥${moneyAmount((_package!.baseTotalMinor / 100))}',
                     style: const TextStyle(color: Colors.white70),
                   ),
             onTap: _busy || _store == null ? null : _pickPackage,

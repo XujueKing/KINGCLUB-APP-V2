@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import '../../../core/design_system/king_language.dart';
 
 import 'package:flutter/material.dart';
@@ -1194,7 +1196,7 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
                 child: Text(
                   _party.personalPriceMinor == null
                       ? _party.priceLabel
-                      : '应付 ¥${(_party.personalPriceMinor! / 100).toStringAsFixed(2)}',
+                      : '应付 ¥${moneyAmount((_party.personalPriceMinor! / 100))}',
                   style: const TextStyle(color: legacyGold, fontSize: 23),
                 ),
               ),

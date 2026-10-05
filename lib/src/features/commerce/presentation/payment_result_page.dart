@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/formatters/money.dart';
+
 import '../../../core/design_system/king_result_page.dart';
 
 import 'dart:async';
@@ -243,7 +245,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '¥$_amountDue.00',
+            '¥${moneyAmount(_amountDue)}',
             style: const TextStyle(
               color: Color(0xFF181205),
               fontSize: 38,
@@ -351,7 +353,9 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
             foregroundColor: const Color(0xFF181205),
             shape: const StadiumBorder(),
           ),
-          child: Text(_zeroAmount ? '确认 0 元订单' : '确认支付 ¥$_amountDue.00'),
+          child: Text(
+            _zeroAmount ? '确认 0 元订单' : '确认支付 ¥${moneyAmount(_amountDue)}',
+          ),
         ),
       ),
     );
@@ -684,7 +688,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
   _PaymentResultPresentation get _resultPresentation => switch (_stage) {
     PaymentResultStage.succeeded => _PaymentResultPresentation(
       title: '支付已确认',
-      subtitle: '服务器已确认 ¥${_amountDue.toStringAsFixed(2)} 支付成功\n订单状态将以详情页为准',
+      subtitle: '服务器已确认 ¥${moneyAmount(_amountDue)} 支付成功\n订单状态将以详情页为准',
       color: Colors.white,
       icon: Icons.check_rounded,
       useLegacySuccess: true,

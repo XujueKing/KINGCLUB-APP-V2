@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 
@@ -1167,7 +1168,7 @@ class _PaymentBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final amount = (payable / 100).toStringAsFixed(2).split('.');
+    final amount = moneyAmount((payable / 100)).split('.');
     return Container(
       height: 102,
       padding: const EdgeInsets.fromLTRB(20, 12, 18, 12),
