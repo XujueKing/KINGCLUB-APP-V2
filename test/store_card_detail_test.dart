@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:kingclub/src/features/membership_wallet/presentation/member_payment_code_page.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -32,6 +34,35 @@ class Repo extends ProfileRepository {
 }
 
 void main() {
+  testWidgets('card payment entry authorizes only its own store balance', (
+    tester,
+  ) async {
+    final repo = Repo();
+    final events = StreamController<Map<String, dynamic>>.broadcast();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StoreCardDetail(
+          store: MemberBalanceSnapshot.parse(repo.raw).stores.first,
+          repository: repo,
+          events: events.stream,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final button = find.byKey(const ValueKey('store-card-payment-code'));
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    final page = tester.widget<MemberPaymentCodePage>(
+      find.byType(MemberPaymentCodePage),
+    );
+    expect(page.storeRef, 'test-store');
+    expect(page.accountType, 'store_balance');
+    expect(find.byType(QrImageView), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await events.close();
+  });
+
   testWidgets(
     'card QR uses member identity and confirmed debit returns to fresh card balance',
     (tester) async {
@@ -54,6 +85,11 @@ void main() {
       expect(find.text('250.00'), findsOneWidget);
       await tester.scrollUntilVisible(find.byType(QrImageView), 250);
       expect(find.byType(QrImageView), findsOneWidget);
+      final payButton = find.byKey(const ValueKey('store-card-payment-code'));
+      await tester.ensureVisible(payButton);
+      await tester.tap(payButton);
+      await tester.pumpAndSettle();
+      expect(find.byType(MemberPaymentCodePage), findsOneWidget);
       repo.raw['stores'][0]['principalCents'] = '19900';
       repo.raw['stores'][0]['displayTotalCents'] = '24900';
       repo.raw['stores'][0]['lots'][0]['principalCents'] = '19900';

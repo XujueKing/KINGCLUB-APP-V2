@@ -7,6 +7,7 @@ import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../profile_settings/data/profile_repository.dart';
 import '../../membership_wallet/data/store_debit_watch.dart';
+import '../../membership_wallet/presentation/member_payment_code_page.dart';
 
 import 'package:flutter/material.dart';
 
@@ -136,6 +137,7 @@ class _StoreCardDetailState extends State<StoreCardDetail>
   int ttl = 0, epoch = 0;
   bool busy = false, foreground = true;
   StoreDebitNotice? paid;
+  Route<void>? paymentRoute;
   String t(String value) => _text(context, value);
   @override
   void initState() {
@@ -147,7 +149,9 @@ class _StoreCardDetailState extends State<StoreCardDetail>
           mounted &&
           foreground &&
           paid == null &&
-          (ModalRoute.of(context)?.isCurrent ?? true),
+          (paymentRoute?.isCurrent ??
+              ModalRoute.of(context)?.isCurrent ??
+              true),
       load: () => repo.call('K260930000508', {}),
       onSnapshot: (snapshot) {
         if (!mounted || sessionExpired) return;
@@ -157,7 +161,9 @@ class _StoreCardDetailState extends State<StoreCardDetail>
         if (latest != null) setState(() => store = latest);
       },
       onPaid: (n) {
-        if (!mounted || paid != null) return;
+        if (!mounted || paid != null || n.store.ref != store.ref) return;
+        final route = paymentRoute;
+        if (route != null && route.isCurrent) Navigator.of(context).pop();
         setState(() {
           paid = n;
           code = null;
@@ -191,7 +197,8 @@ class _StoreCardDetailState extends State<StoreCardDetail>
     busy = true;
     final request = ++epoch, generation = MemberQrMemory.generation;
     try {
-      final qr = await repo.memberQr(forceRefresh: true);
+      // Reuse the same unexpired identity code as Chat and My QR.
+      final qr = await repo.memberQr();
       if (!mounted ||
           request != epoch ||
           generation != MemberQrMemory.generation) {
@@ -228,6 +235,21 @@ class _StoreCardDetailState extends State<StoreCardDetail>
       refresh();
       watch?.check();
     }
+  }
+
+  Future<void> openPaymentCode() async {
+    if (paymentRoute != null || sessionExpired) return;
+    final route = MaterialPageRoute<void>(
+      builder: (_) => MemberPaymentCodePage(
+        storeRef: store.ref,
+        storeName: store.name,
+        accountType: 'store_balance',
+      ),
+    );
+    paymentRoute = route;
+    await Navigator.of(context).push(route);
+    paymentRoute = null;
+    if (mounted) watch?.check();
   }
 
   @override
@@ -372,10 +394,19 @@ class _StoreCardDetailState extends State<StoreCardDetail>
               const SizedBox(height: 14),
               Text(
                 t(
-                  '请向店员出示会员码|Show your member code to staff|請向店員出示會員碼|แสดงรหัสสมาชิกแก่พนักงาน',
+                  '会员身份码 · 付款请点下方按钮|Member identity · Tap below to pay|會員身分碼 · 付款請點下方按鈕|รหัสสมาชิก · แตะด้านล่างเพื่อชำระเงิน',
                 ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              TextButton(
+                key: const ValueKey('store-card-payment-code'),
+                onPressed: openPaymentCode,
+                child: Text(
+                  t(
+                    '使用本店储值付款|Pay with this store card|使用本店儲值付款|ชำระด้วยบัตรร้านนี้',
+                  ),
+                ),
               ),
               if (error != null)
                 TextButton(onPressed: refresh, child: Text(error!)),
