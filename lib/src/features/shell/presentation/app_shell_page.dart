@@ -1,3 +1,4 @@
+import '../../club/data/storage_attention.dart';
 import '../../home/data/home_content_repository.dart';
 import '../../contacts/presentation/public_member_page.dart';
 
@@ -113,6 +114,11 @@ class AppShellPage extends StatefulWidget {
 class _AppShellPageState extends State<AppShellPage>
     with WidgetsBindingObserver {
   SystemNoticesController? _systemNotices;
+  StorageAttention? _storageAttention;
+  void _storageChanged() {
+    if (mounted) setState(() {});
+  }
+
   StreamSubscription<Map<String, dynamic>>? _businessEvents;
   StreamSubscription<void>? _systemSession;
   Timer? _systemPoll;
@@ -154,6 +160,10 @@ class _AppShellPageState extends State<AppShellPage>
 
   void _bindSystemNotices() {
     if (!widget.realChat) return;
+    _storageAttention = StorageAttention(
+      widget.storageRepository ?? RealStorageRepository(),
+    )..addListener(_storageChanged);
+    unawaited(_storageAttention!.refresh());
     _systemNotices =
         widget.systemNotices ??
         SystemNoticesController(
@@ -162,9 +172,20 @@ class _AppShellPageState extends State<AppShellPage>
     _ownsSystemNotices = widget.systemNotices == null;
     _systemNotices!.addListener(_systemChanged);
     _systemSession = SecureSessionStore.changes.stream.listen((_) {
-      if (_foreground) scheduleMicrotask(_refreshSystem);
+      _storageAttention?.reset();
+      if (_foreground) {
+        scheduleMicrotask(_refreshSystem);
+        unawaited(_storageAttention?.refresh());
+      }
     });
     _businessEvents = KingclubRealtime.shared.events.listen((event) {
+      if (_foreground &&
+          {
+            'connection.ready',
+            'storage.changed',
+          }.contains(event['eventType'])) {
+        unawaited(_storageAttention?.refresh());
+      }
       if (_foreground &&
           {
             'connection.ready',
@@ -205,7 +226,10 @@ class _AppShellPageState extends State<AppShellPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
-    if (_foreground) _refreshSystem();
+    if (_foreground) {
+      _refreshSystem();
+      unawaited(_storageAttention?.refresh());
+    }
   }
 
   @override
@@ -216,6 +240,8 @@ class _AppShellPageState extends State<AppShellPage>
   }
 
   void _unbindSystemNotices() {
+    _storageAttention?.dispose();
+    _storageAttention = null;
     _systemPoll?.cancel();
     _businessEvents?.cancel();
     _systemSession?.cancel();
@@ -359,6 +385,8 @@ class _AppShellPageState extends State<AppShellPage>
                 PrivateStoragePage(
                   active: _selectedIndex == 3,
                   repository: widget.storageRepository,
+                  onViewed: (items) =>
+                      unawaited(_storageAttention?.viewed(items)),
                 ),
                 MyProfilePage(
                   active: _selectedIndex == 4,
@@ -403,6 +431,7 @@ class _AppShellPageState extends State<AppShellPage>
           ignoring: _navigationLocked,
           child: _LegacyBottomBar(
             selectedIndex: _selectedIndex,
+            storageUnread: _storageAttention?.unread == true,
             messageUnreadCount:
                 _systemNotificationsUnread +
                 _friendConversationUnread +
@@ -712,12 +741,14 @@ class _LegacyBottomBar extends StatelessWidget {
   const _LegacyBottomBar({
     required this.selectedIndex,
     required this.messageUnreadCount,
+    this.storageUnread = false,
     required this.destinations,
     required this.onSelected,
   });
 
   final int selectedIndex;
   final int messageUnreadCount;
+  final bool storageUnread;
   final List<_ShellDestination> destinations;
   final ValueChanged<int> onSelected;
 
@@ -819,6 +850,7 @@ class _LegacyBottomBar extends StatelessWidget {
                                   destination: destinations[index],
                                   selected: selectedIndex == index,
                                   center: index == 2,
+                                  unreadDot: index == 3 && storageUnread,
                                   unit: unit,
                                   unreadCount: index == 1
                                       ? messageUnreadCount
@@ -848,6 +880,7 @@ class _LegacyNavItem extends StatelessWidget {
     required this.center,
     required this.unit,
     required this.unreadCount,
+    this.unreadDot = false,
     required this.onTap,
   });
 
@@ -856,6 +889,7 @@ class _LegacyNavItem extends StatelessWidget {
   final bool center;
   final double unit;
   final int unreadCount;
+  final bool unreadDot;
   final VoidCallback onTap;
 
   @override
@@ -909,6 +943,20 @@ class _LegacyNavItem extends StatelessWidget {
                     height: 35 * unit,
                     fit: BoxFit.contain,
                     gaplessPlayback: true,
+                  ),
+                if (unreadDot)
+                  Positioned(
+                    top: 8 * unit,
+                    right: 10 * unit,
+                    child: Container(
+                      key: const ValueKey('shell-storage-unread-dot'),
+                      width: 9,
+                      height: 9,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE84848),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   ),
                 if (unreadCount > 0)
                   Positioned(

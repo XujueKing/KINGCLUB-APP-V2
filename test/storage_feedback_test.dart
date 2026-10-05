@@ -167,7 +167,7 @@ void main() {
     expect(find.text('刷新状态'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('storage-delete')));
     await tester.pumpAndSettle();
-    expect(find.text('私人储物柜'), findsOneWidget);
+    expect(find.byType(PrivateStoragePage), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('storage-expired-items')));
     await tester.pumpAndSettle();
     expect(

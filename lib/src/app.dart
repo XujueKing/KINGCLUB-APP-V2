@@ -598,7 +598,14 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     final session = await SecureSessionStore().readSession();
     if (!mounted || !_foreground || session == null) return;
     _noticeSession = session['sessionId'] as String;
-    setState(() => _notice = Map<String, dynamic>.from(data['payload'] as Map));
+    setState(
+      () => _notice = {
+        ...Map<String, dynamic>.from(data['payload'] as Map),
+        'message': data['body'] is String && (data['body'] as String).isNotEmpty
+            ? data['body']
+            : '储物袋已更新，点击查看',
+      },
+    );
     _noticeTimer?.cancel();
     _noticeTimer = Timer(const Duration(seconds: 6), () {
       if (mounted) setState(() => _notice = null);
@@ -806,56 +813,29 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
                 left: 20 * MediaQuery.sizeOf(context).width / 750,
                 right: 20 * MediaQuery.sizeOf(context).width / 750,
                 child: ForegroundMessageBanner(
-                  visible: _messageNotice != null,
+                  visible: _messageNotice != null && _notice == null,
                   onTap: _openMessageNotice,
                   onDismiss: _dismissMessageNotice,
                 ),
               ),
-              if (_notice != null)
-                Positioned(
-                  top: MediaQuery.paddingOf(context).top + 8,
-                  left: 16,
-                  right: 16,
-                  child: Material(
-                    color: const Color(0xF02A261E),
-                    borderRadius: BorderRadius.circular(14),
-                    elevation: 4,
-                    child: InkWell(
-                      onTap: _openNotice,
-                      borderRadius: BorderRadius.circular(14),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.inventory_2_outlined,
-                              color: Color(0xFFC9B69E),
-                              size: 20,
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                '储物已核销，点击查看最新记录',
-                                style: TextStyle(
-                                  color: Color(0xFFC9B69E),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.chevron_right,
-                              color: Color(0xFFC9B69E),
-                              size: 18,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+              Positioned(
+                top: (100 * MediaQuery.sizeOf(context).width / 750).clamp(
+                  MediaQuery.paddingOf(context).top,
+                  double.infinity,
                 ),
+                left: 20 * MediaQuery.sizeOf(context).width / 750,
+                right: 20 * MediaQuery.sizeOf(context).width / 750,
+                child: ForegroundMessageBanner(
+                  key: const ValueKey('storage-change-banner'),
+                  visible: _notice != null,
+                  message: _notice?['message'] as String? ?? '储物袋已更新',
+                  onTap: _openNotice,
+                  onDismiss: () {
+                    _noticeTimer?.cancel();
+                    setState(() => _notice = null);
+                  },
+                ),
+              ),
             ],
           ),
         ),

@@ -9,8 +9,10 @@ class ForegroundMessageBanner extends StatelessWidget {
     required this.visible,
     required this.onTap,
     required this.onDismiss,
+    this.message = '您收到一条新消息',
   });
   final bool visible;
+  final String message;
   final VoidCallback onTap, onDismiss;
   @override
   Widget build(BuildContext context) {
@@ -83,7 +85,7 @@ class ForegroundMessageBanner extends StatelessWidget {
                                   Text('K聊', style: caption),
                                   SizedBox(height: 8 * r),
                                   Text(
-                                    '您收到一条新消息',
+                                    message,
                                     style: TextStyle(
                                       inherit: false,
                                       color: const Color(0xAAFFFFFF),

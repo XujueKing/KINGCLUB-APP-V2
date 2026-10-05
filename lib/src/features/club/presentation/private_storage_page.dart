@@ -23,9 +23,15 @@ import 'real_storage_pickup_page.dart';
 const _gold = Color(0xFFC9B69E);
 
 class PrivateStoragePage extends StatefulWidget {
-  const PrivateStoragePage({super.key, this.repository, this.active = true});
+  const PrivateStoragePage({
+    super.key,
+    this.repository,
+    this.active = true,
+    this.onViewed,
+  });
   final StorageRepository? repository;
   final bool active;
+  final ValueChanged<List<StorageItem>>? onViewed;
   @override
   State<PrivateStoragePage> createState() => _PrivateStoragePageState();
 }
@@ -105,8 +111,6 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
           event['eventType'] == 'storage.changed') {
         if (widget.active && !_loading) {
           _load();
-        } else {
-          _loaded = false;
         }
       }
     });
@@ -115,7 +119,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   @override
   void didUpdateWidget(PrivateStoragePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.active && !oldWidget.active && !_loaded) _load();
+    if (widget.active && !oldWidget.active) _load();
   }
 
   @override
@@ -129,10 +133,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
     super.dispose();
   }
 
-  bool _loaded = false;
-
   Future<void> _load() async {
-    _loaded = true;
     setState(() {
       _loading = true;
       _error = null;
@@ -152,6 +153,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
         _back = false;
         _flip.value = 0;
       });
+      if (widget.active) widget.onViewed?.call(items);
       if (_pages.hasClients) _pages.jumpToPage(_categoryIndex);
       for (var i = 0; i < 3; i++) {
         if (_verticalPages[i].hasClients) {

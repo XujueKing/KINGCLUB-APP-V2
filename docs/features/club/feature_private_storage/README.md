@@ -63,3 +63,12 @@
 2026-09-14 储物袋修正：券面正反面按实际文字高度计算内容，超过已有展示框时等比缩小，避免文字溢出；不移动标题、分类或九宫格。页面挂载即预取，不等切入栏目才请求；初次读取不显示转圈，刷新保留已展示物品。真实请求仍异步，不能承诺冷启动零耗时。
 
 验证与装机：储物分类/双轴分页/小屏大字体券面正反面/无转圈预取 5 项及取件流程 8 项通过；页面与测试 analyze 无问题。旧流程测试标题由已弃用的“私人储物柜”更新为用户已确认的“储物袋”。Profile ARM64 构建 221.7 秒成功、覆盖安装 Success；用户体验包默认脚本改用 Profile ARM64，Debug 仅专项调试。手机流畅度仍需实测，不以模式切换保证所有卡顿消失。
+
+
+## 2026-10-05 storage notification correction
+
+Storage events now reuse the animated foreground chat banner (KING icon, slide/fade, swipe dismissal) and show the authenticated notification body. A missing body uses neutral storage-updated text; deposits no longer use the hard-coded redemption message.
+
+The storage tab has its own red dot, independent of message read receipts. The APP compares the authorized storage list with the last successfully viewed snapshot saved per member in secure local storage. Opening storage refreshes the list and acknowledges the displayed snapshot only after successful loading. New deposits and changed remaining quantities restore the dot; reconnect/app resume reconcile missed realtime events. Switching accounts discards in-flight state. No extra backend table or interface.
+
+Validation: 19 storage attention, storage feedback and shell tests passed; changed Dart sources analyze cleanly. One existing expired-storage test expected the obsolete page title; its assertion now checks return to the storage page. iPhone installation status is reported separately from these code checks.
