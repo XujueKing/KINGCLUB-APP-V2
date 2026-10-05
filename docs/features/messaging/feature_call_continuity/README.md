@@ -41,3 +41,5 @@ iPhone 签名构建：[36588895961](https://github.com/XujueKing/KINGCLUB-APP-V2
 用户确认异地 iPhone 拨号方关闭了麦克风权限。服务器最近两次记录为接听后约1.2秒由caller发出hangup，未产生offer/answer；此记录不等同于网络故障。新增原生权限请求：iOS AVAudioSession/AVCaptureDevice，Android RECORD_AUDIO/CAMERA，检查不采集媒体。单聊/群聊的界面拨打、加入，以及单聊接听，在发出对应信令前检查；原生单聊控制器也在accept前复核，覆盖系统接听入口。拒绝时保留未接听状态，界面显示四语言说明与系统设置入口，不直接把拒绝权限当作接听后媒体断开。系统CallKit失败动作仍按系统流程完成失败/结束，不宣称后台来电已经验收。
 设置页“关于KINGCLUB”下方与关于页读取安装包真实版本/构建号（iOS Info.plist、Android PackageManager），删除写死的1.0.0(1)。未知平台读取失败显示破折号，不捏造版本。
 验证：控制器/发起协调/设置/版本读取26项、通话与群通话页面6项通过；权限拒绝弹窗覆盖语音和视频。Dart定向analyze通过。安卓compilePreviewProfileKotlin成功。about_legal_flow_test的3项旧法律目录测试不匹配现有目录，未在此节点重写法律页面。iOS编译和更新后真机权限开关验收另记。
+
+2026-10-05 安装验证：iOS workflow 37256131581、build117、源465b3729d44f98438803eefae597fe520be1796e签名构建成功。私有IPA下载/哈希/包信息校验通过；10:46通过installation_proxy保留数据安装成功，设备读取com.lingmei.kingclub为1.0.0(117)。未卸载或清除数据。权限提示语音/视频2项通过。真实两台iPhone在关闭麦克风/相机时的提示，以及恢复权限后的双向通话仍待用户验收；另一端未由本机更新。
