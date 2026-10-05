@@ -80,6 +80,12 @@ class _Harness {
           final store = c['useStoreBalance'] == true
               ? int.parse(c['storeBalanceCents']?.toString() ?? '30')
               : 0;
+          if (coins > 100 || store > 30) {
+            throw const AuthFailure(
+              'ORDERING_ASSETS_CHANGED',
+              'Amount unavailable',
+            );
+          }
           composition = {
             'totalCents': '100',
             'couponDiscountCents': '0',
@@ -318,6 +324,48 @@ void main() {
       await h.finish(tester);
     },
   );
+
+  testWidgets(
+    'unconfirmed manual amount cannot launch payment using the previous quote',
+    (tester) async {
+      final h = _Harness()..combinedEnabled = true;
+      await h.mount(tester, saved: false);
+      await tester.enterText(
+        find.byKey(const ValueKey('checkout-store-amount')),
+        '0.31',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, '立即支付'));
+      await tester.pumpAndSettle();
+      expect(h.lastSelection, isNull);
+      expect(h.launched, 0);
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(const ValueKey('checkout-store-amount')),
+            )
+            .controller!
+            .text,
+        '0.31',
+      );
+      await h.finish(tester);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
+  testWidgets('amount rows fit a narrow phone', (tester) async {
+    tester.view.physicalSize = const Size(320, 693);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final h = _Harness()..combinedEnabled = true;
+    await h.mount(tester, saved: false);
+    expect(tester.takeException(), isNull);
+    final coin = find.byKey(const ValueKey('checkout-coins'));
+    final store = find.byKey(const ValueKey('checkout-store-amount'));
+    expect(tester.getTopRight(coin).dx, tester.getTopRight(store).dx);
+    await h.finish(tester);
+  });
 
   testWidgets(
     'create only avoids SDK and later payment reuses original request',
