@@ -71,7 +71,9 @@ class _Harness {
     readSession: () async => _session,
     request: (id, params, _) async {
       if (id == 'K261002001959') {
-        return {'result': {'storeRef': params['storeRef'], 'alipayAvailable': true}};
+        return {
+          'result': {'storeRef': params['storeRef'], 'alipayAvailable': true},
+        };
       }
       if (id == 'K260919000814') {
         submitted++;
@@ -306,15 +308,23 @@ void main() {
           ..missing = !orderExists;
         await h.mount(tester, saved: false);
         await tester.ensureVisible(
-          find.byKey(const ValueKey('payment-provider-alipay')),
+          find.byKey(const ValueKey('payment-provider-wechat')),
         );
+        await tester.tap(find.byKey(const ValueKey('payment-provider-wechat')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('payment-provider-alipay')));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('立即支付'));
         await tester.pumpAndSettle();
         await tester.ensureVisible(
           find.byKey(const ValueKey('payment-provider-wechat')),
         );
         await tester.tap(find.byKey(const ValueKey('payment-provider-wechat')));
+        await tester.pumpAndSettle();
+        if (!orderExists) {
+          await tester.tap(find.byKey(const ValueKey('payment-method-wechat')));
+          await tester.pumpAndSettle();
+        }
         await tester.tap(find.text('立即支付'));
         await tester.pumpAndSettle();
         expect(h.submittedProviders, [
@@ -351,12 +361,16 @@ void main() {
         await h.mount(tester, saved: restored, savedProvider: 'alipay');
         if (!restored) {
           await tester.ensureVisible(
-            find.byKey(const ValueKey('payment-provider-alipay')),
+            find.byKey(const ValueKey('payment-provider-wechat')),
           );
+          await tester.tap(
+            find.byKey(const ValueKey('payment-provider-wechat')),
+          );
+          await tester.pumpAndSettle();
           await tester.tap(
             find.byKey(const ValueKey('payment-provider-alipay')),
           );
-          await tester.pump();
+          await tester.pumpAndSettle();
         }
         await tester.tap(find.text('立即支付'));
         await tester.pumpAndSettle();
@@ -372,6 +386,7 @@ void main() {
           find.byKey(const ValueKey('payment-provider-wechat')),
         );
         await tester.tap(find.byKey(const ValueKey('payment-provider-wechat')));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('立即支付'));
         await tester.pumpAndSettle();
         expect(h.submittedProviders, ['alipay', 'alipay']);

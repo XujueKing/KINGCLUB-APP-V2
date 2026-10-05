@@ -15,7 +15,6 @@ import '../data/ordering_order_repository.dart';
 import '../data/ios_wechat_payment.dart';
 import '../data/alipay_app_payment.dart';
 import '../data/store_payment_availability_repository.dart';
-import 'store_alipay_payment_option.dart';
 import 'scan_ordering_cart_page.dart';
 import 'ordering_entry_status.dart';
 
@@ -519,6 +518,110 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     }
   }
 
+  Future<void> _showPaymentMethods() async {
+    final availability =
+        StorePaymentAvailabilityRepository(
+              readSession: widget.repository.readSession,
+              request: widget.repository.request,
+            )
+            .alipayAvailable(widget.quote.orderingContext!.storeRef)
+            .catchError((_) => false);
+    final selected = await showModalBottomSheet<OrderingPaymentProvider>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _paymentText([
+                  '选择支付方式',
+                  'Payment method',
+                  '選擇支付方式',
+                  'วิธีชำระเงิน',
+                ]),
+                style: const TextStyle(color: Colors.black87, fontSize: 18),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                key: const ValueKey('payment-method-wechat'),
+                leading: Image.asset(
+                  'assets/legacy/ordering/WEIPAY.png',
+                  width: 28,
+                  height: 28,
+                ),
+                title: Text(
+                  _paymentText(['微信支付', 'WeChat Pay', '微信支付', 'WeChat Pay']),
+                  style: const TextStyle(color: Colors.black87),
+                ),
+                trailing: _provider == OrderingPaymentProvider.wechat
+                    ? const Icon(Icons.check, color: Color(0xFF07C160))
+                    : null,
+                onTap: () =>
+                    Navigator.pop(sheetContext, OrderingPaymentProvider.wechat),
+              ),
+              FutureBuilder<bool>(
+                future: availability,
+                builder: (context, snapshot) {
+                  final enabled = snapshot.data == true;
+                  return ListTile(
+                    key: const ValueKey('payment-provider-alipay'),
+                    enabled: enabled,
+                    leading: Image.asset(
+                      'assets/legacy/payment/legacy_alipay.png',
+                      width: 28,
+                      height: 28,
+                    ),
+                    title: Text(
+                      _paymentText(['支付宝支付', 'Alipay', '支付寶支付', 'Alipay']),
+                      style: TextStyle(
+                        color: enabled ? Colors.black87 : Colors.grey,
+                      ),
+                    ),
+                    trailing: enabled
+                        ? (_provider == OrderingPaymentProvider.alipay
+                              ? const Icon(
+                                  Icons.check,
+                                  color: Color(0xFF07C160),
+                                )
+                              : null)
+                        : Text(
+                            _paymentText([
+                              '暂未开通',
+                              'Unavailable',
+                              '暫未開通',
+                              'ยังไม่เปิดให้บริการ',
+                            ]),
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                    onTap: enabled
+                        ? () => Navigator.pop(
+                            sheetContext,
+                            OrderingPaymentProvider.alipay,
+                          )
+                        : null,
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(sheetContext),
+                child: Text(_paymentText(['取消', 'Cancel', '取消', 'ยกเลิก'])),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected != null && mounted) _selectProvider(selected);
+  }
+
   void _selectProvider(OrderingPaymentProvider provider) {
     if (_channelLocked || _busy || !_restorationComplete) {
       return;
@@ -641,6 +744,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   }
 
   bool _expanded = false;
+  final DateTime _orderOpenedAt = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
@@ -651,7 +755,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     final terminal = status == 'paid' || status == 'expired';
     final amount = _receipt?.totalCents ?? _total;
     final allItems = widget.quote.items;
-    final items = _expanded ? allItems : allItems.take(3);
+    final items = _expanded ? allItems : allItems.take(1);
     Widget line(String label, String value) => Padding(
       padding: EdgeInsets.symmetric(vertical: r(6)),
       child: Row(
@@ -710,6 +814,15 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                   padding: EdgeInsets.fromLTRB(r(20), r(10), r(20), r(24)),
                   children: [
                     card([
+                      line(
+                        _paymentText([
+                          '订单时间',
+                          'Order time',
+                          '訂單時間',
+                          'เวลาสั่งซื้อ',
+                        ]),
+                        _orderOpenedAt.toLocal().toString().split('.').first,
+                      ),
                       line('门店', widget.quote.orderingContext!.storeName),
                       line('桌号', widget.quote.orderingContext!.tableName),
                       if (_receipt != null) line('订单号', _receipt!.orderRef),
@@ -790,7 +903,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                               ],
                             ),
                           ),
-                        if (allItems.length > 3)
+                        if (allItems.length > 1)
                           TextButton(
                             onPressed: () =>
                                 setState(() => _expanded = !_expanded),
@@ -810,53 +923,44 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                           key: const ValueKey('payment-provider-wechat'),
                           onTap: _channelLocked || _busy
                               ? null
-                              : () => _selectProvider(
-                                  OrderingPaymentProvider.wechat,
+                              : _showPaymentMethods,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: r(24)),
+                            child: Row(
+                              children: [
+                                Image.asset(
+                                  _provider == OrderingPaymentProvider.wechat
+                                      ? 'assets/legacy/ordering/WEIPAY.png'
+                                      : 'assets/legacy/payment/legacy_alipay.png',
+                                  width: r(44),
+                                  height: r(44),
                                 ),
-                          child: Row(
-                            children: [
-                              Image.asset(
-                                'assets/legacy/ordering/WEIPAY.png',
-                                width: r(44),
-                                height: r(44),
-                              ),
-                              SizedBox(width: r(15)),
-                              const Expanded(child: Text('微信支付')),
-                              Icon(
-                                _provider == OrderingPaymentProvider.wechat
-                                    ? Icons.check_circle
-                                    : Icons.radio_button_unchecked,
-                                color: const Color(0xFF55493C),
-                                size: r(36),
-                              ),
-                            ],
-                          ),
-                        ),
-                        StoreAlipayPaymentOption(
-                          storeRef: widget.quote.orderingContext!.storeRef,
-                          repository: StorePaymentAvailabilityRepository(
-                            readSession: widget.repository.readSession,
-                            request: widget.repository.request,
-                          ),
-                          unit: r(1),
-                          label: _paymentText([
-                            '支付宝', 'Alipay', '支付寶', 'Alipay',
-                          ]),
-                          selected: _provider == OrderingPaymentProvider.alipay,
-                          onUnavailable: () {
-                            if (!_channelLocked &&
-                                !_busy &&
-                                _restorationComplete &&
-                                _receipt == null &&
-                                _provider == OrderingPaymentProvider.alipay) {
-                              _selectProvider(OrderingPaymentProvider.wechat);
-                            }
-                          },
-                          onTap: _channelLocked || _busy
-                              ? null
-                              : () => _selectProvider(
-                                  OrderingPaymentProvider.alipay,
+                                SizedBox(width: r(15)),
+                                Expanded(
+                                  child: Text(
+                                    _provider == OrderingPaymentProvider.wechat
+                                        ? _paymentText([
+                                            '微信支付',
+                                            'WeChat Pay',
+                                            '微信支付',
+                                            'WeChat Pay',
+                                          ])
+                                        : _paymentText([
+                                            '支付宝支付',
+                                            'Alipay',
+                                            '支付寶支付',
+                                            'Alipay',
+                                          ]),
+                                  ),
                                 ),
+                                Icon(
+                                  Icons.chevron_right,
+                                  size: r(36),
+                                  color: const Color(0xFF55493C),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ]),
                     if (_message != null)

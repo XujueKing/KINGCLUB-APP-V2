@@ -213,7 +213,20 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('微信支付'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('payment-provider-wechat')),
+          findsOneWidget,
+        );
+        expect(find.text('Order time'), findsOneWidget);
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('payment-provider-wechat')),
+        );
+        await tester.tap(find.byKey(const ValueKey('payment-provider-wechat')));
+        await tester.pumpAndSettle();
+        expect(find.text('Payment method'), findsOneWidget);
+        expect(find.text('Unavailable'), findsOneWidget);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
         expect(find.textContaining('应付 ￥0.10'), findsOneWidget);
         await tester.tap(find.text('立即支付'));
         await tester.pumpAndSettle();
