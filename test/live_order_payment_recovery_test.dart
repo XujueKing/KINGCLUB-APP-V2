@@ -237,6 +237,7 @@ void main() {
       await h.mount(tester);
       final cancel = find.byKey(const ValueKey('order-cancel'));
       await tester.ensureVisible(cancel);
+      await tester.pumpAndSettle();
       await tester.tap(cancel);
       await tester.pumpAndSettle();
       expect(h.cancelled, 1);
@@ -416,9 +417,25 @@ void main() {
       await tester.ensureVisible(
         find.byKey(const ValueKey('payment-provider-wechat')),
       );
-      await tester.tap(find.byKey(const ValueKey('payment-provider-wechat')));
-      await tester.tap(find.text('立即支付'));
-      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<InkWell>(
+              find.byKey(const ValueKey('payment-provider-wechat')),
+            )
+            .onTap,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.ancestor(
+                of: find.text('立即支付'),
+                matching: find.byType(FilledButton),
+              ),
+            )
+            .onPressed,
+        isNull,
+      );
       expect(h.submitted, 0);
       expect(find.text('暂时无法恢复订单，请返回后重试'), findsOneWidget);
       await h.finish(tester);

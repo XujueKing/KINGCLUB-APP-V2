@@ -921,7 +921,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                       card([
                         InkWell(
                           key: const ValueKey('payment-provider-wechat'),
-                          onTap: _channelLocked || _busy
+                          onTap: _channelLocked || _busy || !_ready
                               ? null
                               : _showPaymentMethods,
                           child: Padding(
