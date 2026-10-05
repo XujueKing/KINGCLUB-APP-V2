@@ -109,3 +109,9 @@ APP 金额展示统一使用 money formatter，按三位加逗号；单位不变
 
 
 线上配置排查：cashierBalanceEnabled、tableCheckoutFenceEnabled 均为 true，但 kingclubBalancePaymentPolicy 没有记录，导致签发直接返回 MEMBER_PAYMENT_STORE_NOT_AUTHORIZED。已按用户开启本店储值收款的指令，仅为 KINGCLUB 湖南工大店新增 storeBalanceEnabled=1、platformCashEnabled=0、revision=1；数据库限定 ccsop_kingclub，事务内核对门店状态及币种，未扣款、未调整会员余额。原配置备份在服务容器 /tmp/kingclub-store-card-policy-before.json。付款码仓库与页面另外8项测试通过。
+
+
+用户进一步确认：选择部分储值后取消微信，保留储值已付、余款待收。覆盖上段“取消退回储值”的暂定处理。后续整桌组合收款需保存不可变的分段实收记录，部分储值成功即发送扣款通知；再次收款只收余款，不能再次扣已收储值或要求退回已完成的消费付款。当前整桌单渠道模型尚未支持该分段持久化，此分支不得仅在收银客户端减少金额。
+
+
+安装记录：2026-10-06 06:19，源码 6b7eabad，工作流 37380427779 成功，已校验 IPA 并保留数据安装 iPhone，设备读取版本确认 1.0.0（136）。本版直接显示储值付款码且门店支付配置已修正；尚无真实扣款验收，部分储值+微信余款分支未交付，未更新收银机。
