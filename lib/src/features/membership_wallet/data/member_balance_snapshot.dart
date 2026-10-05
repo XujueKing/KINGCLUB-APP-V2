@@ -45,9 +45,11 @@ class MemberStoreBalance {
     this.principal,
     this.gift,
     this.expiredGift,
-    this.lots,
-  );
+    this.lots, {
+    this.logoUrl,
+  });
   final String ref, name, status, accountStatus;
+  final String? logoUrl;
   final BigInt principal, gift, expiredGift;
   final List<MemberBalanceLot> lots;
 }
@@ -168,6 +170,7 @@ class MemberBalanceSnapshot {
           g,
           e,
           List.unmodifiable(lots),
+          logoUrl: row['logoUrl'] == null ? null : _text(row['logoUrl'], 2048),
         ),
       );
     }

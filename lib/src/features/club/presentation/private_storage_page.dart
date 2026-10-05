@@ -17,6 +17,7 @@ import '../../../core/design_system/king_theme.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../data/storage_repository.dart';
 import 'storage_liquid_bottle.dart';
+import 'storage_member_cards.dart';
 import 'bottle_material_image.dart';
 import 'real_storage_pickup_page.dart';
 
@@ -28,8 +29,10 @@ class PrivateStoragePage extends StatefulWidget {
     this.repository,
     this.active = true,
     this.onViewed,
+    this.loadCards,
   });
   final StorageRepository? repository;
+  final Future<Map<String, dynamic>> Function()? loadCards;
   final bool active;
   final ValueChanged<List<StorageItem>>? onViewed;
   @override
@@ -52,10 +55,10 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   bool get _materialPreview => _repository is BottleMaterialPreviewRepository;
   double _previewLevel = 50;
   final _pages = PageController();
-  static const _categories = ['wine', 'coupon', 'item'];
-  static const _labels = ['酒', '券', '物'];
-  final _verticalPages = List.generate(3, (_) => PageController());
-  final _verticalIndex = [0, 0, 0];
+  static const _categories = ['wine', 'coupon', 'item', 'card'];
+  static const _labels = ['酒', '券', '物', '卡'];
+  final _verticalPages = List.generate(4, (_) => PageController());
+  final _verticalIndex = [0, 0, 0, 0];
   late final _flip = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 440),
@@ -94,11 +97,24 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   );
   int _startPage(int category) =>
       List.generate(category, _pageCount).fold(0, (a, b) => a + b);
-  int _categoryForPage(int page) => page < _startPage(1)
-      ? 0
-      : page < _startPage(2)
-      ? 1
-      : 2;
+  int _categoryForPage(int page) {
+    for (var i = 1; i < _categories.length; i++) {
+      if (page < _startPage(i)) return i - 1;
+    }
+    return _categories.length - 1;
+  }
+
+  String _categoryLabel(int index) {
+    final locale = Localizations.localeOf(context);
+    if (locale.languageCode == 'en') {
+      return ['Wine', 'Vouchers', 'Items', 'Cards'][index];
+    }
+    if (locale.languageCode == 'th') {
+      return ['ไวน์', 'คูปอง', 'สิ่งของ', 'บัตร'][index];
+    }
+    return _labels[index];
+  }
+
   int get _categoryIndex => _categoryForPage(_page);
   String get _category => _categories[_categoryIndex];
   @override
@@ -144,7 +160,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
       setState(() {
         final category = _categoryIndex;
         _items = items;
-        for (var i = 0; i < 3; i++) {
+        for (var i = 0; i < _categories.length; i++) {
           _verticalIndex[i] = math.min(_verticalIndex[i], _pageCount(i) - 1);
         }
         _page = _startPage(category) + _verticalIndex[category];
@@ -155,7 +171,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
       });
       if (widget.active) widget.onViewed?.call(items);
       if (_pages.hasClients) _pages.jumpToPage(_categoryIndex);
-      for (var i = 0; i < 3; i++) {
+      for (var i = 0; i < _categories.length; i++) {
         if (_verticalPages[i].hasClients) {
           _verticalPages[i].jumpToPage(_verticalIndex[i]);
         }
@@ -434,7 +450,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   ),
                 ),
                 SizedBox(
-                  height: heroHeight,
+                  height: _category == 'card' ? 0 : heroHeight,
                   width: 750 * u,
                   child: FittedBox(
                     fit: BoxFit.contain,
@@ -455,37 +471,46 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                         ('wine', '酒', 0),
                         ('coupon', '券', 1),
                         ('item', '物', 2),
+                        ('card', '卡', 3),
                       ])
-                        Semantics(
-                          key: ValueKey(
-                            'storage-tab-${entry.$2}-${_category == entry.$1 ? 'selected' : 'idle'}',
-                          ),
-                          button: true,
-                          selected: _category == entry.$1,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => _pages.animateToPage(
-                              entry.$3,
-                              duration: const Duration(milliseconds: 260),
-                              curve: Curves.easeOut,
+                        Expanded(
+                          child: Semantics(
+                            key: ValueKey(
+                              'storage-tab-${entry.$2}-${_category == entry.$1 ? 'selected' : 'idle'}',
                             ),
-                            child: Container(
-                              margin: EdgeInsets.only(right: 20 * u),
-                              padding: EdgeInsets.symmetric(horizontal: 3 * u),
-                              decoration: BoxDecoration(
-                                border: _category == entry.$1
-                                    ? const Border(
-                                        bottom: BorderSide(color: _gold),
-                                      )
-                                    : null,
+                            button: true,
+                            selected: _category == entry.$1,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _pages.animateToPage(
+                                entry.$3,
+                                duration: const Duration(milliseconds: 260),
+                                curve: Curves.easeOut,
                               ),
-                              child: Text(
-                                entry.$2,
-                                style: TextStyle(
-                                  fontSize: 30 * u,
-                                  color: _category == entry.$1
-                                      ? _gold
-                                      : const Color(0x665E5548),
+                              child: Container(
+                                margin: EdgeInsets.only(right: 12 * u),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 3 * u,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: _category == entry.$1
+                                      ? const Border(
+                                          bottom: BorderSide(color: _gold),
+                                        )
+                                      : null,
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    _categoryLabel(entry.$3),
+                                    style: TextStyle(
+                                      fontSize: 30 * u,
+                                      color: _category == entry.$1
+                                          ? _gold
+                                          : const Color(0xFFB8AD9C),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -496,7 +521,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                 ),
                 SizedBox(height: 12 * u),
                 SizedBox(
-                  height: width,
+                  height: _category == 'card' ? width + heroHeight : width,
                   child: Stack(
                     children: [
                       Center(
@@ -505,25 +530,30 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                           child: PageView.builder(
                             key: const ValueKey('storage-category-pages'),
                             controller: _pages,
-                            itemCount: 3,
+                            itemCount: _categories.length,
                             onPageChanged: (category) => _changePage(
                               _startPage(category) + _verticalIndex[category],
                             ),
-                            itemBuilder: (context, category) =>
-                                PageView.builder(
-                                  key: PageStorageKey(
-                                    'storage-vertical-$category',
+                            itemBuilder: (context, category) => category == 3
+                                ? StorageMemberCards(
+                                    load: widget.loadCards,
+                                    active:
+                                        widget.active && _categoryIndex == 3,
+                                  )
+                                : PageView.builder(
+                                    key: PageStorageKey(
+                                      'storage-vertical-$category',
+                                    ),
+                                    controller: _verticalPages[category],
+                                    scrollDirection: Axis.vertical,
+                                    itemCount: _pageCount(category),
+                                    onPageChanged: (index) {
+                                      _verticalIndex[category] = index;
+                                      _changePage(_startPage(category) + index);
+                                    },
+                                    itemBuilder: (context, index) =>
+                                        _grid(_startPage(category) + index, u),
                                   ),
-                                  controller: _verticalPages[category],
-                                  scrollDirection: Axis.vertical,
-                                  itemCount: _pageCount(category),
-                                  onPageChanged: (index) {
-                                    _verticalIndex[category] = index;
-                                    _changePage(_startPage(category) + index);
-                                  },
-                                  itemBuilder: (context, index) =>
-                                      _grid(_startPage(category) + index, u),
-                                ),
                           ),
                         ),
                       ),
@@ -563,7 +593,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   key: const ValueKey('storage-category-dots'),
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
-                    3,
+                    _categories.length,
                     (i) => Container(
                       width: 15 * u,
                       height: 15 * u,

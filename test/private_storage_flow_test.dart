@@ -13,6 +13,9 @@ void main() {
   testWidgets(
     'empty cabinet switches category without issuing fake credentials',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(theme: KingTheme.dark, home: const PrivateStoragePage()),
       );

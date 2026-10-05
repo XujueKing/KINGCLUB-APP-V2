@@ -122,7 +122,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('券'));
+    await tester.tap(find.byKey(const ValueKey('storage-tab-券-idle')));
     await tester.pumpAndSettle();
     expect(find.text(description), findsOneWidget);
     expect(tester.takeException(), isNull);
