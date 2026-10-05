@@ -20,7 +20,7 @@ class RechargeDetailPage extends StatelessWidget {
         ? 2
         : 0;
     String t(String text) => text.split('|')[index];
-    String money(int cents) => '¥${(cents / 100).toStringAsFixed(2)}';
+    String money(int cents) => (cents / 100).toStringAsFixed(2);
     String date(Object? v) =>
         DateTime.tryParse(v?.toString() ?? '')
             ?.toLocal()

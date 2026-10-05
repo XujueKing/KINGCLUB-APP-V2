@@ -84,7 +84,7 @@ void main() {
       await tester.tap(find.text('充值到账成功'));
       await tester.pumpAndSettle();
       expect(find.text('充值详情'), findsOneWidget);
-      expect(find.text('+¥120.00'), findsOneWidget);
+      expect(find.text('+120.00'), findsOneWidget);
       expect(find.text('Cashier 01'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
