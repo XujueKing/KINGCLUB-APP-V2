@@ -7,7 +7,7 @@ import '../../../core/session/member_qr_memory.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../profile_settings/data/profile_repository.dart';
 import '../../membership_wallet/data/store_debit_watch.dart';
-import '../../membership_wallet/presentation/member_payment_code_page.dart';
+import '../../membership_wallet/data/member_payment_code_repository.dart';
 
 import 'package:flutter/material.dart';
 
@@ -116,7 +116,10 @@ class StoreCardDetail extends StatefulWidget {
     required this.store,
     this.repository,
     this.events,
+    this.issuePaymentCode,
   });
+  final Future<Map<String, dynamic>> Function(Map<String, dynamic>)?
+  issuePaymentCode;
   final MemberStoreBalance store;
   final ProfileRepository? repository;
   final Stream<Map<String, dynamic>>? events;
@@ -137,7 +140,6 @@ class _StoreCardDetailState extends State<StoreCardDetail>
   int ttl = 0, epoch = 0;
   bool busy = false, foreground = true;
   StoreDebitNotice? paid;
-  Route<void>? paymentRoute;
   String t(String value) => _text(context, value);
   @override
   void initState() {
@@ -149,9 +151,7 @@ class _StoreCardDetailState extends State<StoreCardDetail>
           mounted &&
           foreground &&
           paid == null &&
-          (paymentRoute?.isCurrent ??
-              ModalRoute.of(context)?.isCurrent ??
-              true),
+          (ModalRoute.of(context)?.isCurrent ?? true),
       load: () => repo.call('K260930000508', {}),
       onSnapshot: (snapshot) {
         if (!mounted || sessionExpired) return;
@@ -162,8 +162,6 @@ class _StoreCardDetailState extends State<StoreCardDetail>
       },
       onPaid: (n) {
         if (!mounted || paid != null || n.store.ref != store.ref) return;
-        final route = paymentRoute;
-        if (route != null && route.isCurrent) Navigator.of(context).pop();
         setState(() {
           paid = n;
           code = null;
@@ -185,7 +183,7 @@ class _StoreCardDetailState extends State<StoreCardDetail>
     refresh();
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || !foreground || paid != null) return;
-      if (code != null && age.elapsed.inSeconds >= ttl - 60) refresh();
+      if (code != null && age.elapsed.inSeconds >= ttl - 5) refresh();
       if (code != null && age.elapsed.inSeconds >= ttl) {
         setState(() => code = null);
       }
@@ -197,16 +195,50 @@ class _StoreCardDetailState extends State<StoreCardDetail>
     busy = true;
     final request = ++epoch, generation = MemberQrMemory.generation;
     try {
-      // Reuse the same unexpired identity code as Chat and My QR.
-      final qr = await repo.memberQr();
+      // Opening this store card presents its short-lived payment code directly.
+      // Never turn a general identity code into a cross-store debit capability.
+      final started = Stopwatch()..start();
+      bool current() =>
+          mounted &&
+          foreground &&
+          request == epoch &&
+          generation == MemberQrMemory.generation &&
+          !sessionExpired;
+      final params = <String, dynamic>{
+        'storeRef': store.ref,
+        'accountType': 'store_balance',
+        'maxTotalCents': 100000000,
+        'paymentConsent': true,
+      };
+      final qr =
+          await (widget.issuePaymentCode?.call(params) ??
+              MemberPaymentCodeRepository().issue(
+                params,
+                stillCurrent: current,
+              ));
+      final token = qr['paymentCode'];
+      final expiry = DateTime.tryParse('${qr['expiresAt']}');
+      if (qr['storeRef'] != store.ref ||
+          qr['accountType'] != 'store_balance' ||
+          qr['currency'] != 'CNY' ||
+          token is! String ||
+          !RegExp(r'^KCPAY1:[A-Za-z0-9_-]{43}$').hasMatch(token) ||
+          expiry == null) {
+        throw const FormatException('Invalid store payment code');
+      }
+      final remaining = expiry.difference(DateTime.now().toUtc()).inSeconds;
+      final lifetime = 60 - started.elapsed.inSeconds;
+      final validFor = remaining < lifetime ? remaining : lifetime;
+      if (validFor <= 0)
+        throw const FormatException('Expired store payment code');
       if (!mounted ||
           request != epoch ||
           generation != MemberQrMemory.generation) {
         return;
       }
       setState(() {
-        code = qr['code'] as String;
-        ttl = (qr['ttlSeconds'] as num).toInt();
+        code = token;
+        ttl = validFor;
         age.reset();
         age.start();
         error = null;
@@ -235,21 +267,6 @@ class _StoreCardDetailState extends State<StoreCardDetail>
       refresh();
       watch?.check();
     }
-  }
-
-  Future<void> openPaymentCode() async {
-    if (paymentRoute != null || sessionExpired) return;
-    final route = MaterialPageRoute<void>(
-      builder: (_) => MemberPaymentCodePage(
-        storeRef: store.ref,
-        storeName: store.name,
-        accountType: 'store_balance',
-      ),
-    );
-    paymentRoute = route;
-    await Navigator.of(context).push(route);
-    paymentRoute = null;
-    if (mounted) watch?.check();
   }
 
   @override
@@ -394,19 +411,10 @@ class _StoreCardDetailState extends State<StoreCardDetail>
               const SizedBox(height: 14),
               Text(
                 t(
-                  '会员身份码 · 付款请点下方按钮|Member identity · Tap below to pay|會員身分碼 · 付款請點下方按鈕|รหัสสมาชิก · แตะด้านล่างเพื่อชำระเงิน',
+                  '向店员出示此码，使用本店储值付款|Show this code to pay with this store card|向店員出示此碼，使用本店儲值付款|แสดงรหัสนี้เพื่อชำระด้วยบัตรร้านนี้',
                 ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              TextButton(
-                key: const ValueKey('store-card-payment-code'),
-                onPressed: openPaymentCode,
-                child: Text(
-                  t(
-                    '使用本店储值付款|Pay with this store card|使用本店儲值付款|ชำระด้วยบัตรร้านนี้',
-                  ),
-                ),
               ),
               if (error != null)
                 TextButton(onPressed: refresh, child: Text(error!)),

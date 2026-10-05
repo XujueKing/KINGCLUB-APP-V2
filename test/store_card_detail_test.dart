@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:kingclub/src/features/membership_wallet/presentation/member_payment_code_page.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -33,38 +31,49 @@ class Repo extends ProfileRepository {
   ) async => raw;
 }
 
+Future<Map<String, dynamic>> issueStoreCode(Map<String, dynamic> params) async {
+  expect(params['accountType'], 'store_balance');
+  expect(params['storeRef'], 'test-store');
+  return {
+    ...params,
+    'currency': 'CNY',
+    'paymentCode': 'KCPAY1:${'A' * 43}',
+    'expiresAt': DateTime.now()
+        .toUtc()
+        .add(const Duration(seconds: 60))
+        .toIso8601String(),
+  };
+}
+
 void main() {
-  testWidgets('card payment entry authorizes only its own store balance', (
-    tester,
-  ) async {
-    final repo = Repo();
-    final events = StreamController<Map<String, dynamic>>.broadcast();
-    await tester.pumpWidget(
-      MaterialApp(
-        home: StoreCardDetail(
-          store: MemberBalanceSnapshot.parse(repo.raw).stores.first,
-          repository: repo,
-          events: events.stream,
+  testWidgets(
+    'card opens its store payment code directly without an extra button',
+    (tester) async {
+      final repo = Repo();
+      final events = StreamController<Map<String, dynamic>>.broadcast();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StoreCardDetail(
+            issuePaymentCode: issueStoreCode,
+            store: MemberBalanceSnapshot.parse(repo.raw).stores.first,
+            repository: repo,
+            events: events.stream,
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    final button = find.byKey(const ValueKey('store-card-payment-code'));
-    await tester.ensureVisible(button);
-    await tester.tap(button);
-    await tester.pumpAndSettle();
-    final page = tester.widget<MemberPaymentCodePage>(
-      find.byType(MemberPaymentCodePage),
-    );
-    expect(page.storeRef, 'test-store');
-    expect(page.accountType, 'store_balance');
-    expect(find.byType(QrImageView), findsNothing);
-    await tester.pumpWidget(const SizedBox());
-    await events.close();
-  });
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(QrImageView), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('store-card-payment-code')),
+        findsNothing,
+      );
+      await tester.pumpWidget(const SizedBox());
+      await events.close();
+    },
+  );
 
   testWidgets(
-    'card QR uses member identity and confirmed debit returns to fresh card balance',
+    'card payment QR and confirmed debit return to fresh card balance',
     (tester) async {
       final repo = Repo();
       final events = StreamController<Map<String, dynamic>>.broadcast();
@@ -73,6 +82,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: StoreCardDetail(
+            issuePaymentCode: issueStoreCode,
             store: MemberBalanceSnapshot.parse(repo.raw).stores.first,
             repository: repo,
             events: events.stream,
@@ -85,11 +95,6 @@ void main() {
       expect(find.text('250.00'), findsOneWidget);
       await tester.scrollUntilVisible(find.byType(QrImageView), 250);
       expect(find.byType(QrImageView), findsOneWidget);
-      final payButton = find.byKey(const ValueKey('store-card-payment-code'));
-      await tester.ensureVisible(payButton);
-      await tester.tap(payButton);
-      await tester.pumpAndSettle();
-      expect(find.byType(MemberPaymentCodePage), findsOneWidget);
       repo.raw['stores'][0]['principalCents'] = '19900';
       repo.raw['stores'][0]['displayTotalCents'] = '24900';
       repo.raw['stores'][0]['lots'][0]['principalCents'] = '19900';
@@ -171,6 +176,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: StoreCardDetail(
+            issuePaymentCode: issueStoreCode,
             store: MemberBalanceSnapshot.parse(repo.raw).stores.first,
             repository: repo,
           ),
