@@ -733,7 +733,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   children: [
                     Center(
                       child: SizedBox(
-                        width: (item is StoreCardItem ? 184 : 160) * u,
+                        width: (item is StoreCardItem ? 152 : 160) * u,
                         height: 160 * u,
                         child: item is StoreCardItem
                             ? ClipRect(
@@ -773,7 +773,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                         right: 8 * u,
                         bottom: 12 * u,
                         child: Text(
-                          '${_cardText('余额|Balance|餘額|ยอดคงเหลือ')} ${balanceMoney(item.balance.principal + item.balance.gift)}',
+                          '${item.balance.currency == 'CNY' ? '￥' : '${item.balance.currency} '}${balanceMoney(item.balance.principal + item.balance.gift)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,

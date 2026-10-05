@@ -48,10 +48,11 @@ class MemberStoreBalance {
     this.expiredGift,
     this.lots, {
     this.logoUrl,
+    this.currency = 'CNY',
     this.originalPrincipal,
     this.originalGift,
   });
-  final String ref, name, status, accountStatus;
+  final String ref, name, status, accountStatus, currency;
   final String? logoUrl;
   final BigInt? originalPrincipal, originalGift;
   final BigInt principal, gift, expiredGift;
@@ -115,6 +116,14 @@ class MemberBalanceSnapshot {
           row['lots'] is! List) {
         throw const FormatException('Invalid store balance');
       }
+      // Legacy snapshots are single-currency. Never merge or relabel a foreign
+      // account as CNY before the server supplies per-asset totals and precision.
+      final currency = row['currency'] ?? root['currency'];
+      if (currency != root['currency']) {
+        throw const FormatException(
+          'Mixed-currency snapshot requires per-asset totals',
+        );
+      }
       final p = balanceCents(row['principalCents']),
           g = balanceCents(row['giftCents']),
           e = balanceCents(row['expiredGiftCents']);
@@ -174,6 +183,7 @@ class MemberBalanceSnapshot {
           g,
           e,
           List.unmodifiable(lots),
+          currency: currency as String,
           originalPrincipal: row['originalPrincipalCents'] == null
               ? null
               : balanceCents(row['originalPrincipalCents']),

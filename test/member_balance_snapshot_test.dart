@@ -24,6 +24,7 @@ void main() {
   test('display total keeps platform, store principal and gifts separate', () {
     final value = MemberBalanceSnapshot.parse(fixture());
     expect(value.platformCash, BigInt.from(10000));
+    expect(value.stores.single.currency, 'CNY');
     expect(value.total, BigInt.from(35000));
     expect(value.stores.single.principal, BigInt.from(20000));
     expect(value.stores.single.gift, BigInt.from(5000));
@@ -39,6 +40,7 @@ void main() {
   test('rejects incomplete or inconsistent financial snapshots', () {
     for (final mutate in <void Function(Map<String, dynamic>)>[
       (r) => r['platform'].remove('cashCents'),
+      (r) => r['stores'][0]['currency'] = 'USD',
       (r) => r['summary']['displayOnly'] = false,
       (r) => r['summary']['displayTotalCents'] = '36000',
       (r) => r['stores'][0]['lots'][1]['giftExpired'] = false,

@@ -39,6 +39,7 @@ void main() {
       await tester.tap(find.text('Cards'));
       await tester.pumpAndSettle();
       expect(loads, 2);
+      expect(find.text('￥250.00'), findsOneWidget);
       expect(
         find
             .byKey(const ValueKey('storage-select-card-test-store'))
