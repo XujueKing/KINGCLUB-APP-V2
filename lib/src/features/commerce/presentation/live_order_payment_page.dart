@@ -53,7 +53,37 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   final _storeInput = TextEditingController(text: '0.00');
   Future<void>? _inputCommit;
   Timer? _inputDebounce;
+  void _capEnteredAmounts() {
+    if (_benefits == null || _channelLocked) return;
+    final afterCoupon = (_total - _component('couponDiscountCents')).clamp(
+      0,
+      _total,
+    );
+    final availableCoins =
+        int.tryParse(_benefits?['coins']?.toString() ?? '') ?? 0;
+    final maxCoins = (afterCoupon ~/ 10).clamp(0, availableCoins);
+    var coins = int.tryParse(_coinInput.text) ?? 0;
+    if (coins > maxCoins) {
+      coins = maxCoins;
+      final text = coins.toString();
+      _coinInput.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    }
+    final remaining = afterCoupon - coins * 10;
+    final store = _inputStoreCents;
+    if (store != null && store > remaining) {
+      final text = _money(remaining);
+      _storeInput.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    }
+  }
+
   void _amountChanged(String _) {
+    _capEnteredAmounts();
     setState(() {});
     _inputDebounce?.cancel();
     _inputDebounce = Timer(const Duration(milliseconds: 300), _commitInputs);
@@ -84,6 +114,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
 
   Future<void> _commitInputs() async {
     _inputDebounce?.cancel();
+    _capEnteredAmounts();
     if (_inputCommit != null) await _inputCommit;
     if (!mounted ||
         _channelLocked ||

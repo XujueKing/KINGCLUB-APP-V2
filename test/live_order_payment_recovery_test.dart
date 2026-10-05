@@ -574,6 +574,30 @@ void main() {
     );
   }
 
+  testWidgets('overlarge coin and store entries cap to the payable remainder', (
+    tester,
+  ) async {
+    final h = _Harness()..combinedEnabled = true;
+    await h.mount(tester, saved: false);
+    final coins = find.byKey(const ValueKey('checkout-coins'));
+    final store = find.byKey(const ValueKey('checkout-store-amount'));
+    await tester.enterText(coins, '999');
+    expect(tester.widget<TextField>(coins).controller!.text, '10');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    expect(h.composition!['externalCents'], '0');
+    await tester.enterText(store, '100');
+    expect(tester.widget<TextField>(store).controller!.text, '0.00');
+    await tester.enterText(coins, '8');
+    await tester.enterText(store, '100');
+    expect(tester.widget<TextField>(store).controller!.text, '0.20');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    expect(h.composition!['storePrincipalCents'], '20');
+    expect(h.composition!['externalCents'], '0');
+    await h.finish(tester);
+  });
+
   testWidgets(
     'unknown persisted provider cannot be bypassed by selecting WeChat',
     (tester) async {
