@@ -229,8 +229,9 @@ class _StoreCardDetailState extends State<StoreCardDetail>
       final remaining = expiry.difference(DateTime.now().toUtc()).inSeconds;
       final lifetime = 60 - started.elapsed.inSeconds;
       final validFor = remaining < lifetime ? remaining : lifetime;
-      if (validFor <= 0)
+      if (validFor <= 0) {
         throw const FormatException('Expired store payment code');
+      }
       if (!mounted ||
           request != epoch ||
           generation != MemberQrMemory.generation) {
