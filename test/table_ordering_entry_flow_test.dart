@@ -22,6 +22,30 @@ OrderingContext scope(String id) => OrderingContext(
 );
 
 void main() {
+  testWidgets('首次扫码等待使用目录占位，保留返回且不显示整页转圈', (tester) async {
+    final pending = Completer<OrderingContext>();
+    var back = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TableOrderingEntryPage(
+          tableId: 'T1',
+          onBack: () => back++,
+          events: const Stream.empty(),
+          resolveTable: (_) => pending.future,
+        ),
+      ),
+    );
+    expect(
+      find.byKey(const ValueKey('ordering-catalog-loading')),
+      findsOneWidget,
+    );
+    expect(find.text('桌台点单'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(ScanOrderingCartPage), findsNothing);
+    await tester.tap(find.byType(IconButton).first);
+    expect(back, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('未开台和清台中保留明确状态，员工处理后可刷新', (tester) async {
     var attempts = 0;
     await tester.pumpWidget(

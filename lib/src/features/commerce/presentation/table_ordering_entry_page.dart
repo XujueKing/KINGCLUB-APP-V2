@@ -344,6 +344,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
             : null,
       );
     }
+    if (_loading || _error == null) return _loadingCatalog(context);
     return Scaffold(
       appBar: kingAppBar(
         context: context,
@@ -400,6 +401,103 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
                   ),
                 ),
               ),
+      ),
+    );
+  }
+
+  // Keep the catalog's visual structure on first entry, without a second
+  // titled screen or fabricated store/product data while resolving the scan.
+  Widget _loadingCatalog(BuildContext context) {
+    final scale = (MediaQuery.sizeOf(context).width / 750).clamp(.4, .6);
+    Widget block(double width, double height) => Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF191919),
+        borderRadius: BorderRadius.circular(7),
+      ),
+    );
+    return Scaffold(
+      key: const ValueKey('ordering-catalog-loading'),
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                KingBackButton.leftOffset(context),
+                4,
+                20 * scale,
+                4,
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: KingBackButton(onPressed: widget.onBack),
+                  ),
+                  const SizedBox(width: 2),
+                  Expanded(child: block(double.infinity, 76 * scale)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.all(30 * scale),
+              child: Row(
+                children: [
+                  block(88 * scale, 88 * scale),
+                  SizedBox(width: 20 * scale),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        block(260 * scale, 28 * scale),
+                        SizedBox(height: 16 * scale),
+                        block(340 * scale, 20 * scale),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 64 * scale),
+            const Divider(height: 1, color: Color(0xFF242424)),
+            Expanded(
+              child: Row(
+                children: [
+                  SizedBox(width: 130 * scale),
+                  const VerticalDivider(width: 1, color: Color(0xFF242424)),
+                  Expanded(
+                    child: ListView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: 4,
+                      itemBuilder: (_, index) => Padding(
+                        padding: EdgeInsets.all(24 * scale),
+                        child: Row(
+                          children: [
+                            block(140 * scale, 180 * scale),
+                            SizedBox(width: 24 * scale),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  block(double.infinity, 28 * scale),
+                                  SizedBox(height: 16 * scale),
+                                  block(150 * scale, 20 * scale),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
