@@ -53,6 +53,8 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   final _storeInput = TextEditingController(text: '0.00');
   Future<void>? _inputCommit;
   Timer? _inputDebounce;
+  int get _storeAvailableCents =>
+      int.tryParse(_benefits?['storeAvailableCents']?.toString() ?? '') ?? 0;
   void _capEnteredAmounts() {
     if (_benefits == null || _channelLocked) return;
     final afterCoupon = (_total - _component('couponDiscountCents')).clamp(
@@ -71,7 +73,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         selection: TextSelection.collapsed(offset: text.length),
       );
     }
-    final remaining = afterCoupon - coins * 10;
+    final remaining = (afterCoupon - coins * 10).clamp(0, _storeAvailableCents);
     final store = _inputStoreCents;
     if (store != null && store > remaining) {
       final text = _money(remaining);
@@ -747,11 +749,14 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       ),
     ),
   );
-  Future<void> _chooseCoupon() async {
+  Future<T?> _checkoutPicker<T>({
+    required String key,
+    required T initial,
+    required Widget Function(T, ValueChanged<T>) content,
+  }) {
     FocusManager.instance.primaryFocus?.unfocus();
-    final coupons = _benefits?['coupons'] as List? ?? [];
-    String chosen = _selection?['couponRef']?.toString() ?? '';
-    final selected = await showModalBottomSheet<String>(
+    var chosen = initial;
+    return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -760,7 +765,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => SizedBox(
-          key: const ValueKey('checkout-coupon-sheet'),
+          key: ValueKey(key),
           height: MediaQuery.sizeOf(context).height * .40,
           child: SafeArea(
             top: false,
@@ -770,112 +775,54 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                 children: [
                   Expanded(
                     child: Center(
-                      child: coupons.isEmpty
-                          ? Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 20),
-                              decoration: const BoxDecoration(
-                                border: Border(
-                                  top: BorderSide(color: Color(0xFFF0F0F0)),
-                                  bottom: BorderSide(color: Color(0xFFF0F0F0)),
-                                ),
-                              ),
-                              child: Text(
-                                _paymentText([
-                                  '没有优惠券',
-                                  'No coupons available',
-                                  '沒有優惠券',
-                                  'ไม่มีคูปอง',
-                                ]),
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFF333333),
-                                  fontSize: 22,
-                                ),
-                              ),
-                            )
-                          : ListView(
-                              children: [
-                                for (final c in [
-                                  <String, dynamic>{
-                                    'itemRef': '',
-                                    'name': _paymentText([
-                                      '不使用优惠券',
-                                      'No coupon',
-                                      '不使用優惠券',
-                                      'ไม่ใช้คูปอง',
-                                    ]),
-                                  },
-                                  ...coupons,
-                                ])
-                                  ListTile(
-                                    title: Text(
-                                      c['name'].toString(),
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                    trailing: chosen == c['itemRef']
-                                        ? const Icon(
-                                            Icons.check,
-                                            color: Color(0xFF07C160),
-                                          )
-                                        : null,
-                                    onTap: () => update(
-                                      () => chosen = c['itemRef'].toString(),
-                                    ),
-                                  ),
-                              ],
-                            ),
+                      child: content(chosen, (v) => update(() => chosen = v)),
                     ),
                   ),
                   const SizedBox(height: 36),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
-                        width: 118,
-                        height: 44,
-                        child: TextButton(
-                          style: TextButton.styleFrom(
-                            backgroundColor: const Color(0xFFF2F2F2),
-                            foregroundColor: const Color(0xFF07C160),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(5),
+                      for (final confirm in [false, true]) ...[
+                        if (confirm) const SizedBox(width: 16),
+                        SizedBox(
+                          width: 118,
+                          height: 44,
+                          child: TextButton(
+                            style: TextButton.styleFrom(
+                              backgroundColor: confirm
+                                  ? const Color(0xFF07C160)
+                                  : const Color(0xFFF2F2F2),
+                              foregroundColor: confirm
+                                  ? Colors.white
+                                  : const Color(0xFF07C160),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
+                              ),
                             ),
-                          ),
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text(
-                            _paymentText(['取消', 'Cancel', '取消', 'ยกเลิก']),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
+                            onPressed: () =>
+                                Navigator.pop(ctx, confirm ? chosen : null),
+                            child: Text(
+                              confirm
+                                  ? _paymentText([
+                                      '确定',
+                                      'Confirm',
+                                      '確定',
+                                      'ยืนยัน',
+                                    ])
+                                  : _paymentText([
+                                      '取消',
+                                      'Cancel',
+                                      '取消',
+                                      'ยกเลิก',
+                                    ]),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      SizedBox(
-                        width: 118,
-                        height: 44,
-                        child: TextButton(
-                          style: TextButton.styleFrom(
-                            backgroundColor: const Color(0xFF07C160),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                          ),
-                          onPressed: () => Navigator.pop(ctx, chosen),
-                          child: Text(
-                            _paymentText(['确定', 'Confirm', '確定', 'ยืนยัน']),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
+                      ],
                     ],
                   ),
                 ],
@@ -884,6 +831,61 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _chooseCoupon() async {
+    final coupons = _benefits?['coupons'] as List? ?? [];
+    final selected = await _checkoutPicker<String>(
+      key: 'checkout-coupon-sheet',
+      initial: _selection?['couponRef']?.toString() ?? '',
+      content: (chosen, choose) => coupons.isEmpty
+          ? Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Color(0xFFF0F0F0)),
+                  bottom: BorderSide(color: Color(0xFFF0F0F0)),
+                ),
+              ),
+              child: Text(
+                _paymentText([
+                  '没有优惠券',
+                  'No coupons available',
+                  '沒有優惠券',
+                  'ไม่มีคูปอง',
+                ]),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF333333), fontSize: 22),
+              ),
+            )
+          : ListView(
+              children: [
+                for (final c in [
+                  <String, dynamic>{
+                    'itemRef': '',
+                    'name': _paymentText([
+                      '不使用优惠券',
+                      'No coupon',
+                      '不使用優惠券',
+                      'ไม่ใช้คูปอง',
+                    ]),
+                  },
+                  ...coupons,
+                ])
+                  ListTile(
+                    title: Text(
+                      c['name'].toString(),
+                      style: const TextStyle(color: Colors.black, fontSize: 16),
+                    ),
+                    trailing: chosen == c['itemRef']
+                        ? const Icon(Icons.check, color: Color(0xFF07C160))
+                        : null,
+                    onTap: () => choose(c['itemRef'].toString()),
+                  ),
+              ],
+            ),
     );
     if (selected != null && mounted) {
       await _loadBenefits({'couponRef': selected.isEmpty ? null : selected});
@@ -898,7 +900,11 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     required bool money,
     required String key,
   }) {
-    final enabled = _benefits != null && !_channelLocked && !_busy;
+    final enabled =
+        _benefits != null &&
+        !_channelLocked &&
+        !_busy &&
+        (!money || _storeAvailableCents > 0);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -950,7 +956,10 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
               keyboardType: TextInputType.numberWithOptions(decimal: money),
               textAlign: TextAlign.center,
               textInputAction: TextInputAction.done,
-              style: const TextStyle(fontSize: 18, color: Colors.white),
+              style: TextStyle(
+                fontSize: 18,
+                color: enabled ? Colors.white : const Color(0xFF8C8378),
+              ),
               cursorColor: const Color(0xFF07C160),
               inputFormatters: money
                   ? [
@@ -978,7 +987,9 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
               decoration: InputDecoration(
                 isDense: true,
                 filled: true,
-                fillColor: const Color(0xFFAA9A83),
+                fillColor: enabled
+                    ? const Color(0xFFAA9A83)
+                    : const Color(0xFFB9AC99),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 8,
                   vertical: 9,
@@ -1011,124 +1022,92 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
             )
             .alipayAvailable(widget.quote.orderingContext!.storeRef)
             .catchError((_) => false);
-    final selected = await showModalBottomSheet<OrderingPaymentProvider>(
-      context: context,
-      backgroundColor: Colors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _paymentText([
-                  '选择支付方式',
-                  'Payment method',
-                  '選擇支付方式',
-                  'วิธีชำระเงิน',
-                ]),
-                style: const TextStyle(color: Colors.black87, fontSize: 18),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                key: const ValueKey('payment-method-wechat'),
+    final selected = await _checkoutPicker<OrderingPaymentProvider>(
+      key: 'checkout-payment-sheet',
+      initial: _provider,
+      content: (chosen, choose) => ListView(
+        children: [
+          ListTile(
+            key: const ValueKey('payment-method-wechat'),
+            leading: Image.asset(
+              'assets/legacy/ordering/WEIPAY.png',
+              width: 28,
+              height: 28,
+            ),
+            title: Text(
+              _paymentText(['微信支付', 'WeChat Pay', '微信支付', 'WeChat Pay']),
+              style: const TextStyle(color: Colors.black87),
+            ),
+            trailing: chosen == OrderingPaymentProvider.wechat
+                ? const Icon(Icons.check, color: Color(0xFF07C160))
+                : null,
+            onTap: () => choose(OrderingPaymentProvider.wechat),
+          ),
+          FutureBuilder<bool>(
+            future: availability,
+            builder: (context, snapshot) {
+              final enabled = snapshot.data == true;
+              return ListTile(
+                key: const ValueKey('payment-provider-alipay'),
+                enabled: enabled,
                 leading: Image.asset(
-                  'assets/legacy/ordering/WEIPAY.png',
+                  'assets/legacy/payment/legacy_alipay.png',
                   width: 28,
                   height: 28,
                 ),
                 title: Text(
-                  _paymentText(['微信支付', 'WeChat Pay', '微信支付', 'WeChat Pay']),
-                  style: const TextStyle(color: Colors.black87),
+                  _paymentText(['支付宝支付', 'Alipay', '支付寶支付', 'Alipay']),
+                  style: TextStyle(
+                    color: enabled ? Colors.black87 : Colors.grey,
+                  ),
                 ),
-                trailing: _provider == OrderingPaymentProvider.wechat
-                    ? const Icon(Icons.check, color: Color(0xFF07C160))
-                    : null,
-                onTap: () =>
-                    Navigator.pop(sheetContext, OrderingPaymentProvider.wechat),
-              ),
-              FutureBuilder<bool>(
-                future: availability,
-                builder: (context, snapshot) {
-                  final enabled = snapshot.data == true;
-                  return ListTile(
-                    key: const ValueKey('payment-provider-alipay'),
-                    enabled: enabled,
-                    leading: Image.asset(
-                      'assets/legacy/payment/legacy_alipay.png',
-                      width: 28,
-                      height: 28,
-                    ),
-                    title: Text(
-                      _paymentText(['支付宝支付', 'Alipay', '支付寶支付', 'Alipay']),
-                      style: TextStyle(
-                        color: enabled ? Colors.black87 : Colors.grey,
+                trailing: enabled
+                    ? (chosen == OrderingPaymentProvider.alipay
+                          ? const Icon(Icons.check, color: Color(0xFF07C160))
+                          : null)
+                    : Text(
+                        _paymentText([
+                          '暂未开通',
+                          'Unavailable',
+                          '暫未開通',
+                          'ยังไม่เปิดให้บริการ',
+                        ]),
+                        style: const TextStyle(color: Colors.grey),
                       ),
-                    ),
-                    trailing: enabled
-                        ? (_provider == OrderingPaymentProvider.alipay
-                              ? const Icon(
-                                  Icons.check,
-                                  color: Color(0xFF07C160),
-                                )
-                              : null)
-                        : Text(
-                            _paymentText([
-                              '暂未开通',
-                              'Unavailable',
-                              '暫未開通',
-                              'ยังไม่เปิดให้บริการ',
-                            ]),
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                    onTap: enabled
-                        ? () => Navigator.pop(
-                            sheetContext,
-                            OrderingPaymentProvider.alipay,
-                          )
-                        : null,
-                  );
-                },
-              ),
-              ListTile(
-                key: const ValueKey('payment-method-platform'),
-                leading: const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  color: Colors.black87,
-                ),
-                title: Text(
-                  _paymentText([
-                    '平台余额',
-                    'Platform balance',
-                    '平台餘額',
-                    'ยอดเงินแพลตฟอร์ม',
-                  ]),
-                  style: const TextStyle(color: Colors.black87),
-                ),
-                subtitle: Text(
-                  '¥${_money(int.tryParse(_benefits?['platformCashCents']?.toString() ?? '0') ?? 0)}',
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                enabled: _benefits?['platformEnabled'] == true,
-                onTap: _benefits?['platformEnabled'] == true
-                    ? () => Navigator.pop(
-                        sheetContext,
-                        OrderingPaymentProvider.platformCash,
-                      )
+                onTap: enabled
+                    ? () => choose(OrderingPaymentProvider.alipay)
                     : null,
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.pop(sheetContext),
-                child: Text(_paymentText(['取消', 'Cancel', '取消', 'ยกเลิก'])),
-              ),
-            ],
+              );
+            },
           ),
-        ),
+          ListTile(
+            key: const ValueKey('payment-method-platform'),
+            leading: const Icon(
+              Icons.account_balance_wallet_outlined,
+              color: Colors.black87,
+            ),
+            title: Text(
+              _paymentText([
+                '平台余额',
+                'Platform balance',
+                '平台餘額',
+                'ยอดเงินแพลตฟอร์ม',
+              ]),
+              style: const TextStyle(color: Colors.black87),
+            ),
+            subtitle: Text(
+              '¥${_money(int.tryParse(_benefits?['platformCashCents']?.toString() ?? '0') ?? 0)}',
+              style: const TextStyle(color: Colors.grey),
+            ),
+            trailing: chosen == OrderingPaymentProvider.platformCash
+                ? const Icon(Icons.check, color: Color(0xFF07C160))
+                : null,
+            enabled: _benefits?['platformEnabled'] == true,
+            onTap: _benefits?['platformEnabled'] == true
+                ? () => choose(OrderingPaymentProvider.platformCash)
+                : null,
+          ),
+        ],
       ),
     );
     if (selected != null && mounted) _selectProvider(selected);
@@ -1288,9 +1267,12 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         ],
       ),
     );
-    Widget card(List<Widget> children) => Container(
+    Widget card(List<Widget> children, {bool roomy = false}) => Container(
       margin: EdgeInsets.symmetric(vertical: r(10)),
-      padding: EdgeInsets.symmetric(horizontal: r(24), vertical: r(12)),
+      padding: EdgeInsets.symmetric(
+        horizontal: r(24),
+        vertical: r(roomy ? 28 : 12),
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFFC9B69E),
         borderRadius: BorderRadius.circular(r(16)),
@@ -1343,6 +1325,10 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       card([
+                        line('门店', widget.quote.orderingContext!.storeName),
+                        const SizedBox(height: 6),
+                        line('桌号', widget.quote.orderingContext!.tableName),
+                        const SizedBox(height: 6),
                         line(
                           _paymentText([
                             '订单时间',
@@ -1356,10 +1342,8 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                               .split('.')
                               .first,
                         ),
-                        line('门店', widget.quote.orderingContext!.storeName),
-                        line('桌号', widget.quote.orderingContext!.tableName),
                         if (_receipt != null) line('订单号', _receipt!.orderRef),
-                      ]),
+                      ], roomy: true),
                       if (!_receiptMatchesQuote)
                         card([const Text('当前显示此前订单的状态；当前购物车不是该订单明细。')]),
                       if (_receiptMatchesQuote)
@@ -1486,9 +1470,9 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                           ),
                           _amountInputRow(
                             title: _paymentText([
-                              '本店储值',
-                              'Store credit',
-                              '本店儲值',
+                              '本店储值卡',
+                              'Store credit card',
+                              '本店儲值卡',
                               'เงินร้าน',
                             ]),
                             balance: _benefits == null

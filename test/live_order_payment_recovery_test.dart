@@ -56,6 +56,7 @@ class _Harness {
   String paymentTiming = 'prepay';
   bool missing = false;
   bool combinedEnabled = false;
+  String storeAvailable = '30';
   Map<String, dynamic>? lastSelection;
   Map<String, dynamic>? composition;
   bool canCancelPostpay = false;
@@ -106,7 +107,7 @@ class _Harness {
               'platformCashCents': '0',
               'platformEnabled': false,
               'storeAvailable': true,
-              'storeAvailableCents': '30',
+              'storeAvailableCents': storeAvailable,
               'coupons': [],
               'composition': composition,
               'quoteHash': 'a' * 64,
@@ -321,38 +322,41 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(h.lastSelection, isNull);
+      await tester.tap(find.byKey(const ValueKey('payment-provider-wechat')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('checkout-payment-sheet')))
+            .height,
+        closeTo(852 * .4, 1),
+      );
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Confirm'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
       await h.finish(tester);
     },
   );
 
-  testWidgets(
-    'unconfirmed manual amount cannot launch payment using the previous quote',
-    (tester) async {
-      final h = _Harness()..combinedEnabled = true;
-      await h.mount(tester, saved: false);
-      await tester.enterText(
-        find.byKey(const ValueKey('checkout-store-amount')),
-        '0.31',
-      );
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, '立即支付'));
-      await tester.pumpAndSettle();
-      expect(h.lastSelection, isNull);
-      expect(h.launched, 0);
-      expect(
-        tester
-            .widget<TextField>(
-              find.byKey(const ValueKey('checkout-store-amount')),
-            )
-            .controller!
-            .text,
-        '0.31',
-      );
-      await h.finish(tester);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.android),
-  );
+  testWidgets('store credit is capped by its balance and disabled at zero', (
+    tester,
+  ) async {
+    final h = _Harness()..combinedEnabled = true;
+    await h.mount(tester, saved: false);
+    final input = find.byKey(const ValueKey('checkout-store-amount'));
+    await tester.enterText(input, '0.99');
+    expect(tester.widget<TextField>(input).controller!.text, '0.30');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    expect(h.composition!['externalCents'], '70');
+    await h.finish(tester);
+    final empty = _Harness()
+      ..combinedEnabled = true
+      ..storeAvailable = '0';
+    await empty.mount(tester, saved: false);
+    expect(tester.widget<TextField>(input).enabled, isFalse);
+    await empty.finish(tester);
+  });
 
   testWidgets('amount rows fit a narrow phone', (tester) async {
     tester.view.physicalSize = const Size(320, 693);
@@ -480,6 +484,8 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('payment-provider-alipay')));
         await tester.pumpAndSettle();
+        await tester.tap(find.text('Confirm'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('立即支付'));
         await tester.pumpAndSettle();
         await tester.ensureVisible(
@@ -489,6 +495,8 @@ void main() {
         await tester.pumpAndSettle();
         if (!orderExists) {
           await tester.tap(find.byKey(const ValueKey('payment-method-wechat')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Confirm'));
           await tester.pumpAndSettle();
         }
         await tester.tap(find.text('立即支付'));
@@ -536,6 +544,8 @@ void main() {
           await tester.tap(
             find.byKey(const ValueKey('payment-provider-alipay')),
           );
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Confirm'));
           await tester.pumpAndSettle();
         }
         await tester.tap(find.text('立即支付'));
