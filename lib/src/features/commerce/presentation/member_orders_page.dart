@@ -196,8 +196,9 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
       final merged = [...previous, ...data.orders];
       final seen = <String>{};
       for (final order in merged) {
-        if (!seen.add(order.orderRef))
+        if (!seen.add(order.orderRef)) {
           throw const FormatException('Overlapping order page');
+        }
       }
       // Never present a partial page as a complete table total.
       while (widget.tableBill && data.nextBeforeOrder != null) {
@@ -206,8 +207,9 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
         );
         if (!current()) return;
         for (final order in data.orders) {
-          if (!seen.add(order.orderRef))
+          if (!seen.add(order.orderRef)) {
             throw const FormatException('Overlapping order page');
+          }
           merged.add(order);
         }
       }
