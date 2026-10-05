@@ -78,10 +78,11 @@ void main() {
           findsNothing,
         );
         repo.available = false;
-        if (notify)
+        if (notify) {
           events.add({'eventType': 'storage.changed'});
-        else
+        } else {
           await tester.pump(const Duration(seconds: 3));
+        }
         await tester.pumpAndSettle();
         expect(
           find.byKey(const ValueKey('storage-pickup-success')),
