@@ -12,4 +12,20 @@ void main() {
     expect(moneyAmount(1000.5), '1,000.50');
     expect(moneyAmount(0.1), '0.10');
   });
+  test(
+    'asset precision is explicit and never rounds through floating point',
+    () {
+      expect(moneyUnits('1234567', precision: 0), '1,234,567');
+      expect(moneyUnits('1234567890', precision: 6), '1,234.567890');
+      expect(moneyUnits('1', precision: 8), '0.00000001');
+      expect(
+        moneyUnits('1000000000000000001', precision: 18),
+        '1.000000000000000001',
+      );
+      expect(moneyUnits('-1', precision: 18), '-0.000000000000000001');
+      expect(() => moneyUnits(1.5, precision: 2), throwsFormatException);
+      expect(() => moneyUnits('1.5', precision: 2), throwsFormatException);
+      expect(() => moneyUnits('1', precision: 37), throwsRangeError);
+    },
+  );
 }
