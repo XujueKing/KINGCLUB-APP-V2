@@ -40,6 +40,69 @@ Map<String, dynamic> page(
 };
 
 void main() {
+  test(
+    'new credited recharge updates unread and emits once outside the chat page',
+    () async {
+      var rows = <Map<String, dynamic>>[
+        {...notice(1), 'kind': 'recharge_paid'},
+      ];
+      final arrivals = <SystemNotice>[];
+      final subscription = SystemNoticesController.arrivals.listen(
+        (event) => arrivals.add(event.notice),
+      );
+      final controller = SystemNoticesController(
+        SystemNoticesRepository(
+          readSession: () async => session('one'),
+          request: (api, params, s) async => {'result': page(rows)},
+        ),
+      );
+      addTearDown(subscription.cancel);
+      addTearDown(controller.dispose);
+      await controller.refresh();
+      expect(arrivals, isEmpty); // Opening the app does not replay history.
+      rows = [
+        {...notice(2), 'kind': 'recharge_paid'},
+        ...rows,
+      ];
+      await controller.refresh();
+      expect(controller.summary.unreadCount, 2);
+      expect(arrivals.map((n) => n.id), [id(2)]);
+      expect(controller.notices.first.read, isFalse);
+      await controller.refresh();
+      expect(arrivals, hasLength(1));
+      rows = [
+        notice(3),
+        ...rows,
+      ]; // Other balance/business updates are not recharges.
+      await controller.refresh();
+      expect(arrivals, hasLength(1));
+      controller.invalidate();
+      rows = [
+        {...notice(4), 'kind': 'recharge_paid'},
+      ];
+      await controller.refresh();
+      expect(arrivals, hasLength(1)); // Another account starts a new baseline.
+    },
+  );
+
+  test('bank code recharge receipt is accepted without breaking the inbox', () {
+    final raw = {
+      ...notice(1),
+      'kind': 'recharge_paid',
+      'rechargeDetails': {
+        'rechargeRef': 'test-recharge',
+        'storeName': 'Test store',
+        'principalCents': 10000,
+        'giftCents': 1000,
+        'channel': 'bank_code',
+        'createdAt': '2030-01-01T12:00:00Z',
+        'creditedAt': '2030-01-01T12:01:00Z',
+      },
+    };
+    expect(SystemNoticePageData.parse(page([raw])).summary.unreadCount, 1);
+    expect(SystemNotice.parse(raw).rechargeDetails?['channel'], 'bank_code');
+  });
+
   testWidgets(
     'recharge receipt opens from old notice and retains credited breakdown',
     (tester) async {

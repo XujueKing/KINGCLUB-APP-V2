@@ -198,7 +198,7 @@ class _AppShellPageState extends State<AppShellPage>
       }
     });
     _systemPoll = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (_foreground && _selectedIndex == 1) _refreshSystem();
+      if (_foreground) _refreshSystem();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _refreshSystem();

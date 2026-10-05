@@ -1,5 +1,8 @@
 import 'features/messaging/data/push_registration_runtime.dart';
 import 'features/messaging/data/background_notifications.dart';
+import 'features/messaging/data/system_notices_controller.dart';
+import 'features/messaging/data/system_notices_repository.dart';
+import 'features/messaging/presentation/recharge_detail_page.dart';
 import 'features/messaging/data/background_connection.dart';
 import 'features/messaging/data/foreground_message_notice.dart';
 import 'features/messaging/presentation/foreground_message_banner.dart';
@@ -63,6 +66,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   VoidCallback? _removePushRouteListener;
   StreamSubscription<void>? _sessionChanges;
   StreamSubscription<Map<String, dynamic>>? _messages;
+  StreamSubscription<({SystemNotice notice, SystemNoticesController inbox})>?
+  _rechargeNotices;
+  int _noticeGeneration = 0;
   bool _foreground = true;
   final _backgroundNotifications = BackgroundNotifications();
   ForegroundCallInbox? _callInbox;
@@ -551,6 +557,33 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   Map<String, dynamic>? _notice;
   Timer? _noticeTimer;
   String? _noticeSession;
+  Future<void> _foregroundRecharge(
+    ({SystemNotice notice, SystemNoticesController inbox}) arrival,
+  ) async {
+    final generation = _noticeGeneration;
+    if (!_foreground || !mounted) return;
+    final session = await SecureSessionStore().readSession();
+    if (!mounted ||
+        !_foreground ||
+        generation != _noticeGeneration ||
+        session == null ||
+        ref.read(authenticatedMemberProvider)?.canEnterApp != true) {
+      return;
+    }
+    _noticeSession = session['sessionId'] as String;
+    setState(
+      () => _notice = {
+        'recharge': arrival.notice,
+        'rechargeInbox': arrival.inbox,
+        'message': '充值到账成功，点击查看详情',
+      },
+    );
+    _noticeTimer?.cancel();
+    _noticeTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) setState(() => _notice = null);
+    });
+  }
+
   Future<void> _notification(Map<String, dynamic> event) async {
     if (!_foreground && !_backgroundReceiverStarted) {
       _backgroundNotifications.notify(event);
@@ -620,6 +653,30 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     if (!mounted ||
         session?['sessionId'] != noticeSession ||
         ref.read(authenticatedMemberProvider)?.canEnterApp != true) {
+      return;
+    }
+    final recharge = notice['recharge'];
+    if (recharge is SystemNotice) {
+      final navigator = ref
+          .read(appRouterProvider)
+          .routerDelegate
+          .navigatorKey
+          .currentState;
+      if (navigator != null) {
+        unawaited(
+          navigator.push(
+            MaterialPageRoute<void>(
+              allowSnapshotting: false,
+              builder: (_) => RechargeDetailPage(notice: recharge),
+            ),
+          ),
+        );
+        // Only opening the receipt acknowledges it; showing the banner does not.
+        final inbox = notice['rechargeInbox'];
+        if (inbox is SystemNoticesController) {
+          unawaited(inbox.markRead(id: recharge.id));
+        }
+      }
       return;
     }
     final repository = RealStorageRepository();
@@ -693,6 +750,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       _schedulePushOpen();
     }
     _sessionChanges = SecureSessionStore.changes.stream.listen((_) {
+      _noticeGeneration++;
+      _noticeTimer?.cancel();
+      if (mounted) setState(() => _notice = null);
       _backgroundNotifications.reset();
       _messageNoticeEpoch++;
       _messageNoticeResolver.clear();
@@ -705,6 +765,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       unawaited(_syncRealtime().catchError((Object _) {}));
     });
     _messages = KingclubRealtime.shared.events.listen(_notification);
+    _rechargeNotices = SystemNoticesController.arrivals.listen(
+      _foregroundRecharge,
+    );
     _pushRegistration?.sync();
     unawaited(_syncRealtime().catchError((Object _) {}));
   }
@@ -724,6 +787,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     _pushRegistration?.close();
     _clearCallInbox();
     _noticeTimer?.cancel();
+    _noticeGeneration++;
+    _rechargeNotices?.cancel();
     _sessionChanges?.cancel();
     _messages?.cancel();
     KingclubRealtime.shared.stop();

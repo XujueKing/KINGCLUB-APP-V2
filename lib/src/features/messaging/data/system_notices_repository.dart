@@ -111,7 +111,12 @@ class SystemNotice {
           recharge['giftCents'] is! int ||
           recharge['principalCents'] < 1 ||
           recharge['giftCents'] < 0 ||
-          !['wechat', 'alipay', 'cash'].contains(recharge['channel']) ||
+          ![
+            'wechat',
+            'alipay',
+            'cash',
+            'bank_code',
+          ].contains(recharge['channel']) ||
           DateTime.tryParse(recharge['createdAt']?.toString() ?? '') == null ||
           DateTime.tryParse(recharge['creditedAt']?.toString() ?? '') == null) {
         _invalid();

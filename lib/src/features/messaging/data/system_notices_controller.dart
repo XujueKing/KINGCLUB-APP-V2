@@ -7,6 +7,13 @@ import 'system_notices_repository.dart';
 
 /// One account-scoped inbox shared by the shell badge and its conversation.
 class SystemNoticesController extends ChangeNotifier {
+  // The shell owns the inbox; the app overlay listens even on pushed routes.
+  static final _arrivals =
+      StreamController<
+        ({SystemNotice notice, SystemNoticesController inbox})
+      >.broadcast(sync: true);
+  static Stream<({SystemNotice notice, SystemNoticesController inbox})>
+  get arrivals => _arrivals.stream;
   SystemNoticesController(this.repository) {
     _session = SecureSessionStore.changes.stream.listen((_) => invalidate());
   }
@@ -23,6 +30,8 @@ class SystemNoticesController extends ChangeNotifier {
   bool _disposed = false, _loadedMore = false;
   bool _refreshQueued = false;
   int _epoch = 0;
+  bool _arrivalBaseline = false;
+  final Set<String> _seenNotices = {};
   Future<void> refresh({bool more = false}) async {
     if (_disposed || (more && next == null)) return;
     if (loading || reading) {
@@ -36,6 +45,18 @@ class SystemNoticesController extends ChangeNotifier {
     try {
       final page = await repository.list(beforeNotice: cursor);
       if (_disposed || epoch != _epoch) return;
+      final arrivals = !more && _arrivalBaseline
+          ? page.notices
+                .where(
+                  (n) =>
+                      !_seenNotices.contains(n.id) &&
+                      !n.read &&
+                      n.kind == 'recharge_paid',
+                )
+                .toList()
+          : <SystemNotice>[];
+      _seenNotices.addAll(page.notices.map((n) => n.id));
+      if (!more) _arrivalBaseline = true;
       final merged = <String, SystemNotice>{
         if (more || _loadedMore)
           for (final n in notices) n.id: n,
@@ -49,6 +70,9 @@ class SystemNoticesController extends ChangeNotifier {
       if (more || !_loadedMore) next = page.nextBeforeNotice;
       _loadedMore |= more;
       summary = page.summary;
+      if (arrivals.isNotEmpty) {
+        _arrivals.add((notice: arrivals.first, inbox: this));
+      }
     } catch (_) {
       if (!_disposed && epoch == _epoch) failed = true;
     } finally {
@@ -113,6 +137,8 @@ class SystemNoticesController extends ChangeNotifier {
     failed = false;
     _loadedMore = false;
     _refreshQueued = false;
+    _arrivalBaseline = false;
+    _seenNotices.clear();
     summary = const SystemNoticeSummary(
       unreadCount: 0,
       highWaterSequence: null,

@@ -95,6 +95,8 @@ class RechargeDetailPage extends StatelessWidget {
         ? t('支付宝支付|Alipay|支付寶支付|Alipay')
         : channel == 'cash'
         ? t('现金|Cash|現金|เงินสด')
+        : channel == 'bank_code'
+        ? t('银行码收款|Bank QR payment|銀行碼收款|ชำระด้วย QR ธนาคาร')
         : '—';
     return Scaffold(
       backgroundColor: const Color(0xFF111111),
