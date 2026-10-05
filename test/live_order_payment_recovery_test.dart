@@ -55,6 +55,9 @@ class _Harness {
   String status = 'pending';
   String paymentTiming = 'prepay';
   bool missing = false;
+  bool combinedEnabled = false;
+  Map<String, dynamic>? lastSelection;
+  Map<String, dynamic>? composition;
   bool canCancelPostpay = false;
   bool alipayUnavailable = false;
   bool soldOut = false;
@@ -70,12 +73,47 @@ class _Harness {
   late final repository = OrderingOrderRepository(
     readSession: () async => _session,
     request: (id, params, _) async {
+      if (id == 'K261005000816') {
+        if (combinedEnabled) {
+          final c = Map<String, dynamic>.from(params['selection'] as Map);
+          final coins = int.parse(c['coins'] as String) * 10;
+          final store = c['useStoreBalance'] == true ? 30 : 0;
+          composition = {
+            'totalCents': '100',
+            'couponDiscountCents': '0',
+            'coinsUsed': c['coins'],
+            'coinSubsidyCents': '$coins',
+            'storePrincipalCents': '$store',
+            'storeGiftCents': '0',
+            'platformCashCents': '0',
+            'externalCents': '${100 - coins - store}',
+            'remainderMethod': 'wechat',
+            'merchantReceivableCents': '100',
+            'merchantPendingCents': '$coins',
+          };
+          return {
+            'result': {
+              'storeRef': 'store',
+              'coins': '10',
+              'platformCashCents': '0',
+              'platformEnabled': false,
+              'storeAvailable': true,
+              'storeAvailableCents': '30',
+              'coupons': [],
+              'composition': composition,
+              'quoteHash': 'a' * 64,
+            },
+          };
+        }
+        throw const AuthFailure('QUOTE_UNAVAILABLE', 'Quote unavailable');
+      }
       if (id == 'K261002001959') {
         return {
           'result': {'storeRef': params['storeRef'], 'alipayAvailable': true},
         };
       }
       if (id == 'K260919000814') {
+        lastSelection = params['selection'] as Map<String, dynamic>?;
         submitted++;
         submittedInitiation.add(params['initiatePayment']);
         submittedIds.add(params['requestId']);
@@ -118,6 +156,7 @@ class _Harness {
               status == 'pending',
           'status': status,
           'cancellationRequested': cancellationRequested,
+          if (combinedEnabled) 'paymentComposition': composition,
           if (id == 'K260919000814' && params['initiatePayment'] != false)
             'payment': params['paymentProvider'] == 'alipay'
                 ? {'provider': 'alipay', 'orderString': 'signed=fixture%2B%2F'}
@@ -205,6 +244,44 @@ class _Harness {
 }
 
 void main() {
+  testWidgets(
+    'coins and store balance use server quote and freeze exact selection on submit',
+    (tester) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final h = _Harness()..combinedEnabled = true;
+      await h.mount(tester, saved: false);
+      final provider = find.byKey(const ValueKey('payment-provider-wechat'));
+      expect(
+        tester.getBottomRight(provider).dy,
+        lessThan(
+          tester
+              .getTopLeft(find.byKey(const ValueKey('payment-bottom-bar')))
+              .dy,
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('checkout-coins')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '2');
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byType(SwitchListTile));
+      await tester.tap(find.byType(SwitchListTile));
+      await tester.pumpAndSettle();
+      expect(h.composition!['externalCents'], '50');
+      await tester.tap(find.widgetWithText(FilledButton, '立即支付'));
+      await tester.pumpAndSettle();
+      expect(h.lastSelection, containsPair('coins', '2'));
+      expect(h.lastSelection, containsPair('useStoreBalance', true));
+      expect(h.lastSelection, containsPair('quoteHash', 'a' * 64));
+      expect(h.launched, 1);
+      expect(h.confirmed, 0);
+      await h.finish(tester);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
   testWidgets(
     'create only avoids SDK and later payment reuses original request',
     (tester) async {

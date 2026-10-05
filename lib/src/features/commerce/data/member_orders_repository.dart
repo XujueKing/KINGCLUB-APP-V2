@@ -101,6 +101,7 @@ class MemberOrder {
     this.paidCents,
     this.paymentChannel,
     this.transactionId,
+    this.paymentComposition,
   });
   final String orderRef,
       storeRef,
@@ -114,11 +115,29 @@ class MemberOrder {
   final DateTime? paidAt;
   final int? paidCents;
   final String? paymentChannel, transactionId;
+  final Map<String, dynamic>? paymentComposition;
+  bool get combinedPayment =>
+      paymentComposition != null &&
+      [
+        'couponDiscountCents',
+        'coinSubsidyCents',
+        'storePrincipalCents',
+        'storeGiftCents',
+        'platformCashCents',
+      ].any((k) => component(k) > 0);
+  int component(String key) =>
+      int.tryParse(paymentComposition?[key]?.toString() ?? '0') ?? 0;
   final DateTime createdAt;
   final DateTime? expiresAt, refundedAt;
   final List<MemberOrderItem> items;
   bool get fullyRefunded => status == 'paid' && refundedCents == totalCents;
-  int get netPaidCents => status == 'paid' ? totalCents - refundedCents : 0;
+  int get netPaidCents => status == 'paid'
+      ? (paidCents ??
+                (paymentComposition == null
+                    ? totalCents
+                    : component('merchantReceivableCents'))) -
+            refundedCents
+      : 0;
   factory MemberOrder.parse(dynamic raw) {
     final value = _map(raw);
     final source = _enum(value['source'], {'cashier', 'app'});
@@ -194,6 +213,9 @@ class MemberOrder {
       expiresAt: expires,
       refundedAt: refundedAt,
       items: items,
+      paymentComposition: value['paymentComposition'] == null
+          ? null
+          : Map<String, dynamic>.from(_map(value['paymentComposition'])),
       transactionId: value['payment'] == null
           ? null
           : _map(value['payment'])['transactionId'] as String?,

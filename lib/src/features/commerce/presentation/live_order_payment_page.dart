@@ -47,6 +47,34 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   bool _paymentBridgeUnavailable = false;
   OrderingPaymentProvider _provider = OrderingPaymentProvider.wechat;
   bool _channelLocked = false;
+  Map<String, dynamic>? _benefits;
+  Map<String, dynamic>? _selection;
+  bool _quoting = false;
+  String? _quoteError;
+  List<OrderingOrderLine> get _quoteLines => widget.quote.items
+      .map(
+        (i) =>
+            OrderingOrderLine(product: i.catalogProduct!, quantity: i.quantity),
+      )
+      .toList();
+  Map<String, dynamic> get _choice => {
+    ...?_selection,
+    'couponRef': _selection?['couponRef'],
+    'coins': _selection?['coins'] ?? '0',
+    'useStoreBalance': _selection?['useStoreBalance'] ?? false,
+    'method': _provider.wireName,
+  }..remove('quoteHash');
+  Map<String, dynamic>? get _composition =>
+      _receipt?.paymentComposition ??
+      (_benefits?['composition'] is Map
+          ? Map<String, dynamic>.from(_benefits!['composition'])
+          : null);
+  int _component(String key) =>
+      int.tryParse(_composition?[key]?.toString() ?? '') ?? 0;
+  bool get _needsExternal =>
+      _provider != OrderingPaymentProvider.platformCash &&
+      (_composition == null || _component('externalCents') > 0);
+
   bool _restorationComplete = false;
   FluwxCancelable? _paymentReturn;
   String? _message;
@@ -67,7 +95,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     'ส่งคำสั่งซื้อให้ร้านแล้ว ชำระเมื่อใช้บริการเสร็จ หากต้องการยกเลิกโปรดติดต่อพนักงาน',
   ]);
   String? get _creationBlockReason {
-    if (_postpay) return null;
+    if (_postpay || !_needsExternal) return null;
     if (widget.quote.orderingContext!.paymentTiming != 'prepay') {
       return '当前版本尚未开放后付费下单，请联系门店处理。';
     }
@@ -101,7 +129,11 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         IosWechatPayment.enabled) {
       _paymentReturn = IosWechatPayment.onReturn(() => _refresh());
     }
-    _restore();
+    _restore().then((_) {
+      if (mounted && !_postpay && !_channelLocked && _restorationComplete) {
+        _loadBenefits();
+      }
+    });
   }
 
   Future<void> _restore() async {
@@ -135,9 +167,12 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         }
         _receiptMatchesQuote = value['scope'] == _scope;
         _requestId = value['requestId'];
+        if (value['selection'] is Map) {
+          _selection = Map<String, dynamic>.from(value['selection']);
+        }
         final savedProvider = value['paymentProvider'] ?? 'wechat';
         _provider = OrderingPaymentProvider.values.firstWhere(
-          (provider) => provider.name == savedProvider,
+          (provider) => provider.wireName == savedProvider,
         );
         _channelLocked = true;
         _receipt = value['orderRef'] is String
@@ -214,7 +249,8 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         'scope': _scope,
         'requestId': _requestId,
         'orderRef': _receipt?.orderRef,
-        'paymentProvider': _provider.name,
+        'paymentProvider': _provider.wireName,
+        if (_selection != null) 'selection': _selection,
       }),
     );
   }
@@ -330,6 +366,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   Future<void> _pay({bool initiatePayment = true}) async {
     if (_postpay) initiatePayment = false;
     if (_busy ||
+        _quoting ||
         !_ready ||
         !_receiptMatchesQuote ||
         _receipt?.cancellationRequested == true ||
@@ -343,7 +380,9 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       _message = null;
     });
     try {
-      if (initiatePayment && _provider == OrderingPaymentProvider.alipay) {
+      if (initiatePayment &&
+          _needsExternal &&
+          _provider == OrderingPaymentProvider.alipay) {
         if (!await AlipayAppPayment.prepare()) {
           if (mounted) {
             setState(
@@ -359,6 +398,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         }
         if (!mounted) return;
       } else if (initiatePayment &&
+          _needsExternal &&
           defaultTargetPlatform == TargetPlatform.iOS) {
         if (!await IosWechatPayment.prepare()) {
           if (mounted) setState(() => _message = '请先安装微信，并确认微信支付配置已启用');
@@ -384,6 +424,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         lines: lines,
         paymentProvider: _provider,
         initiatePayment: initiatePayment,
+        selection: _postpay ? null : _selection,
       );
       if (!mounted) return;
       _applyReceipt(receipt);
@@ -470,7 +511,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       }
       // Configuration can be disabled after a previous submission. Only a
       // successful lookup may unlock selection, and retain the idempotency key.
-      if (error.code == 'ALIPAY_NOT_READY' && _receipt == null) {
+      if (_receipt == null && _channelLocked) {
         try {
           final existing = await widget.repository.findByRequest(
             context: widget.quote.orderingContext!,
@@ -515,6 +556,147 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       if (mounted) setState(() => _message = '暂时无法确认结果，请重试；同一订单不会重复创建');
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _loadBenefits([Map<String, dynamic>? changes]) async {
+    if (_quoting || _channelLocked || _postpay) return;
+    setState(() => _quoting = true);
+    final choice = {..._choice, ...?changes};
+    try {
+      final result = await widget.repository.paymentQuote(
+        context: widget.quote.orderingContext!,
+        lines: _quoteLines,
+        selection: choice,
+      );
+      if (!mounted) return;
+      setState(() {
+        _provider = OrderingPaymentProvider.values.firstWhere(
+          (p) => p.wireName == choice['method'],
+        );
+        _benefits = result;
+        _selection = {...choice, 'quoteHash': result['quoteHash']};
+        _quoteError = null;
+        _message = _creationBlockReason;
+        _ready = _message == null;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(
+          () => _quoteError = _paymentText([
+            '抵扣信息未更新，点击重试',
+            'Could not update discounts. Tap to retry.',
+            '抵扣資訊未更新，點擊重試',
+            'อัปเดตส่วนลดไม่สำเร็จ แตะเพื่อลองอีกครั้ง',
+          ]),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _quoting = false);
+    }
+  }
+
+  String get _couponName {
+    for (final c in (_benefits?['coupons'] as List? ?? [])) {
+      if (c['itemRef'] == _selection?['couponRef']) return c['name'].toString();
+    }
+    return _paymentText(['无', 'None', '無', 'ไม่มี']);
+  }
+
+  Widget _benefitRow(
+    String title,
+    String value,
+    VoidCallback action, {
+    required String key,
+  }) => InkWell(
+    key: ValueKey(key),
+    onTap: _benefits != null && !_channelLocked && !_busy && !_quoting
+        ? action
+        : null,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Expanded(child: Text(title)),
+          Flexible(
+            child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const Icon(Icons.chevron_right, color: Colors.black54),
+        ],
+      ),
+    ),
+  );
+  Future<void> _chooseCoupon() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              title: Text(
+                _paymentText(['不使用优惠券', 'No coupon', '不使用優惠券', 'ไม่ใช้คูปอง']),
+                style: const TextStyle(color: Colors.black),
+              ),
+              onTap: () => Navigator.pop(ctx, ''),
+            ),
+            for (final c in (_benefits?['coupons'] as List? ?? []))
+              ListTile(
+                title: Text(
+                  c['name'].toString(),
+                  style: const TextStyle(color: Colors.black),
+                ),
+                trailing: Text(
+                  '-¥${_money(int.parse(c['discountCents'].toString()))}',
+                  style: const TextStyle(color: Colors.black),
+                ),
+                onTap: () => Navigator.pop(ctx, c['itemRef'].toString()),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      await _loadBenefits({'couponRef': selected.isEmpty ? null : selected});
+    }
+  }
+
+  Future<void> _chooseCoins() async {
+    final controller = TextEditingController(text: _selection?['coins'] ?? '0');
+    final value = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          _paymentText(['金币兑换', 'Redeem coins', '金幣兌換', 'ใช้เหรียญ']),
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(
+            helperText: _paymentText([
+              '10 个金币抵 1 元',
+              '10 coins = ¥1',
+              '10 個金幣抵 1 元',
+              '10 เหรียญ = ¥1',
+            ]),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_paymentText(['取消', 'Cancel', '取消', 'ยกเลิก'])),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: Text(_paymentText(['确定', 'Confirm', '確定', 'ยืนยัน'])),
+          ),
+        ],
+      ),
+    );
+    if (value != null && mounted) {
+      await _loadBenefits({'coins': (int.tryParse(value) ?? 0).toString()});
     }
   }
 
@@ -609,6 +791,33 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                   );
                 },
               ),
+              ListTile(
+                key: const ValueKey('payment-method-platform'),
+                leading: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: Colors.black87,
+                ),
+                title: Text(
+                  _paymentText([
+                    '平台余额',
+                    'Platform balance',
+                    '平台餘額',
+                    'ยอดเงินแพลตฟอร์ม',
+                  ]),
+                  style: const TextStyle(color: Colors.black87),
+                ),
+                subtitle: Text(
+                  '¥${_money(int.tryParse(_benefits?['platformCashCents']?.toString() ?? '0') ?? 0)}',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                enabled: _benefits?['platformEnabled'] == true,
+                onTap: _benefits?['platformEnabled'] == true
+                    ? () => Navigator.pop(
+                        sheetContext,
+                        OrderingPaymentProvider.platformCash,
+                      )
+                    : null,
+              ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.pop(sheetContext),
@@ -623,7 +832,11 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   }
 
   void _selectProvider(OrderingPaymentProvider provider) {
-    if (_channelLocked || _busy || !_restorationComplete) {
+    if (_channelLocked || _busy || _quoting || !_restorationComplete) {
+      return;
+    }
+    if (_benefits != null) {
+      _loadBenefits({'method': provider.wireName});
       return;
     }
     setState(() {
@@ -681,7 +894,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '¥${_money(receipt.totalCents)}',
+                        '¥${_money(receipt.totalCents - _component('couponDiscountCents'))}',
                         style: const TextStyle(color: gold, fontSize: 28),
                       ),
                       const SizedBox(height: 16),
@@ -753,11 +966,13 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     double r(double value) => value * unit;
     final status = _receipt?.status;
     final terminal = status == 'paid' || status == 'expired';
-    final amount = _receipt?.totalCents ?? _total;
+    final amount = _composition != null
+        ? (_component('externalCents') + _component('platformCashCents'))
+        : (_receipt?.totalCents ?? _total);
     final allItems = widget.quote.items;
     final items = _expanded ? allItems : allItems.take(1);
     Widget line(String label, String value) => Padding(
-      padding: EdgeInsets.symmetric(vertical: r(6)),
+      padding: EdgeInsets.symmetric(vertical: r(3)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -769,7 +984,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     );
     Widget card(List<Widget> children) => Container(
       margin: EdgeInsets.symmetric(vertical: r(10)),
-      padding: EdgeInsets.symmetric(horizontal: r(30), vertical: r(20)),
+      padding: EdgeInsets.symmetric(horizontal: r(24), vertical: r(12)),
       decoration: BoxDecoration(
         color: const Color(0xFFC9B69E),
         borderRadius: BorderRadius.circular(r(16)),
@@ -810,200 +1025,342 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
           child: Column(
             children: [
               Expanded(
-                child: ListView(
+                child: SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(r(20), r(10), r(20), r(24)),
-                  children: [
-                    card([
-                      line(
-                        _paymentText([
-                          '订单时间',
-                          'Order time',
-                          '訂單時間',
-                          'เวลาสั่งซื้อ',
-                        ]),
-                        _orderOpenedAt.toLocal().toString().split('.').first,
-                      ),
-                      line('门店', widget.quote.orderingContext!.storeName),
-                      line('桌号', widget.quote.orderingContext!.tableName),
-                      if (_receipt != null) line('订单号', _receipt!.orderRef),
-                    ]),
-                    if (!_receiptMatchesQuote)
-                      card([const Text('当前显示此前订单的状态；当前购物车不是该订单明细。')]),
-                    if (_receiptMatchesQuote)
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       card([
-                        const Text('商品明细'),
-                        for (final item in items)
-                          Container(
-                            padding: EdgeInsets.symmetric(vertical: r(20)),
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: Color(0x16000000)),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: r(76),
-                                  height: r(120),
-                                  child:
-                                      item.catalogProduct?.thumbnailUrl != null
-                                      ? CachedMediaImage(
-                                          item.catalogProduct!.thumbnailUrl!,
-                                          contentKey: item
-                                              .catalogProduct!
-                                              .imageCacheKey,
-                                          private: true,
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (_, _, _) => const Icon(
-                                            Icons.local_bar_outlined,
-                                          ),
-                                        )
-                                      : item.asset.isNotEmpty
-                                      ? Image.asset(
-                                          item.asset,
-                                          fit: BoxFit.contain,
-                                        )
-                                      : const Icon(Icons.local_bar_outlined),
+                        line(
+                          _paymentText([
+                            '订单时间',
+                            'Order time',
+                            '訂單時間',
+                            'เวลาสั่งซื้อ',
+                          ]),
+                          (_receipt?.createdAt ?? _orderOpenedAt)
+                              .toLocal()
+                              .toString()
+                              .split('.')
+                              .first,
+                        ),
+                        line('门店', widget.quote.orderingContext!.storeName),
+                        line('桌号', widget.quote.orderingContext!.tableName),
+                        if (_receipt != null) line('订单号', _receipt!.orderRef),
+                      ]),
+                      if (!_receiptMatchesQuote)
+                        card([const Text('当前显示此前订单的状态；当前购物车不是该订单明细。')]),
+                      if (_receiptMatchesQuote)
+                        card([
+                          const Text('商品明细'),
+                          for (final item in items)
+                            Container(
+                              padding: EdgeInsets.symmetric(vertical: r(12)),
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(color: Color(0x16000000)),
                                 ),
-                                SizedBox(width: r(28)),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                              ),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: r(76),
+                                    height: r(100),
+                                    child:
+                                        item.catalogProduct?.thumbnailUrl !=
+                                            null
+                                        ? CachedMediaImage(
+                                            item.catalogProduct!.thumbnailUrl!,
+                                            contentKey: item
+                                                .catalogProduct!
+                                                .imageCacheKey,
+                                            private: true,
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (_, _, _) =>
+                                                const Icon(
+                                                  Icons.local_bar_outlined,
+                                                ),
+                                          )
+                                        : item.asset.isNotEmpty
+                                        ? Image.asset(
+                                            item.asset,
+                                            fit: BoxFit.contain,
+                                          )
+                                        : const Icon(Icons.local_bar_outlined),
+                                  ),
+                                  SizedBox(width: r(28)),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.name,
+                                          style: TextStyle(fontSize: r(30)),
+                                        ),
+                                        Text(
+                                          item.detail,
+                                          style: TextStyle(fontSize: r(22)),
+                                        ),
+                                        Text(
+                                          '单价 ¥${_money(item.unitPriceCents ?? item.unitPrice * 100)}',
+                                          style: TextStyle(fontSize: r(22)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(width: r(12)),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
-                                        item.name,
-                                        style: TextStyle(fontSize: r(30)),
+                                        '数量 × ${item.quantity}',
+                                        style: TextStyle(fontSize: r(24)),
                                       ),
                                       Text(
-                                        item.detail,
-                                        style: TextStyle(fontSize: r(22)),
-                                      ),
-                                      Text(
-                                        '单价 ¥${_money(item.unitPriceCents ?? item.unitPrice * 100)}',
-                                        style: TextStyle(fontSize: r(22)),
+                                        '¥${_money(item.subtotalCents)}',
+                                        style: TextStyle(fontSize: r(32)),
                                       ),
                                     ],
                                   ),
-                                ),
-                                SizedBox(width: r(12)),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      '数量 × ${item.quantity}',
-                                      style: TextStyle(fontSize: r(24)),
-                                    ),
-                                    Text(
-                                      '¥${_money(item.subtotalCents)}',
-                                      style: TextStyle(fontSize: r(32)),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                ],
+                              ),
+                            ),
+                          if (allItems.length > 1)
+                            TextButton(
+                              onPressed: () =>
+                                  setState(() => _expanded = !_expanded),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0x90000000),
+                              ),
+                              child: Text(
+                                '${_expanded ? '收起' : '展开'}更多（共${widget.quote.itemCount}件商品）',
+                              ),
+                            ),
+                          SizedBox(height: r(12)),
+                          line('商品总价', '¥${_money(_total)}'),
+                        ]),
+                      if (!_postpay)
+                        card([
+                          _benefitRow(
+                            _paymentText([
+                              '选择优惠券',
+                              'Choose coupon',
+                              '選擇優惠券',
+                              'เลือกคูปอง',
+                            ]),
+                            _couponName,
+                            _chooseCoupon,
+                            key: 'checkout-coupon',
+                          ),
+                          const Divider(color: Color(0x22000000)),
+                          _benefitRow(
+                            _paymentText([
+                              '金币兑换',
+                              'Redeem coins',
+                              '金幣兌換',
+                              'ใช้เหรียญ',
+                            ]),
+                            '${_selection?['coins'] ?? '0'} / ${_benefits?['coins'] ?? '—'}',
+                            _chooseCoins,
+                            key: 'checkout-coins',
+                          ),
+                          Text(
+                            _paymentText([
+                              '10 个金币抵 1 元',
+                              '10 coins = ¥1',
+                              '10 個金幣抵 1 元',
+                              '10 เหรียญ = ¥1',
+                            ]),
+                            style: TextStyle(
+                              fontSize: r(21),
+                              color: const Color(0x99000000),
                             ),
                           ),
-                        if (allItems.length > 1)
-                          TextButton(
-                            onPressed: () =>
-                                setState(() => _expanded = !_expanded),
-                            style: TextButton.styleFrom(
-                              foregroundColor: const Color(0x90000000),
-                            ),
-                            child: Text(
-                              '${_expanded ? '收起' : '展开'}更多（共${widget.quote.itemCount}件商品）',
+                          const Divider(color: Color(0x22000000)),
+                          Material(
+                            color: Colors.transparent,
+                            child: SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                _paymentText([
+                                  '本店储值卡',
+                                  'Store balance',
+                                  '本店儲值卡',
+                                  'ยอดเงินของร้าน',
+                                ]),
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: r(28),
+                                ),
+                              ),
+                              subtitle: Text(
+                                _benefits == null
+                                    ? '—'
+                                    : '¥${_money(int.tryParse(_benefits!['storeAvailableCents'].toString()) ?? 0)}',
+                                style: const TextStyle(color: Colors.black54),
+                              ),
+                              value: _selection?['useStoreBalance'] == true,
+                              onChanged:
+                                  !_channelLocked &&
+                                      !_busy &&
+                                      !_quoting &&
+                                      _benefits?['storeAvailable'] == true
+                                  ? (v) => _loadBenefits({'useStoreBalance': v})
+                                  : null,
                             ),
                           ),
-                        SizedBox(height: r(24)),
-                        line('商品总价', '¥${_money(_total)}'),
-                      ]),
-                    if (!_postpay)
-                      card([
-                        InkWell(
-                          key: const ValueKey('payment-provider-wechat'),
-                          onTap: _channelLocked || _busy || !_ready
-                              ? null
-                              : _showPaymentMethods,
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: r(24)),
-                            child: Row(
-                              children: [
-                                Image.asset(
-                                  _provider == OrderingPaymentProvider.wechat
-                                      ? 'assets/legacy/ordering/WEIPAY.png'
-                                      : 'assets/legacy/payment/legacy_alipay.png',
-                                  width: r(44),
-                                  height: r(44),
-                                ),
-                                SizedBox(width: r(15)),
-                                Expanded(
-                                  child: Text(
-                                    _provider == OrderingPaymentProvider.wechat
-                                        ? _paymentText([
-                                            '微信支付',
-                                            'WeChat Pay',
-                                            '微信支付',
-                                            'WeChat Pay',
-                                          ])
-                                        : _paymentText([
-                                            '支付宝支付',
-                                            'Alipay',
-                                            '支付寶支付',
-                                            'Alipay',
-                                          ]),
+                          if (_component('couponDiscountCents') > 0)
+                            line(
+                              _paymentText([
+                                '优惠券减免',
+                                'Coupon discount',
+                                '優惠券減免',
+                                'ส่วนลดคูปอง',
+                              ]),
+                              '-¥${_money(_component('couponDiscountCents'))}',
+                            ),
+                          if (_component('coinSubsidyCents') > 0)
+                            line(
+                              _paymentText([
+                                '金币抵扣',
+                                'Coins applied',
+                                '金幣抵扣',
+                                'หักด้วยเหรียญ',
+                              ]),
+                              '-¥${_money(_component('coinSubsidyCents'))}',
+                            ),
+                          if (_component('storePrincipalCents') +
+                                  _component('storeGiftCents') >
+                              0)
+                            line(
+                              _paymentText([
+                                '本店储值抵扣',
+                                'Store balance applied',
+                                '本店儲值抵扣',
+                                'หักยอดเงินร้าน',
+                              ]),
+                              '-¥${_money(_component('storePrincipalCents') + _component('storeGiftCents'))}',
+                            ),
+                          if (_quoteError != null)
+                            TextButton(
+                              onPressed: _quoting
+                                  ? null
+                                  : () => _loadBenefits(),
+                              child: Text(
+                                _quoteError!,
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                            ),
+                        ]),
+                      if (!_postpay)
+                        card([
+                          InkWell(
+                            key: const ValueKey('payment-provider-wechat'),
+                            onTap:
+                                _channelLocked || _busy || _quoting || !_ready
+                                ? null
+                                : _showPaymentMethods,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: r(24)),
+                              child: Row(
+                                children: [
+                                  if (_provider ==
+                                      OrderingPaymentProvider.platformCash)
+                                    Icon(
+                                      Icons.account_balance_wallet_outlined,
+                                      size: r(44),
+                                      color: Colors.black,
+                                    )
+                                  else
+                                    Image.asset(
+                                      _provider ==
+                                              OrderingPaymentProvider.wechat
+                                          ? 'assets/legacy/ordering/WEIPAY.png'
+                                          : 'assets/legacy/payment/legacy_alipay.png',
+                                      width: r(44),
+                                      height: r(44),
+                                    ),
+                                  SizedBox(width: r(15)),
+                                  Expanded(
+                                    child: Text(
+                                      _provider ==
+                                              OrderingPaymentProvider
+                                                  .platformCash
+                                          ? _paymentText([
+                                              '平台余额',
+                                              'Platform balance',
+                                              '平台餘額',
+                                              'ยอดเงินแพลตฟอร์ม',
+                                            ])
+                                          : _provider ==
+                                                OrderingPaymentProvider.wechat
+                                          ? _paymentText([
+                                              '微信支付',
+                                              'WeChat Pay',
+                                              '微信支付',
+                                              'WeChat Pay',
+                                            ])
+                                          : _paymentText([
+                                              '支付宝支付',
+                                              'Alipay',
+                                              '支付寶支付',
+                                              'Alipay',
+                                            ]),
+                                    ),
                                   ),
-                                ),
-                                Icon(
-                                  Icons.chevron_right,
-                                  size: r(36),
-                                  color: const Color(0xFF55493C),
-                                ),
-                              ],
+                                  Icon(
+                                    Icons.chevron_right,
+                                    size: r(36),
+                                    color: const Color(0xFF55493C),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ]),
+                      if (_message != null)
+                        Padding(
+                          padding: EdgeInsets.all(r(20)),
+                          child: Text(
+                            _message!,
+                            style: TextStyle(
+                              color: const Color(0xFFC9B69E),
+                              fontSize: r(28),
                             ),
                           ),
                         ),
-                      ]),
-                    if (_message != null)
-                      Padding(
-                        padding: EdgeInsets.all(r(20)),
-                        child: Text(
-                          _message!,
-                          style: TextStyle(
-                            color: const Color(0xFFC9B69E),
-                            fontSize: r(28),
+                      if ((!_postpay || _receipt?.canCancel == true) &&
+                          _receipt != null &&
+                          !terminal)
+                        TextButton(
+                          key: const ValueKey('order-cancel'),
+                          onPressed: _busy ? null : _cancelOrder,
+                          child: Text(
+                            _paymentText([
+                              '取消订单',
+                              'Cancel order',
+                              '取消訂單',
+                              'ยกเลิกคำสั่งซื้อ',
+                            ]),
                           ),
                         ),
-                      ),
-                    if ((!_postpay || _receipt?.canCancel == true) &&
-                        _receipt != null &&
-                        !terminal)
-                      TextButton(
-                        key: const ValueKey('order-cancel'),
-                        onPressed: _busy ? null : _cancelOrder,
-                        child: Text(
-                          _paymentText([
-                            '取消订单',
-                            'Cancel order',
-                            '取消訂單',
-                            'ยกเลิกคำสั่งซื้อ',
-                          ]),
+                      if (_receipt != null && !terminal)
+                        TextButton(
+                          onPressed: _refresh,
+                          child: Text(
+                            _postpay
+                                ? _paymentText([
+                                    '刷新订单',
+                                    'Refresh order',
+                                    '重新整理訂單',
+                                    'รีเฟรชคำสั่งซื้อ',
+                                  ])
+                                : '刷新支付结果',
+                          ),
                         ),
-                      ),
-                    if (_receipt != null && !terminal)
-                      TextButton(
-                        onPressed: _refresh,
-                        child: Text(
-                          _postpay
-                              ? _paymentText([
-                                  '刷新订单',
-                                  'Refresh order',
-                                  '重新整理訂單',
-                                  'รีเฟรชคำสั่งซื้อ',
-                                ])
-                              : '刷新支付结果',
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               Container(
@@ -1074,6 +1431,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                         onPressed: terminal || (_postpay && _receipt != null)
                             ? widget.onBack
                             : (_busy ||
+                                      _quoting ||
                                       !_ready ||
                                       _receipt?.cancellationRequested == true
                                   ? null

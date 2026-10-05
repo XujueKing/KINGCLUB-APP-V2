@@ -387,7 +387,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                   Text(
-                    '${t('total')} ${money(order.totalCents)}',
+                    '${t('total')} ${money(order.status == 'paid' ? order.netPaidCents : order.totalCents)}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -690,7 +690,13 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                             const SizedBox(width: 6),
                           ],
                           Expanded(
-                            child: Text(t('pay_${order.paymentChannel}')),
+                            child: Text(
+                              t(
+                                order.combinedPayment
+                                    ? 'pay_mixed'
+                                    : 'pay_${order.paymentChannel}',
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Text(
@@ -791,7 +797,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
               ),
               const SizedBox(height: 24),
               Text(
-                '${order.status == 'paid' ? '−' : ''}${money(order.totalCents)}',
+                '${order.status == 'paid' ? '−' : ''}${money(order.status == 'paid' ? order.netPaidCents : order.totalCents)}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 36,
@@ -809,6 +815,38 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
               field(t('orderNumber'), order.orderRef),
               if (order.paymentChannel == 'wechat')
                 field(t('wechatTransaction'), order.transactionId ?? '—'),
+              if (order.paymentComposition != null) ...[
+                if (order.component('couponDiscountCents') > 0)
+                  field(
+                    t('couponDiscount'),
+                    money(order.component('couponDiscountCents')),
+                  ),
+                if (order.component('coinSubsidyCents') > 0)
+                  field(
+                    t('coinPayment'),
+                    money(order.component('coinSubsidyCents')),
+                  ),
+                if (order.component('storePrincipalCents') +
+                        order.component('storeGiftCents') >
+                    0)
+                  field(
+                    t('storePayment'),
+                    money(
+                      order.component('storePrincipalCents') +
+                          order.component('storeGiftCents'),
+                    ),
+                  ),
+                if (order.component('platformCashCents') > 0)
+                  field(
+                    t('platformPayment'),
+                    money(order.component('platformCashCents')),
+                  ),
+                if (order.component('externalCents') > 0)
+                  field(
+                    t('pay_${order.paymentChannel}'),
+                    money(order.component('externalCents')),
+                  ),
+              ],
               if (order.refundedCents > 0) ...[
                 field(t('refunded'), money(order.refundedCents)),
                 field(t('netPaid'), money(order.netPaidCents)),
@@ -1038,6 +1076,11 @@ const _copy = {
   'pay_cash': '现金|Cash|現金|เงินสด',
   'pay_balance': '余额支付|Balance|餘額支付|ชำระด้วยยอดคงเหลือ',
   'pay_pos': 'POS刷卡|Card (POS)|POS刷卡|บัตร (POS)',
+  'pay_mixed': '组合支付|Combined payment|組合支付|การชำระเงินแบบผสม',
+  'couponDiscount': '优惠券减免|Coupon discount|優惠券減免|ส่วนลดคูปอง',
+  'coinPayment': '金币抵扣|Coins applied|金幣抵扣|หักด้วยเหรียญ',
+  'storePayment': '本店储值|Store balance|本店儲值|ยอดเงินของร้าน',
+  'platformPayment': '平台余额|Platform balance|平台餘額|ยอดเงินแพลตฟอร์ม',
   'pay_other': '其他支付|Other payment|其他支付|การชำระเงินอื่น',
   'productTotal': '商品总价|Items total|商品總價|ยอดรวมสินค้า',
   'tableEmpty': '本桌暂无已付款商品|No paid items for this table|本桌暫無已付款商品|ยังไม่มีสินค้าที่ชำระเงินแล้วสำหรับโต๊ะนี้',

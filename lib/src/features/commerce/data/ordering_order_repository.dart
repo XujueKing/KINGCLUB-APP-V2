@@ -5,7 +5,13 @@ import 'ordering_catalog_repository.dart';
 import 'ordering_context.dart';
 import 'ordering_table_repository.dart';
 
-enum OrderingPaymentProvider { wechat, alipay }
+enum OrderingPaymentProvider {
+  wechat,
+  alipay,
+  platformCash;
+
+  String get wireName => this == platformCash ? 'platform_cash' : name;
+}
 
 class OrderingOrderLine {
   const OrderingOrderLine({required this.product, required this.quantity});
@@ -28,6 +34,8 @@ class OrderingOrderReceipt {
     this.paymentTiming = 'prepay',
     this.cancellationRequested = false,
     this.canCancel = false,
+    this.paymentComposition,
+    this.createdAt,
   });
 
   final String orderRef;
@@ -42,6 +50,8 @@ class OrderingOrderReceipt {
   final Map<String, String>? payment;
   final bool cancellationRequested;
   final bool canCancel;
+  final Map<String, dynamic>? paymentComposition;
+  final DateTime? createdAt;
 }
 
 typedef OrderingOrderSessionReader = OrderingSessionReader;
@@ -76,6 +86,7 @@ class OrderingOrderRepository {
     required List<OrderingOrderLine> lines,
     OrderingPaymentProvider paymentProvider = OrderingPaymentProvider.wechat,
     bool initiatePayment = true,
+    Map<String, dynamic>? selection,
   }) async {
     if (context.tableId == null ||
         !_ref.hasMatch(context.tableId!) ||
@@ -113,8 +124,9 @@ class OrderingOrderRepository {
       'tableSessionRef': context.tableSessionRef,
       'requestId': requestId,
       'items': items,
-      'paymentProvider': paymentProvider.name,
+      'paymentProvider': paymentProvider.wireName,
       'initiatePayment': context.paymentTiming == 'prepay' && initiatePayment,
+      'selection': ?selection,
     }, session!);
     final current = await readSession();
     if (!_sameIdentity(_identity(current), identity)) {
@@ -122,10 +134,48 @@ class OrderingOrderRepository {
     }
     final receipt = _parse(response, context);
     if (receipt.payment != null &&
-        (receipt.payment!['provider'] ?? 'wechat') != paymentProvider.name) {
+        (receipt.payment!['provider'] ?? 'wechat') !=
+            paymentProvider.wireName) {
       _invalid();
     }
     return receipt;
+  }
+
+  Future<Map<String, dynamic>> paymentQuote({
+    required OrderingContext context,
+    required List<OrderingOrderLine> lines,
+    required Map<String, dynamic> selection,
+  }) async {
+    final session = await readSession();
+    final identity = _identity(session);
+    if (identity == null) throw const AuthFailure('SESSION_EXPIRED', '请重新登录');
+    final response = await request('K261005000816', {
+      'tableId': context.tableId,
+      'tableSessionRef': context.tableSessionRef,
+      'selection': selection,
+      'items': lines
+          .map(
+            (l) => {
+              'productRef': l.product.reference,
+              'quantity': l.quantity,
+              'expectedRevision': l.product.revision,
+              'expectedPriceCents': l.product.priceCents,
+            },
+          )
+          .toList(),
+    }, session!);
+    if (!_sameIdentity(_identity(await readSession()), identity)) {
+      throw const AuthFailure('SESSION_CHANGED', '登录状态已变更');
+    }
+    final result = response['result'];
+    if (result is! Map ||
+        result['storeRef'] != context.storeRef ||
+        result['composition'] is! Map ||
+        result['coupons'] is! List ||
+        result['quoteHash'] is! String) {
+      _invalid();
+    }
+    return Map<String, dynamic>.from(result);
   }
 
   Future<OrderingOrderReceipt> cancel({
@@ -291,6 +341,10 @@ class OrderingOrderRepository {
       payment: payment,
       cancellationRequested: result['cancellationRequested'] == true,
       canCancel: result['canCancel'] == true,
+      paymentComposition: result['paymentComposition'] is Map
+          ? Map<String, dynamic>.from(result['paymentComposition'])
+          : null,
+      createdAt: DateTime.tryParse(result['createdAt']?.toString() ?? ''),
     );
   }
 
