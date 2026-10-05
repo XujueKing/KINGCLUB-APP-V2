@@ -572,7 +572,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                   decoration: BoxDecoration(
                                     border: _categoryIndex == index
                                         ? const Border(
-                                            bottom: BorderSide(color: _gold),
+                                            bottom: BorderSide(color: Colors.white),
                                           )
                                         : null,
                                   ),
@@ -581,7 +581,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                     style: TextStyle(
                                       fontSize: 32 * u,
                                       color: _categoryIndex == index
-                                          ? _gold
+                                          ? Colors.white
                                           : const Color(0xFF756A5C),
                                     ),
                                   ),
