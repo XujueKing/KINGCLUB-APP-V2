@@ -57,6 +57,7 @@ class _Harness {
   bool missing = false;
   bool combinedEnabled = false;
   String storeAvailable = '30';
+  int couponDiscount = 0;
   Map<String, dynamic>? lastSelection;
   Map<String, dynamic>? composition;
   bool canCancelPostpay = false;
@@ -81,7 +82,7 @@ class _Harness {
           final store = c['useStoreBalance'] == true
               ? int.parse(c['storeBalanceCents']?.toString() ?? '30')
               : 0;
-          if (coins > 100 || store > 30) {
+          if (coins > 100 || store > int.parse(storeAvailable)) {
             throw const AuthFailure(
               'ORDERING_ASSETS_CHANGED',
               'Amount unavailable',
@@ -89,13 +90,13 @@ class _Harness {
           }
           composition = {
             'totalCents': '100',
-            'couponDiscountCents': '0',
+            'couponDiscountCents': '$couponDiscount',
             'coinsUsed': c['coins'],
             'coinSubsidyCents': '$coins',
             'storePrincipalCents': '$store',
             'storeGiftCents': '0',
             'platformCashCents': '0',
-            'externalCents': '${100 - coins - store}',
+            'externalCents': '${100 - couponDiscount - coins - store}',
             'remainderMethod': 'wechat',
             'merchantReceivableCents': '100',
             'merchantPendingCents': '$coins',
@@ -579,6 +580,47 @@ void main() {
           await const FlutterSecureStorage().read(key: _storageKey),
           isNull,
         );
+        await h.finish(tester);
+      },
+    );
+  }
+
+  for (final source in ['coins', 'store', 'coupon']) {
+    testWidgets(
+      'payment method hides on full $source coverage and returns with a remainder',
+      (tester) async {
+        final h = _Harness()
+          ..combinedEnabled = true
+          ..storeAvailable = '100';
+        if (source == 'coupon') h.couponDiscount = 100;
+        await h.mount(tester, saved: false);
+        final method = find.byKey(const ValueKey('payment-provider-wechat'));
+        final input = find.byKey(
+          ValueKey(
+            source == 'coins' ? 'checkout-coins' : 'checkout-store-amount',
+          ),
+        );
+        if (source != 'coupon') {
+          expect(method, findsOneWidget);
+          await tester.enterText(input, source == 'coins' ? '10' : '1.00');
+          await tester.pump(const Duration(milliseconds: 350));
+          await tester.pumpAndSettle();
+        }
+        expect(h.composition!['externalCents'], '0');
+        expect(method, findsNothing);
+        expect(find.widgetWithText(FilledButton, '立即支付'), findsOneWidget);
+        if (source == 'coupon') {
+          h.couponDiscount = 0;
+          await tester.tap(find.byKey(const ValueKey('checkout-coupon')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Confirm'));
+        } else {
+          await tester.enterText(input, '0');
+          await tester.pump(const Duration(milliseconds: 350));
+        }
+        await tester.pumpAndSettle();
+        expect(h.composition!['externalCents'], '100');
+        expect(method, findsOneWidget);
         await h.finish(tester);
       },
     );

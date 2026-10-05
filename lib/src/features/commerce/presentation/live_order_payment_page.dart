@@ -1525,7 +1525,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                               ),
                             ),
                         ]),
-                      if (!_postpay)
+                      if (!_postpay && amount > 0)
                         card([
                           InkWell(
                             key: const ValueKey('payment-provider-wechat'),
