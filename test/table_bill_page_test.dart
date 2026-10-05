@@ -24,7 +24,13 @@ void main() {
       final item = (row['items'] as List).single as Map;
       item['quantity'] = 1;
       item['priceCents'] = 10;
-      item['servedQuantity'] = n == 1 ? 1 : 0;
+      item['servedQuantity'] = status == 'paid' ? 1 : 0;
+      if (status == 'paid')
+        row['payment'] = {
+          'amountCents': 10,
+          'paidAt': '2030-01-01T12:30:00Z',
+          'channel': 'wechat',
+        };
       return row;
     }
 
@@ -88,9 +94,11 @@ void main() {
       find.byKey(const ValueKey('table-bill-served-test-product')),
       findsOneWidget,
     );
-    expect(find.text('Served 1/2'), findsOneWidget);
+    expect(find.textContaining('Served '), findsNothing);
+    expect(find.byKey(const ValueKey('table-bill-payments')), findsOneWidget);
+    expect(find.byIcon(Icons.wechat), findsNWidgets(2));
     expect(find.text('¥0.20'), findsNWidgets(2));
-    expect(find.textContaining('D00000000001'), findsNothing);
+    expect(find.textContaining('D00000000001'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pump(const Duration(seconds: 20));
     await tester.pump(const Duration(milliseconds: 400));

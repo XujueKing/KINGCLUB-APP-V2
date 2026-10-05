@@ -476,7 +476,12 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
         borderRadius: BorderRadius.circular(8),
       ),
       child: DefaultTextStyle(
-        style: const TextStyle(color: ink, fontSize: 15, height: 1.35),
+        style: const TextStyle(
+          color: ink,
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+          height: 1.25,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: children,
@@ -543,14 +548,25 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(item.names[localeKey]!),
-                            Text(detail, style: const TextStyle(fontSize: 12)),
+                            Text(detail, style: const TextStyle(fontSize: 11)),
                             Text(
                               '${t('unitPrice')} ${(line.prices.toList()..sort()).map(money).join(' / ')}',
-                              style: const TextStyle(fontSize: 12),
+                              style: const TextStyle(fontSize: 11),
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 110),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
                             Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (line.served > 0) ...[
+                                if (line.served == line.quantity &&
+                                    line.quantity > 0) ...[
                                   SvgPicture.string(
                                     '<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><circle cx="512" cy="512" r="500" fill="#FFFFFF"/><path d="M512 1024A512 512 0 1 1 512 0a512 512 0 0 1 0 1024zM448 605.12L277.312 442.176 192 523.648 448 768l384-366.528L746.688 320 448 605.12z" fill="#24A65A"/></svg>',
                                     key: ValueKey(
@@ -562,26 +578,11 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                                   ),
                                   const SizedBox(width: 4),
                                 ],
-                                Flexible(
-                                  child: Text(
-                                    '${t('served')} ${line.served}/${line.quantity}',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
+                                Text(
+                                  '${t('quantity')} × ${line.quantity}',
+                                  style: const TextStyle(fontSize: 11),
                                 ),
                               ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 90),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '${t('quantity')} × ${line.quantity}',
-                              style: const TextStyle(fontSize: 12),
                             ),
                             Text(
                               money(line.cents),
@@ -596,11 +597,64 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
               },
             ),
           const SizedBox(height: 14),
-          field(
-            t('productTotal'),
-            money(lines.values.fold<int>(0, (sum, line) => sum + line.cents)),
+          Row(
+            children: [
+              Text(t('productTotal')),
+              const Spacer(),
+              Text(
+                money(
+                  lines.values.fold<int>(0, (sum, line) => sum + line.cents),
+                ),
+                style: const TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ]),
+        if (orders.any((o) => o.status == 'paid' && o.paidAt != null))
+          card('table-bill-payments', [
+            Text(t('payments')),
+            for (final order in orders.where(
+              (o) => o.status == 'paid' && o.paidAt != null,
+            ))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (order.paymentChannel == 'wechat') ...[
+                          const Icon(
+                            Icons.wechat,
+                            color: Color(0xFF07B853),
+                            size: 22,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(t('pay_${order.paymentChannel}')),
+                        const Spacer(),
+                        Text(
+                          money(order.paidCents!),
+                          style: const TextStyle(fontSize: 17),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${t('orderNumber')} ${order.orderRef}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    Text(
+                      order.paidAt!.toLocal().toString().split('.').first,
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+          ]),
       ],
     );
   }
@@ -910,6 +964,12 @@ const _copy = {
   'paymentTiming': '付款模式|Payment timing|付款模式|รูปแบบชำระเงิน',
   'refundedAt': '退款时间|Refund time|退款時間|เวลาคืนเงิน',
   'quantity': '数量|Qty|數量|จำนวน',
+  'payments': '支付记录|Payments|支付記錄|ประวัติการชำระเงิน',
+  'pay_wechat': '微信支付|WeChat Pay|微信支付|WeChat Pay',
+  'pay_alipay': '支付宝|Alipay|支付寶|Alipay',
+  'pay_cash': '现金|Cash|現金|เงินสด',
+  'pay_balance': '余额支付|Balance|餘額支付|ชำระด้วยยอดคงเหลือ',
+  'pay_other': '其他支付|Other payment|其他支付|การชำระเงินอื่น',
   'productTotal': '商品总价|Items total|商品總價|ยอดรวมสินค้า',
   'tableEmpty': '本桌暂无已付款商品|No paid items for this table|本桌暫無已付款商品|ยังไม่มีสินค้าที่ชำระเงินแล้วสำหรับโต๊ะนี้',
   'unitPrice': '单价|Unit price|單價|ราคาต่อหน่วย',

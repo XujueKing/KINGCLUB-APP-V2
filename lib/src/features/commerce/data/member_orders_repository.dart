@@ -97,6 +97,9 @@ class MemberOrder {
     required this.expiresAt,
     required this.refundedAt,
     required this.items,
+    this.paidAt,
+    this.paidCents,
+    this.paymentChannel,
   });
   final String orderRef,
       storeRef,
@@ -107,6 +110,9 @@ class MemberOrder {
       sessionStatus;
   final String source, paymentTiming, status, currency;
   final int totalCents, refundedCents;
+  final DateTime? paidAt;
+  final int? paidCents;
+  final String? paymentChannel;
   final DateTime createdAt;
   final DateTime? expiresAt, refundedAt;
   final List<MemberOrderItem> items;
@@ -187,6 +193,21 @@ class MemberOrder {
       expiresAt: expires,
       refundedAt: refundedAt,
       items: items,
+      paidAt: value['payment'] == null
+          ? null
+          : _date(_map(value['payment'])['paidAt']),
+      paidCents: value['payment'] == null
+          ? null
+          : _integer(_map(value['payment'])['amountCents'], 100000000),
+      paymentChannel: value['payment'] == null
+          ? null
+          : _enum(_map(value['payment'])['channel'], {
+              'wechat',
+              'alipay',
+              'cash',
+              'balance',
+              'other',
+            }),
     );
   }
 }
