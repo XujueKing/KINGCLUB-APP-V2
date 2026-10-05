@@ -172,7 +172,7 @@ class _FavouriteStorePageState extends State<FavouriteStorePage> {
         builder: (pageContext) => TogetherPartyCreatePage(
           personal: true,
           cityCode: store['cityId'],
-          cityName: store['storeName'],
+          cityName: store['cityName'] ?? store['cityId'],
           initialStore: TogetherStore(
             ref: store['storeRef'],
             name: store['storeName'],
