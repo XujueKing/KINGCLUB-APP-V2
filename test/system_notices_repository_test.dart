@@ -85,6 +85,42 @@ void main() {
     },
   );
 
+  test(
+    'store card debit creates one arrival and remains unread on repeat refresh',
+    () async {
+      var rows = <Map<String, dynamic>>[];
+      final arrivals = <SystemNotice>[];
+      final sub = SystemNoticesController.arrivals.listen(
+        (e) => arrivals.add(e.notice),
+      );
+      final inbox = SystemNoticesController(
+        SystemNoticesRepository(
+          readSession: () async => session('one'),
+          request: (api, params, session) async => {'result': page(rows)},
+        ),
+      );
+      await inbox.refresh();
+      rows = [
+        {
+          ...notice(1),
+          'target': null,
+          'details': [
+            {'label': 'store', 'value': 'Test store'},
+            {'label': 'account', 'value': 'store_balance'},
+            {'label': 'receipt', 'value': 'test-debit'},
+          ],
+        },
+      ];
+      await inbox.refresh();
+      await inbox.refresh();
+      expect(inbox.summary.unreadCount, 1);
+      expect(arrivals, hasLength(1));
+      expect(arrivals.single.isStoreDebit, isTrue);
+      expect(arrivals.single.read, isFalse);
+      inbox.dispose();
+      await sub.cancel();
+    },
+  );
   test('bank code recharge receipt is accepted without breaking the inbox', () {
     final raw = {
       ...notice(1),

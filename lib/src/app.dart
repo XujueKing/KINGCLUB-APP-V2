@@ -1,3 +1,5 @@
+import 'features/messaging/presentation/system_notice_copy.dart';
+import 'features/messaging/presentation/system_notifications_page.dart';
 import 'features/messaging/data/push_registration_runtime.dart';
 import 'features/messaging/data/background_notifications.dart';
 import 'features/messaging/data/system_notices_controller.dart';
@@ -575,7 +577,10 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       () => _notice = {
         'recharge': arrival.notice,
         'rechargeInbox': arrival.inbox,
-        'message': '充值到账成功，点击查看详情',
+        'message': systemNoticeText(
+          context,
+          arrival.notice.isStoreDebit ? 'store_debit' : 'recharge_paid',
+        ),
       },
     );
     _noticeTimer?.cancel();
@@ -667,7 +672,12 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
           navigator.push(
             MaterialPageRoute<void>(
               allowSnapshotting: false,
-              builder: (_) => RechargeDetailPage(notice: recharge),
+              builder: (_) => recharge.isStoreDebit
+                  ? SystemNotificationsPage(
+                      controller:
+                          notice['rechargeInbox'] as SystemNoticesController,
+                    )
+                  : RechargeDetailPage(notice: recharge),
             ),
           ),
         );

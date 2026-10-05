@@ -100,6 +100,7 @@ class MemberOrder {
     this.paidAt,
     this.paidCents,
     this.paymentChannel,
+    this.paymentAccountType,
     this.transactionId,
     this.paymentComposition,
   });
@@ -114,7 +115,10 @@ class MemberOrder {
   final int totalCents, refundedCents;
   final DateTime? paidAt;
   final int? paidCents;
-  final String? paymentChannel, transactionId;
+  final String? paymentChannel, transactionId, paymentAccountType;
+  String? get paymentLabelChannel => paymentChannel == 'balance'
+      ? (paymentAccountType ?? paymentChannel)
+      : paymentChannel;
   final Map<String, dynamic>? paymentComposition;
   bool get combinedPayment =>
       paymentComposition != null &&
@@ -225,6 +229,14 @@ class MemberOrder {
       paidCents: value['payment'] == null
           ? null
           : _integer(_map(value['payment'])['amountCents'], 100000000),
+      paymentAccountType:
+          value['payment'] == null ||
+              _map(value['payment'])['accountType'] == null
+          ? null
+          : _enum(_map(value['payment'])['accountType'], {
+              'platform_cash',
+              'store_balance',
+            }),
       paymentChannel: value['payment'] == null
           ? null
           : _enum(_map(value['payment'])['channel'], {

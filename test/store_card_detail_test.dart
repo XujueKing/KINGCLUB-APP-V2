@@ -91,7 +91,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('250.00'), 100);
-      expect(find.text('2,000.00'), findsOneWidget);
+      expect(find.text('2,000.00'), findsNothing);
+      expect(find.text('Total recharged'), findsNothing);
+      expect(find.text('Bonus credited'), findsNothing);
       expect(find.text('250.00'), findsOneWidget);
       await tester.scrollUntilVisible(find.byType(QrImageView), 250);
       expect(find.byType(QrImageView), findsOneWidget);

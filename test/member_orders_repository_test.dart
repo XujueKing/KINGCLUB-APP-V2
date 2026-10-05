@@ -61,6 +61,13 @@ const sessionFixture = <String, dynamic>{
 };
 
 void main() {
+  test('balance receipt preserves store versus platform payment labels', () {
+    for(final account in ['store_balance','platform_cash']) {
+      final raw = orderFixture()..['status']='paid';
+      raw['payment']={'amountCents':2000,'paidAt':'2030-01-01T00:03:00.000Z','channel':'balance','accountType':account};
+      expect(MemberOrder.parse(raw).paymentLabelChannel,account);
+    }
+  });
   test('complimentary goods have no payment or refund and retain delivery progress', () {
     final raw = orderFixture();
     raw['status'] = 'waived';

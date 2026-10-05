@@ -77,15 +77,15 @@ void main() {
         const Offset(-350, 0),
       );
       await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('storage-tab-卡-selected')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('storage-tab-券-idle')));
+      await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('storage-select-coupon')).hitTestable(),
         findsOneWidget,
       );
       expect(find.byKey(const ValueKey('storage-vertical-dots')), findsNothing);
-      await tester.drag(
-        find.byKey(const ValueKey('storage-category-pages')),
-        const Offset(350, 0),
-      );
+      await tester.tap(find.byKey(const ValueKey('storage-tab-酒-idle')));
       await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('storage-select-wine-9')).hitTestable(),

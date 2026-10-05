@@ -30,6 +30,9 @@ class SystemNotice {
     this.target,
     this.rechargeDetails,
   });
+  bool get isStoreDebit =>
+      kind == 'purchase_paid' &&
+      details.any((d) => d.$1 == 'account' && d.$2 == 'store_balance');
   final String id, kind;
   final DateTime occurredAt;
   final bool read;

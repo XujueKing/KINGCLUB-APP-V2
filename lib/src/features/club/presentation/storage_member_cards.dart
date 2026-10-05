@@ -369,18 +369,6 @@ class _StoreCardDetailState extends State<StoreCardDetail>
               ),
               const SizedBox(height: 16),
               row(
-                t('充值金额|Total recharged|充值金額|ยอดเติมเงินสะสม'),
-                store.originalPrincipal == null
-                    ? '—'
-                    : balanceMoney(store.originalPrincipal!),
-              ),
-              row(
-                t('赠送|Bonus credited|贈送|โบนัสที่ได้รับ'),
-                store.originalGift == null
-                    ? '—'
-                    : balanceMoney(store.originalGift!),
-              ),
-              row(
                 t('剩余余额|Remaining balance|剩餘餘額|ยอดคงเหลือ'),
                 balanceMoney(store.principal + store.gift),
               ),

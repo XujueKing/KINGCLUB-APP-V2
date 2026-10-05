@@ -34,7 +34,7 @@ void main() {
       expect(loads, 1);
       expect(
         tester.widget<Text>(find.text('Vouchers')).style?.color,
-        const Color(0xFF756A5C),
+        const Color(0xB3756A5C),
       );
       await tester.tap(find.text('Cards'));
       await tester.pumpAndSettle();
@@ -53,8 +53,9 @@ void main() {
       expect(grid.childrenDelegate.estimatedChildCount, 9);
       await tester.tap(find.byKey(const ValueKey('storage-pickup')));
       await tester.pumpAndSettle();
-      expect(find.text('200.00'), findsOneWidget);
-      expect(find.text('50.00'), findsOneWidget);
+      expect(find.text('200.00'), findsNothing);
+      expect(find.text('250.00'), findsOneWidget);
+      expect(find.text('50.00'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },

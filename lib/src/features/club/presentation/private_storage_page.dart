@@ -59,8 +59,8 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   bool get _materialPreview => _repository is BottleMaterialPreviewRepository;
   double _previewLevel = 50;
   final _pages = PageController();
-  static const _categories = ['wine', 'coupon', 'item', 'card'];
-  static const _labels = ['酒', '券', '物', '卡'];
+  static const _categories = ['wine', 'card', 'coupon', 'item'];
+  static const _labels = ['酒', '卡', '券', '物'];
   final _verticalPages = List.generate(4, (_) => PageController());
   final _verticalIndex = [0, 0, 0, 0];
   late final _flip = AnimationController(
@@ -118,10 +118,10 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
   String _categoryLabel(int index) {
     final locale = Localizations.localeOf(context);
     if (locale.languageCode == 'en') {
-      return ['Wine', 'Vouchers', 'Items', 'Cards'][index];
+      return ['Wine', 'Cards', 'Vouchers', 'Items'][index];
     }
     if (locale.languageCode == 'th') {
-      return ['ไวน์', 'คูปอง', 'สิ่งของ', 'บัตร'][index];
+      return ['ไวน์', 'บัตร', 'คูปอง', 'สิ่งของ'][index];
     }
     return _labels[index];
   }
@@ -572,7 +572,9 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                   decoration: BoxDecoration(
                                     border: _categoryIndex == index
                                         ? const Border(
-                                            bottom: BorderSide(color: Colors.white),
+                                            bottom: BorderSide(
+                                              color: Colors.white,
+                                            ),
                                           )
                                         : null,
                                   ),
@@ -582,7 +584,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                                       fontSize: 32 * u,
                                       color: _categoryIndex == index
                                           ? Colors.white
-                                          : const Color(0xFF756A5C),
+                                          : const Color(0xB3756A5C),
                                     ),
                                   ),
                                 ),

@@ -54,7 +54,10 @@ class KingResultPage extends StatelessWidget {
           onTap: tapAnywhere ? onReturn : null,
           child: SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: bounds.maxHeight),
+              constraints: BoxConstraints(
+                minHeight: bounds.maxHeight,
+                minWidth: bounds.maxWidth,
+              ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 36),
                 child: Column(

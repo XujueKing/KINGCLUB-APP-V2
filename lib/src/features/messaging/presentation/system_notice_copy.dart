@@ -23,6 +23,9 @@ const _copy = {
   'aa_paid': '拼桌购买成功|Shared table purchase paid|拼桌購買成功|ชำระค่าร่วมโต๊ะสำเร็จ',
   'wine_deposited': '存酒成功|Drinks stored|存酒成功|ฝากเครื่องดื่มสำเร็จ',
   'wine_collected': '取酒成功|Drinks collected|取酒成功|รับเครื่องดื่มที่ฝากไว้สำเร็จ',
+  'store_debit':
+      '储值扣款成功|Store card payment successful|儲值扣款成功|ชำระด้วยบัตรร้านสำเร็จ',
+  'payment_account': '付款账户：|Payment account:|付款帳戶：|บัญชีที่ชำระ:',
   'recharge_paid': '充值到账成功|Top-up credited|儲值到帳成功|เติมเงินเข้าบัญชีสำเร็จ',
   'success': '办理成功|Completed|辦理成功|ดำเนินการสำเร็จ',
   'store': '门店：|Store:|門店：|ร้าน:',

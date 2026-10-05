@@ -695,7 +695,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                               t(
                                 order.combinedPayment
                                     ? 'pay_mixed'
-                                    : 'pay_${order.paymentChannel}',
+                                    : 'pay_${order.paymentLabelChannel}',
                               ),
                             ),
                           ),
@@ -844,7 +844,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                   ),
                 if (order.component('externalCents') > 0)
                   field(
-                    t('pay_${order.paymentChannel}'),
+                    t('pay_${order.paymentLabelChannel}'),
                     money(order.component('externalCents')),
                   ),
               ],
@@ -1075,6 +1075,9 @@ const _copy = {
   'pay_wechat': '微信支付|WeChat Pay|微信支付|WeChat Pay',
   'pay_alipay': '支付宝|Alipay|支付寶|Alipay',
   'pay_cash': '现金|Cash|現金|เงินสด',
+  'pay_store_balance': '本店储值卡支付|Store card payment|本店儲值卡支付|ชำระด้วยบัตรร้าน',
+  'pay_platform_cash':
+      '平台余额支付|Platform balance payment|平台餘額支付|ชำระด้วยยอดเงินแพลตฟอร์ม',
   'pay_balance': '余额支付|Balance|餘額支付|ชำระด้วยยอดคงเหลือ',
   'pay_pos': 'POS刷卡|Card (POS)|POS刷卡|บัตร (POS)',
   'pay_mixed': '组合支付|Combined payment|組合支付|การชำระเงินแบบผสม',

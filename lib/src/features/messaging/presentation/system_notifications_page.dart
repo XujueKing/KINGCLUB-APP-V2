@@ -169,7 +169,10 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage>
       for (final n in _controller?.notices ?? <SystemNotice>[])
         _NoticeDisplay(
           source: 'KINGCLUB',
-          title: systemNoticeText(context, n.kind),
+          title: systemNoticeText(
+            context,
+            n.isStoreDebit ? 'store_debit' : n.kind,
+          ),
           value: n.amountCents == null
               ? systemNoticeText(context, 'success')
               : moneyCents(n.amountCents!),
@@ -178,7 +181,12 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage>
           details: [
             for (final d in n.details)
               (
-                systemNoticeText(context, d.$1),
+                systemNoticeText(
+                  context,
+                  n.isStoreDebit && d.$1 == 'account'
+                      ? 'payment_account'
+                      : d.$1,
+                ),
                 d.$2 is Map
                     ? (d.$2[language] as String)
                     : d.$1 == 'account'
