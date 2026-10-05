@@ -49,6 +49,56 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   bool _channelLocked = false;
   Map<String, dynamic>? _benefits;
   Map<String, dynamic>? _selection;
+  final _coinInput = TextEditingController(text: '0');
+  final _storeInput = TextEditingController(text: '0.00');
+  Future<void>? _inputCommit;
+  void _syncInputs() {
+    _coinInput.text = _selection?['coins']?.toString() ?? '0';
+    final cents =
+        int.tryParse(_selection?['storeBalanceCents']?.toString() ?? '') ??
+        (_component('storePrincipalCents') + _component('storeGiftCents'));
+    _storeInput.text = _money(cents);
+  }
+
+  int? get _inputStoreCents {
+    final raw = _storeInput.text.isEmpty ? '0' : _storeInput.text;
+    if (!RegExp(r'^\d+(\.\d{0,2})?$').hasMatch(raw)) return null;
+    final parts = raw.split('.');
+    return int.parse(parts[0]) * 100 +
+        int.parse(parts.length == 1 ? '0' : parts[1].padRight(2, '0'));
+  }
+
+  bool get _inputsChanged =>
+      (int.tryParse(_coinInput.text.isEmpty ? '0' : _coinInput.text)
+              ?.toString() !=
+          (_selection?['coins'] ?? '0')) ||
+      (_inputStoreCents?.toString() !=
+          (_selection?['storeBalanceCents'] ?? '0'));
+
+  Future<void> _commitInputs() async {
+    if (_inputCommit != null) await _inputCommit;
+    if (!mounted ||
+        _channelLocked ||
+        _benefits == null ||
+        _quoting ||
+        !_inputsChanged) {
+      return;
+    }
+    final coins = int.tryParse(_coinInput.text.isEmpty ? '0' : _coinInput.text);
+    final cents = _inputStoreCents;
+    if (coins == null || cents == null) return;
+    _inputCommit = _loadBenefits({
+      'coins': coins.toString(),
+      'useStoreBalance': cents > 0,
+      'storeBalanceCents': cents.toString(),
+    });
+    try {
+      await _inputCommit;
+    } finally {
+      _inputCommit = null;
+    }
+  }
+
   bool _quoting = false;
   String? _quoteError;
   List<OrderingOrderLine> get _quoteLines => widget.quote.items
@@ -169,6 +219,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         _requestId = value['requestId'];
         if (value['selection'] is Map) {
           _selection = Map<String, dynamic>.from(value['selection']);
+          _syncInputs();
         }
         final savedProvider = value['paymentProvider'] ?? 'wechat';
         _provider = OrderingPaymentProvider.values.firstWhere(
@@ -364,6 +415,11 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   }
 
   Future<void> _pay({bool initiatePayment = true}) async {
+    if (!_postpay && !_channelLocked) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      await _commitInputs();
+      if (!mounted || _inputsChanged) return;
+    }
     if (_postpay) initiatePayment = false;
     if (_busy ||
         _quoting ||
@@ -563,6 +619,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     if (_quoting || _channelLocked || _postpay) return;
     setState(() => _quoting = true);
     final choice = {..._choice, ...?changes};
+    final inputSnapshot = (_coinInput.text, _storeInput.text);
     try {
       final result = await widget.repository.paymentQuote(
         context: widget.quote.orderingContext!,
@@ -576,6 +633,9 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         );
         _benefits = result;
         _selection = {...choice, 'quoteHash': result['quoteHash']};
+        if (inputSnapshot == (_coinInput.text, _storeInput.text)) {
+          _syncInputs();
+        }
         _quoteError = null;
         _message = _creationBlockReason;
         _ready = _message == null;
@@ -618,8 +678,16 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
       child: Row(
         children: [
           Expanded(child: Text(title)),
-          Flexible(
-            child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * .40,
+            ),
+            child: Text(
+              value,
+              maxLines: 1,
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           const Icon(Icons.chevron_right, color: Colors.black54),
         ],
@@ -627,33 +695,140 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     ),
   );
   Future<void> _chooseCoupon() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final coupons = _benefits?['coupons'] as List? ?? [];
+    String chosen = _selection?['couponRef']?.toString() ?? '';
     final selected = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            ListTile(
-              title: Text(
-                _paymentText(['不使用优惠券', 'No coupon', '不使用優惠券', 'ไม่ใช้คูปอง']),
-                style: const TextStyle(color: Colors.black),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, update) => SizedBox(
+          key: const ValueKey('checkout-coupon-sheet'),
+          height: MediaQuery.sizeOf(context).height * .40,
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: coupons.isEmpty
+                          ? Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  top: BorderSide(color: Color(0xFFF0F0F0)),
+                                  bottom: BorderSide(color: Color(0xFFF0F0F0)),
+                                ),
+                              ),
+                              child: Text(
+                                _paymentText([
+                                  '没有优惠券',
+                                  'No coupons available',
+                                  '沒有優惠券',
+                                  'ไม่มีคูปอง',
+                                ]),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color(0xFF333333),
+                                  fontSize: 22,
+                                ),
+                              ),
+                            )
+                          : ListView(
+                              children: [
+                                for (final c in [
+                                  <String, dynamic>{
+                                    'itemRef': '',
+                                    'name': _paymentText([
+                                      '不使用优惠券',
+                                      'No coupon',
+                                      '不使用優惠券',
+                                      'ไม่ใช้คูปอง',
+                                    ]),
+                                  },
+                                  ...coupons,
+                                ])
+                                  ListTile(
+                                    title: Text(
+                                      c['name'].toString(),
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    trailing: chosen == c['itemRef']
+                                        ? const Icon(
+                                            Icons.check,
+                                            color: Color(0xFF07C160),
+                                          )
+                                        : null,
+                                    onTap: () => update(
+                                      () => chosen = c['itemRef'].toString(),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 36),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 118,
+                        height: 44,
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: const Color(0xFFF2F2F2),
+                            foregroundColor: const Color(0xFF07C160),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(
+                            _paymentText(['取消', 'Cancel', '取消', 'ยกเลิก']),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      SizedBox(
+                        width: 118,
+                        height: 44,
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: const Color(0xFF07C160),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(ctx, chosen),
+                          child: Text(
+                            _paymentText(['确定', 'Confirm', '確定', 'ยืนยัน']),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              onTap: () => Navigator.pop(ctx, ''),
             ),
-            for (final c in (_benefits?['coupons'] as List? ?? []))
-              ListTile(
-                title: Text(
-                  c['name'].toString(),
-                  style: const TextStyle(color: Colors.black),
-                ),
-                trailing: Text(
-                  '-¥${_money(int.parse(c['discountCents'].toString()))}',
-                  style: const TextStyle(color: Colors.black),
-                ),
-                onTap: () => Navigator.pop(ctx, c['itemRef'].toString()),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -662,42 +837,103 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     }
   }
 
-  Future<void> _chooseCoins() async {
-    final controller = TextEditingController(text: _selection?['coins'] ?? '0');
-    final value = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          _paymentText(['金币兑换', 'Redeem coins', '金幣兌換', 'ใช้เหรียญ']),
-        ),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(
-            helperText: _paymentText([
-              '10 个金币抵 1 元',
-              '10 coins = ¥1',
-              '10 個金幣抵 1 元',
-              '10 เหรียญ = ¥1',
-            ]),
+  Widget _amountInputRow({
+    required String title,
+    required String balance,
+    required TextEditingController controller,
+    required bool money,
+    required String key,
+  }) {
+    final enabled = _benefits != null && !_channelLocked && !_busy;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: enabled
+                ? () async {
+                    controller.text = '0';
+                    await _commitInputs();
+                  }
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(
+                (int.tryParse(controller.text.replaceAll('.', '')) ?? 0) > 0
+                    ? Icons.check_circle
+                    : Icons.radio_button_unchecked,
+                size: 22,
+                color: const Color(0xFF94836D),
+              ),
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(_paymentText(['取消', 'Cancel', '取消', 'ยกเลิก'])),
+          Expanded(
+            child: Text(
+              '$title（$balance）',
+              style: const TextStyle(fontSize: 15),
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(_paymentText(['确定', 'Confirm', '確定', 'ยืนยัน'])),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 96,
+            height: 40,
+            child: TextField(
+              key: ValueKey(key),
+              controller: controller,
+              enabled: enabled,
+              keyboardType: TextInputType.numberWithOptions(decimal: money),
+              textAlign: TextAlign.center,
+              textInputAction: TextInputAction.done,
+              style: const TextStyle(fontSize: 18, color: Colors.white),
+              cursorColor: const Color(0xFF07C160),
+              inputFormatters: money
+                  ? [
+                      TextInputFormatter.withFunction(
+                        (oldValue, newValue) =>
+                            RegExp(r'^(?:\d{1,7}(\.\d{0,2})?)?$')
+                                .hasMatch(newValue.text)
+                            ? newValue
+                            : oldValue,
+                      ),
+                    ]
+                  : [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(9),
+                    ],
+              onSubmitted: (_) {
+                FocusManager.instance.primaryFocus?.unfocus();
+                _commitInputs();
+              },
+              onTapOutside: (_) {
+                FocusManager.instance.primaryFocus?.unfocus();
+                _commitInputs();
+              },
+              decoration: InputDecoration(
+                isDense: true,
+                filled: true,
+                fillColor: const Color(0xFFAA9A83),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 9,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFF8F7E69)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFF8F7E69)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFF8F7E69)),
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
-    if (value != null && mounted) {
-      await _loadBenefits({'coins': (int.tryParse(value) ?? 0).toString()});
-    }
   }
 
   Future<void> _showPaymentMethods() async {
@@ -849,6 +1085,8 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
 
   @override
   void dispose() {
+    _coinInput.dispose();
+    _storeInput.dispose();
     _paymentReturn?.cancel();
     _timer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -1154,61 +1392,31 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                             key: 'checkout-coupon',
                           ),
                           const Divider(color: Color(0x22000000)),
-                          _benefitRow(
-                            _paymentText([
+                          _amountInputRow(
+                            title: _paymentText([
                               '金币兑换',
-                              'Redeem coins',
+                              'Coins',
                               '金幣兌換',
-                              'ใช้เหรียญ',
+                              'เหรียญ',
                             ]),
-                            '${_selection?['coins'] ?? '0'} / ${_benefits?['coins'] ?? '—'}',
-                            _chooseCoins,
+                            balance: '${_benefits?['coins'] ?? '—'}',
+                            controller: _coinInput,
+                            money: false,
                             key: 'checkout-coins',
                           ),
-                          Text(
-                            _paymentText([
-                              '10 个金币抵 1 元',
-                              '10 coins = ¥1',
-                              '10 個金幣抵 1 元',
-                              '10 เหรียญ = ¥1',
+                          _amountInputRow(
+                            title: _paymentText([
+                              '本店储值',
+                              'Store credit',
+                              '本店儲值',
+                              'เงินร้าน',
                             ]),
-                            style: TextStyle(
-                              fontSize: r(21),
-                              color: const Color(0x99000000),
-                            ),
-                          ),
-                          const Divider(color: Color(0x22000000)),
-                          Material(
-                            color: Colors.transparent,
-                            child: SwitchListTile.adaptive(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(
-                                _paymentText([
-                                  '本店储值卡',
-                                  'Store balance',
-                                  '本店儲值卡',
-                                  'ยอดเงินของร้าน',
-                                ]),
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: r(28),
-                                ),
-                              ),
-                              subtitle: Text(
-                                _benefits == null
-                                    ? '—'
-                                    : '¥${_money(int.tryParse(_benefits!['storeAvailableCents'].toString()) ?? 0)}',
-                                style: const TextStyle(color: Colors.black54),
-                              ),
-                              value: _selection?['useStoreBalance'] == true,
-                              onChanged:
-                                  !_channelLocked &&
-                                      !_busy &&
-                                      !_quoting &&
-                                      _benefits?['storeAvailable'] == true
-                                  ? (v) => _loadBenefits({'useStoreBalance': v})
-                                  : null,
-                            ),
+                            balance: _benefits == null
+                                ? '—'
+                                : '¥${_money(int.tryParse(_benefits!['storeAvailableCents'].toString()) ?? 0)}',
+                            controller: _storeInput,
+                            money: true,
+                            key: 'checkout-store-amount',
                           ),
                           if (_component('couponDiscountCents') > 0)
                             line(

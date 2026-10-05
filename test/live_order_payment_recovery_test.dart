@@ -77,7 +77,9 @@ class _Harness {
         if (combinedEnabled) {
           final c = Map<String, dynamic>.from(params['selection'] as Map);
           final coins = int.parse(c['coins'] as String) * 10;
-          final store = c['useStoreBalance'] == true ? 30 : 0;
+          final store = c['useStoreBalance'] == true
+              ? int.parse(c['storeBalanceCents']?.toString() ?? '30')
+              : 0;
           composition = {
             'totalCents': '100',
             'couponDiscountCents': '0',
@@ -261,25 +263,60 @@ void main() {
               .dy,
         ),
       );
-      await tester.tap(find.byKey(const ValueKey('checkout-coins')));
+      await tester.enterText(find.byKey(const ValueKey('checkout-coins')), '2');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), '2');
-      await tester.tap(find.text('Confirm'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byType(SwitchListTile));
-      await tester.tap(find.byType(SwitchListTile));
+      await tester.enterText(
+        find.byKey(const ValueKey('checkout-store-amount')),
+        '0.30',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(h.composition!['externalCents'], '50');
       await tester.tap(find.widgetWithText(FilledButton, '立即支付'));
       await tester.pumpAndSettle();
       expect(h.lastSelection, containsPair('coins', '2'));
       expect(h.lastSelection, containsPair('useStoreBalance', true));
+      expect(h.lastSelection, containsPair('storeBalanceCents', '30'));
       expect(h.lastSelection, containsPair('quoteHash', 'a' * 64));
       expect(h.launched, 1);
       expect(h.confirmed, 0);
       await h.finish(tester);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
+  testWidgets(
+    'inline amounts align and empty coupons use a tall confirmed sheet',
+    (tester) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final h = _Harness()..combinedEnabled = true;
+      await h.mount(tester, saved: false);
+      final coin = find.byKey(const ValueKey('checkout-coins'));
+      final store = find.byKey(const ValueKey('checkout-store-amount'));
+      expect(tester.getTopRight(coin).dx, tester.getTopRight(store).dx);
+      expect(tester.widget<TextField>(coin).keyboardType, TextInputType.number);
+      expect(
+        tester.widget<TextField>(store).keyboardType,
+        const TextInputType.numberWithOptions(decimal: true),
+      );
+      expect(find.byType(SwitchListTile), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('checkout-coupon')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('checkout-coupon-sheet')))
+            .height,
+        closeTo(852 * .4, 1),
+      );
+      expect(find.text('No coupons available'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(h.lastSelection, isNull);
+      await h.finish(tester);
+    },
   );
 
   testWidgets(
