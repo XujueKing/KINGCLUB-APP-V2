@@ -1,3 +1,5 @@
+import '../../club/presentation/storage_member_cards.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -13,7 +15,14 @@ import 'member_payment_code_page.dart';
 import 'member_recharge_page.dart';
 
 class MemberBalancePage extends StatefulWidget {
-  const MemberBalancePage({super.key, this.load, this.onBack, this.events});
+  const MemberBalancePage({
+    super.key,
+    this.load,
+    this.onBack,
+    this.events,
+    this.storeCardsOnly = false,
+  });
+  final bool storeCardsOnly;
   final VoidCallback? onBack;
   final Future<Map<String, dynamic>> Function()? load;
   final Stream<Map<String, dynamic>>? events;
@@ -191,7 +200,7 @@ class _MemberBalancePageState extends State<MemberBalancePage>
     return Scaffold(
       appBar: kingAppBar(
         context: context,
-        title: Text(t('title')),
+        title: Text(widget.storeCardsOnly ? t('myStoreCards') : t('title')),
         leading: widget.onBack == null
             ? null
             : KingBackButton(onPressed: widget.onBack!),
@@ -231,96 +240,142 @@ class _MemberBalancePageState extends State<MemberBalancePage>
                 padding: const EdgeInsets.all(20),
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  amount(t('total'), data.total),
-                  Text(t('notice')),
-                  const Divider(),
-                  amount(t('platform'), data.platformCash),
+                  if (!widget.storeCardsOnly) ...[
+                    amount(t('total'), data.total),
+                    Text(t('notice')),
+                    const Divider(),
+                    amount(t('platform'), data.platformCash),
+                  ],
                   if (data.stores.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 24),
                       child: Text(t('empty')),
                     ),
                   for (final store in data.stores)
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              store.name,
-                              style: Theme.of(context).textTheme.titleMedium,
+                    if (widget.storeCardsOnly)
+                      Card(
+                        color: const Color(0xFF202020),
+                        child: InkWell(
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => StoreCardDetail(store: store),
+                              ),
+                            );
+                            if (mounted) reload();
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                SizedBox(
+                                  height: 130,
+                                  child: StoreCardFace(store: store),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  store.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${t('remaining')} ${balanceMoney(store.principal + store.gift)}',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 17,
+                                  ),
+                                ),
+                              ],
                             ),
-                            if (store.status != 'active' ||
-                                store.accountStatus != 'active')
-                              Text(t('restricted')),
-                            amount(t('principal'), store.principal),
-                            amount(t('gift'), store.gift),
-                            if (store.status == 'active' &&
-                                store.accountStatus == 'active' &&
-                                const bool.fromEnvironment(
-                                  'KINGCLUB_STORE_RECHARGE',
-                                ))
-                              TextButton(
-                                onPressed: () async {
-                                  final generation = MemberQrMemory.generation;
-                                  await Navigator.of(context).push<void>(
-                                    MaterialPageRoute<void>(
-                                      allowSnapshotting: false,
-                                      builder: (_) => MemberRechargePage(
-                                        storeRef: store.ref,
+                          ),
+                        ),
+                      )
+                    else
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                store.name,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              if (store.status != 'active' ||
+                                  store.accountStatus != 'active')
+                                Text(t('restricted')),
+                              amount(t('principal'), store.principal),
+                              amount(t('gift'), store.gift),
+                              if (store.status == 'active' &&
+                                  store.accountStatus == 'active' &&
+                                  const bool.fromEnvironment(
+                                    'KINGCLUB_STORE_RECHARGE',
+                                  ))
+                                TextButton(
+                                  onPressed: () async {
+                                    final generation =
+                                        MemberQrMemory.generation;
+                                    await Navigator.of(context).push<void>(
+                                      MaterialPageRoute<void>(
+                                        allowSnapshotting: false,
+                                        builder: (_) => MemberRechargePage(
+                                          storeRef: store.ref,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                  if (mounted &&
-                                      foreground &&
-                                      generation == MemberQrMemory.generation) {
-                                    await reload();
-                                  }
-                                },
-                                child: Text(t('rechargeTitle')),
-                              ),
-                            if (store.status == 'active' &&
-                                const bool.fromEnvironment(
-                                  'KINGCLUB_MEMBER_PAYMENT',
-                                )) ...[
-                              TextButton(
-                                onPressed: () =>
-                                    openPayment(store, 'platform_cash'),
-                                child: Text(t('payPlatform')),
-                              ),
-                              if (store.accountStatus == 'active')
+                                    );
+                                    if (mounted &&
+                                        foreground &&
+                                        generation ==
+                                            MemberQrMemory.generation) {
+                                      await reload();
+                                    }
+                                  },
+                                  child: Text(t('rechargeTitle')),
+                                ),
+                              if (store.status == 'active' &&
+                                  const bool.fromEnvironment(
+                                    'KINGCLUB_MEMBER_PAYMENT',
+                                  )) ...[
                                 TextButton(
                                   onPressed: () =>
-                                      openPayment(store, 'store_balance'),
-                                  child: Text(t('payStore')),
+                                      openPayment(store, 'platform_cash'),
+                                  child: Text(t('payPlatform')),
+                                ),
+                                if (store.accountStatus == 'active')
+                                  TextButton(
+                                    onPressed: () =>
+                                        openPayment(store, 'store_balance'),
+                                    child: Text(t('payStore')),
+                                  ),
+                              ],
+                              if (store.expiredGift > BigInt.zero)
+                                amount(t('expired'), store.expiredGift),
+                              for (final lot in store.lots)
+                                ExpansionTile(
+                                  title: Text(
+                                    lot.rules.isEmpty
+                                        ? t('rulesMissing')
+                                        : lot.rules,
+                                  ),
+                                  children: [
+                                    amount(t('principal'), lot.principal),
+                                    amount(
+                                      t(lot.expired ? 'expired' : 'gift'),
+                                      lot.gift,
+                                    ),
+                                    if (lot.expires != null)
+                                      Text(
+                                        '${t('expiry')}: ${MaterialLocalizations.of(context).formatMediumDate(lot.expires!.toLocal())}',
+                                      ),
+                                  ],
                                 ),
                             ],
-                            if (store.expiredGift > BigInt.zero)
-                              amount(t('expired'), store.expiredGift),
-                            for (final lot in store.lots)
-                              ExpansionTile(
-                                title: Text(
-                                  lot.rules.isEmpty
-                                      ? t('rulesMissing')
-                                      : lot.rules,
-                                ),
-                                children: [
-                                  amount(t('principal'), lot.principal),
-                                  amount(
-                                    t(lot.expired ? 'expired' : 'gift'),
-                                    lot.gift,
-                                  ),
-                                  if (lot.expires != null)
-                                    Text(
-                                      '${t('expiry')}: ${MaterialLocalizations.of(context).formatMediumDate(lot.expires!.toLocal())}',
-                                    ),
-                                ],
-                              ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
                 ],
               ),
             ),

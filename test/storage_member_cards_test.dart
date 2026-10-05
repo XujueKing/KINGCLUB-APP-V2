@@ -39,6 +39,8 @@ void main() {
       await tester.tap(find.text('Cards'));
       await tester.pumpAndSettle();
       expect(loads, 2);
+      expect(tester.widget<Text>(find.text('Cards')).style?.color, Colors.white);
+      expect(tester.widget<Text>(find.text('Items')).style?.color, isNot(Colors.white));
       expect(find.text('￥250.00'), findsOneWidget);
       expect(
         find
@@ -54,7 +56,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('storage-pickup')));
       await tester.pumpAndSettle();
       expect(find.text('200.00'), findsNothing);
-      expect(find.text('250.00'), findsOneWidget);
+      expect(find.text('Balance: 250.00'), findsOneWidget);
       expect(find.text('50.00'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

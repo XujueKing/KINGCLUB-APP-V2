@@ -238,11 +238,15 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
       );
       if (!mounted || epoch != _cardsEpoch) return;
       setState(() {
+        final category = _categoryIndex;
         _cards = value.stores.map(StoreCardItem.new).toList();
         _cardsLoading = false;
-        if (_category == 'card') {
-          _verticalIndex[3] = math.min(_verticalIndex[3], _pageCount(3) - 1);
-          _page = _startPage(3) + _verticalIndex[3];
+        if (_categories[category] == 'card') {
+          _verticalIndex[category] = math.min(
+            _verticalIndex[category],
+            _pageCount(category) - 1,
+          );
+          _page = _startPage(category) + _verticalIndex[category];
           if (!_cards.any((c) => c.ref == _selected)) {
             _selected = _groups[_page].firstOrNull?.ref;
           }

@@ -106,7 +106,7 @@ void main() {
       final services = find.byKey(const ValueKey('my-profile-services'));
       await tester.ensureVisible(services);
       await tester.pumpAndSettle();
-      final rects = ['bump', 'orders', 'reservations', 'creator', 'support']
+      final rects = ['bump', 'orders', 'reservations', 'stored-value', 'support']
           .map((id) => tester.getRect(find.byKey(ValueKey('my-profile-$id'))))
           .toList();
       for (final rect in rects) {
@@ -190,11 +190,11 @@ void main() {
     await mount(tester, size: const Size(320, 640), textScale: 1.2);
     final services = find.byKey(const ValueKey('my-profile-services'));
     expect(tester.getSize(services).width, closeTo(320 * 718 / 750, .1));
-    final label = tester.widget<Text>(find.text('创作者中心'));
+    final label = tester.widget<Text>(find.text('我的储值'));
     expect(label.maxLines, 1);
     expect(label.style!.letterSpacing, 0);
     expect(
-      tester.getSize(find.byKey(const ValueKey('my-profile-creator'))).height,
+      tester.getSize(find.byKey(const ValueKey('my-profile-stored-value'))).height,
       lessThan(65),
     );
     expect(find.text('写下此刻的心情…'), findsOneWidget);

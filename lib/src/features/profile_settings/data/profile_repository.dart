@@ -83,6 +83,11 @@ class ProfileRepository {
 
   Future<Map<String, dynamic>> content(String category, int offset) =>
       call('K260912000504', {'category': category, 'offset': offset});
+  Future<Map<String, dynamic>> store(String ref) => call('K260912000504', {
+    'category': 'store',
+    'offset': 0,
+    'storeRef': ref,
+  });
   Future<String> upload(String slot, String path) async {
     Uint8List? bytes;
     for (final size in [1200, 960, 720]) {

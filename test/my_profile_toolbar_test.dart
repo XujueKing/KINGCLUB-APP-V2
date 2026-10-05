@@ -3,33 +3,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/my_profile_page.dart';
 
 void main() {
-  testWidgets(
-    'orders shortcut stays visible and opens orders after scrolling',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(360, 740));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      var opened = 0;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: MyProfilePage(onOpenOrders: () => opened++)),
-        ),
-      );
-      await tester.pumpAndSettle();
-      final shortcut = find.byKey(const ValueKey('my-profile-orders-shortcut'));
-      expect(shortcut.hitTestable(), findsOneWidget);
-      await tester.tap(shortcut);
-      expect(opened, 1);
-      await tester.drag(
-        find.byKey(const PageStorageKey('my-profile-scroll')),
-        const Offset(0, -550),
-      );
-      await tester.pumpAndSettle();
-      expect(shortcut.hitTestable(), findsOneWidget);
-      await tester.tap(shortcut);
-      expect(opened, 2);
-      expect(tester.takeException(), isNull);
-    },
-  );
+  testWidgets('orders has one service entry and no toolbar duplicate', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var opened = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: MyProfilePage(onOpenOrders: () => opened++))));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('my-profile-orders-shortcut')), findsNothing);
+    await tester.ensureVisible(find.text('我的订单'));
+    await tester.tap(find.text('我的订单'));
+    expect(opened, 1);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('我的主页左上工具栏保持旧版图标与点击区比例', (tester) async {
     await tester.binding.setSurfaceSize(const Size(393, 852));
     addTearDown(() => tester.binding.setSurfaceSize(null));

@@ -317,27 +317,6 @@ class _StoreCardDetailState extends State<StoreCardDetail>
         ),
       );
     }
-    Widget row(String label, String value) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 19,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
     return Scaffold(
       backgroundColor: const Color(0xFF111111),
       appBar: kingAppBar(
@@ -368,9 +347,17 @@ class _StoreCardDetailState extends State<StoreCardDetail>
                 child: Center(child: StoreCardFace(store: store)),
               ),
               const SizedBox(height: 16),
-              row(
-                t('剩余余额|Remaining balance|剩餘餘額|ยอดคงเหลือ'),
-                balanceMoney(store.principal + store.gift),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                child: Text(
+                  "${t('余额：|Balance:|餘額：|ยอดคงเหลือ:')} ${balanceMoney(store.principal + store.gift)}",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               Center(

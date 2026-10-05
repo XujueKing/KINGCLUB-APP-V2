@@ -1,3 +1,8 @@
+import '../../commerce/presentation/member_orders_page.dart';
+import 'favourite_store_page.dart';
+import '../../home/data/home_content_repository.dart';
+import '../../home/presentation/home_content_cards.dart';
+
 import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
@@ -482,20 +487,6 @@ class _MyProfilePageState extends State<MyProfilePage> {
                 ),
               ),
             ),
-            TextButton(
-              key: const ValueKey('my-profile-orders-shortcut'),
-              onPressed: _showOrders,
-              style: TextButton.styleFrom(
-                foregroundColor: _warmWhite,
-                minimumSize: const Size(64, 44),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                textStyle: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              child: Text(_ordersLabel),
-            ),
             _assetTool(
               key: const ValueKey('my-profile-settings'),
               imageKey: const ValueKey('my-profile-settings-image'),
@@ -510,17 +501,6 @@ class _MyProfilePageState extends State<MyProfilePage> {
         ),
       ),
     );
-  }
-
-  String get _ordersLabel {
-    final locale = Localizations.localeOf(context);
-    if (locale.languageCode == 'en') return 'Orders';
-    if (locale.languageCode == 'th') return 'คำสั่งซื้อ';
-    if (locale.scriptCode == 'Hant' ||
-        ['TW', 'HK', 'MO'].contains(locale.countryCode)) {
-      return '我的訂單';
-    }
-    return '我的订单';
   }
 
   Widget _assetTool({
@@ -932,7 +912,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
             _showEmptyList('我的预约');
           }
         }),
-        entry('creator', '创作者中心', 'service_creator.svg', _showCreatorCenter),
+        entry('stored-value', '我的储值', 'service_creator.svg', _showStoreCards),
         entry('support', '专属客服', 'service_support.svg', _showSupportCenter),
       ],
     );
@@ -967,30 +947,10 @@ class _MyProfilePageState extends State<MyProfilePage> {
     );
   }
 
-  void _showCreatorCenter() {
-    _showSheet(
-      title: '创作者中心',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final item in [(0, '我的作品'), (2, '我的相册')])
-            ListTile(
-              title: Text(item.$2, style: const TextStyle(color: _warmWhite)),
-              onTap: () {
-                Navigator.pop(context);
-                _pages.animateToPage(
-                  item.$1,
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOutCubic,
-                );
-                _scroll.animateTo(
-                  _menuPinOffset.clamp(0, _scroll.position.maxScrollExtent),
-                  duration: const Duration(milliseconds: 320),
-                  curve: Curves.easeOutCubic,
-                );
-              },
-            ),
-        ],
+  void _showStoreCards() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const MemberBalancePage(storeCardsOnly: true),
       ),
     );
   }
@@ -1103,57 +1063,60 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   Widget _buildTabs() {
-    const tabs = ['作品', '动态', '相册'];
-    return Row(
-      children: List.generate(tabs.length, (index) {
-        final selected = index == _selectedTab;
-        return InkWell(
-          key: ValueKey('my-profile-tab-${tabs[index]}'),
-          onTap: () => _pages.animateToPage(
-            index,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-          ),
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              0,
-              4 * _legacyScale,
-              32 * _legacyScale,
-              4 * _legacyScale,
+    const tabs = ['作品', '动态', '相册', '收藏', '喜欢'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List.generate(tabs.length, (index) {
+          final selected = index == _selectedTab;
+          return InkWell(
+            key: ValueKey('my-profile-tab-${tabs[index]}'),
+            onTap: () => _pages.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
             ),
-            child: Row(
-              children: [
-                Text(
-                  tabs[index],
-                  style: TextStyle(
-                    color: selected ? Colors.white : _muted,
-                    fontSize: (selected ? 32 : 28) * _legacyScale,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-                if (selected)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 5),
-                    child: Image.asset(
-                      'assets/legacy/profile/select.png',
-                      key: ValueKey(
-                        'my-profile-selected-tab-arrow-${tabs[index]}',
-                      ),
-                      color: _warmWhite,
-                      width: 18 * _legacyScale,
-                      height: 13 * _legacyScale,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                0,
+                4 * _legacyScale,
+                32 * _legacyScale,
+                4 * _legacyScale,
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    tabs[index],
+                    style: TextStyle(
+                      color: selected ? Colors.white : _muted,
+                      fontSize: (selected ? 32 : 28) * _legacyScale,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                     ),
                   ),
-              ],
+                  if (selected)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 5),
+                      child: Image.asset(
+                        'assets/legacy/profile/select.png',
+                        key: ValueKey(
+                          'my-profile-selected-tab-arrow-${tabs[index]}',
+                        ),
+                        color: _warmWhite,
+                        width: 18 * _legacyScale,
+                        height: 13 * _legacyScale,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        );
-      }),
+          );
+        }),
+      ),
     );
   }
 
   Widget _buildTabContent() {
-    const empty = ['暂无作品', '暂无动态', '暂无相册内容'];
+    const empty = ['暂无作品', '暂无动态', '暂无相册内容', '暂无收藏', '暂无喜欢的作品'];
     return PageView.builder(
       key: const ValueKey('my-profile-pages'),
       controller: _pages,
@@ -1182,7 +1145,10 @@ class _MyProfilePageState extends State<MyProfilePage> {
     return FutureBuilder<Map<String, dynamic>>(
       future: _contentPages.putIfAbsent(
         index,
-        () => _repository!.content(['work', 'post', 'album'][index], 0),
+        () => _repository!.content(
+          ['work', 'post', 'album', 'favorites', 'likes'][index],
+          0,
+        ),
       ),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -1203,10 +1169,55 @@ class _MyProfilePageState extends State<MyProfilePage> {
             child: Padding(
               padding: const EdgeInsets.only(top: 70),
               child: Text(
-                ['暂无作品', '暂无动态', '暂无相册内容'][index],
+                ['暂无作品', '暂无动态', '暂无相册内容', '暂无收藏', '暂无喜欢的作品'][index],
                 style: const TextStyle(color: Color(0x99FCE9D1), fontSize: 13),
               ),
             ),
+          );
+        }
+        if (index == 3) {
+          return ListView.builder(
+            padding: const EdgeInsets.only(top: 16),
+            itemCount: items.length,
+            itemBuilder: (context, i) => FavouriteStoreCard(
+              store: items[i] as Map,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => FavouriteStorePage(
+                    store: items[i] as Map,
+                    repository: _repository!,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+        if (index == 4) {
+          return GridView.builder(
+            padding: const EdgeInsets.only(top: 16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: .75,
+              crossAxisSpacing: 3,
+              mainAxisSpacing: 3,
+            ),
+            itemCount: items.length,
+            itemBuilder: (context, i) {
+              final content = HomeContent.parse(items[i]);
+              return InkWell(
+                onTap: () async {
+                  await openHomeContent(context, content, (value) async {
+                    final result = await HomeContentRepository.secure(
+                      kingclubApiBaseUrl,
+                    ).like(value, !value.liked, null);
+                    value.liked = result.liked;
+                    value.likeCount = result.count;
+                  });
+                  if (mounted) setState(() => _contentPages.remove(4));
+                },
+                child: HomeContentImage(content: content),
+              );
+            },
           );
         }
         return GridView.builder(
@@ -1345,9 +1356,21 @@ class _MyProfilePageState extends State<MyProfilePage> {
       callback();
       return;
     }
-    KingNotice.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('订单入口正在准备中，请稍后重试')));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (pageContext) => MemberOrdersPage(
+          onBack: () => Navigator.of(pageContext).pop(),
+          onOpenOrder: (ref) => Navigator.of(pageContext).push(
+            MaterialPageRoute(
+              builder: (detailContext) => MemberOrdersPage(
+                orderRef: ref,
+                onBack: () => Navigator.of(detailContext).pop(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _showEditProfile() async {

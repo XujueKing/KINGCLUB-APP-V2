@@ -29,9 +29,13 @@ class TogetherPartyCreatePage extends StatefulWidget {
     this.loadPackages,
     this.personal = false,
     this.onSelectCity,
+    this.initialStore,
+    this.initialTable,
   }) : assert(onReview != null || publication != null),
        assert(loadLibrary != null || publication != null);
   final String cityCode, cityName;
+  final TogetherStore? initialStore;
+  final TogetherTable? initialTable;
   final bool personal;
   final VoidCallback? onSelectCity;
   final TogetherStoreRepository stores;
@@ -87,6 +91,15 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
   TogetherStore? _store;
   TogetherPackage? _package;
   TogetherTable? _table;
+
+  @override
+  void initState() {
+    super.initState();
+    _store = widget.initialStore;
+    _table = widget.initialTable;
+    if (_store != null) _place.text = _store!.address;
+    if (_table != null) _capacity.text = '${_table!.maximumSeats.clamp(2, 6)}';
+  }
 
   @override
   void didUpdateWidget(covariant TogetherPartyCreatePage oldWidget) {

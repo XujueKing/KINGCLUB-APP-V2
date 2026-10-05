@@ -56,6 +56,8 @@ const _copy = {
   'payStore': '用本店余额付款|Pay with store balance|用本店餘額付款|ชำระด้วยยอดร้าน',
   'payPlatform':
       '用平台现金付款|Pay with platform cash|用平台現金付款|ชำระด้วยเงินสดแพลตฟอร์ม',
+  'myStoreCards': '我的储值|My store cards|我的儲值|บัตรเติมเงินของฉัน',
+  'remaining': '余额：|Balance:|餘額：|ยอดคงเหลือ:',
   'title': '我的余额|My balances|我的餘額|ยอดคงเหลือของฉัน',
   'total': '资产展示总额|Total displayed assets|資產展示總額|ยอดสินทรัพย์รวมที่แสดง',
   'notice': '含门店赠送金额，仅汇总展示；各账户分开使用，不代表可提现金额。|Includes store gifts for display only. Accounts are separate; this is not a withdrawable balance.|含門店贈送金額，僅彙總展示；各帳戶分開使用，不代表可提現金額。|รวมยอดของแถมจากร้านเพื่อแสดงเท่านั้น บัญชีแยกกันและไม่ใช่ยอดที่ถอนได้',

@@ -90,11 +90,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('250.00'), 100);
+      await tester.scrollUntilVisible(find.text('Balance: 250.00'), 100);
       expect(find.text('2,000.00'), findsNothing);
       expect(find.text('Total recharged'), findsNothing);
       expect(find.text('Bonus credited'), findsNothing);
-      expect(find.text('250.00'), findsOneWidget);
+      expect(find.text('Balance: 250.00'), findsOneWidget);
       await tester.scrollUntilVisible(find.byType(QrImageView), 250);
       expect(find.byType(QrImageView), findsOneWidget);
       repo.raw['stores'][0]['principalCents'] = '19900';
@@ -117,8 +117,8 @@ void main() {
       expect(find.text('Payment successful'), findsOneWidget);
       await tester.tap(find.text('View balance'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('249.00'), 100);
-      expect(find.text('249.00'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Balance: 249.00'), 100);
+      expect(find.text('Balance: 249.00'), findsOneWidget);
       expect(find.text('Payment successful'), findsNothing);
       await tester.pumpWidget(const SizedBox());
       await events.close();

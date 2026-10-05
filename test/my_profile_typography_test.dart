@@ -25,7 +25,7 @@ void main() {
     expect(styleOf('账号：K45600000199').fontSize, 11.5);
     expect(styleOf('获赞').fontSize, 26 * 393 / 750);
     expect(styleOf('获赞').fontWeight, FontWeight.w400);
-    expect(styleOf('余额：¥ 0.00').fontSize, 28 * 393 / 750);
+    expect(styleOf('余额：¥ 0.00').fontSize, 26 * 393 / 750);
     expect(styleOf('24岁').fontSize, 24 * 393 / 750);
     expect(styleOf('动态').fontSize, 28 * 393 / 750);
     expect(styleOf('动态').fontWeight, FontWeight.w400);
