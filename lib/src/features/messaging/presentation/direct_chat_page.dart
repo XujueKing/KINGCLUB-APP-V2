@@ -1,3 +1,4 @@
+import 'call_permission_prompt.dart';
 import '../data/chat_coin.dart';
 import '../data/chat_gift.dart';
 import '../data/chat_queue_completion.dart';
@@ -939,6 +940,13 @@ class _DirectChatPageState extends State<DirectChatPage>
     final lease = CallPresentationLease.acquire();
     if (lease == null) return;
     try {
+      if (!await checkCallPermission(
+        context,
+        video: media == CallMedia.video,
+      )) {
+        return;
+      }
+      if (!mounted || _leaving) return;
       await _openExclusiveCall(media, lease);
     } finally {
       lease.release();

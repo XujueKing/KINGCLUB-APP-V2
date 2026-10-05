@@ -1,3 +1,5 @@
+import 'call_permission_prompt.dart';
+
 import 'dart:async';
 
 import 'call_presentation_scope.dart';
@@ -139,6 +141,13 @@ class _CallPageState extends State<CallPage> {
       _actionError = null;
     });
     try {
+      if (!await checkCallPermission(
+        context,
+        video: _controller.call.media == CallMedia.video,
+      )) {
+        return;
+      }
+      if (!mounted || _leaving || _controller.isClosed) return;
       final runtime = SystemCallRuntime.shared;
       final handled = runtime != null && identical(runtime.active, _controller)
           ? await runtime.native.answer(_controller.call.id)

@@ -15,6 +15,7 @@ class MainActivity : FlutterActivity() {
     private var nearby: NearbyLanDiscovery? = null
     private var export: ChatFileExport? = null
     private var videoUpload: ChatVideoUpload? = null
+    private var callPermissionResult: MethodChannel.Result? = null
     private var foreground = false
     private var locationMaps: ChatLocationPickerMapFactory? = null
     private var pushRegistration: ChatPushRegistration? = null
@@ -36,8 +37,41 @@ class MainActivity : FlutterActivity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) navigationBar?.focus()
     }
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 4203) {
+            callPermissionResult?.success(grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED })
+            callPermissionResult = null
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/call-permission")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "request") result.notImplemented()
+                else if (callPermissionResult != null) result.error("PERMISSION_BUSY", "Permission request in progress", null)
+                else {
+                    val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
+                    if (call.argument<Boolean>("video") == true) permissions.add(Manifest.permission.CAMERA)
+                    val missing = permissions.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+                    if (missing.isEmpty()) result.success(true)
+                    else { callPermissionResult = result; requestPermissions(missing.toTypedArray(), 4203) }
+                }
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/app-version")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "read") { result.notImplemented() }
+                else {
+                    @Suppress("DEPRECATION")
+                    val info = packageManager.getPackageInfo(packageName, 0)
+                    @Suppress("DEPRECATION")
+                    val build = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+                    result.success(mapOf("version" to (info.versionName ?: ""), "build" to build.toString()))
+                }
+            }
+
         locationMaps = ChatLocationPickerMapFactory(flutterEngine.dartExecutor.binaryMessenger).also {
             flutterEngine.platformViewsController.registry.registerViewFactory("kingclub/location-picker-map", it)
         }

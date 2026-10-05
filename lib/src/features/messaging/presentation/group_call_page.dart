@@ -1,3 +1,5 @@
+import 'call_permission_prompt.dart';
+
 import 'dart:async';
 
 import 'call_presentation_scope.dart';
@@ -91,12 +93,27 @@ class _GroupCallPageState extends State<GroupCallPage>
     }
   }
 
+  bool _checkingPermissions = false;
+
   Future<void> _start() async {
     if (_busy ||
+        _checkingPermissions ||
         _invalid ||
         (_selected.isEmpty && widget.acceptedInvitation == null)) {
       return;
     }
+    _checkingPermissions = true;
+    try {
+      if (!await checkCallPermission(
+        context,
+        video: widget.media == CallMedia.video,
+      )) {
+        return;
+      }
+    } finally {
+      _checkingPermissions = false;
+    }
+    if (!mounted || _invalid) return;
     setState(() {
       _busy = true;
       _error = null;

@@ -21,6 +21,7 @@ class CallStateController extends ChangeNotifier {
     required this.repository,
     required CallSnapshot initial,
     required this.sessionFactory,
+    this.beforeAccept,
     bool outgoingAttempt = false,
     required Stream<void> sessionChanges,
     Stream<Map<String, dynamic>>? events,
@@ -83,6 +84,7 @@ class CallStateController extends ChangeNotifier {
   Object? get error => _error;
   CallMediaSession? _media;
   CallMediaSession? get media => _media;
+  final Future<void> Function()? beforeAccept;
   bool get isClosed => _closed;
   bool get isEnding => _ending;
   bool get needsAccept =>
@@ -187,6 +189,8 @@ class CallStateController extends ChangeNotifier {
     if (_captureAuthorized) return;
     // An uncertain accept response is retried with the same expected version
     // and ID even if a poll has already observed connecting in the meantime.
+    await beforeAccept?.call();
+    if (_closed || _ending) return;
     await _act(CallAction.accept);
     if (_closed || _ending) return;
     _captureAuthorized = true;

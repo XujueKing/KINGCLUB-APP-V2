@@ -1,3 +1,4 @@
+import 'package:kingclub/src/features/messaging/data/call_capture_permission.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import 'dart:async';
@@ -100,6 +101,38 @@ class DurationClock extends Stopwatch {
 }
 
 void main() {
+  test('denied microphone does not accept, hang up, or open media', () async {
+    var requests = 0, captures = 0;
+    final repository = CallRepository(
+      MessagingRepository(
+        account: 'b',
+        call: (_, _) async {
+          requests++;
+          return {'call': state('ringing', 0)};
+        },
+      ),
+    );
+    final controller = CallStateController(
+      repository: repository,
+      initial: CallSnapshot.parse(state('ringing', 0), 'b'),
+      beforeAccept: () async => throw CallCapturePermissionDenied(),
+      sessionChanges: const Stream.empty(),
+      sessionFactory: (call, _) {
+        captures++;
+        return Session(repository, call);
+      },
+    );
+    await expectLater(
+      controller.accept(),
+      throwsA(isA<CallCapturePermissionDenied>()),
+    );
+    expect(requests, 0);
+    expect(captures, 0);
+    expect(controller.needsAccept, isTrue);
+    expect(controller.isEnding, isFalse);
+    controller.dispose();
+  });
+
   test(
     'relationship notification during read refreshes again and closes media',
     () async {

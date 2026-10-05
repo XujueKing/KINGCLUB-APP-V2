@@ -1,3 +1,5 @@
+import '../../../core/app_version.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 
 import '../../auth/presentation/terms_consent_page.dart';
@@ -222,9 +224,11 @@ class _AboutLegalPageState extends State<AboutLegalPage> {
             ),
           ),
           SizedBox(height: 40 * scale),
+          const InstalledAppVersion(
+            style: TextStyle(color: _gold, fontSize: 16),
+          ),
           for (final line in const [
             '技术支持：548627@qq.com',
-            '版本号：1.0.0 (1)',
             '软件著作权认证证书：软著认000255367号',
             '电子版权认证证书：电子认证第 R20250000054907 号',
             'ICP备案号：湘ICP备2025115786号-2A（APP）',

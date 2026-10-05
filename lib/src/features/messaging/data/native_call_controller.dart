@@ -1,3 +1,4 @@
+import 'call_capture_permission.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../../core/networking/kingclub_realtime.dart';
 import 'call_media_session.dart';
@@ -15,6 +16,8 @@ CallStateController createNativeCallController({
   relay.requireUsable(initial.id);
   return CallStateController(
     repository: repository,
+    beforeAccept: () =>
+        requireCallCapturePermission(video: initial.media == CallMedia.video),
     initial: initial,
     outgoingAttempt: outgoingAttempt,
     sessionChanges: SecureSessionStore.changes.stream,

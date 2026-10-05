@@ -1,3 +1,5 @@
+import '../../../core/app_version.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
@@ -255,9 +257,22 @@ class _SettingsPageState extends State<SettingsPage>
             Icon(entry.$4, color: _gold, size: 22),
             const SizedBox(width: 15),
             Expanded(
-              child: Text(
-                _entryTitle(entry),
-                style: const TextStyle(color: _gold, fontSize: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _entryTitle(entry),
+                    style: const TextStyle(color: _gold, fontSize: 16),
+                  ),
+                  if (entry.$1 == 'about')
+                    const InstalledAppVersion(
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 12,
+                        height: 1.5,
+                      ),
+                    ),
+                ],
               ),
             ),
             if (info.isNotEmpty) ...[

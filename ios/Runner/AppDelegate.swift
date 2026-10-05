@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import UserNotifications
 import AVFAudio
+import AVFoundation
 import MapKit
 
 @main
@@ -23,6 +24,27 @@ import MapKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    FlutterMethodChannel(name: "kingclub/call-permission", binaryMessenger: engineBridge.applicationRegistrar.messenger())
+      .setMethodCallHandler { call, result in
+        guard call.method == "request" else { result(FlutterMethodNotImplemented); return }
+        let video = (call.arguments as? [String: Any])?["video"] as? Bool ?? false
+        AVAudioSession.sharedInstance().requestRecordPermission { granted in
+          guard granted else { DispatchQueue.main.async { result(false) }; return }
+          if video {
+            AVCaptureDevice.requestAccess(for: .video) { allowed in
+              DispatchQueue.main.async { result(allowed) }
+            }
+          } else { DispatchQueue.main.async { result(true) } }
+        }
+      }
+
+    FlutterMethodChannel(name: "kingclub/app-version", binaryMessenger: engineBridge.applicationRegistrar.messenger())
+      .setMethodCallHandler { call, result in
+        guard call.method == "read" else { result(FlutterMethodNotImplemented); return }
+        result(["version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+                "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""])
+      }
+
     mapPreview = AppleChatMapPreview(messenger: engineBridge.applicationRegistrar.messenger())
     chatMap = AppleChatMapNavigation(messenger: engineBridge.applicationRegistrar.messenger())
     engineBridge.applicationRegistrar.register(
