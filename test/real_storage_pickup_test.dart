@@ -12,14 +12,17 @@ class Repo extends PreviewStorageRepository {
   Repo() : super(fixture);
   int calls = 0;
   bool available = true;
+  bool confirmed = false;
   @override
   Future<StorageItem> detail(String ref) async => available
       ? fixture.first
-      : const StorageItem(
+      : StorageItem(
           ref: 'wine-1',
           name: '测试',
+          storeName: 'Test venue',
           assetKey: 'vodka',
-          status: 'collected',
+          status: confirmed ? 'available' : 'collected',
+          pickupConfirmed: confirmed,
           canPickup: false,
         );
   @override
@@ -77,6 +80,7 @@ void main() {
           find.byKey(const ValueKey('storage-pickup-success')),
           findsNothing,
         );
+        repo.confirmed = true;
         repo.available = false;
         if (notify) {
           events.add({'eventType': 'storage.changed'});
@@ -89,6 +93,7 @@ void main() {
           findsOneWidget,
         );
         expect(find.byType(QrImageView), findsNothing);
+        expect(find.textContaining('Test venue'), findsOneWidget);
         final issued = repo.calls;
         await tester.pump(const Duration(seconds: 35));
         expect(repo.calls, issued);

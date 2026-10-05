@@ -97,7 +97,7 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
     try {
       final detail = await widget.repository.detail(_item.ref);
       if (!mounted || epoch != _epoch) return;
-      if (detail.status == 'collected') {
+      if ((detail.status == 'collected' || detail.pickupConfirmed)) {
         _complete(detail);
         return;
       }
@@ -174,7 +174,7 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
       if (mounted &&
           _foreground &&
           epoch == _epoch &&
-          detail.status == 'collected') {
+          (detail.status == 'collected' || detail.pickupConfirmed)) {
         _complete(detail);
       }
     } catch (_) {
@@ -196,53 +196,88 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
   }
 
   Widget _success() => Scaffold(
-    backgroundColor: const Color(0xFF101010),
-    appBar: kingAppBar(
-      context: context,
-      title: Text(
-        _text(['取酒成功', 'Pickup complete', '取酒成功', 'รับเครื่องดื่มสำเร็จ']),
-      ),
-      leading: KingBackButton(onPressed: () => Navigator.pop(context)),
-    ),
+    backgroundColor: Colors.black,
     body: SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Spacer(),
-            const Icon(Icons.check_circle, color: Color(0xFF24A65A), size: 76),
-            const SizedBox(height: 24),
-            Text(
-              _text(['已取酒', 'Collected', '已取酒', 'รับแล้ว']),
-              key: const ValueKey('storage-pickup-success'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final unit = constraints.maxWidth.clamp(0, 430) / 750;
+          const gold = Color(0xFFC9B69E);
+          return SizedBox(
+            width: constraints.maxWidth,
+            child: Column(
+              children: [
+                SizedBox(height: 230 * unit),
+                Image.asset(
+                  'assets/legacy/storage/pickup_success.png',
+                  width: 100 * unit,
+                  height: 100 * unit,
+                ),
+                SizedBox(height: 40 * unit),
+                Text(
+                  _text([
+                    '取酒成功',
+                    'Pickup successful',
+                    '取酒成功',
+                    'รับเครื่องดื่มสำเร็จ',
+                  ]),
+                  key: const ValueKey('storage-pickup-success'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: gold,
+                    fontSize: 40 * unit,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                SizedBox(height: 30 * unit),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 75 * unit),
+                  child: Text(
+                    [
+                      _item.storeName,
+                      _item.name,
+                    ].where((s) => s.isNotEmpty).join('\n'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: gold.withValues(alpha: .8),
+                      fontSize: 26 * unit,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                SizedBox(
+                  width: 600 * unit,
+                  height: 90 * unit,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF24180A),
+                      foregroundColor: gold,
+                      textStyle: TextStyle(
+                        fontSize: 32 * unit,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      shape: const StadiumBorder(),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      _text([
+                        '返回储物袋',
+                        'Back to storage',
+                        '返回儲物袋',
+                        'กลับไปยังที่เก็บของ',
+                      ]),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 20 * unit),
+                Text(
+                  'SHANGHAI . ZHUZHOU',
+                  style: TextStyle(color: gold, fontSize: 28 * unit),
+                ),
+                SizedBox(height: 100 * unit),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              _item.name,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 17),
-            ),
-            const Spacer(),
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                _text([
-                  '返回储物袋',
-                  'Back to storage',
-                  '返回儲物袋',
-                  'กลับไปยังที่เก็บของ',
-                ]),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     ),
   );
@@ -405,6 +440,11 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                           ),
                         if (_item.category == 'item') ...[
                           SizedBox(height: _item.status == 'expired' ? 20 : 46),
+                          if (_item.storeName.isNotEmpty)
+                            _detailRow(
+                              _text(['商家', 'Venue', '商家', 'ร้าน']),
+                              _item.storeName,
+                            ),
                           _detailRow('物品名', _item.name),
                           if (_item.description.isNotEmpty)
                             Padding(
@@ -453,6 +493,11 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
                           ] else
                             const SizedBox(height: 20),
                           for (final row in [
+                            if (_item.storeName.isNotEmpty)
+                              (
+                                _text(['商家', 'Venue', '商家', 'ร้าน']),
+                                _item.storeName,
+                              ),
                             ('品名', _item.name),
                             ('英文名', _item.englishName),
                             ('数量', '${_item.quantity}'),

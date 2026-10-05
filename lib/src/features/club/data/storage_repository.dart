@@ -10,6 +10,7 @@ class StorageItem {
     required this.assetKey,
     this.category = 'wine',
     this.englishName = '',
+    this.storeName = '',
     this.description = '',
     this.quantity = 1,
     this.remainingPercent = 100,
@@ -18,6 +19,7 @@ class StorageItem {
     this.maximumValue,
     this.status = 'available',
     this.canPickup = true,
+    this.pickupConfirmed = false,
   });
   factory StorageItem.fromJson(Map<String, dynamic> j) => StorageItem(
     ref: j['itemRef'] as String,
@@ -25,6 +27,7 @@ class StorageItem {
     assetKey: j['assetKey'] as String,
     category: j['category'] as String,
     englishName: j['englishName'] as String? ?? '',
+    storeName: j['storeName'] as String? ?? '',
     description: j['description'] as String? ?? '',
     quantity: (j['quantity'] as num).toInt(),
     remainingPercent: (j['remainingPercent'] as num).toDouble(),
@@ -33,12 +36,14 @@ class StorageItem {
     maximumValue: (j['maximumValue'] as num?)?.toDouble(),
     status: j['status'] as String,
     canPickup: j['canPickup'] == true,
+    pickupConfirmed: j['pickupConfirmed'] == true,
   );
   final String ref,
       name,
       assetKey,
       category,
       englishName,
+      storeName,
       description,
       storedAt,
       expiresAt,
@@ -47,6 +52,7 @@ class StorageItem {
   final double remainingPercent;
   final double? maximumValue;
   final bool canPickup;
+  final bool pickupConfirmed;
   String get expiresLabel {
     final date = DateTime.tryParse(expiresAt)?.toLocal();
     return date == null ? '' : date.toString().split('.').first;

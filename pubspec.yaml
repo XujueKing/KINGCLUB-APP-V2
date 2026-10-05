@@ -120,6 +120,7 @@ flutter:
     - assets/legacy/navigation/
     - assets/legacy/navigation/content-heart.png
     - assets/legacy/storage/
+    - assets/legacy/storage/pickup_success.png
     - assets/legacy/profile/
     - assets/legacy/friendship/
     - assets/legacy/friendship/man3.png
