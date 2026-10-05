@@ -1279,6 +1279,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: Colors.black,
         appBar: kingAppBar(
           context: context,
@@ -1301,7 +1302,12 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(r(20), r(10), r(20), r(24)),
+                  padding: EdgeInsets.fromLTRB(
+                    r(20),
+                    r(10),
+                    r(20),
+                    r(24) + MediaQuery.viewInsetsOf(context).bottom,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -1614,103 +1620,102 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                   ),
                 ),
               ),
-              if (MediaQuery.viewInsetsOf(context).bottom == 0)
-                Container(
-                  key: const ValueKey('payment-bottom-bar'),
-                  padding: EdgeInsets.fromLTRB(
-                    r(50),
-                    r(20),
-                    r(25),
-                    r(20) + MediaQuery.paddingOf(context).bottom,
-                  ),
-                  decoration: const BoxDecoration(
-                    border: Border(top: BorderSide(color: Color(0x40C9B69E))),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xCC000000), Colors.black],
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: status == 'paid' ? '实付 ￥' : '应付 ￥',
-                                  style: TextStyle(
-                                    fontSize: r(28),
-                                    color: const Color(0x80DDCBB5),
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: _money(amount),
-                                  style: TextStyle(
-                                    fontSize: r(42),
-                                    color: const Color(0xFFDDCBB5),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: r(20)),
-                      SizedBox(
-                        width: r(190),
-                        height: r(80),
-                        child: FilledButton(
-                          onPressed: terminal || (_postpay && _receipt != null)
-                              ? widget.onBack
-                              : (_busy ||
-                                        _quoting ||
-                                        !_ready ||
-                                        _receipt?.cancellationRequested == true
-                                    ? null
-                                    : _pay),
-                          style: FilledButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            shape: const StadiumBorder(),
-                            backgroundColor: const Color(0xFFC9B69E),
-                            foregroundColor: const Color(0xFF1B1206),
-                            textStyle: TextStyle(
-                              fontSize: r(30),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          child: Text(
-                            _busy
-                                ? '正在提交…'
-                                : status == 'paid'
-                                ? '支付成功 · 返回'
-                                : status == 'expired'
-                                ? '重新选购'
-                                : _postpay
-                                ? (_receipt == null
-                                      ? _paymentText([
-                                          '提交订单',
-                                          'Place order',
-                                          '提交訂單',
-                                          'ส่งคำสั่งซื้อ',
-                                        ])
-                                      : _paymentText([
-                                          '继续点单',
-                                          'Continue ordering',
-                                          '繼續點單',
-                                          'สั่งเพิ่ม',
-                                        ]))
-                                : '立即支付',
-                          ),
-                        ),
-                      ),
-                    ],
+              Container(
+                key: const ValueKey('payment-bottom-bar'),
+                padding: EdgeInsets.fromLTRB(
+                  r(50),
+                  r(20),
+                  r(25),
+                  r(20) + MediaQuery.paddingOf(context).bottom,
+                ),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Color(0x40C9B69E))),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xCC000000), Colors.black],
                   ),
                 ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: status == 'paid' ? '实付 ￥' : '应付 ￥',
+                                style: TextStyle(
+                                  fontSize: r(28),
+                                  color: const Color(0x80DDCBB5),
+                                ),
+                              ),
+                              TextSpan(
+                                text: _money(amount),
+                                style: TextStyle(
+                                  fontSize: r(42),
+                                  color: const Color(0xFFDDCBB5),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: r(20)),
+                    SizedBox(
+                      width: r(190),
+                      height: r(80),
+                      child: FilledButton(
+                        onPressed: terminal || (_postpay && _receipt != null)
+                            ? widget.onBack
+                            : (_busy ||
+                                      _quoting ||
+                                      !_ready ||
+                                      _receipt?.cancellationRequested == true
+                                  ? null
+                                  : _pay),
+                        style: FilledButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          shape: const StadiumBorder(),
+                          backgroundColor: const Color(0xFFC9B69E),
+                          foregroundColor: const Color(0xFF1B1206),
+                          textStyle: TextStyle(
+                            fontSize: r(30),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        child: Text(
+                          _busy
+                              ? '正在提交…'
+                              : status == 'paid'
+                              ? '支付成功 · 返回'
+                              : status == 'expired'
+                              ? '重新选购'
+                              : _postpay
+                              ? (_receipt == null
+                                    ? _paymentText([
+                                        '提交订单',
+                                        'Place order',
+                                        '提交訂單',
+                                        'ส่งคำสั่งซื้อ',
+                                      ])
+                                    : _paymentText([
+                                        '继续点单',
+                                        'Continue ordering',
+                                        '繼續點單',
+                                        'สั่งเพิ่ม',
+                                      ]))
+                              : '立即支付',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

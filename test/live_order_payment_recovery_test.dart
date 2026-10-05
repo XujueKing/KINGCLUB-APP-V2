@@ -368,15 +368,17 @@ void main() {
   });
 
   testWidgets(
-    'prepay has one payment action and keyboard hides it while amounts reprice',
+    'prepay action stays at screen bottom under keyboard while amounts reprice',
     (tester) async {
       final h = _Harness()..combinedEnabled = true;
       await h.mount(tester, saved: false);
       expect(find.byKey(const ValueKey('order-create-only')), findsNothing);
       expect(find.textContaining('Worth ¥1.00'), findsOneWidget);
+      final paymentBar = find.byKey(const ValueKey('payment-bottom-bar'));
+      final originalPosition = tester.getRect(paymentBar);
       tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       await tester.pump();
-      expect(find.byKey(const ValueKey('payment-bottom-bar')), findsNothing);
+      expect(tester.getRect(paymentBar), originalPosition);
       await tester.enterText(find.byKey(const ValueKey('checkout-coins')), '2');
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
