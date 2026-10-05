@@ -368,27 +368,28 @@ void main() {
   });
 
   testWidgets(
-    'create only avoids SDK and later payment reuses original request',
+    'prepay has one payment action and keyboard hides it while amounts reprice',
     (tester) async {
-      final h = _Harness();
+      final h = _Harness()..combinedEnabled = true;
       await h.mount(tester, saved: false);
-      await tester.tap(find.byKey(const ValueKey('order-create-only')));
+      expect(find.byKey(const ValueKey('order-create-only')), findsNothing);
+      expect(find.textContaining('Worth ¥1.00'), findsOneWidget);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pump();
+      expect(find.byKey(const ValueKey('payment-bottom-bar')), findsNothing);
+      await tester.enterText(find.byKey(const ValueKey('checkout-coins')), '2');
+      await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
-      expect(h.submittedInitiation, [false]);
-      expect(h.launched, 0);
-      expect(h.confirmed, 0);
-      expect(
-        await const FlutterSecureStorage().read(key: _storageKey),
-        isNotNull,
-      );
-      await tester.tap(find.text('立即支付'));
+      expect(h.composition!['externalCents'], '80');
+      expect(h.lastSelection, isNull);
+      tester.view.resetViewInsets();
       await tester.pumpAndSettle();
-      expect(h.submittedInitiation, [false, true]);
-      expect(h.submittedIds.toSet(), hasLength(1));
-      expect(h.launched, 1);
+      expect(find.byKey(const ValueKey('payment-bottom-bar')), findsOneWidget);
       await h.finish(tester);
     },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
   );
+
   for (final result in ['expired', 'paid', 'pending', 'unknown']) {
     testWidgets('explicit cancellation honors authoritative result: $result', (
       tester,

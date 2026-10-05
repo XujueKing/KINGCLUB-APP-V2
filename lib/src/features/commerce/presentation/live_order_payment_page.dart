@@ -52,6 +52,13 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   final _coinInput = TextEditingController(text: '0');
   final _storeInput = TextEditingController(text: '0.00');
   Future<void>? _inputCommit;
+  Timer? _inputDebounce;
+  void _amountChanged(String _) {
+    setState(() {});
+    _inputDebounce?.cancel();
+    _inputDebounce = Timer(const Duration(milliseconds: 300), _commitInputs);
+  }
+
   void _syncInputs() {
     _coinInput.text = _selection?['coins']?.toString() ?? '0';
     final cents =
@@ -76,6 +83,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
           (_selection?['storeBalanceCents'] ?? '0'));
 
   Future<void> _commitInputs() async {
+    _inputDebounce?.cancel();
     if (_inputCommit != null) await _inputCommit;
     if (!mounted ||
         _channelLocked ||
@@ -633,7 +641,9 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
         );
         _benefits = result;
         _selection = {...choice, 'quoteHash': result['quoteHash']};
-        if (inputSnapshot == (_coinInput.text, _storeInput.text)) {
+        if (changes?['coins'] == null &&
+            changes?['storeBalanceCents'] == null &&
+            !_inputsChanged) {
           _syncInputs();
         }
         _quoteError = null;
@@ -643,16 +653,28 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     } catch (e) {
       if (mounted) {
         setState(
-          () => _quoteError = _paymentText([
-            '抵扣信息未更新，点击重试',
-            'Could not update discounts. Tap to retry.',
-            '抵扣資訊未更新，點擊重試',
-            'อัปเดตส่วนลดไม่สำเร็จ แตะเพื่อลองอีกครั้ง',
-          ]),
+          () => _quoteError = e is AuthFailure
+              ? e.message
+              : _paymentText([
+                  '抵扣信息未更新，点击重试',
+                  'Could not update discounts. Tap to retry.',
+                  '抵扣資訊未更新，點擊重試',
+                  'อัปเดตส่วนลดไม่สำเร็จ แตะเพื่อลองอีกครั้ง',
+                ]),
         );
       }
     } finally {
-      if (mounted) setState(() => _quoting = false);
+      if (mounted) {
+        setState(() => _quoting = false);
+        if (inputSnapshot != (_coinInput.text, _storeInput.text) &&
+            _inputsChanged) {
+          _inputDebounce?.cancel();
+          _inputDebounce = Timer(
+            const Duration(milliseconds: 300),
+            _commitInputs,
+          );
+        }
+      }
     }
   }
 
@@ -840,6 +862,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
   Widget _amountInputRow({
     required String title,
     required String balance,
+    String? helper,
     required TextEditingController controller,
     required bool money,
     required String key,
@@ -868,9 +891,21 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
             ),
           ),
           Expanded(
-            child: Text(
-              '$title（$balance）',
-              style: const TextStyle(fontSize: 15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$title（$balance）', style: const TextStyle(fontSize: 15)),
+                if (helper != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    helper,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF625648),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(width: 8),
@@ -900,6 +935,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(9),
                     ],
+              onChanged: _amountChanged,
               onSubmitted: (_) {
                 FocusManager.instance.primaryFocus?.unfocus();
                 _commitInputs();
@@ -1085,6 +1121,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
 
   @override
   void dispose() {
+    _inputDebounce?.cancel();
     _coinInput.dispose();
     _storeInput.dispose();
     _paymentReturn?.cancel();
@@ -1400,6 +1437,12 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                               'เหรียญ',
                             ]),
                             balance: '${_benefits?['coins'] ?? '—'}',
+                            helper: _paymentText([
+                              '价值 ¥${_money((int.tryParse(_benefits?['coins']?.toString() ?? '') ?? 0) * 10)} · 10金币抵1元',
+                              'Worth ¥${_money((int.tryParse(_benefits?['coins']?.toString() ?? '') ?? 0) * 10)} · 10 coins = ¥1',
+                              '價值 ¥${_money((int.tryParse(_benefits?['coins']?.toString() ?? '') ?? 0) * 10)} · 10金幣抵1元',
+                              'มูลค่า ¥${_money((int.tryParse(_benefits?['coins']?.toString() ?? '') ?? 0) * 10)} · 10 เหรียญ = ¥1',
+                            ]),
                             controller: _coinInput,
                             money: false,
                             key: 'checkout-coins',
@@ -1571,117 +1614,103 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                   ),
                 ),
               ),
-              Container(
-                key: const ValueKey('payment-bottom-bar'),
-                padding: EdgeInsets.fromLTRB(
-                  r(50),
-                  r(20),
-                  r(25),
-                  r(20) + MediaQuery.paddingOf(context).bottom,
-                ),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Color(0x40C9B69E))),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xCC000000), Colors.black],
+              if (MediaQuery.viewInsetsOf(context).bottom == 0)
+                Container(
+                  key: const ValueKey('payment-bottom-bar'),
+                  padding: EdgeInsets.fromLTRB(
+                    r(50),
+                    r(20),
+                    r(25),
+                    r(20) + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: Color(0x40C9B69E))),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xCC000000), Colors.black],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: status == 'paid' ? '实付 ￥' : '应付 ￥',
+                                  style: TextStyle(
+                                    fontSize: r(28),
+                                    color: const Color(0x80DDCBB5),
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: _money(amount),
+                                  style: TextStyle(
+                                    fontSize: r(42),
+                                    color: const Color(0xFFDDCBB5),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: r(20)),
+                      SizedBox(
+                        width: r(190),
+                        height: r(80),
+                        child: FilledButton(
+                          onPressed: terminal || (_postpay && _receipt != null)
+                              ? widget.onBack
+                              : (_busy ||
+                                        _quoting ||
+                                        !_ready ||
+                                        _receipt?.cancellationRequested == true
+                                    ? null
+                                    : _pay),
+                          style: FilledButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            shape: const StadiumBorder(),
+                            backgroundColor: const Color(0xFFC9B69E),
+                            foregroundColor: const Color(0xFF1B1206),
+                            textStyle: TextStyle(
+                              fontSize: r(30),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          child: Text(
+                            _busy
+                                ? '正在提交…'
+                                : status == 'paid'
+                                ? '支付成功 · 返回'
+                                : status == 'expired'
+                                ? '重新选购'
+                                : _postpay
+                                ? (_receipt == null
+                                      ? _paymentText([
+                                          '提交订单',
+                                          'Place order',
+                                          '提交訂單',
+                                          'ส่งคำสั่งซื้อ',
+                                        ])
+                                      : _paymentText([
+                                          '继续点单',
+                                          'Continue ordering',
+                                          '繼續點單',
+                                          'สั่งเพิ่ม',
+                                        ]))
+                                : '立即支付',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: status == 'paid' ? '实付 ￥' : '应付 ￥',
-                                style: TextStyle(
-                                  fontSize: r(28),
-                                  color: const Color(0x80DDCBB5),
-                                ),
-                              ),
-                              TextSpan(
-                                text: _money(amount),
-                                style: TextStyle(
-                                  fontSize: r(42),
-                                  color: const Color(0xFFDDCBB5),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (!_postpay && !terminal && _receipt == null)
-                      TextButton(
-                        key: const ValueKey('order-create-only'),
-                        onPressed: _busy || !_ready
-                            ? null
-                            : () => _pay(initiatePayment: false),
-                        child: Text(
-                          _paymentText([
-                            '提交订单',
-                            'Place order',
-                            '提交訂單',
-                            'ส่งคำสั่งซื้อ',
-                          ]),
-                        ),
-                      ),
-                    SizedBox(width: r(20)),
-                    SizedBox(
-                      width: r(190),
-                      height: r(80),
-                      child: FilledButton(
-                        onPressed: terminal || (_postpay && _receipt != null)
-                            ? widget.onBack
-                            : (_busy ||
-                                      _quoting ||
-                                      !_ready ||
-                                      _receipt?.cancellationRequested == true
-                                  ? null
-                                  : _pay),
-                        style: FilledButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          shape: const StadiumBorder(),
-                          backgroundColor: const Color(0xFFC9B69E),
-                          foregroundColor: const Color(0xFF1B1206),
-                          textStyle: TextStyle(
-                            fontSize: r(30),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        child: Text(
-                          _busy
-                              ? '正在提交…'
-                              : status == 'paid'
-                              ? '支付成功 · 返回'
-                              : status == 'expired'
-                              ? '重新选购'
-                              : _postpay
-                              ? (_receipt == null
-                                    ? _paymentText([
-                                        '提交订单',
-                                        'Place order',
-                                        '提交訂單',
-                                        'ส่งคำสั่งซื้อ',
-                                      ])
-                                    : _paymentText([
-                                        '继续点单',
-                                        'Continue ordering',
-                                        '繼續點單',
-                                        'สั่งเพิ่ม',
-                                      ]))
-                              : '立即支付',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
