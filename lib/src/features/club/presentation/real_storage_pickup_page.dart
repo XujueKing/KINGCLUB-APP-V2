@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_result_page.dart';
+
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
 import '../../../core/networking/kingclub_realtime.dart';
@@ -195,91 +197,20 @@ class _RealStoragePickupPageState extends State<RealStoragePickupPage>
         : 0];
   }
 
-  Widget _success() => Scaffold(
-    backgroundColor: Colors.black,
-    body: SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final unit = constraints.maxWidth.clamp(0, 430) / 750;
-          const gold = Color(0xFFC9B69E);
-          return SizedBox(
-            width: constraints.maxWidth,
-            child: Column(
-              children: [
-                SizedBox(height: 230 * unit),
-                Image.asset(
-                  'assets/legacy/storage/pickup_success.png',
-                  width: 100 * unit,
-                  height: 100 * unit,
-                ),
-                SizedBox(height: 40 * unit),
-                Text(
-                  _text([
-                    '取酒成功',
-                    'Pickup successful',
-                    '取酒成功',
-                    'รับเครื่องดื่มสำเร็จ',
-                  ]),
-                  key: const ValueKey('storage-pickup-success'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: gold,
-                    fontSize: 40 * unit,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                SizedBox(height: 30 * unit),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 75 * unit),
-                  child: Text(
-                    [
-                      _item.storeName,
-                      _item.name,
-                    ].where((s) => s.isNotEmpty).join('\n'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: gold.withValues(alpha: .8),
-                      fontSize: 26 * unit,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: 600 * unit,
-                  height: 90 * unit,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF24180A),
-                      foregroundColor: gold,
-                      textStyle: TextStyle(
-                        fontSize: 32 * unit,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      shape: const StadiumBorder(),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      _text([
-                        '返回储物袋',
-                        'Back to storage',
-                        '返回儲物袋',
-                        'กลับไปยังที่เก็บของ',
-                      ]),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20 * unit),
-                Text(
-                  'SHANGHAI . ZHUZHOU',
-                  style: TextStyle(color: gold, fontSize: 28 * unit),
-                ),
-                SizedBox(height: 100 * unit),
-              ],
-            ),
-          );
-        },
-      ),
-    ),
+  Widget _success() => KingResultPage(
+    title: _text(['取酒成功', 'Pickup successful', '取酒成功', 'รับเครื่องดื่มสำเร็จ']),
+    titleKey: const ValueKey('storage-pickup-success'),
+    description: [
+      _item.storeName,
+      _item.name,
+    ].where((s) => s.isNotEmpty).join('\n'),
+    buttonText: _text([
+      '返回储物袋',
+      'Back to storage',
+      '返回儲物袋',
+      'กลับไปยังที่เก็บของ',
+    ]),
+    onReturn: () => Navigator.pop(context),
   );
 
   Future<void> _delete() async {

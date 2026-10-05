@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_result_page.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 
 import '../../../core/session/member_qr_memory.dart';
@@ -218,66 +220,16 @@ class _RealPersonalQrPageState extends State<RealPersonalQrPage>
       }
     }
 
-    const gold = Color(0xFFC9B69E);
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: back,
-          child: SizedBox.expand(
-            child: Column(
-              children: [
-                const SizedBox(height: 110),
-                Image.asset(
-                  'assets/legacy/storage/pickup_success.png',
-                  width: 54,
-                  height: 54,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  t('存酒成功|Wine stored successfully|存酒成功|ฝากเครื่องดื่มสำเร็จ'),
-                  key: const ValueKey('wine-deposit-success'),
-                  style: const TextStyle(color: gold, fontSize: 24),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    [
-                      _deposited!.storeName,
-                      _deposited!.name,
-                    ].where((s) => s.isNotEmpty).join('\n'),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: gold,
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: FilledButton(
-                      onPressed: back,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF24180A),
-                        foregroundColor: gold,
-                      ),
-                      child: Text(t('完成|Done|完成|เสร็จสิ้น')),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 46),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return KingResultPage(
+      title: t('存酒成功|Wine stored successfully|存酒成功|ฝากเครื่องดื่มสำเร็จ'),
+      titleKey: const ValueKey('wine-deposit-success'),
+      description: [
+        _deposited!.storeName,
+        _deposited!.name,
+      ].where((s) => s.isNotEmpty).join('\n'),
+      buttonText: t('完成|Done|完成|เสร็จสิ้น'),
+      onReturn: back,
+      tapAnywhere: true,
     );
   }
 

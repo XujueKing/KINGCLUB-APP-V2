@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_result_page.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -379,11 +381,13 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
       key: ValueKey('payment-result-${_stage.name}'),
       visual: result.useLegacySuccess
           ? Image.asset(
-              'assets/legacy/payment/legacy_payment_success.png',
+              'assets/legacy/storage/success2.png',
               width: 92,
               height: 92,
               fit: BoxFit.contain,
             )
+          : _stage == PaymentResultStage.failed
+          ? const KingResultIcon(success: false)
           : Container(
               width: 88,
               height: 88,
@@ -888,12 +892,12 @@ class _ResultButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 48,
+      height: 45,
       child: primary
           ? FilledButton(
               onPressed: onPressed,
               style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 48),
+                minimumSize: const Size(0, 45),
                 backgroundColor: legacyGold,
                 foregroundColor: const Color(0xFF181205),
                 shape: const StadiumBorder(),
@@ -903,7 +907,7 @@ class _ResultButton extends StatelessWidget {
           : OutlinedButton(
               onPressed: onPressed,
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 48),
+                minimumSize: const Size(0, 45),
                 foregroundColor: legacyGold,
                 side: const BorderSide(color: Color(0xFF665749)),
                 shape: const StadiumBorder(),

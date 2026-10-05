@@ -223,7 +223,7 @@ void main() {
         );
         await tester.tap(find.byKey(const ValueKey('payment-provider-wechat')));
         await tester.pumpAndSettle();
-        expect(find.text('Payment method'), findsOneWidget);
+        expect(find.byKey(const ValueKey('checkout-payment-sheet')), findsOneWidget);
         expect(find.text('Unavailable'), findsOneWidget);
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();

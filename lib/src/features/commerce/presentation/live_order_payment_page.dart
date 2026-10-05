@@ -1163,7 +1163,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                   child: Column(
                     children: [
                       Image.asset(
-                        'assets/legacy/payment/legacy_payment_success.png',
+                        'assets/legacy/storage/success2.png',
                         width: 92,
                         height: 92,
                         fit: BoxFit.contain,
@@ -1173,8 +1173,8 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                         '支付成功',
                         style: TextStyle(
                           color: gold,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w400,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1188,7 +1188,7 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Color(0xFFAAA097),
-                          fontSize: 14,
+                          fontSize: 17,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -1215,12 +1215,18 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
               child: Column(
                 children: [
                   SizedBox(
-                    width: double.infinity,
-                    height: 48,
+                    width: KingBackButton.contentWidth(context),
+                    height: 45,
                     child: FilledButton(
                       key: const ValueKey('live-payment-success-return'),
                       onPressed: widget.onBack,
                       style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(45),
+                        shape: const StadiumBorder(),
+                        textStyle: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                         backgroundColor: gold,
                         foregroundColor: const Color(0xFF181205),
                       ),
