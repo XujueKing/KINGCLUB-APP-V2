@@ -431,6 +431,9 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
 
   Widget tableReceipt() {
     const ink = Color(0xFFDDDDDD);
+    final payments = orders
+        .where((o) => o.status == 'paid' && o.paidAt != null)
+        .toList();
     final lines =
         <
           String,
@@ -491,7 +494,35 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
     return Column(
       children: [
         card('table-bill-store', [
-          field(t('store'), widget.tableStoreName ?? ''),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Text(t('store')),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Image.asset(
+                        'assets/legacy/messaging/notification_kingclub.png',
+                        key: const ValueKey('table-store-logo'),
+                        width: 28,
+                        height: 28,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          widget.tableStoreName ?? '',
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           field(t('table'), widget.tableName ?? ''),
         ]),
         card('table-bill-products', [
@@ -628,9 +659,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
         if (orders.any((o) => o.status == 'paid' && o.paidAt != null))
           card('table-bill-payments', [
             Text(t('payments')),
-            for (final order in orders.where(
-              (o) => o.status == 'paid' && o.paidAt != null,
-            ))
+            for (final order in payments)
               GestureDetector(
                 key: ValueKey('table-payment-${order.orderRef}'),
                 behavior: HitTestBehavior.opaque,
@@ -638,10 +667,12 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                     ? null
                     : () => widget.onOpenOrder!(order.orderRef),
                 child: Container(
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFF383838)),
-                    ),
+                  decoration: BoxDecoration(
+                    border: order == payments.last
+                        ? null
+                        : const Border(
+                            bottom: BorderSide(color: Color(0xFF383838)),
+                          ),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Column(
@@ -670,7 +701,9 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '${t('orderNumber')} ${order.orderRef}',
+                        order.paymentChannel == 'wechat'
+                            ? '${t('wechatTransaction')} ${order.transactionId ?? '—'}'
+                            : '${t('orderNumber')} ${order.orderRef}',
                         style: const TextStyle(
                           fontSize: 13,
                           color: Color(0xFFAAAAAA),
@@ -774,6 +807,8 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
               field(t('source'), t(order.source)),
               field(t('paymentTiming'), t(order.paymentTiming)),
               field(t('orderNumber'), order.orderRef),
+              if (order.paymentChannel == 'wechat')
+                field(t('wechatTransaction'), order.transactionId ?? '—'),
               if (order.refundedCents > 0) ...[
                 field(t('refunded'), money(order.refundedCents)),
                 field(t('netPaid'), money(order.netPaidCents)),
@@ -878,7 +913,7 @@ class _MemberOrdersPageState extends State<MemberOrdersPage>
       foregroundColor: Colors.white,
       leading: KingBackButton(onPressed: widget.onBack),
       actions: [
-        if (widget.orderRef == null)
+        if (widget.orderRef == null && !widget.tableBill)
           IconButton(
             key: const ValueKey('member-orders-refresh'),
             tooltip: t('refresh'),
@@ -986,6 +1021,8 @@ const _copy = {
   'netPaid': '剩余实收|Net paid|剩餘實收|ยอดรับสุทธิ',
   'served': '已上|Served|已上|เสิร์ฟแล้ว',
   'total': '合计|Total|合計|รวม',
+  'wechatTransaction':
+      '微信支付流水号|WeChat Pay transaction ID|微信支付流水號|หมายเลขธุรกรรม WeChat Pay',
   'orderNumber': '订单号|Order number|訂單號|เลขคำสั่งซื้อ',
   'currentStatus': '当前状态|Status|目前狀態|สถานะ',
   'createdAt': '订单时间|Order time|訂單時間|เวลาสั่งซื้อ',

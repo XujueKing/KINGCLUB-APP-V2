@@ -30,6 +30,7 @@ void main() {
           'amountCents': 10,
           'paidAt': '2030-01-01T12:30:00Z',
           'channel': 'wechat',
+          'transactionId': '420000000000000000000000000001',
         };
       }
       return row;
@@ -108,7 +109,12 @@ void main() {
       findsNWidgets(2),
     );
     expect(find.text('¥0.20'), findsNWidgets(2));
-    expect(find.textContaining('D00000000001'), findsOneWidget);
+    expect(
+      find.textContaining('420000000000000000000000000001'),
+      findsNWidgets(2),
+    );
+    expect(find.byKey(const ValueKey('table-store-logo')), findsOneWidget);
+    expect(find.byKey(const ValueKey('member-orders-refresh')), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pump(const Duration(seconds: 20));
     await tester.pump(const Duration(milliseconds: 400));
@@ -148,6 +154,7 @@ void main() {
                     'amountCents': 100,
                     'paidAt': '2030-01-01T12:30:00Z',
                     'channel': 'wechat',
+                    'transactionId': '420000000000000000000000000001',
                   },
                 },
               ],
@@ -186,6 +193,10 @@ void main() {
       (w) =>
           w is GestureDetector && w.key.toString().contains('table-payment-'),
     );
+    final paymentContainer = tester.widget<Container>(
+      find.descendant(of: payment, matching: find.byType(Container)).first,
+    );
+    expect((paymentContainer.decoration as BoxDecoration).border, isNull);
     await tester.ensureVisible(payment);
     await tester.tap(payment);
     await tester.pumpAndSettle();
@@ -193,6 +204,7 @@ void main() {
     expect(requests.last['tableRef'], 'test-table');
     expect(requests.last['sessionRef'], 'H00000000001');
     expect(find.text('Order details'), findsOneWidget);
+    expect(find.text('420000000000000000000000000001'), findsOneWidget);
     Navigator.of(tester.element(find.text('Order details'))).pop();
     await tester.pumpAndSettle();
     expect(find.text('T1 · Table bill'), findsOneWidget);

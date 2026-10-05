@@ -100,6 +100,7 @@ class MemberOrder {
     this.paidAt,
     this.paidCents,
     this.paymentChannel,
+    this.transactionId,
   });
   final String orderRef,
       storeRef,
@@ -112,7 +113,7 @@ class MemberOrder {
   final int totalCents, refundedCents;
   final DateTime? paidAt;
   final int? paidCents;
-  final String? paymentChannel;
+  final String? paymentChannel, transactionId;
   final DateTime createdAt;
   final DateTime? expiresAt, refundedAt;
   final List<MemberOrderItem> items;
@@ -193,6 +194,9 @@ class MemberOrder {
       expiresAt: expires,
       refundedAt: refundedAt,
       items: items,
+      transactionId: value['payment'] == null
+          ? null
+          : _map(value['payment'])['transactionId'] as String?,
       paidAt: value['payment'] == null
           ? null
           : _date(_map(value['payment'])['paidAt']),
