@@ -106,3 +106,6 @@ APP 金额展示统一使用 money formatter，按三位加逗号；单位不变
 用户同时明确余额不足由收银员选择“使用可用储值，微信补差”或“取消”。此分支必须由服务端报价返回可抵扣/余款，收银员确认前不扣；不得将部分扣款当成整单已付；微信结果未知保留原请求，取消/明确失败恢复原本金和赠送批次。现有整桌 parent checkout 只支持全额单渠道，此分支尚未实现，不能以 APP 自动展示付款码作为组合结账已完成。
 
 本节点：直接展示付款码及现有成功返回 5 项组件测试通过。未执行真实收款，尚未安装新包。
+
+
+线上配置排查：cashierBalanceEnabled、tableCheckoutFenceEnabled 均为 true，但 kingclubBalancePaymentPolicy 没有记录，导致签发直接返回 MEMBER_PAYMENT_STORE_NOT_AUTHORIZED。已按用户开启本店储值收款的指令，仅为 KINGCLUB 湖南工大店新增 storeBalanceEnabled=1、platformCashEnabled=0、revision=1；数据库限定 ccsop_kingclub，事务内核对门店状态及币种，未扣款、未调整会员余额。原配置备份在服务容器 /tmp/kingclub-store-card-policy-before.json。付款码仓库与页面另外8项测试通过。
