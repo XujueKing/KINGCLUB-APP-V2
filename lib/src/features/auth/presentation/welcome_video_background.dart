@@ -210,7 +210,7 @@ class _WelcomeVideoBackgroundState extends State<WelcomeVideoBackground>
               child: BackdropFilter(
                 key: const ValueKey('mobile-login-frosted-glass'),
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: const ColoredBox(color: Color(0xB8000000)),
+                child: const ColoredBox(color: Color(0x8C000000)),
               ),
             ),
           ),
