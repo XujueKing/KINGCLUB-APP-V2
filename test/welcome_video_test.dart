@@ -1,3 +1,6 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kingclub/src/features/auth/presentation/mobile_login_page.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -13,6 +16,7 @@ class _Player extends VideoPlayerPlatform {
   final musicEvents = StreamController<VideoEvent>();
   int created = 0;
   bool musicPlaying = false;
+  int musicPauses = 0;
   bool musicLooping = false;
   bool musicDisposed = false;
   double musicVolume = 0;
@@ -27,10 +31,7 @@ class _Player extends VideoPlayerPlatform {
   Future<int?> createWithOptions(VideoCreationOptions options) async {
     final id = ++created;
     if (id == 2) {
-      expect(
-        options.dataSource.asset,
-        'assets/legacy/home/welcome_music_20261006.m4a',
-      );
+      expect(options.dataSource.asset, isIn(welcomeMusicAssets));
       musicEvents.add(
         VideoEvent(
           eventType: VideoEventType.initialized,
@@ -60,8 +61,15 @@ class _Player extends VideoPlayerPlatform {
   Future<void> play(int playerId) async =>
       playerId == 1 ? playing = true : musicPlaying = true;
   @override
-  Future<void> pause(int playerId) async =>
-      playerId == 1 ? playing = false : musicPlaying = false;
+  Future<void> pause(int playerId) async {
+    if (playerId == 1) {
+      playing = false;
+    } else {
+      musicPlaying = false;
+      musicPauses++;
+    }
+  }
+
   @override
   Future<void> setLooping(int playerId, bool value) async =>
       playerId == 1 ? looping = value : musicLooping = value;
@@ -143,6 +151,60 @@ void main() {
     expect(find.byType(WelcomeVideoBackground), findsNothing);
     expect(player.disposed, isTrue);
     expect(player.musicDisposed, isTrue);
+  });
+
+  testWidgets('NEXT retains players and mute state behind phone glass', (
+    tester,
+  ) async {
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          navigatorKey: navigator,
+          navigatorObservers: [welcomeMediaRouteObserver],
+          home: LegacyWelcomePage(
+            onNext: () => navigator.currentState!.push(
+              MaterialPageRoute<void>(
+                builder: (_) => MobileLoginPage(
+                  onBack: () => navigator.currentState!.pop(),
+                  onVerified: (_) {},
+                ),
+              ),
+            ),
+            onOpenTerms: () {},
+            onOpenPrivacy: () {},
+          ),
+        ),
+      ),
+    );
+    player.events.add(
+      VideoEvent(
+        eventType: VideoEventType.initialized,
+        duration: const Duration(seconds: 20),
+        size: const Size(960, 2148),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('legacy-welcome-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('legacy-welcome-next')));
+    await tester.pumpAndSettle();
+    expect(player.created, 2);
+    expect(player.musicPlaying, isTrue);
+    expect(
+      find.byKey(const ValueKey('mobile-login-frosted-glass')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('welcome-sound-toggle')));
+    await tester.pump();
+    expect(player.musicVolume, 0);
+    navigator.currentState!.pop();
+    await tester.pumpAndSettle();
+    expect(player.created, 2);
+    expect(player.musicPlaying, isTrue);
+    expect(player.musicVolume, 0);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
   });
 
   testWidgets('decoder failure preserves the static cover and login action', (

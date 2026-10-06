@@ -1,4 +1,7 @@
+import 'welcome_video_background.dart';
+
 import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -206,122 +209,125 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
       ),
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: GestureDetector(
-          key: const ValueKey('mobile-login-dismiss-keyboard'),
-          behavior: HitTestBehavior.opaque,
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          child: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final formWidth = constraints.maxWidth * 0.80;
-                return Stack(
-                  children: [
-                    Positioned.fill(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.only(bottom: 24),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight - 24,
-                          ),
-                          child: IntrinsicHeight(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                const SizedBox(height: 70),
-                                SizedBox(
-                                  key: const ValueKey(
-                                    'mobile-login-brand-logo',
-                                  ),
-                                  width: constraints.maxWidth * 0.2933,
-                                  child: Semantics(
-                                    label: 'King club',
-                                    image: true,
-                                    child: const Image(
-                                      image: AssetImage(
-                                        'assets/legacy/home/logo_2.png',
+        body: WelcomeVideoBackground(
+          frosted: true,
+          child: GestureDetector(
+            key: const ValueKey('mobile-login-dismiss-keyboard'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final formWidth = constraints.maxWidth * 0.80;
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight - 24,
+                            ),
+                            child: IntrinsicHeight(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const SizedBox(height: 70),
+                                  SizedBox(
+                                    key: const ValueKey(
+                                      'mobile-login-brand-logo',
+                                    ),
+                                    width: constraints.maxWidth * 0.2933,
+                                    child: Semantics(
+                                      label: 'King club',
+                                      image: true,
+                                      child: const Image(
+                                        image: AssetImage(
+                                          'assets/legacy/home/logo_2.png',
+                                        ),
+                                        fit: BoxFit.contain,
+                                        excludeFromSemantics: true,
                                       ),
-                                      fit: BoxFit.contain,
-                                      excludeFromSemantics: true,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 54),
-                                SizedBox(
-                                  key: const ValueKey('mobile-login-content'),
-                                  width: formWidth,
-                                  child: _form(context),
-                                ),
-                                const Spacer(),
-                                SizedBox(
-                                  width: formWidth,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      SizedBox(
-                                        height: kingControlHeight,
-                                        child: FilledButton(
-                                          key: const ValueKey(
-                                            'mobile-login-next',
-                                          ),
-                                          onPressed: nextEnabled
-                                              ? _verify
-                                              : null,
-                                          style: FilledButton.styleFrom(
-                                            backgroundColor: _buttonGold,
-                                            disabledBackgroundColor:
-                                                _buttonGoldDisabled,
-                                            foregroundColor: _actionText,
-                                            disabledForegroundColor:
-                                                _disabledActionText,
-                                            shape: const StadiumBorder(),
-                                            textStyle: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          child: _verifying
-                                              ? const SizedBox.square(
-                                                  dimension: 18,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        color: _champagne,
-                                                      ),
-                                                )
-                                              : const Text('NEXT'),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      const Text(
-                                        'SHANGHAI . ZHUZHOU',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Color(0xB3C9B69E),
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
+                                  const SizedBox(height: 54),
+                                  SizedBox(
+                                    key: const ValueKey('mobile-login-content'),
+                                    width: formWidth,
+                                    child: _form(context),
                                   ),
-                                ),
-                                const SizedBox(height: 3),
-                              ],
+                                  const Spacer(),
+                                  SizedBox(
+                                    width: formWidth,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        SizedBox(
+                                          height: kingControlHeight,
+                                          child: FilledButton(
+                                            key: const ValueKey(
+                                              'mobile-login-next',
+                                            ),
+                                            onPressed: nextEnabled
+                                                ? _verify
+                                                : null,
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor: _buttonGold,
+                                              disabledBackgroundColor:
+                                                  _buttonGoldDisabled,
+                                              foregroundColor: _actionText,
+                                              disabledForegroundColor:
+                                                  _disabledActionText,
+                                              shape: const StadiumBorder(),
+                                              textStyle: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            child: _verifying
+                                                ? const SizedBox.square(
+                                                    dimension: 18,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: _champagne,
+                                                        ),
+                                                  )
+                                                : const Text('NEXT'),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        const Text(
+                                          'SHANGHAI . ZHUZHOU',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Color(0xB3C9B69E),
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      left: KingBackButton.leftOffset(context),
-                      top: KingBackButton.safeAreaOffset.dy,
-                      child: KingBackButton(
-                        key: const ValueKey('mobile-login-back'),
-                        onPressed: widget.onBack,
+                      Positioned(
+                        left: KingBackButton.leftOffset(context),
+                        top: KingBackButton.safeAreaOffset.dy,
+                        child: KingBackButton(
+                          key: const ValueKey('mobile-login-back'),
+                          onPressed: widget.onBack,
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
