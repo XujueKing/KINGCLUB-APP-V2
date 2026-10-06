@@ -13,6 +13,20 @@ String partnerText(BuildContext context, String key) {
 }
 
 const partnerCopy = {
+  'confirm': '确认|Confirm|確認|ยืนยัน',
+  'saving': '处理中…|Processing…|處理中…|กำลังดำเนินการ…',
+  'retryOriginal': '核对本次转账|Check this transfer|核對本次轉帳|ตรวจสอบการโอนนี้',
+
+  'transferAvailable': '可转入金额|Available to transfer|可轉入金額|ยอดที่โอนได้',
+  'platformCash': '平台余额|Platform balance|平台餘額|ยอดเงินแพลตฟอร์ม',
+  'transferAmount': '转入金额（元）|Transfer amount (CNY)|轉入金額（元）|จำนวนเงินโอน (CNY)',
+  'transferNote': '入账满7天的收益可转入平台余额，本店储值卡余额独立核算。退款冲回后如分佣余额为负，后续收益会先抵补。|Earnings become transferable after 7 days. Store card balances remain separate. Refund deficits are offset against future earnings.|入帳滿7天的收益可轉入平台餘額，本店儲值卡餘額獨立核算。退款沖回後如分佣餘額為負，後續收益會先抵補。|โอนรายได้เข้ายอดเงินแพลตฟอร์มได้เมื่อครบ 7 วัน ยอดบัตรร้านค้าแยกต่างหาก หากยอดค่าคอมมิชชันติดลบจากการคืนเงิน รายได้ถัดไปจะชดเชยก่อน',
+  'transferConfirm': '确认将分佣收益转入平台余额？|Transfer these earnings to your platform balance?|確認將分佣收益轉入平台餘額？|ยืนยันโอนรายได้นี้เข้ายอดเงินแพลตฟอร์มหรือไม่?',
+  'transferInvalid': '请输入不超过可转入金额的有效金额|Enter a valid amount within your available balance|請輸入不超過可轉入金額的有效金額|กรอกจำนวนเงินที่ถูกต้องและไม่เกินยอดที่โอนได้',
+  'transferSuccess': '已转入平台余额|Transferred to platform balance|已轉入平台餘額|โอนเข้ายอดเงินแพลตฟอร์มแล้ว',
+  'transferHistory': '转入记录（最近30条）|Transfer history (latest 30)|轉入記錄（最近30條）|ประวัติการโอน (30 รายการล่าสุด)',
+  'transferUnknown': '本次结果未确认，请重试原请求以核对结果，不会重复入账。|Result unconfirmed. Retry the same request to check; it will not credit twice.|本次結果未確認，請重試原請求以核對結果，不會重複入帳。|ยังยืนยันผลไม่ได้ ลองคำขอเดิมอีกครั้งเพื่อตรวจสอบ ระบบจะไม่เพิ่มยอดซ้ำ',
+
   'commissionPolicy':
       '派对佣金设置|Party commission settings|派對佣金設定|ตั้งค่าค่าคอมมิชชันปาร์ตี้',
   'platformRate': '门店给平台的比例|Store commission to platform|門店給平台的比例|อัตราค่าคอมมิชชันที่ร้านจ่ายให้แพลตฟอร์ม',

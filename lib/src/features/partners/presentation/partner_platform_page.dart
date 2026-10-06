@@ -12,6 +12,7 @@ import 'partner_strings.dart';
 import 'partner_code_page.dart';
 import 'partner_tasks_page.dart';
 import 'partner_policy_page.dart';
+import 'partner_transfer_page.dart';
 
 Widget _title(BuildContext context, String value) => Text(
   value,
@@ -304,7 +305,17 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: null,
+                              onPressed: d.partner?['status'] == 'active'
+                                  ? () async {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) =>
+                                              PartnerTransferPage(call: call),
+                                        ),
+                                      );
+                                      if (mounted) await load();
+                                    }
+                                  : null,
                               child: Text(
                                 t('transfer'),
                                 textAlign: TextAlign.center,
