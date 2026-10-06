@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -379,7 +381,7 @@ class _RealMembershipStatusPageState
                         ? widget.onApproved
                         : _refresh,
                     style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(45),
+                      minimumSize: const Size.fromHeight(kingControlHeight),
                       shape: const StadiumBorder(),
                     ),
                     child: Text(

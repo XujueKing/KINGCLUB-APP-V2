@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
@@ -352,7 +354,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       FilledButton(
                         key: const ValueKey('edit-profile-save'),
                         style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
+                          minimumSize: const Size.fromHeight(kingControlHeight),
                           backgroundColor: _gold,
                           foregroundColor: const Color(0xFF241B13),
                         ),

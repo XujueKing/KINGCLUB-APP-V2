@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
@@ -209,7 +211,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
         FilledButton(
           key: const ValueKey('account-deletion-start'),
           style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
+            minimumSize: const Size.fromHeight(kingControlHeight),
             backgroundColor: const Color(0xFF7F2626),
             disabledBackgroundColor: const Color(0xFF392323),
           ),

@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -269,7 +271,7 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
         FilledButton(
           key: const ValueKey('payment-pin-change'),
           style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
+            minimumSize: const Size.fromHeight(kingControlHeight),
             backgroundColor: _gold,
             foregroundColor: const Color(0xFF241B13),
           ),
@@ -290,7 +292,7 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
         OutlinedButton(
           key: const ValueKey('payment-pin-forgot'),
           style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
+            minimumSize: const Size.fromHeight(kingControlHeight),
             foregroundColor: _gold,
             side: const BorderSide(color: Color(0xFF4A4035)),
           ),
@@ -367,7 +369,7 @@ class _PaymentSecurityPageState extends State<PaymentSecurityPage>
           style: FilledButton.styleFrom(
             backgroundColor: _gold,
             foregroundColor: const Color(0xFF241B13),
-            minimumSize: const Size.fromHeight(50),
+            minimumSize: const Size.fromHeight(kingControlHeight),
           ),
           onPressed: onSubmit,
           child: Text(action),

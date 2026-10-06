@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
@@ -911,12 +913,12 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 42,
+      height: kingControlHeight,
       child: primary
           ? FilledButton(
               onPressed: onPressed,
               style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 42),
+                minimumSize: const Size(0, kingControlHeight),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 backgroundColor: legacyGold,
                 foregroundColor: const Color(0xFF181205),
@@ -927,7 +929,7 @@ class _ActionButton extends StatelessWidget {
           : OutlinedButton(
               onPressed: onPressed,
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 42),
+                minimumSize: const Size(0, kingControlHeight),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 foregroundColor: legacyGold,
                 side: const BorderSide(color: Color(0xFF6D5D4C)),

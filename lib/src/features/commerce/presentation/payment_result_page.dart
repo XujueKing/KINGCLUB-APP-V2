@@ -344,12 +344,12 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
       ),
       child: SizedBox(
         width: double.infinity,
-        height: 48,
+        height: kingControlHeight,
         child: FilledButton(
           key: const ValueKey('payment-confirm'),
           onPressed: _zeroAmount || _methodAvailable ? _startPayment : null,
           style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 48),
+            minimumSize: const Size(0, kingControlHeight),
             backgroundColor: legacyGold,
             foregroundColor: const Color(0xFF181205),
             shape: const StadiumBorder(),

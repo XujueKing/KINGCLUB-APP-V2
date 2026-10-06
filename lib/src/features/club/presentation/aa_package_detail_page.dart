@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
@@ -451,9 +453,9 @@ class _PackageBottomBar extends StatelessWidget {
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF24180E),
               foregroundColor: legacyGold,
-              minimumSize: Size(buttonWidth, 48),
-              maximumSize: Size(buttonWidth, 48),
-              fixedSize: Size(buttonWidth, 48),
+              minimumSize: Size(buttonWidth, kingControlHeight),
+              maximumSize: Size(buttonWidth, kingControlHeight),
+              fixedSize: Size(buttonWidth, kingControlHeight),
               shape: const StadiumBorder(),
               textStyle: const TextStyle(
                 fontSize: 16,

@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 
@@ -117,7 +119,7 @@ class _CoverAdjustPageState extends State<CoverAdjustPage> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _gold,
                         side: const BorderSide(color: Color(0x887E705E)),
-                        minimumSize: const Size.fromHeight(52),
+                        minimumSize: const Size.fromHeight(kingControlHeight),
                         shape: const StadiumBorder(),
                       ),
                       onPressed: _saving ? null : () => Navigator.pop(context),
@@ -132,7 +134,7 @@ class _CoverAdjustPageState extends State<CoverAdjustPage> {
                       style: FilledButton.styleFrom(
                         backgroundColor: _gold,
                         foregroundColor: const Color(0xFF20170F),
-                        minimumSize: const Size.fromHeight(52),
+                        minimumSize: const Size.fromHeight(kingControlHeight),
                         shape: const StadiumBorder(),
                       ),
                       onPressed: _saving ? null : _capture,

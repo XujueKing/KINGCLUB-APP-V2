@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/material.dart';
 
@@ -494,7 +496,7 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
                 ? (_offline ? null : _refreshQuote)
                 : (_canCreate ? _submit : null),
             style: FilledButton.styleFrom(
-              minimumSize: const Size(108, 48),
+              minimumSize: const Size(108, kingControlHeight),
               backgroundColor: const Color(0xFFF4EEE7),
               foregroundColor: const Color(0xFF271F15),
               disabledBackgroundColor: const Color(0x66877B6C),

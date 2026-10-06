@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/formatters/money.dart';
 
 import 'call_permission_prompt.dart';
@@ -3247,7 +3249,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                 backgroundColor: legacyMessageGold,
                 foregroundColor: const Color(0xFF24180A),
                 shape: const StadiumBorder(),
-                minimumSize: const Size.fromHeight(48),
+                minimumSize: const Size.fromHeight(kingControlHeight),
               ),
               child: Text(action),
             ),

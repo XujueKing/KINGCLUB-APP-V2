@@ -1,3 +1,4 @@
+import '../../../core/design_system/king_control_sizes.dart';
 import '../../../core/app_version.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
@@ -181,7 +182,7 @@ class _SettingsPageState extends State<SettingsPage>
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF291C0B),
                   foregroundColor: _gold,
-                  minimumSize: const Size.fromHeight(46),
+                  minimumSize: const Size.fromHeight(kingControlHeight),
                   shape: const StadiumBorder(),
                 ),
                 onPressed: _confirmLogout,

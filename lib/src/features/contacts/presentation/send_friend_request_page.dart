@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
@@ -107,7 +109,7 @@ class _SendFriendRequestPageState extends State<SendFriendRequestPage> {
                   key: const ValueKey('send-friend-submit'),
                   onPressed: _submitting ? null : _submit,
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
+                    minimumSize: const Size.fromHeight(kingControlHeight),
                     backgroundColor: _legacyGold,
                     foregroundColor: Colors.black,
                     shape: RoundedRectangleBorder(

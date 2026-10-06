@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
@@ -534,7 +536,7 @@ class _AssetLedgerPageState extends State<AssetLedgerPage> {
   }
 
   ButtonStyle _buttonStyle() => FilledButton.styleFrom(
-    minimumSize: const Size(130, 44),
+    minimumSize: const Size(130, kingControlHeight),
     backgroundColor: const Color(0xFFC9B69E),
     foregroundColor: const Color(0xFF181205),
   );

@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -213,7 +215,7 @@ class _WalkInPartyPageState extends State<WalkInPartyPage> {
                       const SizedBox(height: 14),
                       SizedBox(
                         width: double.infinity,
-                        height: 48,
+                        height: kingControlHeight,
                         child: FilledButton(
                           onPressed: _busy ? null : _confirm,
                           child: Text(

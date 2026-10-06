@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_control_sizes.dart';
+
 import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:flutter/material.dart';
@@ -777,7 +779,7 @@ class _InitialLoadingView extends StatelessWidget {
             const SizedBox(height: 28),
             SizedBox(
               width: 180,
-              height: 46,
+              height: kingControlHeight,
               child: OutlinedButton(
                 key: const ValueKey('aa-initial-load-action'),
                 onPressed: onLoaded,
@@ -831,7 +833,7 @@ class _InvalidQuoteView extends StatelessWidget {
             const SizedBox(height: 28),
             SizedBox(
               width: 190,
-              height: 48,
+              height: kingControlHeight,
               child: FilledButton(
                 key: const ValueKey('aa-invalid-ref-action'),
                 onPressed: onReturn,
@@ -993,7 +995,7 @@ class _SessionInvalidView extends StatelessWidget {
             const SizedBox(height: 28),
             SizedBox(
               width: 190,
-              height: 48,
+              height: kingControlHeight,
               child: FilledButton(
                 key: const ValueKey('aa-session-reset-action'),
                 onPressed: onReset,
@@ -1231,9 +1233,9 @@ class _PaymentBottomBar extends StatelessWidget {
               backgroundColor: const Color(0xFF24180E),
               foregroundColor: legacyGold,
               disabledBackgroundColor: const Color(0x663B2B1D),
-              minimumSize: const Size(118, 48),
-              maximumSize: const Size(118, 48),
-              fixedSize: const Size(118, 48),
+              minimumSize: const Size(118, kingControlHeight),
+              maximumSize: const Size(118, kingControlHeight),
+              fixedSize: const Size(118, kingControlHeight),
               shape: const StadiumBorder(),
             ),
             child: submitting
