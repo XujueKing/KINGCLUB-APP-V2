@@ -29,6 +29,26 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+      - name: Select App Store supported Xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib, re, subprocess
+          candidates = []
+          for path in pathlib.Path('/Applications').glob('Xcode*.app'):
+              match = re.fullmatch(r'Xcode_(26(?:\.\d+){0,2})\.app', path.name)
+              if match:
+                  candidates.append((tuple(map(int, match[1].split('.'))), path))
+          if not candidates:
+              raise SystemExit('Runner has no stable Xcode 26; upgrade runner image before uploading')
+          selected = max(candidates)[1] / 'Contents/Developer'
+          subprocess.run(['sudo', 'xcode-select', '-s', str(selected)], check=True)
+          subprocess.run(['xcodebuild', '-version'], check=True)
+          sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], text=True).strip()
+          if int(sdk.split('.')[0]) < 26:
+              raise SystemExit('App Store requires iOS SDK 26 or later')
+          PY
       - name: Install verified Flutter release
         shell: bash
         run: |
