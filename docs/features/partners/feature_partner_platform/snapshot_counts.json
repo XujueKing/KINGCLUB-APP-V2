@@ -1,0 +1,72 @@
+{
+  "scope": "historical local dump, NOT live balances",
+  "schemaSha256": "d5a0a1bc3b2da8474c131ec38da2b4bfb9d4ea498bd2a7d043e6e347fb13fc0c",
+  "dataBytes": 9086676447,
+  "tables": {
+    "k_user_relation": {
+      "rows": 342,
+      "activeRows": 342,
+      "distribution": {
+        "agenyType": {
+          "0": 310,
+          "8": 1,
+          "1": 22,
+          "6": 1,
+          "3": 2,
+          "2": 3,
+          "7": 3
+        },
+        "agencyStatus": {
+          "1": 341,
+          "0": 1
+        }
+      }
+    },
+    "k_wallet": {
+      "rows": 2825,
+      "activeRows": 2825,
+      "distribution": {
+        "walletType": {
+          "0": 770,
+          "1": 685,
+          "2": 685,
+          "3": 685
+        },
+        "walletStatus": {
+          "1": 2825
+        }
+      }
+    },
+    "k_balance_details": {
+      "rows": 1409,
+      "activeRows": 1074,
+      "distribution": {
+        "accountType": {
+          "0": 734,
+          "1": 671,
+          "2": 1,
+          "3": 3
+        },
+        "detailsStatus": {
+          "1": 1409
+        }
+      }
+    },
+    "k_commission_log": {
+      "rows": 0,
+      "activeRows": 0,
+      "distribution": {
+        "personType": {}
+      }
+    },
+    "k_withdrawal": {
+      "rows": 1,
+      "activeRows": 1,
+      "distribution": {
+        "withdrawalStatus": {
+          "1": 1
+        }
+      }
+    }
+  }
+}

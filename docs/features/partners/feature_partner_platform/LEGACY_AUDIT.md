@@ -1,0 +1,68 @@
+# 合作平台来源审计
+
+审计日期2026-10-07。旧代码根 `D:/WEB3_AI/KingClub-git`；新APP根 `D:/WEB3_AI/KINGCLUB-APP-V2`；新后端 `D:/2026-ZHUZHOU/SERVICES/ccsop-service`。旧SQL为 `D:/2026-ZHUZHOU/物业信数据库/nuggets-仅结构.sql`、`nuggets-结构+数据.sql`。
+
+证据范围：用户提供的管理员面板截图、当前本地源代码、历史数据库导出及既有审计。**未对旧小程序逐页实机走查、未读取线上当前余额或证明生产接口可被越权调用。** 下述过程缺陷是源码层发现，外围鉴权是否补足须另做接口验证。旧小程序用户未提交改动保持不变。
+
+## 1. APP是否已经有这个UI
+
+没有发现完整合作平台。`lib/src/features/profile_settings/presentation/my_profile_page.dart:916`仍为专属客服入口，923行为帮助面板。`scanner/data/scan_route.dart`只分发桌码、会员码、群码、收银登录，无旧type=2合作绑定分支。不能把会员二维码直接当合作伙伴码。
+
+已经可复用：个人中心服务入口、统一内页标题/返回、52高主按钮、金额千分位格式化、语言机制、扫码返回发起页规则、已有派对/订单与系统通知能力。后端有 `kingclubTogetherParty`、`kingclubTogetherBooking`、押金记录、本店储值账户及流水，不能把这些当独立分佣账本。`partner`搜索大量命中的是微信服务商支付模式，不是营销合作功能。
+
+## 2. 页面到业务的映射
+
+| 旧页面 | 接口/过程或行为 | 新版取舍 |
+|---|---|---|
+| manage | S231202504240686 / K_GetManageHome | 保留收益概览，重做权限及任务入口 |
+| managecode | 静态URL type=2 + userAccount | 改为独立合作码语义；服务端校验合作状态和任务资格 |
+| index.addAgencyCode | S231202504190685，关联逻辑见 K_AddBelowByScan | 注册会员扫码绑定；绑定与任务发奖分离并幂等 |
+| agencybalance | S231202504280689 / k_getBillList，menuIndex4/5 | 保留提成、提现明细，补齐可点详情 |
+| manageclient | S231202504280691 / k_getMyClient | 保留本人特约顾客，限制可见字段 |
+| allclient | k_getAllClient | 超级管理员专属，服务端强制判权 |
+| addagency | K_GetAgencyUser / K_setAgencyUser | 从直接改身份比例变为申请、审批及规则版本 |
+| withdrawal | S231202504300702读取，703提交 / K_AddWithdrawalOrder | 提现申请与转余额分别展示结果 |
+
+接口映射综合调用源码和既有数据库审计；并非声称本轮调用过这些线上接口。
+
+## 3. 数据模型与真实历史截面
+
+| 表 | 用途及问题 |
+|---|---|
+| k_user_relation | agenyType混合普通会员、营销、员工、楼层经理、股东；parentId指relationId；agencyStatus启停；commissionRate/serviceRate/ktvRate/dinnerRate/standRate固定业务费率。没有平台任务和规则快照 |
+| k_wallet | walletType=3独立分佣钱包，概念可保留；不可直接复制余额 |
+| k_balance_details | 收入、支出、余额、账户类型与业务属性，是重要资金证据 |
+| k_bill_detail | content保存展示JSON，typeId4/5用于提成/提现；不能作为唯一财务事实 |
+| k_withdrawal | 金额、银行卡快照、处理中/完成/失败；缺少本流程明确的请求幂等契约 |
+| k_commission_log | 关联订单、成员、受益人和金额；历史快照为空，不代表没有发生过账本佣金 |
+| k_user_examine_images | 旧扫码奖励使用beauty平均值；新版必须使用确认后的评分版本 |
+| k_stored_items | 旧绑定依赖赠品库存，不能继续作为新客任务资格前提 |
+
+`k_division`实为行政区划，不是分佣表。Java存在`KProxyCommission`对象，但既有94张k_表快照没有对应`k_proxy_commission`表；不能因对象存在认定业务已闭环。
+
+本轮只读重计数见snapshot_counts.json，与2026-09-17清点一致：关系342、钱包2,825（其中分佣685）、余额流水1,409（未软删1,074，accountType=3共3条）、佣金日志0、提现1。关系中营销身份22条，角色8有1条（旧表注释未列出此角色，首页却用其判断软件设置权限），状态启用341、停用1。数量是历史导出截面，不是今天的运营数据。不能用空佣金日志推导“无需迁移”，也不能把历史记录重新发奖。正式迁移另需期初逐账户对账及授权。
+
+## 4. 源码发现与影响
+
+### P0：资金/权限设计必须重建边界
+
+1. `K_GetManageHome`可提现=上月收入−全部支出；`K_AddWithdrawalOrder`可提现=上月收入−上月支出，口径不同，且不是累计成熟资金。提现过程只排除金额=0，未显式排除负数；本过程未见请求去重键或余额行锁。外围函数可能另有校验，不能据此宣称已发生盗提，但不可直接迁移。
+2. `K_setAgencyUser`直接接收目标用户、角色、费率，过程本身无可信操作者参数及管理员判权。`k_getAllClient`接收操作者却未在过程体看到对应权限检查。菜单隐藏不能代替接口权限。旧首页客户名录允许power=3或>=6，不符合新版仅超级管理员要求。
+3. `K_AddBelowByScan`先检查关系，再开启事务；未见本过程绑定并发锁/独立任务奖励唯一键。存在赠品库存才绑定、固定1000金币和双方经验赠送，奖励默认5元，分段6/7/10/15/18/20元。新8–20元必须版本化，不能只把最低数字替换。
+4. 订单金额、用户推荐关系与费率需成交快照；按当前关系反查会导致换绑/升级后改写历史收益。既有Java `OrderSettleTask2`处理STransaction，不足以证明k_transaction营销结算自动执行。
+
+### P1：查询与用户反馈
+
+- `agencybalance.js` clicktap首行return，详情路由不可达。
+- `withdrawal.js`对所有成功分支统一提示“已把提成转入到余额账户/提现成功”，不能表达银行处理中。
+- `k_getMyClient`以GROUP_CONCAT/FIND_IN_SET拼客户集合，余额聚合子查询无按walletId分组，部分筛选count使用单rowId；存在错误统计/SQL模式兼容风险。“土豪排行榜”分支按vipLevel排序，不能当消费榜。
+- `manageclient.js`初始化有会员总数5000等占位，不能作为数据事实或照搬到新UI。
+- `k_getBillList`读列表时直接将该类全部账单设已读；新分页只读查询不应顺便清除未呈现通知。
+- `addagency.wxml`有agenyType==3且>4的不可能条件，对应表单永不展示。
+- 管理员码旧静态二维码只表述账号，不携带任务/版本，不能自动授权支取、后台管理或重复奖励。
+
+## 5. UI审计（截图可观察部分）
+
+旧截图的收益卡位置突出、列表易扫读，可保留信息顺序。大面积亮黄色与当前APP暗色卡片不同；长列表混入店员、超级管理员和内容后台功能，营销主任务不突出。新设计用深灰收益卡、白色主金额和香槟色操作，合并清晰的收益状态；首页不放无权限项或本期不做的项目。
+
+仅管理员首页有本轮截图证据，其他页面分析来自源码，视觉尺寸与交互仍需新APP实现后实机验收。
