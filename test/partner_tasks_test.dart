@@ -17,6 +17,7 @@ Map<String, dynamic> detail() => {
   'isAdmin': false,
   'task': {
     'ref': 'task',
+    'kind': 'member',
     'title': '新会员任务',
     'description': '测试规则，仅用于自动化测试',
     'minimumCents': '800',
@@ -65,6 +66,12 @@ void main() {
   ) async {
     await tester.pumpWidget(
       app((p) async {
+        if (p['action'] == 'task_candidates')
+          return {
+            'items': [
+              {'ref': 'picked', 'name': '已关联顾客'},
+            ],
+          };
         if (p['action'] == 'task_submit') {
           throw const AuthFailure('PARTNER_EVIDENCE_INVALID', 'invalid');
         }
@@ -75,7 +82,11 @@ void main() {
       }, ref: 'task'),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).first, 'bad');
+    await tester.ensureVisible(find.text('选择已关联顾客'));
+    await tester.tap(find.text('选择已关联顾客'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('已关联顾客'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, '说明');
     await tester.ensureVisible(find.text('提交验收'));
     await tester.tap(find.text('提交验收'));

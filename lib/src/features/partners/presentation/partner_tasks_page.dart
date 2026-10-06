@@ -10,6 +10,7 @@ import '../../../core/session/secure_session_store.dart';
 import '../data/partner_repository.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'partner_strings.dart';
+import 'partner_candidate_page.dart';
 
 String _money(Object? value) => '¥${moneyCents(value ?? '0')}';
 int _cents(String s) {
@@ -39,7 +40,7 @@ class PartnerTasksPage extends StatefulWidget {
 }
 
 class _PartnerTasksState extends State<PartnerTasksPage> {
-  Map<String, dynamic>? data;
+  Map<String, dynamic>? data, selectedEvidence;
   final rows = <Map<String, dynamic>>[];
   final inputs = List.generate(6, (_) => TextEditingController());
   bool busy = false, failed = false, invalid = false, more = true;
@@ -385,17 +386,58 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                     if ((claim['reason'] as String? ?? '').isNotEmpty)
                       Text(claim['reason'] as String),
                     if (status == 'claimed') ...[
-                      field(0, 'evidence'),
+                      Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            t(
+                              task['kind'] == 'merchant'
+                                  ? 'selectMerchant'
+                                  : 'selectCustomer',
+                            ),
+                          ),
+                          subtitle: Text(
+                            selectedEvidence?['name'] as String? ??
+                                t('selectEvidence'),
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: busy || invalid || pending != null
+                              ? null
+                              : () async {
+                                  final selected =
+                                      await Navigator.push<
+                                        Map<String, dynamic>
+                                      >(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => PartnerCandidatePage(
+                                            call: widget.call,
+                                            taskRef: widget.taskRef!,
+                                            merchant:
+                                                task['kind'] == 'merchant',
+                                          ),
+                                        ),
+                                      );
+                                  if (mounted && !invalid && selected != null) {
+                                    setState(() => selectedEvidence = selected);
+                                  }
+                                },
+                        ),
+                      ),
                       field(1, 'evidenceNote', lines: 3),
-                      button(
-                        'submitTask',
-                        () => act({
+                      button('submitTask', () {
+                        if (selectedEvidence == null) {
+                          setState(() => failed = true);
+                          return;
+                        }
+                        act({
                           'action': 'task_submit',
                           'claimRef': claim['ref'],
-                          'evidenceRef': inputs[0].text.trim(),
+                          'evidenceRef': selectedEvidence!['ref'],
                           'note': inputs[1].text.trim(),
-                        }),
-                      ),
+                        });
+                      }),
                       button(
                         'cancelTask',
                         () => act({

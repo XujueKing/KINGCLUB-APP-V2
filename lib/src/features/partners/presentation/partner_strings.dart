@@ -13,6 +13,15 @@ String partnerText(BuildContext context, String key) {
 }
 
 const partnerCopy = {
+  'selectCustomer':
+      '选择已关联顾客|Select a linked customer|選擇已關聯顧客|เลือกลูกค้าที่เชื่อมโยง',
+  'selectMerchant': '选择门店|Select a store|選擇門店|เลือกร้าน',
+  'selectEvidence':
+      '请选择验收对象|Select the subject for review|請選擇驗收對象|เลือกผู้รับการตรวจสอบ',
+  'candidateSearch': '输入名称搜索|Search by name|輸入名稱搜尋|ค้นหาตามชื่อ',
+  'candidateEmpty':
+      '暂无可选择的对象|No eligible entries to select|暫無可選擇的對象|ไม่มีรายการที่เลือกได้',
+  'candidateNote': '仅展示当前可提交的对象。选择后仍需平台按任务规则审核，不会自动发放奖励。|Only currently eligible entries are listed. Selection still requires platform review against the task rules and does not issue a reward automatically.|僅展示目前可提交的對象。選擇後仍需平台按任務規則審核，不會自動發放獎勵。|แสดงเฉพาะรายการที่ส่งได้ในขณะนี้ การเลือกยังต้องให้แพลตฟอร์มตรวจตามกฎภารกิจ ไม่ได้ให้รางวัลอัตโนมัติ',
   'withdrawAvailable': '可提现金额|Available to withdraw|可提現金額|ยอดที่ถอนได้',
   'withdrawReview': '提现审核|Withdrawal review|提現審核|ตรวจสอบการถอน',
   'withdrawApply': '申请提现|Request withdrawal|申請提現|ขอถอนเงิน',
