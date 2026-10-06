@@ -6,9 +6,11 @@ import 'package:uuid/uuid.dart';
 import '../../../core/design_system/king_components.dart';
 import '../../../core/design_system/king_control_sizes.dart';
 import '../../../core/session/secure_session_store.dart';
+import '../../../core/formatters/money.dart';
 import '../data/partner_repository.dart';
 import 'partner_strings.dart';
 import 'partner_code_page.dart';
+import 'partner_tasks_page.dart';
 
 Widget _title(BuildContext context, String value) => Text(
   value,
@@ -83,6 +85,11 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
   void list(String kind) => Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => _PartnerListPage(kind: kind, call: call),
+    ),
+  );
+  void tasks(String kind) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => PartnerTasksPage(call: call, kind: kind),
     ),
   );
   void levels() => showModalBottomSheet<void>(
@@ -260,9 +267,22 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                     children: [
                       Text(t('earnings'), style: const TextStyle(fontSize: 18)),
                       const SizedBox(height: 12),
-                      const Text('—', style: TextStyle(fontSize: 34)),
                       Text(
-                        t('financePending'),
+                        d.finance == null
+                            ? '—'
+                            : '¥${moneyCents(d.finance!['availableCents'])}',
+                        style: const TextStyle(fontSize: 34),
+                      ),
+                      if (d.finance != null)
+                        Text(
+                          '${t('pendingReward')}  ¥${moneyCents(d.finance!['pendingCents'])}',
+                        ),
+                      Text(
+                        t(
+                          d.finance == null
+                              ? 'financePending'
+                              : 'taskLedgerNote',
+                        ),
                         style: const TextStyle(
                           color: Colors.white70,
                           height: 1.5,
@@ -312,8 +332,7 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                       _entry(
                         'tasks',
                         Icons.assignment_outlined,
-                        onTap: null,
-                        sub: t('notReady'),
+                        onTap: () => tasks('tasks'),
                       ),
                     ],
                   ),
@@ -336,8 +355,7 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                       _entry(
                         'commission',
                         Icons.receipt_long_outlined,
-                        onTap: null,
-                        sub: t('financePending'),
+                        onTap: () => tasks('ledger'),
                       ),
                     ],
                   ),
@@ -347,6 +365,16 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                 _panel(
                   Column(
                     children: [
+                      _entry(
+                        'tasks',
+                        Icons.assignment_outlined,
+                        onTap: () => tasks('tasks'),
+                      ),
+                      _entry(
+                        'task_reviews',
+                        Icons.fact_check_outlined,
+                        onTap: () => tasks('task_reviews'),
+                      ),
                       _entry(
                         'applications',
                         Icons.fact_check_outlined,
@@ -830,6 +858,18 @@ class _MerchantState extends State<_MerchantPage> {
             Text(
               partnerText(c, 'merchantNote'),
               style: const TextStyle(color: Colors.white60, height: 1.5),
+            ),
+            const SizedBox(height: 20),
+            _button(
+              partnerText(c, 'tasks'),
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => PartnerTasksPage(
+                    call: widget.call,
+                    storeRef: widget.store['ref'] as String,
+                  ),
+                ),
+              ),
             ),
           ],
         );

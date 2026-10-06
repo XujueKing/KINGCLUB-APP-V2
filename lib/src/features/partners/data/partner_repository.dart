@@ -18,6 +18,9 @@ class PartnerContext {
       application = value['application'] == null
           ? null
           : Map<String, dynamic>.from(value['application'] as Map),
+      finance = value['finance'] == null
+          ? null
+          : Map<String, dynamic>.from(value['finance'] as Map),
       stores = (value['stores'] as List)
           .map((v) => Map<String, dynamic>.from(v as Map))
           .toList(),
@@ -38,7 +41,7 @@ class PartnerContext {
       throw const FormatException('Invalid application status');
     }
   }
-  final Map<String, dynamic>? partner, application;
+  final Map<String, dynamic>? partner, application, finance;
   final List<Map<String, dynamic>> stores;
   final bool admin;
   final int teamCount, customerCount;
