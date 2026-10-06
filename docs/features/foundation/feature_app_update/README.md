@@ -29,3 +29,5 @@ HTTPS 静态清单 `/kingclub-updates/preview.json`，schema=1，android/ios 各
 - 149 首次构建检查拦截：Xcode 26 将 SDK 包装为动态框架。改为读取最终 Mach-O minos，使 framework plist MinimumOSVersion 与二进制一致，重新签名；不降低实际系统要求，不删除动态框架。
 
 - 2026-10-06 22:40（上海）：149 / 1.2.0，CI 37479541446 成功，Apple build e56fbbc3-3099-44d2-b93c-6afc5896c748 processingState=VALID；internalBuildState=MISSING_EXPORT_COMPLIANCE。AES-GCM 标准算法已按源码核对；App Store Connect 表单停在法国分发选择，等待账户持有人确认后保存并向已授权邮箱重发邀请。149 有非阻断定位用途字符串警告 90683，后续正式发布前补齐；未宣称邀请或手机安装成功。
+
+- 用户明确确认本次不在法国分发，已在 Apple 表单保存标准加密 / 法国否。149 internalBuildState=READY_FOR_BETA_TESTING，内部组已自动关联。向用户指定现有邮箱重发邀请，Apple API 返回 HTTP 201（invitation 9ca1865f-ed4f-4229-9646-ecc15b86749b）。邀请已提交，不等同邮箱送达或手机安装；外部测试未提交审核，公开链接仍未开启。
