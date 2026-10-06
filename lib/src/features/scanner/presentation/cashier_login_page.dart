@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/session/secure_session_store.dart';
+import '../../../core/design_system/king_control_sizes.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../../club/presentation/legacy_club_components.dart';
 import '../data/cashier_login_repository.dart';
@@ -114,6 +115,14 @@ class _CashierLoginPageState extends State<CashierLoginPage> {
     super.dispose();
   }
 
+  ButtonStyle get _primaryButtonStyle => FilledButton.styleFrom(
+    minimumSize: const Size.fromHeight(kingControlHeight),
+    backgroundColor: legacyGold,
+    foregroundColor: const Color(0xFF24180A),
+    shape: const StadiumBorder(),
+    textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+  );
+
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
@@ -202,6 +211,7 @@ class _CashierLoginPageState extends State<CashierLoginPage> {
           if (_terminal == null && !_expired && !_invalid) ...[
             FilledButton(
               key: const ValueKey('cashier-login-approve'),
+              style: _primaryButtonStyle,
               onPressed: _pending && _store != null
                   ? () => _decide(true)
                   : null,
@@ -228,7 +238,9 @@ class _CashierLoginPageState extends State<CashierLoginPage> {
               ),
             ),
           ] else
-            TextButton(
+            FilledButton(
+              key: const ValueKey('cashier-login-done'),
+              style: _primaryButtonStyle,
               onPressed: _busy ? null : () => Navigator.of(context).pop(),
               child: const Text('完成'),
             ),
