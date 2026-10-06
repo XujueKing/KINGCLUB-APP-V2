@@ -2,6 +2,10 @@ name: iPhone development package
 on:
   workflow_dispatch:
     inputs:
+      build_number:
+        description: Unique build number greater than installed versions
+        required: true
+        type: string
       system_calls:
         description: Enable reviewed PushKit direct-call path (requires backend migration 203)
         type: boolean
@@ -42,11 +46,12 @@ jobs:
         run: python3 scripts/prepare_ios_signing.py
       - name: Build signed iPhone package
         env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
           KINGCLUB_TENCENT_MAP_KEY: ${{ secrets.KINGCLUB_TENCENT_MAP_KEY }}
         run: >-
-          test -n "$KINGCLUB_TENCENT_MAP_KEY" &&
+          test -n "$KINGCLUB_TENCENT_MAP_KEY" && [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]{0,8}$ ]] &&
           flutter build ipa --release
-          --build-number=${{ github.run_number }}
+          --build-number="$BUILD_NUMBER" --build-name=1.2.0
           --dart-define=KINGCLUB_API_BASE_URL=https://test.wuyexin.cn/kingclub-v2
           --dart-define=KINGCLUB_IOS_WECHAT_PAYMENT=true
           --dart-define=KINGCLUB_IOS_SYSTEM_CALLS=${{ inputs.system_calls }}

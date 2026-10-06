@@ -9,6 +9,8 @@ param(
   [string]$MapsConfigFile,
   [string]$NovoRudpSourceRoot,
   [string]$StunHost,
+  [ValidateRange(1,2147483647)][int]$BuildNumber = 150,
+  [string]$BuildName = '1.2.0',
   [string[]]$StunFallbacks = @(),
   [ValidateRange(1,65535)][int]$StunPort = 3478,
   [switch]$SkipNovoRudp,
@@ -139,7 +141,7 @@ try {
   # Flutter's exit code, not a plugin warning, determines build success.
   $ErrorActionPreference = 'Continue'
   $bindingEnabled = if ($SkipNovoRudp) { 'false' } else { 'true' }
-  & $FlutterCommand build apk --profile --flavor preview --target-platform android-arm64 "--dart-define=KINGCLUB_API_BASE_URL=$($ApiBaseUrl.AbsoluteUri.TrimEnd('/'))" "--dart-define=KINGCLUB_NOVORUDP_DEVICE_BINDING=$bindingEnabled" @relayArguments
+  & $FlutterCommand build apk --profile --flavor preview --target-platform android-arm64 "--build-number=$BuildNumber" "--build-name=$BuildName" "--dart-define=KINGCLUB_API_BASE_URL=$($ApiBaseUrl.AbsoluteUri.TrimEnd('/'))" "--dart-define=KINGCLUB_NOVORUDP_DEVICE_BINDING=$bindingEnabled" @relayArguments
   $buildExitCode = $LASTEXITCODE
   $ErrorActionPreference = 'Stop'
   if ($buildExitCode -ne 0) { throw 'Chat preview APK build failed.' }
