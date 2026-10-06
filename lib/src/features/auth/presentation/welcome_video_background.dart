@@ -5,7 +5,8 @@ import 'package:video_player/video_player.dart';
 
 final welcomeMediaRouteObserver = RouteObserver<ModalRoute<dynamic>>();
 
-/// Local opening movie; audio follows both route visibility and app lifecycle.
+/// Original movie is preserved and muted; the full music track loops separately.
+/// Both players follow route visibility and app lifecycle.
 class WelcomeVideoBackground extends StatefulWidget {
   const WelcomeVideoBackground({super.key});
 
@@ -16,6 +17,7 @@ class WelcomeVideoBackground extends StatefulWidget {
 class _WelcomeVideoBackgroundState extends State<WelcomeVideoBackground>
     with WidgetsBindingObserver, RouteAware {
   late final VideoPlayerController _controller;
+  late final VideoPlayerController _music;
   ModalRoute<dynamic>? _route;
   bool _visible = true;
   bool _foreground = true;
@@ -31,9 +33,14 @@ class _WelcomeVideoBackgroundState extends State<WelcomeVideoBackground>
     _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
     _controller = VideoPlayerController.asset(
       'assets/legacy/home/welcome_cover.mp4',
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+    );
+    _music = VideoPlayerController.asset(
+      'assets/legacy/home/welcome_music_20261006.m4a',
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
     );
     _controller.addListener(_checkError);
+    _music.addListener(_checkError);
     unawaited(_initialize());
   }
 
@@ -43,7 +50,12 @@ class _WelcomeVideoBackgroundState extends State<WelcomeVideoBackground>
       if (!mounted) return;
       await _controller.setLooping(true);
       if (!mounted) return;
-      await _controller.setVolume(1);
+      await _controller.setVolume(0);
+      if (!mounted) return;
+      await _music.initialize();
+      if (!mounted) return;
+      await _music.setLooping(true);
+      await _music.setVolume(_muted ? 0 : 1);
       if (!mounted) return;
       setState(() => _ready = true);
       await _syncPlayback();
@@ -53,7 +65,7 @@ class _WelcomeVideoBackgroundState extends State<WelcomeVideoBackground>
   }
 
   void _checkError() {
-    if (_controller.value.hasError) _fail();
+    if (_controller.value.hasError || _music.value.hasError) _fail();
   }
 
   void _fail() {
@@ -67,8 +79,11 @@ class _WelcomeVideoBackgroundState extends State<WelcomeVideoBackground>
     try {
       if (_visible && _foreground && !_failed) {
         await _controller.play();
+        if (!mounted) return;
+        if (_visible && _foreground && !_failed) await _music.play();
       } else {
         await _controller.pause();
+        await _music.pause();
       }
     } catch (_) {
       _fail();
@@ -114,7 +129,7 @@ class _WelcomeVideoBackgroundState extends State<WelcomeVideoBackground>
   Future<void> _toggleSound() async {
     setState(() => _muted = !_muted);
     try {
-      await _controller.setVolume(_muted ? 0 : 1);
+      await _music.setVolume(_muted ? 0 : 1);
     } catch (_) {
       _fail();
     }
@@ -125,7 +140,9 @@ class _WelcomeVideoBackgroundState extends State<WelcomeVideoBackground>
     welcomeMediaRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_checkError);
+    _music.removeListener(_checkError);
     unawaited(_controller.dispose());
+    unawaited(_music.dispose());
     super.dispose();
   }
 

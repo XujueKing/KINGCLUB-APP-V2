@@ -10,6 +10,12 @@ import 'package:kingclub/src/features/auth/presentation/welcome_video_background
 
 class _Player extends VideoPlayerPlatform {
   final events = StreamController<VideoEvent>();
+  final musicEvents = StreamController<VideoEvent>();
+  int created = 0;
+  bool musicPlaying = false;
+  bool musicLooping = false;
+  bool musicDisposed = false;
+  double musicVolume = 0;
   bool playing = false;
   bool looping = false;
   bool disposed = false;
@@ -18,23 +24,50 @@ class _Player extends VideoPlayerPlatform {
   @override
   Future<void> init() async {}
   @override
-  Future<int?> createWithOptions(VideoCreationOptions options) async => 1;
-  @override
-  Stream<VideoEvent> videoEventsFor(int playerId) => events.stream;
-  @override
-  Future<void> dispose(int playerId) async {
-    disposed = true;
-    await events.close();
+  Future<int?> createWithOptions(VideoCreationOptions options) async {
+    final id = ++created;
+    if (id == 2) {
+      expect(
+        options.dataSource.asset,
+        'assets/legacy/home/welcome_music_20261006.m4a',
+      );
+      musicEvents.add(
+        VideoEvent(
+          eventType: VideoEventType.initialized,
+          duration: const Duration(seconds: 145),
+          size: Size.zero,
+        ),
+      );
+    }
+    return id;
   }
 
   @override
-  Future<void> play(int playerId) async => playing = true;
+  Stream<VideoEvent> videoEventsFor(int playerId) =>
+      playerId == 1 ? events.stream : musicEvents.stream;
   @override
-  Future<void> pause(int playerId) async => playing = false;
+  Future<void> dispose(int playerId) async {
+    if (playerId == 1) {
+      disposed = true;
+      await events.close();
+    } else {
+      musicDisposed = true;
+      await musicEvents.close();
+    }
+  }
+
   @override
-  Future<void> setLooping(int playerId, bool value) async => looping = value;
+  Future<void> play(int playerId) async =>
+      playerId == 1 ? playing = true : musicPlaying = true;
   @override
-  Future<void> setVolume(int playerId, double value) async => volume = value;
+  Future<void> pause(int playerId) async =>
+      playerId == 1 ? playing = false : musicPlaying = false;
+  @override
+  Future<void> setLooping(int playerId, bool value) async =>
+      playerId == 1 ? looping = value : musicLooping = value;
+  @override
+  Future<void> setVolume(int playerId, double value) async =>
+      playerId == 1 ? volume = value : musicVolume = value;
   @override
   Future<void> setPlaybackSpeed(int playerId, double speed) async {}
   @override
@@ -84,17 +117,22 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(player.playing, isFalse);
+    expect(player.musicPlaying, isFalse);
     navigator.currentState!.pop();
     await tester.pumpAndSettle();
     expect(player.playing, isTrue);
     expect(player.looping, isTrue);
-    expect(player.volume, 1);
+    expect(player.volume, 0);
+    expect(player.musicVolume, 1);
+    expect(player.musicPlaying, isTrue);
+    expect(player.musicLooping, isTrue);
     await tester.tap(find.byKey(const ValueKey('welcome-sound-toggle')));
     await tester.pump();
-    expect(player.volume, 0);
+    expect(player.musicVolume, 0);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     await tester.pump();
     expect(player.playing, isFalse);
+    expect(player.musicPlaying, isFalse);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
     expect(player.playing, isTrue);
@@ -104,6 +142,7 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     expect(find.byType(WelcomeVideoBackground), findsNothing);
     expect(player.disposed, isTrue);
+    expect(player.musicDisposed, isTrue);
   });
 
   testWidgets('decoder failure preserves the static cover and login action', (
