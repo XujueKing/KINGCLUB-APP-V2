@@ -14,20 +14,21 @@ BUNDLE = 'com.lingmei.kingclub'
 TEAM = '239E9W6PEN'
 
 
-def validate_profile(profile, now):
+def validate_profile(profile, now, distribution=False):
     entitlements = profile.get('Entitlements', {})
     if (profile.get('TeamIdentifier') != [TEAM]
             or entitlements.get('application-identifier') != TEAM + '.' + BUNDLE
-            or entitlements.get('aps-environment') != 'development'
-            or entitlements.get('get-task-allow') is not True
-            or not profile.get('ProvisionedDevices')
+            or entitlements.get('aps-environment') != ('production' if distribution else 'development')
+            or entitlements.get('get-task-allow') is not (False if distribution else True)
+            or (bool(profile.get('ProvisionedDevices')) == distribution)
+            or profile.get('ProvisionsAllDevices', False)
             or profile.get('ExpirationDate', datetime.datetime.min) <= now
             or not re.fullmatch(r'[A-Fa-f0-9-]{36}', profile.get('UUID', ''))
             or not profile.get('DeveloperCertificates')):
         raise ValueError('Development provisioning profile does not match this app')
 
 
-def configure_project(source, uuid, identity):
+def configure_project(source, uuid, identity, distribution=False):
     # This marker exists only in the three Runner configurations, not plugins/tests.
     marker = '\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = ' + BUNDLE + ';'
     if source.count(marker) != 3:
@@ -37,7 +38,7 @@ def configure_project(source, uuid, identity):
     settings = ('CODE_SIGN_STYLE = Manual;', 'DEVELOPMENT_TEAM = ' + TEAM + ';',
                 'CODE_SIGN_IDENTITY = "' + identity + '";',
                 'PROVISIONING_PROFILE_SPECIFIER = "' + uuid + '";',
-                'APS_ENVIRONMENT = development;')
+                'APS_ENVIRONMENT = ' + ('production;' if distribution else 'development;'))
     return source.replace(marker, marker + '\n' + '\n'.join('\t\t\t\t' + s for s in settings))
 
 
@@ -55,7 +56,8 @@ def main():
             raise RuntimeError('Signing preparation command failed: ' + args[0])
         return result.stdout
     profile = plistlib.loads(run('security', 'cms', '-D', '-i', str(root / 'app.mobileprovision')))
-    validate_profile(profile, datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None))
+    distribution = os.environ.get('IOS_DISTRIBUTION') == 'true'
+    validate_profile(profile, datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None), distribution)
     keychain = str(root / 'build.keychain-db')
     password = secrets.token_urlsafe(40)
     run('security', 'create-keychain', '-p', password, keychain)
@@ -81,12 +83,12 @@ def main():
         installed.append(str(dest))
     (root / 'installed-profiles.json').write_text(json.dumps(installed))
     project = Path('ios/Runner.xcodeproj/project.pbxproj')
-    project.write_text(configure_project(project.read_text(), profile['UUID'], identity))
-    export = {'method': 'development', 'signingStyle': 'manual', 'teamID': TEAM,
+    project.write_text(configure_project(project.read_text(), profile['UUID'], identity, distribution))
+    export = {'method': 'app-store-connect' if distribution else 'development', 'signingStyle': 'manual', 'teamID': TEAM,
               'signingCertificate': identity, 'provisioningProfiles': {BUNDLE: profile['UUID']},
               'manageAppVersionAndBuildNumber': False}
     (root / 'ExportOptions.plist').write_bytes(plistlib.dumps(export))
-    print('Development signing configured; matching certificate and device profile verified.')
+    print('Signing configured; matching certificate and profile verified.')
 
 
 if __name__ == '__main__':

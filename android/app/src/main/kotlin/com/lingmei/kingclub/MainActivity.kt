@@ -47,6 +47,9 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        val appUpdate = AppUpdate(this)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/app-update")
+            .setMethodCallHandler { call, result -> appUpdate.handle(call, result) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kingclub/call-permission")
             .setMethodCallHandler { call, result ->
                 if (call.method != "request") result.notImplemented()

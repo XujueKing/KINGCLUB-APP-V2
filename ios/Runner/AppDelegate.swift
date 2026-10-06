@@ -45,6 +45,17 @@ import MapKit
                 "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""])
       }
 
+    FlutterMethodChannel(name: "kingclub/app-update", binaryMessenger: engineBridge.applicationRegistrar.messenger())
+      .setMethodCallHandler { call, result in
+        guard call.method == "open", let args = call.arguments as? [String: Any],
+          let raw = args["url"] as? String, let url = URL(string: raw),
+          url.scheme == "https", url.user == nil, url.password == nil,
+          url.port == nil || url.port == 443,
+          (url.host == "testflight.apple.com" && url.path.hasPrefix("/join/")) || url.host == "apps.apple.com"
+        else { result(FlutterError(code: "URL", message: "Invalid update link", details: nil)); return }
+        UIApplication.shared.open(url, options: [:]) { opened in result(opened) }
+      }
+
     mapPreview = AppleChatMapPreview(messenger: engineBridge.applicationRegistrar.messenger())
     chatMap = AppleChatMapNavigation(messenger: engineBridge.applicationRegistrar.messenger())
     engineBridge.applicationRegistrar.register(

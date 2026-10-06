@@ -1,3 +1,4 @@
+import 'core/app_update.dart';
 import 'features/messaging/presentation/system_notice_copy.dart';
 import 'features/messaging/presentation/system_notifications_page.dart';
 import 'features/messaging/data/push_registration_runtime.dart';
@@ -732,6 +733,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(AppUpdates.shared.check());
+    });
     KingLanguage.shared.addListener(_languageChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_checkMobileWindow());

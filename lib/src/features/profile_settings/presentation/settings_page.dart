@@ -1,5 +1,7 @@
 import '../../../core/design_system/king_control_sizes.dart';
 import '../../../core/app_version.dart';
+import '../../../core/app_update.dart';
+import 'app_update_page.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
@@ -90,6 +92,7 @@ class _SettingsPageState extends State<SettingsPage>
     ('privacy', '隐私政策', '', Icons.policy_outlined),
     ('terms', '用户协议', '', Icons.description_outlined),
     ('about', '关于 KINGCLUB', '', Icons.touch_app_outlined),
+    ('update', '检查更新', '', Icons.system_update_outlined),
   ];
 
   @override
@@ -152,7 +155,22 @@ class _SettingsPageState extends State<SettingsPage>
                       icon: Icons.cloud_off_outlined,
                       text: '部分能力状态暂时无法读取，固定安全入口仍可使用。',
                     ),
-                  ..._entries.map(_settingRow),
+                  ..._entries.map(
+                    (entry) => entry.$1 == 'update'
+                        ? AnimatedBuilder(
+                            animation: AppUpdates.shared,
+                            builder: (_, _) => _settingRow((
+                              entry.$1,
+                              entry.$2,
+                              AppUpdates.shared.available &&
+                                      !AppUpdates.shared.failed
+                                  ? _text(['新版本', 'New', '新版本', 'ใหม่'])
+                                  : '',
+                              entry.$4,
+                            )),
+                          )
+                        : _settingRow(entry),
+                  ),
                   if (widget.onOpenTableManagement != null)
                     ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -218,6 +236,7 @@ class _SettingsPageState extends State<SettingsPage>
       'cache' => ['清理缓存', 'Clear cache', '清除快取', 'ล้างแคช'],
       'privacy' => ['隐私政策', 'Privacy policy', '隱私政策', 'นโยบายความเป็นส่วนตัว'],
       'terms' => ['用户协议', 'Terms of service', '用戶協議', 'ข้อกำหนดการใช้งาน'],
+      'update' => ['检查更新', 'Check for updates', '檢查更新', 'ตรวจสอบการอัปเดต'],
       'about' => [
         '关于 KINGCLUB',
         'About KINGCLUB',
@@ -247,6 +266,8 @@ class _SettingsPageState extends State<SettingsPage>
       borderRadius: BorderRadius.circular(28),
       onTap: entry.$1 == 'language'
           ? () => _push(const LanguageSettingsPage())
+          : entry.$1 == 'update'
+          ? () => _push(const AppUpdatePage())
           : entry.$1 == 'cache'
           ? _clearCache
           : () => _openChild(entry.$2),

@@ -1,0 +1,105 @@
+name: iPhone TestFlight
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: Unique build number greater than all installed builds
+        required: true
+        type: string
+      version:
+        description: Marketing version
+        default: "1.2.0"
+        type: string
+      system_calls:
+        description: Enable reviewed PushKit direct-call path (requires backend migration 203)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: iphone-testflight
+  cancel-in-progress: false
+jobs:
+  package:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    environment: ios-signing
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install verified Flutter release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch 3.47.1 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          test "$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)" = 6655482ec06e547f90abf8ae7590466f4415978d
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" config --no-analytics
+          "$RUNNER_TEMP/flutter/bin/flutter" precache --ios
+      - name: Resolve dependencies before importing credentials
+        run: flutter pub get --enforce-lockfile
+      - name: Apply reviewed iOS avatar cropper controls workaround
+        run: python3 scripts/patch_ios_avatar_cropper.py
+      - name: Prepare temporary distribution signing
+        env:
+          IOS_DISTRIBUTION: "true"
+          IOS_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_DISTRIBUTION_PROFILE_BASE64 }}
+        run: python3 scripts/prepare_ios_signing.py
+      - name: Build signed iPhone package
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          BUILD_VERSION: ${{ inputs.version }}
+          KINGCLUB_TENCENT_MAP_KEY: ${{ secrets.KINGCLUB_TENCENT_MAP_KEY }}
+        run: >-
+          test -n "$KINGCLUB_TENCENT_MAP_KEY" &&
+          flutter build ipa --release
+          --build-number="$BUILD_NUMBER" --build-name="$BUILD_VERSION"
+          --dart-define=KINGCLUB_API_BASE_URL=https://test.wuyexin.cn/kingclub-v2
+          --dart-define=KINGCLUB_IOS_WECHAT_PAYMENT=true
+          --dart-define=KINGCLUB_IOS_SYSTEM_CALLS=${{ inputs.system_calls }}
+          --dart-define=KINGCLUB_TENCENT_MAP_KEY="$KINGCLUB_TENCENT_MAP_KEY"
+          --export-options-plist="$RUNNER_TEMP/kingclub-signing/ExportOptions.plist"
+      - name: Upload to TestFlight only
+        env:
+          ASC_KEY_BASE64: ${{ secrets.ASC_KEY_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export API_PRIVATE_KEYS_DIR="$RUNNER_TEMP/kingclub-signing/api"
+          mkdir -p "$API_PRIVATE_KEYS_DIR"
+          python3 - <<'PYKEY'
+          import os, base64, pathlib
+          path = pathlib.Path(os.environ['API_PRIVATE_KEYS_DIR']) / ('AuthKey_' + os.environ['ASC_KEY_ID'] + '.p8')
+          path.write_bytes(base64.b64decode(os.environ['ASC_KEY_BASE64'], validate=True))
+          path.chmod(0o600)
+          PYKEY
+          shopt -s nullglob
+          packages=(build/ios/ipa/*.ipa)
+          test "${#packages[@]}" = 1
+          xcrun altool --upload-app --type ios --file "${packages[0]}" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Remove signing credentials
+        if: always()
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/kingclub-signing/build.keychain-db" || true
+          python3 - <<'PY'
+          import json, os, shutil
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'kingclub-signing'
+          manifest = root / 'installed-profiles.json'
+          if manifest.exists():
+              for name in json.loads(manifest.read_text()):
+                  path = Path(name).resolve()
+                  allowed = [Path.home() / 'Library/MobileDevice/Provisioning Profiles',
+                             Path.home() / 'Library/Developer/Xcode/UserData/Provisioning Profiles']
+                  if path.parent in allowed:
+                      path.unlink(missing_ok=True)
+          if root.is_dir():
+              shutil.rmtree(root)
+          PY
