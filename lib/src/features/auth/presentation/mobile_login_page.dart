@@ -372,7 +372,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
         SizedBox(
           height: kingControlHeight,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(22.5),
+            borderRadius: BorderRadius.circular(kingControlHeight / 2),
             child: Row(
               children: [
                 Expanded(
