@@ -94,7 +94,7 @@ void main() {
         expect(find.text('步骤 3/4'), findsNothing);
         final next = tester.getRect(find.widgetWithText(FilledButton, 'NEXT'));
         expect(next.bottom, lessThan(size.height));
-        expect(next.height, 56);
+        expect(next.height, 52);
         expect(
           tester
               .getRect(find.byKey(const ValueKey('preference-big_room')))
@@ -296,7 +296,7 @@ void main() {
       final gradient =
           (surface.decoration as BoxDecoration).gradient! as RadialGradient;
       // A 300dp circle spans the field; a radius of 1 collapses to its height.
-      expect(gradient.radius * 56, closeTo(300, .1));
+      expect(gradient.radius * 52, closeTo(300, .1));
     }
   });
   testWidgets('registration screens reflow at supported phone sizes', (

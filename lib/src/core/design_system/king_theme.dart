@@ -106,7 +106,7 @@ abstract final class KingTheme {
         fillColor: KingColors.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
-          vertical: 18,
+          vertical: 16,
         ),
         labelStyle: const TextStyle(color: KingColors.textSecondary),
         hintStyle: const TextStyle(color: KingColors.textDisabled),
