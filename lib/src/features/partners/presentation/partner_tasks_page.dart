@@ -447,12 +447,28 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                     ),
                     const SizedBox(height: 10),
                     if (widget.kind == 'ledger') ...[
+                      if (['organizer', 'referrer'].contains(row['kind'])) ...[
+                        Text(t(row['kind'] as String)),
+                        Text(
+                          '${t('eligibleSpend')} ${_money(row['eligibleCents'])} · ${(row['rateBps'] as num) / 100}%',
+                        ),
+                      ],
                       Text(
                         _money(row['amountCents']),
-                        style: const TextStyle(fontSize: 24),
+                        style: TextStyle(
+                          fontSize: 24,
+                          decoration: row['status'] == 'reversed'
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
                       ),
                       Text('${row['date']}'),
-                      Text('${t('availableDate')} ${row['availableAt'] ?? ''}'),
+                      if (row['status'] == 'reversed')
+                        Text('${t('reversed')} ${row['reversedAt'] ?? ''}')
+                      else
+                        Text(
+                          '${t('availableDate')} ${row['availableAt'] ?? ''}',
+                        ),
                       Text(row['reason'] as String? ?? ''),
                     ] else ...[
                       Text(

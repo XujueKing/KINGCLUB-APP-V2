@@ -11,6 +11,7 @@ import '../data/partner_repository.dart';
 import 'partner_strings.dart';
 import 'partner_code_page.dart';
 import 'partner_tasks_page.dart';
+import 'partner_policy_page.dart';
 
 Widget _title(BuildContext context, String value) => Text(
   value,
@@ -852,6 +853,20 @@ class _MerchantState extends State<_MerchantPage> {
                   Text('${partnerText(c, 'address')}\n${store['address']}'),
                   const SizedBox(height: 16),
                   Text('${partnerText(c, 'currency')} · ${store['currency']}'),
+                  if (store['currency'] == 'CNY') ...[
+                    const SizedBox(height: 20),
+                    _button(
+                      partnerText(c, 'commissionPolicy'),
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => PartnerPolicyPage(
+                            call: widget.call,
+                            storeRef: widget.store['ref'] as String,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

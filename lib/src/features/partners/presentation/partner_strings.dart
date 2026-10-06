@@ -13,6 +13,16 @@ String partnerText(BuildContext context, String key) {
 }
 
 const partnerCopy = {
+  'commissionPolicy':
+      '派对佣金设置|Party commission settings|派對佣金設定|ตั้งค่าค่าคอมมิชชันปาร์ตี้',
+  'platformRate': '门店给平台的比例|Store commission to platform|門店給平台的比例|อัตราค่าคอมมิชชันที่ร้านจ่ายให้แพลตฟอร์ม',
+  'savePolicy': '保存费率|Save rate|儲存費率|บันทึกอัตรา',
+  'policySaved': '已保存，新发布的派对使用此费率|Saved for newly published parties|已儲存，新發布的派對使用此費率|บันทึกแล้ว ใช้กับปาร์ตี้ที่เผยแพร่ใหม่',
+  'policyExplanation': '设置20%–40%的平台佣金。仅微信和平台余额实付计佣，核销入场后入账；带局者及推荐人的收益包含在此佣金内。修改仅适用于新发布的派对。|Set a platform commission of 20%–40%. Only WeChat and platform cash payments qualify, posted after admission. Organizer and referrer earnings are included in this fee. Changes apply only to newly published parties.|設定20%–40%的平台佣金。僅微信和平台餘額實付計佣，核銷入場後入帳；帶局者及推薦人的收益包含在此佣金內。修改僅適用於新發布的派對。|ตั้งค่าคอมมิชชันแพลตฟอร์ม 20%–40% คำนวณเฉพาะยอดจ่ายจริงผ่าน WeChat และยอดเงินแพลตฟอร์ม บันทึกรายได้หลังเช็กอิน รายได้ผู้จัดและผู้แนะนำรวมอยู่ในค่าคอมมิชชันนี้ การเปลี่ยนแปลงใช้กับปาร์ตี้ที่เผยแพร่ใหม่เท่านั้น',
+  'organizer': '带局提成|Organizer commission|帶局提成|ค่าคอมมิชชันผู้จัด',
+  'referrer': '特约顾客提成|Referred customer commission|特約顧客提成|ค่าคอมมิชชันจากลูกค้าที่แนะนำ',
+  'eligibleSpend': '有效消费|Eligible spending|有效消費|ยอดใช้จ่ายที่เข้าเกณฑ์',
+  'reversed': '已退款冲回，未计入余额|Reversed after refund; excluded from balance|已退款沖回，未計入餘額|หักคืนแล้วหลังคืนเงิน ไม่รวมในยอดคงเหลือ',
   'details': '查看详情|View details|查看詳情|ดูรายละเอียด',
   'task_reviews': '任务审核|Review tasks|任務審核|ตรวจสอบภารกิจ',
   'ledger': '收益明细|Earnings history|收益明細|ประวัติรายได้',
@@ -45,7 +55,7 @@ const partnerCopy = {
   'taskError': '操作未完成，请核对规则、状态和可用名额后重试。|Action failed. Check the rules, status and availability before retrying.|操作未完成，請核對規則、狀態和可用名額後重試。|ดำเนินการไม่สำเร็จ โปรดตรวจสอบกฎ สถานะ และสิทธิ์ที่เหลือก่อนลองใหม่',
   'taskUnavailable': '暂不可领取|Not available to claim|暫不可領取|ยังรับภารกิจไม่ได้',
   'saveDraft': '保存草稿|Save draft|儲存草稿|บันทึกฉบับร่าง',
-  'taskLedgerNote': '收益入账满7天后可申请提现。这里显示任务奖励；提现及转余额功能接入中。|Earnings mature seven days after posting. Task rewards are shown here; withdrawals and balance transfers are being integrated.|收益入帳滿7天後可申請提現。這裡顯示任務獎勵；提現及轉餘額功能接入中。|รายได้ครบกำหนดหลังบันทึก 7 วัน หน้านี้แสดงรางวัลภารกิจ ระบบถอนและโอนยอดเงินกำลังเชื่อมต่อ',
+  'taskLedgerNote': '收益入账满7天结算。任务奖励及派对提成在这里独立记账；提现及转余额尚未开放。|Earnings mature seven days after posting. Task rewards and party commissions are recorded separately from your wallet. Withdrawals and balance transfers are not yet available.|收益入帳滿7天結算。任務獎勵及派對提成在這裡獨立記帳；提現及轉餘額尚未開放。|รายได้ครบกำหนดหลังบันทึก 7 วัน รางวัลภารกิจและค่าคอมมิชชันปาร์ตี้บันทึกแยกจากกระเป๋าเงิน ยังไม่เปิดให้ถอนหรือโอนยอดเงิน',
   'title': '合作平台|Partner platform|合作平台|แพลตฟอร์มพาร์ทเนอร์',
   'merchant': '商家平台|Merchant platform|商家平台|แพลตฟอร์มร้านค้า',
   'switch': '切换身份|Switch workspace|切換身份|สลับบทบาท',
