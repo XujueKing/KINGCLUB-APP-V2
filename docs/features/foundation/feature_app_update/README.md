@@ -25,3 +25,5 @@ HTTPS 静态清单 `/kingclub-updates/preview.json`，schema=1，android/ios 各
 - 新工作流 `ios-testflight.yml` 手动触发，显式传 build_number 和 version（首个新包 1.2.0 / 147）。仅上传 TestFlight，不提交 App Store 审核、不公开发布。现有内部测试组自动接收构建；外部组公开链接未开启，所以清单 ios 暂为 null，不能将旧 App Store 页面伪装成新版更新链接。Apple 处理/合规审核及真机远程升级另记结果。
 
 - 148 上传后 Apple buildUploads 返回 FAILED / 90208：WechatOpenSDK 静态 archive 被 SPM 嵌入 Frameworks。149 修正为最终签名前仅移除已确认静态的 WechatOpenSDK.framework；保留链接进主程序的微信功能，动态库绝不删除。
+
+- 149 首次构建检查拦截：Xcode 26 将 SDK 包装为动态框架。改为读取最终 Mach-O minos，使 framework plist MinimumOSVersion 与二进制一致，重新签名；不降低实际系统要求，不删除动态框架。
