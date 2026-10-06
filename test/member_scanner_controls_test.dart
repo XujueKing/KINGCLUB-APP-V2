@@ -1,3 +1,4 @@
+import 'package:kingclub/src/features/scanner/data/cashier_login_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -46,6 +47,21 @@ class _Camera extends MobileScannerPlatform {
     analyzed = path;
     return capture;
   }
+}
+
+class _Cashier implements CashierLoginRepository {
+  @override
+  Future<CashierLoginChallenge> inspect(String id) async =>
+      CashierLoginChallenge(
+        status: 'pending',
+        deviceLabel: '测试收银机',
+        expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+        stores: [const CashierLoginStore(ref: 'store', name: '测试门店')],
+      );
+  @override
+  Future<String> approve(String id, String store) async => 'approved';
+  @override
+  Future<String> reject(String id) async => 'rejected';
 }
 
 void main() {
@@ -118,6 +134,65 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
+  testWidgets('cashier completion returns to scan origin and can scan again', (
+    tester,
+  ) async {
+    final original = MobileScannerPlatform.instance;
+    final camera = _Camera()
+      ..capture = BarcodeCapture(
+        barcodes: [
+          Barcode(rawValue: 'kingclub://cashier-login/v1/${'a' * 64}'),
+        ],
+      );
+    MobileScannerPlatform.instance = camera;
+    addTearDown(() => MobileScannerPlatform.instance = original);
+    var opening = false;
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                if (opening) return;
+                opening = true;
+                await context.push('/scanner');
+                opening = false;
+              },
+              child: const Text('原入口扫码'),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/scanner',
+          builder: (_, _) => MemberScannerPage(
+            pickPhoto: () async => XFile('/test/cashier.png'),
+            cashierRepository: _Cashier(),
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.tap(find.text('原入口扫码'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('相册'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MemberScannerPage), findsNothing);
+    expect(opening, isFalse);
+    await tester.tap(find.byKey(const ValueKey('cashier-login-approve')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('cashier-login-done')));
+    await tester.pumpAndSettle();
+    expect(find.text('原入口扫码'), findsOneWidget);
+    expect(find.byType(MemberScannerPage), findsNothing);
+    await tester.tap(find.text('原入口扫码'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MemberScannerPage), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
   testWidgets(
     'camera fills page, toolbar toggles light and analyzes selected photo',
     (tester) async {

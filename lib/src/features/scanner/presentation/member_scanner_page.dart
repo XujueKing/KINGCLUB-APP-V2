@@ -26,8 +26,9 @@ import 'package:flutter/services.dart';
 import '../../profile_settings/data/profile_repository.dart';
 
 class MemberScannerPage extends StatefulWidget {
-  const MemberScannerPage({super.key, this.pickPhoto});
+  const MemberScannerPage({super.key, this.pickPhoto, this.cashierRepository});
   final Future<XFile?> Function()? pickPhoto;
+  final CashierLoginRepository? cashierRepository;
   @override
   State<MemberScannerPage> createState() => _MemberScannerPageState();
 }
@@ -122,11 +123,12 @@ class _MemberScannerPageState extends State<MemberScannerPage>
         return;
       }
       if (route.kind == ScanRouteKind.cashierLogin) {
-        final repository = SecureCashierLoginRepository.secure(
-          kingclubApiBaseUrl,
-        );
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute(
+        final repository =
+            widget.cashierRepository ??
+            SecureCashierLoginRepository.secure(kingclubApiBaseUrl);
+        replacedScanner = true;
+        _openResult(
+          MaterialPageRoute<void>(
             allowSnapshotting: false,
             builder: (_) => CashierLoginPage(
               challengeId: route.challengeId!,
@@ -139,8 +141,8 @@ class _MemberScannerPageState extends State<MemberScannerPage>
       final messaging = await MessagingRepository.open();
       if (!mounted || !_active || _invalid || generation != _generation) return;
       if (route.kind == ScanRouteKind.group) {
-        await Navigator.push(
-          context,
+        replacedScanner = true;
+        _openResult(
           MaterialPageRoute<void>(
             allowSnapshotting: false,
             builder: (_) => GroupQrPreviewPage(
@@ -154,8 +156,8 @@ class _MemberScannerPageState extends State<MemberScannerPage>
         if (!mounted || !_active || _invalid || generation != _generation) {
           return;
         }
-        await Navigator.push(
-          context,
+        replacedScanner = true;
+        _openResult(
           MaterialPageRoute<void>(
             allowSnapshotting: false,
             builder: (_) => MemberCardPreview(
@@ -172,7 +174,11 @@ class _MemberScannerPageState extends State<MemberScannerPage>
       }
     } finally {
       if (mounted && !replacedScanner) setState(() => _busy = false);
-      if (!replacedScanner && mounted && _active && !_invalid && _error == null) {
+      if (!replacedScanner &&
+          mounted &&
+          _active &&
+          !_invalid &&
+          _error == null) {
         try {
           await _controller.start();
         } catch (_) {
@@ -182,6 +188,14 @@ class _MemberScannerPageState extends State<MemberScannerPage>
         }
       }
     }
+  }
+
+  void _openResult(Route<void> result) {
+    final navigator = Navigator.of(context);
+    // Finish the scan entry Future before opening its result. Back/Done then
+    // returns to the actual caller, and the caller can open the scanner again.
+    navigator.pop();
+    unawaited(navigator.push<void>(result));
   }
 
   Future<void> _pickPhoto() async {
