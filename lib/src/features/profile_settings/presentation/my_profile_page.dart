@@ -1,3 +1,5 @@
+import '../../partners/presentation/partner_platform_page.dart';
+import '../../partners/presentation/partner_strings.dart';
 import '../../commerce/presentation/member_orders_page.dart';
 import 'favourite_store_page.dart';
 import '../../home/data/home_content_repository.dart';
@@ -913,37 +915,19 @@ class _MyProfilePageState extends State<MyProfilePage> {
           }
         }),
         entry('stored-value', '我的储值', 'service_creator.svg', _showStoreCards),
-        entry('support', '专属客服', 'service_support.svg', _showSupportCenter),
+        entry(
+          'partner',
+          partnerText(context, 'title'),
+          'service_support.svg',
+          _showPartnerPlatform,
+        ),
       ],
     );
   }
 
-  void _showSupportCenter() {
-    _showSheet(
-      title: '专属客服',
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('常见问题', style: TextStyle(color: _warmWhite, fontSize: 16)),
-          SizedBox(height: 18),
-          Text('在哪里查看过期储物？', style: TextStyle(color: _warmWhite)),
-          SizedBox(height: 6),
-          Text(
-            '进入储物袋，点击右上角“过期储物”查看。',
-            style: TextStyle(color: _muted, height: 1.5),
-          ),
-          SizedBox(height: 18),
-          Text('怎样更换主页封面？', style: TextStyle(color: _warmWhite)),
-          SizedBox(height: 6),
-          Text(
-            '进入“编辑主页”，选择封面并保存。',
-            style: TextStyle(color: _muted, height: 1.5),
-          ),
-          SizedBox(height: 24),
-          Text('人工客服暂未开放', style: TextStyle(color: _muted, fontSize: 12)),
-        ],
-      ),
+  void _showPartnerPlatform() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const PartnerPlatformPage()),
     );
   }
 

@@ -1,6 +1,13 @@
 import '../../commerce/data/table_ordering_code.dart';
 
-enum ScanRouteKind { tableOrdering, member, group, cashierLogin, unsupported }
+enum ScanRouteKind {
+  tableOrdering,
+  member,
+  group,
+  partner,
+  cashierLogin,
+  unsupported,
+}
 
 /// Local dispatch only; the destination service still validates the code.
 class ScanRoute {
@@ -22,6 +29,9 @@ class ScanRoute {
         ScanRouteKind.cashierLogin,
         challengeId: raw.substring(cashierPrefix.length),
       );
+    }
+    if (RegExp(r'^KC:P:[0-9A-F]{32}$').hasMatch(raw)) {
+      return const ScanRoute(ScanRouteKind.partner);
     }
     final table = TableOrderingCode.tryParse(raw);
     if (table != null) {

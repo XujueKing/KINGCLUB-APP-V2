@@ -1,0 +1,74 @@
+import 'package:flutter/widgets.dart';
+
+String partnerText(BuildContext context, String key) {
+  final l = Localizations.localeOf(context);
+  final i = l.languageCode == 'en'
+      ? 1
+      : l.languageCode == 'th'
+      ? 3
+      : l.scriptCode == 'Hant' || ['TW', 'HK', 'MO'].contains(l.countryCode)
+      ? 2
+      : 0;
+  return partnerCopy[key]!.split('|')[i];
+}
+
+const partnerCopy = {
+  'title': '合作平台|Partner platform|合作平台|แพลตฟอร์มพาร์ทเนอร์',
+  'merchant': '商家平台|Merchant platform|商家平台|แพลตฟอร์มร้านค้า',
+  'switch': '切换身份|Switch workspace|切換身份|สลับบทบาท',
+  'join': '申请成为合作伙伴|Apply to become a partner|申請成為合作夥伴|สมัครเป็นพาร์ทเนอร์',
+  'intro': '组织派对，邀请新朋友，拓展合作门店。|Host parties, invite new members and introduce merchants.|組織派對，邀請新朋友，拓展合作門店。|จัดปาร์ตี้ เชิญสมาชิกใหม่ และแนะนำร้านค้า',
+  'pending': '申请审核中|Application under review|申請審核中|กำลังตรวจสอบใบสมัคร',
+  'rejected': '申请未通过|Application not approved|申請未通過|ใบสมัครยังไม่ผ่าน',
+  'approved': '已通过|Approved|已通過|อนุมัติแล้ว',
+  'suspended': '合作已暂停|Partnership suspended|合作已暫停|ระงับสถานะพาร์ทเนอร์',
+  'active': '合作中|Active|合作中|ใช้งานอยู่',
+  'city': '合作城市|City|合作城市|เมือง',
+  'directions': '合作方向|Areas of cooperation|合作方向|ด้านที่ต้องการร่วมงาน',
+  'organize': '组织派对|Host parties|組織派對|จัดปาร์ตี้',
+  'members': '推广用户|Invite members|推廣用戶|เชิญสมาชิก',
+  'merchants': '推广商户|Introduce merchants|推廣商戶|แนะนำร้านค้า',
+  'experience':
+      '经验介绍（选填）|Experience (optional)|經驗介紹（選填）|ประสบการณ์ (ไม่บังคับ)',
+  'submit': '提交申请|Submit application|提交申請|ส่งใบสมัคร',
+  'retry': '重试|Retry|重試|ลองใหม่',
+  'failed': '暂时无法读取，请重试|Unable to load. Please retry.|暫時無法讀取，請重試|โหลดไม่ได้ โปรดลองใหม่',
+  'actionFailed': '未确认操作结果，请重试原请求|Result unconfirmed. Retry this request.|未確認操作結果，請重試原請求|ยังยืนยันผลไม่ได้ โปรดลองคำขอเดิมอีกครั้ง',
+  'earnings': '分佣账户|Commission account|分佣帳戶|บัญชีค่าคอมมิชชัน',
+  'financePending': '结算规则配置中，暂未开放资金操作|Settlement is being configured. Fund operations are not available yet.|結算規則配置中，暫未開放資金操作|กำลังตั้งค่าการชำระบัญชี ยังทำธุรกรรมไม่ได้',
+  'withdraw': '提现|Withdraw|提現|ถอนเงิน',
+  'transfer': '转入平台余额|Transfer to platform balance|轉入平台餘額|โอนไปยอดแพลตฟอร์ม',
+  'code': '合作伙伴码|Partner code|合作夥伴碼|รหัสพาร์ทเนอร์',
+  'codeHint': '注册后扫描此码，关联合作伙伴。二维码有效期10分钟。|Scan after registration to link a partner. Valid for 10 minutes.|註冊後掃描此碼，關聯合作夥伴。二維碼有效期10分鐘。|สแกนหลังลงทะเบียนเพื่อเชื่อมโยงพาร์ทเนอร์ รหัสมีอายุ 10 นาที',
+  'bindHint': '确认后建立推荐关系，已有关系不能通过扫码更换。此操作不会扣款。|Confirm to link your referrer. Scanning cannot replace an existing link. No payment is made.|確認後建立推薦關係，已有關係不能透過掃碼更換。此操作不會扣款。|ยืนยันเพื่อเชื่อมโยงผู้แนะนำ ไม่สามารถเปลี่ยนความสัมพันธ์เดิมด้วยการสแกน และไม่มีการเรียกเก็บเงิน',
+  'bind': '确认关联|Confirm link|確認關聯|ยืนยันการเชื่อมโยง',
+  'bound': '关联成功|Partner linked|關聯成功|เชื่อมโยงสำเร็จ',
+  'done': '完成|Done|完成|เสร็จสิ้น',
+  'refreshCode': '刷新二维码|Refresh code|重新整理二維碼|รีเฟรชรหัส',
+  'codeFailed': '二维码已失效或当前无法关联，请刷新重试；已有推荐关系不能覆盖。|The code expired or linking is unavailable. Refresh and retry; existing referral links cannot be replaced.|二維碼已失效或目前無法關聯，請重新整理重試；已有推薦關係不能覆蓋。|รหัสหมดอายุหรือเชื่อมโยงไม่ได้ โปรดรีเฟรชแล้วลองใหม่ ไม่สามารถแทนที่ผู้แนะนำเดิมได้',
+  'sessionChanged': '登录状态已变化，请返回后重新进入。|Your session changed. Go back and reopen this page.|登入狀態已變更，請返回後重新進入。|สถานะเข้าสู่ระบบเปลี่ยนแล้ว โปรดย้อนกลับและเปิดหน้านี้อีกครั้ง',
+  'tasks': '领取任务|Available tasks|領取任務|รับภารกิจ',
+  'notReady': '功能接入中|Integration in progress|功能接入中|กำลังเชื่อมต่อฟังก์ชัน',
+  'commission': '提成明细|Commission details|提成明細|รายละเอียดค่าคอมมิชชัน',
+  'customers': '我的特约顾客|My referred customers|我的特約顧客|ลูกค้าที่ฉันแนะนำ',
+  'team': '我的团队|My team|我的團隊|ทีมของฉัน',
+  'direct': '直属代理|Direct agents|直屬代理|ตัวแทนโดยตรง',
+  'directory': '客户名录|Customer directory|客戶名錄|รายชื่อลูกค้า',
+  'applications': '合作申请审核|Review applications|合作申請審核|ตรวจสอบใบสมัคร',
+  'empty': '暂无记录|No records|暫無記錄|ยังไม่มีรายการ',
+  'more': '加载更多|Load more|載入更多|โหลดเพิ่มเติม',
+  'rate': '带局提成|Party commission|帶局提成|ค่าคอมมิชชันจัดปาร์ตี้',
+  'levels': '收益等级|Earnings levels|收益等級|ระดับรายได้',
+  'eligibleNote': '计佣金额仅包含微信、平台余额实际支付的消费。本店储值本金、赠送额、优惠券和金币不计入；退款扣回对应提成。|Eligible spending includes only purchases paid through WeChat or platform balance. Store credit principal, bonuses, coupons and coins are excluded. Refunds reverse the corresponding commission.|計佣金額僅包含微信、平台餘額實際支付的消費。本店儲值本金、贈送額、優惠券和金幣不計入；退款扣回對應提成。|คำนวณเฉพาะยอดซื้อที่จ่ายผ่าน WeChat หรือยอดเงินแพลตฟอร์ม ไม่รวมเงินต้นบัตรร้าน โบนัส คูปอง และเหรียญ การคืนเงินจะหักค่าคอมมิชชันที่เกี่ยวข้อง',
+  'rateNote': '关联顾客的2%从带局提成中分配给推荐人，总提成不增加。|For referred customers, 2% of eligible spending goes to the referrer from the host’s commission, without increasing total commission.|關聯顧客的2%從帶局提成中分配給推薦人，總提成不增加。|ลูกค้าที่มีผู้แนะนำจะแบ่ง 2% ของยอดที่เข้าเกณฑ์จากค่าคอมมิชชันผู้จัดให้ผู้แนะนำ โดยยอดรวมไม่เพิ่ม',
+  'treeNote': '组织层级与收益等级分开；目前不按团队层级自动发放佣金。|Team hierarchy and earnings levels are separate. Team tiers do not trigger automatic payouts.|組織層級與收益等級分開；目前不按團隊層級自動發放佣金。|ลำดับทีมแยกจากระดับรายได้ และยังไม่มีการจ่ายอัตโนมัติตามลำดับทีม',
+  'address': '门店地址|Store address|門店地址|ที่อยู่ร้าน',
+  'currency': '计价货币|Pricing currency|計價貨幣|สกุลเงินที่ใช้กำหนดราคา',
+  'merchantNote': '已核对本账号的门店权限。经营管理功能正在接入。|Store access verified. Management tools are being integrated.|已核對本帳號的門店權限。經營管理功能正在接入。|ตรวจสอบสิทธิ์ร้านแล้ว กำลังเชื่อมต่อเครื่องมือจัดการ',
+  'reviewReason': '审核说明|Review reason|審核說明|เหตุผลการตรวจสอบ',
+  'approve': '通过|Approve|通過|อนุมัติ',
+  'reject': '拒绝|Reject|拒絕|ปฏิเสธ',
+  'parent': '上级合作伙伴账号（选填）|Parent partner account (optional)|上級合作夥伴帳號（選填）|บัญชีพาร์ทเนอร์ระดับบน (ไม่บังคับ)',
+  'cancel': '取消|Cancel|取消|ยกเลิก',
+  'required': '请填写城市并选择合作方向|Enter a city and select a cooperation area|請填寫城市並選擇合作方向|กรอกเมืองและเลือกด้านที่ร่วมงาน',
+};

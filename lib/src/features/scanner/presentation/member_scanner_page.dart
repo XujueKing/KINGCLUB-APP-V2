@@ -1,5 +1,7 @@
 import 'package:kingclub/src/core/design_system/king_components.dart';
 
+import '../../partners/presentation/partner_code_page.dart';
+
 import '../../messaging/data/group_chat_repository.dart';
 import '../../messaging/presentation/group_qr_preview_page.dart';
 import '../../../core/session/secure_session_store.dart';
@@ -134,6 +136,16 @@ class _MemberScannerPageState extends State<MemberScannerPage>
               challengeId: route.challengeId!,
               repository: repository,
             ),
+          ),
+        );
+        return;
+      }
+      if (route.kind == ScanRouteKind.partner) {
+        replacedScanner = true;
+        _openResult(
+          MaterialPageRoute<void>(
+            allowSnapshotting: false,
+            builder: (_) => PartnerCodePage(code: code),
           ),
         );
         return;
