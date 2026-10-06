@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/app_update.dart';
 import '../../../core/design_system/king_language.dart';
@@ -25,7 +26,9 @@ class _AppUpdatePageState extends State<AppUpdatePage> {
   @override
   void initState() {
     super.initState();
-    updates.check();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) updates.check();
+    });
   }
 
   @override
@@ -50,6 +53,7 @@ class _AppUpdatePageState extends State<AppUpdatePage> {
           throw StateError('open');
         }
       } else if (_path == null) {
+        setState(() => _progress = 0);
         final token = _cancel = CancelToken();
         final path = await updates.download(release, token, (received, total) {
           if (mounted) {
@@ -75,6 +79,26 @@ class _AppUpdatePageState extends State<AppUpdatePage> {
             '允許此來源安裝後，返回點「安裝更新」。',
             'อนุญาตให้ติดตั้งจากแหล่งนี้ แล้วกลับมาแตะติดตั้งอัปเดต',
           ]);
+        }
+      }
+    } on PlatformException catch (error) {
+      if (mounted) {
+        _message = error.code == 'VERIFY'
+            ? t([
+                '安装包校验未通过，请重新下载。',
+                'Package verification failed. Please download again.',
+                '安裝包校驗未通過，請重新下載。',
+                'ตรวจสอบแพ็กเกจไม่ผ่าน โปรดดาวน์โหลดอีกครั้ง',
+              ])
+            : t([
+                '无法打开更新，请稍后重试。',
+                'Unable to open the update. Please try again.',
+                '無法開啟更新，請稍後重試。',
+                'ไม่สามารถเปิดอัปเดตได้ โปรดลองอีกครั้ง',
+              ]);
+        if (error.code == 'VERIFY') {
+          _path = null;
+          _downloaded = null;
         }
       }
     } catch (_) {
