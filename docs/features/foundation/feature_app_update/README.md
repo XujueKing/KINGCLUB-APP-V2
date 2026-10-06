@@ -23,3 +23,5 @@ HTTPS 静态清单 `/kingclub-updates/preview.json`，schema=1，android/ios 各
 - Nginx 实际配置位于测试服务器 `/etc/nginx/sites-enabled/ccsop-wuyexin.conf`，新增独立静态目录 `/var/www/kingclub-updates/`；备份 `/etc/nginx/ccsop-enabled-before-kingclub-updates.conf.bak`。只允许读取，不列目录，不改现有业务接口。
 - Apple 现有应用为 KINGBAR，App ID 6745736540，Bundle ID 与本项目相同。旧分发证书已过期，已重新准备仅用于本应用的 App Store profile。复用现有 API 凭据，私钥只放本机私有目录及 GitHub ios-signing environment secrets。
 - 新工作流 `ios-testflight.yml` 手动触发，显式传 build_number 和 version（首个新包 1.2.0 / 147）。仅上传 TestFlight，不提交 App Store 审核、不公开发布。现有内部测试组自动接收构建；外部组公开链接未开启，所以清单 ios 暂为 null，不能将旧 App Store 页面伪装成新版更新链接。Apple 处理/合规审核及真机远程升级另记结果。
+
+- 148 上传后 Apple buildUploads 返回 FAILED / 90208：WechatOpenSDK 静态 archive 被 SPM 嵌入 Frameworks。149 修正为最终签名前仅移除已确认静态的 WechatOpenSDK.framework；保留链接进主程序的微信功能，动态库绝不删除。
