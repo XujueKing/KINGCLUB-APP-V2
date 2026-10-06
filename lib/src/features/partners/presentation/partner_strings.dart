@@ -13,6 +13,33 @@ String partnerText(BuildContext context, String key) {
 }
 
 const partnerCopy = {
+  'withdrawAvailable': '可提现金额|Available to withdraw|可提現金額|ยอดที่ถอนได้',
+  'withdrawReview': '提现审核|Withdrawal review|提現審核|ตรวจสอบการถอน',
+  'withdrawApply': '申请提现|Request withdrawal|申請提現|ขอถอนเงิน',
+  'withdrawAmount':
+      '提现金额（元）|Withdrawal amount (CNY)|提現金額（元）|จำนวนเงินถอน (CNY)',
+  'withdrawNote': '收益入账满7天后可申请。申请金额将冻结，人工审核通过后安排转账；只有登记实际付款凭证后才显示已支付。|Apply after earnings mature for 7 days. The amount is reserved during manual review and transfer, and shown as paid only after actual payment evidence is recorded.|收益入帳滿7天後可申請。申請金額將凍結，人工審核通過後安排轉帳；只有登記實際付款憑證後才顯示已支付。|ขอถอนได้เมื่อรายได้ครบ 7 วัน จำนวนเงินจะถูกกันไว้ระหว่างการตรวจสอบและโอนโดยเจ้าหน้าที่ จะแสดงว่าจ่ายแล้วเมื่อบันทึกหลักฐานการจ่ายจริง',
+  'withdrawCancel': '撤销申请|Cancel request|撤銷申請|ยกเลิกคำขอ',
+  'withdrawCancelNote': '撤销后释放本次冻结金额。|Cancelling releases the reserved amount.|撤銷後釋放本次凍結金額。|การยกเลิกจะคืนจำนวนเงินที่กันไว้',
+  'withdrawFailed': '操作未完成，请刷新状态后重试。|Not completed. Refresh the status and retry.|操作未完成，請重新整理狀態後重試。|ดำเนินการไม่สำเร็จ โปรดรีเฟรชสถานะแล้วลองใหม่',
+  'withdrawRequired': '请填写有效金额、收款姓名和账号|Enter a valid amount, recipient name and account|請填寫有效金額、收款姓名和帳號|กรอกจำนวนเงิน ชื่อผู้รับ และบัญชีให้ครบ',
+  'withdraw_submitted': '待审核|Awaiting review|待審核|รอตรวจสอบ',
+  'withdraw_approved':
+      '待人工打款|Awaiting manual transfer|待人工打款|รอเจ้าหน้าที่โอนเงิน',
+  'withdraw_paid': '已支付|Paid|已支付|จ่ายแล้ว',
+  'withdraw_rejected': '已拒绝|Rejected|已拒絕|ปฏิเสธแล้ว',
+  'withdraw_cancelled': '已撤销|Cancelled|已撤銷|ยกเลิกแล้ว',
+  'bank': '银行转账|Bank transfer|銀行轉帳|โอนผ่านธนาคาร',
+  'wechat': '微信转账|WeChat transfer|微信轉帳|โอนผ่าน WeChat',
+  'payoutChannel': '收款方式|Payout method|收款方式|วิธีรับเงิน',
+  'payeeName': '收款姓名|Recipient name|收款姓名|ชื่อผู้รับ',
+  'payeeAccount': '收款账号（银行需含开户行）|Account (include bank name)|收款帳號（銀行需含開戶行）|บัญชีรับเงิน (ระบุชื่อธนาคารด้วย)',
+  'recordPayout': '登记付款凭证|Record payment evidence|登記付款憑證|บันทึกหลักฐานการจ่าย',
+  'payoutProof': '实际转账流水／付款凭证编号|Actual transfer / receipt reference|實際轉帳流水／付款憑證編號|เลขอ้างอิงการโอนจริง / หลักฐานการจ่าย',
+  'payoutProofNote': '请先在银行或微信完成实际转账，再登记凭证。本操作仅记账，不会发起转账。|Complete the actual bank or WeChat transfer first, then record the evidence. This action records payment; it does not send money.|請先在銀行或微信完成實際轉帳，再登記憑證。本操作僅記帳，不會發起轉帳。|โอนเงินจริงผ่านธนาคารหรือ WeChat ก่อน แล้วบันทึกหลักฐาน การทำรายการนี้เป็นการบันทึกเท่านั้น ไม่ได้ส่งเงิน',
+  'payoutTime': '实际转账时间|Actual transfer time|實際轉帳時間|เวลาที่โอนเงินจริง',
+  'refresh': '刷新|Refresh|重新整理|รีเฟรช',
+
   'confirm': '确认|Confirm|確認|ยืนยัน',
   'saving': '处理中…|Processing…|處理中…|กำลังดำเนินการ…',
   'retryOriginal': '核对本次转账|Check this transfer|核對本次轉帳|ตรวจสอบการโอนนี้',
@@ -69,7 +96,7 @@ const partnerCopy = {
   'taskError': '操作未完成，请核对规则、状态和可用名额后重试。|Action failed. Check the rules, status and availability before retrying.|操作未完成，請核對規則、狀態和可用名額後重試。|ดำเนินการไม่สำเร็จ โปรดตรวจสอบกฎ สถานะ และสิทธิ์ที่เหลือก่อนลองใหม่',
   'taskUnavailable': '暂不可领取|Not available to claim|暫不可領取|ยังรับภารกิจไม่ได้',
   'saveDraft': '保存草稿|Save draft|儲存草稿|บันทึกฉบับร่าง',
-  'taskLedgerNote': '收益入账满7天结算。任务奖励及派对提成在这里独立记账；提现及转余额尚未开放。|Earnings mature seven days after posting. Task rewards and party commissions are recorded separately from your wallet. Withdrawals and balance transfers are not yet available.|收益入帳滿7天結算。任務獎勵及派對提成在這裡獨立記帳；提現及轉餘額尚未開放。|รายได้ครบกำหนดหลังบันทึก 7 วัน รางวัลภารกิจและค่าคอมมิชชันปาร์ตี้บันทึกแยกจากกระเป๋าเงิน ยังไม่เปิดให้ถอนหรือโอนยอดเงิน',
+  'taskLedgerNote': '收益入账满7天结算，可申请人工提现或转入平台余额。任务奖励与派对提成独立记账。|Earnings mature seven days after posting and can be withdrawn after manual review or transferred to your platform balance. Task rewards and party commissions are recorded separately.|收益入帳滿7天結算，可申請人工提現或轉入平台餘額。任務獎勵與派對提成獨立記帳。|รายได้ครบกำหนด 7 วันหลังบันทึก สามารถขอถอนโดยเจ้าหน้าที่ตรวจสอบหรือโอนเข้ายอดเงินแพลตฟอร์ม รางวัลภารกิจและค่าคอมมิชชันปาร์ตี้บันทึกแยกกัน',
   'title': '合作平台|Partner platform|合作平台|แพลตฟอร์มพาร์ทเนอร์',
   'merchant': '商家平台|Merchant platform|商家平台|แพลตฟอร์มร้านค้า',
   'switch': '切换身份|Switch workspace|切換身份|สลับบทบาท',

@@ -6,6 +6,10 @@ import '../../auth/domain/auth_repository.dart';
 import '../../commerce/data/ordering_table_repository.dart';
 
 const systemNoticeKinds = {
+  'partner_reward',
+  'partner_refund',
+  'partner_transfer',
+  'partner_withdrawal',
   'purchase_paid',
   'refund_completed',
   'douyin_verified',
@@ -53,7 +57,7 @@ class SystemNotice {
     if (date == null || !raw['occurredAt'].endsWith('Z')) _invalid();
     final amount = raw['amountCents'];
     if (amount != null &&
-        (amount is! int || amount < 1 || amount > 100000000)) {
+        (amount is! int || amount < 1 || amount > 999999999)) {
       _invalid();
     }
     final items = raw['details'];
@@ -70,6 +74,7 @@ class SystemNotice {
       'channel',
       'account',
       'gift',
+      'status',
     };
     final details = <(String, dynamic)>[];
     for (final item in items) {
@@ -98,6 +103,7 @@ class SystemNotice {
               'storage',
               'vouchers',
               'recharge',
+              'partner',
             }.contains(target['kind']) ||
             target['reference'] is! String ||
             (target['reference'] as String).isEmpty ||
@@ -257,7 +263,10 @@ class SystemNoticesRepository {
   Future<SystemNoticePageData> list({String? beforeNotice}) async {
     if (beforeNotice != null && !_noticeId.hasMatch(beforeNotice)) _invalid();
     return SystemNoticePageData.parse(
-      await _call('K261002001960', {'beforeNotice': ?beforeNotice}),
+      await _call('K261002001960', {
+        'beforeNotice': ?beforeNotice,
+        'partnerNotices': 1,
+      }),
     );
   }
 
@@ -276,6 +285,7 @@ class SystemNoticesRepository {
     }
     return SystemNoticeSummary.parse(
       await _call('K261002001961', {
+        'partnerNotices': 1,
         'noticeRefs': ?ids,
         'throughSequence': ?throughSequence,
       }),

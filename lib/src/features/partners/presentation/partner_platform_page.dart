@@ -13,6 +13,7 @@ import 'partner_code_page.dart';
 import 'partner_tasks_page.dart';
 import 'partner_policy_page.dart';
 import 'partner_transfer_page.dart';
+import 'partner_withdrawal_page.dart';
 
 Widget _title(BuildContext context, String value) => Text(
   value,
@@ -201,6 +202,18 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                     ],
                   ),
                 ),
+              if (d != null && d.admin)
+                ListTile(
+                  leading: const Icon(Icons.payments_outlined),
+                  title: Text(t('withdrawReview')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          PartnerWithdrawalPage(call: call, review: true),
+                    ),
+                  ),
+                ),
               if (d != null && d.partner == null) ...[
                 _panel(
                   Column(
@@ -295,7 +308,17 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: null,
+                              onPressed: d.partner?['status'] == 'active'
+                                  ? () async {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) =>
+                                              PartnerWithdrawalPage(call: call),
+                                        ),
+                                      );
+                                      if (mounted) await load();
+                                    }
+                                  : null,
                               child: Text(
                                 t('withdraw'),
                                 textAlign: TextAlign.center,

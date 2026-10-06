@@ -1,3 +1,4 @@
+import 'features/partners/presentation/partner_notice_destination.dart';
 import 'core/app_update.dart';
 import 'features/messaging/presentation/system_notice_copy.dart';
 import 'features/messaging/presentation/system_notifications_page.dart';
@@ -580,7 +581,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
         'rechargeInbox': arrival.inbox,
         'message': systemNoticeText(
           context,
-          arrival.notice.isStoreDebit ? 'store_debit' : 'recharge_paid',
+          arrival.notice.isStoreDebit ? 'store_debit' : arrival.notice.kind,
         ),
       },
     );
@@ -673,7 +674,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
           navigator.push(
             MaterialPageRoute<void>(
               allowSnapshotting: false,
-              builder: (_) => recharge.isStoreDebit
+              builder: (_) => recharge.kind.startsWith('partner_')
+                  ? partnerNoticeDestination(recharge.target?['reference'])
+                  : recharge.isStoreDebit
                   ? SystemNotificationsPage(
                       controller:
                           notice['rechargeInbox'] as SystemNoticesController,

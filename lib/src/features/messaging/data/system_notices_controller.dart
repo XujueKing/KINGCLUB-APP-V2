@@ -51,7 +51,9 @@ class SystemNoticesController extends ChangeNotifier {
                   (n) =>
                       !_seenNotices.contains(n.id) &&
                       !n.read &&
-                      (n.kind == 'recharge_paid' || n.isStoreDebit),
+                      (n.kind == 'recharge_paid' ||
+                          n.isStoreDebit ||
+                          n.kind.startsWith('partner_')),
                 )
                 .toList()
           : <SystemNotice>[];

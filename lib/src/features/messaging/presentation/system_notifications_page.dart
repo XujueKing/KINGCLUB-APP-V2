@@ -9,6 +9,7 @@ import '../data/system_notices_repository.dart';
 import '../data/system_notices_controller.dart';
 import 'system_notice_copy.dart';
 import 'recharge_detail_page.dart';
+import '../../partners/presentation/partner_notice_destination.dart';
 
 import 'legacy_messaging_components.dart';
 
@@ -306,6 +307,17 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage>
                                       MaterialPageRoute<void>(
                                         builder: (_) =>
                                             RechargeDetailPage(notice: notice),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  if (notice.target?['kind'] == 'partner') {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            partnerNoticeDestination(
+                                              notice.target?['reference'],
+                                            ),
                                       ),
                                     );
                                     return;
