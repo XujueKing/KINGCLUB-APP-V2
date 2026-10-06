@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:kingclub/src/core/formatters/money.dart';
 
 import 'dart:async';
@@ -530,8 +531,8 @@ class _ScanOrderConfirmationPageState extends State<ScanOrderConfirmationPage> {
               ),
             ),
             SizedBox(
-              width: 112,
-              height: 48,
+              width: 128,
+              height: kingControlHeight,
               child: FilledButton(
                 key: const ValueKey('order-submit'),
                 onPressed: _canSubmit ? _submitOrder : null,

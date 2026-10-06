@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:kingclub/src/core/formatters/money.dart';
 
 import '../../../core/design_system/king_result_page.dart';
@@ -896,12 +897,12 @@ class _ResultButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 45,
+      height: kingControlHeight,
       child: primary
           ? FilledButton(
               onPressed: onPressed,
               style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 45),
+                minimumSize: const Size(0, kingControlHeight),
                 backgroundColor: legacyGold,
                 foregroundColor: const Color(0xFF181205),
                 shape: const StadiumBorder(),
@@ -911,7 +912,7 @@ class _ResultButton extends StatelessWidget {
           : OutlinedButton(
               onPressed: onPressed,
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 45),
+                minimumSize: const Size(0, kingControlHeight),
                 foregroundColor: legacyGold,
                 side: const BorderSide(color: Color(0xFF665749)),
                 shape: const StadiumBorder(),

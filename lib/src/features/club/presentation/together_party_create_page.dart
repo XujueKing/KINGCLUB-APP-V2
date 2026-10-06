@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -1404,7 +1405,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                       style: FilledButton.styleFrom(
                         backgroundColor: legacyGold,
                         foregroundColor: Colors.black,
-                        minimumSize: const Size.fromHeight(48),
+                        minimumSize: const Size.fromHeight(kingControlHeight),
                       ),
                       child: Text(
                         _busy

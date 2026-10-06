@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -62,8 +63,8 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
                         ),
                       ),
                       Positioned(
-                        left: pageWidth * 0.10,
-                        right: pageWidth * 0.10,
+                        left: pageWidth * 0.08,
+                        right: pageWidth * 0.08,
                         bottom: 30,
                         child: _bottomContent(context),
                       ),
@@ -148,7 +149,7 @@ class _LegacyWelcomePageState extends State<LegacyWelcomePage> {
         ),
         const SizedBox(height: 15),
         SizedBox(
-          height: 45,
+          height: kingControlHeight,
           child: FilledButton(
             key: const ValueKey('legacy-welcome-next'),
             onPressed: _accepted ? widget.onNext : null,

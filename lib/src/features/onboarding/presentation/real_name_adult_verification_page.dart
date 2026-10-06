@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -219,8 +220,8 @@ class _RealNameAdultVerificationPageState
     bool identity = false,
   }) {
     return Container(
-      height: 46,
-      decoration: registrationInputDecoration(height: 46),
+      height: kingControlHeight,
+      decoration: registrationInputDecoration(height: kingControlHeight),
       alignment: Alignment.center,
       child: TextField(
         key: ValueKey(keyName),
@@ -418,7 +419,7 @@ class _RealNameAdultVerificationPageState
                               ],
                               SizedBox(
                                 width: double.infinity,
-                                height: 45,
+                                height: kingControlHeight,
                                 child: FilledButton(
                                   key: const ValueKey(
                                     'real-name-verify-button',

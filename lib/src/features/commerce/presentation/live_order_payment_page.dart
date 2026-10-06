@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:kingclub/src/core/formatters/money.dart';
 
 import 'dart:async';
@@ -1218,12 +1219,12 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
                 children: [
                   SizedBox(
                     width: KingBackButton.contentWidth(context),
-                    height: 45,
+                    height: kingControlHeight,
                     child: FilledButton(
                       key: const ValueKey('live-payment-success-return'),
                       onPressed: widget.onBack,
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(45),
+                        minimumSize: const Size.fromHeight(kingControlHeight),
                         shape: const StadiumBorder(),
                         textStyle: const TextStyle(
                           fontSize: 15,

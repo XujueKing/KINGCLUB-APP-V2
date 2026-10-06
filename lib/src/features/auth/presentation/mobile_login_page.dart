@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -258,7 +259,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
                                         CrossAxisAlignment.stretch,
                                     children: [
                                       SizedBox(
-                                        height: 45,
+                                        height: kingControlHeight,
                                         child: FilledButton(
                                           key: const ValueKey(
                                             'mobile-login-next',
@@ -369,7 +370,7 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
         const Text('Code:', style: labelStyle),
         const SizedBox(height: 10),
         SizedBox(
-          height: 45,
+          height: kingControlHeight,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22.5),
             child: Row(
@@ -447,9 +448,9 @@ class _MobileLoginPageState extends ConsumerState<MobileLoginPage> {
   }) {
     return Container(
       key: key,
-      height: 45,
+      height: kingControlHeight,
       decoration: registrationInputDecoration(
-        height: 45,
+        height: kingControlHeight,
         borderRadius: borderRadius,
       ),
       alignment: Alignment.center,

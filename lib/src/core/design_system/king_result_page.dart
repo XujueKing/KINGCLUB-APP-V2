@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:flutter/material.dart';
 
 import 'king_components.dart';
@@ -101,11 +102,11 @@ class KingResultPage extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 48),
                       child: SizedBox(
                         width: KingBackButton.contentWidth(context),
-                        height: 45,
+                        height: kingControlHeight,
                         child: FilledButton(
                           onPressed: onReturn,
                           style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(45),
+                            minimumSize: const Size.fromHeight(kingControlHeight),
                             backgroundColor: KingColors.brand,
                             foregroundColor: KingColors.onBrand,
                             shape: const StadiumBorder(),

@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -159,7 +160,7 @@ class _DrinkEventPreferencesPageState
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            height: 45,
+            height: kingControlHeight,
             width: double.infinity,
             child: FilledButton(
               onPressed: _submitting || (_isReal && !_loaded) ? null : _submit,

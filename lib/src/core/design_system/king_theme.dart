@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:flutter/material.dart';
 
 abstract final class KingColors {
@@ -105,7 +106,7 @@ abstract final class KingTheme {
         fillColor: KingColors.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
-          vertical: 16,
+          vertical: 18,
         ),
         labelStyle: const TextStyle(color: KingColors.textSecondary),
         hintStyle: const TextStyle(color: KingColors.textDisabled),
@@ -128,7 +129,7 @@ abstract final class KingTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(kingControlHeight),
           backgroundColor: KingColors.brand,
           foregroundColor: KingColors.onBrand,
           disabledBackgroundColor: KingColors.border,
@@ -136,12 +137,12 @@ abstract final class KingTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(kingControlHeight),
           foregroundColor: KingColors.brandStrong,
           side: const BorderSide(color: KingColors.border),
           shape: RoundedRectangleBorder(

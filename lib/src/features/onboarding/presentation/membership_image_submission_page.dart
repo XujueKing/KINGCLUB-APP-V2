@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/media/cached_media_image.dart';
@@ -277,7 +278,7 @@ class _MembershipImageSubmissionPageState
               child: const Text('其它账号登录'),
             ),
           SizedBox(
-            height: 45,
+            height: kingControlHeight,
             width: double.infinity,
             child: FilledButton(
               onPressed:

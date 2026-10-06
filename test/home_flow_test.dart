@@ -242,7 +242,7 @@ void main() {
     expect(tester.getSize(together).width, closeTo(246 * scale, .2));
     expect(tester.getSize(party).width, closeTo(246 * scale, .2));
     expect(tester.getSize(scan).width, closeTo(160 * scale, .2));
-    expect(tester.getSize(together).height, closeTo(140 * scale, .2));
+    expect(tester.getSize(together).height, closeTo(160 * scale, .2));
     expect(tester.getTopLeft(together).dy, tester.getTopLeft(scan).dy);
     expect(tester.getBottomRight(together).dy, tester.getBottomRight(scan).dy);
 

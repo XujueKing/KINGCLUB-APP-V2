@@ -479,7 +479,7 @@ class _HomeStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get _compactMemberExtent => 78 * _unit + _scaleExtra;
   double get _actionGap => 20 * _unit;
   double get _heroHeight => showHero ? 417 * _unit : 0;
-  double get _quickHeight => _contentWidth * 140 / 680;
+  double get _quickHeight => _contentWidth * 160 / 680;
   double get _shadowExtent => 40 * _unit;
   double get _expandedHeroTop => _expandedMemberExtent - 20 * _unit;
   double get _expandedQuickTop => showHero
@@ -1139,7 +1139,7 @@ class _QuickActionsState extends State<_QuickActions> {
         final scale = constraints.maxWidth / 680;
         final largeWidth = 246 * scale;
         final scanWidth = 160 * scale;
-        final height = 140 * scale;
+        final height = 160 * scale;
         final gap = 14 * scale;
 
         return SizedBox(
