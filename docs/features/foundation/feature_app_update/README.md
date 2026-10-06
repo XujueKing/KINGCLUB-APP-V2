@@ -27,3 +27,5 @@ HTTPS 静态清单 `/kingclub-updates/preview.json`，schema=1，android/ios 各
 - 148 上传后 Apple buildUploads 返回 FAILED / 90208：WechatOpenSDK 静态 archive 被 SPM 嵌入 Frameworks。149 修正为最终签名前仅移除已确认静态的 WechatOpenSDK.framework；保留链接进主程序的微信功能，动态库绝不删除。
 
 - 149 首次构建检查拦截：Xcode 26 将 SDK 包装为动态框架。改为读取最终 Mach-O minos，使 framework plist MinimumOSVersion 与二进制一致，重新签名；不降低实际系统要求，不删除动态框架。
+
+- 2026-10-06 22:40（上海）：149 / 1.2.0，CI 37479541446 成功，Apple build e56fbbc3-3099-44d2-b93c-6afc5896c748 processingState=VALID；internalBuildState=MISSING_EXPORT_COMPLIANCE。AES-GCM 标准算法已按源码核对；App Store Connect 表单停在法国分发选择，等待账户持有人确认后保存并向已授权邮箱重发邀请。149 有非阻断定位用途字符串警告 90683，后续正式发布前补齐；未宣称邀请或手机安装成功。
