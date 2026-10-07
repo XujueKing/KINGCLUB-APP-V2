@@ -139,10 +139,10 @@ void main() {
     (tester) async {
       await tester.pumpWidget(app((_) async => snapshot(approved: true)));
       await tester.pumpAndSettle();
-      expect(find.text('分佣账户'), findsOneWidget);
+      expect(find.text('本月已入账收益 · CNY'), findsOneWidget);
       expect(find.textContaining('1,280'), findsNothing);
       expect(find.text('客户名录'), findsNothing);
-      expect(find.text('带局提成 10%'), findsOneWidget);
+      expect(find.textContaining('带局提成 10%'), findsOneWidget);
     },
   );
   testWidgets('merchant entry is not duplicated on partner page', (

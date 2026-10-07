@@ -6,13 +6,16 @@ import 'package:uuid/uuid.dart';
 import '../../../core/design_system/king_components.dart';
 import '../../../core/design_system/king_control_sizes.dart';
 import '../../../core/session/secure_session_store.dart';
-import '../../../core/formatters/money.dart';
 import '../data/partner_repository.dart';
 import 'partner_strings.dart';
+import 'partner_dashboard.dart';
+import 'partner_records_page.dart';
+import 'partner_permissions_page.dart';
 import '../../home/data/home_city_catalog.dart';
 import '../../home/data/home_city_location.dart';
 import '../../home/presentation/home_city_page.dart';
 import 'partner_code_page.dart';
+import '../../commerce/presentation/procurement_page.dart';
 import 'partner_tasks_page.dart';
 import 'partner_policy_page.dart';
 import 'partner_transfer_page.dart';
@@ -98,11 +101,13 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
       builder: (_) => _PartnerListPage(kind: kind, call: call),
     ),
   );
-  void tasks(String kind) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => PartnerTasksPage(call: call, kind: kind),
-    ),
-  );
+  void tasks(String kind, {bool management = false}) =>
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              PartnerTasksPage(call: call, kind: kind, management: management),
+        ),
+      );
   void levels() => showModalBottomSheet<void>(
     context: context,
     backgroundColor: _card,
@@ -170,18 +175,6 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                     ],
                   ),
                 ),
-              if (d != null && d.admin)
-                ListTile(
-                  leading: const Icon(Icons.payments_outlined),
-                  title: Text(t('withdrawReview')),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          PartnerWithdrawalPage(call: call, review: true),
-                    ),
-                  ),
-                ),
               if (d != null && d.partner == null) ...[
                 _panel(
                   Column(
@@ -229,168 +222,142 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                 ),
               ],
               if (d?.partner != null) ...[
-                ListTile(
-                  contentPadding: const EdgeInsets.only(bottom: 16),
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xff302a21),
-                    child: Icon(Icons.handshake_outlined, color: _gold),
-                  ),
-                  title: Text('${t('title')} · L${d!.partner!['level']}'),
-                  subtitle: Text(
-                    '${t('rate')} ${(d.partner!['organizerBps'] as num).toInt() ~/ 100}%',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: levels,
-                ),
+                PartnerIdentityHeader(data: d!, onLevels: levels),
                 if (d.partner!['status'] == 'suspended')
                   _panel(Text(t('suspended'))),
                 _panel(
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(t('earnings'), style: const TextStyle(fontSize: 18)),
-                      const SizedBox(height: 12),
-                      Text(
-                        d.finance == null
-                            ? '—'
-                            : '¥${moneyCents(d.finance!['availableCents'])}',
-                        style: const TextStyle(fontSize: 34),
-                      ),
-                      if (d.finance != null)
-                        Text(
-                          '${t('pendingReward')}  ¥${moneyCents(d.finance!['pendingCents'])}',
-                        ),
-                      Text(
-                        t(
-                          d.finance == null
-                              ? 'financePending'
-                              : 'taskLedgerNote',
-                        ),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: d.partner?['status'] == 'active'
-                                  ? () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) =>
-                                              PartnerWithdrawalPage(call: call),
-                                        ),
-                                      );
-                                      if (mounted) await load();
-                                    }
-                                  : null,
-                              child: Text(
-                                t('withdraw'),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                  PartnerEarningsCard(
+                    data: d,
+                    onWithdraw: () => openFinance(false),
+                    onTransfer: () => openFinance(true),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: PartnerFeatureTile(
+                            label: t('code'),
+                            subtitle: t('codeSubtitle'),
+                            icon: Icons.qr_code_2,
+                            onTap: d.partner!['status'] == 'active'
+                                ? () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          PartnerCodePage(call: call),
+                                    ),
+                                  )
+                                : null,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: d.partner?['status'] == 'active'
-                                  ? () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) =>
-                                              PartnerTransferPage(call: call),
-                                        ),
-                                      );
-                                      if (mounted) await load();
-                                    }
-                                  : null,
-                              child: Text(
-                                t('transfer'),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: PartnerFeatureTile(
+                            label: t('tasks'),
+                            subtitle: t('tasksSubtitle'),
+                            icon: Icons.add,
+                            onTap: () => tasks('tasks'),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                _panel(
-                  Column(
-                    children: [
-                      _entry(
-                        'code',
-                        Icons.qr_code_2,
-                        onTap: d.partner!['status'] == 'active'
-                            ? () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => PartnerCodePage(call: call),
-                                ),
-                              )
-                            : null,
-                      ),
-                      _entry(
-                        'tasks',
-                        Icons.assignment_outlined,
-                        onTap: () => tasks('tasks'),
-                      ),
-                    ],
+                _entries([
+                  _entry(
+                    'myParties',
+                    Icons.celebration_outlined,
+                    onTap: () => records('parties'),
+                    personal: true,
                   ),
-                ),
-                _panel(
-                  Column(
-                    children: [
-                      _entry(
-                        'team',
-                        Icons.groups_outlined,
-                        onTap: () => list('team'),
-                        sub: '${t('direct')} · ${d.teamCount}',
-                      ),
-                      _entry(
-                        'customers',
-                        Icons.person_outline,
-                        onTap: () => list('customers'),
-                        sub: '${d.customerCount}',
-                      ),
-                      _entry(
-                        'commission',
-                        Icons.receipt_long_outlined,
-                        onTap: () => tasks('ledger'),
-                      ),
-                    ],
+                  _entry(
+                    'commission',
+                    Icons.receipt_long_outlined,
+                    onTap: () => tasks('ledger'),
+                    personal: true,
                   ),
-                ),
+                  _entry(
+                    'customers',
+                    Icons.person_outline,
+                    onTap: () => list('customers'),
+                    personal: true,
+                  ),
+                  _entry(
+                    'team',
+                    Icons.groups_outlined,
+                    onTap: () => list('team'),
+                    personal: true,
+                  ),
+                  _entry(
+                    'taskRecords',
+                    Icons.assignment_outlined,
+                    onTap: () => records('task_records'),
+                    personal: true,
+                  ),
+                ]),
               ],
-              if (d?.admin == true)
-                _panel(
-                  Column(
-                    children: [
-                      _entry(
-                        'tasks',
-                        Icons.assignment_outlined,
-                        onTap: () => tasks('tasks'),
-                      ),
-                      _entry(
-                        'task_reviews',
-                        Icons.fact_check_outlined,
-                        onTap: () => tasks('task_reviews'),
-                      ),
-                      _entry(
-                        'applications',
-                        Icons.fact_check_outlined,
-                        onTap: () => list('applications'),
-                      ),
-                      _entry(
-                        'directory',
-                        Icons.contacts_outlined,
-                        onTap: () => list('directory'),
-                      ),
-                    ],
+              if (d?.hasManagement == true) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 16, 4, 12),
+                  child: Text(
+                    t('management'),
+                    style: const TextStyle(fontSize: 16, color: Colors.white60),
                   ),
                 ),
+                _entries([
+                  if (d!.can('withdrawals.review'))
+                    _entry(
+                      'withdrawReview',
+                      Icons.payments_outlined,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              PartnerWithdrawalPage(call: call, review: true),
+                        ),
+                      ),
+                    ),
+                  if (d.can('applications.review'))
+                    _entry(
+                      'applications',
+                      Icons.fact_check_outlined,
+                      onTap: () => list('applications'),
+                    ),
+                  if (d.can('tasks.publish'))
+                    _entry(
+                      'taskManagement',
+                      Icons.post_add_outlined,
+                      onTap: () => tasks('tasks', management: true),
+                    ),
+                  if (d.can('tasks.review'))
+                    _entry(
+                      'task_reviews',
+                      Icons.assignment_turned_in_outlined,
+                      onTap: () => tasks('task_reviews'),
+                    ),
+                  if (d.can('customers.read'))
+                    _entry(
+                      'directory',
+                      Icons.contacts_outlined,
+                      onTap: () => list('directory'),
+                    ),
+                  if (d.admin)
+                    _entry(
+                      'permissions',
+                      Icons.admin_panel_settings_outlined,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => PartnerPermissionsPage(call: call),
+                        ),
+                      ),
+                    ),
+                ]),
+              ],
             ],
           ),
         ),
@@ -398,15 +365,49 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
     );
   }
 
+  Future<void> openFinance(bool transfer) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => transfer
+            ? PartnerTransferPage(call: call)
+            : PartnerWithdrawalPage(call: call),
+      ),
+    );
+    if (mounted) await load();
+  }
+
+  void records(String kind) => Navigator.push(
+    context,
+    MaterialPageRoute<void>(
+      builder: (_) => PartnerRecordsPage(call: call, kind: kind),
+    ),
+  );
+  Widget _entries(List<Widget> children) => _panel(
+    Column(
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const Divider(height: 1, color: Color(0xff353535)),
+          children[i],
+        ],
+      ],
+    ),
+  );
+
   Widget _entry(
     String key,
     IconData icon, {
     VoidCallback? onTap,
     String? sub,
+    bool personal = false,
   }) => ListTile(
+    minTileHeight: 60,
     contentPadding: EdgeInsets.zero,
-    leading: Icon(icon, color: _gold),
-    title: Text(t(key)),
+    leading: personal ? null : Icon(icon, color: _gold),
+    title: Text(
+      t(key),
+      style: const TextStyle(fontSize: 18, color: Colors.white),
+    ),
     subtitle: sub == null
         ? null
         : Text(
@@ -1187,6 +1188,20 @@ class _MerchantState extends State<_MerchantPage> {
                     ),
                   ],
                 ],
+              ),
+            ),
+            _button(
+              procurementText(c, [
+                '采购审批 / 清单',
+                'Procurement approval / list',
+                '採購審批 / 清單',
+                'อนุมัติ / รายการจัดซื้อ',
+              ]),
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      ProcurementPage(storeRef: widget.store['ref'] as String),
+                ),
               ),
             ),
             Text(

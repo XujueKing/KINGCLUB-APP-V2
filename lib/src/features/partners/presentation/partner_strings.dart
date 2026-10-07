@@ -13,6 +13,31 @@ String partnerText(BuildContext context, String key) {
 }
 
 const partnerCopy = {
+  'collaborator': '合作者|Partner|合作者|พาร์ทเนอร์',
+  'monthlyEarnings':
+      '本月已入账收益|Earnings posted this month|本月已入帳收益|รายได้ที่บันทึกเดือนนี้',
+  'withdrawAvailableShort': '可提现|Available to withdraw|可提現|ถอนได้',
+  'pendingShort': '待结算|Pending settlement|待結算|รอชำระ',
+  'codeSubtitle':
+      '邀请顾客关联|Invite customers to connect|邀請顧客關聯|เชิญลูกค้าเชื่อมโยง',
+  'tasksSubtitle': '发现合作机会|Discover opportunities|發現合作機會|ค้นหาโอกาสร่วมงาน',
+  'myParties': '我的派对|My parties|我的派對|ปาร์ตี้ของฉัน',
+  'partyRef': '派对编号|Party reference|派對編號|รหัสปาร์ตี้',
+  'party_published': '已发布|Published|已發佈|เผยแพร่แล้ว',
+  'party_cancelled': '已取消|Cancelled|已取消|ยกเลิกแล้ว',
+  'party_ended': '已结束|Ended|已結束|สิ้นสุดแล้ว',
+  'taskRecords': '任务记录|Task history|任務記錄|ประวัติภารกิจ',
+  'management': '平台管理|Platform management|平台管理|จัดการแพลตฟอร์ม',
+  'taskManagement': '任务发布管理|Manage task publishing|任務發佈管理|จัดการเผยแพร่ภารกิจ',
+  'permissions': '权限管理|Access management|權限管理|จัดการสิทธิ์',
+  'permissionNote': '为已有会员分配管理权限。各项权限独立，合作者和商家身份不会自动获得平台管理权限。|Assign management access to existing members. Each permission is independent; partner and merchant roles do not automatically grant platform access.|為已有會員分配管理權限。各項權限獨立，合作者和商家身份不會自動獲得平台管理權限。|กำหนดสิทธิ์จัดการให้สมาชิกที่มีอยู่ สิทธิ์แต่ละข้อแยกกัน สถานะพาร์ทเนอร์หรือร้านค้าไม่ได้ให้สิทธิ์แพลตฟอร์มโดยอัตโนมัติ',
+  'memberId': 'KM会员号|KM member ID|KM會員號|รหัสสมาชิก KM',
+  'verifyMember': '查找会员|Find member|查找會員|ค้นหาสมาชิก',
+  'permissionReason':
+      '授权／撤销说明|Grant / revocation reason|授權／撤銷說明|เหตุผลการให้ / ถอนสิทธิ์',
+  'savePermissions': '保存权限|Save access|儲存權限|บันทึกสิทธิ์',
+  'revokeNote': '取消全部勾选后保存，即撤销本账号的平台管理授权；原操作记录保留。|Clear all selections and save to revoke this account’s platform management access. Audit history is retained.|取消全部勾選後儲存，即撤銷本帳號的平台管理授權；原操作記錄保留。|ยกเลิกทุกข้อแล้วบันทึกเพื่อถอนสิทธิ์จัดการแพลตฟอร์มของบัญชีนี้ ประวัติการดำเนินการยังคงอยู่',
+  'permissionFailed': '操作未完成，请核对会员号、权限和当前版本后重试。|Not completed. Check the member ID, your access and the current version, then retry.|操作未完成，請核對會員號、權限和目前版本後重試。|ดำเนินการไม่สำเร็จ โปรดตรวจรหัสสมาชิก สิทธิ์ และเวอร์ชันปัจจุบัน แล้วลองใหม่',
   'applicationReferrer':
       '推荐人（选填）|Referrer (optional)|推薦人（選填）|ผู้แนะนำ (ไม่บังคับ)',
   'referrerPlaceholder': '输入推荐人的 KM 会员号|Enter the referrer’s KM member ID|輸入推薦人的 KM 會員號|กรอกรหัสสมาชิก KM ของผู้แนะนำ',

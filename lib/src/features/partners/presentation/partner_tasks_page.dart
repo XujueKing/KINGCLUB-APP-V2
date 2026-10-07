@@ -30,11 +30,13 @@ class PartnerTasksPage extends StatefulWidget {
     this.taskRef,
     this.review,
     this.storeRef,
+    this.management = false,
   });
   final PartnerCall call;
   final String kind;
   final String? taskRef, storeRef;
   final Map<String, dynamic>? review;
+  final bool management;
   @override
   State<PartnerTasksPage> createState() => _PartnerTasksState();
 }
@@ -82,7 +84,14 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
         {
           'action': detail ? 'task_detail' : widget.kind,
           if (detail) 'taskRef': widget.taskRef,
+          if (detail && widget.storeRef != null) 'storeRef': widget.storeRef,
           if (!detail) 'page': page,
+          if (!detail && widget.kind == 'tasks')
+            'mode': widget.storeRef != null
+                ? 'merchant'
+                : widget.management
+                ? 'manage'
+                : 'available',
           if (!detail && widget.kind == 'tasks' && widget.storeRef != null)
             'storeRef': widget.storeRef,
         };
@@ -142,6 +151,7 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
           call: widget.call,
           taskRef: ref,
           storeRef: widget.storeRef,
+          management: widget.management,
           review: review,
           kind: kind,
         ),
@@ -364,12 +374,14 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                   ),
                   const SizedBox(height: 16),
                   Text('${t('deadline')}\n${task['endsAt']}'),
-                  if (data?['isAdmin'] == true && task['status'] == 'draft')
+                  if (data?['canPublish'] == true && task['status'] == 'draft')
                     button(
                       'publishTask',
                       () => act({
                         'action': 'task_publish',
                         'taskRef': widget.taskRef,
+                        if (widget.storeRef != null)
+                          'storeRef': widget.storeRef,
                       }),
                     ),
                 ]),
@@ -462,7 +474,8 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
               ],
               if (!detail && data != null) ...[
                 if (widget.kind == 'tasks' &&
-                    (data!['canCreate'] == true || data!['isAdmin'] == true))
+                    (widget.management || widget.storeRef != null) &&
+                    data!['canCreate'] == true)
                   button('taskNew', () => open(kind: 'create')),
                 if (widget.kind == 'ledger')
                   card([
