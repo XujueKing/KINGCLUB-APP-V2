@@ -34,3 +34,10 @@ HTTPS 静态清单 `/kingclub-updates/preview.json`，schema=1，android/ios 各
 
 - 2026-10-07：用户询问截图中的批准状态及公测配置。实际浏览器核对外部群组`tengxun`已有1.2.0（149），状态为“已批准”，起初0个测试员且尚未创建公开链接。已创建公开邀请链接 [TestFlight 外部测试](https://testflight.apple.com/join/Fbr2qACB)，向所有符合应用设备要求的测试员开放，先设100人上限；页面核对显示0/100。公开落地页正常显示“加入 Beta 版 KINGBAR”及先安装TestFlight再打开链接的说明。未替用户加入测试或宣称他人已安装。
 - 同日将HTTPS版本清单的ios项原子发布为build149、version1.2.0、上述公开链接及四语言说明；安卓148项逐字段保留。更新前清单备份为`/var/www/kingclub-updates/preview-before-ios149-20261007.json`。HTTPS读取确认新清单一致，APP已有更高开发版本不会被当作可降级更新。苹果后台名称仍为KINGBAR；当前公开链接仅包含149版，最近开发的166版尚未上传TestFlight。此次为外部测试配置，不是App Store正式上架。
+
+## 2026-10-07 第166版 TestFlight 发布
+
+- 用户明确要求上传166版。按现有App Store分发签名重新构建，版本1.2.0（166），源提交`e98e045c64a24104fbede44dd920057a0bd54c1d`；[CI 37612648537](https://github.com/XujueKing/KINGCLUB-APP-V2/actions/runs/37612648537)成功。19:20（上海）上传日志返回`UPLOAD SUCCEEDED with no errors`，Apple build ID为`792aacef-c523-4c82-ae3b-a297c77f5c89`。开发证书IPA未用于此次上传。
+- Apple处理结果为`VALID`。沿用用户已确认的标准加密、法国不分发声明；核对149至166的加密代码与依赖没有变化，批准149的`usesNonExemptEncryption=false`也用于166。已写入简中、英文、繁中、泰语测试说明，覆盖合作者申请与条款、任务和收益、提现、风险处理及消息交互。
+- 166已加入现有外部群组`tengxun`。API返回`externalBuildState=BETA_APPROVED`、`betaReviewState=APPROVED`，浏览器群组构建列表实际显示1.2.0（166）“已批准”，同时保留149。内部测试状态为`IN_BETA_TESTING`。现有[公开邀请链接](https://testflight.apple.com/join/Fbr2qACB)继续启用，100人上限不变；可通过TestFlight安装或更新至166，无需新邀请码。未宣称用户手机已安装166。
+- HTTPS版本清单的ios项已原子更新至166及上述链接、四语言更新说明；安卓148项逐字段保留。更新前备份`/var/www/kingclub-updates/preview-before-ios166-20261007.json`，HTTPS读回核对ios build166、version1.2.0、四条说明和链接一致。本地批准截图保存在`build/partner-qa/testflight166-public.png`（构建目录不提交）。此次为TestFlight外部测试，不是App Store正式上架。
