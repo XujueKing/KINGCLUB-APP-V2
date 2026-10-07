@@ -126,6 +126,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(requests.single['mode'], store == null ? 'manage' : 'merchant');
       expect(find.text('创建任务'), findsOneWidget);
+      expect(find.text('任务发布管理'), findsOneWidget);
     }
   });
 }

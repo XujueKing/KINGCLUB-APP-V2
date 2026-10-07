@@ -13,6 +13,14 @@ String systemNoticeText(BuildContext context, String key) {
 }
 
 const _copy = {
+  'procurement_pending':
+      '采购申请待批准|Procurement awaiting approval|採購申請待批准|คำขอจัดซื้อรออนุมัติ',
+  'procurement_approved':
+      '采购申请已批准|Procurement approved|採購申請已批准|อนุมัติจัดซื้อแล้ว',
+  'procurement_ordered':
+      '采购批次待收货|Procurement awaiting receipt|採購批次待收貨|ชุดจัดซื้อรอรับสินค้า',
+  'procurement_returned':
+      '采购申请已退回|Procurement returned|採購申請已退回|ส่งคำขอจัดซื้อกลับแล้ว',
   'partner_application':
       '新的合作者申请|New collaborator application|新的合作者申請|มีใบสมัครผู้ร่วมงานใหม่',
   'partner_application_result': '合作者申请审核结果|Collaborator application result|合作者申請審核結果|ผลการตรวจสอบใบสมัครผู้ร่วมงาน',

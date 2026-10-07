@@ -2,6 +2,7 @@ import '../../../core/design_system/king_control_sizes.dart';
 import '../../../core/app_version.dart';
 import '../../../core/app_update.dart';
 import 'app_update_page.dart';
+import '../../commerce/presentation/procurement_page.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
@@ -170,6 +171,24 @@ class _SettingsPageState extends State<SettingsPage>
                             )),
                           )
                         : _settingRow(entry),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    minTileHeight: 56,
+                    leading: const Icon(Icons.shopping_bag_outlined),
+                    title: Text(
+                      _text([
+                        '门店采购',
+                        'Store procurement',
+                        '門店採購',
+                        'จัดซื้อร้าน',
+                      ]),
+                    ),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ProcurementPage(),
+                      ),
+                    ),
                   ),
                   if (widget.onOpenTableManagement != null)
                     ListTile(

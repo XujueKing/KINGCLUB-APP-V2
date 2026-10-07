@@ -9,6 +9,7 @@ import '../data/system_notices_repository.dart';
 import '../data/system_notices_controller.dart';
 import 'system_notice_copy.dart';
 import 'recharge_detail_page.dart';
+import '../../commerce/presentation/procurement_page.dart';
 import '../../partners/presentation/partner_notice_destination.dart';
 
 import 'legacy_messaging_components.dart';
@@ -316,6 +317,21 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage>
                                             RechargeDetailPage(notice: notice),
                                       ),
                                     );
+                                    return;
+                                  }
+                                  if (notice.target?['kind'] == 'procurement') {
+                                    final scope = notice.target!['reference']!
+                                        .split('|');
+                                    if (scope.length == 2) {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => ProcurementPage(
+                                            storeRef: scope[0],
+                                            batchRef: scope[1],
+                                          ),
+                                        ),
+                                      );
+                                    }
                                     return;
                                   }
                                   if (notice.target?['kind'] == 'partner') {

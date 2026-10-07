@@ -262,6 +262,11 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                 ? 'taskNew'
                 : widget.review != null
                 ? 'task_reviews'
+                : detail
+                ? 'details'
+                : widget.kind == 'tasks' &&
+                      (widget.management || widget.storeRef != null)
+                ? 'taskManagement'
                 : widget.kind,
           ),
           style: Theme.of(context).textTheme.titleLarge

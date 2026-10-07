@@ -20,6 +20,10 @@ const systemNoticeKinds = {
   'wine_deposited',
   'wine_collected',
   'recharge_paid',
+  'procurement_pending',
+  'procurement_approved',
+  'procurement_ordered',
+  'procurement_returned',
 };
 final _noticeId = RegExp(r'^[a-f0-9]{64}$');
 Never _invalid() =>
@@ -109,6 +113,7 @@ class SystemNotice {
               'vouchers',
               'recharge',
               'partner',
+              'procurement',
             }.contains(target['kind']) ||
             target['reference'] is! String ||
             (target['reference'] as String).isEmpty ||
@@ -277,6 +282,7 @@ class SystemNoticesRepository {
         'beforeNotice': ?beforeNotice,
         'partnerNotices': 1,
         'applicationNotices': 1,
+        'procurementNotices': 1,
       }),
     );
   }
@@ -286,6 +292,7 @@ class SystemNoticesRepository {
         await _call('K261002001961', {
           'partnerNotices': 1,
           'applicationNotices': 1,
+          'procurementNotices': 1,
           'partnerApproval': 1,
         }),
       );
@@ -307,6 +314,7 @@ class SystemNoticesRepository {
       await _call('K261002001961', {
         'partnerNotices': 1,
         'applicationNotices': 1,
+        'procurementNotices': 1,
         'noticeRefs': ?ids,
         'throughSequence': ?throughSequence,
       }),

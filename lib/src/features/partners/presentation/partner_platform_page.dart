@@ -1210,12 +1210,13 @@ class _MerchantState extends State<_MerchantPage> {
             ),
             const SizedBox(height: 20),
             _button(
-              partnerText(c, 'tasks'),
+              partnerText(c, 'publishTask'),
               () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => PartnerTasksPage(
                     call: widget.call,
                     storeRef: widget.store['ref'] as String,
+                    management: true,
                   ),
                 ),
               ),
