@@ -500,9 +500,6 @@ class _PublicMemberPageState extends State<PublicMemberPage>
                     ? const Color(0xFFF0F0F0)
                     : const Color(0xFFFF2E55),
                 side: BorderSide.none,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
                 textStyle: const TextStyle(fontSize: 15),
               ),
               onPressed: _saving ? null : _follow,
@@ -521,9 +518,6 @@ class _PublicMemberPageState extends State<PublicMemberPage>
               style: FilledButton.styleFrom(
                 foregroundColor: const Color(0xFF333333),
                 backgroundColor: const Color(0xFFF0F0F0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
                 textStyle: const TextStyle(fontSize: 15),
               ),
               onPressed: () => Navigator.of(context).push<void>(

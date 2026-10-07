@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_localizations.dart';
 import 'package:kingclub/src/core/design_system/king_keyboard_dismiss.dart';
+import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/features/partners/presentation/partner_notice_destination.dart';
 import 'package:kingclub/src/features/messaging/data/system_notices_repository.dart';
 
@@ -36,7 +37,7 @@ void main() {
             locale: const Locale('zh', 'CN'),
             localizationsDelegates: kingLocalizationDelegates,
             supportedLocales: kingSupportedLocales,
-            theme: ThemeData.dark(),
+            theme: KingTheme.dark,
             builder: (_, child) => KingKeyboardDismiss(child: child!),
             home: partnerNoticeDestination(
               'application:$reference',
@@ -88,6 +89,26 @@ void main() {
           expect(reject.width, approve.width);
           expect(reject.top - approve.bottom, greaterThanOrEqualTo(32));
           expect(find.widgetWithText(OutlinedButton, '拒绝'), findsOneWidget);
+          RoundedRectangleBorder renderedShape(Finder button) {
+            final material = tester.widget<Material>(
+              find
+                  .descendant(of: button, matching: find.byType(Material))
+                  .first,
+            );
+            return material.shape! as RoundedRectangleBorder;
+          }
+
+          final approveShape = renderedShape(
+            find.widgetWithText(FilledButton, '通过'),
+          );
+          final rejectShape = renderedShape(
+            find.byKey(const ValueKey('partner-review-reject')),
+          );
+          expect(rejectShape.borderRadius, approveShape.borderRadius);
+          expect(
+            approveShape.borderRadius,
+            const BorderRadius.all(Radius.circular(12)),
+          );
         }
         expect(tester.takeException(), isNull);
       },

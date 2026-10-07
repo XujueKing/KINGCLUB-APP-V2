@@ -112,9 +112,6 @@ class _SendFriendRequestPageState extends State<SendFriendRequestPage> {
                     minimumSize: const Size.fromHeight(kingControlHeight),
                     backgroundColor: _legacyGold,
                     foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
                   ),
                   child: _submitting
                       ? const SizedBox(

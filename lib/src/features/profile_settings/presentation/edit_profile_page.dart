@@ -215,7 +215,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: _gold),
+        style: TextButton.styleFrom(
+          foregroundColor: _gold,
+          shape: const StadiumBorder(),
+        ),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: Color(0xFF171411),

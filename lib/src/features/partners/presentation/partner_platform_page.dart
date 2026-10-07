@@ -1073,7 +1073,7 @@ class _ReviewState extends State<PartnerApplicationReviewForm> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _gold,
                   side: const BorderSide(color: _gold),
-                  shape: const StadiumBorder(),
+                  shape: kingActionButtonShape,
                   textStyle: const TextStyle(fontSize: 16),
                 ),
                 onPressed: busy ? null : () => send('rejected'),

@@ -694,31 +694,29 @@ class _ChatLocationDetailsPageState extends State<ChatLocationDetailsPage> {
     );
   }
 
-  Widget _action(
-    IconData icon,
-    String text,
-    VoidCallback? onPressed,
-  ) => Tooltip(
-    message: text.isEmpty ? '更多' : text,
-    child: FilledButton(
-      style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF434343),
-        foregroundColor: const Color(0xFFE3E3E3),
-        minimumSize: const Size(0, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      onPressed: onPressed,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 20),
-          if (text.isNotEmpty) ...[
-            const SizedBox(width: 6),
-            Flexible(child: Text(text, style: const TextStyle(fontSize: 16))),
-          ],
-        ],
-      ),
-    ),
-  );
+  Widget _action(IconData icon, String text, VoidCallback? onPressed) =>
+      Tooltip(
+        message: text.isEmpty ? '更多' : text,
+        child: FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF434343),
+            foregroundColor: const Color(0xFFE3E3E3),
+            minimumSize: const Size(0, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+          onPressed: onPressed,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 20),
+              if (text.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(text, style: const TextStyle(fontSize: 16)),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
 }

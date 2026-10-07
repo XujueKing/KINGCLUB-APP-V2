@@ -706,9 +706,6 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                                   horizontal: 18,
                                 ),
                                 minimumSize: const Size(64, 36),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
                               ),
                               child: Text(
                                 _sending ? '发送中' : '发送',

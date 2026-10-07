@@ -317,9 +317,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF07C160),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
                     ),
                     onPressed: _invalid || _saving || _selected.isEmpty
                         ? null

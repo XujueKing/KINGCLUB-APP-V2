@@ -134,9 +134,7 @@ abstract final class KingTheme {
           foregroundColor: KingColors.onBrand,
           disabledBackgroundColor: KingColors.border,
           disabledForegroundColor: KingColors.textDisabled,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: kingActionButtonShape,
           textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
         ),
       ),
@@ -145,10 +143,14 @@ abstract final class KingTheme {
           minimumSize: const Size.fromHeight(kingControlHeight),
           foregroundColor: KingColors.brandStrong,
           side: const BorderSide(color: KingColors.border),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: kingActionButtonShape,
         ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(shape: kingActionButtonShape),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(shape: kingActionButtonShape),
       ),
       appBarTheme: const AppBarTheme(
         titleTextStyle: headerTitleStyle,
