@@ -31,3 +31,6 @@ HTTPS 静态清单 `/kingclub-updates/preview.json`，schema=1，android/ios 各
 - 2026-10-06 22:40（上海）：149 / 1.2.0，CI 37479541446 成功，Apple build e56fbbc3-3099-44d2-b93c-6afc5896c748 processingState=VALID；internalBuildState=MISSING_EXPORT_COMPLIANCE。AES-GCM 标准算法已按源码核对；App Store Connect 表单停在法国分发选择，等待账户持有人确认后保存并向已授权邮箱重发邀请。149 有非阻断定位用途字符串警告 90683，后续正式发布前补齐；未宣称邀请或手机安装成功。
 
 - 用户明确确认本次不在法国分发，已在 Apple 表单保存标准加密 / 法国否。149 internalBuildState=READY_FOR_BETA_TESTING，内部组已自动关联。向用户指定现有邮箱重发邀请，Apple API 返回 HTTP 201（invitation 9ca1865f-ed4f-4229-9646-ecc15b86749b）。邀请已提交，不等同邮箱送达或手机安装；外部测试未提交审核，公开链接仍未开启。
+
+- 2026-10-07：用户询问截图中的批准状态及公测配置。实际浏览器核对外部群组`tengxun`已有1.2.0（149），状态为“已批准”，起初0个测试员且尚未创建公开链接。已创建公开邀请链接 [TestFlight 外部测试](https://testflight.apple.com/join/Fbr2qACB)，向所有符合应用设备要求的测试员开放，先设100人上限；页面核对显示0/100。公开落地页正常显示“加入 Beta 版 KINGBAR”及先安装TestFlight再打开链接的说明。未替用户加入测试或宣称他人已安装。
+- 同日将HTTPS版本清单的ios项原子发布为build149、version1.2.0、上述公开链接及四语言说明；安卓148项逐字段保留。更新前清单备份为`/var/www/kingclub-updates/preview-before-ios149-20261007.json`。HTTPS读取确认新清单一致，APP已有更高开发版本不会被当作可降级更新。苹果后台名称仍为KINGBAR；当前公开链接仅包含149版，最近开发的166版尚未上传TestFlight。此次为外部测试配置，不是App Store正式上架。
