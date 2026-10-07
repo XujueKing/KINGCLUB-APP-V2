@@ -25,6 +25,7 @@ import 'partner_policy_page.dart';
 import 'partner_transfer_page.dart';
 import 'partner_withdrawal_page.dart';
 import 'partner_withdrawal_history_page.dart';
+import 'partner_customer_directory_page.dart';
 import '../../scanner/presentation/member_scanner_page.dart';
 import '../../auth/domain/auth_repository.dart';
 
@@ -118,7 +119,9 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
 
   void list(String kind) => Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) => _PartnerListPage(kind: kind, call: call),
+      builder: (_) => kind == 'directory'
+          ? PartnerCustomerDirectoryPage(call: call)
+          : _PartnerListPage(kind: kind, call: call),
     ),
   );
   void tasks(String kind, {bool management = false}) =>
