@@ -78,10 +78,12 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.runAsync(() => precacheImage(
-      const AssetImage('assets/legacy/messaging/notification_kingclub.png'),
-      key.currentContext!,
-    ));
+    await tester.runAsync(
+      () => precacheImage(
+        const AssetImage('assets/legacy/messaging/notification_kingclub.png'),
+        key.currentContext!,
+      ),
+    );
     await tester.pump();
     await tester.runAsync(() async {
       final pic =
