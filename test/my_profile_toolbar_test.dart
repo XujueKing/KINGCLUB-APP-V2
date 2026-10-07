@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/my_profile_page.dart';
 
 void main() {
-  testWidgets('merchant service follows partner and is revealed by swiping', (
+  testWidgets('merchant defaults visible and arrows reveal hidden shortcuts', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -42,11 +42,48 @@ void main() {
       greaterThan(tester.getRect(partner).left),
     );
     expect(tester.getRect(merchant).width, tester.getRect(partner).width);
-    await tester.drag(
-      find.byKey(const ValueKey('my-profile-services')),
-      const Offset(-200, 0),
+    final services = find.byKey(const ValueKey('my-profile-services'));
+    final viewport = tester.getRect(
+      find
+          .ancestor(of: services, matching: find.byType(SingleChildScrollView))
+          .first,
     );
+    expect(
+      tester.getRect(merchant).right,
+      lessThanOrEqualTo(viewport.right + .1),
+    );
+    expect(
+      tester.getRect(find.byKey(const ValueKey('my-profile-bump'))).right,
+      lessThanOrEqualTo(viewport.left + .1),
+    );
+    expect(
+      find.byKey(const ValueKey('my-profile-services-earlier')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('my-profile-services-later')),
+      findsNothing,
+    );
+    await tester.drag(services, const Offset(200, 0));
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('my-profile-services-earlier')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('my-profile-services-later')),
+      findsOneWidget,
+    );
+    expect(
+      tester.getRect(find.byKey(const ValueKey('my-profile-bump'))).left,
+      closeTo(viewport.left, .1),
+    );
+    await tester.tap(find.byKey(const ValueKey('my-profile-services-later')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('my-profile-services-earlier')),
+      findsOneWidget,
+    );
     await tester.tap(merchant);
     await tester.pumpAndSettle();
     expect(calls.last, {'action': 'merchant', 'storeRef': 'test-store'});
@@ -63,6 +100,23 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('my-profile-merchant')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('my-profile-services-earlier')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('my-profile-services-later')),
+      findsNothing,
+    );
+    tester
+        .widget<CustomScrollView>(find.byType(CustomScrollView))
+        .controller!
+        .jumpTo(500);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('my-profile-selected-tab-arrow-动态')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('orders has one service entry and no toolbar duplicate', (

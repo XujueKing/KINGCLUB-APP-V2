@@ -104,9 +104,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
   String? _avatarPath;
   bool _profileLoading = false;
   String? _profileError;
-  int _selectedTab = 0;
+  int _selectedTab = 1;
   final _scroll = ScrollController();
-  final _pages = PageController();
+  final _pages = PageController(initialPage: 1);
   double _menuPinOffset = 300;
   String _nickname = '杨嘉琪';
   String _signature = '';
@@ -934,8 +934,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
               ),
             ),
           );
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      return _ProfileServiceStrip(
+        revealMerchant: _merchantStores.isNotEmpty,
         child: Row(
           key: const ValueKey('my-profile-services'),
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -960,20 +960,20 @@ class _MyProfilePageState extends State<MyProfilePage> {
             entry(
               'stored-value',
               '我的储值',
-              'service_creator.svg',
+              'service_stored_value.svg',
               _showStoreCards,
             ),
             entry(
               'partner',
               partnerText(context, 'title'),
-              'service_support.svg',
+              'service_partner.svg',
               _showPartnerPlatform,
             ),
             if (_merchantStores.isNotEmpty)
               entry(
                 'merchant',
                 partnerText(context, 'merchant'),
-                'service_creator.svg',
+                'service_merchant.svg',
                 () => openMerchantPlatform(
                   context,
                   _merchantStores,
@@ -1127,7 +1127,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
               padding: EdgeInsets.fromLTRB(
                 0,
                 4 * _legacyScale,
-                32 * _legacyScale,
+                48 * _legacyScale,
                 4 * _legacyScale,
               ),
               child: Row(
@@ -1593,4 +1593,129 @@ class _LevelBadgeClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(_LevelBadgeClipper oldClipper) =>
       tipWidth != oldClipper.tipWidth;
+}
+
+/// Keeps only the horizontal strip rebuilding while scrolling.
+class _ProfileServiceStrip extends StatefulWidget {
+  const _ProfileServiceStrip({
+    required this.child,
+    required this.revealMerchant,
+  });
+  final Widget child;
+  final bool revealMerchant;
+  @override
+  State<_ProfileServiceStrip> createState() => _ProfileServiceStripState();
+}
+
+class _ProfileServiceStripState extends State<_ProfileServiceStrip> {
+  final _scroll = ScrollController();
+  bool _alignPending = true, _scheduled = false;
+  bool _earlier = false, _later = false;
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_updateOverflow);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ProfileServiceStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.revealMerchant != widget.revealMerchant) _alignPending = true;
+  }
+
+  void _updateOverflow() {
+    if (!mounted || !_scroll.hasClients) return;
+    final p = _scroll.position;
+    final earlier = p.pixels > p.minScrollExtent + 1;
+    final later = p.pixels < p.maxScrollExtent - 1;
+    if (_earlier != earlier || _later != later) {
+      setState(() {
+        _earlier = earlier;
+        _later = later;
+      });
+    }
+  }
+
+  void _syncLayout() {
+    if (_scheduled) return;
+    _scheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduled = false;
+      if (!mounted || !_scroll.hasClients) return;
+      if (_alignPending) {
+        _alignPending = false;
+        _scroll.jumpTo(
+          widget.revealMerchant ? _scroll.position.maxScrollExtent : 0,
+        );
+      }
+      _updateOverflow();
+    });
+  }
+
+  void _step(bool forward) {
+    final p = _scroll.position;
+    _scroll.animateTo(
+      (p.pixels + (forward ? 1 : -1) * p.viewportDimension / 5).clamp(
+        p.minScrollExtent,
+        p.maxScrollExtent,
+      ),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Widget _arrow(bool forward) => Positioned(
+    left: forward ? null : 0,
+    right: forward ? 0 : null,
+    top: 0,
+    bottom: 0,
+    child: Tooltip(
+      message: partnerText(
+        context,
+        forward ? 'moreServices' : 'earlierServices',
+      ),
+      child: InkWell(
+        key: ValueKey(
+          forward ? 'my-profile-services-later' : 'my-profile-services-earlier',
+        ),
+        onTap: () => _step(forward),
+        child: SizedBox(
+          width: 24,
+          child: Icon(
+            forward ? Icons.chevron_right : Icons.chevron_left,
+            size: 12,
+            color: const Color(0xffb7ada0),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _syncLayout();
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: (_) {
+        _syncLayout();
+        return false;
+      },
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            controller: _scroll,
+            scrollDirection: Axis.horizontal,
+            child: widget.child,
+          ),
+          if (_earlier) _arrow(false),
+          if (_later) _arrow(true),
+        ],
+      ),
+    );
+  }
 }

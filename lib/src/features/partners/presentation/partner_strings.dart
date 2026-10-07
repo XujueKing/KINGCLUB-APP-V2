@@ -118,6 +118,8 @@ const partnerCopy = {
   'active': '合作中|Active|合作中|ใช้งานอยู่',
   'chooseCity': '选择城市|Select city|選擇城市|เลือกเมือง',
   'city': '合作城市|City|合作城市|เมือง',
+  'earlierServices': '前面的功能|Previous shortcuts|前面的功能|ทางลัดก่อนหน้า',
+  'moreServices': '更多功能|More shortcuts|更多功能|ทางลัดเพิ่มเติม',
   'directions': '合作方向|Areas of cooperation|合作方向|ด้านที่ต้องการร่วมงาน',
   'organize': '组织派对|Host parties|組織派對|จัดปาร์ตี้',
   'members': '推广用户|Invite members|推廣用戶|เชิญสมาชิก',
