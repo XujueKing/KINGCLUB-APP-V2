@@ -40,6 +40,17 @@ void main() {
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           theme: KingTheme.dark.copyWith(
             textTheme: KingTheme.dark.textTheme.apply(fontFamily: 'PartnerQA'),
+            filledButtonTheme: FilledButtonThemeData(
+              style: KingTheme.dark.filledButtonTheme.style?.copyWith(
+                textStyle: const WidgetStatePropertyAll(
+                  TextStyle(
+                    fontFamily: 'PartnerQA',
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ),
           home: PartnerPlatformPage(
             call: (_) async => {

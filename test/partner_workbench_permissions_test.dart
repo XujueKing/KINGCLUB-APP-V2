@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/partners/presentation/partner_platform_page.dart';
 import 'package:kingclub/src/features/partners/presentation/partner_tasks_page.dart';
+import 'package:kingclub/src/features/partners/presentation/partner_permissions_page.dart';
 import 'package:kingclub/src/features/partners/data/partner_repository.dart';
 
 Map<String, dynamic> context({
@@ -32,6 +33,60 @@ Widget app(Widget home) => MaterialApp(
   home: home,
 );
 void main() {
+  testWidgets(
+    'grant editor submits the selected member and exact current version',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 1100);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final requests = <Map<String, dynamic>>[];
+      await tester.pumpWidget(
+        app(
+          PartnerPermissionsPage(
+            call: (p) async {
+              requests.add(Map.of(p));
+              if (p['action'] == 'permissions') return {'items': []};
+              return {
+                'member': {
+                  'memberId': 'KM123',
+                  'name': 'Synthetic reviewer',
+                  'version': p['action'] == 'permission_set' ? 3 : 2,
+                  'permissions': p['action'] == 'permission_set'
+                      ? ['withdrawals.review']
+                      : [],
+                },
+                'history': [],
+              };
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('permission-member-id')),
+        'KM123',
+      );
+      await tester.tap(find.text('查找会员'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('提现审核'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField).last,
+        'Synthetic review authorization',
+      );
+      await tester.ensureVisible(find.text('保存权限'));
+      await tester.tap(find.text('保存权限'));
+      await tester.pumpAndSettle();
+      final write = requests.singleWhere(
+        (p) => p['action'] == 'permission_set',
+      );
+      expect(write['memberId'], 'KM123');
+      expect(write['expectedVersion'], 2);
+      expect(write['permissions'], ['withdrawals.review']);
+      expect(write['requestId'], isA<String>());
+      expect(tester.takeException(), isNull);
+    },
+  );
   test('granular grant does not imply superadmin', () {
     final d = PartnerContext(context(permissions: ['withdrawals.review']));
     expect(d.can('withdrawals.review'), isTrue);
