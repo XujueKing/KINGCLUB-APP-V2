@@ -126,12 +126,24 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
   }
 
   Future<void> changeStatus(bool active) async {
+    if (statusBusy) return;
+    final customer = Map<String, dynamic>.from(data!['customer'] as Map);
+    final approving =
+        active && customer['registrationStatus'] == 'pending_review';
     final reason = TextEditingController();
     final accepted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: Text(t(active ? 'restore' : 'restrict')),
+          title: Text(
+            t(
+              approving
+                  ? 'approveReview'
+                  : active
+                  ? 'restore'
+                  : 'restrict',
+            ),
+          ),
           content: TextField(
             key: const ValueKey('customer-status-reason'),
             controller: reason,
@@ -177,7 +189,6 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
     // The dialog route may still be animating; dispose after it has released the field.
     Future<void>.delayed(const Duration(milliseconds: 350), reason.dispose);
     if (accepted != true || !mounted) return;
-    final customer = Map<String, dynamic>.from(data!['customer'] as Map);
     setState(() => statusBusy = true);
     try {
       final r = await widget.call({
@@ -185,11 +196,32 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
         'targetAccount': widget.targetAccount,
         'requestId': const Uuid().v4(),
         'expectedStatus': customer['status'],
-        'status': active ? 'active' : 'suspended',
+        'status': approving
+            ? 'approved'
+            : active
+            ? 'active'
+            : 'suspended',
+        if (approving) ...{
+          'expectedRegistrationStatus': 'pending_review',
+          'expectedAppearanceVersion': customer['appearanceVersion'],
+        },
         'reason': explanation,
       });
       if (mounted) {
-        setState(() => (data!['customer'] as Map)['status'] = r['status']);
+        setState(() {
+          (data!['customer'] as Map)['status'] = r['status'];
+          if (r['registrationStatus'] != null) {
+            (data!['customer'] as Map)['registrationStatus'] =
+                r['registrationStatus'];
+          }
+          if (r['canSetStatus'] != null) {
+            data!['canSetStatus'] = r['canSetStatus'];
+          }
+          if (approving) {
+            data!['canReview'] = false;
+            data!['canApprove'] = false;
+          }
+        });
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(t('changed'))));
       }
@@ -221,7 +253,7 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
   Widget line(String label, Object? value, {Widget? trailing}) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 9),
     child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           flex: 4,
@@ -243,6 +275,55 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
           ),
         ),
         ?trailing,
+      ],
+    ),
+  );
+  Widget phoneLine(String? phone) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 9),
+    child: Row(
+      children: [
+        Text(
+          t('phone'),
+          style: const TextStyle(color: Colors.white60, fontSize: 15),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  phone ?? t('unavailable'),
+                  key: const ValueKey('customer-phone-number'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              if (phone != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  key: const ValueKey('customer-phone-copy'),
+                  tooltip: t('copy'),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 44,
+                    height: 44,
+                  ),
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: phone));
+                    if (mounted) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(t('copied'))));
+                    }
+                  },
+                  icon: const Icon(Icons.content_copy, size: 18),
+                ),
+              ],
+            ],
+          ),
+        ),
       ],
     ),
   );
@@ -313,6 +394,11 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
               )
               .join('\n');
     final phone = c['phone'] as String?;
+    bool allowed(String key) => data![key] == true || data![key] == 1;
+    final pendingReview = c['registrationStatus'] == 'pending_review';
+    final approved =
+        c['registrationStatus'] == null ||
+        c['registrationStatus'] == 'approved';
     return [
       CustomerPanel(
         child: Column(
@@ -348,24 +434,7 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
                   ? null
                   : '${c['age']} ${t('years')} (${(c['birthDate'] as String).substring(5)})',
             ),
-            line(
-              t('phone'),
-              phone,
-              trailing: phone == null
-                  ? null
-                  : IconButton(
-                      tooltip: t('copy'),
-                      onPressed: () async {
-                        await Clipboard.setData(ClipboardData(text: phone));
-                        if (mounted) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text(t('copied'))));
-                        }
-                      },
-                      icon: const Icon(Icons.content_copy, size: 18),
-                    ),
-            ),
+            phoneLine(phone),
           ],
         ),
       ),
@@ -404,13 +473,24 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
           children: [
             line(
               t('status'),
-              t(c['status'] == 'active' ? 'active' : 'suspended'),
-              trailing:
-                  (data!['canSetStatus'] == true || data!['canSetStatus'] == 1)
+              t(
+                c['status'] != 'active'
+                    ? 'suspended'
+                    : pendingReview
+                    ? 'awaitingReview'
+                    : approved
+                    ? 'active'
+                    : 'unfinished',
+              ),
+              trailing: (allowed('canSetStatus') || allowed('canReview'))
                   ? Switch(
                       key: const ValueKey('customer-status'),
-                      value: c['status'] == 'active',
-                      onChanged: statusBusy ? null : changeStatus,
+                      value: approved && c['status'] == 'active',
+                      onChanged:
+                          statusBusy ||
+                              (pendingReview && !allowed('canApprove'))
+                          ? null
+                          : changeStatus,
                       activeThumbColor: customerGold,
                     )
                   : null,
@@ -491,11 +571,11 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
             style: const TextStyle(color: Colors.white70, fontSize: 15),
           ),
         ] else ...[
-          if (r['type'] == 'status')
+          if (r['type'] == 'status' || r['type'] == 'approval')
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                t('statusRecord'),
+                t(r['type'] == 'approval' ? 'approvalRecord' : 'statusRecord'),
                 style: const TextStyle(color: customerGold, fontSize: 15),
               ),
             ),

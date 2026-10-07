@@ -19,6 +19,8 @@ Map<String, dynamic> customer() => {
   'birthDate': '1990-09-05',
   'age': 36,
   'status': 'active',
+  'registrationStatus': 'approved',
+  'appearanceVersion': 3,
   'assets': {'cashCents': '123450', 'coins': '1692', 'diamonds': '0'},
   'stats': {
     'orderCount': 1,
@@ -70,6 +72,157 @@ Map<String, dynamic> profile() => {
   ],
 };
 void main() {
+  testWidgets('phone copy stays next to the number and vertically centered', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      app(
+        PartnerCustomerDetailPage(
+          targetAccount: 'U00000000002',
+          call: (_) async => profile(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final number = tester.getRect(
+      find.byKey(const ValueKey('customer-phone-number')),
+    );
+    final copy = tester.getRect(
+      find.byKey(const ValueKey('customer-phone-copy')),
+    );
+    expect((number.center.dy - copy.center.dy).abs(), lessThan(1));
+    expect(copy.left - number.right, inInclusiveRange(0, 8));
+    expect(copy.height, greaterThanOrEqualTo(44));
+  });
+  testWidgets(
+    'pending member switch approves frozen photos and updates from the same reply',
+    (tester) async {
+      final p = profile();
+      (p['customer'] as Map)['registrationStatus'] = 'pending_review';
+      p.addAll({'canSetStatus': false, 'canReview': true, 'canApprove': true});
+      final calls = <Map<String, dynamic>>[];
+      await tester.pumpWidget(
+        app(
+          PartnerCustomerDetailPage(
+            targetAccount: 'U00000000002',
+            call: (input) async {
+              calls.add(Map.of(input));
+              if (input['action'] == 'customer_status')
+                return {
+                  'status': 'active',
+                  'registrationStatus': 'approved',
+                  'canSetStatus': true,
+                };
+              return p;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final toggle = find.byKey(const ValueKey('customer-status'));
+      await tester.scrollUntilVisible(toggle, 300);
+      expect(tester.widget<Switch>(toggle).value, isFalse);
+      expect(find.text('待人工审核'), findsOneWidget);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.text('通过会员审核'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('customer-status-reason')),
+        '人工审核通过',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('确认'));
+      await tester.pumpAndSettle();
+      final input = calls.last;
+      expect(input['status'], 'approved');
+      expect(input['expectedRegistrationStatus'], 'pending_review');
+      expect(input['expectedAppearanceVersion'], 3);
+      expect(tester.widget<Switch>(toggle).value, isTrue);
+      expect(find.text('正常'), findsOneWidget);
+      expect(
+        calls.where((input) => input['action'] == 'customer_detail').length,
+        1,
+      );
+    },
+  );
+  testWidgets(
+    'unready member cannot use the approval switch and readers have no switch',
+    (tester) async {
+      for (final canReview in [true, false]) {
+        final p = profile();
+        (p['customer'] as Map)['registrationStatus'] = 'pending_review';
+        p.addAll({
+          'canSetStatus': false,
+          'canReview': canReview,
+          'canApprove': false,
+        });
+        await tester.pumpWidget(
+          app(
+            PartnerCustomerDetailPage(
+              key: ValueKey(canReview),
+              targetAccount: 'U00000000002',
+              call: (_) async => p,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        if (canReview) {
+          final toggle = find.byKey(const ValueKey('customer-status'));
+          await tester.scrollUntilVisible(toggle, 300);
+          expect(tester.widget<Switch>(toggle).onChanged, isNull);
+        } else {
+          expect(find.byKey(const ValueKey('customer-status')), findsNothing);
+        }
+      }
+    },
+  );
+  testWidgets(
+    'stale manual approval reloads pending state without pretending approval',
+    (tester) async {
+      Map<String, dynamic> pending() {
+        final p = profile();
+        (p['customer'] as Map)['registrationStatus'] = 'pending_review';
+        return {
+          ...p,
+          'canSetStatus': false,
+          'canReview': true,
+          'canApprove': true,
+        };
+      }
+
+      var reads = 0;
+      await tester.pumpWidget(
+        app(
+          PartnerCustomerDetailPage(
+            targetAccount: 'U00000000002',
+            call: (input) async {
+              if (input['action'] == 'customer_status')
+                throw StateError('stale photo version');
+              reads++;
+              return pending();
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final toggle = find.byKey(const ValueKey('customer-status'));
+      await tester.scrollUntilVisible(toggle, 300);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('customer-status-reason')),
+        '人工审核',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('确认'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(toggle, 300);
+      expect(tester.widget<Switch>(toggle).value, isFalse);
+      expect(reads, 2);
+    },
+  );
   test('all customer interface copy has four translations', () {
     for (final v in customerCopy.values) {
       expect(v.split('|').length, 4);
