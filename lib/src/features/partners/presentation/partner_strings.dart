@@ -13,6 +13,20 @@ String partnerText(BuildContext context, String key) {
 }
 
 const partnerCopy = {
+  'messages': '合作者消息|Partner messages|合作者消息|ข้อความพาร์ทเนอร์',
+  'messagesEmpty':
+      '暂无合作者消息|No partner messages|暫無合作者消息|ยังไม่มีข้อความพาร์ทเนอร์',
+  'publishMessage': '发布消息|Publish message|發佈消息|เผยแพร่ข้อความ',
+  'messageTitle': '消息标题|Message title|消息標題|หัวข้อข้อความ',
+  'messageContent': '消息内容|Message content|消息內容|เนื้อหาข้อความ',
+  'messageAudience': '消息将发送给当前所有有效合作者，并显示未读红点与前台横幅。请填写四种语言的标题和正文。|Send to all currently active partners with unread dots and a foreground banner. Provide a title and body in all four languages.|消息將發送給目前所有有效合作者，並顯示未讀紅點與前景橫幅。請填寫四種語言的標題和正文。|ส่งให้พาร์ทเนอร์ที่ใช้งานอยู่ทั้งหมด พร้อมจุดแจ้งเตือนและแบนเนอร์ขณะเปิดแอป กรุณากรอกหัวข้อและเนื้อหาครบทั้งสี่ภาษา',
+  'messageFailed': '请补齐四种语言；发送未成功时可重试同一消息。|Complete all four languages. If sending fails, retry the same message.|請補齊四種語言；發送未成功時可重試同一消息。|กรอกครบทั้งสี่ภาษา หากส่งไม่สำเร็จให้ลองข้อความเดิมอีกครั้ง',
+  'organizeTask': '带局任务|Party hosting|帶局任務|ภารกิจจัดปาร์ตี้',
+  'organizeReward': '有效消费的6%–20%（按合作等级）|6%–20% of eligible spend, by partner level|有效消費的6%–20%（按合作等級）|6%–20% ของยอดใช้จ่ายที่เข้าเกณฑ์ ตามระดับพาร์ทเนอร์',
+  'organizeTaskNote': '领取后，在任务有效期内发布的派对按合作等级计提。顾客付款并核销入场后自动入账，7天后结算；特约顾客的2%从带局收益中扣除。取消领取不改变已有派对的条款。|After claiming, parties published during the task period earn commission by partner level. Earnings post automatically after payment and admission and mature after seven days. Referred customers’ 2% is deducted from hosting earnings. Cancelling does not change existing party terms.|領取後，在任務有效期內發佈的派對按合作等級計提。顧客付款並核銷入場後自動入帳，7天後結算；特約顧客的2%從帶局收益中扣除。取消領取不改變已有派對的條款。|หลังรับภารกิจ ปาร์ตี้ที่เผยแพร่ระหว่างอายุภารกิจได้ค่าคอมมิชชันตามระดับ รายได้บันทึกอัตโนมัติหลังชำระและยืนยันเข้างาน ครบกำหนดใน 7 วัน หัก 2% ของลูกค้าที่มีผู้แนะนำจากรายได้ผู้จัด การยกเลิกไม่เปลี่ยนเงื่อนไขปาร์ตี้เดิม',
+  'taskHallNote': '选择任务 → 领取 → 完成任务 → 获得奖励|Choose → Claim → Complete → Earn|選擇任務 → 領取 → 完成任務 → 獲得獎勵|เลือก → รับ → ทำให้สำเร็จ → รับรางวัล',
+  'taskEarned': '任务已获收益|Task earnings|任務已獲收益|รายได้จากภารกิจ',
+
   'collaborator': '合作者|Partner|合作者|พาร์ทเนอร์',
   'monthlyEarnings':
       '本月已入账收益|Earnings posted this month|本月已入帳收益|รายได้ที่บันทึกเดือนนี้',
@@ -20,7 +34,7 @@ const partnerCopy = {
   'pendingShort': '待结算|Pending settlement|待結算|รอชำระ',
   'codeSubtitle':
       '邀请顾客关联|Invite customers to connect|邀請顧客關聯|เชิญลูกค้าเชื่อมโยง',
-  'tasksSubtitle': '发现合作机会|Discover opportunities|發現合作機會|ค้นหาโอกาสร่วมงาน',
+  'tasksSubtitle': '领取任务，完成获奖|Claim, complete and earn|領取任務，完成獲獎|รับภารกิจ ทำให้สำเร็จ รับรางวัล',
   'myParties': '我的派对|My parties|我的派對|ปาร์ตี้ของฉัน',
   'partyRef': '派对编号|Party reference|派對編號|รหัสปาร์ตี้',
   'party_published': '已发布|Published|已發佈|เผยแพร่แล้ว',
@@ -178,7 +192,7 @@ const partnerCopy = {
   'refreshCode': '刷新二维码|Refresh code|重新整理二維碼|รีเฟรชรหัส',
   'codeFailed': '二维码已失效或当前无法关联，请刷新重试；已有推荐关系不能覆盖。|The code expired or linking is unavailable. Refresh and retry; existing referral links cannot be replaced.|二維碼已失效或目前無法關聯，請重新整理重試；已有推薦關係不能覆蓋。|รหัสหมดอายุหรือเชื่อมโยงไม่ได้ โปรดรีเฟรชแล้วลองใหม่ ไม่สามารถแทนที่ผู้แนะนำเดิมได้',
   'sessionChanged': '登录状态已变化，请返回后重新进入。|Your session changed. Go back and reopen this page.|登入狀態已變更，請返回後重新進入。|สถานะเข้าสู่ระบบเปลี่ยนแล้ว โปรดย้อนกลับและเปิดหน้านี้อีกครั้ง',
-  'tasks': '领取任务|Available tasks|領取任務|รับภารกิจ',
+  'tasks': '任务大厅|Task hall|任務大廳|ศูนย์ภารกิจ',
   'notReady': '功能接入中|Integration in progress|功能接入中|กำลังเชื่อมต่อฟังก์ชัน',
   'commission': '提成明细|Commission details|提成明細|รายละเอียดค่าคอมมิชชัน',
   'customers': '我的特约顾客|My referred customers|我的特約顧客|ลูกค้าที่ฉันแนะนำ',

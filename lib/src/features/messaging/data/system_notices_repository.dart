@@ -6,6 +6,7 @@ import '../../auth/domain/auth_repository.dart';
 import '../../commerce/data/ordering_table_repository.dart';
 
 const systemNoticeKinds = {
+  'partner_message',
   'partner_application',
   'partner_application_result',
   'partner_reward',
@@ -69,6 +70,8 @@ class SystemNotice {
     final items = raw['details'];
     if (items is! List || items.length > 12) _invalid();
     const labels = {
+      'title',
+      'content',
       'applicant',
       'city',
       'reason',
@@ -181,8 +184,10 @@ class SystemNoticeSummary {
     required this.highWaterSequence,
     required this.latest,
     this.partnerApprovalUnreadCount = 0,
+    this.partnerUnreadCount = 0,
   });
   final int partnerApprovalUnreadCount;
+  final int partnerUnreadCount;
   final int unreadCount;
   final String? highWaterSequence;
   final SystemNotice? latest;
@@ -192,6 +197,8 @@ class SystemNoticeSummary {
     }
     final approvals = raw['partnerApprovalUnreadCount'] ?? 0;
     if (approvals is! int || approvals < 0) _invalid();
+    final partners = raw['partnerUnreadCount'] ?? approvals;
+    if (partners is! int || partners < 0) _invalid();
     final sequence = raw['highWaterSequence'];
     if (sequence != null &&
         (sequence is! String ||
@@ -208,6 +215,7 @@ class SystemNoticeSummary {
     return SystemNoticeSummary(
       unreadCount: raw['unreadCount'],
       partnerApprovalUnreadCount: approvals,
+      partnerUnreadCount: partners,
       highWaterSequence: sequence,
       latest: latest,
     );
@@ -283,6 +291,7 @@ class SystemNoticesRepository {
         'partnerNotices': 1,
         'applicationNotices': 1,
         'procurementNotices': 1,
+        'partnerMessageNotices': 1,
       }),
     );
   }
@@ -293,6 +302,7 @@ class SystemNoticesRepository {
           'partnerNotices': 1,
           'applicationNotices': 1,
           'procurementNotices': 1,
+          'partnerMessageNotices': 1,
           'partnerApproval': 1,
         }),
       );
@@ -315,6 +325,7 @@ class SystemNoticesRepository {
         'partnerNotices': 1,
         'applicationNotices': 1,
         'procurementNotices': 1,
+        'partnerMessageNotices': 1,
         'noticeRefs': ?ids,
         'throughSequence': ?throughSequence,
       }),

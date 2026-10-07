@@ -1,14 +1,23 @@
 import 'package:flutter/widgets.dart';
 
 import '../data/partner_repository.dart';
+import '../../messaging/data/system_notices_controller.dart';
 import 'partner_tasks_page.dart';
 import 'partner_transfer_page.dart';
 import 'partner_withdrawal_page.dart';
 import 'partner_application_review_page.dart';
 import 'partner_platform_page.dart';
+import 'partner_messages_page.dart';
 
-Widget partnerNoticeDestination(String? reference, {PartnerCall? call}) {
+Widget partnerNoticeDestination(
+  String? reference, {
+  PartnerCall? call,
+  SystemNoticesController? inbox,
+}) {
   call ??= PartnerRepository().call;
+  if (reference == 'messages') {
+    return PartnerMessagesPage(call: call, inbox: inbox);
+  }
   if (reference != null && reference.startsWith('application:')) {
     return PartnerApplicationReviewPage(
       reference: reference.substring(12),
@@ -18,7 +27,7 @@ Widget partnerNoticeDestination(String? reference, {PartnerCall? call}) {
   return switch (reference) {
     'platform' ||
     'platform:approved' ||
-    'platform:rejected' => PartnerPlatformPage(call: call),
+    'platform:rejected' => PartnerPlatformPage(call: call, inbox: inbox),
     'withdrawal' => PartnerWithdrawalPage(call: call),
     'transfer' => PartnerTransferPage(call: call),
     _ => PartnerTasksPage(call: call, kind: 'ledger'),

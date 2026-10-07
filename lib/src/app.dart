@@ -676,7 +676,10 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
             MaterialPageRoute<void>(
               allowSnapshotting: false,
               builder: (_) => recharge.kind.startsWith('partner_')
-                  ? partnerNoticeDestination(recharge.target?['reference'])
+                  ? partnerNoticeDestination(
+                      recharge.target?['reference'],
+                      inbox: notice['rechargeInbox'] as SystemNoticesController,
+                    )
                   : recharge.isStoreDebit
                   ? SystemNotificationsPage(
                       controller:

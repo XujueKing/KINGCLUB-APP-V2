@@ -142,7 +142,8 @@ void main() {
       expect(find.text('本月已入账收益 · CNY'), findsOneWidget);
       expect(find.textContaining('1,280'), findsNothing);
       expect(find.text('客户名录'), findsNothing);
-      expect(find.textContaining('带局提成 10%'), findsOneWidget);
+      expect(find.textContaining('带局提成'), findsNothing);
+      expect(find.text('合作等级 L5'), findsOneWidget);
     },
   );
   testWidgets('merchant entry is not duplicated on partner page', (

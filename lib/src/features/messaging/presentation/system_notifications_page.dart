@@ -340,6 +340,7 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage>
                                         builder: (_) =>
                                             partnerNoticeDestination(
                                               notice.target?['reference'],
+                                              inbox: _controller,
                                             ),
                                       ),
                                     );

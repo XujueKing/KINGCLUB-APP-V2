@@ -86,6 +86,8 @@ void main() {
       expect(calls.where((p) => p['partnerApproval'] == 1).single, {
         'partnerNotices': 1,
         'applicationNotices': 1,
+        'procurementNotices': 1,
+        'partnerMessageNotices': 1,
         'partnerApproval': 1,
       });
       await tester.pumpWidget(const SizedBox());

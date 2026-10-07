@@ -9,6 +9,8 @@ import '../../../core/session/secure_session_store.dart';
 import '../data/partner_repository.dart';
 import 'partner_strings.dart';
 import 'partner_dashboard.dart';
+import 'partner_messages_page.dart';
+import '../../messaging/data/system_notices_controller.dart';
 import 'partner_records_page.dart';
 import 'partner_permissions_page.dart';
 import '../../home/data/home_city_catalog.dart';
@@ -30,7 +32,15 @@ Widget _title(BuildContext context, String value) => Text(
 const _card = Color(0xff202020), _gold = Color(0xffcebea4);
 
 class PartnerPlatformPage extends StatefulWidget {
-  const PartnerPlatformPage({super.key, this.call, this.onViewed});
+  const PartnerPlatformPage({
+    super.key,
+    this.call,
+    this.onViewed,
+    this.inbox,
+    this.avatarPath,
+  });
+  final SystemNoticesController? inbox;
+  final String? avatarPath;
   final VoidCallback? onViewed;
   final PartnerCall? call;
   @override
@@ -59,13 +69,19 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
       });
       load();
     });
+    widget.inbox?.addListener(noticesChanged);
     load();
+  }
+
+  void noticesChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     epoch++;
     session?.cancel();
+    widget.inbox?.removeListener(noticesChanged);
     super.dispose();
   }
 
@@ -108,37 +124,6 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
               PartnerTasksPage(call: call, kind: kind, management: management),
         ),
       );
-  void levels() => showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: _card,
-    isScrollControlled: true,
-    builder: (c) => SafeArea(
-      child: SizedBox(
-        height: MediaQuery.sizeOf(c).height * .65,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              t('levels'),
-              style: const TextStyle(fontSize: 22, color: Colors.white),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              t('rateNote'),
-              style: const TextStyle(color: Colors.white70, height: 1.5),
-            ),
-            for (var n = 1; n <= 15; n++)
-              ListTile(title: Text('L$n'), trailing: Text('${n + 5}%')),
-            const Divider(),
-            Text(
-              t('eligibleNote'),
-              style: const TextStyle(color: Colors.white70, height: 1.5),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
   @override
   Widget build(BuildContext context) {
     final d = data;
@@ -149,6 +134,44 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
         title: _title(context, t('title')),
         foregroundColor: Colors.white,
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: t('messages'),
+            onPressed: () async {
+              await Navigator.push<void>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      PartnerMessagesPage(call: call, inbox: widget.inbox),
+                ),
+              );
+              if (mounted) {
+                await load();
+                unawaited(widget.inbox?.refresh());
+              }
+            },
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_none_outlined),
+                if ((widget.inbox?.summary.partnerUnreadCount ??
+                        data?.messageUnreadCount ??
+                        0) >
+                    0)
+                  const Positioned(
+                    right: -1,
+                    top: -1,
+                    child: Icon(
+                      Icons.circle,
+                      key: ValueKey('partner-message-dot'),
+                      color: Colors.redAccent,
+                      size: 7,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
         backgroundColor: const Color(0xff111111),
       ),
       body: SafeArea(
@@ -222,7 +245,18 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                 ),
               ],
               if (d?.partner != null) ...[
-                PartnerIdentityHeader(data: d!, onLevels: levels),
+                PartnerIdentityHeader(
+                  data: d!,
+                  avatarPath: widget.avatarPath,
+                  onIdentity: d.partner!['status'] == 'active'
+                      ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => PartnerCodePage(call: call),
+                          ),
+                        )
+                      : null,
+                ),
                 if (d.partner!['status'] == 'suspended')
                   _panel(Text(t('suspended'))),
                 _panel(

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/design_system/king_control_sizes.dart';
 import '../../../core/media/cached_media_image.dart';
 import '../../../core/formatters/money.dart';
+import '../../../core/session/member_qr_memory.dart';
+import '../../profile_settings/presentation/profile_image_ref.dart';
 import '../../auth/data/auth_repository_provider.dart';
 import '../data/partner_repository.dart';
 import 'partner_strings.dart';
@@ -13,14 +15,17 @@ class PartnerIdentityHeader extends StatelessWidget {
   const PartnerIdentityHeader({
     super.key,
     required this.data,
-    required this.onLevels,
+    this.avatarPath,
+    this.onIdentity,
   });
   final PartnerContext data;
-  final VoidCallback onLevels;
+  final String? avatarPath;
+  final VoidCallback? onIdentity;
   @override
   Widget build(BuildContext context) {
     final avatar = data.profile['avatar'] as Map?;
     final path = avatar?['path'] as String?;
+    final localAvatar = avatarPath ?? MemberQrMemory.avatar?.path;
     final fallback = const ColoredBox(
       color: Color(0xff302a21),
       child: Icon(Icons.person_outline, color: _gold),
@@ -31,14 +36,21 @@ class PartnerIdentityHeader extends StatelessWidget {
         children: [
           ClipOval(
             child: SizedBox(
-              width: 52,
-              height: 52,
-              child: path == null
+              width: 68,
+              height: 68,
+              child: localAvatar != null
+                  ? Image(
+                      image: profileImageProvider(localAvatar),
+                      fit: BoxFit.cover,
+                    )
+                  : path == null
                   ? fallback
                   : CachedMediaImage(
                       Uri.parse(kingclubApiBaseUrl).resolve(path).toString(),
                       private: true,
-                      contentKey: avatar?['fileId'] as String?,
+                      contentKey: avatar?['fileId'] == null
+                          ? null
+                          : 'profile:${avatar!['fileId']}',
                       placeholder: fallback,
                       errorBuilder: (_, _, _) => fallback,
                     ),
@@ -75,23 +87,24 @@ class PartnerIdentityHeader extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 5),
-                InkWell(
-                  onTap: onLevels,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(
-                      'L${data.partner!['level']} · ${partnerText(context, 'rate')} ${(data.partner!['organizerBps'] as num).toInt() ~/ 100}%',
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 13,
-                      ),
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  '${partnerText(context, 'referrerLevel')} L${data.partner!['level']}',
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 13,
+                    height: 1.2,
                   ),
                 ),
               ],
             ),
           ),
+          if (onIdentity != null)
+            IconButton(
+              onPressed: onIdentity,
+              tooltip: partnerText(context, 'code'),
+              icon: const Icon(Icons.chevron_right, color: Colors.white60),
+            ),
         ],
       ),
     );

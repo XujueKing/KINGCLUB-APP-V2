@@ -13,6 +13,8 @@ String systemNoticeText(BuildContext context, String key) {
 }
 
 const _copy = {
+  'partner_message': '合作者消息|Partner message|合作者消息|ข้อความพาร์ทเนอร์',
+  'content': '消息内容：|Message:|消息內容：|ข้อความ:',
   'procurement_pending':
       '采购申请待批准|Procurement awaiting approval|採購申請待批准|คำขอจัดซื้อรออนุมัติ',
   'procurement_approved':

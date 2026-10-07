@@ -53,6 +53,7 @@ void main() {
             ),
           ),
           home: PartnerPlatformPage(
+            avatarPath: 'assets/legacy/messaging/notification_kingclub.png',
             call: (_) async => {
               'partner': {'status': 'active', 'level': 5, 'organizerBps': 1000},
               'application': null,
@@ -69,6 +70,7 @@ void main() {
                 'pendingCents': '36000',
               },
               'teamCount': 0,
+              'messageUnreadCount': 1,
               'customerCount': 0,
             },
           ),
@@ -76,6 +78,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.runAsync(() => precacheImage(
+      const AssetImage('assets/legacy/messaging/notification_kingclub.png'),
+      key.currentContext!,
+    ));
+    await tester.pump();
     await tester.runAsync(() async {
       final pic =
           await (key.currentContext!.findRenderObject()!

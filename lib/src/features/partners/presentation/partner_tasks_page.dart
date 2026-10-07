@@ -222,9 +222,9 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
         'title': inputs[0].text,
         'description': inputs[1].text,
         'kind': taskKind,
-        'minimumCents': _cents(inputs[2].text),
-        'maximumCents': _cents(inputs[3].text),
-        'budgetCents': _cents(inputs[4].text),
+        'minimumCents': taskKind == 'organize' ? 0 : _cents(inputs[2].text),
+        'maximumCents': taskKind == 'organize' ? 0 : _cents(inputs[3].text),
+        'budgetCents': taskKind == 'organize' ? 0 : _cents(inputs[4].text),
         'endsAt': deadline!.toUtc().toIso8601String(),
       });
     } catch (_) {
@@ -294,21 +294,36 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                   DropdownButton<String>(
                     value: taskKind,
                     isExpanded: true,
-                    items: ['member', 'merchant']
-                        .map(
-                          (k) => DropdownMenuItem(
-                            value: k,
-                            child: Text(t('${k}Task')),
-                          ),
-                        )
-                        .toList(),
+                    items:
+                        [
+                              'member',
+                              'merchant',
+                              if (widget.storeRef == null) 'organize',
+                            ]
+                            .map(
+                              (k) => DropdownMenuItem(
+                                value: k,
+                                child: Text(t('${k}Task')),
+                              ),
+                            )
+                            .toList(),
                     onChanged: busy || pending != null
                         ? null
                         : (v) => setState(() => taskKind = v!),
                   ),
-                  field(2, 'rewardMin', money: true),
-                  field(3, 'rewardMax', money: true),
-                  field(4, 'budget', money: true),
+                  if (taskKind == 'organize')
+                    Text(
+                      t('organizeTaskNote'),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        height: 1.5,
+                      ),
+                    )
+                  else ...[
+                    field(2, 'rewardMin', money: true),
+                    field(3, 'rewardMax', money: true),
+                    field(4, 'budget', money: true),
+                  ],
                   TextButton(
                     onPressed: busy || pending != null
                         ? null
@@ -366,7 +381,9 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '${_money(task['minimumCents'])} – ${_money(task['maximumCents'])}',
+                    task['kind'] == 'organize'
+                        ? t('organizeReward')
+                        : '${_money(task['minimumCents'])} – ${_money(task['maximumCents'])}',
                     style: const TextStyle(
                       fontSize: 22,
                       color: Color(0xffcebea4),
@@ -402,7 +419,30 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                     ),
                     if ((claim['reason'] as String? ?? '').isNotEmpty)
                       Text(claim['reason'] as String),
-                    if (status == 'claimed') ...[
+                    if (task['kind'] == 'organize') ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        t('organizeTaskNote'),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '${t('taskEarned')} ${_money(claim['earnedCents'])}',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      if (status == 'claimed')
+                        button(
+                          'cancelTask',
+                          () => act({
+                            'action': 'task_cancel',
+                            'claimRef': claim['ref'],
+                          }),
+                        ),
+                    ],
+                    if (status == 'claimed' && task['kind'] != 'organize') ...[
                       Material(
                         color: Colors.transparent,
                         child: ListTile(
@@ -482,6 +522,19 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                     (widget.management || widget.storeRef != null) &&
                     data!['canCreate'] == true)
                   button('taskNew', () => open(kind: 'create')),
+                if (widget.kind == 'tasks' &&
+                    !widget.management &&
+                    widget.storeRef == null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: Text(
+                      t('taskHallNote'),
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
                 if (widget.kind == 'ledger')
                   card([
                     Text(t('pendingReward')),
@@ -506,6 +559,19 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                       style: const TextStyle(fontSize: 20),
                     ),
                     const SizedBox(height: 10),
+                    if (widget.kind == 'tasks' &&
+                        !widget.management &&
+                        widget.storeRef == null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: Text(
+                          t('taskHallNote'),
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
                     if (widget.kind == 'ledger') ...[
                       if (['organizer', 'referrer'].contains(row['kind'])) ...[
                         Text(t(row['kind'] as String)),
@@ -532,8 +598,22 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                       Text(row['reason'] as String? ?? ''),
                     ] else ...[
                       Text(
-                        '${_money(row['minimumCents'])} – ${_money(row['maximumCents'])}',
+                        row['kind'] == 'organize'
+                            ? t('organizeReward')
+                            : '${_money(row['minimumCents'])} – ${_money(row['maximumCents'])}',
                       ),
+                      if (row['claimStatus'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Text(
+                            t(
+                              row['claimStatus'] == 'rejected'
+                                  ? 'taskRejected'
+                                  : row['claimStatus'] as String,
+                            ),
+                            style: const TextStyle(color: Color(0xffcebea4)),
+                          ),
+                        ),
                       button(
                         widget.kind == 'task_reviews'
                             ? 'task_reviews'

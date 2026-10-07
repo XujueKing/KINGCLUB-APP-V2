@@ -27,6 +27,7 @@ class PartnerContext {
       admin = value['isAdmin'] == true || value['isAdmin'] == 1,
       profile = Map<String, dynamic>.from(value['profile'] as Map? ?? {}),
       permissions = Set<String>.from(value['permissions'] as List? ?? []),
+      messageUnreadCount = value['messageUnreadCount'] as int? ?? 0,
       teamCount = value['teamCount'] as int,
       customerCount = value['customerCount'] as int {
     if (partner != null &&
@@ -48,7 +49,7 @@ class PartnerContext {
   final Set<String> permissions;
   final List<Map<String, dynamic>> stores;
   final bool admin;
-  final int teamCount, customerCount;
+  final int teamCount, customerCount, messageUnreadCount;
   bool can(String permission) => admin || permissions.contains(permission);
   bool get hasManagement => admin || permissions.isNotEmpty;
 }

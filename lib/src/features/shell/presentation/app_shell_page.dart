@@ -391,10 +391,9 @@ class _AppShellPageState extends State<AppShellPage>
                 MyProfilePage(
                   active: _selectedIndex == 4,
                   reselectSignal: _profileReselectSignal,
+                  partnerInbox: _systemNotices,
                   partnerApprovalUnread:
-                      (_systemNotices?.summary.partnerApprovalUnreadCount ??
-                          0) >
-                      0,
+                      (_systemNotices?.summary.partnerUnreadCount ?? 0) > 0,
                   onPartnerViewed: () =>
                       unawaited(_systemNotices?.acknowledgePartnerApproval()),
                   onOpenAssets: widget.onOpenAssets,
@@ -439,7 +438,7 @@ class _AppShellPageState extends State<AppShellPage>
             selectedIndex: _selectedIndex,
             storageUnread: _storageAttention?.unread == true,
             profileUnread:
-                (_systemNotices?.summary.partnerApprovalUnreadCount ?? 0) > 0,
+                (_systemNotices?.summary.partnerUnreadCount ?? 0) > 0,
             messageUnreadCount:
                 _systemNotificationsUnread +
                 _friendConversationUnread +

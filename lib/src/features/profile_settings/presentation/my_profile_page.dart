@@ -1,3 +1,4 @@
+import '../../messaging/data/system_notices_controller.dart';
 import '../../partners/presentation/partner_platform_page.dart';
 import '../../partners/presentation/partner_strings.dart';
 import '../../partners/data/partner_repository.dart';
@@ -48,6 +49,7 @@ class MyProfilePage extends StatefulWidget {
     this.partnerCall,
     this.partnerApprovalUnread = false,
     this.onPartnerViewed,
+    this.partnerInbox,
   });
 
   final ValueChanged<AssetLedgerType>? onOpenAssets;
@@ -68,6 +70,7 @@ class MyProfilePage extends StatefulWidget {
   final PartnerCall? partnerCall;
   final bool partnerApprovalUnread;
   final VoidCallback? onPartnerViewed;
+  final SystemNoticesController? partnerInbox;
 
   @override
   State<MyProfilePage> createState() => _MyProfilePageState();
@@ -1017,6 +1020,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
         builder: (_) => PartnerPlatformPage(
           call: widget.partnerCall,
           onViewed: widget.onPartnerViewed,
+          inbox: widget.partnerInbox,
         ),
       ),
     );

@@ -109,7 +109,7 @@ void main() {
       expect(find.text('¥980.00'), findsOneWidget);
       expect(
         tester.getTopLeft(find.text('本月已入账收益 · CNY')).dy,
-        lessThan(tester.getTopLeft(find.text('领取任务')).dy),
+        lessThan(tester.getTopLeft(find.text('任务大厅')).dy),
       );
       await tester.drag(find.byType(ListView).first, const Offset(0, -550));
       await tester.pumpAndSettle();

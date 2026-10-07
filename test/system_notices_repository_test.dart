@@ -239,7 +239,12 @@ void main() {
         readSession: () async => current,
         request: (api, params, s) {
           expect(api, 'K261002001960');
-          expect(params, {'partnerNotices': 1, 'applicationNotices': 1});
+          expect(params, {
+            'partnerNotices': 1,
+            'applicationNotices': 1,
+            'procurementNotices': 1,
+            'partnerMessageNotices': 1,
+          });
           expect(s, current);
           return pending.future;
         },
@@ -352,6 +357,8 @@ void main() {
             expect(p, {
               'partnerNotices': 1,
               'applicationNotices': 1,
+              'procurementNotices': 1,
+              'partnerMessageNotices': 1,
               'throughSequence': '22',
             });
             return {
@@ -475,7 +482,13 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(selectors, [
-        {'partnerNotices': 1, 'applicationNotices': 1, 'throughSequence': '22'},
+        {
+          'partnerNotices': 1,
+          'applicationNotices': 1,
+          'procurementNotices': 1,
+          'partnerMessageNotices': 1,
+          'throughSequence': '22',
+        },
       ]);
       expect(controller.notices.single.read, isTrue);
       expect(controller.summary.unreadCount, 1);
