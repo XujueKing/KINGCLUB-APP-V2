@@ -55,7 +55,7 @@ void main() {
       await tester.pumpWidget(
         app((p) async {
           requests.add(Map.of(p));
-          if (p['action'] == 'referrer')
+          if (p['action'] == 'referrer') {
             return {
               'referrer': {
                 'memberId': 'KM123',
@@ -63,6 +63,7 @@ void main() {
                 'level': 7,
               },
             };
+          }
           return snapshot();
         }),
       );
