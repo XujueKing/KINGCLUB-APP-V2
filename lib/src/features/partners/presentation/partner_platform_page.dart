@@ -527,6 +527,7 @@ class _ApplicationPageState extends State<_ApplicationPage> {
     appBar: kingAppBar(
       context: context,
       title: _title(context, t('join')),
+      backgroundColor: const Color(0xff111111),
       foregroundColor: Colors.white,
       centerTitle: true,
     ),
@@ -577,29 +578,93 @@ class _ApplicationPageState extends State<_ApplicationPage> {
             ),
           ),
           const SizedBox(height: 16),
-          Text(t('directions')),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final key in ['organize', 'members', 'merchants'])
-                FilterChip(
-                  label: Text(t(key)),
-                  selected: directions.contains(key),
-                  onSelected: pending != null
-                      ? null
-                      : (v) => setState(() {
-                          v ? directions.add(key) : directions.remove(key);
-                        }),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xff1c1c1e),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t('directions'),
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
                 ),
-            ],
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final key in ['organize', 'members', 'merchants'])
+                      FilterChip(
+                        label: Text(t(key)),
+                        labelStyle: TextStyle(
+                          color: directions.contains(key)
+                              ? const Color(0xff111111)
+                              : Colors.white70,
+                          fontSize: 15,
+                        ),
+                        backgroundColor: const Color(0xff2b2b2e),
+                        selectedColor: _gold,
+                        checkmarkColor: const Color(0xff111111),
+                        side: BorderSide.none,
+                        shape: const StadiumBorder(),
+                        selected: directions.contains(key),
+                        onSelected: pending != null
+                            ? null
+                            : (v) => setState(() {
+                                v
+                                    ? directions.add(key)
+                                    : directions.remove(key);
+                              }),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: intro,
-            readOnly: pending != null,
-            maxLines: 4,
-            maxLength: 500,
-            decoration: InputDecoration(labelText: t('experience')),
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            decoration: BoxDecoration(
+              color: const Color(0xff1c1c1e),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t('experience'),
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: intro,
+                  readOnly: pending != null,
+                  maxLines: 4,
+                  maxLength: 500,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                  cursorColor: _gold,
+                  decoration: const InputDecoration(
+                    filled: false,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    counterStyle: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           if (error != null)
             Padding(
