@@ -50,6 +50,10 @@ void main() {
     testWidgets(
       'only an owner sees approval actions, touch layout owner=$owner',
       (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
         final requests = <Map<String, dynamic>>[];
         var status = 'pending', revision = 2;
         Map<String, dynamic> batch() => {
@@ -121,6 +125,14 @@ void main() {
           expect(requests.last, containsPair('revision', 2));
           expect(find.text('Confirm purchased'), findsOneWidget);
           expect(find.text('Wine '), findsOneWidget);
+          await tester.tap(find.byIcon(Icons.arrow_back));
+          await tester.pumpAndSettle();
+          expect(find.text('Ready to buy'), findsWidgets);
+          expect(
+            requests.length,
+            3,
+            reason: 'Returning to the list uses the action result without an extra reload',
+          );
         }
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());

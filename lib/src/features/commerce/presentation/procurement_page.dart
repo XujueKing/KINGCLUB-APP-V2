@@ -127,21 +127,27 @@ class _ProcurementState extends State<ProcurementPage>
   }
 
   Future<void> open(String ref) async {
-    final changed = await Navigator.of(context).push<bool>(
+    await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => _BatchPage(
           call: call,
           store: store!,
           batch: ref,
           permissions: (data?['permissions'] as List? ?? []).cast<String>(),
+          onChanged: (batch) {
+            if (!mounted || data == null) return;
+            setState(
+              () => data!['batches'] = [
+                for (final row in data!['batches'] as List)
+                  row['batchRef'] == batch['batchRef']
+                      ? {...row as Map, ...batch}
+                      : row,
+              ],
+            );
+          },
         ),
       ),
     );
-    if (changed == true && mounted) {
-      // If opened by the initial context, defer until its loading guard is released.
-      loading = false;
-      await load();
-    }
   }
 
   @override
@@ -356,10 +362,12 @@ class _BatchPage extends StatefulWidget {
     required this.store,
     required this.batch,
     required this.permissions,
+    required this.onChanged,
   });
   final ProcurementCall call;
   final String store, batch;
   final List<String> permissions;
+  final ValueChanged<Map<String, dynamic>> onChanged;
   @override
   State<_BatchPage> createState() => _BatchState();
 }
@@ -429,6 +437,7 @@ class _BatchState extends State<_BatchPage> {
         changed = true;
         retry = null;
       });
+      widget.onChanged(data!);
     } catch (e) {
       if (mounted) {
         setState(
