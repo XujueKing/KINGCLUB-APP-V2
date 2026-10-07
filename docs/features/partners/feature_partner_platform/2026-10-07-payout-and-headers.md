@@ -14,3 +14,5 @@
 
 最终补跑55项合作、返回、手势、设置、确认订单与截图测试通过，相关10项范围analyze无问题。全仓analyze仅剩旧测试文件12条格式info；关于页面三条旧目录测试在变更前HEAD同样失败，已核对为既有夹具与当前页面差异，未改法律业务。
 后台400已单独部署，备份kingclub-partner-backup-20261007-164，health/ready/runtime通过；实际表单、卡清单、明细只读CALL分别5/3/1ms，此为数据库时间，不是手机端耗时。
+
+交付构建：源码 c23c30c1989234892440bcddb0ee4d45bc68eb62，iOS开发签名构建37590899593完成，第164版IPA已通过SHA、ZIP、bundle、签名结构、设备授权及Info.plist版本校验。当前未安装：usbmux清单为空，Windows存在蓝牙iPhone记录，但USB设备清单没有iPhone；Apple Mobile Device Service正常运行。已请求用户连接并解锁，后续安装使用此已校验包，不重建、不清用户数据。
