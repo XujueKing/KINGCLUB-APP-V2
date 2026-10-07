@@ -7,6 +7,7 @@ import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/features/partners/presentation/partner_amount_field.dart';
 import 'package:kingclub/src/features/partners/presentation/partner_withdrawal_page.dart';
 import 'package:kingclub/src/features/partners/presentation/partner_withdrawal_history_page.dart';
+import 'package:kingclub/src/features/partners/presentation/partner_transfer_page.dart';
 
 Widget app(Widget home) => MaterialApp(
   locale: const Locale('zh', 'CN'),
@@ -31,7 +32,7 @@ void main() {
         formatter
             .formatEditUpdate(old, const TextEditingValue(text: '1234.57'))
             .text,
-        '1234.56',
+        '1,234.56',
       );
       expect(
         formatter
@@ -40,7 +41,7 @@ void main() {
               const TextEditingValue(text: '9999999999999999999999'),
             )
             .text,
-        '1234.56',
+        '1,234.56',
       );
       expect(
         formatter
@@ -55,6 +56,17 @@ void main() {
         '',
       );
       expect(partnerAmountCents('0.01'), 1);
+      expect(partnerAmountCents('1,234.56'), 123456);
+      expect(partnerAmountCents('1,23.45'), isNull);
+      final grouped = formatter.formatEditUpdate(
+        old,
+        const TextEditingValue(
+          text: '1234.50',
+          selection: TextSelection.collapsed(offset: 7),
+        ),
+      );
+      expect(grouped.text, '1,234.50');
+      expect(grouped.selection.extentOffset, 8);
       expect(partnerAmountLimit('-1'), 0);
       expect(partnerAmountLimit('999999999999999'), 999999999);
     },
@@ -147,7 +159,7 @@ void main() {
       await t.pumpAndSettle();
       expect(
         t.widget<TextField>(find.byType(TextField)).controller!.text,
-        '1234.56',
+        '1,234.56',
       );
       expect(
         t.widget<FilledButton>(find.byType(FilledButton)).onPressed,
@@ -156,6 +168,105 @@ void main() {
       expect(t.takeException(), isNull);
     },
   );
+  for (final withdrawal in [true, false]) {
+    testWidgets(
+      '${withdrawal ? 'withdrawal' : 'transfer'} defaults to maximum, accepts manual amount and MAX restores maximum',
+      (t) async {
+        FlutterSecureStorage.setMockInitialValues({});
+        final writes = <Map<String, dynamic>>[];
+        Future<Map<String, dynamic>> call(Map<String, dynamic> p) async {
+          if (['finance', 'withdrawal_form'].contains(p['action'])) {
+            return {
+              ...state(),
+              'canTransfer': true,
+              'cashCents': '0',
+              'cards': [
+                {
+                  'ref': 'synthetic-card',
+                  'bankName': 'Synthetic bank',
+                  'accountMasked': '•••• 0001',
+                },
+              ],
+            };
+          }
+          writes.add(Map.of(p));
+          return {
+            'receiptRef': p['requestId'],
+            'receipt': {'ref': p['requestId']},
+            'availableCents': '100006',
+          };
+        }
+
+        await t.pumpWidget(
+          app(
+            withdrawal
+                ? PartnerWithdrawalPage(call: call)
+                : PartnerTransferPage(call: call),
+          ),
+        );
+        await t.pumpAndSettle();
+        final input = find.byKey(const ValueKey('partner-amount-input'));
+        final field = t.widget<TextField>(input);
+        expect(field.controller!.text, '1,234.56');
+        expect(
+          field.decoration!.floatingLabelBehavior,
+          FloatingLabelBehavior.always,
+        );
+        await t.ensureVisible(input);
+        await t.tap(input);
+        await t.pump();
+        expect(t.testTextInput.isVisible, isTrue);
+        expect(
+          field.keyboardType,
+          const TextInputType.numberWithOptions(decimal: true),
+        );
+        await t.enterText(input, '234.50');
+        await t.tap(find.byKey(const ValueKey('partner-amount-max')));
+        await t.pump();
+        expect(field.controller!.text, '1,234.56');
+        await t.enterText(input, '234.50');
+        await t.ensureVisible(find.byType(FilledButton));
+        await t.tap(find.byType(FilledButton));
+        await t.pumpAndSettle();
+        expect(find.textContaining('¥234.50'), findsOneWidget);
+        await t.tap(find.text('确认'));
+        await t.pumpAndSettle();
+        expect(writes.single['amountCents'], 23450);
+        expect(field.controller!.text, '1,000.06');
+        expect(t.takeException(), isNull);
+      },
+    );
+    testWidgets(
+      '${withdrawal ? 'withdrawal' : 'transfer'} shows zero amount without allowing a financial action',
+      (t) async {
+        FlutterSecureStorage.setMockInitialValues({});
+        Future<Map<String, dynamic>> call(Map<String, dynamic> p) async => {
+          ...state(),
+          'availableCents': '0',
+          'canTransfer': true,
+          'cashCents': '0',
+        };
+        await t.pumpWidget(
+          app(
+            withdrawal
+                ? PartnerWithdrawalPage(call: call)
+                : PartnerTransferPage(call: call),
+          ),
+        );
+        await t.pumpAndSettle();
+        final field = t.widget<TextField>(
+          find.byKey(const ValueKey('partner-amount-input')),
+        );
+        expect(field.controller!.text, '0.00');
+        expect(find.text('0.00'), findsWidgets);
+        expect(field.enabled, isFalse);
+        expect(
+          t.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNull,
+        );
+      },
+    );
+  }
   testWidgets(
     'dedicated history contains both transfer and withdrawal, only submitted withdrawal can cancel',
     (t) async {

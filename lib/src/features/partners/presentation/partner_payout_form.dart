@@ -27,10 +27,11 @@ class PartnerPayoutForm extends StatefulWidget {
 }
 
 class _PartnerPayoutFormState extends State<PartnerPayoutForm> {
-  final amount = TextEditingController();
+  final amount = TextEditingController(text: '0.00');
   Map<String, dynamic>? data, pending;
   String? storageKey, selected;
   bool busy = false, failed = false, invalid = false, success = false;
+  bool amountInitialized = false;
   StreamSubscription<void>? session;
   String t(String key) => partnerText(context, key);
   List<Map<String, dynamic>> get cards => [
@@ -81,8 +82,12 @@ class _PartnerPayoutFormState extends State<PartnerPayoutForm> {
             (cards.isEmpty ? null : cards.first['ref'] as String);
       });
       if (pending != null) {
-        amount.text = moneyCents(pending!['amountCents']).replaceAll(',', '');
+        amount.text = moneyCents(pending!['amountCents']);
+      } else if (!amountInitialized ||
+          (partnerAmountCents(amount.text) ?? 0) > limit) {
+        amount.text = moneyCents(limit);
       }
+      amountInitialized = true;
     } catch (_) {
       if (mounted) setState(() => failed = true);
     } finally {
@@ -114,7 +119,7 @@ class _PartnerPayoutFormState extends State<PartnerPayoutForm> {
       }
     });
     if ((partnerAmountCents(amount.text) ?? 0) > limit) {
-      amount.text = moneyCents(limit).replaceAll(',', '');
+      amount.text = moneyCents(limit);
     }
   }
 
@@ -186,7 +191,7 @@ class _PartnerPayoutFormState extends State<PartnerPayoutForm> {
         data = {...data!, ...r};
         pending = null;
         success = true;
-        amount.clear();
+        amount.text = moneyCents(limit);
       });
     } catch (e) {
       if (e is AuthFailure &&

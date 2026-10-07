@@ -11,8 +11,10 @@ int partnerAmountLimit(Object? available) {
 }
 
 int? partnerAmountCents(String text) {
-  if (!RegExp(r'^\d+(\.\d{0,2})?$').hasMatch(text)) return null;
-  final parts = text.split('.');
+  if (!RegExp(r'^(\d+|\d{1,3}(,\d{3})+)(\.\d{0,2})?$').hasMatch(text)) {
+    return null;
+  }
+  final parts = text.replaceAll(',', '').split('.');
   final cents =
       BigInt.parse(parts[0]) * BigInt.from(100) +
       (parts.length == 1 || parts[1].isEmpty
@@ -29,9 +31,39 @@ class PartnerAmountFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    if (!RegExp(r'^\d*(\.\d{0,2})?$').hasMatch(newValue.text)) return oldValue;
-    if ((partnerAmountCents(newValue.text) ?? 0) <= limit) return newValue;
-    final capped = moneyCents(limit).replaceAll(',', '');
+    final raw = newValue.text.replaceAll(',', '');
+    if (!RegExp(r'^\d*(\.\d{0,2})?$').hasMatch(raw)) return oldValue;
+    if ((partnerAmountCents(raw) ?? 0) <= limit) {
+      final parts = raw.split('.');
+      final grouped = parts[0].replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+$)'),
+        (match) => '${match[1]},',
+      );
+      final text = '$grouped${parts.length > 1 ? '.${parts[1]}' : ''}';
+      int offset(int original) {
+        if (original < 0) return text.length;
+        final logical = newValue.text
+            .substring(0, original)
+            .replaceAll(',', '')
+            .length;
+        var count = 0;
+        var position = 0;
+        while (position < text.length && count < logical) {
+          if (text[position] != ',') count++;
+          position++;
+        }
+        return position;
+      }
+
+      return TextEditingValue(
+        text: text,
+        selection: TextSelection(
+          baseOffset: offset(newValue.selection.baseOffset),
+          extentOffset: offset(newValue.selection.extentOffset),
+        ),
+      );
+    }
+    final capped = moneyCents(limit);
     return TextEditingValue(
       text: capped,
       selection: TextSelection.collapsed(offset: capped.length),
@@ -53,8 +85,10 @@ class PartnerAmountField extends StatelessWidget {
   final bool enabled;
   @override
   Widget build(BuildContext context) => TextField(
+    key: const ValueKey('partner-amount-input'),
     controller: controller,
     enabled: enabled && limit > 0,
+    selectAllOnFocus: true,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
     textInputAction: TextInputAction.done,
     onSubmitted: (_) => FocusScope.of(context).unfocus(),
@@ -62,6 +96,8 @@ class PartnerAmountField extends StatelessWidget {
     style: const TextStyle(fontSize: 24, color: Colors.white),
     decoration: InputDecoration(
       labelText: label,
+      floatingLabelBehavior: FloatingLabelBehavior.always,
+      hintText: '0.00',
       prefixText: '¥ ',
       border: InputBorder.none,
       enabledBorder: InputBorder.none,
@@ -75,7 +111,7 @@ class PartnerAmountField extends StatelessWidget {
         onPressed: !enabled || limit <= 0
             ? null
             : () {
-                controller.text = moneyCents(limit).replaceAll(',', '');
+                controller.text = moneyCents(limit);
                 controller.selection = TextSelection.collapsed(
                   offset: controller.text.length,
                 );
