@@ -17,6 +17,7 @@ import 'partner_tasks_page.dart';
 import 'partner_policy_page.dart';
 import 'partner_transfer_page.dart';
 import 'partner_withdrawal_page.dart';
+import '../../scanner/presentation/member_scanner_page.dart';
 
 Widget _title(BuildContext context, String value) => Text(
   value,
@@ -434,7 +435,7 @@ Widget _button(String label, VoidCallback? onTap) => SizedBox(
       foregroundColor: Colors.black,
     ),
     onPressed: onTap,
-    child: Text(label),
+    child: Text(label, style: const TextStyle(fontSize: 16)),
   ),
 );
 
@@ -447,6 +448,9 @@ class _ApplicationPage extends StatefulWidget {
 
 class _ApplicationPageState extends State<_ApplicationPage> {
   final intro = TextEditingController();
+  final referrerInput = TextEditingController();
+  Map<String, dynamic>? referrer;
+  bool checkingReferrer = false;
   HomeCity? city = HomeCitySession.current;
   @override
   void initState() {
@@ -495,14 +499,70 @@ class _ApplicationPageState extends State<_ApplicationPage> {
   @override
   void dispose() {
     intro.dispose();
+    referrerInput.dispose();
     super.dispose();
   }
 
+  Future<bool> verifyReferrer({String? code}) async {
+    if (busy || checkingReferrer || pending != null) return false;
+    final memberId = referrerInput.text.trim().toUpperCase();
+    if (code == null && !RegExp(r'^KM[0-9A-Z]{1,62}$').hasMatch(memberId)) {
+      setState(() => error = t('invalidReferrer'));
+      return false;
+    }
+    setState(() {
+      checkingReferrer = true;
+      error = null;
+      referrer = null;
+    });
+    try {
+      final result = await widget.call({
+        'action': 'referrer',
+        if (code != null) 'code': code else 'memberId': memberId,
+      });
+      if (!mounted) return false;
+      final candidate = Map<String, dynamic>.from(result['referrer'] as Map);
+      if (!RegExp(r'^KM[0-9A-Z]{1,62}$')
+              .hasMatch(candidate['memberId'] as String) ||
+          candidate['name'] is! String ||
+          candidate['level'] is! int) {
+        throw const FormatException('Invalid referrer');
+      }
+      setState(() {
+        referrer = candidate;
+        referrerInput.text = candidate['memberId'] as String;
+      });
+      return true;
+    } catch (_) {
+      if (mounted) setState(() => error = t('invalidReferrer'));
+      return false;
+    } finally {
+      if (mounted) setState(() => checkingReferrer = false);
+    }
+  }
+
+  Future<void> scanReferrer() async {
+    if (busy || checkingReferrer || pending != null) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => const MemberScannerPage(pickReferrer: true),
+      ),
+    );
+    if (mounted && code != null) await verifyReferrer(code: code);
+  }
+
   Future<void> submit() async {
-    if (busy) return;
+    if (busy || checkingReferrer) return;
     if (pending == null && (city == null || directions.isEmpty)) {
       setState(() => error = t('required'));
       return;
+    }
+    if (pending == null &&
+        referrerInput.text.trim().isNotEmpty &&
+        referrer?['memberId'] != referrerInput.text.trim().toUpperCase()) {
+      if (!await verifyReferrer()) return;
+      if (!mounted) return;
     }
     pending ??= {
       'action': 'apply',
@@ -510,6 +570,7 @@ class _ApplicationPageState extends State<_ApplicationPage> {
       'city': city!.name,
       'directions': directions.toList()..sort(),
       'introduction': intro.text.trim(),
+      if (referrer != null) 'referrerMemberId': referrer!['memberId'],
     };
     setState(() {
       busy = true;
@@ -591,6 +652,68 @@ class _ApplicationPageState extends State<_ApplicationPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  t('applicationReferrer'),
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  key: const ValueKey('partner-referrer-input'),
+                  controller: referrerInput,
+                  readOnly: busy || checkingReferrer || pending != null,
+                  textCapitalization: TextCapitalization.characters,
+                  maxLength: 64,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  decoration: InputDecoration(
+                    hintText: t('referrerPlaceholder'),
+                    hintStyle: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 14,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    contentPadding: EdgeInsets.zero,
+                    counterText: '',
+                  ),
+                  onChanged: (_) => setState(() => referrer = null),
+                  onSubmitted: (_) => verifyReferrer(),
+                ),
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 8,
+                  children: [
+                    TextButton.icon(
+                      onPressed: busy || checkingReferrer || pending != null
+                          ? null
+                          : scanReferrer,
+                      icon: const Icon(Icons.qr_code_scanner, size: 20),
+                      label: Text(t('scanReferrer')),
+                    ),
+                    TextButton(
+                      onPressed: busy || checkingReferrer || pending != null
+                          ? null
+                          : () => verifyReferrer(),
+                      child: Text(
+                        checkingReferrer ? t('saving') : t('verifyReferrer'),
+                      ),
+                    ),
+                  ],
+                ),
+                if (referrer != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      '${referrer!['name']} · ${referrer!['memberId']}\n${t('referrerLevel')} ${referrer!['level']}',
+                      style: const TextStyle(
+                        color: _gold,
+                        fontSize: 15,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 24),
                 Text(
                   t('directions'),
                   style: const TextStyle(color: Colors.white54, fontSize: 13),
@@ -681,7 +804,7 @@ class _ApplicationPageState extends State<_ApplicationPage> {
           const SizedBox(height: 20),
           _button(
             pending != null ? t('retry') : t('submit'),
-            busy ? null : submit,
+            busy || checkingReferrer ? null : submit,
           ),
         ],
       ),
@@ -848,7 +971,7 @@ class PartnerApplicationReviewForm extends StatefulWidget {
 }
 
 class _ReviewState extends State<PartnerApplicationReviewForm> {
-  final reason = TextEditingController(), parent = TextEditingController();
+  final reason = TextEditingController();
   bool busy = false;
   Map<String, dynamic>? pending;
   String? error;
@@ -856,7 +979,6 @@ class _ReviewState extends State<PartnerApplicationReviewForm> {
   @override
   void dispose() {
     reason.dispose();
-    parent.dispose();
     super.dispose();
   }
 
@@ -866,19 +988,12 @@ class _ReviewState extends State<PartnerApplicationReviewForm> {
         reason.text.trim().isEmpty) {
       return;
     }
-    if (pending == null &&
-        parent.text.trim().isNotEmpty &&
-        !RegExp(r'^U[0-9]{11}$').hasMatch(parent.text.trim())) {
-      setState(() => error = t('parent'));
-      return;
-    }
     pending ??= {
       'action': 'review',
       'requestId': const Uuid().v4(),
       'applicationRef': widget.item['ref'],
       'decision': decision,
       'reason': reason.text.trim(),
-      if (parent.text.trim().isNotEmpty) 'parentAccount': parent.text.trim(),
     };
     setState(() {
       busy = true;
@@ -919,6 +1034,19 @@ class _ReviewState extends State<PartnerApplicationReviewForm> {
         ),
         const SizedBox(height: 12),
         Text(t(widget.item['status'] as String)),
+        const SizedBox(height: 16),
+        Text(
+          t('applicationReferrer'),
+          style: const TextStyle(color: Colors.white54, fontSize: 13),
+        ),
+        const SizedBox(height: 8),
+        if (widget.item['referrer'] is Map)
+          Text(
+            '${widget.item['referrer']['name']}\n${widget.item['referrer']['memberId']} · ${t('referrerLevel')} ${widget.item['referrer']['level']}',
+            style: const TextStyle(fontSize: 17, height: 1.5),
+          )
+        else
+          Text(t('directApplication'), style: const TextStyle(fontSize: 16)),
         if (widget.item['status'] != 'pending')
           Text('${widget.item['reason'] ?? ''}'),
         if (widget.item['status'] == 'pending') ...[
@@ -929,23 +1057,30 @@ class _ReviewState extends State<PartnerApplicationReviewForm> {
             maxLength: 300,
             decoration: InputDecoration(labelText: t('reviewReason')),
           ),
-          TextField(
-            controller: parent,
-            readOnly: pending != null,
-            maxLength: 12,
-            decoration: InputDecoration(labelText: t('parent')),
-          ),
           if (error != null) Text(error!),
           const SizedBox(height: 20),
           _button(
             pending == null ? t('approve') : t('retry'),
             busy ? null : () => send('approved'),
           ),
-          if (pending == null)
-            TextButton(
-              onPressed: busy ? null : () => send('rejected'),
-              child: Text(t('reject')),
+          if (pending == null) ...[
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: kingControlHeight,
+              child: OutlinedButton(
+                key: const ValueKey('partner-review-reject'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _gold,
+                  side: const BorderSide(color: _gold),
+                  shape: const StadiumBorder(),
+                  textStyle: const TextStyle(fontSize: 16),
+                ),
+                onPressed: busy ? null : () => send('rejected'),
+                child: Text(t('reject')),
+              ),
             ),
+          ],
         ],
       ],
     ),

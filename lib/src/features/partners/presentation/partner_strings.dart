@@ -13,6 +13,16 @@ String partnerText(BuildContext context, String key) {
 }
 
 const partnerCopy = {
+  'applicationReferrer':
+      '推荐人（选填）|Referrer (optional)|推薦人（選填）|ผู้แนะนำ (ไม่บังคับ)',
+  'referrerPlaceholder': '输入推荐人的 KM 会员号|Enter the referrer’s KM member ID|輸入推薦人的 KM 會員號|กรอกรหัสสมาชิก KM ของผู้แนะนำ',
+  'scanReferrer': '扫码选择推荐人|Scan a referrer’s code|掃碼選擇推薦人|สแกนรหัสผู้แนะนำ',
+  'verifyReferrer': '核对推荐人|Verify referrer|核對推薦人|ตรวจสอบผู้แนะนำ',
+  'referrerLevel': '合作等级|Partner level|合作等級|ระดับพาร์ทเนอร์',
+  'directApplication':
+      '直接向平台申请|Apply directly to the platform|直接向平台申請|สมัครกับแพลตฟอร์มโดยตรง',
+  'invalidReferrer': '推荐人无效或未开通合作资格，请重新核对|Referrer is invalid or is not an active partner. Please check.|推薦人無效或未開通合作資格，請重新核對|ผู้แนะนำไม่ถูกต้องหรือไม่ได้เป็นพาร์ทเนอร์ที่ใช้งานอยู่ โปรดตรวจสอบ',
+  'invalidReferrerCode': '请扫描推荐人的会员码或合作伙伴码|Scan the referrer’s member or partner code|請掃描推薦人的會員碼或合作夥伴碼|สแกนรหัสสมาชิกหรือรหัสพาร์ทเนอร์ของผู้แนะนำ',
   'selectCustomer':
       '选择已关联顾客|Select a linked customer|選擇已關聯顧客|เลือกลูกค้าที่เชื่อมโยง',
   'selectMerchant': '选择门店|Select a store|選擇門店|เลือกร้าน',

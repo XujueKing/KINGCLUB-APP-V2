@@ -1,6 +1,7 @@
 import 'package:kingclub/src/core/design_system/king_components.dart';
 
 import '../../partners/presentation/partner_code_page.dart';
+import '../../partners/presentation/partner_strings.dart';
 
 import '../../messaging/data/group_chat_repository.dart';
 import '../../messaging/presentation/group_qr_preview_page.dart';
@@ -28,7 +29,13 @@ import 'package:flutter/services.dart';
 import '../../profile_settings/data/profile_repository.dart';
 
 class MemberScannerPage extends StatefulWidget {
-  const MemberScannerPage({super.key, this.pickPhoto, this.cashierRepository});
+  const MemberScannerPage({
+    super.key,
+    this.pickPhoto,
+    this.cashierRepository,
+    this.pickReferrer = false,
+  });
+  final bool pickReferrer;
   final Future<XFile?> Function()? pickPhoto;
   final CashierLoginRepository? cashierRepository;
   @override
@@ -110,6 +117,15 @@ class _MemberScannerPageState extends State<MemberScannerPage>
     try {
       await _controller.stop();
       if (!mounted || !_active || _invalid || generation != _generation) return;
+      if (widget.pickReferrer) {
+        if (!RegExp(r'^KC:[PM]:[0-9A-F]{32}$').hasMatch(code)) {
+          setState(() => _error = partnerText(context, 'invalidReferrerCode'));
+          return;
+        }
+        replacedScanner = true;
+        Navigator.of(context).pop(code);
+        return;
+      }
       final route = ScanRoute.parse(code);
       if (route.kind == ScanRouteKind.unsupported) {
         setState(() => _error = '此二维码无效或对应业务尚未接通');

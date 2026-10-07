@@ -65,6 +65,50 @@ class _Cashier implements CashierLoginRepository {
 }
 
 void main() {
+  for (final kind in ['P', 'M']) {
+    testWidgets(
+      'referrer $kind code picker returns to application without binding',
+      (tester) async {
+        final original = MobileScannerPlatform.instance;
+        final code = 'KC:$kind:${'A' * 32}';
+        final camera = _Camera()
+          ..capture = BarcodeCapture(barcodes: [Barcode(rawValue: code)]);
+        MobileScannerPlatform.instance = camera;
+        addTearDown(() => MobileScannerPlatform.instance = original);
+        String? selected;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () async {
+                    selected = await Navigator.of(context).push<String>(
+                      MaterialPageRoute(
+                        builder: (_) => MemberScannerPage(
+                          pickReferrer: true,
+                          pickPhoto: () async => XFile('/test/referrer.png'),
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('申请页扫码'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('申请页扫码'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('相册'));
+        await tester.pumpAndSettle();
+        expect(selected, code);
+        expect(find.byType(MemberScannerPage), findsNothing);
+        expect(find.text('申请页扫码'), findsOneWidget);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump();
+      },
+    );
+  }
   testWidgets('table scan replaces camera and Back returns to caller', (
     tester,
   ) async {

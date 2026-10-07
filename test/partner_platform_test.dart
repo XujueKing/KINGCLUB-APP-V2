@@ -41,6 +41,62 @@ Widget app(
   home: PartnerPlatformPage(call: call),
 );
 void main() {
+  testWidgets(
+    'application verifies KM referrer and sends selected recommendation',
+    (tester) async {
+      HomeCitySession.current = const HomeCity(
+        code: '430200',
+        name: '株洲市',
+        shortName: '株洲',
+        pinyin: 'zhuzhou',
+      );
+      addTearDown(() => HomeCitySession.current = null);
+      final requests = <Map<String, dynamic>>[];
+      await tester.pumpWidget(
+        app((p) async {
+          requests.add(Map.of(p));
+          if (p['action'] == 'referrer')
+            return {
+              'referrer': {
+                'memberId': 'KM123',
+                'name': 'Test referrer',
+                'level': 7,
+              },
+            };
+          return snapshot();
+        }),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('申请成为合作者').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('partner-referrer-input')),
+        'km123',
+      );
+      await tester.tap(find.text('核对推荐人'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Test referrer'), findsOneWidget);
+      await tester.ensureVisible(find.text('组织派对'));
+      await tester.tap(find.text('组织派对'));
+      await tester.scrollUntilVisible(
+        find.text('提交申请'),
+        250,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('提交申请'));
+      await tester.pumpAndSettle();
+      expect(
+        requests.where((p) => p['action'] == 'referrer').single['memberId'],
+        'KM123',
+      );
+      expect(
+        requests
+            .where((p) => p['action'] == 'apply')
+            .single['referrerMemberId'],
+        'KM123',
+      );
+    },
+  );
   test(
     'rejects inconsistent earnings level, never silently substitutes fee',
     () {
@@ -165,12 +221,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('partner-city-choice')), findsOneWidget);
     expect(find.text('株洲市'), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2));
     await tester.tap(find.text('组织派对'));
-    await tester.ensureVisible(find.text('提交申请'));
+    await tester.scrollUntilVisible(
+      find.text('提交申请'),
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.text('提交申请'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('重试'));
+    await tester.scrollUntilVisible(
+      find.text('重试'),
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('重试'));
     await tester.pumpAndSettle();

@@ -51,6 +51,11 @@ void main() {
                     'directions': ['organize'],
                     'status': status,
                     'reason': 'Review notes',
+                    'referrer': {
+                      'memberId': 'KM123',
+                      'name': 'Test referrer',
+                      'level': 7,
+                    },
                   },
                 };
               },
@@ -62,12 +67,27 @@ void main() {
           {'action': 'application', 'applicationRef': reference},
         ]);
         expect(find.text('Test applicant'), findsOneWidget);
+        expect(find.textContaining('Test referrer'), findsOneWidget);
         expect(
           find.byType(TextField),
-          status == 'pending' ? findsNWidgets(2) : findsNothing,
+          status == 'pending' ? findsOneWidget : findsNothing,
         );
         if (status != 'pending') {
           expect(find.text('Review notes'), findsOneWidget);
+        } else {
+          await tester.ensureVisible(
+            find.byKey(const ValueKey('partner-review-reject')),
+          );
+          final approve = tester.getRect(
+            find.widgetWithText(FilledButton, '通过'),
+          );
+          final reject = tester.getRect(
+            find.byKey(const ValueKey('partner-review-reject')),
+          );
+          expect(reject.height, approve.height);
+          expect(reject.width, approve.width);
+          expect(reject.top - approve.bottom, greaterThanOrEqualTo(32));
+          expect(find.widgetWithText(OutlinedButton, '拒绝'), findsOneWidget);
         }
         expect(tester.takeException(), isNull);
       },
