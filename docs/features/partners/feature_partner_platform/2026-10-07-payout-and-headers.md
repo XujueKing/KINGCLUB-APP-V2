@@ -16,3 +16,5 @@
 后台400已单独部署，备份kingclub-partner-backup-20261007-164，health/ready/runtime通过；实际表单、卡清单、明细只读CALL分别5/3/1ms，此为数据库时间，不是手机端耗时。
 
 交付构建：源码 c23c30c1989234892440bcddb0ee4d45bc68eb62，iOS开发签名构建37590899593完成，第164版IPA已通过SHA、ZIP、bundle、签名结构、设备授权及Info.plist版本校验。当前未安装：usbmux清单为空，Windows存在蓝牙iPhone记录，但USB设备清单没有iPhone；Apple Mobile Device Service正常运行。已请求用户连接并解锁，后续安装使用此已校验包，不重建、不清用户数据。
+
+安装完成：2026-10-07用户重新连接USB后，使用上述已校验包直接安装成功。安装后从目标iPhone读取com.lingmei.kingclub，确认版本1.2.0、构建164。本次未重建、未清除用户数据；此前未连接的交付状态已解除。真机页面交互由用户继续验收。
