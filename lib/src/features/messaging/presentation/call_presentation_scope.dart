@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/design_system/king_back_gesture.dart';
+
 import '../data/call_presentation_lease.dart';
 import '../../../core/session/secure_session_store.dart';
 
@@ -14,7 +16,8 @@ class CallPresentationHost extends StatefulWidget {
 }
 
 class CallPresentationControls extends InheritedWidget {
-  const CallPresentationControls._(this._host, {
+  const CallPresentationControls._(
+    this._host, {
     required this.minimized,
     required super.child,
   });
@@ -165,7 +168,12 @@ class _CallPresentationHostState extends State<CallPresentationHost> {
                   child: CallPresentationControls._(
                     this,
                     minimized: _minimized,
-                    child: _page!,
+                    child: KingEdgeBackGesture(
+                      route: _route,
+                      enabled: !_minimized,
+                      onBack: () => (onBack ?? minimize)(),
+                      child: _page!,
+                    ),
                   ),
                 ),
               ),

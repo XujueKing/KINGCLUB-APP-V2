@@ -174,6 +174,19 @@ void main() {
         tester.getRect(find.byKey(const ValueKey('home-card-article'))),
         a,
       );
+      await tester.tap(find.byKey(const ValueKey('home-card-article')));
+      await tester.pumpAndSettle();
+      await tester.timedDragFrom(
+        const Offset(5, 250),
+        const Offset(300, 0),
+        const Duration(milliseconds: 900),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(HomeContentDetailPage), findsNothing);
+      expect(
+        tester.getRect(find.byKey(const ValueKey('home-card-article'))),
+        a,
+      );
       expect(tester.takeException(), isNull);
     },
   );

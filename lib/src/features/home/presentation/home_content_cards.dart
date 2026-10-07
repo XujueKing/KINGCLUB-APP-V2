@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/design_system/king_back_gesture.dart';
+
 import '../../../core/media/cached_media_image.dart';
 import '../../../core/media/cached_media_video.dart';
 import '../data/home_content_repository.dart';
@@ -293,10 +295,12 @@ Future<void> openHomeContent(
     reverseTransitionDuration: MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 300),
-    pageBuilder: (context, animation, secondary) => HomeContentDetailPage(
-      content: content,
-      onLike: () => onLike(content),
-      animation: animation,
+    pageBuilder: (context, animation, secondary) => KingEdgeBackGesture(
+      child: HomeContentDetailPage(
+        content: content,
+        onLike: () => onLike(content),
+        animation: animation,
+      ),
     ),
     transitionsBuilder: (context, animation, secondary, child) => child,
   ),

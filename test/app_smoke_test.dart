@@ -233,66 +233,80 @@ void main() {
     expect(find.text('我已阅读并同意'), findsNothing);
   });
 
-  testWidgets('system back never empties the auth onboarding router', (
-    tester,
-  ) async {
-    await tester.pumpWidget(const ProviderScope(child: KingClubApp()));
-    await tester.pump(const Duration(milliseconds: 950));
-    await tester.pumpAndSettle();
+  for (final method in ['system', 'swipe']) {
+    testWidgets('$method back never empties the auth onboarding router', (
+      tester,
+    ) async {
+      Future<void> back() async {
+        if (method == 'system') {
+          await tester.binding.handlePopRoute();
+        } else {
+          await tester.timedDragFrom(
+            const Offset(5, 250),
+            const Offset(650, 0),
+            const Duration(milliseconds: 1800),
+          );
+        }
+      }
 
-    await tester.tap(find.byKey(const ValueKey('legacy-welcome-consent')));
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('legacy-welcome-next')));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(const ProviderScope(child: KingClubApp()));
+      await tester.pump(const Duration(milliseconds: 950));
+      await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.descendant(
-        of: find.byKey(const ValueKey('mobile-login-phone-field')),
-        matching: find.byType(EditableText),
-      ),
-      '13800000003',
-    );
-    await tester.tap(find.text('获取验证码'));
-    await tester.pump(const Duration(milliseconds: 750));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.descendant(
-        of: find.byKey(const ValueKey('mobile-login-code-field')),
-        matching: find.byType(EditableText),
-      ),
-      '888888',
-    );
-    await tester.pump();
-    final mobileNext = find.byKey(const ValueKey('mobile-login-next'));
-    await tester.ensureVisible(mobileNext);
-    await tester.pumpAndSettle();
-    await tester.tap(mobileNext);
-    await tester.pump(const Duration(milliseconds: 850));
-    await tester.pumpAndSettle();
-    expect(find.text('当前步骤 2/5'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('legacy-welcome-consent')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('legacy-welcome-next')));
+      await tester.pumpAndSettle();
 
-    await tester.binding.handlePopRoute();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(find.text('Mobile Phone:'), findsOneWidget);
-    expect(find.byType(Scaffold), findsOneWidget);
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(const ValueKey('mobile-login-phone-field')),
+          matching: find.byType(EditableText),
+        ),
+        '13800000003',
+      );
+      await tester.tap(find.text('获取验证码'));
+      await tester.pump(const Duration(milliseconds: 750));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(const ValueKey('mobile-login-code-field')),
+          matching: find.byType(EditableText),
+        ),
+        '888888',
+      );
+      await tester.pump();
+      final mobileNext = find.byKey(const ValueKey('mobile-login-next'));
+      await tester.ensureVisible(mobileNext);
+      await tester.pumpAndSettle();
+      await tester.tap(mobileNext);
+      await tester.pump(const Duration(milliseconds: 850));
+      await tester.pumpAndSettle();
+      expect(find.text('当前步骤 2/5'), findsOneWidget);
 
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('legacy-welcome-background')),
-      findsOneWidget,
-    );
-    expect(find.byType(Scaffold), findsOneWidget);
+      await back();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('Mobile Phone:'), findsOneWidget);
+      expect(find.byType(Scaffold), findsOneWidget);
 
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('legacy-welcome-background')),
-      findsOneWidget,
-    );
-    expect(find.byType(Scaffold), findsOneWidget);
-  });
+      await back();
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('legacy-welcome-background')),
+        findsOneWidget,
+      );
+      expect(find.byType(Scaffold), findsOneWidget);
+
+      await back();
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('legacy-welcome-background')),
+        findsOneWidget,
+      );
+      expect(find.byType(Scaffold), findsOneWidget);
+    });
+  }
 
   testWidgets('mock sms and onboarding flow reaches the app shell', (
     tester,

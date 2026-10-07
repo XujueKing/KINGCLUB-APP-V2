@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:kingclub/src/features/scanner/presentation/member_scanner_page.dart';
+import 'package:kingclub/src/core/design_system/king_theme.dart';
 
 class _Camera extends MobileScannerPlatform {
   int starts = 0, torches = 0;
@@ -144,24 +145,40 @@ void main() {
         ),
         GoRoute(
           path: '/commerce/ordering',
-          builder: (context, state) => Scaffold(
-            body: TextButton(
-              onPressed: () => context.pop(),
-              child: Text('返回 ${state.uri.queryParameters['tableId']}'),
+          // Match the typed production ordering route's MaterialPage.
+          pageBuilder: (context, state) => MaterialPage<void>(
+            key: state.pageKey,
+            allowSnapshotting: false,
+            child: Scaffold(
+              body: TextButton(
+                onPressed: () => context.pop(),
+                child: Text('返回 ${state.uri.queryParameters['tableId']}'),
+              ),
             ),
           ),
         ),
       ],
     );
     addTearDown(router.dispose);
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpWidget(
+      MaterialApp.router(theme: KingTheme.dark, routerConfig: router),
+    );
     await tester.tap(find.text('打开扫码'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('相册'));
     await tester.pumpAndSettle();
     expect(find.text('返回 V2'), findsOneWidget);
     expect(find.byType(MemberScannerPage), findsNothing);
-    await tester.tap(find.text('返回 V2'));
+    final orderingRoute =
+        ModalRoute.of(tester.element(find.text('返回 V2')))! as PageRoute;
+    expect(orderingRoute.popGestureEnabled, true);
+    final drag = await tester.startGesture(const Offset(5, 250));
+    await drag.moveBy(const Offset(70, 0));
+    await tester.pump();
+    expect(orderingRoute.navigator!.userGestureInProgress, true);
+    await drag.moveBy(const Offset(580, 0));
+    await tester.pump(const Duration(milliseconds: 500));
+    await drag.up();
     await tester.pumpAndSettle();
     expect(find.text('打开扫码'), findsOneWidget);
     expect(find.byType(MemberScannerPage), findsNothing);
@@ -217,7 +234,9 @@ void main() {
       ],
     );
     addTearDown(router.dispose);
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpWidget(
+      MaterialApp.router(theme: KingTheme.dark, routerConfig: router),
+    );
     await tester.tap(find.text('原入口扫码'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('相册'));
@@ -226,7 +245,11 @@ void main() {
     expect(opening, isFalse);
     await tester.tap(find.byKey(const ValueKey('cashier-login-approve')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('cashier-login-done')));
+    await tester.timedDragFrom(
+      const Offset(5, 250),
+      const Offset(650, 0),
+      const Duration(milliseconds: 1800),
+    );
     await tester.pumpAndSettle();
     expect(find.text('原入口扫码'), findsOneWidget);
     expect(find.byType(MemberScannerPage), findsNothing);

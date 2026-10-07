@@ -12,6 +12,8 @@ void main() {
   testWidgets('generated routes slide through settings, its child, and QR', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final router = GoRouter(
       routes: [
         GoRoute(
@@ -54,7 +56,8 @@ void main() {
 
     router.push('/me/settings');
     await checkSlide(SettingsPage);
-    await tester.tap(find.text('关于 KINGCLUB'));
+    await tester.ensureVisible(find.byKey(const ValueKey('settings-about')));
+    await tester.tap(find.byKey(const ValueKey('settings-about')));
     await checkSlide(AboutLegalPage);
     router.pop();
     await checkSlide(AboutLegalPage, returning: true);
@@ -63,8 +66,13 @@ void main() {
     await checkSlide(SettingsPage, returning: true);
     router.push('/me/qr');
     await checkSlide(PersonalQrPage);
-    router.pop();
-    await checkSlide(PersonalQrPage, returning: true);
+    await tester.timedDragFrom(
+      const Offset(5, 250),
+      const Offset(340, 0),
+      const Duration(milliseconds: 900),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(PersonalQrPage), findsNothing);
     expect(find.text('home'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     router.dispose();

@@ -9,6 +9,7 @@ import '../features/commerce/data/ordering_table_repository.dart';
 import '../features/commerce/data/ordering_catalog_repository.dart';
 
 import 'package:kingclub/src/core/design_system/king_notice.dart';
+import 'package:kingclub/src/core/design_system/king_back_gesture.dart';
 
 import '../features/scanner/presentation/member_scanner_page.dart';
 import '../features/commerce/presentation/table_ordering_entry_page.dart';
@@ -261,6 +262,7 @@ class AuthBootstrapRoute extends GoRouteData with $AuthBootstrapRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) {
     return _ControlledRouteBackScope(
+      swipeBack: false,
       onBack: () {},
       child: AuthBootstrapPage(
         onReauthenticate: () => const MobileLoginRoute().go(context),
@@ -295,6 +297,7 @@ class LegacyWelcomeRoute extends GoRouteData with $LegacyWelcomeRoute {
     return _authFlowPage(
       state: state,
       child: _ControlledRouteBackScope(
+        swipeBack: false,
         onBack: SystemNavigator.pop,
         child: LegacyWelcomePage(
           onNext: () {
@@ -566,6 +569,7 @@ class MembershipReviewStatusRoute extends GoRouteData
     return _authFlowPage(
       state: state,
       child: _ControlledRouteBackScope(
+        swipeBack: false,
         onBack: SystemNavigator.pop,
         child: MembershipReviewStatusPage(
           flowId: $extra.flowId,
@@ -582,10 +586,15 @@ class MembershipReviewStatusRoute extends GoRouteData
 }
 
 class _ControlledRouteBackScope extends StatelessWidget {
-  const _ControlledRouteBackScope({required this.onBack, required this.child});
+  const _ControlledRouteBackScope({
+    required this.onBack,
+    required this.child,
+    this.swipeBack = true,
+  });
 
   final VoidCallback onBack;
   final Widget child;
+  final bool swipeBack;
 
   @override
   Widget build(BuildContext context) {
@@ -594,7 +603,11 @@ class _ControlledRouteBackScope extends StatelessWidget {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) onBack();
       },
-      child: child,
+      child: KingEdgeBackGesture(
+        enabled: swipeBack,
+        allowRoot: true,
+        child: child,
+      ),
     );
   }
 }

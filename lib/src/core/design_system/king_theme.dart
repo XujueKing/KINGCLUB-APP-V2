@@ -1,5 +1,8 @@
 import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+
+import 'king_back_gesture.dart';
 
 abstract final class KingColors {
   static const canvas = Color(0xFF080706);
@@ -216,12 +219,16 @@ class KingSlidePageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    return SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(1, 0),
-        end: Offset.zero,
-      ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(animation),
-      child: child,
+    return KingEdgeBackGesture(
+      route: route,
+      fallbackOnly: true,
+      child: const CupertinoPageTransitionsBuilder().buildTransitions(
+        route,
+        context,
+        animation,
+        secondaryAnimation,
+        child,
+      ),
     );
   }
 }
