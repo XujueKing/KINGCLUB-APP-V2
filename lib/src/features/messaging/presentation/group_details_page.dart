@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
 import 'package:kingclub/src/core/design_system/king_input_style.dart';
 
 import '../../auth/domain/auth_repository.dart';
@@ -623,10 +624,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
       label,
       style: const TextStyle(color: Color(0xFFC9B69E), fontSize: 16),
     ),
-    trailing: Switch(
+    trailing: KingSwitch(
       key: ValueKey('group-details-$field'),
       value: _settings[field] == true,
-      activeTrackColor: const Color(0xFF07C160),
       onChanged: _saving || _invalid
           ? null
           : (value) =>

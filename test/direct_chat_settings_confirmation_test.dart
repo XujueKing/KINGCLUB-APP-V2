@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -44,12 +46,12 @@ void main() {
       final toggle = find.byKey(const ValueKey('direct-chat-details-muted'));
       await tester.tap(toggle);
       await tester.pumpAndSettle();
-      expect(tester.widget<Switch>(toggle).value, isFalse);
+      expect(tester.widget<KingSwitch>(toggle).value, isFalse);
       expect(changed, isNull);
       success = true;
       await tester.tap(toggle);
       await tester.pumpAndSettle();
-      expect(tester.widget<Switch>(toggle).value, isTrue);
+      expect(tester.widget<KingSwitch>(toggle).value, isTrue);
       expect(changed, isTrue);
     },
   );

@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
@@ -483,7 +484,7 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
                     : 'unfinished',
               ),
               trailing: (allowed('canSetStatus') || allowed('canReview'))
-                  ? Switch(
+                  ? KingSwitch(
                       key: const ValueKey('customer-status'),
                       value: approved && c['status'] == 'active',
                       onChanged:
@@ -491,7 +492,6 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
                               (pendingReview && !allowed('canApprove'))
                           ? null
                           : changeStatus,
-                      activeThumbColor: customerGold,
                     )
                   : null,
             ),

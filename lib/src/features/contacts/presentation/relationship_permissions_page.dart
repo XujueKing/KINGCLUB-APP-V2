@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
+
 import '../../../core/design_system/king_theme.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
@@ -397,17 +399,7 @@ class _SwitchRow extends StatelessWidget {
                 style: const TextStyle(color: _legacyGold, fontSize: 15),
               ),
             ),
-            Transform.scale(
-              scale: 0.85,
-              child: Switch(
-                value: value,
-                activeThumbColor: Colors.white,
-                activeTrackColor: const Color(0xFF07C160),
-                inactiveThumbColor: Colors.white,
-                inactiveTrackColor: _legacyGold.withValues(alpha: 0.14),
-                onChanged: onChanged,
-              ),
-            ),
+            KingSwitch(value: value, onChanged: onChanged),
           ],
         ),
       ),

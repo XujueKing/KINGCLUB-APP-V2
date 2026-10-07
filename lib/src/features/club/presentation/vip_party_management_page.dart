@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
 import 'package:flutter/material.dart';
 
 import 'legacy_club_components.dart';
@@ -74,7 +75,7 @@ class _VipPartyManagementPageState extends State<VipPartyManagementPage> {
           label: '招募状态',
           value: _recruiting ? '对外招募中' : '已关闭招募',
           valueColor: _recruiting ? const Color(0xFF07C160) : legacyGold,
-          trailing: Switch(
+          trailing: KingSwitch(
             key: const ValueKey('vip-recruitment-switch'),
             value: _recruiting,
             onChanged: _readOnly || _submitting ? null : _confirmRecruitment,

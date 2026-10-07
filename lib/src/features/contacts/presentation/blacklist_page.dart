@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
+
 import '../../../core/design_system/king_theme.dart';
 
 import 'dart:async';
@@ -569,15 +571,10 @@ class _LegacyBlacklistRow extends StatelessWidget {
                       color: _legacyPink,
                     ),
                   )
-                : Transform.scale(
-                    scale: 0.78,
-                    child: Switch(
-                      key: ValueKey('blacklist-switch-${user.targetRef}'),
-                      value: true,
-                      activeThumbColor: Colors.white,
-                      activeTrackColor: _legacyPink,
-                      onChanged: onUnblock == null ? null : (_) => onUnblock!(),
-                    ),
+                : KingSwitch(
+                    key: ValueKey('blacklist-switch-${user.targetRef}'),
+                    value: true,
+                    onChanged: onUnblock == null ? null : (_) => onUnblock!(),
                   ),
           ),
         ],

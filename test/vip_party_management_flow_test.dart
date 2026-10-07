@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/core/design_system/king_theme.dart';
@@ -68,7 +69,7 @@ void main() {
     await _pumpManagement(tester);
     await _selectScenario(tester, 'offline');
     expect(find.textContaining('当前离线'), findsOneWidget);
-    final recruitmentSwitch = tester.widget<Switch>(
+    final recruitmentSwitch = tester.widget<KingSwitch>(
       find.byKey(const ValueKey('vip-recruitment-switch')),
     );
     expect(recruitmentSwitch.onChanged, isNull);

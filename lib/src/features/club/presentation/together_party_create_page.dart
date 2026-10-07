@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
 import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/material.dart';
@@ -728,9 +729,8 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           ),
         ),
         const SizedBox(width: 10),
-        CupertinoSwitch(
+        KingSwitch(
           value: value,
-          activeTrackColor: const Color(0xFF9C8B76),
           onChanged: _busy ? null : (v) => setState(() => change(v)),
         ),
       ],
@@ -1490,7 +1490,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           _capacity,
           number: true,
         ),
-        SwitchListTile(
+        KingSwitchListTile(
           title: const Text('门店官方发起', style: TextStyle(color: legacyGold)),
           subtitle: const Text(
             '仅本店官方账号所属商家可用，服务器核验后免押金',
@@ -1499,7 +1499,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           value: _official,
           onChanged: _busy ? null : (v) => setState(() => _official = v),
         ),
-        SwitchListTile(
+        KingSwitchListTile(
           title: const Text('允许金币抵扣', style: TextStyle(color: legacyGold)),
           subtitle: const Text(
             '10金币抵1元，由平台补贴给门店',

@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -223,7 +225,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('group-name-row')), findsNothing);
-      expect(find.byType(Switch), findsNothing);
+      expect(find.byType(KingSwitch), findsNothing);
       expect(find.text('当前无法访问，请检查账号权限'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       await events.close();
@@ -336,28 +338,28 @@ void main() {
       await tester.pumpAndSettle();
       final mute = find.byKey(const ValueKey('group-details-muted'));
       final pin = find.byKey(const ValueKey('group-details-pinned'));
-      expect(tester.widget<Switch>(mute).value, false);
-      expect(tester.widget<Switch>(pin).value, true);
+      expect(tester.widget<KingSwitch>(mute).value, false);
+      expect(tester.widget<KingSwitch>(pin).value, true);
       await tester.tap(mute);
       await tester.pumpAndSettle();
       expect(calls.single, {'groupId': 'group-real', 'muted': true});
-      expect(tester.widget<Switch>(mute).value, true);
+      expect(tester.widget<KingSwitch>(mute).value, true);
       fail = true;
       await tester.tap(pin);
       await tester.pumpAndSettle();
-      expect(tester.widget<Switch>(pin).value, true);
+      expect(tester.widget<KingSwitch>(pin).value, true);
       expect(find.textContaining('保存失败'), findsOneWidget);
       fail = false;
       pending = Completer<Map<String, dynamic>>();
       await tester.tap(pin);
       await tester.pump();
-      expect(tester.widget<Switch>(pin).onChanged, isNull);
+      expect(tester.widget<KingSwitch>(pin).onChanged, isNull);
       SecureSessionStore.changes.add(null);
       await tester.pumpAndSettle();
       expect(find.text('真实群'), findsNothing);
       pending.complete({'saved': true});
       await tester.pumpAndSettle();
-      expect(find.byType(Switch), findsNothing);
+      expect(find.byType(KingSwitch), findsNothing);
       expect(find.text('登录状态已变化'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

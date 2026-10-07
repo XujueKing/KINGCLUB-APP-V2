@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
+
 import '../../../core/design_system/king_control_sizes.dart';
 import '../../../core/app_version.dart';
 import '../../../core/app_update.dart';
@@ -507,7 +509,7 @@ class _SettingsPageState extends State<SettingsPage>
                 ),
                 const SizedBox(height: 10),
                 const Text('消息通知、活动提醒和订单状态最终由手机系统设置控制。'),
-                SwitchListTile(
+                KingSwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('后台接收消息和来电'),
                   subtitle: const Text('开启后显示常驻通知，有助于后台接收，可能增加耗电。'),

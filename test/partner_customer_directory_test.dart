@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -123,7 +125,7 @@ void main() {
       await tester.pumpAndSettle();
       final toggle = find.byKey(const ValueKey('customer-status'));
       await tester.scrollUntilVisible(toggle, 300);
-      expect(tester.widget<Switch>(toggle).value, isFalse);
+      expect(tester.widget<KingSwitch>(toggle).value, isFalse);
       expect(find.text('待人工审核'), findsOneWidget);
       await tester.tap(toggle);
       await tester.pumpAndSettle();
@@ -139,7 +141,7 @@ void main() {
       expect(input['status'], 'approved');
       expect(input['expectedRegistrationStatus'], 'pending_review');
       expect(input['expectedAppearanceVersion'], 3);
-      expect(tester.widget<Switch>(toggle).value, isTrue);
+      expect(tester.widget<KingSwitch>(toggle).value, isTrue);
       expect(find.text('正常'), findsOneWidget);
       expect(
         calls.where((input) => input['action'] == 'customer_detail').length,
@@ -171,7 +173,7 @@ void main() {
         if (canReview) {
           final toggle = find.byKey(const ValueKey('customer-status'));
           await tester.scrollUntilVisible(toggle, 300);
-          expect(tester.widget<Switch>(toggle).onChanged, isNull);
+          expect(tester.widget<KingSwitch>(toggle).onChanged, isNull);
         } else {
           expect(find.byKey(const ValueKey('customer-status')), findsNothing);
         }
@@ -219,7 +221,7 @@ void main() {
       await tester.tap(find.text('确认'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(toggle, 300);
-      expect(tester.widget<Switch>(toggle).value, isFalse);
+      expect(tester.widget<KingSwitch>(toggle).value, isFalse);
       expect(reads, 2);
     },
   );

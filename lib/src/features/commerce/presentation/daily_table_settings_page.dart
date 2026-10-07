@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
 import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -234,7 +235,7 @@ class _DailyTableSettingsPageState extends State<DailyTableSettingsPage> {
                         _value.clear();
                       }),
               ),
-              SwitchListTile(
+              KingSwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
                   t([

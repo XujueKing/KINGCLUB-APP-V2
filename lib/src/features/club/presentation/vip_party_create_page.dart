@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
+
 import '../../../core/design_system/king_control_sizes.dart';
 
 import 'package:kingclub/src/core/formatters/money.dart';
@@ -427,15 +429,7 @@ class _VipPartyCreatePageState extends State<VipPartyCreatePage> {
                 ),
               ),
             ),
-            Switch(
-              key: key,
-              value: value,
-              onChanged: onChanged,
-              activeTrackColor: const Color(0xFF9C8B76),
-              activeThumbColor: Colors.white,
-              inactiveTrackColor: const Color(0x22FFFFFF),
-              inactiveThumbColor: const Color(0xFFCCCCCC),
-            ),
+            KingSwitch(key: key, value: value, onChanged: onChanged),
           ],
         ),
       ),

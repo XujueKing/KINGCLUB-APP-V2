@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -310,7 +312,7 @@ void main() {
         tester.widget<TextField>(store).keyboardType,
         const TextInputType.numberWithOptions(decimal: true),
       );
-      expect(find.byType(SwitchListTile), findsNothing);
+      expect(find.byType(KingSwitchListTile), findsNothing);
       await tester.tap(find.byKey(const ValueKey('checkout-coupon')));
       await tester.pumpAndSettle();
       expect(

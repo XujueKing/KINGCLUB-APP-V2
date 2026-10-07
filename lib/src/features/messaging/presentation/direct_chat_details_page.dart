@@ -1,10 +1,10 @@
+import 'package:kingclub/src/core/design_system/king_switch.dart';
 import 'package:kingclub/src/core/design_system/king_input_style.dart';
 
 import '../../contacts/presentation/public_member_page.dart';
 
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 
 import 'create_group_page.dart';
 import '../data/group_chat_repository.dart';
@@ -286,12 +286,9 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
           children: [
             _SettingsRow(
               label: '消息免打扰',
-              trailing: CupertinoSwitch(
+              trailing: KingSwitch(
                 key: const ValueKey('direct-chat-details-muted'),
                 value: _muted,
-                activeTrackColor: const Color(0xFF07C160),
-                inactiveTrackColor: const Color(0xFF39393D),
-                thumbColor: Colors.white,
                 onChanged: _saving
                     ? null
                     : (value) => _saveSettings(muted: value),
@@ -299,12 +296,9 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
             ),
             _SettingsRow(
               label: '置顶聊天',
-              trailing: CupertinoSwitch(
+              trailing: KingSwitch(
                 key: const ValueKey('direct-chat-details-pinned'),
                 value: _pinned,
-                activeTrackColor: const Color(0xFF07C160),
-                inactiveTrackColor: const Color(0xFF39393D),
-                thumbColor: Colors.white,
                 onChanged: _saving
                     ? null
                     : (value) => _saveSettings(pinned: value),
@@ -313,12 +307,9 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
             if (widget.peerAccount != null)
               _SettingsRow(
                 label: '仅聊天',
-                trailing: CupertinoSwitch(
+                trailing: KingSwitch(
                   key: const ValueKey('direct-chat-details-only-chat'),
                   value: _onlyChat,
-                  activeTrackColor: const Color(0xFF07C160),
-                  inactiveTrackColor: const Color(0xFF39393D),
-                  thumbColor: Colors.white,
                   onChanged: _saving
                       ? null
                       : (value) => _saveSettings(onlyChat: value),
