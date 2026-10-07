@@ -1,3 +1,5 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:kingclub/src/features/home/presentation/home_city_page.dart';
 import 'package:kingclub/src/features/home/data/home_city_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -101,6 +103,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byTooltip('切换身份'), findsNothing);
     expect(find.text('商家平台'), findsNothing);
+  });
+  testWidgets('application city uses home selector and returns chosen city', (
+    tester,
+  ) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    await tester.runAsync(() => HomeCityCatalog.load());
+    HomeCitySession.current = const HomeCity(
+      code: '430200',
+      name: '株洲市',
+      shortName: '株洲',
+      pinyin: 'zhuzhou',
+    );
+    addTearDown(() => HomeCitySession.current = null);
+    await tester.pumpWidget(app((_) async => snapshot()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('申请成为合作者').last);
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('partner-city-choice')));
+      await Future<void>.delayed(Duration.zero);
+    });
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeCityPage), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('home-city-input')),
+      '北京市',
+    );
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.tap(find.text('北京市').last);
+      await Future<void>.delayed(Duration.zero);
+    });
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeCityPage), findsNothing);
+    expect(find.text('北京市'), findsOneWidget);
   });
   testWidgets('retry preserves submitted application request id', (
     tester,
