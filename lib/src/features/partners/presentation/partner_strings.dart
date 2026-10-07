@@ -172,6 +172,11 @@ const partnerCopy = {
   'currency': '计价货币|Pricing currency|計價貨幣|สกุลเงินที่ใช้กำหนดราคา',
   'merchantNote': '已核对本账号的门店权限。经营管理功能正在接入。|Store access verified. Management tools are being integrated.|已核對本帳號的門店權限。經營管理功能正在接入。|ตรวจสอบสิทธิ์ร้านแล้ว กำลังเชื่อมต่อเครื่องมือจัดการ',
   'reviewReason': '审核说明|Review reason|審核說明|เหตุผลการตรวจสอบ',
+  'applicationReviewHint': '通过时选填；拒绝时请说明原因|Optional for approval; required for rejection|通過時選填；拒絕時請說明原因|ไม่บังคับเมื่ออนุมัติ แต่ต้องระบุเหตุผลเมื่อปฏิเสธ',
+  'rejectReasonRequired':
+      '请填写拒绝原因|Enter a reason for rejection|請填寫拒絕原因|กรุณาระบุเหตุผลที่ปฏิเสธ',
+  'approvalReason': '审核通过|Application approved|審核通過|อนุมัติใบสมัคร',
+  'reviewSubmitting': '正在提交…|Submitting…|正在提交…|กำลังส่ง…',
   'approve': '通过|Approve|通過|อนุมัติ',
   'reject': '拒绝|Reject|拒絕|ปฏิเสธ',
   'parent': '上级合作伙伴账号（选填）|Parent partner account (optional)|上級合作夥伴帳號（選填）|บัญชีพาร์ทเนอร์ระดับบน (ไม่บังคับ)',

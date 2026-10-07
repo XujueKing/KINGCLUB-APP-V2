@@ -972,20 +972,24 @@ class PartnerApplicationReviewForm extends StatefulWidget {
 
 class _ReviewState extends State<PartnerApplicationReviewForm> {
   final reason = TextEditingController();
+  final reasonFocus = FocusNode();
   bool busy = false;
   Map<String, dynamic>? pending;
-  String? error;
+  String? error, reasonError;
   String t(String k) => partnerText(context, k);
   @override
   void dispose() {
     reason.dispose();
+    reasonFocus.dispose();
     super.dispose();
   }
 
   Future<void> send(String decision) async {
-    if (busy ||
-        widget.item['status'] != 'pending' ||
-        reason.text.trim().isEmpty) {
+    if (busy || widget.item['status'] != 'pending') return;
+    final note = reason.text.trim();
+    if (pending == null && decision == 'rejected' && note.isEmpty) {
+      setState(() => reasonError = t('rejectReasonRequired'));
+      reasonFocus.requestFocus();
       return;
     }
     pending ??= {
@@ -993,11 +997,13 @@ class _ReviewState extends State<PartnerApplicationReviewForm> {
       'requestId': const Uuid().v4(),
       'applicationRef': widget.item['ref'],
       'decision': decision,
-      'reason': reason.text.trim(),
+      'reason': note.isEmpty ? t('approvalReason') : note,
     };
+    FocusScope.of(context).unfocus();
     setState(() {
       busy = true;
       error = null;
+      reasonError = null;
     });
     try {
       await widget.call(pending!);
@@ -1052,15 +1058,30 @@ class _ReviewState extends State<PartnerApplicationReviewForm> {
         if (widget.item['status'] == 'pending') ...[
           const SizedBox(height: 20),
           TextField(
+            key: const ValueKey('partner-review-reason'),
             controller: reason,
+            focusNode: reasonFocus,
             readOnly: pending != null,
             maxLength: 300,
-            decoration: InputDecoration(labelText: t('reviewReason')),
+            onChanged: (_) {
+              if (reasonError != null) setState(() => reasonError = null);
+            },
+            decoration: InputDecoration(
+              labelText: t('reviewReason'),
+              helperText: t('applicationReviewHint'),
+              helperMaxLines: 2,
+              errorText: reasonError,
+            ),
           ),
-          if (error != null) Text(error!),
+          if (error != null)
+            Text(error!, style: const TextStyle(color: Colors.redAccent)),
           const SizedBox(height: 20),
           _button(
-            pending == null ? t('approve') : t('retry'),
+            busy
+                ? t('reviewSubmitting')
+                : pending == null
+                ? t('approve')
+                : t('retry'),
             busy ? null : () => send('approved'),
           ),
           if (pending == null) ...[
