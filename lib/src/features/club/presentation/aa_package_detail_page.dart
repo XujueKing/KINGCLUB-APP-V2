@@ -1,3 +1,4 @@
+import '../../../core/design_system/king_theme.dart';
 import '../../../core/design_system/king_control_sizes.dart';
 
 import 'package:kingclub/src/core/formatters/money.dart';
@@ -484,7 +485,7 @@ class _LegacyHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 54,
+      height: 56,
       width: double.infinity,
       child: Stack(
         alignment: Alignment.center,
@@ -497,15 +498,7 @@ class _LegacyHeader extends StatelessWidget {
           GestureDetector(
             key: const ValueKey('aa-package-title'),
             onLongPress: onTitleLongPress,
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: legacyGold,
-                fontSize: 17,
-                fontWeight: FontWeight.w400,
-                letterSpacing: .5,
-              ),
-            ),
+            child: Text(title, style: KingTheme.headerTitleStyle),
           ),
         ],
       ),

@@ -13,6 +13,21 @@ String partnerText(BuildContext context, String key) {
 }
 
 const partnerCopy = {
+  'withdrawSuccess': '提现申请已提交，等待人工审核打款|Withdrawal requested. Awaiting manual review and payout.|提現申請已提交，等待人工審核付款|ส่งคำขอถอนเงินแล้ว รอการตรวจสอบและโอนเงิน',
+  'withdrawConfirm': '确认向所选银行卡申请提现？|Request a withdrawal to the selected bank card?|確認向所選銀行卡申請提現？|ยืนยันขอถอนเงินเข้าบัญชีธนาคารที่เลือกหรือไม่?',
+  'withdrawInvalid': '请选择银行卡，输入不超过可提现额度的金额|Select a bank card and enter an amount within your available funds|請選擇銀行卡，輸入不超過可提現額度的金額|เลือกบัญชีธนาคารและกรอกจำนวนเงินไม่เกินยอดที่ถอนได้',
+  'saveBankCard': '保存银行卡|Save bank card|儲存銀行卡|บันทึกบัญชีธนาคาร',
+  'bankCardInvalid': '请填写完整的户名、开户行和有效卡号|Enter the holder, bank and a valid account number|請填寫完整的戶名、開戶行和有效卡號|กรอกชื่อเจ้าของบัญชี ธนาคาร และเลขบัญชีที่ถูกต้อง',
+  'bankAccount':
+      '银行卡号 / IBAN|Account number / IBAN|銀行卡號 / IBAN|เลขบัญชี / IBAN',
+  'bankName': '开户银行及支行|Bank and branch|開戶銀行及分行|ธนาคารและสาขา',
+  'removeBankCard': '移除银行卡|Remove bank card|移除銀行卡|ลบบัญชีธนาคาร',
+  'noBankCards': '请先保存收款银行卡，再申请提现|Save a bank card before requesting a withdrawal|請先儲存收款銀行卡，再申請提現|บันทึกบัญชีธนาคารก่อนขอถอนเงิน',
+  'manageBankCards': '管理银行卡|Manage bank cards|管理銀行卡|จัดการบัญชีธนาคาร',
+  'addBankCard': '添加银行卡|Add a bank card|新增銀行卡|เพิ่มบัญชีธนาคาร',
+  'selectBankCard': '选择银行卡|Select a bank card|選擇銀行卡|เลือกบัญชีธนาคาร',
+  'withdrawalHistory': '提现明细|Payout history|提現明細|ประวัติการถอนและโอน',
+  'amountMax': 'MAX 全部|MAX|MAX 全部|MAX ทั้งหมด',
   'messages': '合作者消息|Partner messages|合作者消息|ข้อความพาร์ทเนอร์',
   'messagesEmpty':
       '暂无合作者消息|No partner messages|暫無合作者消息|ยังไม่มีข้อความพาร์ทเนอร์',
@@ -155,7 +170,7 @@ const partnerCopy = {
   'taskUnavailable': '暂不可领取|Not available to claim|暫不可領取|ยังรับภารกิจไม่ได้',
   'saveDraft': '保存草稿|Save draft|儲存草稿|บันทึกฉบับร่าง',
   'taskLedgerNote': '收益入账满7天结算，可申请人工提现或转入平台余额。任务奖励与派对提成独立记账。|Earnings mature seven days after posting and can be withdrawn after manual review or transferred to your platform balance. Task rewards and party commissions are recorded separately.|收益入帳滿7天結算，可申請人工提現或轉入平台餘額。任務獎勵與派對提成獨立記帳。|รายได้ครบกำหนด 7 วันหลังบันทึก สามารถขอถอนโดยเจ้าหน้าที่ตรวจสอบหรือโอนเข้ายอดเงินแพลตฟอร์ม รางวัลภารกิจและค่าคอมมิชชันปาร์ตี้บันทึกแยกกัน',
-  'title': '合作平台|Partner platform|合作平台|แพลตฟอร์มพาร์ทเนอร์',
+  'title': '合作者平台|Collaborator platform|合作者平台|แพลตฟอร์มผู้ร่วมงาน',
   'merchant': '商家平台|Merchant platform|商家平台|แพลตฟอร์มร้านค้า',
   'switch': '切换身份|Switch workspace|切換身份|สลับบทบาท',
   'join': '申请成为合作者|Apply to become a partner|申請成為合作者|สมัครเป็นพาร์ทเนอร์',

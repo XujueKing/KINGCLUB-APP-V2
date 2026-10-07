@@ -3,8 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../data/partner_repository.dart';
 import '../../messaging/data/system_notices_controller.dart';
 import 'partner_tasks_page.dart';
-import 'partner_transfer_page.dart';
-import 'partner_withdrawal_page.dart';
+import 'partner_withdrawal_history_page.dart';
 import 'partner_application_review_page.dart';
 import 'partner_platform_page.dart';
 import 'partner_messages_page.dart';
@@ -28,8 +27,7 @@ Widget partnerNoticeDestination(
     'platform' ||
     'platform:approved' ||
     'platform:rejected' => PartnerPlatformPage(call: call, inbox: inbox),
-    'withdrawal' => PartnerWithdrawalPage(call: call),
-    'transfer' => PartnerTransferPage(call: call),
+    'withdrawal' || 'transfer' => PartnerWithdrawalHistoryPage(call: call),
     _ => PartnerTasksPage(call: call, kind: 'ledger'),
   };
 }

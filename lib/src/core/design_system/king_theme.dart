@@ -23,9 +23,9 @@ abstract final class KingColors {
 
 abstract final class KingTheme {
   static const headerTitleStyle = TextStyle(
-    color: Color(0xB3C9B69E),
-    fontSize: 13,
-    fontWeight: FontWeight.w400,
+    color: Colors.white,
+    fontSize: 17,
+    fontWeight: FontWeight.w600,
     height: 1.2,
   );
 
@@ -157,7 +157,9 @@ abstract final class KingTheme {
       ),
       appBarTheme: const AppBarTheme(
         titleTextStyle: headerTitleStyle,
-        backgroundColor: KingColors.canvas,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         foregroundColor: KingColors.textPrimary,
         surfaceTintColor: Colors.transparent,
         centerTitle: true,

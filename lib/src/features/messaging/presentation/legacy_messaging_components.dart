@@ -48,7 +48,7 @@ class LegacyMessagingHeader extends StatelessWidget {
     required this.title,
     required this.onBack,
     this.trailing,
-    this.backgroundColor = Colors.black,
+    this.backgroundColor = Colors.transparent,
     this.alignToConversationTitle = false,
     this.lineColor = legacyMessageLine,
     this.lineWidth = 1,

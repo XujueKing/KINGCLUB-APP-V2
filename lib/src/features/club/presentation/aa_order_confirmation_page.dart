@@ -1,3 +1,4 @@
+import '../../../core/design_system/king_theme.dart';
 import '../../../core/design_system/king_control_sizes.dart';
 
 import 'package:kingclub/src/core/formatters/money.dart';
@@ -604,7 +605,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 54,
+      height: 56,
       width: double.infinity,
       child: Stack(
         alignment: Alignment.center,
@@ -617,14 +618,7 @@ class _Header extends StatelessWidget {
           GestureDetector(
             key: const ValueKey('aa-confirmation-title'),
             onLongPress: onTitleLongPress,
-            child: const Text(
-              '确认订单',
-              style: TextStyle(
-                color: legacyGold,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: const Text('确认订单', style: KingTheme.headerTitleStyle),
           ),
         ],
       ),

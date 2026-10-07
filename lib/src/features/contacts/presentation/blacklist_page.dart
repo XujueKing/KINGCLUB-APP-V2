@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_theme.dart';
+
 import 'dart:async';
 
 import '../../../core/session/secure_session_store.dart';
@@ -437,10 +439,7 @@ class _LegacyBlacklistHeader extends StatelessWidget {
             ),
             const Expanded(
               child: Center(
-                child: Text(
-                  '黑名单',
-                  style: TextStyle(color: _legacyGold, fontSize: 17),
-                ),
+                child: Text('黑名单', style: KingTheme.headerTitleStyle),
               ),
             ),
             SizedBox.square(

@@ -31,13 +31,13 @@ class PartnerIdentityHeader extends StatelessWidget {
       child: Icon(Icons.person_outline, color: _gold),
     );
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 20),
       child: Row(
         children: [
           ClipOval(
             child: SizedBox(
-              width: 68,
-              height: 68,
+              width: 60,
+              height: 60,
               child: localAvatar != null
                   ? Image(
                       image: profileImageProvider(localAvatar),

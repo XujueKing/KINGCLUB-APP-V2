@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_theme.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
 import 'package:flutter/material.dart';
@@ -284,7 +286,7 @@ class _PermissionTitleBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 70,
+      height: 56,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -297,7 +299,7 @@ class _PermissionTitleBar extends StatelessWidget {
               onPressed: onBack,
             ),
           ),
-          const Text('权限', style: TextStyle(color: _legacyGold, fontSize: 17)),
+          const Text('权限', style: KingTheme.headerTitleStyle),
         ],
       ),
     );

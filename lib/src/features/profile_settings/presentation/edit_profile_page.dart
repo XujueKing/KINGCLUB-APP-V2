@@ -1,3 +1,4 @@
+import '../../../core/design_system/king_theme.dart';
 import '../../../core/design_system/king_control_sizes.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
@@ -1406,11 +1407,7 @@ class _LegacyHeader extends StatelessWidget {
                   child: Text(
                     title,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFFC9B69E),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: KingTheme.headerTitleStyle,
                   ),
                 ),
               ),

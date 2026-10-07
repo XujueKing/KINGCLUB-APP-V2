@@ -1,3 +1,4 @@
+import '../../../core/design_system/king_theme.dart';
 import 'friend_discovery_page.dart';
 import '../../messaging/data/chat_history_store.dart';
 import '../../messaging/data/chat_sync_failure.dart';
@@ -927,7 +928,7 @@ class _LegacyFriendHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 70,
+      height: 56,
       width: double.infinity,
       child: Stack(
         alignment: Alignment.center,
@@ -946,14 +947,7 @@ class _LegacyFriendHeader extends StatelessWidget {
             onLongPress: onTitleLongPress,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              child: Text(title, style: KingTheme.headerTitleStyle),
             ),
           ),
           if (trailing != null) Positioned(right: 14, child: trailing!),

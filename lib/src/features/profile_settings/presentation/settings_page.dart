@@ -16,6 +16,8 @@ import 'edit_profile_page.dart';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/design_system/king_theme.dart';
+
 import '../../../core/media/media_cache.dart';
 
 import 'about_legal_page.dart';
@@ -136,7 +138,7 @@ class _SettingsPageState extends State<SettingsPage>
                         child: Center(
                           child: Text(
                             _text(['设置', 'Settings', '設定', 'การตั้งค่า']),
-                            style: const TextStyle(color: _gold, fontSize: 14),
+                            style: KingTheme.headerTitleStyle,
                           ),
                         ),
                       ),

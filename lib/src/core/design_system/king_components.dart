@@ -31,11 +31,30 @@ AppBar kingAppBar({
             ),
             child: back,
           ),
-    title: title,
-    actions: actions,
-    backgroundColor: backgroundColor,
+    title: title is Text && title.data != null
+        ? Text(
+            title.data!,
+            key: title.key,
+            style: KingTheme.headerTitleStyle.copyWith(
+              fontFamily: Theme.of(context).textTheme.titleLarge?.fontFamily,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            semanticsLabel: title.semanticsLabel,
+            textScaler: title.textScaler,
+          )
+        : title,
+    titleTextStyle: KingTheme.headerTitleStyle,
+    actions: actions == null || actions.isEmpty
+        ? null
+        : [...actions, const SizedBox(width: 18)],
+    backgroundColor: Colors.transparent,
+    surfaceTintColor: Colors.transparent,
+    elevation: 0,
+    scrolledUnderElevation: 0,
     foregroundColor: foregroundColor,
-    centerTitle: centerTitle,
+    centerTitle: centerTitle ?? true,
   );
 }
 

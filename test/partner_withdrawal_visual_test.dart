@@ -63,7 +63,7 @@ void main() {
 
           theme: KingTheme.dark.copyWith(
             appBarTheme: const AppBarTheme(
-              titleTextStyle: TextStyle(fontFamily: 'PartnerQA', fontSize: 20),
+              titleTextStyle: TextStyle(fontFamily: 'PartnerQA', fontSize: 17),
             ),
             filledButtonTheme: FilledButtonThemeData(
               style: FilledButton.styleFrom(
@@ -78,16 +78,13 @@ void main() {
             call: (_) async => {
               'userAccount': 'U00000000001',
               'availableCents': '123456',
-              'items': [
+              'canWithdraw': true,
+              'cards': [
                 {
-                  'ref': 'qa-withdrawal',
-                  'amountCents': '50000',
-                  'channel': 'bank',
+                  'ref': 'qa-card',
+                  'bankName': '测试银行',
+                  'accountMasked': '•••• 0001',
                   'payeeName': '测试收款人',
-                  'payeeAccount': 'TEST-ACCOUNT',
-                  'status': 'approved',
-                  'date': '2026-10-07',
-                  'reason': '审核通过',
                 },
               ],
             },

@@ -63,7 +63,7 @@ void main() {
       expect(writes[0], writes[1]);
     },
   );
-  testWidgets('over available amount never calls transfer', (t) async {
+  testWidgets('over available input is capped before confirmation', (t) async {
     FlutterSecureStorage.setMockInitialValues({});
     final calls = <Map<String, dynamic>>[];
     await t.pumpWidget(
@@ -82,6 +82,10 @@ void main() {
     await t.tap(find.byType(FilledButton));
     await t.pumpAndSettle();
     expect(calls.length, 1);
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(
+      t.widget<TextField>(find.byType(TextField)).controller!.text,
+      '100.00',
+    );
   });
 }

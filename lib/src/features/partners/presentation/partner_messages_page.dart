@@ -29,7 +29,7 @@ class _MessagesState extends State<PartnerMessagesPage>
   StreamSubscription<Map<String, dynamic>>? events;
   StreamSubscription<void>? session;
   int page = 0, epoch = 0;
-  bool busy = false, failed = false, more = true, canPublish = false;
+  bool busy = false, failed = false, more = true;
   @override
   void initState() {
     super.initState();
@@ -91,7 +91,6 @@ class _MessagesState extends State<PartnerMessagesPage>
         rows.addAll(next.where((n) => !rows.any((v) => v.id == n.id)));
         page++;
         more = next.length == 30;
-        canPublish = r['canPublish'] == true;
       });
       if (read != null) unawaited(widget.inbox?.refresh());
     } catch (_) {
@@ -141,25 +140,6 @@ class _MessagesState extends State<PartnerMessagesPage>
         style: const TextStyle(color: Colors.white),
       ),
       centerTitle: true,
-      actions: [
-        if (canPublish)
-          IconButton(
-            tooltip: partnerText(context, 'publishMessage'),
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () async {
-              final changed = await Navigator.push<bool>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PartnerMessageComposer(call: widget.call),
-                ),
-              );
-              if (changed == true && mounted) {
-                await load(reset: true);
-                unawaited(widget.inbox?.refresh());
-              }
-            },
-          ),
-      ],
     ),
     body: RefreshIndicator(
       onRefresh: () => load(reset: true),

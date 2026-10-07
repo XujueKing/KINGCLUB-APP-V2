@@ -15,31 +15,39 @@ Map<String, dynamic> state() => {
   'userAccount': 'U00000000001',
   'availableCents': '10000',
   'items': [],
+  'canWithdraw': true,
+  'cards': [
+    {
+      'ref': 'b5b04542-8151-4e28-9983-616e243adf61',
+      'bankName': 'Synthetic bank',
+      'accountMasked': '**** 0001',
+      'payeeName': 'Synthetic',
+    },
+  ],
 };
 void main() {
   testWidgets(
-    'application requires recipient and persists uncertain request across reopening',
+    'application selects saved card and retries identical uncertain request',
     (t) async {
       FlutterSecureStorage.setMockInitialValues({});
       final writes = <Map<String, dynamic>>[];
       Future<Map<String, dynamic>> call(Map<String, dynamic> p) async {
-        if (p['action'] == 'withdrawal_list') return state();
+        if (p['action'] == 'withdrawal_form') return state();
         writes.add(Map.of(p));
         throw Exception('timeout');
       }
 
       await t.pumpWidget(app(PartnerWithdrawalPage(call: call)));
       await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), '12.34');
+      await t.ensureVisible(find.text('申请提现'));
       await t.tap(find.text('申请提现'));
       await t.pumpAndSettle();
-      await t.enterText(find.byType(TextField).at(0), '12.34');
-      await t.enterText(find.byType(TextField).at(1), 'Synthetic');
-      await t.enterText(find.byType(TextField).at(2), 'SYNTHETIC-ACCOUNT');
-      await t.ensureVisible(find.text('确认'));
       await t.tap(find.text('确认'));
       await t.pumpAndSettle();
       expect(writes.single['amountCents'], 1234);
-      expect(writes.single['channel'], 'bank');
+      expect(writes.single['cardRef'], 'b5b04542-8151-4e28-9983-616e243adf61');
+      expect(writes.single.containsKey('payeeAccount'), isFalse);
       await t.pumpWidget(const SizedBox());
       await t.pumpWidget(app(PartnerWithdrawalPage(call: call)));
       await t.pumpAndSettle();

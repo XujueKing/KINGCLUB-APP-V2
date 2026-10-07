@@ -1,3 +1,4 @@
+import '../../../core/design_system/king_theme.dart';
 import '../../../core/design_system/king_control_sizes.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
@@ -410,10 +411,7 @@ class _LegacyRequestHeader extends StatelessWidget {
             onLongPress: onTitleLongPress,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              child: Text(
-                '申请添加朋友',
-                style: TextStyle(color: _legacyGold, fontSize: 17),
-              ),
+              child: Text('申请添加朋友', style: KingTheme.headerTitleStyle),
             ),
           ),
         ],

@@ -38,7 +38,7 @@ class _TermsConsentPageState extends State<TermsConsentPage> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: Colors.black,
           foregroundColor: KingColors.textPrimary,

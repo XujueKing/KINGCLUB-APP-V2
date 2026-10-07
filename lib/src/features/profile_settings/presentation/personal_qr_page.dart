@@ -1,3 +1,5 @@
+import '../../../core/design_system/king_theme.dart';
+
 import 'package:kingclub/src/core/design_system/king_components.dart';
 
 import 'real_personal_qr_page.dart';
@@ -634,14 +636,7 @@ class _QrHeader extends StatelessWidget {
               child: const Padding(
                 padding: EdgeInsets.symmetric(vertical: 14),
                 child: Center(
-                  child: Text(
-                    '我的二维码',
-                    style: TextStyle(
-                      color: Color(0xFFC9B69E),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  child: Text('我的二维码', style: KingTheme.headerTitleStyle),
                 ),
               ),
             ),

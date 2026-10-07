@@ -1,3 +1,4 @@
+import '../../../core/design_system/king_theme.dart';
 import '../../messaging/data/messaging_repository.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
@@ -314,7 +315,7 @@ class _LegacyTitleBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 70,
+      height: 56,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -327,7 +328,7 @@ class _LegacyTitleBar extends StatelessWidget {
               onPressed: onBack,
             ),
           ),
-          Text(title, style: const TextStyle(color: _legacyGold, fontSize: 17)),
+          Text(title, style: KingTheme.headerTitleStyle),
         ],
       ),
     );

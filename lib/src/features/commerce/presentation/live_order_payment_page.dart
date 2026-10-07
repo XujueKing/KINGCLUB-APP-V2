@@ -1300,27 +1300,27 @@ class _LiveOrderPaymentPageState extends State<LiveOrderPaymentPage>
     );
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
-      child: Scaffold(
-        resizeToAvoidBottomInset: false,
-        backgroundColor: Colors.black,
-        appBar: kingAppBar(
-          context: context,
-          title: Text(
-            '确认订单',
-            style: TextStyle(color: const Color(0xFFC9B69E), fontSize: r(34)),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -.4),
+            radius: 1,
+            colors: [Color(0xEF252018), Colors.black],
           ),
-          leading: KingBackButton(onPressed: widget.onBack),
-          backgroundColor: Colors.black,
         ),
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(0, -.4),
-              radius: 1,
-              colors: [Color(0xEF252018), Colors.black],
+        child: Scaffold(
+          resizeToAvoidBottomInset: false,
+          backgroundColor: Colors.transparent,
+          appBar: kingAppBar(
+            context: context,
+            title: Text(
+              '确认订单',
+              style: TextStyle(color: const Color(0xFFC9B69E), fontSize: r(34)),
             ),
+            leading: KingBackButton(onPressed: widget.onBack),
+            backgroundColor: Colors.black,
           ),
-          child: Column(
+          body: Column(
             children: [
               Expanded(
                 child: SingleChildScrollView(

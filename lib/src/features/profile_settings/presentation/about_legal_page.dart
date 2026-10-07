@@ -1,3 +1,4 @@
+import '../../../core/design_system/king_theme.dart';
 import '../../../core/app_version.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
@@ -492,11 +493,7 @@ class _AboutHeader extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFC9B69E),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: KingTheme.headerTitleStyle,
                 ),
               ),
             ),

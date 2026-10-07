@@ -55,7 +55,7 @@ Map<String, dynamic> message({bool read = false}) => {
 };
 void main() {
   testWidgets(
-    'identity reuses supplied avatar at 68 and shows compact level without commission',
+    'identity reuses supplied avatar at 60 and shows compact level without commission',
     (tester) async {
       await tester.pumpWidget(
         app(
@@ -68,7 +68,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(tester.getSize(find.byType(ClipOval)), const Size(68, 68));
+      expect(tester.getSize(find.byType(ClipOval)), const Size(60, 60));
       expect(tester.widget<Image>(find.byType(Image)).image, isA<AssetImage>());
       expect(find.textContaining('带局提成'), findsNothing);
       expect(find.text('合作等级 L5'), findsOneWidget);
@@ -109,7 +109,7 @@ void main() {
               calls.add(p);
               return {
                 'items': [message(read: p['action'] == 'messages_read')],
-                'canPublish': false,
+                'canPublish': true,
               };
             },
           ),

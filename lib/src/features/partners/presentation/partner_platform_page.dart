@@ -22,6 +22,7 @@ import 'partner_tasks_page.dart';
 import 'partner_policy_page.dart';
 import 'partner_transfer_page.dart';
 import 'partner_withdrawal_page.dart';
+import 'partner_withdrawal_history_page.dart';
 import '../../scanner/presentation/member_scanner_page.dart';
 
 Widget _title(BuildContext context, String value) => Text(
@@ -315,6 +316,18 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                     personal: true,
                   ),
                   _entry(
+                    'withdrawalHistory',
+                    Icons.account_balance_outlined,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            PartnerWithdrawalHistoryPage(call: call),
+                      ),
+                    ),
+                    personal: true,
+                  ),
+                  _entry(
                     'customers',
                     Icons.person_outline,
                     onTap: () => list('customers'),
@@ -366,6 +379,17 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                       'taskManagement',
                       Icons.post_add_outlined,
                       onTap: () => tasks('tasks', management: true),
+                    ),
+                  if (d.can('messages.publish'))
+                    _entry(
+                      'publishMessage',
+                      Icons.mail_outline,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<bool>(
+                          builder: (_) => PartnerMessageComposer(call: call),
+                        ),
+                      ),
                     ),
                   if (d.can('tasks.review'))
                     _entry(

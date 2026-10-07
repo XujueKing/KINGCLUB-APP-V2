@@ -11,8 +11,9 @@ import '../../../core/session/secure_session_store.dart';
 import '../../auth/domain/auth_repository.dart';
 import '../data/partner_repository.dart';
 import 'partner_strings.dart';
+import 'partner_payout_form.dart';
 
-class PartnerWithdrawalPage extends StatefulWidget {
+class PartnerWithdrawalPage extends StatelessWidget {
   const PartnerWithdrawalPage({
     super.key,
     required this.call,
@@ -21,10 +22,22 @@ class PartnerWithdrawalPage extends StatefulWidget {
   final PartnerCall call;
   final bool review;
   @override
-  State<PartnerWithdrawalPage> createState() => _PartnerWithdrawalPageState();
+  Widget build(BuildContext context) => review
+      ? _PartnerWithdrawalReviewPage(call: call, review: true)
+      : PartnerPayoutForm(call: call, withdrawal: true);
 }
 
-class _PartnerWithdrawalPageState extends State<PartnerWithdrawalPage> {
+class _PartnerWithdrawalReviewPage extends StatefulWidget {
+  const _PartnerWithdrawalReviewPage({required this.call, this.review = true});
+  final PartnerCall call;
+  final bool review;
+  @override
+  State<_PartnerWithdrawalReviewPage> createState() =>
+      _PartnerWithdrawalReviewPageState();
+}
+
+class _PartnerWithdrawalReviewPageState
+    extends State<_PartnerWithdrawalReviewPage> {
   Map<String, dynamic>? data, pending;
   String? key;
   bool busy = false, failed = false, invalid = false;
@@ -136,33 +149,6 @@ class _PartnerWithdrawalPageState extends State<PartnerWithdrawalPage> {
     });
   }
 
-  Future<void> cancel(Map item) async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text(t('withdrawCancel')),
-        content: Text(t('withdrawCancelNote')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: Text(t('cancel')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: Text(t('confirm')),
-          ),
-        ],
-      ),
-    );
-    if (yes == true && mounted) {
-      await send({
-        'action': 'withdrawal_cancel',
-        'requestId': const Uuid().v4(),
-        'withdrawalRef': item['ref'],
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final enabled = !busy && !invalid && pending == null;
@@ -184,34 +170,6 @@ class _PartnerWithdrawalPageState extends State<PartnerWithdrawalPage> {
           children: [
             if (data == null && busy)
               const Center(child: CircularProgressIndicator()),
-            if (data != null && !widget.review) ...[
-              Text(
-                t('withdrawAvailable'),
-                style: const TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '¥${moneyCents(data!['availableCents'])}',
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                t('withdrawNote'),
-                style: const TextStyle(color: Colors.white70, height: 1.5),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 52,
-                child: FilledButton(
-                  onPressed: enabled ? () => form('withdrawal_apply') : null,
-                  child: Text(t('withdrawApply')),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
             if (pending != null) ...[
               Text(t('actionFailed')),
               const SizedBox(height: 12),
@@ -296,11 +254,6 @@ class _PartnerWithdrawalPageState extends State<PartnerWithdrawalPage> {
                           color: Colors.white54,
                         ),
                       ),
-                      if (!widget.review && item['status'] == 'submitted')
-                        TextButton(
-                          onPressed: enabled ? () => cancel(item as Map) : null,
-                          child: Text(t('withdrawCancel')),
-                        ),
                       if (widget.review &&
                           [
                             'submitted',
@@ -356,12 +309,8 @@ class _WithdrawalForm extends StatefulWidget {
 }
 
 class _WithdrawalFormState extends State<_WithdrawalForm> {
-  final amount = TextEditingController(),
-      name = TextEditingController(),
-      account = TextEditingController(),
-      reason = TextEditingController(),
-      proof = TextEditingController();
-  String channel = 'bank', decision = 'approved';
+  final reason = TextEditingController(), proof = TextEditingController();
+  String decision = 'approved';
   DateTime paidAt = DateTime.now();
   String? error;
   String t(String k) => partnerText(context, k);
@@ -373,7 +322,7 @@ class _WithdrawalFormState extends State<_WithdrawalForm> {
 
   @override
   void dispose() {
-    for (final c in [amount, name, account, reason, proof]) {
+    for (final c in [reason, proof]) {
       c.dispose();
     }
     super.dispose();
@@ -381,27 +330,7 @@ class _WithdrawalFormState extends State<_WithdrawalForm> {
 
   void submit() {
     Map<String, dynamic> result;
-    if (widget.action == 'withdrawal_apply') {
-      final raw = amount.text.trim();
-      final parts = raw.split('.');
-      final n = RegExp(r'^\d{1,7}(\.\d{1,2})?$').hasMatch(raw)
-          ? int.parse(parts[0]) * 100 +
-                (parts.length == 1 ? 0 : int.parse(parts[1].padRight(2, '0')))
-          : 0;
-      if (n < 1 ||
-          n > 999999999 ||
-          name.text.trim().isEmpty ||
-          account.text.trim().isEmpty) {
-        setState(() => error = t('withdrawRequired'));
-        return;
-      }
-      result = {
-        'amountCents': n,
-        'channel': channel,
-        'payeeName': name.text.trim(),
-        'payeeAccount': account.text.trim(),
-      };
-    } else if (widget.action == 'withdrawal_review') {
+    if (widget.action == 'withdrawal_review') {
       if (reason.text.trim().isEmpty) {
         setState(() => error = t('reviewReason'));
         return;
@@ -439,43 +368,14 @@ class _WithdrawalFormState extends State<_WithdrawalForm> {
           children: [
             Text(
               t(
-                widget.action == 'withdrawal_apply'
-                    ? 'withdrawApply'
-                    : widget.action == 'withdrawal_review'
+                widget.action == 'withdrawal_review'
                     ? 'withdrawReview'
                     : 'recordPayout',
               ),
               style: const TextStyle(fontSize: 22, color: Colors.white),
             ),
             const SizedBox(height: 20),
-            if (widget.action == 'withdrawal_apply') ...[
-              TextField(
-                controller: amount,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: InputDecoration(labelText: t('withdrawAmount')),
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: channel,
-                items: [
-                  for (final c in ['bank', 'wechat'])
-                    DropdownMenuItem(value: c, child: Text(t(c))),
-                ],
-                onChanged: (v) => setState(() => channel = v!),
-                decoration: InputDecoration(labelText: t('payoutChannel')),
-              ),
-              TextField(
-                controller: name,
-                maxLength: 100,
-                decoration: InputDecoration(labelText: t('payeeName')),
-              ),
-              TextField(
-                controller: account,
-                maxLength: 200,
-                decoration: InputDecoration(labelText: t('payeeAccount')),
-              ),
-            ] else if (widget.action == 'withdrawal_review') ...[
+            if (widget.action == 'withdrawal_review') ...[
               DropdownButtonFormField<String>(
                 initialValue: decision,
                 items: [
