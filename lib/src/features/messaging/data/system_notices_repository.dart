@@ -7,6 +7,7 @@ import '../../commerce/data/ordering_table_repository.dart';
 
 const systemNoticeKinds = {
   'partner_message',
+  'partner_risk',
   'partner_application',
   'partner_application_result',
   'partner_reward',

@@ -1,3 +1,5 @@
+import 'support/partner_governance_fixtures.dart';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kingclub/src/features/home/presentation/home_city_page.dart';
 import 'package:kingclub/src/features/home/data/home_city_catalog.dart';
@@ -64,6 +66,7 @@ void main() {
               },
             };
           }
+          if (p['action'] == 'terms') return termsSnapshot();
           return snapshot();
         }),
       );
@@ -82,8 +85,10 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('提交申请'),
         250,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: find.byType(Scrollable).first,
       );
+      await readAndAgree(tester);
+      await tester.ensureVisible(find.text('提交申请'));
       await tester.tap(find.text('提交申请'));
       await tester.pumpAndSettle();
       expect(
@@ -215,6 +220,7 @@ void main() {
           submitted.add(Map.of(p));
           throw StateError('timeout');
         }
+        if (p['action'] == 'terms') return termsSnapshot();
         return snapshot();
       }),
     );
@@ -228,14 +234,16 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('提交申请'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: find.byType(Scrollable).first,
     );
+    await readAndAgree(tester);
+    await tester.ensureVisible(find.text('提交申请'));
     await tester.tap(find.text('提交申请'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('重试'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('重试'));

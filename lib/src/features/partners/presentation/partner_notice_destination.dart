@@ -7,6 +7,7 @@ import 'partner_withdrawal_history_page.dart';
 import 'partner_application_review_page.dart';
 import 'partner_platform_page.dart';
 import 'partner_messages_page.dart';
+import 'partner_risk_page.dart';
 
 Widget partnerNoticeDestination(
   String? reference, {
@@ -24,6 +25,8 @@ Widget partnerNoticeDestination(
     );
   }
   return switch (reference) {
+    'risk' => PartnerRiskPage(call: call),
+    'risk:review' => PartnerRiskPage(call: call, review: true),
     'platform' ||
     'platform:approved' ||
     'platform:rejected' => PartnerPlatformPage(call: call, inbox: inbox),

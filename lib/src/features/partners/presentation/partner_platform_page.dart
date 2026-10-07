@@ -8,6 +8,8 @@ import '../../../core/design_system/king_control_sizes.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../data/partner_repository.dart';
 import 'partner_strings.dart';
+import 'partner_terms_page.dart';
+import 'partner_risk_page.dart';
 import 'partner_dashboard.dart';
 import 'partner_messages_page.dart';
 import '../../messaging/data/system_notices_controller.dart';
@@ -24,6 +26,7 @@ import 'partner_transfer_page.dart';
 import 'partner_withdrawal_page.dart';
 import 'partner_withdrawal_history_page.dart';
 import '../../scanner/presentation/member_scanner_page.dart';
+import '../../auth/domain/auth_repository.dart';
 
 Widget _title(BuildContext context, String value) => Text(
   value,
@@ -345,6 +348,31 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                     onTap: () => records('task_records'),
                     personal: true,
                   ),
+                  _entry(
+                    'risk',
+                    Icons.policy_outlined,
+                    personal: true,
+                    onTap: () async {
+                      await Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PartnerRiskPage(call: call),
+                        ),
+                      );
+                      if (mounted) await load();
+                    },
+                  ),
+                  _entry(
+                    'terms',
+                    Icons.article_outlined,
+                    personal: true,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => PartnerTermsPage(call: call),
+                      ),
+                    ),
+                  ),
                 ]),
               ],
               if (d?.hasManagement == true) ...[
@@ -356,7 +384,19 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                   ),
                 ),
                 _entries([
-                  if (d!.can('withdrawals.review'))
+                  if (d!.can('risk.review'))
+                    _entry(
+                      'riskManagement',
+                      Icons.policy_outlined,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              PartnerRiskPage(call: call, review: true),
+                        ),
+                      ),
+                    ),
+                  if (d.can('withdrawals.review'))
                     _entry(
                       'withdrawReview',
                       Icons.payments_outlined,
@@ -552,6 +592,8 @@ class _ApplicationPageState extends State<_ApplicationPage> {
 
   final directions = <String>{};
   Map<String, dynamic>? pending;
+  Map<String, dynamic>? agreement;
+  bool agreed = false;
   bool busy = false;
   String? error;
   String t(String k) => partnerText(context, k);
@@ -613,6 +655,10 @@ class _ApplicationPageState extends State<_ApplicationPage> {
 
   Future<void> submit() async {
     if (busy || checkingReferrer) return;
+    if (pending == null && (!agreed || agreement == null)) {
+      setState(() => error = t('termsRequired'));
+      return;
+    }
     if (pending == null && (city == null || directions.isEmpty)) {
       setState(() => error = t('required'));
       return;
@@ -629,6 +675,8 @@ class _ApplicationPageState extends State<_ApplicationPage> {
       'city': city!.name,
       'directions': directions.toList()..sort(),
       'introduction': intro.text.trim(),
+      'termsAccepted': true,
+      ...agreement!,
       if (referrer != null) 'referrerMemberId': referrer!['memberId'],
     };
     setState(() {
@@ -638,10 +686,40 @@ class _ApplicationPageState extends State<_ApplicationPage> {
     try {
       await widget.call(pending!);
       if (mounted) Navigator.pop(context);
-    } catch (_) {
-      if (mounted) setState(() => error = t('actionFailed'));
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          if (e is AuthFailure && e.code == 'PARTNER_TERMS_CHANGED') {
+            pending = null;
+            agreement = null;
+            agreed = false;
+            error = t('termsChanged');
+          } else {
+            error = t('actionFailed');
+          }
+        });
+      }
     } finally {
       if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> readAgreement() async {
+    if (busy || pending != null) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final value = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            PartnerTermsPage(call: widget.call, forApplication: true),
+      ),
+    );
+    if (mounted && value != null) {
+      setState(() {
+        agreement = value;
+        agreed = false;
+        error = null;
+      });
     }
   }
 
@@ -860,6 +938,62 @@ class _ApplicationPageState extends State<_ApplicationPage> {
                 style: const TextStyle(color: Colors.orangeAccent),
               ),
             ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Checkbox(
+                key: const ValueKey('partner-terms-checkbox'),
+                value: agreed,
+                activeColor: _gold,
+                checkColor: Colors.black,
+                onChanged: busy || pending != null
+                    ? null
+                    : (value) {
+                        if (agreement == null) {
+                          readAgreement();
+                        } else {
+                          setState(() => agreed = value == true);
+                        }
+                      },
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t('agreeTerms'),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                      ),
+                      TextButton(
+                        key: const ValueKey('partner-terms-link'),
+                        onPressed: busy || pending != null
+                            ? null
+                            : readAgreement,
+                        child: Text(
+                          t('terms'),
+                          style: const TextStyle(color: _gold, fontSize: 15),
+                        ),
+                      ),
+                      if (agreement != null)
+                        Text(
+                          '${t('termsVersion')} ${agreement!['termsVersion']}',
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           _button(
             pending != null ? t('retry') : t('submit'),

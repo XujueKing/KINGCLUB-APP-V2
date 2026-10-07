@@ -14,6 +14,7 @@ const partnerManagementPermissions = {
   'tasks.review': 'task_reviews',
   'customers.read': 'directory',
   'messages.publish': 'publishMessage',
+  'risk.review': 'riskManagement',
 };
 
 class PartnerPermissionsPage extends StatefulWidget {
