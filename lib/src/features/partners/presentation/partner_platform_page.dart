@@ -26,7 +26,8 @@ Widget _title(BuildContext context, String value) => Text(
 const _card = Color(0xff202020), _gold = Color(0xffcebea4);
 
 class PartnerPlatformPage extends StatefulWidget {
-  const PartnerPlatformPage({super.key, this.call});
+  const PartnerPlatformPage({super.key, this.call, this.onViewed});
+  final VoidCallback? onViewed;
   final PartnerCall? call;
   @override
   State<PartnerPlatformPage> createState() => _PartnerPlatformPageState();
@@ -73,7 +74,10 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
     });
     try {
       final result = PartnerContext(await call({'action': 'context'}));
-      if (mounted && epoch == generation) setState(() => data = result);
+      if (mounted && epoch == generation) {
+        setState(() => data = result);
+        if (result.partner != null) widget.onViewed?.call();
+      }
     } catch (_) {
       if (mounted && epoch == generation) setState(() => failed = true);
     } finally {
@@ -742,7 +746,8 @@ class _PartnerListState extends State<_PartnerListPage> {
   Future<void> review(Map<String, dynamic> item) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => _ReviewPage(item: item, call: widget.call),
+        builder: (_) =>
+            PartnerApplicationReviewForm(item: item, call: widget.call),
       ),
     );
     if (mounted) {
@@ -830,15 +835,19 @@ class _PartnerListState extends State<_PartnerListPage> {
   );
 }
 
-class _ReviewPage extends StatefulWidget {
-  const _ReviewPage({required this.item, required this.call});
+class PartnerApplicationReviewForm extends StatefulWidget {
+  const PartnerApplicationReviewForm({
+    super.key,
+    required this.item,
+    required this.call,
+  });
   final Map<String, dynamic> item;
   final PartnerCall call;
   @override
-  State<_ReviewPage> createState() => _ReviewState();
+  State<PartnerApplicationReviewForm> createState() => _ReviewState();
 }
 
-class _ReviewState extends State<_ReviewPage> {
+class _ReviewState extends State<PartnerApplicationReviewForm> {
   final reason = TextEditingController(), parent = TextEditingController();
   bool busy = false;
   Map<String, dynamic>? pending;
@@ -852,7 +861,11 @@ class _ReviewState extends State<_ReviewPage> {
   }
 
   Future<void> send(String decision) async {
-    if (busy || reason.text.trim().isEmpty) return;
+    if (busy ||
+        widget.item['status'] != 'pending' ||
+        reason.text.trim().isEmpty) {
+      return;
+    }
     if (pending == null &&
         parent.text.trim().isNotEmpty &&
         !RegExp(r'^U[0-9]{11}$').hasMatch(parent.text.trim())) {
@@ -885,9 +898,11 @@ class _ReviewState extends State<_ReviewPage> {
   Widget build(BuildContext context) => Scaffold(
     appBar: kingAppBar(
       context: context,
-      title: Text(t('applications')),
+      title: _title(context, t('applications')),
+      backgroundColor: const Color(0xFF111111),
       centerTitle: true,
     ),
+    backgroundColor: const Color(0xFF111111),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -897,30 +912,41 @@ class _ReviewState extends State<_ReviewPage> {
         ),
         Text('${widget.item['city']}'),
         Text('${widget.item['introduction']}'),
-        const SizedBox(height: 20),
-        TextField(
-          controller: reason,
-          readOnly: pending != null,
-          maxLength: 300,
-          decoration: InputDecoration(labelText: t('reviewReason')),
+        Text(
+          (widget.item['directions'] as List? ?? [])
+              .map((v) => t('$v'))
+              .join(' · '),
         ),
-        TextField(
-          controller: parent,
-          readOnly: pending != null,
-          maxLength: 12,
-          decoration: InputDecoration(labelText: t('parent')),
-        ),
-        if (error != null) Text(error!),
-        const SizedBox(height: 20),
-        _button(
-          pending == null ? t('approve') : t('retry'),
-          busy ? null : () => send('approved'),
-        ),
-        if (pending == null)
-          TextButton(
-            onPressed: busy ? null : () => send('rejected'),
-            child: Text(t('reject')),
+        const SizedBox(height: 12),
+        Text(t(widget.item['status'] as String)),
+        if (widget.item['status'] != 'pending')
+          Text('${widget.item['reason'] ?? ''}'),
+        if (widget.item['status'] == 'pending') ...[
+          const SizedBox(height: 20),
+          TextField(
+            controller: reason,
+            readOnly: pending != null,
+            maxLength: 300,
+            decoration: InputDecoration(labelText: t('reviewReason')),
           ),
+          TextField(
+            controller: parent,
+            readOnly: pending != null,
+            maxLength: 12,
+            decoration: InputDecoration(labelText: t('parent')),
+          ),
+          if (error != null) Text(error!),
+          const SizedBox(height: 20),
+          _button(
+            pending == null ? t('approve') : t('retry'),
+            busy ? null : () => send('approved'),
+          ),
+          if (pending == null)
+            TextButton(
+              onPressed: busy ? null : () => send('rejected'),
+              child: Text(t('reject')),
+            ),
+        ],
       ],
     ),
   );

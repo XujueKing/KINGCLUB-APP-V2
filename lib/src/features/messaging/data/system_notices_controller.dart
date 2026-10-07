@@ -123,6 +123,16 @@ class SystemNoticesController extends ChangeNotifier {
     }
   }
 
+  Future<void> acknowledgePartnerApproval() async {
+    if (_disposed) return;
+    try {
+      await repository.markPartnerApprovalViewed();
+      if (!_disposed) await refresh();
+    } catch (_) {
+      // Keep the persistent unread badge when acknowledgement fails.
+    }
+  }
+
   void _drainRefresh() {
     if (_refreshQueued && !_disposed) {
       _refreshQueued = false;

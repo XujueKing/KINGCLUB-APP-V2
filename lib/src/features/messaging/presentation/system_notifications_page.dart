@@ -175,7 +175,14 @@ class _SystemNotificationsPageState extends State<SystemNotificationsPage>
             n.isStoreDebit ? 'store_debit' : n.kind,
           ),
           value: n.amountCents == null
-              ? systemNoticeText(context, 'success')
+              ? systemNoticeText(
+                  context,
+                  n.kind == 'partner_application'
+                      ? 'review_pending'
+                      : n.kind == 'partner_application_result'
+                      ? 'review_result'
+                      : 'success',
+                )
               : moneyCents(n.amountCents!),
           time: _time(n.occurredAt),
           kingClub: true,

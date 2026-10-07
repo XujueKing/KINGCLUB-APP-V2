@@ -2,6 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kingclub/src/features/home/presentation/home_city_page.dart';
 import 'package:kingclub/src/features/home/data/home_city_catalog.dart';
 import 'package:flutter/material.dart';
+import 'package:kingclub/src/core/design_system/king_keyboard_dismiss.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/partners/data/partner_repository.dart';
@@ -27,7 +28,7 @@ Widget app(
   builder: (context, child) => MediaQuery(
     data: MediaQuery.of(context)
         .copyWith(textScaler: TextScaler.linear(textScale)),
-    child: child!,
+    child: KingKeyboardDismiss(child: child!),
   ),
   supportedLocales: const [
     Locale('zh', 'CN'),

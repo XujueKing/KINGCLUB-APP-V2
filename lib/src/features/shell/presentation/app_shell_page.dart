@@ -391,6 +391,12 @@ class _AppShellPageState extends State<AppShellPage>
                 MyProfilePage(
                   active: _selectedIndex == 4,
                   reselectSignal: _profileReselectSignal,
+                  partnerApprovalUnread:
+                      (_systemNotices?.summary.partnerApprovalUnreadCount ??
+                          0) >
+                      0,
+                  onPartnerViewed: () =>
+                      unawaited(_systemNotices?.acknowledgePartnerApproval()),
                   onOpenAssets: widget.onOpenAssets,
                   onOpenEditProfile: widget.onOpenEditProfile,
                   onOpenPersonalQr: widget.onOpenPersonalQr,
@@ -432,6 +438,8 @@ class _AppShellPageState extends State<AppShellPage>
           child: _LegacyBottomBar(
             selectedIndex: _selectedIndex,
             storageUnread: _storageAttention?.unread == true,
+            profileUnread:
+                (_systemNotices?.summary.partnerApprovalUnreadCount ?? 0) > 0,
             messageUnreadCount:
                 _systemNotificationsUnread +
                 _friendConversationUnread +
@@ -742,13 +750,14 @@ class _LegacyBottomBar extends StatelessWidget {
     required this.selectedIndex,
     required this.messageUnreadCount,
     this.storageUnread = false,
+    this.profileUnread = false,
     required this.destinations,
     required this.onSelected,
   });
 
   final int selectedIndex;
   final int messageUnreadCount;
-  final bool storageUnread;
+  final bool storageUnread, profileUnread;
   final List<_ShellDestination> destinations;
   final ValueChanged<int> onSelected;
 
@@ -850,7 +859,14 @@ class _LegacyBottomBar extends StatelessWidget {
                                   destination: destinations[index],
                                   selected: selectedIndex == index,
                                   center: index == 2,
-                                  unreadDot: index == 3 && storageUnread,
+                                  unreadDot:
+                                      (index == 3 && storageUnread) ||
+                                      (index == 4 && profileUnread),
+                                  unreadDotKey: ValueKey(
+                                    index == 4
+                                        ? 'shell-profile-unread-dot'
+                                        : 'shell-storage-unread-dot',
+                                  ),
                                   unit: unit,
                                   unreadCount: index == 1
                                       ? messageUnreadCount
@@ -881,6 +897,7 @@ class _LegacyNavItem extends StatelessWidget {
     required this.unit,
     required this.unreadCount,
     this.unreadDot = false,
+    this.unreadDotKey,
     required this.onTap,
   });
 
@@ -890,6 +907,7 @@ class _LegacyNavItem extends StatelessWidget {
   final double unit;
   final int unreadCount;
   final bool unreadDot;
+  final Key? unreadDotKey;
   final VoidCallback onTap;
 
   @override
@@ -949,7 +967,7 @@ class _LegacyNavItem extends StatelessWidget {
                     top: 8 * unit,
                     right: 10 * unit,
                     child: Container(
-                      key: const ValueKey('shell-storage-unread-dot'),
+                      key: unreadDotKey,
                       width: 9,
                       height: 9,
                       decoration: const BoxDecoration(

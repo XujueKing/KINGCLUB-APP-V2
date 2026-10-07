@@ -3,6 +3,47 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/my_profile_page.dart';
 
 void main() {
+  testWidgets(
+    'partner approval dot remains until authorized context is viewed',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var viewed = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MyProfilePage(
+              partnerApprovalUnread: true,
+              onPartnerViewed: () => viewed++,
+              partnerCall: (_) async => {
+                'stores': [],
+                'partner': {
+                  'status': 'active',
+                  'level': 1,
+                  'organizerBps': 600,
+                },
+                'teamCount': 0,
+                'customerCount': 0,
+                'isAdmin': false,
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('my-profile-partner-unread-dot')),
+        findsOneWidget,
+      );
+      expect(viewed, 0);
+      final entry = find.byKey(const ValueKey('my-profile-partner'));
+      await tester.ensureVisible(entry);
+      await tester.tap(entry);
+      await tester.pumpAndSettle();
+      expect(viewed, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('merchant defaults visible and arrows reveal hidden shortcuts', (
     tester,
   ) async {
@@ -15,7 +56,7 @@ void main() {
           body: MyProfilePage(
             partnerCall: (p) async {
               calls.add(p);
-              if (p['action'] == 'merchant')
+              if (p['action'] == 'merchant') {
                 return {
                   'store': {
                     'name': 'Test store',
@@ -23,6 +64,7 @@ void main() {
                     'currency': 'CNY',
                   },
                 };
+              }
               return {
                 'stores': [
                   {'ref': 'test-store', 'name': 'Test store'},

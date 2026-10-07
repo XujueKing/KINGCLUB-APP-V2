@@ -46,6 +46,8 @@ class MyProfilePage extends StatefulWidget {
     this.reselectSignal = 0,
     this.active = true,
     this.partnerCall,
+    this.partnerApprovalUnread = false,
+    this.onPartnerViewed,
   });
 
   final ValueChanged<AssetLedgerType>? onOpenAssets;
@@ -64,6 +66,8 @@ class MyProfilePage extends StatefulWidget {
   final int reselectSignal;
   final bool active;
   final PartnerCall? partnerCall;
+  final bool partnerApprovalUnread;
+  final VoidCallback? onPartnerViewed;
 
   @override
   State<MyProfilePage> createState() => _MyProfilePageState();
@@ -889,15 +893,36 @@ class _MyProfilePageState extends State<MyProfilePage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SvgPicture.asset(
-                      'assets/legacy/profile/$asset',
-                      width: 26,
-                      height: 26,
-                      colorFilter: const ColorFilter.mode(
-                        _muted,
-                        BlendMode.srcIn,
-                      ),
-                      fit: BoxFit.contain,
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        SvgPicture.asset(
+                          'assets/legacy/profile/$asset',
+                          width: 26,
+                          height: 26,
+                          colorFilter: const ColorFilter.mode(
+                            _muted,
+                            BlendMode.srcIn,
+                          ),
+                          fit: BoxFit.contain,
+                        ),
+                        if (id == 'partner' && widget.partnerApprovalUnread)
+                          Positioned(
+                            top: -3,
+                            right: -4,
+                            child: Container(
+                              key: const ValueKey(
+                                'my-profile-partner-unread-dot',
+                              ),
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFE84848),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     SizedBox(
@@ -989,7 +1014,10 @@ class _MyProfilePageState extends State<MyProfilePage> {
   void _showPartnerPlatform() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PartnerPlatformPage(call: widget.partnerCall),
+        builder: (_) => PartnerPlatformPage(
+          call: widget.partnerCall,
+          onViewed: widget.onPartnerViewed,
+        ),
       ),
     );
   }

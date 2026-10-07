@@ -41,15 +41,42 @@ Map<String, dynamic> page(
 
 void main() {
   test('partner earnings emit one arrival and retain unread status', () async {
-    var rows = <Map<String,dynamic>>[];
+    var rows = <Map<String, dynamic>>[];
     final arrivals = <SystemNotice>[];
-    final subscription = SystemNoticesController.arrivals.listen((e)=>arrivals.add(e.notice));
-    final controller = SystemNoticesController(SystemNoticesRepository(readSession:()=>Future.value(session('one')),request:(id,p,s)async=>{'result':page(rows)}));
-    addTearDown(subscription.cancel);addTearDown(controller.dispose);
+    final subscription = SystemNoticesController.arrivals.listen(
+      (e) => arrivals.add(e.notice),
+    );
+    final controller = SystemNoticesController(
+      SystemNoticesRepository(
+        readSession: () => Future.value(session('one')),
+        request: (id, p, s) async => {'result': page(rows)},
+      ),
+    );
+    addTearDown(subscription.cancel);
+    addTearDown(controller.dispose);
     await controller.refresh();
-    rows=[{...notice(1),'kind':'partner_reward','details':[{'label':'status','value':{'zh-CN':'待结算','en':'Pending','zh-TW':'待結算','th':'รอชำระ'}}],'target':{'kind':'partner','reference':'ledger'}}];
-    await controller.refresh();await controller.refresh();
-    expect(arrivals.length,1);expect(controller.summary.unreadCount,1);
+    rows = [
+      {
+        ...notice(1),
+        'kind': 'partner_reward',
+        'details': [
+          {
+            'label': 'status',
+            'value': {
+              'zh-CN': '待结算',
+              'en': 'Pending',
+              'zh-TW': '待結算',
+              'th': 'รอชำระ',
+            },
+          },
+        ],
+        'target': {'kind': 'partner', 'reference': 'ledger'},
+      },
+    ];
+    await controller.refresh();
+    await controller.refresh();
+    expect(arrivals.length, 1);
+    expect(controller.summary.unreadCount, 1);
   });
 
   test(
@@ -212,7 +239,7 @@ void main() {
         readSession: () async => current,
         request: (api, params, s) {
           expect(api, 'K261002001960');
-          expect(params, {'partnerNotices': 1});
+          expect(params, {'partnerNotices': 1, 'applicationNotices': 1});
           expect(s, current);
           return pending.future;
         },
@@ -322,7 +349,11 @@ void main() {
         readSession: () async => session('one'),
         request: (api, p, s) async {
           if (api == 'K261002001961') {
-            expect(p, {'partnerNotices': 1, 'throughSequence': '22'});
+            expect(p, {
+              'partnerNotices': 1,
+              'applicationNotices': 1,
+              'throughSequence': '22',
+            });
             return {
               'result': page([notice(2)], unread: 1),
             };
@@ -444,7 +475,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(selectors, [
-        {'partnerNotices': 1, 'throughSequence': '22'},
+        {'partnerNotices': 1, 'applicationNotices': 1, 'throughSequence': '22'},
       ]);
       expect(controller.notices.single.read, isTrue);
       expect(controller.summary.unreadCount, 1);

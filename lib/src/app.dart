@@ -17,6 +17,7 @@ import 'features/messaging/presentation/direct_chat_page.dart';
 import 'features/messaging/data/chat_outbox_recovery.dart';
 import 'features/messaging/data/chat_outbox.dart';
 import 'core/design_system/king_text_scale.dart';
+import 'core/design_system/king_keyboard_dismiss.dart';
 import 'core/design_system/king_localizations.dart';
 import 'core/design_system/king_language.dart';
 import 'features/messaging/data/call_presentation_lease.dart';
@@ -883,42 +884,44 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       theme: KingTheme.dark,
       routerConfig: router,
       builder: (context, child) => KingTextScale(
-        child: CallPresentationHost(
-          child: Stack(
-            children: [
-              child ?? const SizedBox.shrink(),
-              Positioned(
-                top: (100 * MediaQuery.sizeOf(context).width / 750).clamp(
-                  MediaQuery.paddingOf(context).top,
-                  double.infinity,
+        child: KingKeyboardDismiss(
+          child: CallPresentationHost(
+            child: Stack(
+              children: [
+                child ?? const SizedBox.shrink(),
+                Positioned(
+                  top: (100 * MediaQuery.sizeOf(context).width / 750).clamp(
+                    MediaQuery.paddingOf(context).top,
+                    double.infinity,
+                  ),
+                  left: 20 * MediaQuery.sizeOf(context).width / 750,
+                  right: 20 * MediaQuery.sizeOf(context).width / 750,
+                  child: ForegroundMessageBanner(
+                    visible: _messageNotice != null && _notice == null,
+                    onTap: _openMessageNotice,
+                    onDismiss: _dismissMessageNotice,
+                  ),
                 ),
-                left: 20 * MediaQuery.sizeOf(context).width / 750,
-                right: 20 * MediaQuery.sizeOf(context).width / 750,
-                child: ForegroundMessageBanner(
-                  visible: _messageNotice != null && _notice == null,
-                  onTap: _openMessageNotice,
-                  onDismiss: _dismissMessageNotice,
+                Positioned(
+                  top: (100 * MediaQuery.sizeOf(context).width / 750).clamp(
+                    MediaQuery.paddingOf(context).top,
+                    double.infinity,
+                  ),
+                  left: 20 * MediaQuery.sizeOf(context).width / 750,
+                  right: 20 * MediaQuery.sizeOf(context).width / 750,
+                  child: ForegroundMessageBanner(
+                    key: const ValueKey('storage-change-banner'),
+                    visible: _notice != null,
+                    message: _notice?['message'] as String? ?? '储物袋已更新',
+                    onTap: _openNotice,
+                    onDismiss: () {
+                      _noticeTimer?.cancel();
+                      setState(() => _notice = null);
+                    },
+                  ),
                 ),
-              ),
-              Positioned(
-                top: (100 * MediaQuery.sizeOf(context).width / 750).clamp(
-                  MediaQuery.paddingOf(context).top,
-                  double.infinity,
-                ),
-                left: 20 * MediaQuery.sizeOf(context).width / 750,
-                right: 20 * MediaQuery.sizeOf(context).width / 750,
-                child: ForegroundMessageBanner(
-                  key: const ValueKey('storage-change-banner'),
-                  visible: _notice != null,
-                  message: _notice?['message'] as String? ?? '储物袋已更新',
-                  onTap: _openNotice,
-                  onDismiss: () {
-                    _noticeTimer?.cancel();
-                    setState(() => _notice = null);
-                  },
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

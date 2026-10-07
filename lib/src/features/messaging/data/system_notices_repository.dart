@@ -6,6 +6,8 @@ import '../../auth/domain/auth_repository.dart';
 import '../../commerce/data/ordering_table_repository.dart';
 
 const systemNoticeKinds = {
+  'partner_application',
+  'partner_application_result',
   'partner_reward',
   'partner_refund',
   'partner_transfer',
@@ -63,6 +65,9 @@ class SystemNotice {
     final items = raw['details'];
     if (items is! List || items.length > 12) _invalid();
     const labels = {
+      'applicant',
+      'city',
+      'reason',
       'store',
       'table',
       'order',
@@ -170,7 +175,9 @@ class SystemNoticeSummary {
     required this.unreadCount,
     required this.highWaterSequence,
     required this.latest,
+    this.partnerApprovalUnreadCount = 0,
   });
+  final int partnerApprovalUnreadCount;
   final int unreadCount;
   final String? highWaterSequence;
   final SystemNotice? latest;
@@ -178,6 +185,8 @@ class SystemNoticeSummary {
     if (raw is! Map || raw['unreadCount'] is! int || raw['unreadCount'] < 0) {
       _invalid();
     }
+    final approvals = raw['partnerApprovalUnreadCount'] ?? 0;
+    if (approvals is! int || approvals < 0) _invalid();
     final sequence = raw['highWaterSequence'];
     if (sequence != null &&
         (sequence is! String ||
@@ -193,6 +202,7 @@ class SystemNoticeSummary {
     }
     return SystemNoticeSummary(
       unreadCount: raw['unreadCount'],
+      partnerApprovalUnreadCount: approvals,
       highWaterSequence: sequence,
       latest: latest,
     );
@@ -266,9 +276,19 @@ class SystemNoticesRepository {
       await _call('K261002001960', {
         'beforeNotice': ?beforeNotice,
         'partnerNotices': 1,
+        'applicationNotices': 1,
       }),
     );
   }
+
+  Future<SystemNoticeSummary> markPartnerApprovalViewed() async =>
+      SystemNoticeSummary.parse(
+        await _call('K261002001961', {
+          'partnerNotices': 1,
+          'applicationNotices': 1,
+          'partnerApproval': 1,
+        }),
+      );
 
   Future<SystemNoticeSummary> markRead({
     List<String>? ids,
@@ -286,6 +306,7 @@ class SystemNoticesRepository {
     return SystemNoticeSummary.parse(
       await _call('K261002001961', {
         'partnerNotices': 1,
+        'applicationNotices': 1,
         'noticeRefs': ?ids,
         'throughSequence': ?throughSequence,
       }),

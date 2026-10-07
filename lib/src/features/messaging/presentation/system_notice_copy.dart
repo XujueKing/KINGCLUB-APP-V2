@@ -13,10 +13,21 @@ String systemNoticeText(BuildContext context, String key) {
 }
 
 const _copy = {
-  'partner_reward': '合作收益已入账|Partner earnings posted|合作收益已入帳|บันทึกรายได้พาร์ทเนอร์แล้ว',
-  'partner_refund': '退款提成已冲回|Commission reversed|退款提成已沖回|หักค่าคอมมิชชันคืนแล้ว',
+  'partner_application':
+      '新的合作者申请|New collaborator application|新的合作者申請|มีใบสมัครผู้ร่วมงานใหม่',
+  'partner_application_result': '合作者申请审核结果|Collaborator application result|合作者申請審核結果|ผลการตรวจสอบใบสมัครผู้ร่วมงาน',
+  'review_pending': '待审核|Awaiting review|待審核|รอตรวจสอบ',
+  'review_result': '审核结果|Review result|審核結果|ผลการตรวจสอบ',
+  'applicant': '申请人：|Applicant:|申請人：|ผู้สมัคร:',
+  'city': '合作城市：|City:|合作城市：|เมืองที่ร่วมงาน:',
+  'reason': '审核说明：|Review notes:|審核說明：|หมายเหตุการตรวจสอบ:',
+  'partner_reward':
+      '合作收益已入账|Partner earnings posted|合作收益已入帳|บันทึกรายได้พาร์ทเนอร์แล้ว',
+  'partner_refund':
+      '退款提成已冲回|Commission reversed|退款提成已沖回|หักค่าคอมมิชชันคืนแล้ว',
   'partner_transfer': '收益已转入平台余额|Earnings transferred to platform balance|收益已轉入平台餘額|โอนรายได้เข้ายอดเงินแพลตฟอร์มแล้ว',
-  'partner_withdrawal': '提现状态更新|Withdrawal status updated|提現狀態更新|อัปเดตสถานะการถอน',
+  'partner_withdrawal':
+      '提现状态更新|Withdrawal status updated|提現狀態更新|อัปเดตสถานะการถอน',
   'status': '当前状态：|Status:|目前狀態：|สถานะ:',
 
   'yesterday': '昨天|Yesterday|昨天|เมื่อวาน',
