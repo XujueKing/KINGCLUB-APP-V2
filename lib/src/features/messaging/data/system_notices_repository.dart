@@ -6,6 +6,7 @@ import '../../auth/domain/auth_repository.dart';
 import '../../commerce/data/ordering_table_repository.dart';
 
 const systemNoticeKinds = {
+  'membership_approved',
   'partner_message',
   'partner_risk',
   'partner_application',
@@ -293,6 +294,7 @@ class SystemNoticesRepository {
         'applicationNotices': 1,
         'procurementNotices': 1,
         'partnerMessageNotices': 1,
+        'membershipNotices': 1,
       }),
     );
   }
@@ -304,6 +306,7 @@ class SystemNoticesRepository {
           'applicationNotices': 1,
           'procurementNotices': 1,
           'partnerMessageNotices': 1,
+          'membershipNotices': 1,
           'partnerApproval': 1,
         }),
       );
@@ -327,6 +330,7 @@ class SystemNoticesRepository {
         'applicationNotices': 1,
         'procurementNotices': 1,
         'partnerMessageNotices': 1,
+        'membershipNotices': 1,
         'noticeRefs': ?ids,
         'throughSequence': ?throughSequence,
       }),

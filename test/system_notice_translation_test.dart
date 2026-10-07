@@ -21,6 +21,7 @@ void main() {
                   'wine_collected',
                   'recharge_paid',
                   'read_all',
+                  'membership_approved',
                 ])
                   Text(systemNoticeText(context, key)),
               ],
@@ -44,6 +45,7 @@ void main() {
         );
       }
       expect(tester.takeException(), isNull);
+      expect(find.text('membership_approved'), findsNothing);
     });
   }
 }

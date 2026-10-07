@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 String systemNoticeText(BuildContext context, String key) {
-  final l = Localizations.localeOf(context);
+  return systemNoticeTextForLocale(Localizations.localeOf(context), key);
+}
+
+String systemNoticeTextForLocale(Locale l, String key) {
   final i = l.languageCode == 'en'
       ? 1
       : l.languageCode == 'th'
@@ -13,8 +16,10 @@ String systemNoticeText(BuildContext context, String key) {
 }
 
 const _copy = {
+  'membership_approved': '会员审核通过|Membership approved|會員審核通過|อนุมัติสมาชิกแล้ว',
   'partner_message': '合作者消息|Partner message|合作者消息|ข้อความพาร์ทเนอร์',
-  'partner_risk': '合作风险处理通知|Partner case update|合作風險處理通知|แจ้งผลการดำเนินการของพาร์ทเนอร์',
+  'partner_risk':
+      '合作风险处理通知|Partner case update|合作風險處理通知|แจ้งผลการดำเนินการของพาร์ทเนอร์',
   'content': '消息内容：|Message:|消息內容：|ข้อความ:',
   'procurement_pending':
       '采购申请待批准|Procurement awaiting approval|採購申請待批准|คำขอจัดซื้อรออนุมัติ',

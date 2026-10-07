@@ -52,6 +52,7 @@ class SystemNoticesController extends ChangeNotifier {
                       !_seenNotices.contains(n.id) &&
                       !n.read &&
                       (n.kind == 'recharge_paid' ||
+                          n.kind == 'membership_approved' ||
                           n.isStoreDebit ||
                           n.kind.startsWith('partner_')),
                 )

@@ -55,6 +55,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/design_system/king_theme.dart';
 import 'navigation/app_router.dart';
 import 'features/auth/data/auth_repository_provider.dart';
+import 'features/auth/data/membership_review_refresh.dart';
 
 class KingClubApp extends ConsumerStatefulWidget {
   const KingClubApp({super.key});
@@ -75,6 +76,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
   _rechargeNotices;
   int _noticeGeneration = 0;
   bool _foreground = true;
+  MembershipReviewRefresh? _membershipReview;
   final _backgroundNotifications = BackgroundNotifications();
   ForegroundCallInbox? _callInbox;
   ForegroundGroupCallInbox? _groupCallInbox;
@@ -580,8 +582,9 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       () => _notice = {
         'recharge': arrival.notice,
         'rechargeInbox': arrival.inbox,
-        'message': systemNoticeText(
-          context,
+        'message': systemNoticeTextForLocale(
+          KingLanguage.shared.value ??
+              WidgetsBinding.instance.platformDispatcher.locale,
           arrival.notice.isStoreDebit ? 'store_debit' : arrival.notice.kind,
         ),
       },
@@ -603,6 +606,11 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     if (event['eventType'] == 'connection.ready') {
       _pushRegistration?.sync();
       unawaited(_recoverOutbox());
+    }
+    if (_foreground &&
+        (event['eventType'] == 'balance.changed' ||
+            event['eventType'] == 'connection.ready')) {
+      unawaited(_membershipReview?.notify());
     }
     if (event['eventType'] == 'auth.session.revoked') {
       final data = event['data'];
@@ -664,6 +672,10 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       return;
     }
     final recharge = notice['recharge'];
+    if (notice['membershipApproved'] == true) {
+      ref.read(appRouterProvider).go('/home');
+      return;
+    }
     if (recharge is SystemNotice) {
       final navigator = ref
           .read(appRouterProvider)
@@ -680,7 +692,8 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
                       recharge.target?['reference'],
                       inbox: notice['rechargeInbox'] as SystemNoticesController,
                     )
-                  : recharge.isStoreDebit
+                  : recharge.isStoreDebit ||
+                        recharge.kind == 'membership_approved'
                   ? SystemNotificationsPage(
                       controller:
                           notice['rechargeInbox'] as SystemNoticesController,
@@ -786,6 +799,32 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
       unawaited(_syncRealtime().catchError((Object _) {}));
     });
     _messages = KingclubRealtime.shared.events.listen(_notification);
+    final auth = ref.read(authRepositoryProvider);
+    if (auth is RealAuthRepository) {
+      _membershipReview = MembershipReviewRefresh(
+        readMember: () => ref.read(authenticatedMemberProvider),
+        readSession: SecureSessionStore().readSession,
+        refreshMembership: auth.refreshMembership,
+        onApproved: (sessionId) {
+          if (!mounted || !_foreground) return;
+          _noticeSession = sessionId;
+          setState(
+            () => _notice = {
+              'membershipApproved': true,
+              'message': systemNoticeTextForLocale(
+                KingLanguage.shared.value ??
+                    WidgetsBinding.instance.platformDispatcher.locale,
+                'membership_approved',
+              ),
+            },
+          );
+          _noticeTimer?.cancel();
+          _noticeTimer = Timer(const Duration(seconds: 6), () {
+            if (mounted) setState(() => _notice = null);
+          });
+        },
+      );
+    }
     _rechargeNotices = SystemNoticesController.arrivals.listen(
       _foregroundRecharge,
     );
@@ -810,6 +849,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     _noticeTimer?.cancel();
     _noticeGeneration++;
     _rechargeNotices?.cancel();
+    _membershipReview?.close();
     _sessionChanges?.cancel();
     _messages?.cancel();
     KingclubRealtime.shared.stop();
@@ -827,6 +867,7 @@ class _KingClubAppState extends ConsumerState<KingClubApp>
     _callInbox?.foreground(_foreground);
     _groupCallInbox?.foreground(_foreground);
     if (_foreground) {
+      unawaited(_membershipReview?.notify());
       _scheduleSystemCall();
       unawaited(_systemCallRuntime?.drain());
       _schedulePushOpen();
