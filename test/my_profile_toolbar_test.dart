@@ -3,13 +3,84 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/profile_settings/presentation/my_profile_page.dart';
 
 void main() {
-  testWidgets('orders has one service entry and no toolbar duplicate', (tester) async {
+  testWidgets('merchant service follows partner and is revealed by swiping', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final calls = <Map<String, dynamic>>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MyProfilePage(
+            partnerCall: (p) async {
+              calls.add(p);
+              if (p['action'] == 'merchant')
+                return {
+                  'store': {
+                    'name': 'Test store',
+                    'address': 'Address',
+                    'currency': 'CNY',
+                  },
+                };
+              return {
+                'stores': [
+                  {'ref': 'test-store', 'name': 'Test store'},
+                ],
+              };
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final partner = find.byKey(const ValueKey('my-profile-partner'));
+    final merchant = find.byKey(const ValueKey('my-profile-merchant'));
+    await tester.ensureVisible(partner);
+    expect(
+      tester.getRect(merchant).left,
+      greaterThan(tester.getRect(partner).left),
+    );
+    expect(tester.getRect(merchant).width, tester.getRect(partner).width);
+    await tester.drag(
+      find.byKey(const ValueKey('my-profile-services')),
+      const Offset(-200, 0),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(merchant);
+    await tester.pumpAndSettle();
+    expect(calls.last, {'action': 'merchant', 'storeRef': 'test-store'});
+    expect(find.text('Test store'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('non merchant account has no merchant entry', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MyProfilePage(partnerCall: (_) async => {'stores': []}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('my-profile-merchant')), findsNothing);
+  });
+
+  testWidgets('orders has one service entry and no toolbar duplicate', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     var opened = 0;
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: MyProfilePage(onOpenOrders: () => opened++))));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: MyProfilePage(onOpenOrders: () => opened++)),
+      ),
+    );
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('my-profile-orders-shortcut')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('my-profile-orders-shortcut')),
+      findsNothing,
+    );
     await tester.ensureVisible(find.text('我的订单'));
     await tester.tap(find.text('我的订单'));
     expect(opened, 1);

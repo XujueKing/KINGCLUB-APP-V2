@@ -9,6 +9,9 @@ import '../../../core/session/secure_session_store.dart';
 import '../../../core/formatters/money.dart';
 import '../data/partner_repository.dart';
 import 'partner_strings.dart';
+import '../../home/data/home_city_catalog.dart';
+import '../../home/data/home_city_location.dart';
+import '../../home/presentation/home_city_page.dart';
 import 'partner_code_page.dart';
 import 'partner_tasks_page.dart';
 import 'partner_policy_page.dart';
@@ -126,38 +129,6 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
       ),
     ),
   );
-  void switchWorkspace() => showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: _card,
-    builder: (c) => SafeArea(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text(t('title')),
-              trailing: const Icon(Icons.check, color: _gold),
-              onTap: () => Navigator.pop(c),
-            ),
-            for (final store in data!.stores)
-              ListTile(
-                leading: const Icon(Icons.storefront_outlined, color: _gold),
-                title: Text(store['name'] as String),
-                subtitle: Text(t('merchant')),
-                onTap: () {
-                  Navigator.pop(c);
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => _MerchantPage(store: store, call: call),
-                    ),
-                  );
-                },
-              ),
-          ],
-        ),
-      ),
-    ),
-  );
   @override
   Widget build(BuildContext context) {
     final d = data;
@@ -169,14 +140,6 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
         foregroundColor: Colors.white,
         centerTitle: true,
         backgroundColor: const Color(0xff111111),
-        actions: [
-          if (d != null && d.stores.isNotEmpty)
-            IconButton(
-              tooltip: t('switch'),
-              onPressed: switchWorkspace,
-              icon: const Icon(Icons.swap_horiz),
-            ),
-        ],
       ),
       body: SafeArea(
         top: false,
@@ -479,7 +442,47 @@ class _ApplicationPage extends StatefulWidget {
 }
 
 class _ApplicationPageState extends State<_ApplicationPage> {
-  final city = TextEditingController(), intro = TextEditingController();
+  final intro = TextEditingController();
+  HomeCity? city = HomeCitySession.current;
+  @override
+  void initState() {
+    super.initState();
+    if (city == null) resolveCity();
+  }
+
+  Future<void> resolveCity() async {
+    try {
+      final catalog = await HomeCityCatalog.load();
+      final name = await locateHomeCity();
+      if (mounted && city == null && pending == null) {
+        setState(
+          () => city = HomeCitySession.current ?? catalog.namedCity(name),
+        );
+      }
+    } catch (_) {
+      /* Manual selection remains available. */
+    }
+  }
+
+  Future<void> selectCity() async {
+    if (busy || pending != null) return;
+    final catalog = await HomeCityCatalog.load();
+    if (!mounted || busy || pending != null) return;
+    final selected = await Navigator.push<HomeCity>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HomeCityPage(
+          catalog: catalog,
+          current: city,
+          located: HomeCitySession.current,
+        ),
+      ),
+    );
+    if (mounted && selected != null && pending == null) {
+      setState(() => city = selected);
+    }
+  }
+
   final directions = <String>{};
   Map<String, dynamic>? pending;
   bool busy = false;
@@ -487,21 +490,20 @@ class _ApplicationPageState extends State<_ApplicationPage> {
   String t(String k) => partnerText(context, k);
   @override
   void dispose() {
-    city.dispose();
     intro.dispose();
     super.dispose();
   }
 
   Future<void> submit() async {
     if (busy) return;
-    if (pending == null && (city.text.trim().isEmpty || directions.isEmpty)) {
+    if (pending == null && (city == null || directions.isEmpty)) {
       setState(() => error = t('required'));
       return;
     }
     pending ??= {
       'action': 'apply',
       'requestId': const Uuid().v4(),
-      'city': city.text.trim(),
+      'city': city!.name,
       'directions': directions.toList()..sort(),
       'introduction': intro.text.trim(),
     };
@@ -532,11 +534,47 @@ class _ApplicationPageState extends State<_ApplicationPage> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          TextField(
-            controller: city,
-            readOnly: pending != null,
-            maxLength: 80,
-            decoration: InputDecoration(labelText: t('city')),
+          Material(
+            color: const Color(0xff1c1c1e),
+            borderRadius: BorderRadius.circular(18),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              key: const ValueKey('partner-city-choice'),
+              onTap: busy || pending != null ? null : selectCity,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 22,
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      t('city'),
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      city?.name ?? t('chooseCity'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: Colors.white54,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           Text(t('directions')),
@@ -923,6 +961,44 @@ class _MerchantState extends State<_MerchantPage> {
           ],
         );
       },
+    ),
+  );
+}
+
+Future<void> openMerchantPlatform(
+  BuildContext context,
+  List<Map<String, dynamic>> stores, {
+  PartnerCall? call,
+}) async {
+  if (stores.isEmpty) return;
+  final api = call ?? PartnerRepository().call;
+  Map<String, dynamic>? selected;
+  if (stores.length == 1) {
+    selected = stores.single;
+  } else {
+    selected = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      backgroundColor: _card,
+      builder: (c) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final store in stores)
+              ListTile(
+                leading: const Icon(Icons.storefront_outlined, color: _gold),
+                title: Text(store['name'] as String),
+                onTap: () => Navigator.pop(c, store),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  if (!context.mounted || selected == null) return;
+  await Navigator.push<void>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => _MerchantPage(store: selected!, call: api),
     ),
   );
 }

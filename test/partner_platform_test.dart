@@ -1,3 +1,4 @@
+import 'package:kingclub/src/features/home/data/home_city_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,14 +62,14 @@ void main() {
     await tester.pumpWidget(app((_) async => throw StateError('offline')));
     await tester.pumpAndSettle();
     expect(find.text('暂时无法读取，请重试'), findsOneWidget);
-    expect(find.text('申请成为合作伙伴'), findsNothing);
+    expect(find.text('申请成为合作者'), findsNothing);
   });
   testWidgets(
     'unapproved member sees application, no commission or directory',
     (tester) async {
       await tester.pumpWidget(app((_) async => snapshot()));
       await tester.pumpAndSettle();
-      expect(find.text('申请成为合作伙伴'), findsWidgets);
+      expect(find.text('申请成为合作者'), findsWidgets);
       expect(find.text('分佣账户'), findsNothing);
       expect(find.text('客户名录'), findsNothing);
     },
@@ -84,37 +85,33 @@ void main() {
       expect(find.text('带局提成 10%'), findsOneWidget);
     },
   );
-  testWidgets('merchant switch uses returned authorized stores', (
+  testWidgets('merchant entry is not duplicated on partner page', (
     tester,
   ) async {
-    final calls = <Map<String, dynamic>>[];
     await tester.pumpWidget(
-      app((p) async {
-        calls.add(p);
-        if (p['action'] == 'merchant') {
-          return {
-            'store': {'name': '测试门店', 'address': '测试地址', 'currency': 'CNY'},
-          };
-        }
-        return {
+      app(
+        (_) async => {
           ...snapshot(),
           'stores': [
             {'ref': 'test', 'name': '测试门店'},
           ],
-        };
-      }),
+        },
+      ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('切换身份'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('测试门店'));
-    await tester.pumpAndSettle();
-    expect(calls.last, {'action': 'merchant', 'storeRef': 'test'});
-    expect(find.text('商家平台'), findsOneWidget);
+    expect(find.byTooltip('切换身份'), findsNothing);
+    expect(find.text('商家平台'), findsNothing);
   });
   testWidgets('retry preserves submitted application request id', (
     tester,
   ) async {
+    HomeCitySession.current = const HomeCity(
+      code: '430200',
+      name: '株洲市',
+      shortName: '株洲',
+      pinyin: 'zhuzhou',
+    );
+    addTearDown(() => HomeCitySession.current = null);
     final submitted = <Map<String, dynamic>>[];
     await tester.pumpWidget(
       app((p) async {
@@ -126,9 +123,11 @@ void main() {
       }),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('申请成为合作伙伴').last);
+    await tester.tap(find.text('申请成为合作者').last);
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).first, '株洲');
+    expect(find.byKey(const ValueKey('partner-city-choice')), findsOneWidget);
+    expect(find.text('株洲市'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
     await tester.tap(find.text('组织派对'));
     await tester.ensureVisible(find.text('提交申请'));
     await tester.tap(find.text('提交申请'));
@@ -137,6 +136,7 @@ void main() {
     await tester.tap(find.text('重试'));
     await tester.pumpAndSettle();
     expect(submitted.length, 2);
+    expect(submitted.first['city'], '株洲市');
     expect(submitted[0], submitted[1]);
   });
   testWidgets('320dp layout and large text remain usable', (tester) async {

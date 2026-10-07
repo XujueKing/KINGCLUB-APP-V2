@@ -100,13 +100,13 @@ void main() {
   );
 
   testWidgets(
-    'five supplied SVG service entries sit above content and support opens',
+    'five supplied SVG service entries sit above content',
     (tester) async {
       await mount(tester);
       final services = find.byKey(const ValueKey('my-profile-services'));
       await tester.ensureVisible(services);
       await tester.pumpAndSettle();
-      final rects = ['bump', 'orders', 'reservations', 'stored-value', 'support']
+      final rects = ['bump', 'orders', 'reservations', 'stored-value', 'partner']
           .map((id) => tester.getRect(find.byKey(ValueKey('my-profile-$id'))))
           .toList();
       for (final rect in rects) {
@@ -129,10 +129,6 @@ void main() {
         find.descendant(of: services, matching: find.byType(SvgPicture)),
         findsNWidgets(5),
       );
-      await tester.tap(find.byKey(const ValueKey('my-profile-support')));
-      await tester.pumpAndSettle();
-      expect(find.text('常见问题'), findsOneWidget);
-      expect(find.text('人工客服暂未开放'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

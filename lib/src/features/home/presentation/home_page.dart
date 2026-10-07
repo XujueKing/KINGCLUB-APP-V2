@@ -98,6 +98,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _cityCatalog = catalog;
       _selectedCity = catalog.namedCity(_city);
+      HomeCitySession.current = _selectedCity;
       _city = _selectedCity?.name ?? _city;
     });
     unawaited(_loadContent());
@@ -114,6 +115,7 @@ class _HomePageState extends State<HomePage> {
         if (!_citySelected) {
           _city = city;
           _selectedCity = _cityCatalog?.namedCity(city);
+          HomeCitySession.current = _selectedCity;
           _city = _selectedCity?.name ?? city;
         }
       });
@@ -201,6 +203,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _citySelected = true;
       _selectedCity = selected;
+      HomeCitySession.current = selected;
       _city = selected.shortName;
     });
     unawaited(_loadContent(clear: true));

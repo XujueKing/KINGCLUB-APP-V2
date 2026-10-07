@@ -4,6 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:lpinyin/lpinyin.dart';
 
+/// Current city selected/resolved on the home screen; shared with application flows.
+abstract final class HomeCitySession {
+  static HomeCity? current;
+}
+
 class HomeCity {
   const HomeCity({
     required this.code,

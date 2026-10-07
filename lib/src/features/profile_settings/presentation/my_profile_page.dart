@@ -1,5 +1,7 @@
 import '../../partners/presentation/partner_platform_page.dart';
 import '../../partners/presentation/partner_strings.dart';
+import '../../partners/data/partner_repository.dart';
+import '../../../core/session/secure_session_store.dart';
 import '../../commerce/presentation/member_orders_page.dart';
 import 'favourite_store_page.dart';
 import '../../home/data/home_content_repository.dart';
@@ -43,6 +45,7 @@ class MyProfilePage extends StatefulWidget {
     this.coverStore,
     this.reselectSignal = 0,
     this.active = true,
+    this.partnerCall,
   });
 
   final ValueChanged<AssetLedgerType>? onOpenAssets;
@@ -60,6 +63,7 @@ class MyProfilePage extends StatefulWidget {
   final ProfileCoverStore? coverStore;
   final int reselectSignal;
   final bool active;
+  final PartnerCall? partnerCall;
 
   @override
   State<MyProfilePage> createState() => _MyProfilePageState();
@@ -72,6 +76,30 @@ class _MyProfilePageState extends State<MyProfilePage> {
       ? null
       : ProfileRepository();
   Map<String, dynamic>? _profile;
+  List<Map<String, dynamic>> _merchantStores = [];
+  StreamSubscription<void>? _merchantSession;
+  int _merchantEpoch = 0;
+  Future<void> _loadMerchantStores() async {
+    final call =
+        widget.partnerCall ??
+        (_repository == null ? null : PartnerRepository().call);
+    if (call == null) return;
+    final generation = ++_merchantEpoch;
+    try {
+      final r = await call({'action': 'context'});
+      final stores = (r['stores'] as List)
+          .map((x) => Map<String, dynamic>.from(x as Map))
+          .toList();
+      if (mounted && generation == _merchantEpoch) {
+        setState(() => _merchantStores = stores);
+      }
+    } catch (_) {
+      if (mounted && generation == _merchantEpoch) {
+        setState(() => _merchantStores = []);
+      }
+    }
+  }
+
   final Map<int, Future<Map<String, dynamic>>> _contentPages = {};
   String? _avatarPath;
   bool _profileLoading = false;
@@ -91,6 +119,14 @@ class _MyProfilePageState extends State<MyProfilePage> {
   void initState() {
     super.initState();
     ProfileRepository.changes.addListener(_loadProfile);
+    _loadMerchantStores();
+    _merchantSession = SecureSessionStore.changes.stream.listen((_) {
+      _merchantEpoch++;
+      if (mounted) {
+        setState(() => _merchantStores = []);
+        _loadMerchantStores();
+      }
+    });
     if (_repository == null) {
       _loadSavedCover();
     } else {
@@ -152,6 +188,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
   @override
   void didUpdateWidget(covariant MyProfilePage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active) _loadMerchantStores();
     if (widget.active && !oldWidget.active && _repository != null) {
       _loadProfile();
     }
@@ -167,6 +204,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
   @override
   void dispose() {
+    _merchantEpoch++;
+    _merchantSession?.cancel();
     ProfileRepository.changes.removeListener(_loadProfile);
     _scroll.dispose();
     _pages.dispose();
@@ -837,36 +876,50 @@ class _MyProfilePageState extends State<MyProfilePage> {
     );
   }
 
-  Widget _buildServices() {
-    Widget entry(String id, String label, String asset, VoidCallback onTap) =>
-        Expanded(
-          child: InkWell(
-            key: ValueKey('my-profile-$id'),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 1),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SvgPicture.asset(
-                    'assets/legacy/profile/$asset',
-                    width: 26,
-                    height: 26,
-                    colorFilter: const ColorFilter.mode(
-                      _muted,
-                      BlendMode.srcIn,
+  Widget _buildServices() => LayoutBuilder(
+    builder: (context, constraints) {
+      Widget entry(String id, String label, String asset, VoidCallback onTap) =>
+          SizedBox(
+            width: constraints.maxWidth / 5,
+            child: InkWell(
+              key: ValueKey('my-profile-$id'),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 1),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SvgPicture.asset(
+                      'assets/legacy/profile/$asset',
+                      width: 26,
+                      height: 26,
+                      colorFilter: const ColorFilter.mode(
+                        _muted,
+                        BlendMode.srcIn,
+                      ),
+                      fit: BoxFit.contain,
                     ),
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 2),
-                  SizedBox(
-                    width: double.infinity,
-                    child: MediaQuery.textScalerOf(context).scale(1) <= 1.3
-                        ? FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
+                    const SizedBox(height: 2),
+                    SizedBox(
+                      width: double.infinity,
+                      child: MediaQuery.textScalerOf(context).scale(1) <= 1.3
+                          ? FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                label,
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  color: _muted,
+                                  fontSize: 11.5,
+                                  height: 1.15,
+                                  letterSpacing: 0,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            )
+                          : Text(
                               label,
-                              maxLines: 1,
+                              textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: _muted,
                                 fontSize: 11.5,
@@ -875,59 +928,69 @@ class _MyProfilePageState extends State<MyProfilePage> {
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
-                          )
-                        : Text(
-                            label,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: _muted,
-                              fontSize: 11.5,
-                              height: 1.15,
-                              letterSpacing: 0,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-    return Row(
-      key: const ValueKey('my-profile-services'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        entry(
-          'bump',
-          '初次碰碰',
-          'service_bump.svg',
-          () => _showSheet(
-            title: '初次碰碰',
-            child: const Text('功能暂未开放', style: TextStyle(color: _muted)),
-          ),
+          );
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          key: const ValueKey('my-profile-services'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            entry(
+              'bump',
+              '初次碰碰',
+              'service_bump.svg',
+              () => _showSheet(
+                title: '初次碰碰',
+                child: const Text('功能暂未开放', style: TextStyle(color: _muted)),
+              ),
+            ),
+            entry('orders', '我的订单', 'service_orders.svg', _showOrders),
+            entry('reservations', '我的预约', 'service_reservations.svg', () {
+              if (widget.onOpenReservations case final open?) {
+                open();
+              } else {
+                _showEmptyList('我的预约');
+              }
+            }),
+            entry(
+              'stored-value',
+              '我的储值',
+              'service_creator.svg',
+              _showStoreCards,
+            ),
+            entry(
+              'partner',
+              partnerText(context, 'title'),
+              'service_support.svg',
+              _showPartnerPlatform,
+            ),
+            if (_merchantStores.isNotEmpty)
+              entry(
+                'merchant',
+                partnerText(context, 'merchant'),
+                'service_creator.svg',
+                () => openMerchantPlatform(
+                  context,
+                  _merchantStores,
+                  call: widget.partnerCall,
+                ),
+              ),
+          ],
         ),
-        entry('orders', '我的订单', 'service_orders.svg', _showOrders),
-        entry('reservations', '我的预约', 'service_reservations.svg', () {
-          if (widget.onOpenReservations case final open?) {
-            open();
-          } else {
-            _showEmptyList('我的预约');
-          }
-        }),
-        entry('stored-value', '我的储值', 'service_creator.svg', _showStoreCards),
-        entry(
-          'partner',
-          partnerText(context, 'title'),
-          'service_support.svg',
-          _showPartnerPlatform,
-        ),
-      ],
-    );
-  }
+      );
+    },
+  );
 
   void _showPartnerPlatform() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const PartnerPlatformPage()),
+      MaterialPageRoute<void>(
+        builder: (_) => PartnerPlatformPage(call: widget.partnerCall),
+      ),
     );
   }
 
