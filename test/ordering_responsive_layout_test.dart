@@ -40,7 +40,10 @@ void main() {
         expect(find.textContaining('界面预览'), findsNothing);
         expect(
           tester.getSize(find.byKey(const ValueKey('ordering-search'))).height,
-          closeTo(width * 76 / 750, .01),
+          closeTo(
+            scale * 16 * 1.25 + 28 > 52 ? scale * 16 * 1.25 + 28 : 52,
+            .01,
+          ),
         );
         final cart = tester.getRect(
           find.byKey(const ValueKey('ordering-cart-bar')),

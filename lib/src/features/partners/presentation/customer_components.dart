@@ -5,6 +5,54 @@ import 'package:flutter/material.dart';
 import '../../../core/formatters/money.dart';
 
 const customerGold = Color(0xffcebea4);
+
+class CustomerTabs extends StatelessWidget {
+  const CustomerTabs({super.key, required this.labels, required this.onTap});
+  final List<String> labels;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final style = TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w400,
+        fontFamily: Theme.of(context).textTheme.bodyLarge?.fontFamily,
+      );
+      // Equal columns for ordinary text; retain readable text in longer locales.
+      final scrollable = labels.any((label) {
+        final painter = TextPainter(
+          text: TextSpan(text: label, style: style),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+          maxLines: 1,
+        )..layout();
+        final tooWide =
+            painter.width + 24 > constraints.maxWidth / labels.length;
+        painter.dispose();
+        return tooWide;
+      });
+      return DefaultTabController(
+        length: labels.length,
+        child: TabBar(
+          isScrollable: scrollable,
+          tabAlignment: scrollable ? TabAlignment.center : TabAlignment.fill,
+          labelStyle: style,
+          unselectedLabelStyle: style,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+          indicatorSize: TabBarIndicatorSize.label,
+          indicatorColor: customerGold,
+          dividerColor: Colors.white12,
+          onTap: onTap,
+          tabs: [for (final label in labels) Tab(text: label, height: 60)],
+        ),
+      );
+    },
+  );
+}
+
 String customerText(BuildContext context, String key) {
   final l = Localizations.localeOf(context);
   final i = l.languageCode == 'en'
@@ -21,8 +69,8 @@ const customerCopy = {
   'directory': '客户名录|Customer directory|客戶名錄|รายชื่อลูกค้า',
   'detail': '顾客信息管理|Customer information|顧客資訊管理|ข้อมูลลูกค้า',
   'members': '会员|Members|會員|สมาชิก',
-  'marketing': '营销|Collaborators|營銷|ผู้ร่วมงาน',
-  'pending': '申请中|Applying|申請中|กำลังสมัคร',
+  'marketing': '合作者|Collaborators|合作者|ผู้ร่วมงาน',
+  'pending': '审核中|Under review|審核中|รอการตรวจสอบ',
   'blacklist': '黑名单|Restricted|黑名單|ถูกจำกัด',
   'all': '全部|All|全部|ทั้งหมด',
   'reserved': '今日预约|Booked today|今日預約|จองวันนี้',

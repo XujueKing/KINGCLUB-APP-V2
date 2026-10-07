@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
+
 import '../../auth/domain/auth_repository.dart';
 import '../data/chat_sync_failure.dart';
 import 'chat_history_context_page.dart';
@@ -945,21 +947,12 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
                       key: const ValueKey('group-member-search'),
                       controller: _memberSearch,
                       enabled: !_invalid,
-                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      style: kingSearchTextStyle,
                       onChanged: (value) => setState(
                         () => _memberQuery = value.trim().toLowerCase(),
                       ),
-                      decoration: InputDecoration(
+                      decoration: kingSearchDecoration(
                         hintText: '搜索群成员',
-                        hintStyle: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 15,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.grey,
-                          size: 20,
-                        ),
                         suffixIcon: _memberSearch.text.isEmpty
                             ? null
                             : IconButton(
@@ -974,12 +967,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
                                   _memberQuery = '';
                                 }),
                               ),
-                        filled: true,
-                        fillColor: const Color(0x0DFFFFFF),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none,
-                        ),
                       ),
                     ),
                   ),

@@ -37,7 +37,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(chivasAdd);
     await tester.pump();
-    expect(find.textContaining('4040'), findsOneWidget);
+    expect(find.textContaining('4,040'), findsOneWidget);
     expect(find.byKey(const ValueKey('ordering-cart-badge')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('ordering-confirm')));

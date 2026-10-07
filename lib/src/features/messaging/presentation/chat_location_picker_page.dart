@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -761,41 +763,8 @@ class _ChatLocationPickerPageState extends State<ChatLocationPickerPage> {
                             enabled: !_invalid && !_sending,
                             textInputAction: TextInputAction.search,
                             onSubmitted: (_) => _load(false),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Color(0xFF222222),
-                            ),
-                            decoration: InputDecoration(
-                              hintText: '搜索地点',
-                              hintStyle: const TextStyle(
-                                color: Color(0xFF999999),
-                                fontSize: 16,
-                              ),
-                              filled: true,
-                              fillColor: const Color(0xFFEDEDED),
-                              isDense: true,
-                              prefixIcon: const Icon(
-                                Icons.search,
-                                color: Color(0xFF999999),
-                                size: 22,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
+                            style: kingSearchTextStyle,
+                            decoration: kingSearchDecoration(hintText: '搜索地点'),
                           ),
                         ),
                         if (_busy)

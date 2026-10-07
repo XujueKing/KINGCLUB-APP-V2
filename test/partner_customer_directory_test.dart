@@ -91,7 +91,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('营销'));
+      await tester.tap(find.text('合作者'));
       await tester.pumpAndSettle();
       old.complete(directory('旧分类'));
       await tester.pumpAndSettle();

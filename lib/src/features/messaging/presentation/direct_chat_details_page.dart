@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
+
 import '../../contacts/presentation/public_member_page.dart';
 
 import 'dart:async';
@@ -379,10 +381,8 @@ class _DirectChatDetailsPageState extends State<DirectChatDetailsPage> {
             controller: _searchController,
             autofocus: true,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: '搜索聊天内容',
-              prefixIcon: Icon(Icons.search),
-            ),
+            style: kingSearchTextStyle,
+            decoration: kingSearchDecoration(hintText: '搜索聊天内容'),
           ),
         ),
         Expanded(

@@ -1,8 +1,9 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
+
 import 'create_group_page.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/design_system/king_theme.dart';
 
@@ -428,9 +429,7 @@ class LegacyConversationSearch extends StatefulWidget {
     this.maxLength = 40,
     this.inputKey,
     this.autofocus = false,
-    this.height,
     this.padding = const EdgeInsets.fromLTRB(10, 0, 10, 12),
-    this.fillColor = const Color(0xB3191715),
   });
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
@@ -441,9 +440,7 @@ class LegacyConversationSearch extends StatefulWidget {
   final int maxLength;
   final Key? inputKey;
   final bool autofocus;
-  final double? height;
   final EdgeInsetsGeometry padding;
-  final Color fillColor;
   @override
   State<LegacyConversationSearch> createState() =>
       _LegacyConversationSearchState();
@@ -474,7 +471,7 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
     child: ValueListenableBuilder<TextEditingValue>(
       valueListenable: widget.controller,
       builder: (context, value, _) => SizedBox(
-        height: widget.height ?? 84 * MediaQuery.sizeOf(context).width / 750,
+        height: kingSearchHeight(context),
         child: TextField(
           key: widget.inputKey,
           autofocus: widget.autofocus,
@@ -490,41 +487,11 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
             widget.onSubmitted?.call(value);
           },
           onTapOutside: (_) => FocusScope.of(context).unfocus(),
-          style: const TextStyle(color: legacyMessageGold, fontSize: 14),
-          cursorColor: legacyMessageGold,
-          decoration: InputDecoration(
+          style: kingSearchTextStyle,
+          cursorColor: Colors.white,
+          decoration: kingSearchDecoration(
             hintText: _focus.hasFocus ? null : widget.hint,
-            hintStyle: const TextStyle(color: Color(0x59C9B69E), fontSize: 14),
             counterText: '',
-            filled: true,
-            fillColor: widget.fillColor,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 0,
-            ),
-            prefixIcon: SizedBox(
-              width: 40,
-              height: 40,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Center(
-                  child: SvgPicture.asset(
-                    'assets/legacy/messaging/search.svg',
-                    width: 22,
-                    height: 22,
-                    colorFilter: const ColorFilter.mode(
-                      Color(0x59C9B69E),
-                      BlendMode.srcIn,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            prefixIconConstraints: const BoxConstraints(
-              minWidth: 40,
-              minHeight: 40,
-            ),
             suffixIcon: value.text.isEmpty
                 ? null
                 : IconButton(
@@ -533,21 +500,9 @@ class _LegacyConversationSearchState extends State<LegacyConversationSearch> {
                     icon: const Icon(
                       Icons.close,
                       size: 17,
-                      color: Color(0x59C9B69E),
+                      color: Colors.white54,
                     ),
                   ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide.none,
-            ),
           ),
         ),
       ),

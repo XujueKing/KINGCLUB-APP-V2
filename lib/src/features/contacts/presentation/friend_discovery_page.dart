@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
+
 import 'dart:async';
 
 import 'package:uuid/uuid.dart';
@@ -408,7 +410,8 @@ class _FriendDiscoveryPageState extends State<FriendDiscoveryPage>
                                 : null,
                             textInputAction: TextInputAction.search,
                             onSubmitted: (_) => _load(),
-                            decoration: InputDecoration(
+                            style: kingSearchTextStyle,
+                            decoration: kingSearchDecoration(
                               counterText: '',
                               hintText:
                                   widget.mode == FriendDiscoveryMode.search

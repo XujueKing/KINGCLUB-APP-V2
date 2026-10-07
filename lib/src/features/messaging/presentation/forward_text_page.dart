@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
+
 import '../data/chat_voice_forwarder.dart';
 import '../data/chat_voice_uploader.dart';
 import '../data/chat_video_forwarder.dart';
@@ -448,10 +450,8 @@ class _ForwardTextPageState extends State<ForwardTextPage> {
                   controller: _search,
                   enabled: !_invalid && !_saving,
                   onChanged: (_) => _changed(),
-                  decoration: const InputDecoration(
-                    hintText: '搜索',
-                    prefixIcon: Icon(Icons.search),
-                  ),
+                  style: kingSearchTextStyle,
+                  decoration: kingSearchDecoration(hintText: '搜索'),
                 ),
               ),
               if (_preparing)

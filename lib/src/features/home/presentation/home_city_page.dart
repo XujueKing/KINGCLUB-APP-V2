@@ -172,9 +172,7 @@ class _HomeCityPageState extends State<HomeCityPage> {
                   Expanded(
                     child: LegacyConversationSearch(
                       inputKey: const ValueKey('home-city-input'),
-                      height: 48,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
-                      fillColor: const Color(0xFF252525),
                       controller: _input,
                       maxLength: 100,
                       hint: homeCopy(

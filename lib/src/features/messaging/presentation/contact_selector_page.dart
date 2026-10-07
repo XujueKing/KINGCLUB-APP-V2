@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
 import 'package:flutter/material.dart';
 
 import 'legacy_messaging_components.dart';
@@ -58,21 +59,8 @@ class _ContactSelectorPageState extends State<ContactSelectorPage> {
                 key: const ValueKey('contact-selector-search'),
                 controller: _searchController,
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: '搜索',
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 11),
-                  filled: true,
-                  fillColor: const Color(0x22C9B69E),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+                style: kingSearchTextStyle,
+                decoration: kingSearchDecoration(hintText: '搜索'),
               ),
             ),
             Expanded(

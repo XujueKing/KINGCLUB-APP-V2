@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
 import 'package:kingclub/src/core/design_system/king_components.dart';
 
 import 'dart:convert';
@@ -147,7 +148,8 @@ class _ProfileCityPageState extends State<ProfileCityPage> {
           Padding(
             padding: const EdgeInsets.all(20),
             child: TextField(
-              decoration: const InputDecoration(hintText: '搜索省份或城市'),
+              style: kingSearchTextStyle,
+              decoration: kingSearchDecoration(hintText: '搜索省份或城市'),
               onChanged: (value) => setState(() => query = value.trim()),
             ),
           ),

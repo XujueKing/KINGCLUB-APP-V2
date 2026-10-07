@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/king_components.dart';
@@ -96,21 +97,12 @@ class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
     body: SafeArea(
       child: Column(
         children: [
-          DefaultTabController(
-            length: 4,
-            child: TabBar(
-              isScrollable: true,
-              tabAlignment: TabAlignment.center,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white54,
-              indicatorColor: customerGold,
-              dividerColor: Colors.white12,
-              onTap: (i) {
-                category = categories[i];
-                load(reset: true);
-              },
-              tabs: [for (final c in categories) Tab(text: t(c))],
-            ),
+          CustomerTabs(
+            labels: [for (final c in categories) t(c)],
+            onTap: (i) {
+              category = categories[i];
+              load(reset: true);
+            },
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -126,19 +118,10 @@ class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
                       FocusScope.of(context).unfocus();
                       load(reset: true);
                     },
-                    decoration: InputDecoration(
+                    style: kingSearchTextStyle,
+                    decoration: kingSearchDecoration(
                       hintText: t('search'),
-                      hintStyle: const TextStyle(fontSize: 14),
-                      filled: true,
-                      fillColor: const Color(0xff202020),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 16,
-                      ),
+                      prefixIcon: null,
                       suffixIcon: IconButton(
                         tooltip: t('searchAction'),
                         icon: const Icon(Icons.search),
@@ -226,7 +209,7 @@ class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
                                         customerDate(item['date']),
                                         style: const TextStyle(
                                           color: Colors.white54,
-                                          fontSize: 13,
+                                          fontSize: 14,
                                         ),
                                       ),
                                     ],
@@ -240,7 +223,7 @@ class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
                                       item['levelName'] as String? ?? '—',
                                       style: const TextStyle(
                                         color: customerGold,
-                                        fontSize: 14,
+                                        fontSize: 16,
                                       ),
                                     ),
                                     const SizedBox(height: 6),
@@ -248,7 +231,7 @@ class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
                                       item['phone'] as String? ?? '—',
                                       style: const TextStyle(
                                         color: Colors.white60,
-                                        fontSize: 13,
+                                        fontSize: 16,
                                       ),
                                     ),
                                   ],

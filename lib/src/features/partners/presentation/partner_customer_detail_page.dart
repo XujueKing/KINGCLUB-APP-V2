@@ -540,19 +540,12 @@ class _CustomerDetailState extends State<PartnerCustomerDetailPage> {
     body: SafeArea(
       child: Column(
         children: [
-          DefaultTabController(
-            length: 3,
-            child: TabBar(
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white54,
-              indicatorColor: customerGold,
-              dividerColor: Colors.white12,
-              onTap: (i) {
-                tab = tabs[i];
-                load(reset: true);
-              },
-              tabs: [for (final key in tabs) Tab(text: t(key))],
-            ),
+          CustomerTabs(
+            labels: [for (final key in tabs) t(key)],
+            onTap: (i) {
+              tab = tabs[i];
+              load(reset: true);
+            },
           ),
           Expanded(
             child: RefreshIndicator(

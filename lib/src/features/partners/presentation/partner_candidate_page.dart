@@ -1,3 +1,5 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -109,7 +111,8 @@ class _PartnerCandidateState extends State<PartnerCandidatePage> {
               maxLength: 80,
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => load(reset: true),
-              decoration: InputDecoration(
+              style: kingSearchTextStyle,
+              decoration: kingSearchDecoration(
                 hintText: t('candidateSearch'),
                 counterText: '',
                 suffixIcon: IconButton(

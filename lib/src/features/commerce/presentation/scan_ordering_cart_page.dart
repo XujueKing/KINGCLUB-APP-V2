@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
 import 'package:kingclub/src/core/formatters/money.dart';
 
 import '../../../core/media/cached_media_image.dart';
@@ -490,8 +491,7 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
           const SizedBox(width: 2),
           Expanded(
             child: SizedBox(
-              // Legacy input: 36rpx content + 20rpx padding per side.
-              height: _rpx(76),
+              height: kingSearchHeight(context),
               child: TextField(
                 key: const ValueKey('ordering-search'),
                 controller: _searchController,
@@ -500,31 +500,9 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                   setState(() {});
                 },
                 textAlignVertical: TextAlignVertical.center,
-                style: const TextStyle(color: Color(0xFFD8D3CD), fontSize: 14),
-                decoration: InputDecoration(
-                  isDense: true,
-                  constraints: BoxConstraints.tightFor(height: _rpx(76)),
-                  prefixIconConstraints: BoxConstraints(
-                    minWidth: _rpx(76),
-                    minHeight: _rpx(36),
-                  ),
-                  suffixIconConstraints: BoxConstraints(
-                    minWidth: _rpx(60),
-                    minHeight: _rpx(36),
-                  ),
+                style: kingSearchTextStyle,
+                decoration: kingSearchDecoration(
                   hintText: '搜一搜你想要的饮品',
-                  hintStyle: const TextStyle(color: Color(0xFF5D5A57)),
-                  prefixIcon: Center(
-                    widthFactor: 1,
-                    child: Opacity(
-                      opacity: .3,
-                      child: Image.asset(
-                        'assets/legacy/ordering/enlarge.png',
-                        width: _rpx(26),
-                        height: _rpx(26),
-                      ),
-                    ),
-                  ),
                   suffixIcon: _searchController.text.isEmpty
                       ? null
                       : IconButton(
@@ -540,21 +518,6 @@ class _ScanOrderingCartPageState extends State<ScanOrderingCartPage>
                             color: legacyGold,
                           ),
                         ),
-                  filled: true,
-                  fillColor: const Color(0xFF191919),
-                  contentPadding: EdgeInsets.symmetric(vertical: _rpx(20)),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(7),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(7),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(7),
-                    borderSide: const BorderSide(color: Color(0xFF4D443A)),
-                  ),
                 ),
               ),
             ),

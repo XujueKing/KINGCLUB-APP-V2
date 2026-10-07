@@ -1,3 +1,4 @@
+import 'package:kingclub/src/core/design_system/king_input_style.dart';
 import 'package:kingclub/src/core/design_system/king_control_sizes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -106,29 +107,19 @@ abstract final class KingTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: KingColors.surface,
+        fillColor: kingInputBackground,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
         ),
         labelStyle: const TextStyle(color: KingColors.textSecondary),
         hintStyle: const TextStyle(color: KingColors.textDisabled),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: KingColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: KingColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: KingColors.brand, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: KingColors.danger),
-        ),
+        border: kingInputBorder,
+        enabledBorder: kingInputBorder,
+        focusedBorder: kingInputBorder,
+        errorBorder: kingInputBorder,
+        disabledBorder: kingInputBorder,
+        focusedErrorBorder: kingInputBorder,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
