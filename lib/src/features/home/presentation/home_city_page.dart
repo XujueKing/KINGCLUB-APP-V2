@@ -20,6 +20,29 @@ String homeCopy(
       : cn;
 }
 
+class AllCitiesSelection {
+  const AllCitiesSelection();
+}
+
+/// A null result is cancellation; a result with a null city selects all cities.
+Future<({HomeCity? city})?> chooseCityScope(
+  BuildContext context, {
+  HomeCity? current,
+}) async {
+  final catalog = await HomeCityCatalog.load();
+  if (!context.mounted) return null;
+  final selected = await Navigator.push<Object>(
+    context,
+    MaterialPageRoute(
+      builder: (_) =>
+          HomeCityPage(catalog: catalog, current: current, allowAll: true),
+    ),
+  );
+  if (selected is HomeCity) return (city: selected);
+  if (selected is AllCitiesSelection) return (city: null);
+  return null;
+}
+
 class HomeCityPage extends StatefulWidget {
   const HomeCityPage({
     super.key,
@@ -27,10 +50,12 @@ class HomeCityPage extends StatefulWidget {
     this.current,
     this.located,
     this.history = const HomeCityHistory(),
+    this.allowAll = false,
   });
   final HomeCityCatalog catalog;
   final HomeCity? current, located;
   final HomeCityHistory history;
+  final bool allowAll;
   @override
   State<HomeCityPage> createState() => _HomeCityPageState();
 }
@@ -159,6 +184,15 @@ class _HomeCityPageState extends State<HomeCityPage> {
       body: SafeArea(
         child: Column(
           children: [
+            if (widget.allowAll)
+              ListTile(
+                key: const ValueKey('home-city-all'),
+                title: Text(
+                  homeCopy(context, '全部城市', 'All cities', '全部城市', 'ทุกเมือง'),
+                ),
+                trailing: const Icon(Icons.public, size: 20),
+                onTap: () => Navigator.pop(context, const AllCitiesSelection()),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 8, 6, 8),
               child: Row(

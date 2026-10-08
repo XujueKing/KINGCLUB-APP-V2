@@ -6,10 +6,17 @@ import '../../../core/design_system/king_control_sizes.dart';
 import '../data/partner_repository.dart';
 import 'customer_components.dart';
 import 'partner_customer_detail_page.dart';
+import '../../home/data/home_city_catalog.dart';
+import '../../home/presentation/home_city_page.dart';
 
 class PartnerCustomerDirectoryPage extends StatefulWidget {
-  const PartnerCustomerDirectoryPage({super.key, required this.call});
+  const PartnerCustomerDirectoryPage({
+    super.key,
+    required this.call,
+    this.partnersOnly = false,
+  });
   final PartnerCall call;
+  final bool partnersOnly;
   @override
   State<PartnerCustomerDirectoryPage> createState() => _DirectoryState();
 }
@@ -17,7 +24,8 @@ class PartnerCustomerDirectoryPage extends StatefulWidget {
 class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
   final search = TextEditingController();
   final items = <Map<String, dynamic>>[];
-  static const categories = ['members', 'marketing', 'pending', 'blacklist'];
+  static const categories = ['members', 'pending', 'blacklist'];
+  HomeCity? city;
   String category = 'members', filter = 'all', query = '';
   int page = 0, total = 0, epoch = 0;
   bool busy = false, failed = false, more = false;
@@ -50,8 +58,9 @@ class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
     });
     try {
       final r = await widget.call({
-        'action': 'directory',
-        'category': category,
+        'action': widget.partnersOnly ? 'partners_directory' : 'directory',
+        if (!widget.partnersOnly) 'category': category,
+        'cityCode': ?city?.code,
         'filter': filter,
         'query': query,
         'page': page,
@@ -85,25 +94,35 @@ class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
     if (mounted) await load(reset: true);
   }
 
+  Future<void> selectCity() async {
+    FocusScope.of(context).unfocus();
+    final result = await chooseCityScope(context, current: city);
+    if (!mounted || result == null) return;
+    setState(() => city = result.city);
+    await load(reset: true);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xff111111),
     appBar: kingAppBar(
       context: context,
-      title: Text(t('directory')),
+      title: Text(t(widget.partnersOnly ? 'partnersDirectory' : 'directory')),
       foregroundColor: Colors.white,
       centerTitle: true,
     ),
     body: SafeArea(
       child: Column(
         children: [
-          CustomerTabs(
-            labels: [for (final c in categories) t(c)],
-            onTap: (i) {
-              category = categories[i];
-              load(reset: true);
-            },
-          ),
+          if (!widget.partnersOnly)
+            CustomerTabs(
+              fontSize: 17,
+              labels: [for (final c in categories) t(c)],
+              onTap: (i) {
+                category = categories[i];
+                load(reset: true);
+              },
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
@@ -169,9 +188,36 @@ class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
                   ),
                 ),
                 const SizedBox(width: 12),
+                Flexible(
+                  child: TextButton(
+                    key: const ValueKey('customer-city-selector'),
+                    onPressed: selectCity,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            city?.shortName ?? t('allCities'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 20,
+                          color: Colors.white70,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 Expanded(
                   child: Text(
-                    '${t('count')}：${busy && items.isEmpty ? '—' : total}',
+                    '${t(widget.partnersOnly ? 'partnerCount' : 'count')}：${busy && items.isEmpty ? '—' : total}',
                     textAlign: TextAlign.end,
                     style: const TextStyle(color: Colors.white60, fontSize: 14),
                   ),

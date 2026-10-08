@@ -59,7 +59,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _scrollController = ScrollController();
   bool _refreshing = false;
   bool _actionOpening = false;
@@ -73,20 +73,31 @@ class _HomePageState extends State<HomePage> {
   int _contentEpoch = 0;
   final _likesPending = <String>{};
   StreamSubscription<void>? _session;
+  late final HomeContentRepository? _repository = widget.repository;
+  Future<void> _contentQueue = Future.value();
+  String? _pendingCitySource;
+  int _cityEpoch = 0;
+  bool _locating = false;
 
   @override
   void initState() {
     super.initState();
     _state = widget.initialState;
-    unawaited(_loadContent());
+    WidgetsBinding.instance.addObserver(this);
     _session = SecureSessionStore.changes.stream.listen((_) {
       if (!mounted) return;
       _contentEpoch++;
-      setState(() => _content = legacyHomeContent());
+      _cityEpoch++;
+      HomeCitySession.current = null;
+      setState(() {
+        _content = legacyHomeContent();
+        _city = _locatedCity = _pendingCitySource = null;
+        _selectedCity = null;
+        _citySelected = false;
+      });
       unawaited(_loadContent());
     });
     unawaited(_loadCityCatalog());
-    unawaited(_loadCity());
     if (_state == HomeDemoState.sessionInvalid) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _showSessionReset());
     }
@@ -102,19 +113,31 @@ class _HomePageState extends State<HomePage> {
       _city = _selectedCity?.name ?? _city;
     });
     unawaited(_loadContent());
+    unawaited(_loadCity(requestPermission: true));
   }
 
   Future<void> _loadCity({bool requestPermission = false}) async {
+    if (_locating) return;
+    _locating = true;
+    final generation = _cityEpoch;
     try {
       final city =
           await (widget.locateCity?.call() ??
               locateHomeCity(requestPermission: requestPermission));
-      if (!mounted || city == null || city.isEmpty) return;
+      if (!mounted ||
+          generation != _cityEpoch ||
+          city == null ||
+          city.isEmpty) {
+        return;
+      }
+      final selected = _cityCatalog?.namedCity(city);
+      if (selected == null) return;
       setState(() {
         _locatedCity = city;
         if (!_citySelected) {
           _city = city;
-          _selectedCity = _cityCatalog?.namedCity(city);
+          _selectedCity = selected;
+          _pendingCitySource = 'location';
           HomeCitySession.current = _selectedCity;
           _city = _selectedCity?.name ?? city;
         }
@@ -122,29 +145,52 @@ class _HomePageState extends State<HomePage> {
       unawaited(_loadContent());
     } catch (_) {
       /* Keep manual city selection available when location fails. */
+    } finally {
+      _locating = false;
     }
   }
 
   Future<void> _loadContent({bool clear = false}) async {
-    final repository = widget.repository;
+    final repository = _repository;
     if (repository == null) return;
     final epoch = ++_contentEpoch;
+    final code = _selectedCity?.code,
+        located = _cityCatalog?.namedCity(_locatedCity)?.code,
+        source = _pendingCitySource;
     if (clear) {
       setState(() {
         // These original artworks are global; never keep another city's cards.
         _content = legacyHomeContent();
       });
     }
+    // Serialize writes so a late city request cannot become the saved preference
+    // after a newer manual choice. Skip queued requests already superseded.
+    final previous = _contentQueue;
+    final completed = Completer<void>();
+    _contentQueue = completed.future;
     try {
-      final items = await repository.list(_selectedCity?.code);
+      await previous;
+      if (!mounted || epoch != _contentEpoch) return;
+      final result = await repository.feed(
+        cityCode: code,
+        locatedCityCode: located,
+        source: source,
+      );
       if (mounted && epoch == _contentEpoch) {
         setState(() {
-          _content = items;
+          _content = result.items;
+          _pendingCitySource = null;
+          _citySelected = result.manual;
+          _selectedCity = _cityCatalog?.byCode[result.cityCode];
+          _city = _selectedCity?.shortName;
+          HomeCitySession.current = _selectedCity;
         });
       }
     } catch (_) {
       // Keep the available content without an error row disrupting the layout.
       // A pull to refresh or the next city/session change retries the request.
+    } finally {
+      completed.complete();
     }
   }
 
@@ -152,7 +198,7 @@ class _HomePageState extends State<HomePage> {
     if (!_likesPending.add(item.ref)) return;
     final epoch = _contentEpoch;
     try {
-      final repo = widget.repository;
+      final repo = _repository;
       if (repo == null) throw StateError('Unavailable');
       final state = await repo.like(item, !item.liked, _selectedCity?.code);
       if (!mounted || epoch != _contentEpoch) return;
@@ -202,6 +248,7 @@ class _HomePageState extends State<HomePage> {
     if (!mounted || selected == null) return;
     setState(() {
       _citySelected = true;
+      _pendingCitySource = 'manual';
       _selectedCity = selected;
       HomeCitySession.current = selected;
       _city = selected.shortName;
@@ -235,10 +282,18 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _contentEpoch++;
+    _cityEpoch++;
     _actionTimer?.cancel();
     _session?.cancel();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_loadCity());
   }
 
   Future<void> _refresh() async {

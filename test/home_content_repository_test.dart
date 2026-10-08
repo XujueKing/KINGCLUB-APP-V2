@@ -38,6 +38,39 @@ Map<String, dynamic> envelope(Map<String, dynamic> result) => {
   'result': result,
 };
 void main() {
+  test('one home feed reports GPS separately and restores saved manual browsing city', () async {
+    final requests = <Map<String, dynamic>>[];
+    final repository = HomeContentRepository(
+      readSession: () async => homeSession('fixture'),
+      request: (id, p, actor) async {
+        expect(id, 'K261002001970');
+        requests.add(Map.of(p));
+        return envelope({
+          'cityCode': '430100',
+          'cityContext': {'source': 'manual'},
+          'items': [homeFixture()],
+        });
+      },
+    );
+    final result = await repository.feed(
+      cityCode: '430200',
+      locatedCityCode: '430200',
+      source: 'location',
+    );
+    expect(result.cityCode, '430100');
+    expect(result.manual, isTrue);
+    expect(requests.single, {
+      'cityCode': '430200',
+      'locatedCityCode': '430200',
+      'citySource': 'location',
+      'includeCityContext': true,
+    });
+    await expectLater(
+      repository.feed(source: 'manual'),
+      throwsA(isA<AuthFailure>()),
+    );
+    expect(requests.length, 1);
+  });
   test(
     'detail background accepts editor hex colours with a legacy default',
     () {

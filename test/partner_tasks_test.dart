@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kingclub/src/features/partners/data/partner_repository.dart';
 import 'package:kingclub/src/features/partners/presentation/partner_tasks_page.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
+import 'package:kingclub/src/features/home/data/home_city_catalog.dart';
 
 Widget app(PartnerCall call, {String kind = 'tasks', String? ref}) =>
     MaterialApp(
@@ -29,6 +30,39 @@ Map<String, dynamic> detail() => {
   'claim': null,
 };
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async => HomeCityCatalog.load());
+  testWidgets(
+    'task hall accepts registered default and can deliberately select all cities',
+    (tester) async {
+      final calls = <Map<String, dynamic>>[];
+      await tester.pumpWidget(
+        app((p) async {
+          calls.add(Map.of(p));
+          return {
+            'cityCode': p['allCities'] == true ? null : '430200',
+            'cityName': p['allCities'] == true ? null : '株洲市',
+            'items': [],
+          };
+        }),
+      );
+      await tester.pumpAndSettle();
+      expect(calls.single.containsKey('cityCode'), isFalse);
+      expect(calls.single.containsKey('allCities'), isFalse);
+      expect(find.textContaining('株洲市'), findsOneWidget);
+      await tester.runAsync(
+        () async => tester.tap(find.byKey(const ValueKey('partner-task-city'))),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('home-city-all')));
+      await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+      await tester.pumpAndSettle();
+      expect(calls.last['allCities'], isTrue);
+      expect(calls.last['page'], 0);
+      expect(calls.last.containsKey('cityCode'), isFalse);
+      expect(find.textContaining('全部城市'), findsOneWidget);
+    },
+  );
   testWidgets('ledger formats exact cents and never offers withdrawal', (
     tester,
   ) async {

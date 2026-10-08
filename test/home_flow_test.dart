@@ -95,7 +95,8 @@ void main() {
 
   testWidgets('city initially uses the actual located city', (tester) async {
     await tester.pumpWidget(home(locateCity: () async => '株洲市'));
-    await tester.pump();
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
     expect(find.text('株洲市'), findsOneWidget);
   });
 
@@ -137,13 +138,14 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('home-city-430100')));
     await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('home-card-new-city')), findsOneWidget);
+    expect(find.byKey(const ValueKey('home-card-new-city')), findsNothing);
     oldCity.complete(
       envelope({
         'cityCode': '430200',
         'items': [homeFixture(ref: 'old-city')],
       }),
     );
+    await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('home-card-old-city')), findsNothing);
     expect(find.byKey(const ValueKey('home-card-new-city')), findsOneWidget);

@@ -182,6 +182,43 @@ class HomeContentRepository {
     return items;
   }
 
+  /// Resolve saved browsing preference and report consented city in the same
+  /// page request. Location and manual browsing are separate server fields.
+  Future<({List<HomeContent> items, String? cityCode, bool manual})> feed({
+    String? cityCode,
+    String? locatedCityCode,
+    String? source,
+  }) async {
+    for (final code in [cityCode, locatedCityCode]) {
+      if (code != null && !_city.hasMatch(code)) _invalid();
+    }
+    if (source != null &&
+        (!{'manual', 'location'}.contains(source) || cityCode == null)) {
+      _invalid();
+    }
+    final result = await _call('K261002001970', {
+      'cityCode': ?cityCode,
+      'locatedCityCode': ?locatedCityCode,
+      'citySource': ?source,
+      'includeCityContext': true,
+    });
+    final resolved = result['cityCode'];
+    if ((resolved != null &&
+            (resolved is! String || !_city.hasMatch(resolved))) ||
+        (source == 'manual' && resolved != cityCode) ||
+        result['items'] is! List ||
+        (result['items'] as List).length > 120) {
+      _invalid();
+    }
+    final items = (result['items'] as List).map(HomeContent.parse).toList();
+    if (items.map((i) => i.ref).toSet().length != items.length) _invalid();
+    return (
+      items: items,
+      cityCode: resolved as String?,
+      manual: (result['cityContext'] as Map?)?['source'] == 'manual',
+    );
+  }
+
   Future<({int count, bool liked})> like(
     HomeContent content,
     bool liked,

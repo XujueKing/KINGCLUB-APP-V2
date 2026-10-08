@@ -7,15 +7,21 @@ import '../../../core/formatters/money.dart';
 const customerGold = Color(0xffcebea4);
 
 class CustomerTabs extends StatelessWidget {
-  const CustomerTabs({super.key, required this.labels, required this.onTap});
+  const CustomerTabs({
+    super.key,
+    required this.labels,
+    required this.onTap,
+    this.fontSize = 20,
+  });
   final List<String> labels;
   final ValueChanged<int> onTap;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final style = TextStyle(
-        fontSize: 20,
+        fontSize: fontSize,
         fontWeight: FontWeight.w400,
         fontFamily: Theme.of(context).textTheme.bodyLarge?.fontFamily,
       );
@@ -67,6 +73,9 @@ String customerText(BuildContext context, String key) {
 
 const customerCopy = {
   'directory': '客户名录|Customer directory|客戶名錄|รายชื่อลูกค้า',
+  'partnersDirectory': '合作者名录|Collaborator directory|合作者名錄|รายชื่อผู้ร่วมงาน',
+  'partnerCount': '合作者总数|Collaborators found|合作者總數|จำนวนผู้ร่วมงาน',
+  'allCities': '全部城市|All cities|全部城市|ทุกเมือง',
   'detail': '顾客信息管理|Customer information|顧客資訊管理|ข้อมูลลูกค้า',
   'members': '会员|Members|會員|สมาชิก',
   'marketing': '合作者|Collaborators|合作者|ผู้ร่วมงาน',

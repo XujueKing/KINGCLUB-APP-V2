@@ -119,8 +119,11 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
 
   void list(String kind) => Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) => kind == 'directory'
-          ? PartnerCustomerDirectoryPage(call: call)
+      builder: (_) => {'directory', 'partnersDirectory'}.contains(kind)
+          ? PartnerCustomerDirectoryPage(
+              call: call,
+              partnersOnly: kind == 'partnersDirectory',
+            )
           : _PartnerListPage(kind: kind, call: call),
     ),
   );
@@ -446,6 +449,12 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                       Icons.contacts_outlined,
                       onTap: () => list('directory'),
                     ),
+                  if (d.can('customers.read'))
+                    _entry(
+                      'partnersDirectory',
+                      Icons.people_outline,
+                      onTap: () => list('partnersDirectory'),
+                    ),
                   if (d.admin)
                     _entry(
                       'permissions',
@@ -676,6 +685,7 @@ class _ApplicationPageState extends State<_ApplicationPage> {
       'action': 'apply',
       'requestId': const Uuid().v4(),
       'city': city!.name,
+      'cityCode': city!.code,
       'directions': directions.toList()..sort(),
       'introduction': intro.text.trim(),
       'termsAccepted': true,

@@ -11,6 +11,8 @@ import '../data/partner_repository.dart';
 import '../../auth/domain/auth_repository.dart';
 import 'partner_strings.dart';
 import 'partner_candidate_page.dart';
+import '../../home/data/home_city_catalog.dart';
+import '../../home/presentation/home_city_page.dart';
 
 String _money(Object? value) => '¥${moneyCents(value ?? '0')}';
 int _cents(String s) {
@@ -31,12 +33,15 @@ class PartnerTasksPage extends StatefulWidget {
     this.review,
     this.storeRef,
     this.management = false,
+    this.initialCityCode,
+    this.initialCityName,
   });
   final PartnerCall call;
   final String kind;
   final String? taskRef, storeRef;
   final Map<String, dynamic>? review;
   final bool management;
+  final String? initialCityCode, initialCityName;
   @override
   State<PartnerTasksPage> createState() => _PartnerTasksState();
 }
@@ -47,6 +52,9 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
   final inputs = List.generate(6, (_) => TextEditingController());
   bool busy = false, failed = false, invalid = false, more = true;
   int page = 0;
+  int epoch = 0;
+  String? cityCode, cityName;
+  bool allCities = false;
   String taskKind = 'member';
   DateTime? deadline;
   Map<String, dynamic>? pending;
@@ -56,9 +64,14 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
   @override
   void initState() {
     super.initState();
+    cityCode = widget.initialCityCode;
+    cityName = widget.initialCityName;
+    allCities =
+        cityCode == null && (widget.management || widget.kind == 'create');
     session = SecureSessionStore.changes.stream.listen((_) {
       if (mounted) {
         setState(() {
+          epoch++;
           invalid = true;
           data = null;
           rows.clear();
@@ -70,6 +83,7 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
 
   @override
   void dispose() {
+    epoch++;
     session?.cancel();
     for (final c in inputs) {
       c.dispose();
@@ -77,8 +91,17 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
     super.dispose();
   }
 
-  Future<void> request([Map<String, dynamic>? action]) async {
-    if (busy || invalid) return;
+  Future<void> request([
+    Map<String, dynamic>? action,
+    bool reset = false,
+  ]) async {
+    if ((busy && !reset) || invalid) return;
+    final generation = ++epoch;
+    if (reset) {
+      page = 0;
+      rows.clear();
+      more = true;
+    }
     final p =
         action ??
         {
@@ -94,6 +117,10 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                 : 'available',
           if (!detail && widget.kind == 'tasks' && widget.storeRef != null)
             'storeRef': widget.storeRef,
+          if (!detail && widget.kind == 'tasks') ...{
+            'cityCode': ?cityCode,
+            if (allCities) 'allCities': true,
+          },
         };
     setState(() {
       busy = true;
@@ -101,13 +128,18 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
     });
     try {
       final result = await widget.call(p);
-      if (!mounted || invalid) return;
+      if (!mounted || invalid || generation != epoch) return;
       if (widget.kind == 'create' || widget.review != null) {
         Navigator.pop(context, true);
         return;
       }
       setState(() {
         data = result;
+        if (!detail && widget.kind == 'tasks') {
+          cityCode = result['cityCode'] as String?;
+          cityName = result['cityName'] as String?;
+          allCities = cityCode == null;
+        }
         pending = null;
         if (!detail) {
           final next = (result['items'] as List)
@@ -119,7 +151,7 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
         }
       });
     } catch (error) {
-      if (mounted && !invalid) {
+      if (mounted && !invalid && generation == epoch) {
         setState(() {
           failed = true;
           // A definitive business rejection may be corrected. Unknown outcomes
@@ -130,7 +162,7 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
         });
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted && generation == epoch) setState(() => busy = false);
     }
   }
 
@@ -154,14 +186,13 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
           management: widget.management,
           review: review,
           kind: kind,
+          initialCityCode: cityCode,
+          initialCityName: cityName,
         ),
       ),
     );
     if (mounted && !invalid && changed == true) {
-      page = 0;
-      rows.clear();
-      more = true;
-      await request();
+      await request(null, true);
     }
   }
 
@@ -218,6 +249,7 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
       act({
         'action': 'task_create',
         if (widget.storeRef != null) 'storeRef': widget.storeRef,
+        'cityCode': ?cityCode,
         'requestId': const Uuid().v4(),
         'title': inputs[0].text,
         'description': inputs[1].text,
@@ -231,6 +263,46 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
       setState(() => failed = true);
     }
   }
+
+  Future<void> selectCity() async {
+    FocusScope.of(context).unfocus();
+    final catalog = await HomeCityCatalog.load();
+    if (!mounted || invalid) return;
+    final selected = await chooseCityScope(
+      context,
+      current: catalog.byCode[cityCode],
+    );
+    if (!mounted || invalid || selected == null) return;
+    setState(() {
+      cityCode = selected.city?.code;
+      cityName = selected.city?.name;
+      allCities = cityCode == null;
+    });
+    if (widget.kind != 'create') await request(null, true);
+  }
+
+  Widget citySelector() => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: TextButton(
+      key: const ValueKey('partner-task-city'),
+      onPressed: pending != null || invalid ? null : selectCity,
+      child: Row(
+        children: [
+          const Icon(Icons.location_on_outlined, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${t('taskCity')} · ${cityName ?? t(allCities ? 'allCities' : 'registeredCity')}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 16, color: Colors.white),
+            ),
+          ),
+          const Icon(Icons.keyboard_arrow_down, size: 20),
+        ],
+      ),
+    ),
+  );
 
   void review(bool approved) {
     try {
@@ -280,6 +352,11 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
             if (invalid)
               Text(t('sessionChanged'))
             else ...[
+              if (!detail &&
+                  widget.review == null &&
+                  {'tasks', 'create'}.contains(widget.kind) &&
+                  widget.storeRef == null)
+                citySelector(),
               if (failed)
                 card([
                   Text(t('taskError')),

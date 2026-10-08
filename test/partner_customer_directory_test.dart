@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/partners/presentation/customer_components.dart';
 import 'package:kingclub/src/features/partners/presentation/partner_customer_directory_page.dart';
 import 'package:kingclub/src/features/partners/presentation/partner_customer_detail_page.dart';
+import 'package:kingclub/src/features/home/data/home_city_catalog.dart';
 
 Map<String, dynamic> customer() => {
   'ref': 'U00000000002',
@@ -74,6 +75,56 @@ Map<String, dynamic> profile() => {
   ],
 };
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async => HomeCityCatalog.load());
+  testWidgets(
+    'separate collaborator directory uses the same rows with city scope and no member tabs',
+    (tester) async {
+      final calls = <Map<String, dynamic>>[];
+      await tester.pumpWidget(
+        app(
+          PartnerCustomerDirectoryPage(
+            partnersOnly: true,
+            call: (p) async {
+              calls.add(Map.of(p));
+              return directory(p['cityCode'] == null ? '全部合作者' : '长沙合作者');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('合作者名录'), findsOneWidget);
+      expect(find.byType(CustomerTabs), findsNothing);
+      expect(calls.single['action'], 'partners_directory');
+      expect(calls.single.containsKey('category'), isFalse);
+      await tester.runAsync(
+        () async =>
+            tester.tap(find.byKey(const ValueKey('customer-city-selector'))),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('home-city-input')),
+        '长沙',
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('home-city-430100')));
+      await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+      await tester.pumpAndSettle();
+      expect(calls.last['cityCode'], '430100');
+      expect(calls.last['page'], 0);
+      expect(find.textContaining('长沙合作者'), findsOneWidget);
+      expect(find.textContaining('全部合作者'), findsNothing);
+      await tester.runAsync(
+        () async =>
+            tester.tap(find.byKey(const ValueKey('customer-city-selector'))),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('home-city-all')));
+      await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+      await tester.pumpAndSettle();
+      expect(calls.last.containsKey('cityCode'), isFalse);
+    },
+  );
   testWidgets('phone copy stays next to the number and vertically centered', (
     tester,
   ) async {
@@ -246,7 +297,8 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('合作者'));
+      expect(find.text('合作者'), findsNothing);
+      await tester.tap(find.text('审核中'));
       await tester.pumpAndSettle();
       old.complete(directory('旧分类'));
       await tester.pumpAndSettle();
@@ -258,7 +310,7 @@ void main() {
       );
       await tester.tap(find.byIcon(Icons.search));
       await tester.pumpAndSettle();
-      expect(calls.last, containsPair('category', 'marketing'));
+      expect(calls.last, containsPair('category', 'pending'));
       expect(calls.last, containsPair('query', 'KMTEST2'));
       expect(calls.last, containsPair('page', 0));
     },
