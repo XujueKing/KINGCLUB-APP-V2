@@ -165,10 +165,10 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
   @override
   Widget build(BuildContext context) => _TogetherScaffold(
     title: kingText(Localizations.localeOf(context), [
-      '加入派对',
-      'Join a party',
-      '加入派對',
-      'เข้าร่วมปาร์ตี้',
+      'AA邀请',
+      'AA invitations',
+      'AA邀請',
+      'คำเชิญแบบ AA',
     ]),
     cityName: widget.cityName,
     onSelectCity: widget.onSelectCity,

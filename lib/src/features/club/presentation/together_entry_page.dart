@@ -168,7 +168,7 @@ class _TogetherEntryPageState extends State<TogetherEntryPage> {
           Localizations.localeOf(context),
           widget.personalCreation
               ? ['创建派对', 'Create a party', '建立派對', 'สร้างปาร์ตี้']
-              : ['加入派对', 'Join a party', '加入派對', 'เข้าร่วมปาร์ตี้'],
+              : ['AA邀请', 'AA invitations', 'AA邀請', 'คำเชิญแบบ AA'],
         ),
         titleColor: Colors.white,
         titleFontSize: 17,

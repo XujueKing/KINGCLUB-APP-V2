@@ -20,6 +20,9 @@ import '../../home/data/home_city_location.dart';
 import '../../home/presentation/home_city_page.dart';
 import 'partner_code_page.dart';
 import '../../commerce/presentation/procurement_page.dart';
+import '../../club/presentation/reservation_products_page.dart';
+import '../../club/presentation/monthly_contracts_page.dart';
+import '../../club/presentation/reservation_components.dart';
 import 'partner_tasks_page.dart';
 import 'partner_policy_page.dart';
 import 'partner_transfer_page.dart';
@@ -312,6 +315,17 @@ class _PartnerPlatformPageState extends State<PartnerPlatformPage> {
                   ),
                 ),
                 _entries([
+                  _entry(
+                    'monthlyTables',
+                    Icons.event_seat_outlined,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MonthlyContractsPage(),
+                      ),
+                    ),
+                    personal: true,
+                  ),
                   _entry(
                     'myParties',
                     Icons.celebration_outlined,
@@ -1395,6 +1409,28 @@ class _MerchantState extends State<_MerchantPage> {
                 ],
               ),
             ),
+            _button(
+              reservationText(c, '预订产品|Reservation products|預訂產品|รายการจอง'),
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ReservationProductsPage(
+                    storeRef: widget.store['ref'] as String,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _button(
+              partnerText(c, 'monthlyTasks'),
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => MonthlyContractsPage(
+                    storeRef: widget.store['ref'] as String,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             _button(
               procurementText(c, [
                 '采购审批 / 清单',

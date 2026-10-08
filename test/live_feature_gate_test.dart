@@ -9,6 +9,7 @@ import 'package:kingclub/src/core/session/secure_session_store.dart';
 import 'package:kingclub/src/features/auth/data/auth_repository_provider.dart';
 import 'package:kingclub/src/features/auth/domain/auth_repository.dart';
 import 'package:kingclub/src/features/club/presentation/together_entry_page.dart';
+import 'package:kingclub/src/features/club/presentation/reservation_discovery_page.dart';
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/navigation/app_router.dart';
 import 'package:kingclub/src/navigation/live_feature_gate.dart';
@@ -137,13 +138,20 @@ void main() {
           // City restoration can remain pending; verify routing independently.
           await tester.pump();
           await tester.pump(const Duration(seconds: 1));
-          expect(find.byType(TogetherEntryPage), findsOneWidget);
           expect(
-            tester
-                .widget<TogetherEntryPage>(find.byType(TogetherEntryPage))
-                .personalCreation,
-            personal,
+            find.byType(
+              personal ? ReservationDiscoveryPage : TogetherEntryPage,
+            ),
+            findsOneWidget,
           );
+          if (!personal) {
+            expect(
+              tester
+                  .widget<TogetherEntryPage>(find.byType(TogetherEntryPage))
+                  .personalCreation,
+              false,
+            );
+          }
           expect(find.byType(UnavailableFeaturePage), findsNothing);
           expect(
             router.routerDelegate.currentConfiguration.last.matchedLocation,

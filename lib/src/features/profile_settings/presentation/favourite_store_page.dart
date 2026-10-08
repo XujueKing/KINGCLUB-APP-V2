@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/media/cached_media_image.dart';
 import '../../../core/formatters/money.dart';
-import '../../auth/data/auth_repository_provider.dart';
-import '../../club/data/together_store.dart';
-import '../../club/data/secure_together_store_repository.dart';
-import '../../club/data/secure_together_publication.dart';
-import '../../club/presentation/together_party_create_page.dart';
-import '../../club/presentation/together_artwork_upload_page.dart';
+import '../../club/presentation/reservation_discovery_page.dart';
 import '../../club/presentation/legacy_club_components.dart';
 import '../../home/presentation/home_content_cards.dart';
 import '../data/profile_repository.dart';
@@ -165,41 +160,13 @@ class _FavouriteStorePageState extends State<FavouriteStorePage> {
   String t(String s) => storeText(context, s);
   String localized(Map m) => '${m[homeLocale(context)] ?? m['zh-CN'] ?? ''}';
   void _reserve(Map store, List tables) {
-    final selected = tables.where((e) => e['tableRef'] == _table).firstOrNull;
-    final publication = SecureTogetherPublication.secure(kingclubApiBaseUrl);
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (pageContext) => TogetherPartyCreatePage(
-          personal: true,
+        builder: (pageContext) => ReservationDiscoveryPage(
           cityCode: store['cityId'],
-          cityName: store['cityName'] ?? store['cityId'],
-          initialStore: TogetherStore(
-            ref: store['storeRef'],
-            name: store['storeName'],
-            cityCode: store['cityId'],
-            address: store['storeAddress'] ?? '',
-            personalPartyEnabled: true,
-          ),
-          initialTable: selected == null
-              ? null
-              : TogetherTable(
-                  ref: selected['tableRef'],
-                  storeRef: store['storeRef'],
-                  name: selected['tableName'],
-                  maximumSeats: (selected['maximumSeats'] as num).toInt(),
-                ),
-          stores: SecureTogetherStoreRepository.secure(kingclubApiBaseUrl),
-          publication: publication,
+          storeRef: store['storeRef'],
+          tableRef: _table,
           onBack: () => Navigator.of(pageContext).pop(),
-          uploadArtwork: () async {
-            await Navigator.of(pageContext).push(
-              MaterialPageRoute(
-                builder: (_) =>
-                    TogetherArtworkUploadPage(repository: publication),
-              ),
-            );
-            return null;
-          },
         ),
       ),
     );

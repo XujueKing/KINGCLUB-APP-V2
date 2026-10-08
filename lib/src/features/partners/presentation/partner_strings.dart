@@ -98,6 +98,8 @@ const partnerCopy = {
       '邀请顾客关联|Invite customers to connect|邀請顧客關聯|เชิญลูกค้าเชื่อมโยง',
   'tasksSubtitle': '领取任务，完成获奖|Claim, complete and earn|領取任務，完成獲獎|รับภารกิจ ทำให้สำเร็จ รับรางวัล',
   'myParties': '我的派对|My parties|我的派對|ปาร์ตี้ของฉัน',
+  'monthlyTables': '我的签约卡座|My contracted tables|我的簽約卡座|โต๊ะตามสัญญาของฉัน',
+  'monthlyTasks': '卡座签约任务|Table contract tasks|卡座簽約任務|งานสัญญาโต๊ะ',
   'partyRef': '派对编号|Party reference|派對編號|รหัสปาร์ตี้',
   'party_published': '已发布|Published|已發佈|เผยแพร่แล้ว',
   'party_cancelled': '已取消|Cancelled|已取消|ยกเลิกแล้ว',

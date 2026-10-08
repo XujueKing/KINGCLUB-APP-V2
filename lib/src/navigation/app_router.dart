@@ -31,8 +31,7 @@ import '../features/auth/presentation/sms_verification_page.dart';
 import '../features/auth/presentation/terms_consent_page.dart';
 import '../features/club/presentation/aa_positioning_card_page.dart';
 import '../features/club/presentation/admission_ticket_page.dart';
-import '../features/club/presentation/vip_party_create_page.dart';
-import '../features/club/presentation/vip_party_management_page.dart';
+import '../features/club/presentation/reservation_discovery_page.dart';
 import '../features/commerce/presentation/member_orders_page.dart';
 import '../features/commerce/data/fake_commerce_repository.dart';
 import '../features/commerce/presentation/order_center_page.dart';
@@ -1068,7 +1067,7 @@ class VipPartyRoute extends GoRouteData with $VipPartyRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      TogetherEntryPage(personalCreation: true, onBack: () => context.pop());
+      ReservationDiscoveryPage(onBack: () => context.pop());
 }
 
 class VipPartyCreateRoute extends GoRouteData with $VipPartyCreateRoute {
@@ -1086,7 +1085,7 @@ class VipPartyCreateRoute extends GoRouteData with $VipPartyCreateRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      VipPartyCreatePage(onBack: () => context.pop(), initialDate: date);
+      ReservationDiscoveryPage(onBack: () => context.pop());
 }
 
 class VipPartyManagementRoute extends GoRouteData
@@ -1103,7 +1102,7 @@ class VipPartyManagementRoute extends GoRouteData
 
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      VipPartyManagementPage(onBack: () => context.pop());
+      MemberReservationsPage();
 }
 
 @TypedGoRoute<AdmissionTicketRoute>(path: '/club/admission')

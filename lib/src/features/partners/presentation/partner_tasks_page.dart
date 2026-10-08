@@ -13,6 +13,7 @@ import 'partner_strings.dart';
 import 'partner_candidate_page.dart';
 import '../../home/data/home_city_catalog.dart';
 import '../../home/presentation/home_city_page.dart';
+import '../../club/presentation/monthly_contracts_page.dart';
 
 String _money(Object? value) => '¥${moneyCents(value ?? '0')}';
 int _cents(String s) {
@@ -677,6 +678,8 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                       Text(
                         row['kind'] == 'organize'
                             ? t('organizeReward')
+                            : row['kind'] == 'table_contract'
+                            ? t('monthlyTasks')
                             : '${_money(row['minimumCents'])} – ${_money(row['maximumCents'])}',
                       ),
                       if (row['claimStatus'] != null)
@@ -695,12 +698,24 @@ class _PartnerTasksState extends State<PartnerTasksPage> {
                         widget.kind == 'task_reviews'
                             ? 'task_reviews'
                             : 'details',
-                        () => open(
-                          ref: widget.kind == 'tasks'
-                              ? row['ref'] as String
-                              : null,
-                          review: widget.kind == 'task_reviews' ? row : null,
-                        ),
+                        () => row['kind'] == 'table_contract'
+                            ? Navigator.of(context)
+                                  .push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => MonthlyContractDetailPage(
+                                        contractRef: row['ref'] as String,
+                                      ),
+                                    ),
+                                  )
+                                  .then((_) => request())
+                            : open(
+                                ref: widget.kind == 'tasks'
+                                    ? row['ref'] as String
+                                    : null,
+                                review: widget.kind == 'task_reviews'
+                                    ? row
+                                    : null,
+                              ),
                       ),
                     ],
                   ]),
