@@ -3,13 +3,17 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/core/design_system/king_theme.dart';
 import 'package:kingclub/src/features/club/data/together_store.dart';
 import 'package:kingclub/src/features/club/data/together_party_draft.dart';
 import 'package:kingclub/src/features/club/presentation/together_party_create_page.dart';
 import 'package:kingclub/src/features/club/presentation/together_store_picker_page.dart';
 
 class _Stores implements TogetherStoreRepository {
+  _Stores({this.multi = false});
+  final bool multi;
   @override
   Future<List<TogetherStore>> list({required String cityCode}) async => [
     for (final id in ['A', 'B', 'disabled'])
@@ -36,26 +40,92 @@ class _Stores implements TogetherStoreRepository {
       name: 'V1',
       maximumSeats: 4,
     ),
+    if (multi)
+      TogetherTable(
+        ref: '$storeRef-table-2',
+        storeRef: storeRef,
+        name: 'V2',
+        maximumSeats: 6,
+      ),
   ];
 }
 
-Future<void> mount(WidgetTester t, {Size size = const Size(390, 844)}) async {
+Future<void> mount(
+  WidgetTester t, {
+  Size size = const Size(390, 844),
+  bool merchant = false,
+}) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
   t.view.padding = const FakeViewPadding(top: 24, bottom: 16);
   addTearDown(t.view.resetPhysicalSize);
   addTearDown(t.view.resetDevicePixelRatio);
   addTearDown(t.view.resetPadding);
+  final visualFont =
+      merchant && const bool.fromEnvironment('SAVE_PERSONAL_PREVIEW');
+  if (visualFont) {
+    await t.runAsync(() async {
+      final loader = FontLoader('VisualChinese');
+      loader.addFont(
+        Future.value(
+          ByteData.sublistView(
+            await File('C:/Windows/Fonts/msyh.ttc').readAsBytes(),
+          ),
+        ),
+      );
+      await loader.load();
+      final icons = FontLoader('MaterialIcons');
+      icons.addFont(
+        Future.value(
+          ByteData.sublistView(
+            await File(
+              'D:/SDK/flutter/bin/cache/artifacts/material_fonts/materialicons-regular.otf',
+            ).readAsBytes(),
+          ),
+        ),
+      );
+      await icons.load();
+    });
+  }
   await t.pumpWidget(
     MaterialApp(
+      theme: merchant
+          ? KingTheme.dark.copyWith(
+              textTheme: visualFont
+                  ? KingTheme.dark.textTheme.apply(fontFamily: 'VisualChinese')
+                  : KingTheme.dark.textTheme,
+              filledButtonTheme: visualFont
+                  ? FilledButtonThemeData(
+                      style: KingTheme.dark.filledButtonTheme.style?.copyWith(
+                        textStyle: const WidgetStatePropertyAll(
+                          TextStyle(
+                            fontFamily: 'VisualChinese',
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    )
+                  : KingTheme.dark.filledButtonTheme,
+            )
+          : null,
       builder: (_, child) =>
           RepaintBoundary(key: const ValueKey('capture'), child: child!),
       home: TogetherPartyCreatePage(
-        personal: true,
+        personal: !merchant,
+        publisherType: merchant ? 'official' : null,
+        initialStore: merchant
+            ? const TogetherStore(
+                ref: 'A',
+                name: 'Test store A',
+                cityCode: '430200',
+                address: 'Test address',
+              )
+            : null,
         cityCode: '430200',
         cityName: 'Test city',
         onBack: () {},
-        stores: _Stores(),
+        stores: _Stores(multi: merchant),
         loadLibrary: () async => [],
         uploadArtwork: () async => null,
         loadPackages: (store) async => [
@@ -85,6 +155,32 @@ Future<void> enter(WidgetTester t, String label, String text) async {
 }
 
 void main() {
+  testWidgets(
+    'merchant selects several reserved tables and sees per-table package total',
+    (t) async {
+      await mount(t, merchant: true);
+      await tap(t, '下一步');
+      await tap(t, 'AA组局');
+      await enter(t, '活动主题', 'Test merchant activity');
+      await enter(t, '欢迎语', 'Test welcome');
+      t.testTextInput.hide();
+      await t.pumpAndSettle();
+      await tap(t, '下一步');
+      await tap(t, '请选择');
+      await tap(t, 'V1');
+      await tap(t, 'V2');
+      expect(find.text('确定 · 2 桌'), findsOneWidget);
+      await t.tap(find.byKey(const ValueKey('pool-confirm')));
+      await t.pumpAndSettle();
+      expect(find.text('V1、V2'), findsOneWidget);
+      await tap(t, '请选择');
+      await tap(t, 'Test package');
+      expect(find.text('¥1,000.00 × 2 桌'), findsOneWidget);
+      expect(find.text('¥2,000.00'), findsOneWidget);
+      await capture(t, 'merchant-multi-table');
+      expect(t.takeException(), isNull);
+    },
+  );
   testWidgets('required step one fields and enabled store filtering', (
     t,
   ) async {

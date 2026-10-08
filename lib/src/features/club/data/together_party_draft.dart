@@ -50,6 +50,7 @@ class TogetherPartyDraft {
     this.contractRef,
     this.allowCoins = false,
     this.table,
+    this.tablePool = const [],
     this.package,
     this.maleSeats,
     this.femaleSeats,
@@ -62,6 +63,10 @@ class TogetherPartyDraft {
   final String? contractRef;
   bool get backedPublication => official || contractRef != null;
   final TogetherTable? table;
+  final List<TogetherTable> tablePool;
+  List<TogetherTable> get reservedTables =>
+      official ? (tablePool.isNotEmpty ? tablePool : [?table]) : [?table];
+  int get packageCount => official ? reservedTables.length : 1;
   final TogetherPackage? package;
   final int? maleSeats, femaleSeats, femaleBasePriceMinor;
   final Map<String, dynamic> eligibilityRules;
@@ -87,11 +92,22 @@ class TogetherPartyDraft {
     if (store.ref.isEmpty || store.cityCode != cityCode) return '请选择当前城市的门店';
     if (package != null &&
         (package!.storeRef != storeRef ||
-            package!.baseTotalMinor != totalCostMinor)) {
+            package!.baseTotalMinor * packageCount != totalCostMinor)) {
       return '请重新选择该门店的套餐';
     }
     if (table != null && (table!.ref.isEmpty || table!.storeRef != store.ref)) {
       return '请重新选择该门店的桌台';
+    }
+    if (official &&
+        (reservedTables.isEmpty ||
+            reservedTables.length > 30 ||
+            reservedTables.map((v) => v.ref).toSet().length !=
+                reservedTables.length ||
+            reservedTables.any(
+              (v) =>
+                  v.ref.isEmpty || v.storeRef != storeRef || v.maximumSeats < 2,
+            ))) {
+      return '请选择1至30个本店预留位置，请勿重复';
     }
     if (!startsAt.isAfter(now) || !endsAt.isAfter(startsAt)) {
       return '请检查活动开始和结束时间';
@@ -111,7 +127,12 @@ class TogetherPartyDraft {
       }
     }
     if (table != null && table!.maximumSeats < 2) return '该桌台暂不可用于组局';
-    if (table != null && capacity > table!.maximumSeats) {
+    if (official &&
+        capacity >
+            reservedTables.fold<int>(0, (sum, v) => sum + v.maximumSeats)) {
+      return '总人数不能超过预留位置的合计容量';
+    }
+    if (!official && table != null && capacity > table!.maximumSeats) {
       return '总人数不能超过桌台容量';
     }
     if (priceMinor < 0 || totalCostMinor < 0) return '费用不能为负数';

@@ -1,4 +1,5 @@
 import '../../club/presentation/party_publisher_page.dart';
+import '../../club/presentation/party_allocation_page.dart';
 
 import 'dart:async';
 
@@ -1419,6 +1420,20 @@ class _MerchantState extends State<_MerchantPage> {
               () => Navigator.of(context).push<String>(
                 MaterialPageRoute(
                   builder: (_) => PartyPublisherPage(
+                    storeRef: widget.store['ref'] as String,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _button(
+              reservationText(
+                c,
+                '活动分座|Activity seating|活動分座|จัดที่นั่งกิจกรรม',
+              ),
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => PartyAllocationPage(
                     storeRef: widget.store['ref'] as String,
                   ),
                 ),

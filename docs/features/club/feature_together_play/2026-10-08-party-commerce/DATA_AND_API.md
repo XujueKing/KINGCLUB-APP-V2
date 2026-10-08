@@ -64,3 +64,8 @@ kingclubMonthlyContractFund冻结原收方及金额，PaymentAttempt每项最多
 量化订台按核销过的不同活动场次，收入按未冲正已核销有效微信/平台现金；两项条件all/any达成并经核对才准备原渠道退款。原银行/现金/线下微信/支付宝由原收方实际退回后记录凭证。线上只退原交易和原商户。
 
 系统消息partner_contract_received/refunded/completed与Outbox同事务去重，target为partner/contract:<UUID>。contractNotices=1兼容新通知类型，旧收件箱不返回无法解析的新类型。
+## 已编码多桌分座契约（421）
+
+商家多选1至30个不重复同店位置，SQL按每桌一份套餐冻结数量/总价；合作者固定一份本人合同位置。K261008002054/kingclub_party_allocation提供workspace、detail、assign：整页一次读取，动作一次请求并直接更新完整结果。真实paid且未核销报名单可选；上限、原池、权限和退款后的空位由数据库判定。不确定时同一选择保留稳定请求重试。
+
+购买前不公开商家池，购买后顾客活动详情展示自己的安排；多桌未分配不能核销。旧柜台整场安排不能压到单桌；收银实际核销先调用kingclub_party_admission_position，内部过程调用不是新增客户端请求。名额退回只来自真实退款状态，调桌历史不删除。

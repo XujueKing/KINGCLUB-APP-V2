@@ -435,8 +435,8 @@ class SecureTogetherPublication {
               ? 'official'
               : 'personal',
           'contractRef': ?draft.contractRef,
-          if (draft.official && draft.table != null)
-            'tablePoolRefs': [draft.table!.ref],
+          if (draft.official)
+            'tablePoolRefs': draft.reservedTables.map((v) => v.ref).toList(),
           'storeRef': draft.storeRef,
           'packageRef': draft.package!.ref,
           if (draft.eligibilityRules.isNotEmpty)

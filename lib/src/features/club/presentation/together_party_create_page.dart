@@ -101,12 +101,24 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
   TogetherStore? _store;
   TogetherPackage? _package;
   TogetherTable? _table;
+  final List<TogetherTable> _tablePool = [];
+  int get _tableCapacity => _official
+      ? _tablePool.fold<int>(0, (sum, v) => sum + v.maximumSeats)
+      : (_table?.maximumSeats ?? 0);
+  int get _packageCount => _official ? _tablePool.length : 1;
+  void _updatePackageTotal() {
+    if (_package != null) {
+      _total.text = (_package!.baseTotalMinor * _packageCount / 100)
+          .toStringAsFixed(2);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _store = widget.initialStore;
     _table = widget.initialTable;
+    if (_official && _table != null) _tablePool.add(_table!);
     if (widget.contractStartsAt != null) {
       final now = DateTime.now().add(const Duration(hours: 1));
       _start =
@@ -128,6 +140,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _store = null;
       _package = null;
       _table = null;
+      _tablePool.clear();
       _place.clear();
       _total.clear();
       _step = 0;
@@ -158,6 +171,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       setState(() {
         _store = selected;
         _table = null;
+        _tablePool.clear();
         _package = null;
         _total.clear();
         _place.text = selected.address;
@@ -181,6 +195,99 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                 .where((v) => v.cityCode == city && v.ref.isNotEmpty)
                 .toList();
       if (!mounted || city != widget.cityCode || repository != widget.stores) {
+        return;
+      }
+      if (table && _official) {
+        final selected = <String>{for (final v in _tablePool) v.ref};
+        final tables = entries.cast<TogetherTable>();
+        final result = await showModalBottomSheet<List<TogetherTable>>(
+          context: context,
+          backgroundColor: const Color(0xff202020),
+          isScrollControlled: true,
+          showDragHandle: true,
+          builder: (sheet) => StatefulBuilder(
+            builder: (sheet, update) => SafeArea(
+              child: SizedBox(
+                height: MediaQuery.sizeOf(sheet).height * .65,
+                child: Column(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        '预留位置 · 可多选',
+                        style: TextStyle(color: Colors.white, fontSize: 17),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          if (tables.isEmpty)
+                            const ListTile(title: Text('该门店暂无可用桌台')),
+                          for (final v in tables)
+                            CheckboxListTile(
+                              value: selected.contains(v.ref),
+                              activeColor: legacyGold,
+                              title: Text(
+                                v.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '最多 ${v.maximumSeats} 人',
+                                style: const TextStyle(color: Colors.white60),
+                              ),
+                              onChanged: (checked) => update(() {
+                                if (checked == true && selected.length < 30) {
+                                  selected.add(v.ref);
+                                }
+                                if (checked != true) selected.remove(v.ref);
+                              }),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: FilledButton(
+                          key: const ValueKey('pool-confirm'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: legacyGold,
+                            foregroundColor: Colors.black,
+                            shape: const StadiumBorder(),
+                          ),
+                          onPressed: selected.isEmpty
+                              ? null
+                              : () => Navigator.pop(
+                                  sheet,
+                                  tables
+                                      .where((v) => selected.contains(v.ref))
+                                      .toList(),
+                                ),
+                          child: Text('确定 · ${selected.length} 桌'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        if (!mounted || _store != store || result == null) return;
+        setState(() {
+          _tablePool
+            ..clear()
+            ..addAll(result);
+          _table = result.first;
+          _capacity.text =
+              '${(int.tryParse(_capacity.text) ?? 2).clamp(2, _tableCapacity)}';
+          _updatePackageTotal();
+        });
         return;
       }
       final selected = await showModalBottomSheet<Object>(
@@ -230,6 +337,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           _store = selected;
           _package = null;
           _table = null;
+          _tablePool.clear();
           _place.text = selected.address;
         } else if (selected is TogetherTable &&
             selected.storeRef == _store?.ref) {
@@ -422,7 +530,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
             true) {
           _minimumExperience = null;
         }
-        _total.text = (selected.baseTotalMinor / 100).toStringAsFixed(2);
+        _updatePackageTotal();
       });
     } catch (_) {
       if (mounted) setState(() => _error = '暂时无法读取套餐，请重试');
@@ -511,6 +619,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       poster: _poster!,
       additionalPosters: _posters.skip(1).toList(),
       table: _table,
+      tablePool: List.unmodifiable(_tablePool),
       package: _package,
       eligibilityRules: {
         'minAge': ?minimumAge,
@@ -1267,17 +1376,19 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                       ),
                       _selection(
                         _official ? '预留位置：' : '签约位置：',
-                        _table?.name ?? '请选择',
+                        _official && _tablePool.isNotEmpty
+                            ? _tablePool.map((v) => v.name).join('、')
+                            : _table?.name ?? '请选择',
                         _store == null || widget.contractRef != null
                             ? null
                             : () => _pickVenue(table: true),
                       ),
                       if (widget.publisherType != null)
                         Padding(
-                          padding: const EdgeInsets.only(top: 6, bottom: 10),
+                          padding: const EdgeInsets.fromLTRB(28, 6, 28, 10),
                           child: Text(
                             _official
-                                ? '发布时预留这个位置，购买前隐藏编号。'
+                                ? '发布时预留所选位置，每桌一份套餐。顾客购买前隐藏编号，付款后由商家分座。'
                                 : '使用本人按月签约的位置，编号及已加入人数对顾客公开。',
                             style: const TextStyle(
                               color: Colors.white54,
@@ -1292,7 +1403,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         _table == null
                             ? null
                             : () {
-                                final max = _table!.maximumSeats;
+                                final max = _tableCapacity.clamp(2, 1000);
                                 _wheel(
                                   '聚会人数 · 最多 $max 人',
                                   [
@@ -1315,10 +1426,17 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         '套餐价格：',
                         _package == null
                             ? '—'
-                            : '¥${moneyAmount((_package!.baseTotalMinor / 100))} 元',
+                            : '¥${moneyAmount((_package!.baseTotalMinor / 100))} × $_packageCount 桌',
                         null,
                         accent: true,
                       ),
+                      if (_official && _package != null)
+                        _selection(
+                          '整场合计：',
+                          '¥${moneyAmount(_package!.baseTotalMinor * _packageCount / 100)}',
+                          null,
+                          accent: true,
+                        ),
                     ]),
                   if (_step == 3)
                     _group([
