@@ -1,11 +1,13 @@
 # 用户碎片需求台账
 
-- 首次记录 / 本次更新：2026-09-10；主项目：`D:\WEB3_AI\KINGCLUB-APP-V2`。
+- 首次记录：2026-09-10；本次更新：2026-10-08；主项目：`D:\WEB3_AI\KINGCLUB-APP-V2`。
 - 用途：持续记录用户原意、归类、冲突、待定规则以及对需求/架构/ROADMAP 的影响，不依赖聊天记忆。
 - 状态分开记录：**用户明确要求 = 已确认产品方向**；详细规格、技术选型、首发批次仍可为 **In Review**。收录不等于开发完成，也不授予真实 SDK/生产接入。
 - 关联：[产品主表](PRODUCT_REQUIREMENTS.md)、[技术调研](MEDIA_AND_FACE_RESEARCH.md)、[架构](ARCHITECTURE.md)、[ROADMAP](ROADMAP.md)。
 
-**最新澄清：保留腾讯照片实名认证，仅不接新增 App 活体核身 SDK。**用户要求先开发注册准入，并允许本模块独立 UI 验收后接隔离测试环境；同时确认所有功能必须逐个审查数据库表及完整数据链，旧数据库和业务逻辑作为正确基线，只现代化其表达、结构和工程架构。见 RQ-23～27、[接口核查](../../features/identity/feature_member_onboarding/2026-09-10-tencent-adapter-review.md)、[数据审查门禁](FEATURE_DATA_REVIEW_GATE.md)与[现代化原则](DATA_MODERNIZATION_PRINCIPLES.md)。当前累计 **27 条**。
+**2026-09-10 澄清：保留腾讯照片实名认证，仅不接新增 App 活体核身 SDK。**用户要求先开发注册准入，并允许本模块独立 UI 验收后接隔离测试环境；同时确认所有功能必须逐个审查数据库表及完整数据链，旧数据库和业务逻辑作为正确基线，只现代化其表达、结构和工程架构。见 RQ-23～27、[接口核查](../../features/identity/feature_member_onboarding/2026-09-10-tencent-adapter-review.md)、[数据审查门禁](FEATURE_DATA_REVIEW_GATE.md)与[现代化原则](DATA_MODERNIZATION_PRINCIPLES.md)。截至2026-09-10累计 **27 条**；2026-10-08追加商家主体与合作身份要求，当前累计 **28 条**。
+
+**2026-10-08 新增确认**：商家经营主体一般由普通会员账号担任主体超级管理员；合作体系分为超级管理员、省级合作者、市级合作者和普通合作者。详见 RQ-20261008-01 及 [合作平台设计](../../features/partners/feature_partner_platform/DESIGN.md)。
 
 ## 1. 持续整理规则
 
@@ -120,3 +122,13 @@
 - D11：两个游戏的玩法资料、接入载体和首发深度；目前确认的是大厅与入口。
 
 这些均同步到 [ROADMAP](ROADMAP.md#待用户决策)。本批完成的是记录、整理和官方调研，未安装 SDK、下载人脸数据集、训练模型、付费开通、修改旧服务或执行迁移。
+
+## 商家主体与合作身份
+
+确认日期：2026-10-08。需求方向已确认，详细权限与流程待设计。
+
+| 编号 | 用户原意 | 已确认要求与影响 | PR / 工作包 |
+|---|---|---|---|
+| RQ-20261008-01 | 商家经营主体一般由一个普通会员账号作为超级管理员管理；申请成为商家的任务由市级、普通合作者执行；省级只组织市区域合作者；合作身份有管理员部分的超级管理员、省级合作者、市级合作者，以及普通合作者四种 | 合作身份、区域组织、商家主体授权和 L1–L15 收益等级分别定义。商家入驻任务的执行归因与商家主体管理员账号分别保存；省级合作者职责限于组织市区域合作者，不自动推导级差分佣或额外审批权。四类角色及区域边界尚未完整实现，角色授予、入驻验收和商家管理员绑定时点待详细设计 | PR-29、PR-37 / W13 |
+
+功能规格已同步到 [合作平台](../../features/partners/feature_partner_platform/README.md)、[合作身份与权限](../../features/partners/feature_partner_platform/DESIGN.md)和 [商家身份页](../../features/partners/feature_partner_platform/pages/merchant/DESIGN.md)。
