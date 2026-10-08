@@ -48,7 +48,7 @@ app.*.map.json
 
 # Local one-off build diagnostics and artifact retrieval helpers.
 /build-DefaultEncoderFactory.java
-/build-download-banner.py
+/build-download-*.py
 /build-novorudp-rust-frames.json
 /build-sticker-device.png
 
@@ -57,6 +57,7 @@ app.*.map.json
 
 # Local Android visual-QA scratch captures
 /.tmp-*
+/.tmp_personal_preview_test.dart
 /.audit-current.xml
 
 # Reference attachments belong outside the project; specifications and acceptance text remain tracked.
