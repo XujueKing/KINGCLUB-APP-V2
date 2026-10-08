@@ -9,6 +9,7 @@ import '../../auth/domain/auth_repository.dart';
 import '../data/secure_together_publication.dart';
 import '../data/together_party_draft.dart';
 import 'legacy_club_components.dart';
+import 'reservation_components.dart';
 
 /// Returns the server's party reference only after confirmed publication.
 class TogetherPublishConfirmationPage extends StatefulWidget {
@@ -96,6 +97,9 @@ class _ConfirmationState extends State<TogetherPublishConfirmationPage> {
       canPop: !_busy,
       child: LegacyClubScaffold(
         title: '确认发布',
+        titleColor: Colors.white,
+        titleFontSize: 17,
+        titleFontWeight: FontWeight.w600,
         showMockLabel: false,
         onBack: () {
           if (!_busy) Navigator.of(context).pop();
@@ -127,8 +131,10 @@ class _ConfirmationState extends State<TogetherPublishConfirmationPage> {
             const SizedBox(height: 24),
             if (q != null) ...[
               Text(
-                widget.draft.official
-                    ? '商家官方活动 · 无需押金'
+                widget.draft.backedPublication
+                    ? widget.draft.contractRef == null
+                          ? '商家官方活动 · 无需押金'
+                          : '签约位置活动 · 无需另付押金'
                     : '冻结 APP 余额 ¥${_money(q.depositCents)}',
                 style: const TextStyle(color: legacyPink, fontSize: 22),
               ),
@@ -141,8 +147,10 @@ class _ConfirmationState extends State<TogetherPublishConfirmationPage> {
               ),
               const SizedBox(height: 20),
               Text(
-                widget.draft.official
-                    ? '本店官方活动不冻结个人 APP 余额。'
+                widget.draft.backedPublication
+                    ? widget.draft.contractRef == null
+                          ? '本店官方活动预留真实位置，购买前不公开编号。'
+                          : '按本人合同编号发布，参加者购买前可查看位置和已加入人数。'
                     : '个人发起按商家基础消费冻结 APP 余额。参加者付款并入场核销后，按实收口径立即解冻，最多解冻原押金。',
                 style: const TextStyle(color: legacyGold, height: 1.6),
               ),
@@ -158,8 +166,10 @@ class _ConfirmationState extends State<TogetherPublishConfirmationPage> {
                 onChanged: _busy || _attempted
                     ? null
                     : (v) => setState(() => _accepted = v ?? false),
-                title: const Text(
-                  '确认活动价格与押金规则',
+                title: Text(
+                  widget.draft.backedPublication
+                      ? '确认活动价格、位置与发布规则'
+                      : '确认活动价格与押金规则',
                   style: TextStyle(color: legacyGold),
                 ),
               ),
@@ -172,9 +182,13 @@ class _ConfirmationState extends State<TogetherPublishConfirmationPage> {
             if (!_busy && q == null)
               TextButton(onPressed: _load, child: const Text('重新获取报价')),
             if (q != null)
-              FilledButton(
-                onPressed: _busy || !_accepted ? null : _publish,
-                child: Text(_attempted ? '重试确认发布' : '确认冻结押金并发布'),
+              reservationButton(
+                _attempted
+                    ? '重试确认发布'
+                    : widget.draft.backedPublication
+                    ? '确认发布AA邀请'
+                    : '确认冻结押金并发布',
+                _busy || !_accepted ? null : _publish,
               ),
           ],
         ),

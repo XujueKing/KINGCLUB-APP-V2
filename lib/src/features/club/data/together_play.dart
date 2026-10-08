@@ -39,6 +39,7 @@ class TogetherParty {
     required this.endsAt,
     required this.hostName,
     required this.merchantHost,
+    this.collaboratorHost = false,
     required this.place,
     required this.capacity,
     required this.participants,
@@ -75,6 +76,12 @@ class TogetherParty {
       rules;
   final DateTime startsAt, endsAt;
   final bool merchantHost;
+  final bool collaboratorHost;
+  String get publisherLabel => merchantHost
+      ? '商家'
+      : collaboratorHost
+      ? '合作者'
+      : '会员';
   final int capacity, priceMinor;
   final List<TogetherParticipant> participants;
   final TogetherFeeMode feeMode;
@@ -90,8 +97,8 @@ class TogetherParty {
   /// Merchant-provided image reference; never assume every store is KING.
   final String? storeLogo;
 
-  /// Server-assigned table for this member's confirmed booking; never infer
-  /// it from a party title, store reference or payment alone.
+  /// Server-assigned position. Signed collaborator positions are public before
+  /// purchase; merchant blind positions are disclosed after confirmation only.
   final String? assignedTable;
 
   /// Authenticated member's credential projection; never derive from party ID.
@@ -113,6 +120,7 @@ class TogetherParty {
     endsAt: endsAt,
     hostName: hostName,
     merchantHost: merchantHost,
+    collaboratorHost: collaboratorHost,
     place: place,
     capacity: capacity,
     participants: participants,

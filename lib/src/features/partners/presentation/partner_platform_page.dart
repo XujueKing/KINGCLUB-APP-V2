@@ -1,3 +1,5 @@
+import '../../club/presentation/party_publisher_page.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -1409,6 +1411,20 @@ class _MerchantState extends State<_MerchantPage> {
                 ],
               ),
             ),
+            _button(
+              reservationText(
+                c,
+                '发布AA邀请|Publish AA invitation|發布AA邀請|เผยแพร่คำเชิญ AA',
+              ),
+              () => Navigator.of(context).push<String>(
+                MaterialPageRoute(
+                  builder: (_) => PartyPublisherPage(
+                    storeRef: widget.store['ref'] as String,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             _button(
               reservationText(c, '预订产品|Reservation products|預訂產品|รายการจอง'),
               () => Navigator.of(context).push(

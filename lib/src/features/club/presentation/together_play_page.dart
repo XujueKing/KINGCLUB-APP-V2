@@ -748,7 +748,7 @@ class TogetherAvailableRow extends StatelessWidget {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                '${party.merchantHost ? '商家发起' : '会员发起'}${party.hostName.trim().isEmpty ? '' : ' · ${party.hostName}'}',
+                                '${party.publisherLabel}发起${party.hostName.trim().isEmpty ? '' : ' · ${party.hostName}'}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: style(22, Colors.white54),
@@ -789,6 +789,15 @@ class TogetherAvailableRow extends StatelessWidget {
                       key: ValueKey('together-invitation-time-${party.ref}'),
                       style: style(24, legacyGold),
                     ),
+                    if (party.collaboratorHost &&
+                        party.assignedTable != null) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        '位置 ${party.assignedTable}',
+                        key: ValueKey('together-fixed-position-${party.ref}'),
+                        style: style(24, Colors.white70),
+                      ),
+                    ],
                     const SizedBox(height: 5),
                     Text(
                       rules.isEmpty ? party.feeLabel : rules,
@@ -1104,7 +1113,7 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
               ),
               const SizedBox(height: 16),
               Text(
-                '${_party.merchantHost ? '商家' : '会员'} ${_party.hostName} 发起',
+                '${_party.publisherLabel} ${_party.hostName} 发起',
                 style: const TextStyle(color: legacyGold),
               ),
               const SizedBox(height: 10),
@@ -1113,6 +1122,11 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
                 style: const TextStyle(color: Colors.white70, height: 1.8),
               ),
               const SizedBox(height: 22),
+              if (_party.collaboratorHost && _party.assignedTable != null)
+                Text(
+                  '位置 ${_party.assignedTable} · 已加入 ${_party.participantCount}/${_party.capacity} 人',
+                  style: const TextStyle(color: Colors.white, fontSize: 17),
+                ),
               Align(
                 alignment: Alignment.centerLeft,
                 child: SizedBox(

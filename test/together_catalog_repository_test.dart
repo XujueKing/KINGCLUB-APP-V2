@@ -27,6 +27,30 @@ void main() {
     'backgroundUrl': 'https://example.test/a.jpg',
     'posterUrl': 'https://example.test/b.jpg',
   };
+  test('signed collaborator position is visible before payment; merchant position stays private', () async {
+    for (final kind in ['official', 'collaborator']) {
+      final repo = SecureTogetherPlayRepository(
+        readSession: () async => session,
+        request: (_, _, _) async => {
+          'result': {
+            'item': {
+              ...row('position'),
+              'publisherType': kind,
+              'assignedTable': 'V8',
+              'confirmedCount': 4,
+              'eligibility': {'eligible': true, 'reasons': [], 'payableCents': '15000'},
+            },
+          },
+        },
+      );
+      final party = await repo.detail('position');
+      expect(party.assignedTable, kind == 'collaborator' ? 'V8' : null);
+      expect(party.participantCount, 4);
+      expect(party.collaboratorHost, kind == 'collaborator');
+      expect(party.hasAdmissionTicket, false);
+      expect(party.hasAssignedTable, false);
+    }
+  });
   test('saved participation rules are visible without overriding server eligibility', () async {
     final repo = SecureTogetherPlayRepository(
       readSession: () async => session,

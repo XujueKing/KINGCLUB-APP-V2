@@ -1,3 +1,5 @@
+import 'party_publisher_page.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -853,6 +855,25 @@ class _MonthlyContractDetailState extends State<MonthlyContractDetailPage> {
           ? reservationButton(
               reservationText(c, '领取并签约|Claim and sign|領取並簽約|รับงานและลงนาม'),
               !_busy && _accepted ? _claim : null,
+            )
+          : item != null &&
+                item['status'] == 'active' &&
+                reservationFlag(item['isMine'])
+          ? reservationButton(
+              reservationText(
+                c,
+                '发布本卡座AA邀请|Publish invitation for this table|發布本卡座AA邀請|เผยแพร่คำเชิญสำหรับโต๊ะนี้',
+              ),
+              _busy
+                  ? null
+                  : () => Navigator.of(c).push<String>(
+                      MaterialPageRoute(
+                        builder: (_) => PartyPublisherPage(
+                          storeRef: item['storeRef'],
+                          contractRef: widget.contractRef,
+                        ),
+                      ),
+                    ),
             )
           : null,
     );

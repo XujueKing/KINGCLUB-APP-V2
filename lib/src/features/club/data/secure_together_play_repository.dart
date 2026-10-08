@@ -218,6 +218,7 @@ class SecureTogetherPlayRepository
           ? '会员'
           : _text(r['hostName']),
       merchantHost: r['publisherType'] == 'official',
+      collaboratorHost: r['publisherType'] == 'collaborator',
       allowCoins: r['allowCoins'] == true,
       place: _text(r['place']),
       capacity: capacity,
@@ -226,7 +227,9 @@ class SecureTogetherPlayRepository
       ticketNumber: bookingStatus == 'paid' && r['ticketNumber'] != null
           ? _ref(r['ticketNumber'])
           : null,
-      assignedTable: bookingStatus == 'paid' && r['assignedTable'] != null
+      assignedTable:
+          (bookingStatus == 'paid' || r['publisherType'] == 'collaborator') &&
+              r['assignedTable'] != null
           ? _text(r['assignedTable'])
           : null,
       admissionUsed: bookingStatus == 'paid' && r['admissionUsed'] == true,

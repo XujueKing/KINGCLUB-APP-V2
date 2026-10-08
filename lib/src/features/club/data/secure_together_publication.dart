@@ -7,6 +7,8 @@ import '../../auth/domain/auth_repository.dart';
 import '../../commerce/data/ordering_table_repository.dart';
 import 'together_party_draft.dart';
 import 'together_play.dart';
+import 'together_store.dart';
+import 'party_publisher_workspace.dart';
 
 class TogetherPublicationQuote {
   const TogetherPublicationQuote({
@@ -91,6 +93,133 @@ class SecureTogetherPublication {
 
   Map<int, String> _memberLevels = {};
   Map<int, String> get memberLevels => Map.unmodifiable(_memberLevels);
+
+  Future<PartyPublisherWorkspace> workspace({
+    required String storeRef,
+    required String publisherType,
+    String? contractRef,
+  }) async {
+    _ref(storeRef);
+    if (!['official', 'collaborator'].contains(publisherType) ||
+        (publisherType == 'collaborator' && contractRef == null)) {
+      _invalid();
+    }
+    final session = await readSession();
+    final identity = _identity(session);
+    final result = await _call(
+      'K261008002052',
+      {
+        'storeRef': storeRef,
+        'publisherType': publisherType,
+        'contractRef': ?contractRef,
+      },
+      session!,
+      identity,
+    );
+    if (result['publisherType'] != publisherType ||
+        result['contractRef'] != contractRef ||
+        result['store'] is! Map) {
+      _invalid();
+    }
+    final st = result['store'] as Map;
+    if (st['ref'] != storeRef ||
+        st['name'] is! String ||
+        st['address'] is! String ||
+        st['cityName'] is! String) {
+      _invalid();
+    }
+    final store = TogetherStore(
+      ref: storeRef,
+      name: st['name'],
+      cityCode: _ref(st['cityCode']),
+      address: st['address'],
+      logoUrl: st['logo'] as String?,
+    );
+    List<Map> rows(Object? value) {
+      if (value is! List || value.length > 100 || value.any((r) => r is! Map)) {
+        _invalid();
+      }
+      return value.cast<Map>();
+    }
+
+    final tables = rows(result['tables']).map((r) {
+      if (r['name'] is! String || r['capacity'] is! int || r['capacity'] < 2) {
+        _invalid();
+      }
+      return TogetherTable(
+        ref: _ref(r['ref']),
+        storeRef: storeRef,
+        name: r['name'],
+        maximumSeats: r['capacity'],
+      );
+    }).toList();
+    final packages = rows(result['packages']).map((r) {
+      if (r['names'] is! Map || r['names']['zh-CN'] is! String) _invalid();
+      final amount = int.tryParse(_money(r['baseTotalCents']));
+      if (amount == null || amount < 1 || amount > 100000000) _invalid();
+      return TogetherPackage(
+        ref: _ref(r['ref']),
+        storeRef: storeRef,
+        name: r['names']['zh-CN'],
+        baseTotalMinor: amount,
+      );
+    }).toList();
+    final artwork = rows(result['artwork']).map((r) {
+      if (r['status'] != 'approved' ||
+          r['name'] is! String ||
+          r['url'] is! String) {
+        _invalid();
+      }
+      final uri = Uri.tryParse(r['url']);
+      if (uri == null ||
+          uri.scheme != 'https' ||
+          uri.host.isEmpty ||
+          uri.userInfo.isNotEmpty ||
+          uri.queryParameters.keys.any(
+            (k) => RegExp(
+              r'token|signature|credential|secret|authorization',
+              caseSensitive: false,
+            ).hasMatch(k),
+          )) {
+        _invalid();
+      }
+      return TogetherArtwork(
+        ref: _ref(r['ref']),
+        name: r['name'],
+        url: r['url'],
+        status: TogetherArtworkStatus.approved,
+      );
+    }).toList();
+    _memberLevels = {};
+    for (final level in rows(result['memberLevels'])) {
+      if (level['minimumExperience'] is! int || level['name'] is! String) {
+        _invalid();
+      }
+      _memberLevels[level['minimumExperience']] = level['name'];
+    }
+    final contract = result['contract'];
+    DateTime? start, end;
+    if (publisherType == 'collaborator') {
+      if (contract is! Map ||
+          contract['ref'] != contractRef ||
+          tables.length != 1 ||
+          contract['tableRef'] != tables.single.ref) {
+        _invalid();
+      }
+      start = DateTime.tryParse('${contract['startsAt']}');
+      end = DateTime.tryParse('${contract['endsAt']}');
+      if (start == null || end == null || !end.isAfter(start)) _invalid();
+    }
+    return PartyPublisherWorkspace(
+      store: store,
+      cityName: st['cityName'],
+      tablesList: tables,
+      packages: packages,
+      artwork: artwork,
+      contractStartsAt: start,
+      contractEndsAt: end,
+    );
+  }
 
   Future<List<TogetherPackage>> packages(String storeRef) async {
     _ref(storeRef);
@@ -300,7 +429,14 @@ class SecureTogetherPublication {
           'requestRef': requestRef,
           'cityCode': draft.cityCode,
           'allowCoins': draft.allowCoins,
-          'publisherType': draft.official ? 'official' : 'personal',
+          'publisherType': draft.contractRef != null
+              ? 'collaborator'
+              : draft.official
+              ? 'official'
+              : 'personal',
+          'contractRef': ?draft.contractRef,
+          if (draft.official && draft.table != null)
+            'tablePoolRefs': [draft.table!.ref],
           'storeRef': draft.storeRef,
           'packageRef': draft.package!.ref,
           if (draft.eligibilityRules.isNotEmpty)
@@ -311,7 +447,7 @@ class SecureTogetherPublication {
               'femaleSeats': draft.femaleSeats,
               'femaleBasePriceCents': '${draft.femaleBasePriceMinor}',
             },
-          'tableRef': draft.tableRef,
+          'tableRef': draft.official ? null : draft.tableRef,
           'theme': draft.theme,
           'place': draft.place,
           'description': draft.description,
@@ -342,10 +478,12 @@ class SecureTogetherPublication {
       _invalid();
     }
     final deposit = _money(
-      result['depositCents'] ?? (draft.official ? null : result['totalCents']),
+      result['depositCents'] ??
+          (draft.backedPublication ? null : result['totalCents']),
     );
     if (_money(result['totalCents']) != '${draft.totalCostMinor}' ||
-        deposit != (draft.official ? '0' : '${draft.totalCostMinor}')) {
+        deposit !=
+            (draft.backedPublication ? '0' : '${draft.totalCostMinor}')) {
       _invalid();
     }
     return TogetherPublicationQuote(

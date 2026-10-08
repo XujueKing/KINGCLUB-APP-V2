@@ -16,6 +16,7 @@ import '../data/secure_together_publication.dart';
 import 'together_publish_confirmation_page.dart';
 import 'together_store_picker_page.dart';
 import 'legacy_club_components.dart';
+import '../../../core/design_system/king_components.dart';
 
 class TogetherPartyCreatePage extends StatefulWidget {
   const TogetherPartyCreatePage({
@@ -33,12 +34,18 @@ class TogetherPartyCreatePage extends StatefulWidget {
     this.onSelectCity,
     this.initialStore,
     this.initialTable,
+    this.publisherType,
+    this.contractRef,
+    this.contractStartsAt,
+    this.contractEndsAt,
   }) : assert(onReview != null || publication != null),
        assert(loadLibrary != null || publication != null);
   final String cityCode, cityName;
   final TogetherStore? initialStore;
   final TogetherTable? initialTable;
   final bool personal;
+  final String? publisherType, contractRef;
+  final DateTime? contractStartsAt, contractEndsAt;
   final VoidCallback? onSelectCity;
   final TogetherStoreRepository stores;
   final Future<List<TogetherPackage>> Function(String storeRef)? loadPackages;
@@ -63,7 +70,8 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       _capacity = TextEditingController(text: '6'),
       _price = TextEditingController(),
       _total = TextEditingController();
-  bool _official = false;
+  bool get _official => widget.publisherType == 'official';
+  bool get _guided => widget.personal || widget.publisherType != null;
   final _welcome = TextEditingController();
   int _step = 0;
   String? _plan;
@@ -99,6 +107,15 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     super.initState();
     _store = widget.initialStore;
     _table = widget.initialTable;
+    if (widget.contractStartsAt != null) {
+      final now = DateTime.now().add(const Duration(hours: 1));
+      _start =
+          (widget.contractStartsAt!.isAfter(now)
+                  ? widget.contractStartsAt!
+                  : now)
+              .toLocal();
+      _end = _start!.add(const Duration(hours: 3));
+    }
     if (_store != null) _place.text = _store!.address;
     if (_table != null) _capacity.text = '${_table!.maximumSeats.clamp(2, 6)}';
   }
@@ -118,8 +135,13 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
   }
 
   Future<void> _pickVenue({bool table = false}) async {
-    if (_busy || (table && _store == null)) return;
-    if (widget.personal && !table) {
+    if (_busy ||
+        (table && _store == null) ||
+        (widget.publisherType != null && !table) ||
+        (table && widget.contractRef != null)) {
+      return;
+    }
+    if (_guided && !table) {
       final city = widget.cityCode;
       final selected = await TogetherStorePickerPage.open(
         context,
@@ -212,7 +234,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         } else if (selected is TogetherTable &&
             selected.storeRef == _store?.ref) {
           _table = selected;
-          if (widget.personal) {
+          if (_guided) {
             final count = int.tryParse(_capacity.text) ?? 2;
             _capacity.text = '${count.clamp(2, selected.maximumSeats)}';
           }
@@ -415,7 +437,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       setState(() => _error = '请先选择活动门店');
       return;
     }
-    if (widget.personal && _table == null) {
+    if (_guided && _table == null) {
       setState(() => _error = '请先选择卡座');
       return;
     }
@@ -468,7 +490,8 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       return;
     }
     final draft = TogetherPartyDraft(
-      official: widget.personal ? false : _official,
+      official: _official,
+      contractRef: widget.contractRef,
       allowCoins: _allowCoins,
       theme: _theme.text.trim(),
       cityCode: widget.cityCode,
@@ -481,7 +504,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
       priceMinor: price,
       totalCostMinor: total,
       description: [
-        if (widget.personal) _welcome.text.trim(),
+        if (_guided) _welcome.text.trim(),
         _description.text.trim(),
       ].where((text) => text.isNotEmpty).join('\n\n'),
       background: _background!,
@@ -845,7 +868,9 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         : '男 ${a.isEmpty ? '不限' : a} / 女 ${b.isEmpty ? '不限' : b}';
   }
 
-  static const _steps = ['选择城市与门店', '主题与组局方案', '预订卡座与套餐', '设置参加规则', '完善活动介绍'];
+  List<String> get _steps => widget.publisherType != null
+      ? ['确认发布门店', '主题与活动方案', '位置、时间与套餐', '设置参加规则', '完善活动介绍']
+      : ['选择城市与门店', '主题与组局方案', '预订卡座与套餐', '设置参加规则', '完善活动介绍'];
 
   void _previous() {
     if (_step == 0) {
@@ -1019,50 +1044,59 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
     },
     child: Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Column(
           children: [
-            SizedBox(
-              height: 58,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 18,
-                    top: 10,
-                    right: 64,
-                    child: Text(
-                      _steps[_step],
-                      key: const ValueKey('personal-step-title'),
-                      style: kingSectionTitleStyle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            if (widget.publisherType != null)
+              kingAppBar(
+                context: context,
+                title: const Text('发布AA邀请'),
+                foregroundColor: Colors.white,
+                leading: KingBackButton(onPressed: _previous),
+              )
+            else
+              SizedBox(
+                height: 58,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 18,
+                      top: 10,
+                      right: 64,
+                      child: Text(
+                        _steps[_step],
+                        key: const ValueKey('personal-step-title'),
+                        style: kingSectionTitleStyle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    right: 8,
-                    top: 0,
-                    child: IconButton(
-                      key: const ValueKey('personal-close'),
-                      tooltip: '关闭',
-                      onPressed: widget.onBack,
-                      icon: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          color: Color(0xFF223039),
-                          size: 20,
+                    Positioned(
+                      right: 8,
+                      top: 0,
+                      child: IconButton(
+                        key: const ValueKey('personal-close'),
+                        tooltip: '关闭',
+                        onPressed: widget.onBack,
+                        icon: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: Color(0xFF223039),
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
             Padding(
               padding: EdgeInsets.fromLTRB(
                 24,
@@ -1147,7 +1181,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         ],
                       ),
                     ),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.fromLTRB(24, 0, 24, 10),
                       child: Text(
                         '选择组局方案',
@@ -1232,10 +1266,26 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         accent: true,
                       ),
                       _selection(
-                        '选择卡座：',
+                        _official ? '预留位置：' : '签约位置：',
                         _table?.name ?? '请选择',
-                        _store == null ? null : () => _pickVenue(table: true),
+                        _store == null || widget.contractRef != null
+                            ? null
+                            : () => _pickVenue(table: true),
                       ),
+                      if (widget.publisherType != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6, bottom: 10),
+                          child: Text(
+                            _official
+                                ? '发布时预留这个位置，购买前隐藏编号。'
+                                : '使用本人按月签约的位置，编号及已加入人数对顾客公开。',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 13,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
                       _selection(
                         '聚会人数：',
                         '${_capacity.text} 人',
@@ -1354,11 +1404,13 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                       ),
                     ]),
                   if (_step == 4)
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(28, 4, 28, 20),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(28, 4, 28, 20),
                       child: Text(
-                        '押金从APP余额冻结。参加者付款并入场核销后，按实收金额解冻。',
-                        style: TextStyle(
+                        widget.publisherType != null
+                            ? '发布前服务器会核对本店套餐、位置和签约权限，确认后开放顾客报名。'
+                            : '押金从APP余额冻结。参加者付款并入场核销后，按实收金额解冻。',
+                        style: const TextStyle(
                           color: Color(0xFF8B8174),
                           fontSize: 12,
                           height: 1.6,
@@ -1411,7 +1463,9 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
                         _busy
                             ? '\u8bf7\u7a0d\u5019'
                             : _step == 4
-                            ? '\u786e\u8ba4\u65b9\u6848\u4e0e\u62bc\u91d1'
+                            ? widget.publisherType != null
+                                  ? '确认方案与发布'
+                                  : '\u786e\u8ba4\u65b9\u6848\u4e0e\u62bc\u91d1'
                             : '\u4e0b\u4e00\u6b65',
                       ),
                     ),
@@ -1426,8 +1480,11 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
   );
 
   @override
-  Widget build(BuildContext context) =>
-      widget.personal ? _personalPage() : _standardPage(context);
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.translucent,
+    onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+    child: _guided ? _personalPage() : _standardPage(context),
+  );
 
   Widget _standardPage(BuildContext context) => LegacyClubScaffold(
     title: '发起组局',
@@ -1489,15 +1546,6 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
           '总人数${_table == null ? '' : '（最多${_table!.maximumSeats}人）'}',
           _capacity,
           number: true,
-        ),
-        KingSwitchListTile(
-          title: const Text('门店官方发起', style: TextStyle(color: legacyGold)),
-          subtitle: const Text(
-            '仅本店官方账号所属商家可用，服务器核验后免押金',
-            style: TextStyle(color: legacyGold),
-          ),
-          value: _official,
-          onChanged: _busy ? null : (v) => setState(() => _official = v),
         ),
         KingSwitchListTile(
           title: const Text('允许金币抵扣', style: TextStyle(color: legacyGold)),
@@ -1571,7 +1619,7 @@ class _TogetherPartyCreatePageState extends State<TogetherPartyCreatePage> {
         Text(
           _official
               ? '本店官方活动经服务器核验商家身份后，无需冻结押金。'
-              : '个人发起按商家基础消费冻结 APP 余额。参加者付款并入场核销后，等额押金立即解冻回 APP 可用余额。',
+              : '签约合作者发布本人编号位置，执行合同已锁定的收益条款。',
           style: const TextStyle(color: Colors.white54, height: 1.5),
         ),
         const SizedBox(height: 18),
