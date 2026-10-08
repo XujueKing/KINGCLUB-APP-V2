@@ -5,7 +5,9 @@ import '../../../core/design_system/king_input_style.dart';
 import '../../home/data/home_city_catalog.dart';
 import '../../home/presentation/home_city_page.dart';
 import '../data/reservation_products.dart';
+import '../data/reservation_deposits.dart';
 import 'reservation_components.dart';
+import 'reservation_deposit_status_page.dart';
 
 class ReservationDiscoveryPage extends StatefulWidget {
   const ReservationDiscoveryPage({
@@ -744,8 +746,10 @@ class MemberReservationsPage extends StatefulWidget {
   const MemberReservationsPage({
     super.key,
     this.call = callReservationProducts,
+    this.depositCall = callReservationDeposit,
   });
   final ReservationCall call;
+  final ReservationCall depositCall;
   @override
   State<MemberReservationsPage> createState() => _MemberReservationsState();
 }
@@ -785,10 +789,16 @@ class _MemberReservationsState extends State<MemberReservationsPage> {
                 onTap: () async {
                   await Navigator.of(c).push(
                     MaterialPageRoute(
-                      builder: (_) => ReservationReceiptPage(
-                        reservation: row,
-                        call: widget.call,
-                      ),
+                      builder: (_) =>
+                          reservationCents(row['snapshot']['depositCents']) > 0
+                          ? ReservationDepositStatusPage(
+                              depositRef: row['ref'],
+                              call: widget.depositCall,
+                            )
+                          : ReservationReceiptPage(
+                              reservation: row,
+                              call: widget.call,
+                            ),
                     ),
                   );
                   if (mounted) setState(() => _future = _load());

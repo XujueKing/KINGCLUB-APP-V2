@@ -43,13 +43,15 @@ Widget reservationRow(String label, String value) => Padding(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Expanded(
+        flex: 2,
         child: Text(
           label,
           style: const TextStyle(color: Colors.white60, fontSize: 15),
         ),
       ),
       const SizedBox(width: 16),
-      Flexible(
+      Expanded(
+        flex: 3,
         child: Text(
           value,
           textAlign: TextAlign.right,
