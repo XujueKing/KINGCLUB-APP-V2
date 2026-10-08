@@ -54,3 +54,13 @@
 取消：服务器截止前、恰好4小时、迟1毫秒；定金抵扣后不能再按未到店退；渠道结果未知保留原请求；不同门店时区与月底跨天不偏移。
 
 上线：全量后台verify、实际MySQL隔离事务/并发验证、Flutter权限/状态/键盘与导航测试、320/390/430dp视觉；部署前开发库备份并检查只影响KINGCLUB。最后分别验收真实请求次数/端到端耗时与两端实机，不以单元测试模拟成功代替到账。
+
+## 已编码合同资金契约（420）
+
+K261008002053调用kingclub_contract_funds：detail、record_offline、record_return、complete、payment(prepare/query/cancel)、refund(request/query)，一次动作返回整份合同及两项资金、渠道/凭证、履约进度与可操作状态。公开输入不能包含paid、binding、admin、_internal等内部字段；最终资金确认、目标条件与生效仍取SQL结果。合同详情使用K261008002051，一次投影不逐个资金读取。
+
+kingclubMonthlyContractFund冻结原收方及金额，PaymentAttempt每项最多一笔未决，Refund每项唯一；不增加平台现金/门店储值/收益。短事务提交发送状态后由现有微信适配器通信，跨进程连接锁与恢复租约防止同时重发/关单；结果未知保留，验签查询确认后记已收/已退。merchantApp与商家小程序merchantDirect、平台APP配置各自明确选择；未配置不可猜。
+
+量化订台按核销过的不同活动场次，收入按未冲正已核销有效微信/平台现金；两项条件all/any达成并经核对才准备原渠道退款。原银行/现金/线下微信/支付宝由原收方实际退回后记录凭证。线上只退原交易和原商户。
+
+系统消息partner_contract_received/refunded/completed与Outbox同事务去重，target为partner/contract:<UUID>。contractNotices=1兼容新通知类型，旧收件箱不返回无法解析的新类型。

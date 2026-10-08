@@ -78,6 +78,7 @@ class _MessagesState extends State<PartnerMessagesPage>
     try {
       final r = await widget.call({
         'action': read == null ? 'messages' : 'messages_read',
+        'contractNotices': 1,
         'page': reset ? 0 : page,
         if (read != null) 'noticeRefs': [read],
       });

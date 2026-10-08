@@ -15,6 +15,9 @@ const systemNoticeKinds = {
   'partner_refund',
   'partner_transfer',
   'partner_withdrawal',
+  'partner_contract_received',
+  'partner_contract_refunded',
+  'partner_contract_completed',
   'purchase_paid',
   'refund_completed',
   'douyin_verified',
@@ -295,6 +298,7 @@ class SystemNoticesRepository {
         'procurementNotices': 1,
         'partnerMessageNotices': 1,
         'membershipNotices': 1,
+        'contractNotices': 1,
       }),
     );
   }
@@ -307,6 +311,7 @@ class SystemNoticesRepository {
           'procurementNotices': 1,
           'partnerMessageNotices': 1,
           'membershipNotices': 1,
+          'contractNotices': 1,
           'partnerApproval': 1,
         }),
       );
@@ -331,6 +336,7 @@ class SystemNoticesRepository {
         'procurementNotices': 1,
         'partnerMessageNotices': 1,
         'membershipNotices': 1,
+        'contractNotices': 1,
         'noticeRefs': ?ids,
         'throughSequence': ?throughSequence,
       }),

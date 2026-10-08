@@ -44,6 +44,12 @@ const _copy = {
   'partner_transfer': '收益已转入平台余额|Earnings transferred to platform balance|收益已轉入平台餘額|โอนรายได้เข้ายอดเงินแพลตฟอร์มแล้ว',
   'partner_withdrawal':
       '提现状态更新|Withdrawal status updated|提現狀態更新|อัปเดตสถานะการถอน',
+  'partner_contract_received':
+      '合同资金已到账|Contract funds received|合同資金已到帳|รับเงินสัญญาแล้ว',
+  'partner_contract_refunded':
+      '合同资金已退回|Contract funds returned|合同資金已退回|คืนเงินสัญญาแล้ว',
+  'partner_contract_completed':
+      '合同履约已完成|Contract performance completed|合同履約已完成|ดำเนินการสัญญาสำเร็จ',
   'status': '当前状态：|Status:|目前狀態：|สถานะ:',
 
   'yesterday': '昨天|Yesterday|昨天|เมื่อวาน',

@@ -1,19 +1,25 @@
 import 'party_publisher_page.dart';
 
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:fluwx/fluwx.dart' show FluwxCancelable;
 import 'package:uuid/uuid.dart';
 
+import '../../commerce/data/ios_wechat_payment.dart';
 import '../data/monthly_contracts.dart';
 import '../data/reservation_products.dart';
 import 'reservation_components.dart';
+import 'contract_fund_evidence_page.dart';
 
 String contractStatus(BuildContext c, Object? value) =>
     reservationText(c, switch (value) {
       'draft' => '草稿|Draft|草稿|ฉบับร่าง',
       'published' => '可领取|Available|可領取|รับได้',
+      'funding' => '待资金确认|Awaiting funds|待資金確認|รอยืนยันเงิน',
       'active' => '已签约|Signed|已簽約|ลงนามแล้ว',
       _ => '已撤回|Withdrawn|已撤回|ถอนแล้ว',
     });
@@ -632,36 +638,162 @@ class MonthlyContractDetailPage extends StatefulWidget {
     super.key,
     required this.contractRef,
     this.call,
+    this.fundCall,
   });
   final String contractRef;
   final ReservationCall? call;
+  final ReservationCall? fundCall;
   @override
   State<MonthlyContractDetailPage> createState() =>
       _MonthlyContractDetailState();
 }
 
-class _MonthlyContractDetailState extends State<MonthlyContractDetailPage> {
+class _MonthlyContractDetailState extends State<MonthlyContractDetailPage>
+    with WidgetsBindingObserver {
   ReservationCall get call => widget.call ?? callMonthlyContracts;
+  ReservationCall get fundCall => widget.fundCall ?? callContractFunds;
   Map<String, dynamic>? _item;
   String? _error, _request;
-  bool _busy = false, _accepted = false;
+  bool _busy = false, _accepted = false, _reading = false, _foreground = true;
+  final _fundRequests = <String, String>{};
+  int _generation = 0;
+  Timer? _poll;
+  FluwxCancelable? _wechatReturn;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.iOS &&
+        IosWechatPayment.enabled) {
+      _wechatReturn = IosWechatPayment.onReturn(_checkPendingPayment);
+    }
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (_foreground &&
+          !_busy &&
+          mounted &&
+          ModalRoute.of(context)?.isCurrent == true &&
+          (_item?['status'] == 'funding' ||
+              reservationRows(_item?['funds'])
+                  .any((f) => f['status'] == 'refund_pending'))) {
+        _load(quiet: true);
+      }
+    });
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _poll?.cancel();
+    _wechatReturn?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) _checkPendingPayment();
+  }
+
+  Future<void> _load({bool quiet = false}) async {
+    if (_reading || (quiet && _busy)) return;
+    _reading = true;
+    if (!quiet) {
+      setState(() {
+        _busy = true;
+        _error = null;
+      });
+    }
+    final generation = _generation;
     try {
       final r = await call({
         'action': 'detail',
         'contractRef': widget.contractRef,
       });
-      if (mounted) setState(() => _item = reservationRows(r['items']).single);
+      if (mounted && generation == _generation) setState(() => _applyDetail(r));
+    } catch (e) {
+      if (mounted && !quiet) setState(() => _error = e.toString());
+    } finally {
+      _reading = false;
+      if (mounted && !quiet) setState(() => _busy = false);
+    }
+  }
+
+  void _applyDetail(Map<String, dynamic> result) {
+    _item = reservationRows(result['items']).single;
+    for (final fund in reservationRows(_item?['funds'])) {
+      if (fund['status'] == 'due') {
+        _fundRequests.remove('payment:${fund['ref']}');
+      }
+    }
+  }
+
+  Future<void> _checkPendingPayment() async {
+    if (!mounted || _busy) return;
+    final paying = reservationRows(_item?['funds'])
+        .where((f) => f['status'] == 'paying');
+    if (paying.isNotEmpty) {
+      await _fundAction({
+        'action': 'payment',
+        'operation': 'query',
+        'fundRef': paying.first['ref'],
+      });
+    } else {
+      await _load(quiet: true);
+    }
+  }
+
+  Future<void> _fundAction(Map<String, dynamic> input) async {
+    if (_busy) return;
+    _generation++;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final key =
+          '${input['action']}:${input['fundRef'] ?? widget.contractRef}';
+      final request =
+          input['operation'] == 'prepare' ||
+          input['operation'] == 'request' ||
+          input['action'] == 'complete';
+      if (input['action'] == 'payment' &&
+          input['operation'] == 'prepare' &&
+          (kIsWeb ||
+              (defaultTargetPlatform != TargetPlatform.android &&
+                  defaultTargetPlatform != TargetPlatform.iOS))) {
+        throw StateError('请在手机APP使用微信支付');
+      }
+      if (input['action'] == 'payment' &&
+          input['operation'] == 'prepare' &&
+          !kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.iOS &&
+          !await IosWechatPayment.prepare()) {
+        throw StateError('请先安装微信，再继续付款');
+      }
+      final result = await fundCall({
+        ...input,
+        if (request)
+          'requestId': _fundRequests.putIfAbsent(key, () => const Uuid().v4()),
+      });
+      if (!mounted) return;
+      setState(() => _applyDetail(result));
+      final payment = result['payment'];
+      if (payment is Map) {
+        final values = payment.map((k, v) => MapEntry('$k', '$v'));
+        final launched = defaultTargetPlatform == TargetPlatform.iOS
+            ? await IosWechatPayment.pay(values)
+            : await const MethodChannel('kingclub/wechat-payment')
+                  .invokeMethod<bool>('pay', values);
+        if (mounted) {
+          setState(
+            () => _error = launched == true
+                ? '请在微信完成付款，返回后自动核对结果'
+                : '未能打开微信，请查询或取消原付款后重试',
+          );
+        }
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -669,8 +801,170 @@ class _MonthlyContractDetailState extends State<MonthlyContractDetailPage> {
     }
   }
 
+  Future<void> _recordFund(Map<String, dynamic> fund, bool returning) async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => ContractFundEvidencePage(
+          fund: fund,
+          returning: returning,
+          call: fundCall,
+        ),
+      ),
+    );
+    if (mounted && result != null) {
+      _generation++;
+      setState(() => _applyDetail(result));
+    }
+  }
+
+  Widget _fundPanel(BuildContext c, Map<String, dynamic> fund) =>
+      reservationPanel(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              reservationText(
+                c,
+                fund['purpose'] == 'guarantee'
+                    ? '保证金|Guarantee|保證金|เงินประกัน'
+                    : '承包资金|Contract funds|承包資金|เงินสัญญา',
+              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
+            reservationRow('CNY', reservationMoney(fund['amountCents'])),
+            reservationRow(
+              reservationText(c, '状态|Status|狀態|สถานะ'),
+              contractFundStatus(c, fund['status']),
+            ),
+            if (fund['channel'] != null)
+              reservationRow(
+                reservationText(c, '原渠道|Original channel|原渠道|ช่องทางเดิม'),
+                contractFundChannel(c, fund['channel']),
+              ),
+            if (fund['proofRef'] != null)
+              reservationRow(
+                reservationText(c, '收款凭证|Receipt evidence|收款憑證|หลักฐานรับ'),
+                fund['proofRef'],
+              ),
+            if (fund['refundProofRef'] != null)
+              reservationRow(
+                reservationText(c, '退回凭证|Return evidence|退回憑證|หลักฐานคืน'),
+                fund['refundProofRef'],
+              ),
+            if (reservationFlag(fund['canPay'])) ...[
+              const SizedBox(height: 16),
+              reservationButton(
+                reservationText(
+                  c,
+                  fund['status'] == 'paying'
+                      ? '继续原微信付款|Continue original WeChat payment|繼續原微信付款|ชำระ WeChat เดิมต่อ'
+                      : '微信支付|Pay with WeChat|微信支付|ชำระ WeChat',
+                ),
+                _busy
+                    ? null
+                    : () => _fundAction({
+                        'action': 'payment',
+                        'operation': 'prepare',
+                        'fundRef': fund['ref'],
+                      }),
+              ),
+              if (fund['status'] == 'paying') ...[
+                const SizedBox(height: 12),
+                reservationButton(
+                  reservationText(
+                    c,
+                    '核对原付款|Check original payment|核對原付款|ตรวจชำระเดิม',
+                  ),
+                  _busy
+                      ? null
+                      : () => _fundAction({
+                          'action': 'payment',
+                          'operation': 'query',
+                          'fundRef': fund['ref'],
+                        }),
+                  outline: true,
+                ),
+                const SizedBox(height: 12),
+                reservationButton(
+                  reservationText(
+                    c,
+                    '取消原付款|Cancel original payment|取消原付款|ยกเลิกชำระเดิม',
+                  ),
+                  _busy
+                      ? null
+                      : () => _fundAction({
+                          'action': 'payment',
+                          'operation': 'cancel',
+                          'fundRef': fund['ref'],
+                        }),
+                  outline: true,
+                ),
+              ],
+            ],
+            if (reservationFlag(fund['canRecord'])) ...[
+              const SizedBox(height: 16),
+              reservationButton(
+                reservationText(
+                  c,
+                  '登记线下收款|Record offline receipt|登記線下收款|บันทึกรับออฟไลน์',
+                ),
+                _busy ? null : () => _recordFund(fund, false),
+                outline: true,
+              ),
+            ],
+            if (reservationFlag(fund['canRefund']) &&
+                fund['status'] == 'paid') ...[
+              const SizedBox(height: 16),
+              reservationButton(
+                reservationText(
+                  c,
+                  '申请原渠道退回|Request original-channel return|申請原渠道退回|ขอคืนช่องทางเดิม',
+                ),
+                _busy
+                    ? null
+                    : () => _fundAction({
+                        'action': 'refund',
+                        'operation': 'request',
+                        'fundRef': fund['ref'],
+                      }),
+              ),
+            ],
+            if (reservationFlag(fund['canReturn'])) ...[
+              const SizedBox(height: 16),
+              reservationButton(
+                reservationText(
+                  c,
+                  '登记原渠道退回凭证|Record original-channel return|登記原渠道退回憑證|บันทึกคืนช่องทางเดิม',
+                ),
+                _busy ? null : () => _recordFund(fund, true),
+                outline: true,
+              ),
+            ],
+            if (fund['status'] == 'refund_pending' &&
+                fund['channel'] == 'wechat') ...[
+              const SizedBox(height: 16),
+              reservationButton(
+                reservationText(
+                  c,
+                  '核对原退款|Check original refund|核對原退款|ตรวจคืนเงินเดิม',
+                ),
+                _busy
+                    ? null
+                    : () => _fundAction({
+                        'action': 'refund',
+                        'operation': 'query',
+                        'fundRef': fund['ref'],
+                      }),
+                outline: true,
+              ),
+            ],
+          ],
+        ),
+      );
+
   Future<void> _claim() async {
     if (!_accepted || _item == null) return;
+    _generation++;
     _request ??= const Uuid().v4();
     setState(() {
       _busy = true;
@@ -685,7 +979,7 @@ class _MonthlyContractDetailState extends State<MonthlyContractDetailPage> {
         'termsHash': _item!['termsHash'],
         'acceptedTerms': true,
       });
-      if (mounted) setState(() => _item = reservationRows(r['items']).single);
+      if (mounted) setState(() => _applyDetail(r));
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -789,7 +1083,7 @@ class _MonthlyContractDetailState extends State<MonthlyContractDetailPage> {
                         c,
                         '有效订台次数|Valid table bookings|有效訂台次數|จำนวนจองที่สำเร็จ',
                       ),
-                      '${item['goalBookings']}',
+                      '${(item['progress'] as Map?)?['bookings'] ?? 0} / ${item['goalBookings']}',
                     ),
                   if (reservationCents(item['goalRevenueCents']) > 0)
                     reservationRow(
@@ -797,7 +1091,7 @@ class _MonthlyContractDetailState extends State<MonthlyContractDetailPage> {
                         c,
                         '营业收入目标|Revenue target|營業收入目標|เป้ารายได้',
                       ),
-                      'CNY ${reservationMoney(item['goalRevenueCents'])}',
+                      'CNY ${reservationMoney((item['progress'] as Map?)?['revenueCents'] ?? '0')} / ${reservationMoney(item['goalRevenueCents'])}',
                     ),
                   Text(
                     reservationText(
@@ -824,15 +1118,43 @@ class _MonthlyContractDetailState extends State<MonthlyContractDetailPage> {
                 ],
               ),
             ),
-            if (item['status'] == 'published' &&
-                (reservationCents(item['guaranteeCents']) > 0 ||
-                    reservationCents(item['contractCents']) > 0))
-              Text(
-                reservationText(
-                  c,
-                  '签约收款与条件退款正在接通，当前不可支付签约。|Signing payment and conditional refunds are being connected. Funded signing is unavailable.|簽約收款與條件退款正在接通，當前不可支付簽約。|กำลังเชื่อมชำระและคืนเงินสัญญา ยังลงนามแบบชำระเงินไม่ได้',
+            for (final fund in reservationRows(item['funds']))
+              _fundPanel(c, fund),
+            if (item['status'] == 'funding')
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Text(
+                  reservationText(
+                    c,
+                    '两项资金全部确认到账后，开放本卡座发布权。|Publication opens after both required funds are received.|兩項資金全部確認到帳後，開放本卡座發布權。|เปิดสิทธิ์เผยแพร่เมื่อรับเงินที่ต้องชำระครบ',
+                  ),
+                  style: const TextStyle(color: Colors.white60, height: 1.5),
                 ),
-                style: const TextStyle(color: reservationGold, height: 1.5),
+              ),
+            if (reservationFlag(item['canComplete']))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: reservationButton(
+                  reservationText(
+                    c,
+                    '核对目标完成|Verify target completion|核對目標完成|ตรวจเป้าหมายสำเร็จ',
+                  ),
+                  _busy
+                      ? null
+                      : () => _fundAction({
+                          'action': 'complete',
+                          'contractRef': widget.contractRef,
+                        }),
+                  outline: true,
+                ),
+              ),
+            if (item['completedAt'] != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Text(
+                  '${reservationText(c, '已核对履约完成|Performance verified|已核對履約完成|ตรวจผลสำเร็จแล้ว')} · ${reservationDate(item['completedAt'])}',
+                  style: const TextStyle(color: reservationGold),
+                ),
               ),
             if (reservationFlag(item['canClaim']))
               CheckboxListTile(

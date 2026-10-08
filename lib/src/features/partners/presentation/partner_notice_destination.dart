@@ -8,6 +8,7 @@ import 'partner_application_review_page.dart';
 import 'partner_platform_page.dart';
 import 'partner_messages_page.dart';
 import 'partner_risk_page.dart';
+import '../../club/presentation/monthly_contracts_page.dart';
 
 Widget partnerNoticeDestination(
   String? reference, {
@@ -15,6 +16,10 @@ Widget partnerNoticeDestination(
   SystemNoticesController? inbox,
 }) {
   call ??= PartnerRepository().call;
+  if (reference != null &&
+      RegExp(r'^contract:[a-f0-9-]{36}$').hasMatch(reference)) {
+    return MonthlyContractDetailPage(contractRef: reference.substring(9));
+  }
   if (reference == 'messages') {
     return PartnerMessagesPage(call: call, inbox: inbox);
   }

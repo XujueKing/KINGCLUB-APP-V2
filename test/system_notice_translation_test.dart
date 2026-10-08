@@ -14,17 +14,22 @@ void main() {
           supportedLocales: kingSupportedLocales,
           localizationsDelegates: kingLocalizationDelegates,
           home: Builder(
-            builder: (context) => Column(
-              children: [
-                for (final key in [
-                  'receipt',
-                  'wine_collected',
-                  'recharge_paid',
-                  'read_all',
-                  'membership_approved',
-                ])
-                  Text(systemNoticeText(context, key)),
-              ],
+            builder: (context) => SingleChildScrollView(
+              child: Column(
+                children: [
+                  for (final key in [
+                    'receipt',
+                    'wine_collected',
+                    'recharge_paid',
+                    'read_all',
+                    'membership_approved',
+                    'partner_contract_received',
+                    'partner_contract_refunded',
+                    'partner_contract_completed',
+                  ])
+                    Text(systemNoticeText(context, key)),
+                ],
+              ),
             ),
           ),
         ),
@@ -46,6 +51,13 @@ void main() {
       }
       expect(tester.takeException(), isNull);
       expect(find.text('membership_approved'), findsNothing);
+      for (final key in [
+        'partner_contract_received',
+        'partner_contract_refunded',
+        'partner_contract_completed',
+      ]) {
+        expect(find.text(key), findsNothing);
+      }
     });
   }
 }
