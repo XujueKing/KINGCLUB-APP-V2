@@ -6,7 +6,9 @@ import '../../../core/session/secure_session_store.dart';
 import '../../commerce/presentation/member_orders_page.dart';
 import 'favourite_store_page.dart';
 import '../../home/data/home_content_repository.dart';
+import '../../home/data/home_city_catalog.dart';
 import '../../home/presentation/home_content_cards.dart';
+import 'profile_location.dart';
 
 import 'package:kingclub/src/core/formatters/money.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
@@ -83,6 +85,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
       ? null
       : ProfileRepository();
   Map<String, dynamic>? _profile;
+  String? _locationTag;
   List<Map<String, dynamic>> _merchantStores = [];
   StreamSubscription<void>? _merchantSession;
   int _merchantEpoch = 0;
@@ -146,7 +149,9 @@ class _MyProfilePageState extends State<MyProfilePage> {
     if (_repository == null || _profileLoading) return;
     _profileLoading = true;
     try {
+      final catalog = HomeCityCatalog.load();
       final p = await _repository.load();
+      final locationTag = profileLocationLabel(p, await catalog);
       unawaited(
         _repository.memberQr().then<void>((_) {}, onError: (Object _) {}),
       );
@@ -154,6 +159,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
       if (!mounted) return;
       setState(() {
         _profile = p;
+        _locationTag = locationTag;
         _nickname = p['nickname'] as String;
         _signature = p['bio'] as String;
         _profileError = null;
@@ -1096,8 +1102,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
                   : ''}${_profile!['age']}岁',
             if (_profile?['appearanceScore'] != null)
               '颜值：${_profile!['appearanceScore']}',
-            if (_profile?['locationCity'] != null)
-              '${_profile!['locationCity']}',
+            ?_locationTag,
             if (_profile?['zodiac'] != null) '${_profile!['zodiac']}',
             if ((_profile?['details'] as Map?)?['relationship'] != null)
               '${(_profile!['details'] as Map)['relationship']}',

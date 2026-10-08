@@ -280,4 +280,29 @@ void main() {
       expect(value.split('|').every((v) => v.isNotEmpty), isTrue);
     }
   });
+  testWidgets('superadmin coverage is platform-wide and never tied to city', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      app(
+        PartnerCollaboratorDetailPage(
+          targetAccount: 'U00000000002',
+          call: (p) async => {
+            ...overview(),
+            'partner': {
+              ...partner(),
+              'partnerRole': 'superadmin',
+              'coverageProvince': '湖南省',
+              'coverageCity': '株洲市',
+            },
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('全平台'), findsOneWidget);
+    expect(find.text('合作城市'), findsNothing);
+    expect(find.text('湖南省 · 株洲市'), findsNothing);
+    expect(find.text('未分配'), findsNothing);
+  });
 }

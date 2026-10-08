@@ -114,6 +114,7 @@ const collaboratorCopy = {
   'level': '收益等级|Earnings level|收益等級|ระดับรายได้',
   'city': '合作城市|Registered city|合作城市|เมืองที่ลงทะเบียน',
   'coverage': '负责区域|Assigned region|負責區域|พื้นที่รับผิดชอบ',
+  'allRegions': '全平台|Entire platform|全平台|ทั้งแพลตฟอร์ม',
   'unassigned': '未分配|Unassigned|未分配|ยังไม่ได้กำหนด',
   'parent': '上级合作者|Parent collaborator|上級合作者|ผู้ร่วมงานต้นสังกัด',
   'direct': '直接向平台申请|Applied directly|直接向平台申請|สมัครโดยตรง',

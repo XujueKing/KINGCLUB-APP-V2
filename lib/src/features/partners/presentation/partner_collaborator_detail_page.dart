@@ -197,8 +197,16 @@ class _CollaboratorDetailState extends State<PartnerCollaboratorDetailPage> {
             ),
             const SizedBox(height: 18),
             pair(t('level'), collaboratorLevel(p)),
-            pair(t('city'), p['city'] as String? ?? c('unavailable')),
-            pair(t('coverage'), coverage.isEmpty ? t('unassigned') : coverage),
+            if (p['partnerRole'] != 'superadmin')
+              pair(t('city'), p['city'] as String? ?? c('unavailable')),
+            pair(
+              t('coverage'),
+              p['partnerRole'] == 'superadmin'
+                  ? t('allRegions')
+                  : coverage.isEmpty
+                  ? t('unassigned')
+                  : coverage,
+            ),
             pair(
               t('parent'),
               parent == null
