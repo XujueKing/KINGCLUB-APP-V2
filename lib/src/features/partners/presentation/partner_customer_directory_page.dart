@@ -6,6 +6,8 @@ import '../../../core/design_system/king_control_sizes.dart';
 import '../data/partner_repository.dart';
 import 'customer_components.dart';
 import 'partner_customer_detail_page.dart';
+import 'partner_collaborator_detail_page.dart';
+import 'collaborator_components.dart';
 import '../../home/data/home_city_catalog.dart';
 import '../../home/presentation/home_city_page.dart';
 
@@ -85,10 +87,15 @@ class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => PartnerCustomerDetailPage(
-          call: widget.call,
-          targetAccount: item['ref'] as String,
-        ),
+        builder: (_) => widget.partnersOnly
+            ? PartnerCollaboratorDetailPage(
+                call: widget.call,
+                targetAccount: item['ref'] as String,
+              )
+            : PartnerCustomerDetailPage(
+                call: widget.call,
+                targetAccount: item['ref'] as String,
+              ),
       ),
     );
     if (mounted) await load(reset: true);
@@ -239,51 +246,60 @@ class _DirectoryState extends State<PartnerCustomerDirectoryPage> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         child: Column(
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                CustomerAvatar(customer: item),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                            if (widget.partnersOnly)
+                              collaboratorDirectoryRow(context, item)
+                            else
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  CustomerAvatar(customer: item),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (widget.partnersOnly)
+                                          collaboratorName(context, item)
+                                        else
+                                          customerName(item),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          customerDate(item['date']),
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      customerName(item),
+                                      Text(
+                                        widget.partnersOnly
+                                            ? collaboratorLevel(item)
+                                            : item['levelName'] as String? ??
+                                                  '—',
+                                        style: const TextStyle(
+                                          color: customerGold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                                       const SizedBox(height: 6),
                                       Text(
-                                        customerDate(item['date']),
+                                        item['phone'] as String? ?? '—',
                                         style: const TextStyle(
-                                          color: Colors.white54,
-                                          fontSize: 14,
+                                          color: Colors.white60,
+                                          fontSize: 16,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      item['levelName'] as String? ?? '—',
-                                      style: const TextStyle(
-                                        color: customerGold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      item['phone'] as String? ?? '—',
-                                      style: const TextStyle(
-                                        color: Colors.white60,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
                             const Padding(
                               padding: EdgeInsets.only(top: 16),
                               child: Divider(height: 1, color: Colors.white12),
