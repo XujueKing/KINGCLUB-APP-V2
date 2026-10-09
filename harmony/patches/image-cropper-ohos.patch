@@ -1,0 +1,177 @@
+--- a/ohos/src/main/ets/components/plugin/ImageCropperPlugin.ets
++++ b/ohos/src/main/ets/components/plugin/ImageCropperPlugin.ets
+@@ -6,6 +6,7 @@
+   MethodChannel,
+   MethodResult,
+   AbilityPluginBinding,
++  AbilityAware,
+ } from '@ohos/flutter_ohos';
+ import { common } from '@kit.AbilityKit';
+ import { router } from '@kit.ArkUI';
+@@ -40,7 +41,7 @@
+  * 通过 router.pushNamedRoute 启动裁剪页面（CropEntryPage）
+  * 用户在原生裁剪页面中交互后通过 CropResultHandler 回调返回结果
+  */
+-export default class ImageCropperPlugin implements FlutterPlugin, MethodCallHandler {
++export default class ImageCropperPlugin implements FlutterPlugin, MethodCallHandler, AbilityAware {
+   private channel: MethodChannel | null = null;
+   private applicationContext: Context | null = null;
+   private abilityContext: common.UIAbilityContext | null = null;
+@@ -72,6 +73,7 @@
+     AppStorage.delete('crop_options_json');
+     AppStorage.delete('crop_temp_source_path');
+     // 清理静态回调，防止内存泄漏
++    CropResultHandler.pendingCallback?.success(null);
+     CropResultHandler.pendingCallback = null;
+     CropResultHandler.cachedImagePath = null;
+     this.applicationContext = null;
+@@ -85,6 +87,7 @@
+   /** 插件从 Ability 分离时调用，清除悬挂回调 */
+   onDetachedFromAbility(): void {
+     this.abilityContext = null;
++    CropResultHandler.pendingCallback?.success(null);
+     CropResultHandler.pendingCallback = null;  // 清除悬挂回调
+     CropResultHandler.cachedImagePath = null;  // 清除悬挂缓存
+   }
+@@ -164,6 +167,10 @@
+    * 5. 通过CropResultHandler回调返回结果
+    */
+   private async handleCropImage(call: MethodCall, result: MethodResult): Promise<void> {
++    if (CropResultHandler.pendingCallback != null) {
++      result.error('already_active', 'Image cropper is already active', null);
++      return;
++    }
+     if (!this.abilityContext) {
+       result.error("no_ability", "AbilityContext is not available",
+         { detail: "ImageCropperPlugin has not been attached to an Ability" });
+@@ -186,7 +193,7 @@
+       const compressFormatStr: string | null = call.argument("compress_format") as string | null;
+       const compressQuality: number | null = this.validateQualityArg(
+         call.argument("compress_quality") as number | null);
+-      const cropStyleStr: string | null = call.argument("ohos.crop_style") as string | null;
++      const cropStyleStr: string | null = (call.argument("ohos.crop_style") ?? call.argument("android.crop_style")) as string | null;
+ 
+       if (!sourcePath) {
+         result.error("invalid_argument", "source_path is required",
+@@ -236,10 +243,10 @@
+       CropResultHandler.pendingCallback = new ResultCallbackAdapter(result);
+ 
+       try {
+-        router.pushNamedRoute({ name: 'CropEntryPage' });
++        await router.pushNamedRoute({ name: 'CropEntryPage' });
+       } catch (err) {
+         hilog.error(0x0000, TAG, 'Router push error: %{public}s', JSON.stringify(err));
+-        HttpDownloadUtils.cleanupTempFile(resolvedSourcePath);
++        if (downloadedTempSource) { HttpDownloadUtils.cleanupTempFile(resolvedSourcePath); }
+         CropResultHandler.pendingCallback = null;
+         result.error('navigation_error', 'Failed to open CropEntryPage',
+           { detail: err instanceof Error ? err.message : String(err) });
+@@ -332,47 +339,47 @@
+    */
+   private buildUiConfig(call: MethodCall): CropUiConfig {
+     const uiConfig: CropUiConfig = {};
+-    const toolbarTitle = call.argument("ohos.toolbar_title") as string | null;
++    const toolbarTitle = (call.argument("ohos.toolbar_title") ?? call.argument("android.toolbar_title")) as string | null;
+     if (toolbarTitle != null) uiConfig.toolbarTitle = toolbarTitle;
+-    const toolbarColor = call.argument("ohos.toolbar_color") as number | null;
++    const toolbarColor = (call.argument("ohos.toolbar_color") ?? call.argument("android.toolbar_color")) as number | null;
+     if (toolbarColor != null) uiConfig.toolbarColor = toolbarColor;
+-    const toolbarWidgetColor = call.argument("ohos.toolbar_widget_color") as number | null;
++    const toolbarWidgetColor = (call.argument("ohos.toolbar_widget_color") ?? call.argument("android.toolbar_widget_color")) as number | null;
+     if (toolbarWidgetColor != null) uiConfig.toolbarWidgetColor = toolbarWidgetColor;
+-    const bgColor = call.argument("ohos.background_color") as number | null;
++    const bgColor = (call.argument("ohos.background_color") ?? call.argument("android.background_color")) as number | null;
+     if (bgColor != null) uiConfig.backgroundColor = bgColor;
+-    const dimmedLayerColor = call.argument("ohos.dimmed_layer_color") as number | null;
++    const dimmedLayerColor = (call.argument("ohos.dimmed_layer_color") ?? call.argument("android.dimmed_layer_color")) as number | null;
+     if (dimmedLayerColor != null) uiConfig.dimmedLayerColor = dimmedLayerColor;
+-    const cropFrameColor = call.argument("ohos.crop_frame_color") as number | null;
++    const cropFrameColor = (call.argument("ohos.crop_frame_color") ?? call.argument("android.crop_frame_color")) as number | null;
+     if (cropFrameColor != null) uiConfig.cropFrameColor = cropFrameColor;
+-    const cropGridColor = call.argument("ohos.crop_grid_color") as number | null;
++    const cropGridColor = (call.argument("ohos.crop_grid_color") ?? call.argument("android.crop_grid_color")) as number | null;
+     if (cropGridColor != null) uiConfig.cropGridColor = cropGridColor;
+-    const showCropGrid = call.argument("ohos.show_crop_grid") as boolean | null;
++    const showCropGrid = (call.argument("ohos.show_crop_grid") ?? call.argument("android.show_crop_grid")) as boolean | null;
+     if (showCropGrid != null) uiConfig.showCropGrid = showCropGrid;
+-    const showCropFrame = call.argument("ohos.show_crop_frame") as boolean | null;
++    const showCropFrame = (call.argument("ohos.show_crop_frame") ?? call.argument("android.show_crop_frame")) as boolean | null;
+     if (showCropFrame != null) uiConfig.showCropFrame = showCropFrame;
+-    const rootViewBackgroundColor = call.argument("ohos.root_view_background_color") as number | null;
++    const rootViewBackgroundColor = (call.argument("ohos.root_view_background_color") ?? call.argument("android.root_view_background_color")) as number | null;
+     if (rootViewBackgroundColor != null) uiConfig.rootViewBackgroundColor = rootViewBackgroundColor;
+-    const toolbarCancelDrawable = call.argument("ohos.toolbar_cancel_drawable") as string | null;
++    const toolbarCancelDrawable = (call.argument("ohos.toolbar_cancel_drawable") ?? call.argument("android.toolbar_cancel_drawable")) as string | null;
+     if (toolbarCancelDrawable != null) uiConfig.toolbarCancelDrawable = toolbarCancelDrawable;
+-    const toolbarCropDrawable = call.argument("ohos.toolbar_crop_drawable") as string | null;
++    const toolbarCropDrawable = (call.argument("ohos.toolbar_crop_drawable") ?? call.argument("android.toolbar_crop_drawable")) as string | null;
+     if (toolbarCropDrawable != null) uiConfig.toolbarCropDrawable = toolbarCropDrawable;
+-    const activeControlsWidgetColor = call.argument("ohos.active_controls_widget_color") as number | null;
++    const activeControlsWidgetColor = (call.argument("ohos.active_controls_widget_color") ?? call.argument("android.active_controls_widget_color")) as number | null;
+     if (activeControlsWidgetColor != null) uiConfig.activeControlsWidgetColor = activeControlsWidgetColor;
+-    const cropFrameStrokeWidth = call.argument("ohos.crop_frame_stroke_width") as number | null;
++    const cropFrameStrokeWidth = (call.argument("ohos.crop_frame_stroke_width") ?? call.argument("android.crop_frame_stroke_width")) as number | null;
+     if (cropFrameStrokeWidth != null) uiConfig.cropFrameStrokeWidth = cropFrameStrokeWidth;
+-    const cropGridRowCount = call.argument("ohos.crop_grid_row_count") as number | null;
++    const cropGridRowCount = (call.argument("ohos.crop_grid_row_count") ?? call.argument("android.crop_grid_row_count")) as number | null;
+     if (cropGridRowCount != null) uiConfig.cropGridRowCount = cropGridRowCount;
+-    const cropGridColumnCount = call.argument("ohos.crop_grid_column_count") as number | null;
++    const cropGridColumnCount = (call.argument("ohos.crop_grid_column_count") ?? call.argument("android.crop_grid_column_count")) as number | null;
+     if (cropGridColumnCount != null) uiConfig.cropGridColumnCount = cropGridColumnCount;
+-    const cropGridStrokeWidth = call.argument("ohos.crop_grid_stroke_width") as number | null;
++    const cropGridStrokeWidth = (call.argument("ohos.crop_grid_stroke_width") ?? call.argument("android.crop_grid_stroke_width")) as number | null;
+     if (cropGridStrokeWidth != null) uiConfig.cropGridStrokeWidth = cropGridStrokeWidth;
+-    const lockAspectRatio = call.argument("ohos.lock_aspect_ratio") as boolean | null;
++    const lockAspectRatio = (call.argument("ohos.lock_aspect_ratio") ?? call.argument("android.lock_aspect_ratio")) as boolean | null;
+     if (lockAspectRatio != null) uiConfig.lockAspectRatio = lockAspectRatio;
+-    const statusBarLight = call.argument("ohos.status_bar_light") as boolean | null;
++    const statusBarLight = (call.argument("ohos.status_bar_light") ?? call.argument("android.status_bar_light")) as boolean | null;
+     if (statusBarLight != null) uiConfig.statusBarLight = statusBarLight;
+-    const navBarLight = call.argument("ohos.nav_bar_light") as boolean | null;
++    const navBarLight = (call.argument("ohos.nav_bar_light") ?? call.argument("android.nav_bar_light")) as boolean | null;
+     if (navBarLight != null) uiConfig.navBarLight = navBarLight;
+-    const hideBottomControls = call.argument("ohos.hide_bottom_controls") as boolean | null;
++    const hideBottomControls = (call.argument("ohos.hide_bottom_controls") ?? call.argument("android.hide_bottom_controls")) as boolean | null;
+     if (hideBottomControls != null) uiConfig.hideBottomControls = hideBottomControls;
+     return uiConfig;
+   }
+@@ -415,18 +422,18 @@
+     if (ratioX != null) optionsObj['ratioX'] = ratioX;
+     if (ratioY != null) optionsObj['ratioY'] = ratioY;
+ 
+-    const maxScaleMultiplier = call.argument("ohos.max_scale_multiplier") as number | null;
++    const maxScaleMultiplier = (call.argument("ohos.max_scale_multiplier") ?? call.argument("android.max_scale_multiplier")) as number | null;
+     if (maxScaleMultiplier != null && maxScaleMultiplier > 0) {
+       optionsObj['maxScaleMultiplier'] = maxScaleMultiplier;
+     }
+ 
+     const imageToCropBoundsAnimDuration =
+-      call.argument("ohos.image_to_crop_bounds_anim_duration") as number | null;
++      (call.argument("ohos.image_to_crop_bounds_anim_duration") ?? call.argument("android.image_to_crop_bounds_anim_duration")) as number | null;
+     if (imageToCropBoundsAnimDuration != null && imageToCropBoundsAnimDuration >= 0) {
+       optionsObj['imageToCropBoundsAnimDuration'] = imageToCropBoundsAnimDuration;
+     }
+ 
+-    const maxBitmapSize = call.argument("ohos.max_bitmap_size") as number | null;
++    const maxBitmapSize = (call.argument("ohos.max_bitmap_size") ?? call.argument("android.max_bitmap_size")) as number | null;
+     if (maxBitmapSize != null && maxBitmapSize >= 0) {
+       optionsObj['maxBitmapSize'] = maxBitmapSize;
+     }
+@@ -436,7 +443,7 @@
+     }
+ 
+     this.parseAspectRatioPresets(call, optionsObj);
+-    const initAspectRatio = call.argument("ohos.init_aspect_ratio") as string | null;
++    const initAspectRatio = (call.argument("ohos.init_aspect_ratio") ?? call.argument("android.init_aspect_ratio")) as string | null;
+     if (initAspectRatio) {
+       optionsObj['initAspectRatioName'] = initAspectRatio;
+     }
+@@ -454,7 +461,7 @@
+    * @param optionsObj 输出选项对象（会被修改）
+    */
+   private parseAspectRatioPresets(call: MethodCall, optionsObj: Record<string, Object>): void {
+-    const ohosCropPresets = call.argument("ohos.aspect_ratio_presets") as Array<Object> | null;
++    const ohosCropPresets = (call.argument("ohos.aspect_ratio_presets") ?? call.argument("android.aspect_ratio_presets")) as Array<Object> | null;
+     const androidCropPresets = call.argument("android.aspect_ratio_presets") as Array<Object> | null;
+     let aspectRatioPresets: Array<Object> | null = ohosCropPresets ?? androidCropPresets;
+     if (!aspectRatioPresets || aspectRatioPresets.length === 0) return;

@@ -1,0 +1,50 @@
+// Mocked channel contract only; native UI/output must be checked on a device.
+import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:image_cropper/image_cropper.dart';
+
+void main() {
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('plugins.hunghd.vn/image_cropper');
+  late Directory directory;
+  late File source;
+  late Map<Object?, Object?> arguments;
+  String? output;
+  setUp(() async {
+    directory = await Directory.systemTemp.createTemp('kingclub_crop_contract_');
+    source = await File('${directory.path}/source.jpg').writeAsBytes([1, 2, 3]);
+    output = '${directory.path}/result.jpg';
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'cropImage');
+      arguments = Map<Object?, Object?>.from(call.arguments as Map);
+      return output;
+    });
+  });
+  tearDown(() async {
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+    await directory.delete(recursive: true);
+  });
+  Future<CroppedFile?> crop() => ImageCropper().cropImage(
+    sourcePath: source.path,
+    aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+    maxWidth: 1024, maxHeight: 1024, compressQuality: 90,
+    uiSettings: [AndroidUiSettings(toolbarTitle: '调整头像', lockAspectRatio: true)],
+  );
+  test('existing avatar size, quality, aspect and title reach native channel', () async {
+    expect((await crop())!.path, output);
+    expect(arguments['ratio_x'], 1);
+    expect(arguments['ratio_y'], 1);
+    expect(arguments['max_width'], 1024);
+    expect(arguments['max_height'], 1024);
+    expect(arguments['compress_quality'], 90);
+    expect(arguments['compress_format'], 'jpg');
+    expect(arguments['android.toolbar_title'], '调整头像');
+    expect(arguments['android.lock_aspect_ratio'], true);
+  });
+  test('cancel returns null and caller source remains available', () async {
+    output = null;
+    expect(await crop(), isNull);
+    expect(await source.exists(), isTrue);
+  });
+}

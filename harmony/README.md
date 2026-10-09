@@ -67,6 +67,17 @@ a compile-only package. Signing material stays outside the repository.
 
 ## Image picker device acceptance (pending)
 
+Avatar crop staging: `scripts/stage-harmony-cropper.ps1` keeps image_cropper
+12.2.1 and its original Dart interface. It adds only the pinned OHOS native
+implementation and maps existing Android-style options inside that adapter.
+The app's square crop, 1024 pixel bounds and JPEG quality 90 remain unchanged.
+`verification/cropper_contract_test.dart.template` checks argument forwarding
+and cancellation with a mocked channel, not actual image processing.
+Device acceptance must check crop/rotate, confirm/cancel/back, black/gold UI,
+source preservation on route failure, output dimensions, orientation, file size,
+upload and repeated opening. Remote input and process-death recovery are not
+accepted features of this integration.
+
 Scanner staging: run `scripts/stage-harmony-scanner.ps1` after image picker.
 It retains mobile_scanner 7.4.1 and copies the pinned OHOS native implementation,
 applying separate Dart/native patches. The existing scanner page and navigation
