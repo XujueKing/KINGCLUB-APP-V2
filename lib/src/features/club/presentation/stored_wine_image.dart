@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/media/cached_media_image.dart';
 import '../../../core/media/cached_media_svg.dart';
 import '../data/storage_repository.dart';
+import 'bottle_material_image.dart';
 
 class StoredWineImage extends StatelessWidget {
   const StoredWineImage({
@@ -72,35 +73,16 @@ class StoredWineBacking extends StatelessWidget {
   Widget build(BuildContext context) {
     final material = item.bottleMaterial!;
     final role = reverse ? 'backFrame' : 'frame';
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Transform.translate(
-          offset: Offset(0, bodyHeight * .505),
-          child: Container(
-            width: bodyHeight * material.imageAspectRatio * 1.48,
-            height: bodyHeight * .088,
-            decoration: BoxDecoration(
-              color: const Color(0x33000000),
-              borderRadius: BorderRadius.circular(bodyHeight),
-            ),
-          ),
-        ),
-        Center(
-          child: OverflowBox(
-            maxHeight: bodyHeight * 1.08,
-            maxWidth: bodyHeight * 1.08 * material.aspectRatio,
-            child: SizedBox(
-              height: bodyHeight * 1.08,
-              width: bodyHeight * 1.08 * material.aspectRatio,
-              child: CachedMediaSvg(
-                material.files[role]!,
-                contentKey: material.cacheKey(role),
-              ),
-            ),
-          ),
-        ),
-      ],
+    return BottleVisualBacking(
+      reference: item.ref,
+      bodyHeight: bodyHeight,
+      bodyWidth: bodyHeight * material.imageAspectRatio,
+      frameAspectRatio: material.aspectRatio,
+      reverse: reverse,
+      backing: CachedMediaSvg(
+        material.files[role]!,
+        contentKey: material.cacheKey(role),
+      ),
     );
   }
 }

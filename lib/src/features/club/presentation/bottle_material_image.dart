@@ -23,10 +23,42 @@ class BottleMaterialBacking extends StatelessWidget {
   static const shadowCenterOffsetRatio = 7.46 / 453;
 
   @override
+  Widget build(BuildContext context) => BottleVisualBacking(
+    reference: item.ref,
+    bodyHeight: bodyHeight,
+    bodyWidth: bodyWidth,
+    frameAspectRatio: item.aspectRatio,
+    reverse: reverse,
+    backing: SvgPicture.asset(
+      reverse ? item.backFrame : item.frame,
+      key: ValueKey('bottle-backing-${item.ref}'),
+      height: bodyHeight * 1.08,
+      width: bodyHeight * 1.08 * item.aspectRatio,
+    ),
+  );
+}
+
+/// Shared geometry for the accepted local preview and signed product material.
+class BottleVisualBacking extends StatelessWidget {
+  const BottleVisualBacking({
+    super.key,
+    required this.reference,
+    required this.bodyHeight,
+    required this.bodyWidth,
+    required this.frameAspectRatio,
+    required this.backing,
+    this.reverse = false,
+  });
+  final String reference;
+  final double bodyHeight, bodyWidth, frameAspectRatio;
+  final Widget backing;
+  final bool reverse;
+
+  @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
-      final shadowWidth = bodyWidth * shadowWidthRatio;
-      final shadowHeight = bodyHeight * shadowHeightRatio;
+      final shadowWidth = bodyWidth * BottleMaterialBacking.shadowWidthRatio;
+      final shadowHeight = bodyHeight * BottleMaterialBacking.shadowHeightRatio;
       return Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
@@ -34,11 +66,11 @@ class BottleMaterialBacking extends StatelessWidget {
           Positioned(
             top:
                 (box.maxHeight + bodyHeight) / 2 +
-                bodyHeight * shadowCenterOffsetRatio -
+                bodyHeight * BottleMaterialBacking.shadowCenterOffsetRatio -
                 shadowHeight / 2,
             left: (box.maxWidth - shadowWidth) / 2,
             child: Container(
-              key: ValueKey('bottle-ground-${item.ref}'),
+              key: ValueKey('bottle-ground-$reference'),
               width: shadowWidth,
               height: shadowHeight,
               decoration: BoxDecoration(
@@ -54,12 +86,11 @@ class BottleMaterialBacking extends StatelessWidget {
           Center(
             child: OverflowBox(
               maxHeight: bodyHeight * 1.08,
-              maxWidth: bodyHeight * 1.08 * item.aspectRatio,
-              child: SvgPicture.asset(
-                reverse ? item.backFrame : item.frame,
-                key: ValueKey('bottle-backing-${item.ref}'),
+              maxWidth: bodyHeight * 1.08 * frameAspectRatio,
+              child: SizedBox(
                 height: bodyHeight * 1.08,
-                width: bodyHeight * 1.08 * item.aspectRatio,
+                width: bodyHeight * 1.08 * frameAspectRatio,
+                child: backing,
               ),
             ),
           ),
