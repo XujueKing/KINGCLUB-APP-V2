@@ -1,0 +1,84 @@
+import 'dart:async';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:kingclub_geocoding_ohos/kingclub_geocoding_ohos.dart';
+import 'package:flutter_geolocator_ohos/geolocator_ohos.dart';
+import 'package:kingclub/src/features/home/data/home_city_location.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  const geo = KingclubGeocoding.channel;
+  const position = MethodChannel('flutter.baseflow.com/geolocator');
+  setUp(() { KingclubGeocodingFactory.registerWith(); GeolocatorOhos.registerWith(); });
+  tearDown(() {
+    messenger.setMockMethodCallHandler(geo, null);
+    messenger.setMockMethodCallHandler(position, null);
+  });
+  test('existing city lookup obtains city and forwards Chinese locale', () async {
+    messenger.setMockMethodCallHandler(position, (call) async {
+      if (call.method == 'isLocationServiceEnabled') return true;
+      if (call.method == 'checkPermission') return 2;
+      return {'latitude': 27.8, 'longitude': 113.1, 'timestamp': 1700000000000,
+        'accuracy': 10, 'altitude': 0, 'speed': 0, 'heading': 0};
+    });
+    messenger.setMockMethodCallHandler(geo, (call) async {
+      expect(call.method, 'placemarkFromCoordinates');
+      expect(call.arguments['locale'], 'zh');
+      expect(call.arguments['latitude'], 27.8);
+      return [{'locality': '株洲市', 'administrativeArea': '湖南省', 'subLocality': '天元区'}];
+    });
+    expect(await locateHomeCity(), '株洲市');
+  });
+  test('no results stay empty rather than inventing a city', () async {
+    messenger.setMockMethodCallHandler(geo, (_) async => []);
+    expect(await Geocoding().placemarkFromCoordinates(0, 0), isEmpty);
+  });
+  test('address query preserves locale and integer coordinates', () async {
+    messenger.setMockMethodCallHandler(geo, (call) async {
+      expect(call.arguments['locale'], 'zh-CN');
+      expect(call.arguments['address'], '株洲');
+      return [{'latitude': 0, 'longitude': 113}];
+    });
+    final places = await Geocoding().locationFromAddress('株洲', locale: const Locale('zh', 'CN'));
+    expect(places.single.latitude, 0.0);
+    expect(places.single.timestamp, isNull);
+  });
+  test('province and district fields remain distinct', () async {
+    messenger.setMockMethodCallHandler(geo, (_) async => [{
+      'administrativeArea':'湖南省','subAdministrativeArea':'株洲市',
+      'locality':'','subLocality':'天元区','isoCountryCode':'CN'}]);
+    final p = (await Geocoding().placemarkFromAddress('株洲')).single;
+    expect(p.administrativeArea, '湖南省');
+    expect(p.subAdministrativeArea, '株洲市');
+    expect(p.subLocality, '天元区');
+  });
+  test('service unavailable and platform failures propagate', () async {
+    messenger.setMockMethodCallHandler(geo, (call) async {
+      if (call.method == 'isPresent') return false;
+      throw PlatformException(code:'GEOCODER_UNAVAILABLE');
+    });
+    expect(await Geocoding().isPresent(), isFalse);
+    await expectLater(Geocoding().placemarkFromCoordinates(1, 1), throwsA(isA<PlatformException>()));
+  });
+  test('invalid coordinates and blank addresses do not call native', () async {
+    var calls = 0;
+    messenger.setMockMethodCallHandler(geo, (_) async { calls++; return []; });
+    await expectLater(Geocoding().placemarkFromCoordinates(double.nan, 1), throwsArgumentError);
+    await expectLater(Geocoding().placemarkFromCoordinates(91, 1), throwsArgumentError);
+    await expectLater(Geocoding().locationFromAddress(' '), throwsArgumentError);
+    expect(calls, 0);
+  });
+  testWidgets('native silence times out without fabricated results', (tester) async {
+    final pending = Completer<Object?>();
+    messenger.setMockMethodCallHandler(geo, (_) => pending.future);
+    final future = Geocoding().placemarkFromCoordinates(1, 1);
+    final expectation = expectLater(future, throwsA(isA<TimeoutException>()));
+    await tester.pump(const Duration(seconds: 9));
+    await expectation;
+    pending.complete([]);
+    await tester.pump();
+  });
+}

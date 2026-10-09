@@ -105,3 +105,11 @@ not these native runtime cases.
 补丁修正前台授权误报 always、模糊权限被当作拒绝、精确权限硬编码、零值坐标污染、模拟定位标志丢失、枚举精度误作米数、流间隔单位和错误吞掉。停止流只取消本实例监听；异步授权返回后检查取消代次。单次定位使用系统超时，Dart 超时不会注销另一个持续定位流；底层单次请求可能持续到其系统超时。已移除该路径输出经纬度的调试日志。
 
 主机只声明前台精确/模糊定位权限，拒绝不阻塞手动城市选择。坐标转城市的 geocoding 尚未适配；签名、原生权限弹窗（含永久拒绝）、系统设置跳转、真实定位精度/时间戳和快速进入退出需真机验收。接口 mock 测试模板为 `harmony/verification/geolocator_contract_test.dart.template`，其通过不代表原生定位验证通过。
+
+### 系统地理编码（独立构建）
+
+执行 `scripts/stage-harmony-geocoding.ps1 -ProbeRoot <外部 probe>`，再使用既有构建脚本。插件源码在 `harmony/plugins/kingclub_geocoding_ohos/`，依照本机 API 26 SDK `@ohos.geoLocationManager.d.ts` 的 `isGeocoderAvailable`、`getAddressesFromLocation` 与 `getAddressesFromLocationName` 实现；保留 geocoding 5.0.0 / platform interface 5.0.0，不使用旧版单例接口或降级主项目。
+
+支持坐标转地址、地址转坐标、地址转 Placemark 和可用性查询。每次请求独立传递 locale；省、市、区县对应字段分别返回，不把无结果替换为固定城市。Dart 通道有 8 秒超时，底层系统查询不可取消，超时只结束调用方等待；不记录坐标/地址调试日志。该插件不额外申请定位权限，坐标仍经已有前台授权流程获取。
+
+主 APP 的 `locateHomeCity` 无修改，仍按 locality / subAdministrativeArea / administrativeArea 的原优先级选名，再与原城市目录匹配。首页现有异常捕获保留手动选择，异步定位不会覆盖已手选城市。验证模板 `harmony/verification/geocoding_contract_test.dart.template` 使用 mock 通道验证真实 APP 调用函数，测试数据不写数据库，不替换产品页面。地理编码依赖手机系统服务及网络，实际城市名称、离线/服务不可用与地区支持仍须真机验收。
