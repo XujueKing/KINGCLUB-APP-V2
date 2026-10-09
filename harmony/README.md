@@ -139,3 +139,9 @@ not these native runtime cases.
 按顺序执行 `scripts/stage-harmony-video-thumbnail.ps1 -ProbeRoot <隔离工程>` 和 `scripts/stage-harmony-platform.ps1 -ProbeRoot <隔离工程>`，再在鸿蒙环境 pub get。前者保留 get_thumbnail_video 0.7.3，仅接现有 thumbnailData 本地视频调用，不支持网络源或 file API；后者增加安装 BundleInfo 通道，并仅在 probe 的主题平台表加入 OHOS，复用已有 KingSlidePageTransitionsBuilder。
 
 验证模板：thumbnail_contract_test.dart.template、platform_gesture_test.dart.template。另复制原 installed_app_version_test.dart；复制原 native_page_transition_test.dart 时仅将 TargetPlatform.android 替换为 TargetPlatform.ohos。共 7 项通过，覆盖缩略图参数与错误、实际安装信息读取契约、缺失信息不伪造、设置/会员码页动画与左边缘右滑返回。未签名 HAP 编译通过（assembleHap 99.2 秒）。当前宿主版本仍取 BundleInfo，不代表安卓/iOS发布版号。尚待真机验收真实解码、损坏视频、高分辨率内存、系统边缘手势；当前先解码原尺寸再按比例缩小，不能宣称低内存转码。
+
+### 聊天文件保存与打开
+
+`scripts/stage-harmony-file-export.ps1 -ProbeRoot <隔离工程>` 注册独立 native 插件，并仅在 probe 的原聊天文件详情页放开 OHOS 保存/打开按钮。保留 ChatFileExporter 的二次鉴权、会话变更和删除取消；复制原 test/chat_file_exporter_test.dart 到 probe/test 后运行回归。系统 DocumentViewPicker.save 返回目标，只处理本操作 URI；非空目标拒绝覆盖，256 MiB、私有下载目录和 SHA-256 校验，64 KiB 分块读取，先核验源再写并再次核验。cancel 使在途操作失效，已成功保存的文档不会因退出页面删除。文件后缀通过系统 UTD 转为 MIME，只读调用系统查看器。没有查看器会报告失败，不伪造打开成功。
+
+真机必须覆盖：中文文件名、空文件、大于一块的文件、云文档、取消选择/复制中取消、删除消息、账号切换、源损坏、目标变更、空间不足、系统查看器不可用。清理目标失败可能留下空或未完成文件；不保证云提供方清理必然成功。未签名包与 mock 测试不是系统导出验收。

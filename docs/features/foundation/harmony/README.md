@@ -192,3 +192,11 @@ Dart analyze 无 error/warning，有 2 项 info：OHOS cancel 修复继承当前
 第二项：版本号读取使用系统自身 BundleInfo 的 versionName/versionCode，保持 InstalledAppVersion 的显示接口，不写死版本。鸿蒙主题加入已有 KingSlidePageTransitionsBuilder，适配仅写到 probe，主 lib 不增加主 SDK 无法识别的 TargetPlatform.ohos。该节点不宣称 AppGallery 更新、发布签名或支付回调已完成。
 
 本批验证完成：缩略图通道、版本读取、设置与会员码页进出动画共6项，另新增鸿蒙左边缘右滑返回测试1项，全部通过。原生未签名 HAP assembleHap 99.2秒通过（platform-thumbnail-build.log），API地址https://api.wuyexin.cn。测试为Flutter/mock验证，不代表真机图像生成或系统手势验收。缩略图先取原尺寸帧再等比缩小，高分辨率内存表现仍需手机测试；仅实现当前data接口，不虚报file接口。未修改主lib/android/ios或业务后端。后续按文件导出/打开→地图→通知→支付→音视频通话继续，视频转码、签名发布等仍未完成。
+
+## 2026-10-10 聊天文件导出与打开方案
+
+复用 ChatFileExporter 的 choose→二次鉴权→copy→openSaved/cancel，不改变业务鉴权与会话/消息删除监听。独立鸿蒙插件使用 DocumentViewPicker.save 创建用户选择的文档，只接受本次操作返回的 URI；来源严格限定 cacheDir/kingclub-chat-download-*/content.bin，拒绝符号链接。256 MiB 上限，分块 SHA-256 与字节数核对后才写入，写入时再次验证；取消与 Ability 分离使在途操作失效。仅清理本次选择且确认空的新文档，不删除已成功导出的文件；拒绝非空目标，避免静默覆盖。打开只允许已保存操作的 URI，通过系统只读打开。仅在 probe 启用现有文件详情按钮的 OHOS 分支，Android/iOS主业务保持不变。系统选择器、第三方查看器、云文件、空间不足及真实取消需真机验收。
+
+验证结果：原有 ChatFileExporter 6项回归通过，包含选择/复制阶段删除取消、再次鉴权被拒和页面释放，未修改原业务测试。首编译仅因 ArkTS 不允许直接 rethrow 任意异常类型失败，改为明确 Error 后，最终未签名 HAP assembleHap 54.8秒通过（file-export-build-final.log）；同时包含UTD文件类型识别。使用当前 https://api.wuyexin.cn 构建，未执行真实文件上传或服务器写入。实际系统保存、分块写入、SHA-256原生行为与查看器仍待真机验收，mock通过不能替代此项。来源两遍读取采用lseek归零与顺序读取，避免各接口offset含义差异。本节点主lib/android/ios无改动。
+
+下个地图节点已检查：已有定位与地理编码平台适配可复用；聊天原生地图视图、静态预览的平台门槛及kingclub/chat-map打开通道仍需分别补齐，不能以定位插件已注册宣称地图完成。
