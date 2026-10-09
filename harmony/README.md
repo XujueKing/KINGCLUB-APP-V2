@@ -127,3 +127,9 @@ not these native runtime cases.
 执行 `scripts/stage-harmony-record.ps1 -ProbeRoot <隔离工程>`，使用干净的 CPF-Flutter/fluttertpc_record c719424e0cd869bf57198e71768d11f995cce849 源码（默认 C:/HuaweiTools/harmony-record）。保留 record 7.1.1/interface 2.1.0，仅覆盖鸿蒙默认插件；Dart OHOS 类等待 cancel 完成，不修改其他端接口包。添加前台麦克风使用说明，不增加后台任务权限。验证模板为 harmony/verification/record_contract_test.dart.template，复制到 probe/test 后配合原 voice_capture_test.dart 运行。
 
 原生支持当前聊天 AAC-LC/M4A 文件录音。系统降噪/回声处理未保证，流式录音和其他编码不开放。18 项通道/状态机测试、未签名 HAP 构建通过；实际录音、来电中断、后台切换、短录音删除、重新录制、试听及真实发送须真机验证。该节点未改变安卓/苹果或 shared lib。
+
+### 聊天单文件选择
+
+`scripts/stage-harmony-file-picker.ps1` 在隔离工程保留 file_picker 12.3.0，并注册 `plugins/kingclub_file_picker_ohos`。插件依照本机 API 26 DocumentViewPicker/FileUri/fs 接口编写，只接现有聊天的单文件任意类型选择，不开放目录、另存、多选或媒体压缩。使用系统选择授予的 URI，只读打开原文件，以 64 KiB 分块复制至私有 cacheDir，校验 256 MiB 和拷贝大小；Dart 返回原名和可读取路径，沿用已有账号/会话草稿及发送页面。
+
+取消返回 null；错误回传已有页面提示，重复选择被拒绝，Ability 分离后的结果不进入草稿。成功的中转文件属于系统可回收缓存，未增加永久文件存储或完整临时文件清理接口；原始文件不删除。取消、云端文档、低空间、断开页面、实际预览/发送和缓存回收需真机验收。验证模板 `verification/file_picker_contract_test.dart.template`。

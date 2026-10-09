@@ -1,0 +1,51 @@
+import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:kingclub_file_picker_ohos/kingclub_file_picker_ohos.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  const channel = MethodChannel('com.lingmei.kingclub/file_picker');
+  Object? response;
+  PlatformException? failure;
+  setUp(() {
+    KingclubFilePickerOhos.registerWith(); response = null; failure = null;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'pickFile');
+      if (failure != null) throw failure!;
+      return response;
+    });
+  });
+  test('current public picker returns a readable local file with original name', () async {
+    final dir = await Directory.systemTemp.createTemp('ohos-document-test-');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = await File('${dir.path}/picked').writeAsBytes([1, 2, 3]);
+    // Native OHOS paths are POSIX; validate the Dart reader independently on Windows.
+    final picked = OhosPickedFile(file.path, '合同.pdf', 3);
+    expect(picked.name, '合同.pdf'); expect(picked.extension, 'pdf');
+    expect(await picked.readAsBytes(), [1, 2, 3]);
+    expect(await picked.length(), 3);
+    expect(await picked.readAsByteStream().expand((b) => b).toList(), [1, 2, 3]);
+    response = {'path': '/cache/picked-doc', 'name': '合同.pdf', 'size': 3};
+    final result = await FilePicker.pickFile();
+    expect(result!.name, '合同.pdf'); expect(result.lengthSync(), 3);
+    expect(result.uri.scheme, 'file');
+  });
+  test('cancel returns null and ends picking status', () async {
+    final states = <FilePickerStatus>[];
+    expect(await FilePicker.pickFile(onFileLoading: states.add), isNull);
+    expect(states, [FilePickerStatus.picking, FilePickerStatus.done]);
+  });
+  test('native errors remain errors and finish loading', () async {
+    failure = PlatformException(code: 'FILE_PICK_FAILED', message: 'Cannot read source');
+    final states = <FilePickerStatus>[];
+    await expectLater(FilePicker.pickFile(onFileLoading: states.add), throwsA(isA<PlatformException>()));
+    expect(states.last, FilePickerStatus.done);
+  });
+  test('invalid oversized response cannot enter existing draft flow', () async {
+    response = {'path': '/cache/file', 'name': 'large.zip', 'size': 268435457};
+    await expectLater(FilePicker.pickFile(), throwsFormatException);
+  });
+}

@@ -172,3 +172,15 @@ IDE 已恢复启动，用户已在 IDE 登录，自动签名识别湖南领美�
 当前仅提供 AAC-LC 文件录音；PCM 流及其他编码明确拒绝，设备列表不伪造。autoGain/echoCancel/noiseSuppress 不作原生效果保证，音质/系统中断/权限撤回/耳机/实际发送仍需真机验收。应用已有前后台回调结束按住说话，原生 Ability 分离亦排队取消录音；不启动后台录音任务。未签名、未安装。
 
 Dart analyze 无 error/warning，有 2 项 info：OHOS cancel 修复继承当前固定 interface 包的 src 实现类；验证测试导入间接插件依赖。该内部类依赖已固定 interface 2.1.0，升级前必须重审，不将静态分析报告写为零提示。
+
+## 2026-10-10 聊天文件选择适配方案
+
+继续保留 file_picker 12.3.0/interface 3.4.0，新增独立 OHOS 实现，覆盖现有 FilePicker.pickFile() 的单文件任意类型调用。使用系统 DocumentViewPicker，不增加全盘存储权限。选择结果以只读 URI 打开，复制到应用私有缓存，返回真实名称/大小/本地路径，由原 ChatFileDraftStore 校验并复制到按账号会话隔离的草稿。沿用 256 MiB 上限；分块拷贝避免整文件进入内存，失败删除本次缓存、关闭句柄，不改动原始文件。取消返回 null，重复打开拒绝，Ability 分离使迟到结果失效。目录/保存/多选等非当前业务能力不虚报支持。通道测试和 HAP 编译后，云文件下载、系统取消、空间不足与真实发送仍须手机验收。
+
+验证结果：staging 脚本在独立 probe 实际执行完成；4 项文件选择通道测试与 3 项原 ChatFileDraftStore 回归，共 7 项通过。覆盖真实公共 FilePicker 调用、中文原名、本地文件字节/流读取、取消结束加载、错误传播、超限拒绝、草稿账号会话隔离和失去会话时不得发布草稿。测试使用 mock 原生通道，不代表系统选择器或服务器发送已验收。
+
+首次原生编译发现 fs.OpenMode 无 EXCL 常量，改用随机 UUID 私有路径并检查已有路径，碰撞时不清理原有文件；最终 unsigned HAP assembleHap 93.5 秒通过（file-picker-build-final.log）。主机 API 为 https://api.wuyexin.cn，未执行真实文件上传。实际云文件、空间不足、页面离开、原生句柄与系统取消待真机验收。缓存为系统可回收的应用私有中转文件，未实现额外定时清理，不宣称每次发送后已清空缓存。
+
+本轮没有修改 lib/android/ios/pubspec.yaml/pubspec.lock；工作区期间另出现扫码点单的业务修改，保持原样且不纳入本节点提交。构建使用既有隔离 probe 的业务快照，不把它当成已同步其他并行业务改动的新发布版。
+静态分析最终无提示。额外核对缓存路径碰撞保护后再次编译，最终结果以 file-picker-build-verified.log 为准。
+最终含路径碰撞保护的未签名 HAP 已再次构建成功；未做真机安装及实际发送。

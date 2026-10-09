@@ -1,0 +1,19 @@
+name: kingclub_file_picker_ohos
+description: KINGCLUB foreground single document picker for HarmonyOS.
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: ^3.12.2
+dependencies:
+  flutter:
+    sdk: flutter
+  file_picker_platform_interface: ^3.4.0
+  cross_file: ^0.3.5+4
+flutter:
+  plugin:
+    implements: file_picker
+    platforms:
+      ohos:
+        package: com.lingmei.kingclub.filepicker
+        pluginClass: KingclubFilePickerPlugin
+        dartPluginClass: KingclubFilePickerOhos
