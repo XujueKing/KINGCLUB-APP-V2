@@ -1,0 +1,89 @@
+// Run only with the staged Harmony SDK/package; these tests mock native calls.
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:mobile_scanner/src/method_channel/mobile_scanner_method_channel.dart';
+
+void main() {
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('dev.steenbakker.mobile_scanner/scanner/method');
+  late MethodChannelMobileScanner scanner;
+  late List<MethodCall> calls;
+  bool granted = true;
+  Object? imageResult;
+  const options = StartOptions(
+    cameraDirection: CameraFacing.back,
+    cameraLensType: CameraLensType.any,
+    cameraResolution: null,
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    detectionTimeoutMs: 250,
+    formats: [BarcodeFormat.qrCode],
+    returnImage: false,
+    torchEnabled: false,
+    invertImage: false,
+    autoZoom: false,
+    initialZoom: null,
+  );
+
+  setUp(() {
+    debugDefaultTargetPlatformOverride = TargetPlatform.ohos;
+    scanner = MethodChannelMobileScanner();
+    calls = [];
+    granted = true;
+    imageResult = null;
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      switch (call.method) {
+        case 'state': return granted ? 1 : 2;
+        case 'request': return granted;
+        case 'start': return <String, Object?>{
+          'textureId': 1, 'cameraDirection': 1, 'numberOfCameras': 1,
+          'handlesCropAndRotation': false,
+          'naturalDeviceOrientation': 'PORTRAIT_UP', 'sensorOrientation': 90,
+          'currentTorchState': 0,
+          'size': {'width': 480.0, 'height': 480.0},
+        };
+        case 'analyzeImage': return imageResult;
+        default: return null;
+      }
+    });
+  });
+  tearDown(() {
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  test('OHOS gallery QR is parsed and format restriction is forwarded', () async {
+    imageResult = {'name': 'barcode', 'data': [
+      {'rawValue': 'kingclub-test-qr', 'format': 256, 'type': 0},
+    ]};
+    final capture = await scanner.analyzeImage('/cache/qr.png', formats: [BarcodeFormat.qrCode]);
+    expect(capture!.barcodes.single.rawValue, 'kingclub-test-qr');
+    expect(capture.barcodes.single.format, BarcodeFormat.qrCode);
+    expect(calls.single.arguments, {'filePath': '/cache/qr.png', 'formats': [256]});
+  });
+  test('empty image result is not a successful scan', () async {
+    expect(await scanner.analyzeImage('/cache/empty.png'), isNull);
+  });
+  test('stop and reopen retain the newer controller channel contract', () async {
+    final first = await scanner.start(options);
+    expect(first.cameraDirection, CameraFacing.back);
+    expect(first.numberOfCameras, 1);
+    expect(first.size.width, 480);
+    await scanner.stop();
+    final second = await scanner.start(options);
+    expect(second.cameraDirection, CameraFacing.back);
+    expect(calls.map((c) => c.method), ['state', 'start', 'stop', 'state', 'start']);
+    expect((calls[1].arguments as Map)['speed'], 0);
+    await scanner.stop();
+  });
+  test('denied permission does not start the camera and allows retry', () async {
+    granted = false;
+    await expectLater(scanner.start(options), throwsA(isA<MobileScannerException>()));
+    expect(calls.map((c) => c.method), ['state', 'request']);
+    granted = true;
+    expect((await scanner.start(options)).cameraDirection, CameraFacing.back);
+    await scanner.stop();
+  });
+}

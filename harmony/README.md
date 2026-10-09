@@ -67,6 +67,14 @@ a compile-only package. Signing material stays outside the repository.
 
 ## Image picker device acceptance (pending)
 
+Scanner staging: run `scripts/stage-harmony-scanner.ps1` after image picker.
+It retains mobile_scanner 7.4.1 and copies the pinned OHOS native implementation,
+applying separate Dart/native patches. The existing scanner page and navigation
+remain unchanged. ScanKit currently exposes one rear camera in this adapter.
+Copy `verification/scanner_contract_test.dart.template` into the isolated test
+directory to check the mocked Harmony channel contract. Real camera orientation,
+torch, gallery detection and stop/reopen still require a device.
+
 - Pick and read one photo, several photos and a video through existing app flows.
 - Cancel both single and multi-select, then immediately open the picker again.
 - Deny camera permission and retry; grant it and capture with both cameras.
