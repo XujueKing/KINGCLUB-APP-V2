@@ -94,3 +94,23 @@
 - Windows UI 工具启动了 DevEco，但输入连续返回 active request/unknown screenshotId，重置恢复后仍无法可靠操作。当前停在首次语言选择页，已请求用户完成首次启动设置；浏览器开发者登录不等于 IDE 自动签名已完成。
 
 - 显式 API 配置的联网实验 HAP 构建成功（114.8 秒），产物 263,971,618 字节，2026-10-09 18:55。尚未签名/安装，不能据此认为已请求过真实服务器或通过任何手机验收。
+
+### 2026-10-10 相册适配计划与源码审计
+
+沿用当前 image_picker 1.2.3 的 Dart API，仅在隔离工程注册 OHOS 实现。候选源为 OpenHarmony-TPC/flutter_packages 的 br_image_picker-v1.2.1_ohos，固定提交 1af98579e1a95d4fca19e422d26f5b6856ac38ba，平台插件 0.8.13+7。系统 PhotoViewPicker 返回的 URI 复制到应用缓存后交给现有上传流程；相机使用系统 CameraPicker。
+
+审计发现取消多选未完成 Future、重复调用仍返回 true、权限拒绝残留 pending 状态、空结果直接访问 uris[0]、多视频仅返回第一项、复制失败重复关闭文件等问题。接入前修复这些边界；补丁固定到版本并随 staging 脚本应用。设备验收需覆盖选择、取消、再次打开、拒绝权限、文件读取及现有压缩上传。头像裁剪和扫码识别是独立插件，不能因相册编译通过而记为完成。
+
+### DevEco 启动与签名状态更新
+
+IDE 已恢复启动，用户已在 IDE 登录，自动签名识别湖南领美网络科技有限公司。旧缓存 .port 为不可访问的 reparse point，同时 JBR 25 默认临时目录无法建立 Unix domain socket。保留旧缓存和设置，通过用户 VM options 将 idea.system.path 指向 C:/HuaweiTools/ide-system，jdk.net.unixdomain.tmpdir 指向 C:/HuaweiTools/socket-temp；Selector 探针通过，真实项目可正常打开。没有重置用户设置。
+
+当前没有鸿蒙真机，自动签名提示缺少设备无法生成 profile，尚未生成已签名包或安装。用户已确认先推进适配，不等待手机。
+
+### 相册适配构建结果（2026-10-10）
+
+- 新增 scripts/stage-harmony-image-picker.ps1，固定上游提交，保留 image_picker 1.2.3，实体复制 OHOS 平台包及许可证后应用 harmony/patches/image-picker-ohos.patch。已在现有隔离工程实际执行并解析成功，未改主工程 pubspec/lock。
+- 修改的原生边界包括空结果、取消多选完成回调、重复调用拒绝、相机权限失败后清理状态、多视频返回全部文件、异步处理失败回调及复制失败重复 close。
+- 上游 Dart wrapper 的 105 项测试通过；Dart analyze 无错误/警告，4 项提示均为生成 Pigeon 通道常量命名。PowerShell 脚本语法检查通过。
+- 显式现有 API 配置的未签名 debug HAP 编译通过（212.8 秒），注册器包含 ImagePickerPlugin，共 8 个原生插件。Dart 单测使用 fake native API，不能证明原生补丁运行正确；原生取消、权限、文件访问、压缩上传及进程恢复仍待设备验收。
+- 当前插件的 requestFullMetadata 语义、异常细分和进程被回收后的恢复仍须进一步审查；头像裁剪、扫码、定位、录音等尚未完成。没有手机安装或业务上线动作。

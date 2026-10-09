@@ -52,8 +52,29 @@ Neither result proves native cryptography, persistence or media playback on devi
 
 Use the preparation scripts in order: prepare-harmony-probe,
 stage-harmony-storage, stage-harmony-secure-storage, stage-harmony-video.
+Then run `stage-harmony-image-picker.ps1` to retain image_picker 1.2.3 and add
+the pinned OHOS platform adapter. Its reviewed patch is kept in
+`patches/image-picker-ohos.patch`; staging refuses a dirty upstream source.
+The patch handles empty selection, cancelled multi-selection, overlapping calls,
+permission retry, multiple videos, async result failures and duplicate file close.
+It is not a replacement for the separate scanner or image-cropping adapter.
+
 Each staging script requires a fresh destination for its packages; it refuses to
 overwrite an earlier experiment. Sources and commit pins are in the scripts.
 `build-harmony-device.ps1` requires an explicit HTTPS API base, preventing the
 default mock auth repository from being used unintentionally. `-Unsigned` makes
 a compile-only package. Signing material stays outside the repository.
+
+## Image picker device acceptance (pending)
+
+- Pick and read one photo, several photos and a video through existing app flows.
+- Cancel both single and multi-select, then immediately open the picker again.
+- Deny camera permission and retry; grant it and capture with both cameras.
+- Double tap while a picker is open: the second request fails without losing the first.
+- Verify readable cache paths, image dimensions/orientation and existing upload
+  compression, including large files and insufficient storage.
+- Interrupt with background/foreground and process death; verify recovery separately.
+- Verify crop and gallery QR recognition only after their own adapters are ready.
+
+The upstream Dart tests mock native calls; passing them confirms wrapper compatibility,
+not these native runtime cases.

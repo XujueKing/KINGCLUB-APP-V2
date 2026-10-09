@@ -1,0 +1,164 @@
+diff --git a/ohos/src/main/ets/image_picker/FileUtils.ets b/ohos/src/main/ets/image_picker/FileUtils.ets
+index 08692e2..6ffe5c7 100644
+--- a/ohos/src/main/ets/image_picker/FileUtils.ets
++++ b/ohos/src/main/ets/image_picker/FileUtils.ets
+@@ -76,7 +76,6 @@ export default class FileUtils {
+         Log.i(TAG, "copyFileSync inputFile fd:" + inputFile.fd + " outputFile fd:" + outputFile.fd);
+         fs.copyFileSync(inputFile.fd, outputFilePath);
+       } catch (err) {
+-        fs.closeSync(outputFile);
+         Log.e(TAG, "copyFileSync failed err:" + err);
+          try {
+             fs.unlinkSync(outputFilePath);
+diff --git a/ohos/src/main/ets/image_picker/ImagePickerDelegate.ets b/ohos/src/main/ets/image_picker/ImagePickerDelegate.ets
+index 7727364..1291970 100644
+--- a/ohos/src/main/ets/image_picker/ImagePickerDelegate.ets
++++ b/ohos/src/main/ets/image_picker/ImagePickerDelegate.ets
+@@ -172,7 +172,9 @@ export default class ImagePickerDelegate {
+ 
+   handleChooseMediaResult(code: number, uris: Array<string>): void {
+     if (code == 0) {
+-      this.handleMediaResultTwo(uris);
++      this.handleMediaResultTwo(uris).catch(() => {
++        this.finishWithError('file_read_failed', 'Unable to read selected media');
++      });
+     } else {
+       this.finishWithListSuccess(null);
+     }
+@@ -232,16 +234,28 @@ export default class ImagePickerDelegate {
+   }
+ 
+   handleChooseVideoResult(code: number, uris: Array<string>): void {
+-    if (code == 0) {
+-      let realPath = FileUtils.getPathFromUri(this.context, uris[0]);
+-        if (realPath == null) {
+-            Log.e(ImagePickerDelegate.TAG, "Failed to get path from URI: " + uris[0]);
+-            this.finishWithSuccess(null);
+-            return;
+-          }
+-      this.handleVideoResult(realPath as string, false);
+-    } else {
+-      this.finishWithSuccess(null);
++    if (code != 0 || uris.length === 0) {
++      this.finishWithListSuccess(null);
++      return;
++    }
++    const paths = new ArrayList<string>();
++    for (const uri of uris) {
++      const path = FileUtils.getPathFromUri(this.context, uri, 'mp4');
++      if (path === null) {
++        this.finishWithError('file_read_failed', 'Unable to read selected video');
++        return;
++      }
++      paths.add(path);
++    }
++    this.finishWithListSuccess(paths);
++  }
++
++  private finishWithError(code: string, message: string): void {
++    const pending = this.pendingCallState;
++    this.pendingCallState = null;
++    this.pendingCameraMediaUri = null;
++    if (pending != null) {
++      pending.result.error(new FlutterError(code, message, null));
+     }
+   }
+ 
+@@ -258,13 +272,15 @@ export default class ImagePickerDelegate {
+     this.checkAndRequestCameraPermission().then((hasCameraPermission) =>{
+       if (!hasCameraPermission) {
+         this.pendingCallState = null;  // 清理状态
++        this.pendingCallState = null;
+         result.error(new FlutterError("camera_access_denied", "The user did not allow camera access.", null));
+         return;
+       }
+       Log.i(ImagePickerDelegate.TAG, "launchTakeVideoWithCameraWant duration: " + options.getMaxDurationSeconds());
+       this.launchTakeVideoWithCameraWant(options.getMaxDurationSeconds());
+     }).catch((err: BusinessError) => {
+-         result.error(new FlutterError("camera_permission_error",err.message, null));
++         this.pendingCallState = null;
++         result.error(new FlutterError("camera_permission_error", "Camera permission request failed", null));
+          return;
+     });
+   }
+@@ -288,7 +304,8 @@ export default class ImagePickerDelegate {
+   }
+ 
+   private saveFileUri(filePath: string): string{
+-    fs.createRandomAccessFileSync(filePath, fs.OpenMode.CREATE);
++    const file = fs.openSync(filePath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE);
++    fs.closeSync(file);
+     return fileUri.getUriFromPath(filePath)
+   }
+ 
+@@ -315,14 +332,16 @@ export default class ImagePickerDelegate {
+   }
+ 
+   handleChooseImageResult(code: number, uris: Array<string>): void {
+-    if (code == 0) {
++    if (code == 0 && uris.length > 0) {
+       let realPath = FileUtils.getPathFromUri(this.context, uris[0]);
+       if (realPath == null) {
+             Log.e(ImagePickerDelegate.TAG, "Failed to get path from URI: " + uris[0]);
+             this.finishWithSuccess(null);
+             return;
+           }
+-      this.handleImageResult(realPath as string, false);
++      this.handleImageResult(realPath as string, false).catch(() => {
++        this.finishWithError('file_read_failed', 'Unable to read selected image');
++      });
+     } else {
+       this.finishWithSuccess(null);
+     }
+@@ -349,12 +368,14 @@ export default class ImagePickerDelegate {
+       // 改为使用新增的异步权限请求方法
+      this.checkAndRequestCameraPermission().then((hasCameraPermission: boolean) =>{
+        if (!hasCameraPermission) {
+-         result.error(new FlutterError("camera_access_denied", "The user did not allow camera access.", null));
++         this.pendingCallState = null;
++        result.error(new FlutterError("camera_access_denied", "The user did not allow camera access.", null));
+          return;
+        }
+        this.launchTakeImageWithCameraWant();
+       }).catch((err: BusinessError) => {
+-                 result.error(new FlutterError("camera_permission_error",err.message, null));
++                 this.pendingCallState = null;
++         result.error(new FlutterError("camera_permission_error", "Camera permission request failed", null));
+                  return;
+             });
+ 
+@@ -381,7 +402,7 @@ export default class ImagePickerDelegate {
+   setPendingOptionsAndResult(imageOptions: ImageSelectionOptions | null, videoOptions: VideoSelectionOptions | null,
+     result: Result<ArrayList<string>>): boolean {
+     if (this.pendingCallState !== null && this.pendingCallState !== undefined) {
+-      Log.i(ImagePickerDelegate.TAG, "There is already an open gallery, use it directly to select images");
++      return false;
+     } else {
+       Log.i(ImagePickerDelegate.TAG, "Prepare to awaken a new one");
+       this.pendingCallState = new PendingCallState(imageOptions, videoOptions, result);
+@@ -410,7 +431,9 @@ export default class ImagePickerDelegate {
+             Log.e(ImagePickerDelegate.TAG, "Failed to get file path from URI");
+             return;
+           }
+-      this.handleImageResult(realPath || path, true); // filePath 作为兜底
++      this.handleImageResult(realPath || path, true).catch(() => {
++        this.finishWithError('file_read_failed', 'Unable to read captured image');
++      }); // filePath 作为兜底
+     } else {
+       this.finishWithSuccess(null);
+     }
+@@ -508,9 +531,11 @@ export default class ImagePickerDelegate {
+     this.pendingCameraMediaUri = null; // 清理相机媒体URI
+ 
+     if (localResult === null) {
+-      this.cache.saveResult(path as ArrayList<string>, null, null);
+-    } else if (path) {
+-      localResult.success(path);
++      if (path != null && !path.isEmpty()) {
++        this.cache.saveResult(path, null, null);
++      }
++    } else {
++      localResult.success(path ?? new ArrayList<string>());
+     }
+   }
+ 
