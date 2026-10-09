@@ -61,7 +61,8 @@ class TogetherPlayPage extends StatefulWidget {
   State<TogetherPlayPage> createState() => _TogetherPlayPageState();
 }
 
-class _TogetherPlayPageState extends State<TogetherPlayPage> {
+class _TogetherPlayPageState extends State<TogetherPlayPage>
+    with WidgetsBindingObserver {
   late final DateTime _today = DateUtils.dateOnly(
     widget.today ?? DateTime.now(),
   );
@@ -75,7 +76,19 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_loading) _load();
   }
 
   @override
@@ -205,47 +218,51 @@ class _TogetherPlayPageState extends State<TogetherPlayPage> {
                     style: TextStyle(color: legacyGold),
                   ),
                 )
-              : ListView.separated(
-                  padding: EdgeInsets.fromLTRB(
-                    MediaQuery.sizeOf(context).width * 30 / 750,
-                    0,
-                    MediaQuery.sizeOf(context).width * 30 / 750,
-                    28,
-                  ),
-                  itemCount: _items.length,
-                  separatorBuilder: (_, _) => SizedBox(
-                    height: MediaQuery.sizeOf(context).width * 30 / 750,
-                  ),
-                  itemBuilder: (_, index) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_items[index].hasAdmissionTicket) ...[
-                        TogetherPartyCard(
-                          party: _items[index],
-                          onTap: () => _open(_items[index]),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(
-                            top: MediaQuery.sizeOf(context).width * 20 / 750,
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                      MediaQuery.sizeOf(context).width * 30 / 750,
+                      0,
+                      MediaQuery.sizeOf(context).width * 30 / 750,
+                      28,
+                    ),
+                    itemCount: _items.length,
+                    separatorBuilder: (_, _) => SizedBox(
+                      height: MediaQuery.sizeOf(context).width * 30 / 750,
+                    ),
+                    itemBuilder: (_, index) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_items[index].hasAdmissionTicket) ...[
+                          TogetherPartyCard(
+                            party: _items[index],
+                            onTap: () => _open(_items[index]),
                           ),
-                          child: Text(
-                            '请按时到场并出示入场码，过期作废。\n'
-                            '请衣着整洁、文明礼貌，适量饮酒、尊重同桌。',
-                            key: ValueKey(
-                              'together-use-reminder-${_items[index].ref}',
+                          Padding(
+                            padding: EdgeInsets.only(
+                              top: MediaQuery.sizeOf(context).width * 20 / 750,
                             ),
-                            style: togetherLegacyDateStyle(
-                              MediaQuery.sizeOf(context).width * 26 / 750,
-                              const Color(0x66FFFFFF),
-                            ).copyWith(height: 1.55),
+                            child: Text(
+                              '请按时到场并出示入场码，过期作废。\n'
+                              '请衣着整洁、文明礼貌，适量饮酒、尊重同桌。',
+                              key: ValueKey(
+                                'together-use-reminder-${_items[index].ref}',
+                              ),
+                              style: togetherLegacyDateStyle(
+                                MediaQuery.sizeOf(context).width * 26 / 750,
+                                const Color(0x66FFFFFF),
+                              ).copyWith(height: 1.55),
+                            ),
                           ),
-                        ),
-                      ] else
-                        TogetherAvailableRow(
-                          party: _items[index],
-                          onTap: () => _open(_items[index]),
-                        ),
-                    ],
+                        ] else
+                          TogetherAvailableRow(
+                            party: _items[index],
+                            onTap: () => _open(_items[index]),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
         ),
@@ -374,6 +391,36 @@ class _TogetherScaffold extends StatelessWidget {
 }
 
 /// Legacy proportions, with the requested extra height for the merchant mark.
+class TogetherTicketTheme extends StatelessWidget {
+  const TogetherTicketTheme({
+    super.key,
+    required this.theme,
+    required this.style,
+  });
+  final String theme;
+  final TextStyle style;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final measure = TextPainter(
+        text: TextSpan(text: theme, style: style),
+        maxLines: 1,
+        textDirection: Directionality.of(context),
+      )..layout(maxWidth: constraints.maxWidth);
+      final wraps = measure.didExceedMaxLines;
+      measure.dispose();
+      return Text(
+        theme,
+        key: const ValueKey('together-ticket-theme'),
+        maxLines: wraps ? 2 : 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.right,
+        style: wraps ? style.copyWith(fontSize: 12) : style,
+      );
+    },
+  );
+}
+
 class TogetherPartyCard extends StatelessWidget {
   const TogetherPartyCard({
     super.key,
@@ -493,18 +540,11 @@ class TogetherPartyCard extends StatelessWidget {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.end,
                                       children: [
-                                        Text(
-                                          party.theme,
-                                          maxLines:
-                                              party.actionState ==
-                                                  TogetherJoinState.joined
-                                              ? 2
-                                              : 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          textAlign: TextAlign.right,
-                                          style: _ticketStyle(context, 16)
+                                        TogetherTicketTheme(
+                                          theme: party.theme,
+                                          style: _ticketStyle(context, 14)
                                               .copyWith(
-                                                height: 1,
+                                                height: 1.15,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                         ),
@@ -894,7 +934,9 @@ class TogetherParticipants extends StatelessWidget {
                               ? member.gender
                               : index < party.seatGenders.length
                               ? party.seatGenders[index]
-                              : TogetherGender.unspecified;
+                              : index < columns
+                              ? TogetherGender.male
+                              : TogetherGender.female;
                           final symbol = switch (gender) {
                             TogetherGender.male => 'assets/legacy/aa/man2.png',
                             TogetherGender.female =>
@@ -902,7 +944,17 @@ class TogetherParticipants extends StatelessWidget {
                             TogetherGender.unspecified => null,
                           };
                           final fallback = Center(
-                            child: symbol == null
+                            child: member != null
+                                ? Text(
+                                    member.name.isEmpty
+                                        ? '会员'
+                                        : member.name.characters.first,
+                                    style: TextStyle(
+                                      fontSize: iconHeight,
+                                      color: const Color(0xFF65084E),
+                                    ),
+                                  )
+                                : symbol == null
                                 ? Icon(
                                     Icons.person_outline,
                                     size: iconHeight,
@@ -943,7 +995,17 @@ class TogetherParticipants extends StatelessWidget {
                                               radius: .9,
                                             ),
                                     ),
-                                    child: avatar == null || avatar.isEmpty
+                                    child: member?.avatarBytes != null
+                                        ? Image.memory(
+                                            member!.avatarBytes!,
+                                            key: ValueKey(
+                                              'seat-avatar-${party.ref}-$index',
+                                            ),
+                                            fit: BoxFit.cover,
+                                            gaplessPlayback: true,
+                                            errorBuilder: (_, _, _) => fallback,
+                                          )
+                                        : avatar == null || avatar.isEmpty
                                         ? fallback
                                         : avatar.startsWith('assets/')
                                         ? Image.asset(

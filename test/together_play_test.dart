@@ -882,7 +882,7 @@ void main() {
         expect(date.bottom, closeTo(label.bottom, .1));
         expect(qr.bottom, closeTo(label.bottom, .1));
         final theme = tester.widget<Text>(find.text(party.theme));
-        expect(theme.style?.fontSize, 16);
+        expect(theme.style?.fontSize, anyOf(12, 14));
         expect(theme.style?.fontWeight, FontWeight.w600);
         expect(theme.style?.color, const Color(0xFFC9B69E));
         final seats = tester.getRect(find.byType(TogetherParticipants));

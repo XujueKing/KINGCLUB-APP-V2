@@ -1,5 +1,7 @@
 import 'package:kingclub/src/core/formatters/money.dart';
 
+import 'dart:typed_data';
+
 enum TogetherFeeMode { aa, menPay, hostTreat }
 
 enum TogetherGender { male, female, unspecified }
@@ -19,11 +21,15 @@ class TogetherParticipant {
     this.avatar,
     this.gender = TogetherGender.unspecified,
     this.seatIndex,
+    this.avatarBytes,
+    this.isMe = false,
   });
   final String name;
   final String? avatar;
   final TogetherGender gender;
   final int? seatIndex;
+  final Uint8List? avatarBytes;
+  final bool isMe;
 }
 
 /// Read projection. Prices, membership state and capacity come from the service.

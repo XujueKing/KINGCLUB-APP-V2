@@ -2,6 +2,62 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kingclub/src/features/club/data/secure_together_play_repository.dart';
 
 void main() {
+  test(
+    'real paid participant avatar and own seat survive repository parsing',
+    () async {
+      final repo = SecureTogetherPlayRepository(
+        readSession: () async => {
+          'account': {'userAccount': 'member-test'},
+          'sessionId': 'session',
+          'apiKeyId': 'key',
+          'apiKey': 'secret',
+        },
+        request: (_, _, _) async => {
+          'result': {
+            'item': {
+              'ref': 'party',
+              'theme': '聚会',
+              'cityCode': '430200',
+              'storeRef': 'store',
+              'storeName': '门店',
+              'startsAt': '2030-01-01T12:00:00.000Z',
+              'endsAt': '2030-01-01T16:00:00.000Z',
+              'capacity': 8,
+              'confirmedCount': 1,
+              'myBookingStatus': 'paid',
+              'ticketNumber': 'ticket',
+              'assignedTable': '888',
+              'priceCents': '0',
+              'feeMode': 'host_treat',
+              'place': '地点',
+              'description': '说明',
+              'backgroundUrl': 'https://example.test/a',
+              'posterUrl': 'https://example.test/a',
+              'eligibility': {
+                'eligible': true,
+                'reasons': [],
+                'payableCents': '0',
+              },
+              'participants': [
+                {
+                  'name': '本人',
+                  'gender': 1,
+                  'seatIndex': 0,
+                  'avatarBase64': 'AQID',
+                  'isMe': true,
+                },
+              ],
+            },
+          },
+        },
+      );
+      final party = await repo.detail('party');
+      expect(party.hasAdmissionTicket, isTrue);
+      expect(party.participants.single.isMe, isTrue);
+      expect(party.participants.single.avatarBytes, [1, 2, 3]);
+      expect(party.participants.single.seatIndex, 0);
+    },
+  );
   final session = <String, dynamic>{
     'account': {'userAccount': 'member-test'},
     'sessionId': 'session-test',
@@ -38,7 +94,11 @@ void main() {
               'publisherType': kind,
               'assignedTable': 'V8',
               'confirmedCount': 4,
-              'eligibility': {'eligible': true, 'reasons': [], 'payableCents': '15000'},
+              'eligibility': {
+                'eligible': true,
+                'reasons': [],
+                'payableCents': '15000',
+              },
             },
           },
         },

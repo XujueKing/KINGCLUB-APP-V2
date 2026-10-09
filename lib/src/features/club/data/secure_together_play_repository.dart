@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'together_rule_summary.dart';
 import '../../../core/networking/kingclub_secure_client.dart';
 import '../../../core/session/secure_session_store.dart';
@@ -125,6 +127,36 @@ class SecureTogetherPlayRepository
     return s;
   }
 
+  List<TogetherParticipant> _participants(dynamic value, int capacity) {
+    if (value == null) return const [];
+    if (value is! List || value.length > capacity) _invalid();
+    final used = <int>{};
+    return value.map<TogetherParticipant>((dynamic item) {
+      if (item is! Map) _invalid();
+      final index = item['seatIndex'];
+      final photo = item['avatarBase64'];
+      if (index is! int ||
+          index < 0 ||
+          index >= capacity ||
+          !used.add(index) ||
+          ![0, 1, 2].contains(item['gender']) ||
+          (photo != null && (photo is! String || photo.length > 65536))) {
+        _invalid();
+      }
+      return TogetherParticipant(
+        name: _text(item['name']),
+        seatIndex: index,
+        gender: switch (item['gender']) {
+          1 => TogetherGender.male,
+          2 => TogetherGender.female,
+          _ => TogetherGender.unspecified,
+        },
+        avatarBytes: photo == null ? null : base64Decode(photo as String),
+        isMe: item['isMe'] == true,
+      );
+    }).toList();
+  }
+
   TogetherParty _party(dynamic value, {bool detail = false}) {
     if (value is! Map) _invalid();
     final r = value;
@@ -222,7 +254,7 @@ class SecureTogetherPlayRepository
       allowCoins: r['allowCoins'] == true,
       place: _text(r['place']),
       capacity: capacity,
-      participants: const [],
+      participants: _participants(r['participants'], capacity),
       confirmedCount: confirmed,
       ticketNumber: bookingStatus == 'paid' && r['ticketNumber'] != null
           ? _ref(r['ticketNumber'])
