@@ -1,0 +1,73 @@
+import 'dart:async';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/messaging/data/chat_voice_playback.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  const methods = MethodChannel('xyz.luan/audioplayers');
+  const global = MethodChannel('xyz.luan/audioplayers.global');
+  const codec = StandardMethodCodec();
+  final calls = <MethodCall>[];
+  var playerId = '';
+  var rejectSource = false;
+  Future<void> emit(String event, [Object? value]) async {
+    final done = Completer<void>();
+    messenger.handlePlatformMessage('xyz.luan/audioplayers/events/$playerId',
+      codec.encodeSuccessEnvelope({'event': event, if (value != null) 'value': value}),
+      (_) => done.complete());
+    await done.future;
+  }
+  setUpAll(() {
+    messenger.setMockMethodCallHandler(global, (_) async => 1);
+    messenger.setMockMethodCallHandler(const MethodChannel('xyz.luan/audioplayers.global/events'), (_) async => null);
+    messenger.setMockMethodCallHandler(methods, (call) async {
+      calls.add(call);
+      playerId = call.arguments['playerId'] as String;
+      if (call.method == 'create') {
+        messenger.setMockMethodCallHandler(MethodChannel('xyz.luan/audioplayers/events/$playerId'), (_) async => null);
+      }
+      if (call.method == 'setSourceUrl') {
+        if (rejectSource) {
+          Timer.run(() => messenger.handlePlatformMessage(
+            'xyz.luan/audioplayers/events/$playerId',
+            codec.encodeErrorEnvelope(code: 'OhosAudioError', message: 'Invalid audio'), (_) {}));
+          throw PlatformException(code: 'OhosAudioError', message: 'Invalid audio');
+        }
+        Timer.run(() => emit('audio.onPrepared', true));
+      }
+      return 1;
+    });
+  });
+  setUp(() { calls.clear(); rejectSource = false; });
+  test('existing voice output plays a local file and delivers completion', () async {
+    final output = NativeChatVoiceOutput();
+    final completed = output.completed.first;
+    await output.play('/cache/private-voice.m4a').timeout(const Duration(seconds: 2));
+    final source = calls.firstWhere((c) => c.method == 'setSourceUrl');
+    expect(source.arguments['isLocal'], isTrue);
+    expect(source.arguments['url'], '/cache/private-voice.m4a');
+    expect(calls.any((c) => c.method == 'resume'), isTrue);
+    await emit('audio.onComplete');
+    await completed.timeout(const Duration(seconds: 2));
+    await output.dispose();
+    expect(calls.any((c) => c.method == 'dispose'), isTrue);
+  });
+  test('stop and dispose retain player identity', () async {
+    final output = NativeChatVoiceOutput();
+    await output.play('/cache/voice.m4a');
+    final id = playerId;
+    await output.stop();
+    await output.dispose();
+    expect(calls.where((c) => c.method == 'stop'), isNotEmpty);
+    expect(calls.every((c) => c.arguments['playerId'] == id), isTrue);
+  });
+  test('invalid source is reported instead of pretending it played', () async {
+    rejectSource = true;
+    final output = NativeChatVoiceOutput();
+    await expectLater(output.play('/cache/missing.m4a'), throwsA(isA<PlatformException>()));
+    expect(calls.any((c) => c.method == 'resume'), isFalse);
+    await output.dispose();
+  });
+}

@@ -113,3 +113,11 @@ not these native runtime cases.
 支持坐标转地址、地址转坐标、地址转 Placemark 和可用性查询。每次请求独立传递 locale；省、市、区县对应字段分别返回，不把无结果替换为固定城市。Dart 通道有 8 秒超时，底层系统查询不可取消，超时只结束调用方等待；不记录坐标/地址调试日志。该插件不额外申请定位权限，坐标仍经已有前台授权流程获取。
 
 主 APP 的 `locateHomeCity` 无修改，仍按 locality / subAdministrativeArea / administrativeArea 的原优先级选名，再与原城市目录匹配。首页现有异常捕获保留手动选择，异步定位不会覆盖已手选城市。验证模板 `harmony/verification/geocoding_contract_test.dart.template` 使用 mock 通道验证真实 APP 调用函数，测试数据不写数据库，不替换产品页面。地理编码依赖手机系统服务及网络，实际城市名称、离线/服务不可用与地区支持仍须真机验收。
+
+### 聊天语音播放（独立构建）
+
+`stage-harmony-audio.ps1` 保留 audioplayers 6.8.1 / interface 7.2.0，只引入固定源 CPF-Flutter/flutter_audioplayers `br_v6.5.1_ohos` / `b853cdafdef1549be31b478a954f6d8b36d314e6` 的 OHOS 原生插件。许可证保留在源代码文件头；补丁见 `patches/audioplayers-ohos.patch`。
+
+本次检查范围是 `NativeChatVoiceOutput` 所用的 DeviceFileSource / 默认 MediaPlayer / 播放、停止、完成、销毁。修复初始化通道不返回、缺省音频上下文缺字段导致错误、源设置与释放缺少 await、原生错误伪装 prepared、本地文件描述符不关闭；补充停止后延迟焦点不得恢复播放以及焦点失败通知。禁用该适配器的后台常驻任务，保持现有聊天页面的前台行为。不改聊天文件授权、下载缓存、账号隔离和删除处理，不上传聊天内容至厂商推送。
+
+此节点不是录音适配，也未验收 SoundPool 低延迟模式、远程音频、所有音频格式、系统中断恢复与扬声器/蓝牙/耳机切换。真机须验证重复切换语音、损坏或丢失缓存、播完清除播放态、停止/退出/切换账号后无残留声音，及文件句柄不随次数增长。Dart mock 通道测试与现有 ChatVoicePlayback 回归不能证明实际听感或原生资源释放有效。

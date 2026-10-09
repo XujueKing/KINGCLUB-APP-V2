@@ -1,0 +1,379 @@
+--- a/ohos/src/main/ets/components/plugin/AudioplayersPlugin.ets
++++ b/ohos/src/main/ets/components/plugin/AudioplayersPlugin.ets
+@@ -79,11 +79,14 @@
+     this.players.forEach((value: WrappedPlayer, key: string) => value.dispose())
+     this.players.clear()
+     this.soundPoolManager?.dispose()
++    this.methods?.setMethodCallHandler(null);
++    this.globalMethods?.setMethodCallHandler(null);
+     this.globalEvents?.dispose()
+     this.stopUpdates();
+   }
+ 
+   private globalMethodCall(call: MethodCall, result: MethodResult): void {
++    try {
+     switch (call.method) {
+       case "init":
+         this.players.forEach((value: WrappedPlayer, key: string) => value.dispose())
+@@ -106,8 +109,12 @@
+         this.handleGlobalError(code, message, null)
+         break;
+       default:
+-        result.notImplemented()
+-        break;
++        result.notImplemented();
++        return;
++    }
++    result.success(1);
++    } catch (_) {
++      result.error("OhosAudioError", "Audio initialization failed", null);
+     }
+   }
+ 
+@@ -150,21 +157,22 @@
+           console.log("Detected MIME type:", mimeType);
+           if (mimeType.startsWith('text/')) {
+               console.error("Text file cannot be played as media");
+-              player.handleError("AudioError", "Failed to set source. For troubleshooting, https://github.com/bluefireteam/audioplayers/blob/main/troubleshooting.md", null)
++              player.handleError("AudioError", "Unsupported source", null);
++              response.error("AudioError", "Unsupported source", null);
+               return;
+           }
+           await player!.setSource(new UrlSource(url, isLocal));
+           break;
+         case "setSourceBytes":
+           let bytes = this.getObjectValue(call, "bytes", "bytes are required") as ArrayBuffer
+-          player.setSource(new BytesSource(bytes))
++          await player.setSource(new BytesSource(bytes))
+           break;
+         case "resume":
+           await this.startContinuousTask();
+           player.play();
+           break;
+         case "pause":
+-          player.pause();
++          await player.pause();
+           await this.stopContinuousTask();
+           break;
+         case "stop":
+@@ -203,11 +211,11 @@
+           break;
+         case "setPlayerMode":
+           let playerMode = this.getObjectValue(call, "playerMode", "playerMode is required") as string
+-          player.setPlayerMode(parsePlayerMode(playerMode));
++          await player.setPlayerMode(parsePlayerMode(playerMode));
+           break;
+         case "setAudioContext":
+           let audioContext = this.getAudioContext(call);
+-          player.updateAudioContext(audioContext)
++          await player.updateAudioContext(audioContext)
+           break;
+         case "emitLog":
+           let message = this.getObjectValue(call, "message", "message is required") as string
+@@ -219,7 +227,7 @@
+           player.handleError(code, message, null)
+           break;
+         case "dispose":
+-          player.dispose()
++          await player.dispose()
+           this.players.remove(playerId)
+           break;
+         default:
+@@ -228,7 +236,10 @@
+       }
+       response.success(1)
+     } catch (e) {
+-      response.error("OhosAudioError", e.message, e)
++      if (call.method === 'setSourceUrl' || call.method === 'setSourceBytes') {
++        this.players.get(playerId)?.handleError("OhosAudioError", "Audio source failed", null);
++      }
++      response.error("OhosAudioError", "Audio operation failed", null)
+     }
+   }
+ 
+@@ -336,12 +347,12 @@
+ 
+   private getAudioContext(call: MethodCall): AudioContextOhos {
+     let contextOhos = new AudioContextOhos();
+-    contextOhos.isSpeakerphoneOn = this.getObjectValue(call, "isSpeakerphoneOn", "isSpeakerphoneOn is required") as boolean
+-    contextOhos.rendererFlags = this.getObjectValue(call, "rendererFlags", "rendererFlags is required") as number
+-    contextOhos.usageType = this.getObjectValue(call, "usageType", "usageType is required") as number
+-    contextOhos.audioScene = this.getObjectValue(call, "audioScene", "audioScene is required") as number
+-    contextOhos.stayAwake =  this.getObjectValue(call, "stayAwake", "stayAwake is required") as boolean
+-    contextOhos.audioFocus = this.getObjectValue(call, "audioFocus", "audioFocus is required") as number
++    contextOhos.isSpeakerphoneOn = call.argument("isSpeakerphoneOn") ?? contextOhos.isSpeakerphoneOn
++    contextOhos.rendererFlags = call.argument("rendererFlags") ?? contextOhos.rendererFlags
++    contextOhos.usageType = call.argument("usageType") ?? contextOhos.usageType
++    contextOhos.audioScene = call.argument("audioScene") ?? contextOhos.audioScene
++    contextOhos.stayAwake = call.argument("stayAwake") ?? contextOhos.stayAwake
++    contextOhos.audioFocus = call.argument("audioFocus") ?? contextOhos.audioFocus
+     return contextOhos;
+   }
+ 
+@@ -387,65 +398,10 @@
+     })
+   }
+ 
+-  async startContinuousTask() {
+-    Log.d(TAG, `startContinuousTask`);
+-    if(this.isStartContinuousTask){
+-      return;
+-    }
+-    this.isStartContinuousTask = true;
+-
+-    let context = this.abilityBinding!.getAbility().context;
+-    let type: AVSessionManager.AVSessionType = 'audio';
+-
+-    try {
+-      this.session = await AVSessionManager.createAVSession(context, 'audioplayers', type);
+-      // 激活接口要在元数据、控制命令注册完成之后再执行
+-      await this.session?.activate();
+-      Log.d(TAG, `session create done : sessionId : ${this.session?.sessionId}`);
+-    } catch (error) {
+-      Log.e(TAG,`session create failed. code is ${(error as BusinessError).code} message is ${(error as BusinessError).message}`);
+-    }
+-
+-    let wantAgentInfo: wantAgent.WantAgentInfo = {
+-      wants: [
+-        {
+-          bundleName: context?.abilityInfo.bundleName,
+-          abilityName: context?.abilityInfo.name
+-        }
+-      ],
+-      actionType: wantAgent.OperationType.START_ABILITY,
+-      requestCode: 0,
+-      wantAgentFlags: [wantAgent.WantAgentFlags.UPDATE_PRESENT_FLAG]
+-    };
+-
+-    try {
+-      let wantAgentObj: WantAgent = await wantAgent.getWantAgent(wantAgentInfo);
+-      await backgroundTaskManager.startBackgroundRunning(context, backgroundTaskManager.BackgroundMode.AUDIO_PLAYBACK, wantAgentObj);
+-    } catch (error) {
+-      Log.e(TAG,`startBackgroundRunning failed. code is ${(error as BusinessError).code} message is ${(error as BusinessError).message}`);
+-    }
+-  }
+-
+-  async stopContinuousTask() {
+-    Log.d(TAG, `stopContinuousTask`);
+-    if(!this.isStartContinuousTask){
+-      return;
+-    }
+-    this.isStartContinuousTask = false;
+-
+-    try {
+-      await this.session?.deactivate();
+-      await this.session?.destroy();
+-    } catch (error) {
+-      Log.e(TAG,`session destroy failed. code is ${(error as BusinessError).code} message is ${(error as BusinessError).message}`);
+-    }
+-
+-    try {
+-      await backgroundTaskManager.stopBackgroundRunning(this.abilityBinding?.getAbility().context);
+-    } catch (error) {
+-      Log.e(TAG,`stopBackgroundRunning failed. code is ${(error as BusinessError).code} message is ${(error as BusinessError).message}`);
+-    }
+-  }
++  // Current application playback is foreground-only. No background task permission.
++  async startContinuousTask() {}
++  async stopContinuousTask() {}
++
+ }
+ 
+ export class EventHandler implements StreamHandler {
+--- a/ohos/src/main/ets/components/plugin/player/FocusManager.ets
++++ b/ohos/src/main/ets/components/plugin/player/FocusManager.ets
+@@ -79,7 +79,7 @@
+     this.context = player.context;
+     //如果已有焦点，直接播放
+     if (this.hasAudioFocus()) {
+-      player.actuallyPlay();
++      player.actuallyPlay().catch((): void => { player.handleError('AudioError', 'Playback failed', null); });
+       return;
+     }
+     let strategy: audio.AudioSessionStrategy = {
+@@ -89,11 +89,11 @@
+       this.audioSessionManager.setAudioSessionScene(audio.AudioSessionScene.AUDIO_SESSION_SCENE_MEDIA);
+     }
+     //请求焦点之后，开始播放
+-    this.audioSessionManager.activateAudioSession(strategy).then(() => {
++    this.audioSessionManager.activateAudioSession(strategy).then((): Promise<void> => {
+       Log.d(TAG, 'Succeeded in doing activateAudioSession.');
+-      player.actuallyPlay();
++      return player.actuallyPlay();
+     }).catch((err: BusinessError) => {
+-      Log.e(TAG, `Failed to activateAudioSession. Code: ${err.code}, message: ${err.message}`);
++      player.handleError('AudioError', 'Audio focus or playback failed', null);
+     });
+   }
+ 
+--- a/ohos/src/main/ets/components/plugin/player/MediaPlayerPlayer.ets
++++ b/ohos/src/main/ets/components/plugin/player/MediaPlayerPlayer.ets
+@@ -15,6 +15,7 @@
+ 
+ import AudioContextOhos from '../AudioContextOhos';
+ import Source from '../source/Source';
++import UrlSource from '../source/UrlSource';
+ import Player from './Player';
+ import WrappedPlayer from './WrappedPlayer'
+ import media from '@ohos.multimedia.media';
+@@ -67,6 +68,7 @@
+ const NETWORK_SSL_ERROR: number = 2300006; 
+ 
+ export default class MediaPlayerPlayer implements Player {
++  private activeSource: Source | null = null;
+   private wrappedPlayer: WrappedPlayer;
+   private mediaPlayer?: media.AVPlayer | null = null;
+   private isLooping: boolean = false;
+@@ -102,16 +104,6 @@
+     })
+     // error回调监听函数,当avPlayer在操作过程中出现错误时调用 reset接口触发重置流程
+     avPlayer.on('error', (err: BusinessError) => {
+-      if (err.code == OPERATE_ERROR || err.code == AVPLAYER_STATE_ERROR || err.code == AVPLAYER_IO_ERROR || err.code == MEDIALIB_PERMISSION_DENIED) {
+-        Log.e(TAG, "AvPlayer Avoid Error Reporting: " + JSON.stringify(err));
+-        return;
+-      }
+-      if (err.code == AVPLAYER_FORMAT_ERROR||err.code == MEDIALIB_REQUEST_DENIED) {
+-        this.wrappedPlayer.onPrepared()
+-        Log.e(TAG, "AvPlayer Avoid Error Reporting: " + JSON.stringify(err));
+-        return;
+-      }
+-      Log.e(TAG, `Invoke avPlayer failed, code is ${err.code}, message is ${err.message}`);
+       this.wrappedPlayer.onError(err.code, err.message)
+     })
+     // 状态机变化回调函数
+@@ -193,8 +185,12 @@
+ 
+   async release() {
+     if (this.mediaPlayer) {
+-      await this.mediaPlayer.reset()
+-      await this.mediaPlayer.release()
++      const player = this.mediaPlayer;
++      this.mediaPlayer = null;
++      try { await player.release(); } finally {
++        if (this.activeSource instanceof UrlSource) this.activeSource.close();
++        this.activeSource = null;
++      }
+     }
+   }
+ 
+@@ -259,6 +255,7 @@
+ 
+   async setSource(source: Source) {
+     await this.reset()
++    this.activeSource = source;
+     this.mediaPlayer && source.setForMediaPlayer(this.mediaPlayer);
+   }
+ 
+@@ -276,6 +273,8 @@
+   }
+ 
+   async reset() {
+-    this.mediaPlayer && await this.mediaPlayer.reset()
++    this.mediaPlayer && await this.mediaPlayer.reset();
++    if (this.activeSource instanceof UrlSource) this.activeSource.close();
++    this.activeSource = null;
+   }
+ }
+\ No newline at end of file
+--- a/ohos/src/main/ets/components/plugin/player/WrappedPlayer.ets
++++ b/ohos/src/main/ets/components/plugin/player/WrappedPlayer.ets
+@@ -38,6 +38,7 @@
+   private released: boolean = true;
+   private prepared: boolean = false;
+   private playing: boolean = false;
++  private wantsPlayback: boolean = false;
+   private volume: number = 1.0;
+   private balance: number = 0.0;
+   private rate: number = 1.0;
+@@ -59,7 +60,7 @@
+       this.source = value;
+       if (value != null) {
+         let player = await this.getOrCreatePlayer()
+-        player.setSource(value)
++        await player.setSource(value)
+         await this.configAndPrepare()
+       } else {
+         this.released = true
+@@ -188,7 +189,7 @@
+       this.setPrepared(false)
+       this.player.updateContext(this.context)
+       if (this.source) {
+-        this.player.setSource(this.source)
++        await this.player.setSource(this.source)
+         await this.configAndPrepare()
+       }
+     }
+@@ -215,11 +216,13 @@
+   }
+ 
+   play() {
++    this.wantsPlayback = true;
+     Log.d('WrappedPlayer', 'Starting play request...');
+     FocusManager.getInstance().maybeRequestAudioFocus(this);
+   }
+ 
+   async actuallyPlay() {
++    if (!this.wantsPlayback) return;
+     if (!this.playing && !this.released) {
+       Log.d('WrappedPlayer', 'Actually starting playback...');
+       let currentPlayer = this.player;
+@@ -237,6 +240,7 @@
+   }
+ 
+   async stop() {
++    this.wantsPlayback = false;
+     FocusManager.getInstance().handleStop(this);
+     if (this.released) {
+       return
+@@ -259,6 +263,7 @@
+   }
+ 
+   async release() {
++    this.wantsPlayback = false;
+     FocusManager.getInstance().handleStop(this);
+     if (this.released) {
+       return
+@@ -269,11 +274,12 @@
+ 
+     // Setting source to null will reset released, prepared and playing
+     // and also calls player.release()
+-    this.setSource(null)
++    await this.setSource(null)
+     this.player = null
+   }
+ 
+   async pause() {
++    this.wantsPlayback = false;
+     if (this.playing) {
+       this.playing = false
+       if (this.prepared) {
+--- a/ohos/src/main/ets/components/plugin/source/UrlSource.ets
++++ b/ohos/src/main/ets/components/plugin/source/UrlSource.ets
+@@ -21,6 +21,7 @@
+ 
+ export default class UrlSource implements Source {
+   url: string
++  private file: fs.File | null = null;
+   private isLocal: boolean
+ 
+   constructor(url: string, isLocal: boolean) {
+@@ -33,10 +34,19 @@
+       let fdPath = 'fd://';
+       // 打开相应的资源文件地址获取fd，并为url赋值触发initialized状态机上报
+       let file = fs.openSync(this.url);
++      this.file = file;
+       fdPath = fdPath + '' + file.fd;
+       mediaPlayer.url = fdPath;
+     } else {
+       mediaPlayer.url = this.url;
++    }
++  }
++
++  close(): void {
++    if (this.file !== null) {
++      const file = this.file;
++      this.file = null;
++      fs.closeSync(file);
+     }
+   }
+ 

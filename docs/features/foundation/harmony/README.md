@@ -152,3 +152,11 @@ IDE 已恢复启动，用户已在 IDE 登录，自动签名识别湖南领美�
 为现有 geocoding 5.0.0 提供独立 OHOS 平台实现，使用已安装 API 26 SDK 的 geoLocationManager 地理编码接口，保持 lib/ 与 Android/iOS 依赖不变。映射省、市、区县及地址字段，支持原有中文 locale；无结果返回空列表，不伪造默认城市；服务不可用和超时向原有页面错误处理传播。坐标读取仍由前台 geolocator 完成，地理编码不额外申请后台位置。以 Dart 通道测试与 HAP 编译验证，真实地理编码可用性和返回城市名称需真机验收。
 
 验证结果：7 项地理编码通道测试通过（包含现有 locateHomeCity 函数→鸿蒙适配器的中文城市链路）；适配器 Dart analyze 无问题。现有首页“迟到定位不覆盖手动城市选择”用例首次在与构建同时运行时测试引擎报 Out of memory，构建完成后单独重跑通过。未修改该用例或 APP 页面来规避失败。HAP assembleHap 207.9 秒通过，未签名；主共享代码与 Android/iOS 工程相对 f4062766 无变化。原生 geocoder 服务、离线表现、地区覆盖、定位权限仍未做真机验收。
+
+## 2026-10-10 聊天音频播放节点
+
+保留 audioplayers 6.8.1 / interface 7.2.0 与现有 ChatVoicePlayback，本轮仅在独立 probe 引入 CPF-Flutter/flutter_audioplayers br_v6.5.1_ohos 原生适配（b853cdafdef1549be31b478a954f6d8b36d314e6）。审计先修全局初始化未回复、异步设置源未等待、错误伪报准备成功、本地文件句柄释放。按现有前台聊天语音使用，不新增后台常驻权限；播完、停止、切换账号/会话依然使用现有业务状态机。录音不是本节点。编译和 mock 测试不能替代实际声音、耳机/音频焦点和生命周期验收。
+
+验证补充：原生设置音源出错时，必须同时返回 MethodChannel 错误和对应播放器 EventChannel 错误，否则 audioplayers 6.8.1 的 Future.wait 仍等待 prepared。通道测试发现该等待问题后已修复。3 项通道契约测试 + 21 项原有 ChatVoicePlayback 回归（共 24 项）全部通过，未改业务代码/原回归测试。首次测试因 C 盘仅余约 5 MB 失败，后以进程级 TEMP/TMP 指向 D:/SDK/harmony-task-temp，并将明确属于本次及前次失败测试的临时目录、上一份未签名 HAP 移到 D 盘保留；未删除用户文件或改全局临时目录配置。补丁在干净源副本 apply --check 通过。
+
+最终未签名 HAP 构建通过（具体耗时见本机 audio-build-verified.log）；中间一次 ArkTS 编译要求焦点回调显式返回类型，修正后通过。当前验证仍是构建+通道/业务回归，不是实际原生播放验收。共享 lib、android、ios、pubspec.yaml、pubspec.lock 对 f4062766 无改动。下一节点可继续录音适配；真实声音、焦点和资源释放等按真机清单验收。
