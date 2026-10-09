@@ -1235,12 +1235,15 @@ class _TogetherPartyDetailPageState extends State<TogetherPartyDetailPage> {
                   _party.personalPriceMinor == null
                       ? _party.priceLabel
                       : '应付 ¥${moneyAmount((_party.personalPriceMinor! / 100))}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: legacyGold, fontSize: 23),
                 ),
               ),
               FilledButton.icon(
                 onPressed: !_busy && _loaded && _party.canAct ? _act : null,
                 style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 52),
                   backgroundColor: legacyGold,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(

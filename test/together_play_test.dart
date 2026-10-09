@@ -105,6 +105,36 @@ class Repository implements TogetherPlayRepository {
 }
 
 void main() {
+  testWidgets(
+    'detail footer fits the real full-width button theme on a phone',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final party = fixture();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: KingTheme.dark,
+          locale: kingSupportedLocales.first,
+          supportedLocales: kingSupportedLocales,
+          localizationsDelegates: kingLocalizationDelegates,
+          home: TogetherPartyDetailPage(
+            party: party,
+            repository: Repository()..current = party,
+            onJoin: (_) async {},
+            onAdmission: (_) async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final button = tester.getRect(find.byType(FilledButton));
+      expect(button.height, lessThanOrEqualTo(60));
+      expect(button.width, lessThan(180));
+      expect(button.bottom, lessThanOrEqualTo(800));
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('unmatched activity explains requirements and disables joining', (
     tester,
   ) async {
