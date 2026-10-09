@@ -78,6 +78,7 @@ class StoredWineBacking extends StatelessWidget {
       bodyHeight: bodyHeight,
       bodyWidth: bodyHeight * material.imageAspectRatio,
       frameAspectRatio: material.aspectRatio,
+      bodyBounds: material.bodyBounds,
       reverse: reverse,
       backing: CachedMediaSvg(
         material.files[role]!,

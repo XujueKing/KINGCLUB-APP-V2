@@ -48,27 +48,36 @@ class BottleVisualBacking extends StatelessWidget {
     required this.frameAspectRatio,
     required this.backing,
     this.reverse = false,
+    this.bodyBounds = const Rect.fromLTWH(0, 0, 1, 1),
   });
   final String reference;
   final double bodyHeight, bodyWidth, frameAspectRatio;
   final Widget backing;
   final bool reverse;
+  final Rect bodyBounds;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
-      final shadowWidth = bodyWidth * BottleMaterialBacking.shadowWidthRatio;
-      final shadowHeight = bodyHeight * BottleMaterialBacking.shadowHeightRatio;
+      final visibleWidth = bodyWidth * bodyBounds.width;
+      final visibleHeight = bodyHeight * bodyBounds.height;
+      final shadowWidth = visibleWidth * BottleMaterialBacking.shadowWidthRatio;
+      final shadowHeight =
+          visibleHeight * BottleMaterialBacking.shadowHeightRatio;
       return Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
           Positioned(
             top:
-                (box.maxHeight + bodyHeight) / 2 +
-                bodyHeight * BottleMaterialBacking.shadowCenterOffsetRatio -
+                (box.maxHeight - bodyHeight) / 2 +
+                bodyHeight * bodyBounds.bottom +
+                visibleHeight * BottleMaterialBacking.shadowCenterOffsetRatio -
                 shadowHeight / 2,
-            left: (box.maxWidth - shadowWidth) / 2,
+            left:
+                (box.maxWidth - bodyWidth) / 2 +
+                bodyWidth * bodyBounds.center.dx -
+                shadowWidth / 2,
             child: Container(
               key: ValueKey('bottle-ground-$reference'),
               width: shadowWidth,

@@ -53,6 +53,26 @@ void main() {
     expect(parse({...material(), 'imageAspectRatio': double.nan}), isNull);
     expect(parse({...material(), 'version': 'unknown'}), isNull);
   });
+  test(
+    'body bounds exclude padding and invalid optional bounds safely fall back',
+    () {
+      final value = parse({
+        ...material(),
+        'bodyBounds': {'x': .2, 'y': .05, 'width': .6, 'height': .9},
+      })!;
+      expect(value.bodyBounds.left, .2);
+      expect(value.bodyBounds.width, closeTo(.6, .000001));
+      for (final bounds in [
+        {'x': -.2, 'y': 0, 'width': .6, 'height': 1},
+        {'x': 0, 'y': 0, 'width': double.nan, 'height': 1},
+        {'x': .8, 'y': 0, 'width': .6, 'height': 1},
+      ]) {
+        final invalid = parse({...material(), 'bodyBounds': bounds})!;
+        expect(invalid.bodyBounds.width, 1);
+        expect(invalid.bodyBounds.left, 0);
+      }
+    },
+  );
   test('older storage records retain bundled bottles and pickup state', () {
     final item = StorageItem.fromJson({
       'itemRef': 'item',

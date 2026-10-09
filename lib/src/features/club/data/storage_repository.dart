@@ -1,3 +1,5 @@
+import 'dart:ui' show Rect;
+
 import '../../../core/networking/kingclub_secure_client.dart';
 import '../../../core/session/secure_session_store.dart';
 import '../../auth/data/auth_repository_provider.dart';
@@ -95,10 +97,12 @@ class StorageBottleMaterial {
     required this.aspectRatio,
     required this.imageAspectRatio,
     required this.files,
+    this.bodyBounds = const Rect.fromLTWH(0, 0, 1, 1),
   });
   final String storeRef, digest;
   final double aspectRatio, imageAspectRatio;
   final Map<String, String> files;
+  final Rect bodyBounds;
   String cacheKey(String role) =>
       'bottle:$storeRef:png-contour-v1:$digest:$role';
 
@@ -164,12 +168,39 @@ class StorageBottleMaterial {
       }
       files[role] = '${mediaBaseUrl.replaceFirst(RegExp(r'/+$'), '')}$link';
     }
+    var bodyBounds = const Rect.fromLTWH(0, 0, 1, 1);
+    final bounds = raw['bodyBounds'];
+    if (bounds is Map) {
+      final values = [
+        'x',
+        'y',
+        'width',
+        'height',
+      ].map((k) => bounds[k]).toList();
+      if (values.every((v) => v is num && v.isFinite)) {
+        final b = Rect.fromLTWH(
+          (values[0] as num).toDouble(),
+          (values[1] as num).toDouble(),
+          (values[2] as num).toDouble(),
+          (values[3] as num).toDouble(),
+        );
+        if (b.left >= 0 &&
+            b.top >= 0 &&
+            b.width > 0 &&
+            b.height > 0 &&
+            b.right <= 1.000001 &&
+            b.bottom <= 1.000001) {
+          bodyBounds = b;
+        }
+      }
+    }
     return StorageBottleMaterial(
       storeRef: storeRef,
       digest: digest,
       aspectRatio: ratio.toDouble(),
       imageAspectRatio: imageRatio.toDouble(),
       files: Map.unmodifiable(files),
+      bodyBounds: bodyBounds,
     );
   }
 }

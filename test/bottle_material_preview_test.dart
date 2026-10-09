@@ -7,6 +7,55 @@ import 'package:kingclub/src/features/club/presentation/private_storage_page.dar
 import 'package:kingclub/src/features/club/presentation/storage_liquid_bottle.dart';
 
 void main() {
+  testWidgets('padded bottle shadow follows opaque body in both image sizes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    for (final scale in [1.0, .3]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: 500 * scale,
+              height: 720 * scale,
+              child: BottleVisualBacking(
+                reference: 'padded',
+                bodyWidth: 400 * scale,
+                bodyHeight: 700 * scale,
+                frameAspectRatio: 400 / 700,
+                backing: const SizedBox(),
+                bodyBounds: const Rect.fromLTWH(.25, 20 / 700, .5, 640 / 700),
+              ),
+            ),
+          ),
+        ),
+      );
+      final ground = tester.getRect(
+        find.byKey(const ValueKey('bottle-ground-padded')),
+      );
+      expect(
+        ground.width,
+        closeTo(200 * scale * BottleMaterialBacking.shadowWidthRatio, .001),
+      );
+      expect(
+        ground.height,
+        closeTo(640 * scale * BottleMaterialBacking.shadowHeightRatio, .001),
+      );
+      final canvas = tester.getRect(find.byType(BottleVisualBacking));
+      expect(ground.center.dx, closeTo(canvas.center.dx, .001));
+      expect(
+        ground.center.dy,
+        closeTo(
+          canvas.top +
+              (10 + 660 + 640 * BottleMaterialBacking.shadowCenterOffsetRatio) *
+                  scale,
+          .001,
+        ),
+      );
+    }
+  });
   for (final screen in [
     const Size(320, 568),
     const Size(360, 640),
