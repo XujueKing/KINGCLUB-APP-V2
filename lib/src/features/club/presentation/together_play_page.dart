@@ -944,17 +944,7 @@ class TogetherParticipants extends StatelessWidget {
                             TogetherGender.unspecified => null,
                           };
                           final fallback = Center(
-                            child: member != null
-                                ? Text(
-                                    member.name.isEmpty
-                                        ? '会员'
-                                        : member.name.characters.first,
-                                    style: TextStyle(
-                                      fontSize: iconHeight,
-                                      color: const Color(0xFF65084E),
-                                    ),
-                                  )
-                                : symbol == null
+                            child: symbol == null
                                 ? Icon(
                                     Icons.person_outline,
                                     size: iconHeight,
