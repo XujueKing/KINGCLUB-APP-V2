@@ -200,3 +200,11 @@ Dart analyze 无 error/warning，有 2 项 info：OHOS cancel 修复继承当前
 验证结果：原有 ChatFileExporter 6项回归通过，包含选择/复制阶段删除取消、再次鉴权被拒和页面释放，未修改原业务测试。首编译仅因 ArkTS 不允许直接 rethrow 任意异常类型失败，改为明确 Error 后，最终未签名 HAP assembleHap 54.8秒通过（file-export-build-final.log）；同时包含UTD文件类型识别。使用当前 https://api.wuyexin.cn 构建，未执行真实文件上传或服务器写入。实际系统保存、分块写入、SHA-256原生行为与查看器仍待真机验收，mock通过不能替代此项。来源两遍读取采用lseek归零与顺序读取，避免各接口offset含义差异。本节点主lib/android/ios无改动。
 
 下个地图节点已检查：已有定位与地理编码平台适配可复用；聊天原生地图视图、静态预览的平台门槛及kingclub/chat-map打开通道仍需分别补齐，不能以定位插件已注册宣称地图完成。
+
+## 2026-10-10 鸿蒙地图第一节点：系统查看与路线
+
+聊天已有定位/地理编码适配，但 kingclub/chat-map 通道没有原生处理。本节点接入本机 Harmony SDK petalMaps.openMapPoiDetail/openMapRoutePlan，保留既有页面、选择后明确发送与会话有效性校验，不更换业务地图UI。仅在明确点击打开时传递经纬度和地点名称，不传地址、会员或聊天内容。WGS84/GCJ02使用SDK明确coordinateType，不做二次坐标转换；该参数自API21起支持，低于21对WGS84明确失败而不冒险显示错位。API18–20仅支持已为GCJ02的输入。异步调用去重、失去Ability后结果失效。原生地图未安装或调用失败沿用页面失败提示。
+
+本节点不宣称内嵌拖拽地图和静态预览完成。已检查当前独立宿主未找到agconnect配置；新增华为在线地图服务需核验开发者控制台MapKit开通/应用认证，不以现有定位服务代表具备地图服务资格。接口依据本机API26的@hms.core.map.petalMaps.d.ts，地图坐标参考官方https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V13/map-introduction-V13。
+
+验证完成：2项OHOS平台地图通道测试与9项既有位置页面回归共11项通过。首次模板未在测试结束前恢复debug平台覆盖而失败，修复测试清理后全通过，未修改业务绕过用例。最终默认“导航”走驾车路线、显式view走地点详情的代码已构建，unsigned HAP assembleHap 42.7秒通过（map-build-final.log）。未签名、未真机启动地图/核验落点。主lib/android/ios及后端没有修改；地图节点尚有内嵌视图、静态预览和在线地图服务配置待完成，后续通知/支付/通话未因本次编译而完成。

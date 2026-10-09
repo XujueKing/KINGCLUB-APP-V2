@@ -145,3 +145,9 @@ not these native runtime cases.
 `scripts/stage-harmony-file-export.ps1 -ProbeRoot <隔离工程>` 注册独立 native 插件，并仅在 probe 的原聊天文件详情页放开 OHOS 保存/打开按钮。保留 ChatFileExporter 的二次鉴权、会话变更和删除取消；复制原 test/chat_file_exporter_test.dart 到 probe/test 后运行回归。系统 DocumentViewPicker.save 返回目标，只处理本操作 URI；非空目标拒绝覆盖，256 MiB、私有下载目录和 SHA-256 校验，64 KiB 分块读取，先核验源再写并再次核验。cancel 使在途操作失效，已成功保存的文档不会因退出页面删除。文件后缀通过系统 UTD 转为 MIME，只读调用系统查看器。没有查看器会报告失败，不伪造打开成功。
 
 真机必须覆盖：中文文件名、空文件、大于一块的文件、云文档、取消选择/复制中取消、删除消息、账号切换、源损坏、目标变更、空间不足、系统查看器不可用。清理目标失败可能留下空或未完成文件；不保证云提供方清理必然成功。未签名包与 mock 测试不是系统导出验收。
+
+### 系统地图查看与路线（地图第一节点）
+
+执行 `scripts/stage-harmony-map.ps1 -ProbeRoot <隔离工程>`，pub get 后注册 kingclub/chat-map。原位置选择页的 mode=view 打开华为地图地点详情，原“导航”入口打开驾车路线，walking打开步行路线。无需修改原业务页面。仅显式点击后传目的坐标与地点名，不传地址、账号或聊天内容。使用本机SDK petalMaps API，坐标类型自API21起可显式指定；API18–20仅接GCJ02，其它明确失败，不能猜测坐标或错误偏移。无地图应用/能力不支持时回传错误，沿用“无法打开地图，可以复制地点信息”。不增加后台定位权限。
+
+验证：复制 map_launch_test.dart.template 到probe/test，配合原chat_location_message_test.dart验证。模板在OHOS平台检查WGS84/GCJ02不被转换、地址不交给地图、重复点击仅一次、原生失败有提示。原生启动、实际落点、路线模式、App返回与系统切换须真机验证。此节点不是内嵌地图：当前仍缺拖拽选点/地图快照适配及在线地图服务认证配置，不能称整个地图已完成。

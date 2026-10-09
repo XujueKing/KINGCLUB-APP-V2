@@ -1,0 +1,48 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/messaging/data/chat_location.dart';
+import 'package:kingclub/src/features/messaging/presentation/chat_location_message.dart';
+
+void main() {
+  const channel = MethodChannel('kingclub/chat-map');
+  setUp(() => debugDefaultTargetPlatformOverride = TargetPlatform.ohos);
+  tearDown(() {
+    debugDefaultTargetPlatformOverride = null;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+  });
+  for (final system in ['wgs84', 'gcj02']) {
+    testWidgets('OHOS preserves $system and excludes private address', (tester) async {
+      final pending = Completer<bool>();
+      var calls = 0;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+        calls++;
+        expect(call.method, 'open');
+        expect(call.arguments, {
+          'latitudeE6': 28000001, 'longitudeE6': 113000001,
+          'coordinateSystem': system, 'name': '测试地点',
+        });
+        return pending.future;
+      });
+      final location = ChatLocation.fromJson({
+        'latitudeE6': 28000001, 'longitudeE6': 113000001,
+        'coordinateSystem': system, 'name': '测试地点', 'address': '私人地址不交给地图',
+      });
+      await tester.pumpWidget(MaterialApp(home: ChatLocationDetailsPage(location: location)));
+      await tester.pumpAndSettle();
+      expect(calls, 0);
+      await tester.tap(find.text('导航'));
+      await tester.pump();
+      await tester.tap(find.text('导航'));
+      expect(calls, 1);
+      pending.complete(false);
+      await tester.pumpAndSettle();
+      expect(find.text('无法打开地图，可以复制地点信息'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 5));
+      debugDefaultTargetPlatformOverride = null;
+    });
+  }
+}
