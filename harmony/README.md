@@ -97,3 +97,11 @@ torch, gallery detection and stop/reopen still require a device.
 
 The upstream Dart tests mock native calls; passing them confirms wrapper compatibility,
 not these native runtime cases.
+
+### 前台定位（独立构建）
+
+执行 `scripts/stage-harmony-geolocator.ps1 -ProbeRoot <外部 probe>`，然后使用既有 `build-harmony-device.ps1` 构建。源固定到 CPF-Flutter/fluttertpc_geolocator `br_v14.0.2_ohos` / `6fa6307b29fa6bc0e1983b146d2c33de48740862`，保留 hosted geolocator 14.0.3 / platform interface 4.3.0；不替换主仓库依赖或 SDK。
+
+补丁修正前台授权误报 always、模糊权限被当作拒绝、精确权限硬编码、零值坐标污染、模拟定位标志丢失、枚举精度误作米数、流间隔单位和错误吞掉。停止流只取消本实例监听；异步授权返回后检查取消代次。单次定位使用系统超时，Dart 超时不会注销另一个持续定位流；底层单次请求可能持续到其系统超时。已移除该路径输出经纬度的调试日志。
+
+主机只声明前台精确/模糊定位权限，拒绝不阻塞手动城市选择。坐标转城市的 geocoding 尚未适配；签名、原生权限弹窗（含永久拒绝）、系统设置跳转、真实定位精度/时间戳和快速进入退出需真机验收。接口 mock 测试模板为 `harmony/verification/geolocator_contract_test.dart.template`，其通过不代表原生定位验证通过。

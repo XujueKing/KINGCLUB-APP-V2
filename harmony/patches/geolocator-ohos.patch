@@ -1,0 +1,416 @@
+--- a/lib/src/geolocator_ohos.dart
++++ b/lib/src/geolocator_ohos.dart
+@@ -84,7 +84,7 @@
+       final positionMap =
+       await _methodChannel.invokeMethod('getLastKnownPosition', parameters);
+ 
+-      return positionMap != null ?  Position.fromMap(positionMap) : null;
++      return positionMap != null ?  _positionFromMap(positionMap) : null;
+     } on PlatformException catch (e) {
+       final error = _handlePlatformException(e);
+ 
+@@ -116,6 +116,7 @@
+         {
+           ...?locationSettings?.toJson(),
+           'requestId': requestId,
++          if (timeLimit != null) 'timeoutMs': timeLimit.inMilliseconds,
+         },
+       );
+ 
+@@ -124,15 +125,14 @@
+       }
+ 
+       final positionMap = await positionFuture;
+-      return  Position.fromMap(positionMap);
++      return  _positionFromMap(positionMap);
+     } on TimeoutException {
+       final parameters = <String, dynamic>{
+         'requestId': requestId,
+       };
+-      _methodChannel.invokeMethod(
+-        'cancelGetCurrentPosition',
+-        parameters,
+-      );
++      unawaited(_methodChannel.invokeMethod<void>(
++        'cancelGetCurrentPosition', parameters,
++      ).catchError((Object _) {}));
+       rethrow;
+     } on PlatformException catch (e) {
+       final error = _handlePlatformException(e);
+@@ -192,7 +192,7 @@
+ 
+     _positionStream = positionStream
+         .map<Position>((dynamic element) =>
+-            Position.fromMap(element.cast<String, dynamic>()))
++            _positionFromMap(element))
+         .handleError(
+       (error) {
+         if (error is PlatformException) {
+@@ -260,3 +260,13 @@
+     }
+   }
+ }
++
++Position _positionFromMap(dynamic value) {
++  final map = Map<String, dynamic>.from(value as Map);
++  for (final key in ['latitude', 'longitude', 'altitude', 'altitude_accuracy',
++    'accuracy', 'speed', 'speed_accuracy', 'heading', 'heading_accuracy']) {
++    final number = map[key];
++    if (number is num) map[key] = number.toDouble();
++  }
++  return Position.fromMap(map);
++}
+--- a/ohos/src/main/ets/components/plugin/MethodCallHandlerImpl.ets
++++ b/ohos/src/main/ets/components/plugin/MethodCallHandlerImpl.ets
+@@ -13,6 +13,7 @@
+  * limitations under the License.
+  */
+ import { MethodChannel, MethodCall, MethodCallHandler, MethodResult, FlutterPluginBinding } from "@ohos/flutter_ohos";
++import { abilityAccessCtrl } from '@kit.AbilityKit';
+ import common from '@ohos.app.ability.common';
+ import PermissionManager from "./permission/PermissionManager";
+ import { LocationPermission } from "./permission/LocationPermission";
+@@ -28,7 +29,6 @@
+   }
+ 
+   startListening(binding: FlutterPluginBinding): void {
+-    console.debug(">>>>>>>>>>MethodCallHandlerImpl=======startListening")
+     if (this.channel != null) {
+       this.stopListening();
+     }
+@@ -65,12 +65,11 @@
+ 
+   //检查权限
+   async onCheckPermission(result: MethodResult): Promise<void> {
+-    console.debug(">>>>>>>>>>MethodCallHandlerImpl======onCheckPermission")
+     try {
+       let permissionManager = new PermissionManager();
+       let permissionStatus: boolean | undefined = await permissionManager.checkPermissions();
+       if (permissionStatus) {
+-        result.success(LocationPermission.always);
++        result.success(LocationPermission.whileInUse);
+       } else {
+         result.success(LocationPermission.denied);
+       }
+@@ -83,7 +82,6 @@
+ 
+   //定位服务开关
+   onIsLocationServiceEnabled(result: MethodResult): void {
+-    console.debug(">>>>>>>>>>onIsLocationServiceEnabled")
+     try {
+       let isLocationEnable: boolean = geoLocationManager.isLocationEnabled();
+       result.success(isLocationEnable);
+@@ -96,7 +94,6 @@
+ 
+   //请求权限
+   onRequestPermission(result: MethodResult): void {
+-    console.debug(">>>>>>>>>>onRequestPermission")
+     try {
+       let permissionManager = new PermissionManager();
+       let context = getContext(this) as common.UIAbilityContext;
+@@ -114,7 +111,6 @@
+ 
+   //获取上一次最新缓存位置
+   async getLastKnownPosition(result: MethodResult): Promise<void> {
+-    console.debug(">>>>>>>>>>getLastKnownPosition")
+     try {
+       let permissionManager = new PermissionManager();
+       let permissionStatus: boolean | undefined = await permissionManager.checkPermissions();
+@@ -145,14 +141,15 @@
+ 
+   //获取精准定位
+   async getLocationAccuracy(result: MethodResult): Promise<void> {
+-    console.debug(">>>>>>>>>>getLocationAccuracy")
+     let permissionManager = new PermissionManager();
+     let permissionStatus: boolean = await permissionManager.checkPermissions();
+     if (!permissionStatus) {
+       result.error(ErrorCodes.permissionDenied, getErrorCodeString(ErrorCodes.permissionDenied), null);
+       return;
+     }
+-    let status: LocationAccuracyStatus = LocationAccuracyStatus.precise;
++    let status: LocationAccuracyStatus =
++        await permissionManager.checkAccessToken('ohos.permission.LOCATION') === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED
++          ? LocationAccuracyStatus.precise : LocationAccuracyStatus.reduced;
+     if (status != null) {
+       result.success(status);
+     }
+@@ -168,64 +165,35 @@
+         return;
+       }
+       try {
+-        let maxAccuracy: number = 0;
+-        let timeoutMs: number = 10000;
+-        if (call != null) {
+-          if (call.argument("accuracy") != null) {
+-            maxAccuracy = call.argument("accuracy");
+-          }
+-          if (call.argument("timeoutMs") != null) {
+-            timeoutMs = call.argument("timeoutMs");
+-          }
+-        }
+-        // 方式一：使用CurrentLocationRequest作为入参
+-        let requestInfo: geoLocationManager.CurrentLocationRequest = {
+-          'priority': geoLocationManager.LocationRequestPriority.FIRST_FIX,
+-          'scenario': geoLocationManager.LocationRequestScenario.UNSET,
+-          'maxAccuracy': maxAccuracy,
+-          'timeoutMs': timeoutMs
++        // Dart accuracy is an enum, not a distance in metres.
++        const timeoutMs: number = call.argument("timeoutMs") ?? 10000;
++        const requestInfo: geoLocationManager.CurrentLocationRequest = {
++          priority: geoLocationManager.LocationRequestPriority.FIRST_FIX,
++          scenario: geoLocationManager.LocationRequestScenario.UNSET,
++          maxAccuracy: 0,
++          timeoutMs: timeoutMs
+         };
+-        try {
+-          let locationChange = (err: BusinessError, location: geoLocationManager.Location): void => {
+-            if (err) {
+-              console.debug(">>>>>>>getCurrentLocationData,locationChanger: err=" + JSON.stringify(err));
+-              result.error(err.code + '', err.message, null)
+-              return;
+-            }
+-            if (location) {
+-              console.debug(">>>>>>>getCurrentLocationData,location data: " + JSON.stringify(location));
+-              let position = locationToMap(location);
+-              result.success(position);
+-            }
+-          };
+-          geoLocationManager.getCurrentLocation(requestInfo, locationChange)
+-        } catch (err) {
+-          let error: BusinessError = err as BusinessError;
+-          console.debug(">>>>>>>getCurrentLocationData,locationChanger: err=" + JSON.stringify(error));
+-        }
++        const location = await geoLocationManager.getCurrentLocation(requestInfo);
++        result.success(locationToMap(location));
+       } catch (err) {
+-        let error: BusinessError = err as BusinessError;
+-        console.debug(">>>>>>>getCurrentLocationData,locationChanger: err=" + JSON.stringify(error));
+-      }
+-
+-    } catch (err) {
+-      let error: BusinessError = err as BusinessError;
+-      result.error(error.code + '', error.message, null);
+-    }
+-
++        const error = err as BusinessError;
++        result.error(ErrorCodes.errorWhileAcquiringPosition, error.message, null);
++      }
++    } catch (err) {
++      const error = err as BusinessError;
++      result.error(ErrorCodes.errorWhileAcquiringPosition, error.message, null);
++    }
+   }
+ 
+   //取消获取当前位置
+   cancelGetCurrentPosition(call: MethodCall, result: MethodResult): void {
+-    console.debug(">>>>>>>>>>cancelGetCurrentPosition")
+-    geoLocationManager.off('locationChange')
++    // One-shot API has a native timeout; never cancel unrelated position streams.
+     result.success(null);
+ 
+   }
+ 
+   //打开app详情系统设置
+   openAppSettings(result: MethodResult): void {
+-    console.debug(">>>>>>>>>>openAppSettings")
+     try {
+       let context = getContext(this) as common.UIAbilityContext;
+       let want: Want = {
+@@ -248,7 +216,6 @@
+ 
+   //打开app位置系统设置
+   openLocationSettings(result: MethodResult): void {
+-    console.debug(">>>>>>>>>>openLocationSettings")
+     try {
+       let want: Want = {
+         bundleName: 'com.huawei.hmos.settings',
+@@ -268,7 +235,6 @@
+ 
+   stopListening(): void {
+     if (this.channel == null) {
+-      console.debug(">>>>>Tried to stop listening when no MethodChannel had been initialized.")
+       return;
+     }
+     this.channel.setMethodCallHandler(null);
+@@ -278,7 +244,6 @@
+ 
+   //请求临时完整精度
+   async requestTemporaryFullAccuracy(call: MethodCall, result: MethodResult): Promise<void> {
+-    console.debug(">>>>>>>>>>requestTemporaryFullAccuracy")
+     try {
+       let permissionManager = new PermissionManager();
+       let permissionStatus: boolean = await permissionManager.checkPermissions();
+@@ -290,11 +255,12 @@
+       // 鸿蒙系统目前不支持类似iOS的临时精确位置权限机制
+       // 这里可以检查当前权限状态并返回相应的精度状态
+       let purposeKey: string = call.argument("purposeKey");
+-      console.debug("Purpose key: " + purposeKey);
+ 
+       // 鸿蒙平台默认返回精确位置状态
+       // 实际应用中可以根据具体需求调整逻辑
+-      let status: LocationAccuracyStatus = LocationAccuracyStatus.precise;
++      let status: LocationAccuracyStatus =
++        await permissionManager.checkAccessToken('ohos.permission.LOCATION') === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED
++          ? LocationAccuracyStatus.precise : LocationAccuracyStatus.reduced;
+       result.success(status);
+ 
+     } catch (err) {
+--- a/ohos/src/main/ets/components/plugin/permission/PermissionManager.ts
++++ b/ohos/src/main/ets/components/plugin/permission/PermissionManager.ts
+@@ -21,9 +21,7 @@
+   async checkPermissions(): Promise<boolean> {
+     const permissions: Array<Permissions> = ['ohos.permission.APPROXIMATELY_LOCATION', 'ohos.permission.LOCATION'];
+     let grantStatus: abilityAccessCtrl.GrantStatus = await this.checkAccessToken(permissions[0]);
+-    let grantStatus2: abilityAccessCtrl.GrantStatus = await this.checkAccessToken(permissions[1]);
+-    if (grantStatus === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED
+-      && grantStatus2 === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
++    if (grantStatus === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
+       return true
+     } else {
+       return false
+@@ -74,8 +72,8 @@
+           // 用户拒绝授权，提示用户必须授权才能访问当前页面的功能，并引导用户到系统设置中打开相应的权限
+         }
+       }
+-      if (grantedCount == permissions.length) {
+-        success(LocationPermission.always);
++      if (grantStatus[1] === 0) {
++        success(LocationPermission.whileInUse);
+       } else {
+         success(LocationPermission.denied);
+       }
+--- a/ohos/src/main/ets/components/plugin/StreamHandlerImpl.ets
++++ b/ohos/src/main/ets/components/plugin/StreamHandlerImpl.ets
+@@ -21,24 +21,18 @@
+ import { BusinessError } from '@kit.BasicServicesKit';
+ import common from '@ohos.app.ability.common';
+ 
+-let eventSink: EventSink | null = null
+-const locationChangeListener = (location: geoLocationManager.Location): void => {
+-  console.debug(">>>>>>>StreamHandlerImpl===,location data: " + JSON.stringify(location));
+-  let position = locationToMap(location);
+-  if (eventSink != null) {
+-    eventSink.success(position);
+-  }
+-}
+-
+ export default class StreamHandlerImpl implements StreamHandler {
++  private generation: number = 0;
++  private eventSink: EventSink | null = null;
++  private locationChangeListener = (location: geoLocationManager.Location): void => {
++    this.eventSink?.success(locationToMap(location));
++  };
+   private channel: EventChannel | null = null;
+ 
+   constructor() {
+-    console.debug(">>>>>>>>>>StreamHandlerImpl===")
+   }
+ 
+   startListening(binding: FlutterPluginBinding): void {
+-    console.debug(">>>>>>>>>>StreamHandlerImpl=======startListening")
+     if (this.channel != null) {
+       this.stopListening();
+     }
+@@ -51,17 +45,19 @@
+     if (this.channel == null) {
+       return;
+     }
+-    console.debug(">>>>>>>>>>StreamHandlerImpl=======stopListening")
+-    geoLocationManager.off('locationChange')
++    this.generation++;
++    this.eventSink = null;
++    geoLocationManager.off('locationChange', this.locationChangeListener);
+     this.channel.setStreamHandler(null);
+     this.channel = null;
+   }
+ 
+   async onListen(args: object, events: EventSink): Promise<void> {
+-    console.debug(">>>>>>>>>>StreamHandlerImpl=======onListen")
++    const generation = ++this.generation;
+     try {
+       let permissionManager = new PermissionManager();
+       let permissionStatus: boolean | undefined = await permissionManager.checkPermissions();
++      if (generation !== this.generation) return;
+       if (!permissionStatus) {
+         events.error(ErrorCodes.permissionDenied, getErrorCodeString(ErrorCodes.permissionDenied), null);
+         return;
+@@ -71,47 +67,45 @@
+         getErrorCodeString(ErrorCodes.permissionDefinitionsNotFound), null);
+       return;
+     }
+-    this.getLocation(args, events);
++    if (generation === this.generation) this.getLocation(args, events);
+ 
+   }
+ 
+   // 获取定位
+   async getLocation(args: Object, events: EventSink) {
+-    eventSink = events;
++    this.eventSink = events;
+     try {
+       //使用ContinuousLocationRequest\LocationRequest作为入参
+-      let timeInterval = 10000;
+-      let distanceInterval = 100;
+-      let maxAccuracy = 0;
++      let timeInterval = 5;
++      let distanceInterval = 0;
+       let map = args as Map<String, Object>;
+       if (map != null) {
+         if (map.get("timeInterval") != null) {
+-          timeInterval = map.get("timeInterval") as number / 1000;
+-        }
+-        if (map.get("accuracy") != null) {
+-          maxAccuracy = map.get("accuracy") as number;
++          timeInterval = Math.max(1, Math.ceil((map.get("timeInterval") as number) / 1000));
+         }
+         if (map.get("distanceFilter") != null) {
+           distanceInterval = map.get("distanceFilter") as number;
+         }
+       }
+-      let requestInfo: geoLocationManager.ContinuousLocationRequest = {
+-        'interval': timeInterval,
+-        'locationScenario': geoLocationManager.UserActivityScenario.NAVIGATION
++      let requestInfo: geoLocationManager.LocationRequest = {
++        'timeInterval': timeInterval,
++        'distanceInterval': distanceInterval,
++        'priority': geoLocationManager.LocationRequestPriority.FIRST_FIX,
++        'scenario': geoLocationManager.LocationRequestScenario.UNSET
+       };
+       try {
+-        console.debug(">>>>>>>>>>StreamHandlerImpl=======getLocation   requestInfo:" + JSON.stringify(requestInfo))
+-        geoLocationManager.on('locationChange', requestInfo, locationChangeListener);
++        geoLocationManager.on('locationChange', requestInfo, this.locationChangeListener);
+       } catch (err) {
+-        console.error(">>>>>>>>StreamHandlerImpl=====errCode:" + JSON.stringify(err));
++        events.error(ErrorCodes.errorWhileAcquiringPosition, (err as BusinessError).message, null);
+       }
+     } catch (err) {
+-      console.error(">>>>>>>>>>>StreamHandlerImpl=====getCurrentPosition--------errCode:" + JSON.stringify(err));
++      events.error(ErrorCodes.errorWhileAcquiringPosition, (err as BusinessError).message, null);
+     }
+   }
+ 
+   onCancel(args: object): void {
+-    console.debug(">>>>>>>>>>StreamHandlerImpl=======onCancel-------")
+-    geoLocationManager.off('locationChange')
++    this.generation++;
++    this.eventSink = null;
++    geoLocationManager.off('locationChange', this.locationChangeListener);
+   }
+ }
+\ No newline at end of file
+--- a/ohos/src/main/ets/components/plugin/utils/Utils.ts
++++ b/ohos/src/main/ets/components/plugin/utils/Utils.ts
+@@ -72,10 +72,10 @@
+     'speed_accuracy': getNum(location.speedAccuracy),
+     'heading': getNum(location.direction),
+     'headingAccuracy': null,
+-    'is_mocked': false,
++    'is_mocked': location.isFromMock ?? false,
+   };
+ }
+ 
+ function getNum(num: number) {
+-  return num == 0 ? 0.0001 : num;
++  return num;
+ }

@@ -1,0 +1,57 @@
+import 'dart:async';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_geolocator_ohos/geolocator_ohos.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('flutter.baseflow.com/geolocator');
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+  test('registers adapter and preserves zero coordinates and mock flag', () async {
+    GeolocatorOhos.registerWith();
+    messenger.setMockMethodCallHandler(channel, (call) async => {
+      'latitude': 0, 'longitude': 0, 'timestamp': 1700000000000,
+      'accuracy': 5, 'altitude': 0, 'speed': 0, 'heading': 0, 'is_mocked': true,
+    });
+    final p = await GeolocatorOhos().getCurrentPosition();
+    expect(p.latitude, 0.0);
+    expect(p.longitude, 0.0);
+    expect(p.speed, 0.0);
+    expect(p.isMocked, isTrue);
+  });
+  test('foreground permission and reduced accuracy remain distinct', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async =>
+      call.method == 'getLocationAccuracy' ? 0 : 2);
+    final adapter = GeolocatorOhos();
+    expect(await adapter.checkPermission(), LocationPermission.whileInUse);
+    expect(await adapter.requestPermission(), LocationPermission.whileInUse);
+    expect(await adapter.getLocationAccuracy(), LocationAccuracyStatus.reduced);
+  });
+  test('timeout forwards native duration and cancels only its request', () async {
+    final calls = <MethodCall>[];
+    final pending = Completer<Object?>();
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      if (call.method == 'getCurrentPosition') return pending.future;
+      return null;
+    });
+    await expectLater(GeolocatorOhos().getCurrentPosition(
+      requestId: 'one', locationSettings: const LocationSettings(timeLimit: Duration(milliseconds: 20))),
+      throwsA(isA<TimeoutException>()));
+    await Future<void>.delayed(Duration.zero);
+    expect(calls.first.arguments['timeoutMs'], 20);
+    expect(calls.last.method, 'cancelGetCurrentPosition');
+    expect(calls.last.arguments['requestId'], 'one');
+    pending.complete(null);
+  });
+  test('service disabled and permission errors propagate', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'isLocationServiceEnabled') return false;
+      throw PlatformException(code: 'PERMISSION_DENIED', message: 'denied');
+    });
+    final adapter = GeolocatorOhos();
+    expect(await adapter.isLocationServiceEnabled(), isFalse);
+    await expectLater(adapter.getCurrentPosition(), throwsA(isA<PermissionDeniedException>()));
+  });
+}
