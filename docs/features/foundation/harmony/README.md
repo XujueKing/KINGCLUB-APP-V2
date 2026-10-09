@@ -1,6 +1,6 @@
 # HarmonyOS 原生适配
 
-日期：2026-10-09。用户已批准开始适配；当前处于工具链与依赖验证，尚未产出或安装 HAP。
+日期：2026-10-09。用户已批准开始适配；当前已产出真实应用的未签名调试 HAP，尚未签名安装或通过真机功能验收。
 
 ## 范围
 
@@ -55,6 +55,25 @@
 
 ## 发布门槛与未完成项
 
-目前不能对用户承诺可安装版本。待解决：工具链与 Dart 版本匹配、鸿蒙依赖及所有关键原生通道、华为开发者认证和签名、真机功能验证。证书、私钥、账号密码不提交仓库。
+当前仅通过隔离编译，不能对用户承诺可用安装版本。待解决：鸿蒙依赖及关键原生通道、华为开发者签名、真实构建配置及真机功能验证。用户已完成开发者实名认证。证书、私钥、账号密码不提交仓库。
 
 参考：<https://gitcode.com/CPF-Flutter/flutter_flutter>；<https://developer.huawei.com/consumer/cn/download/>。工具链状态以实际下载和构建结果为准。
+
+### 2026-10-09 首次 HAP 编译通过
+
+- 修复第三方 TargetPlatform.ohos 编译分支：在实验工程内复制 cupertino_ui 1.0.1、material_ui 1.1.0，保留许可证，仅补 switch 分支，分别修改 11、37 个文件。沿用 Android 的触摸/Material 分支，不重做页面。脚本为 `scripts/patch-harmony-ui.ps1`，不修改共享 pub 缓存。
+- 支付宝的 bytecode HAR 要求 `app.products[].buildOption.strictMode.useNormalizedOHMUrl=true`，已加入宿主生成脚本。官方依据：https://developer.huawei.com/consumer/cn/doc/doccenter-deveco-studio/ide-hmos-hvigor-errorcode-00306 。
+- `flutter build hap --debug --no-pub --no-codesign` 成功，产物 `C:/HuaweiTools/kingclub-dependency-probe/build/ohos/hap/entry-default-unsigned.hap`，266,954,700 字节，2026-10-09 18:23。包含真实应用代码和资源，不是展示壳。调试包大小不代表最终发布包大小。
+- HDC 再次识别 nova 14 Pro。当前未配置签名，也未安装此次 HAP。仅三个已注册插件通过此次原生编译，不能据此宣布登录、扫码、音视频或支付可用。
+- 准备脚本各步骤已在既有实验副本验证；尚未从全新目录完整重跑准备脚本。
+
+### 启动持久化适配审计（进行中）
+
+- 文件目录候选：OpenHarmony-TPC/flutter_packages，br_path_provider-v2.1.5_ohos，远端提交 `8fbc349ae219dbf429d2c6cb1d62628649dc0d72`。
+- SQLite 候选：CPF-Flutter/flutter_sqflite，br_v2.4.1_ohos，提交 `38d829a84202bf73f9475352bb01fcbfa00e431b`。sqflite 与 sqflite_ohos 复制到实验工程 native_plugins，正在验证解析和构建；主工程依赖不变。
+- 安全存储候选：CPF-Flutter/fluttertpc_flutter_secure_storage，br_v9.2.4_ohos，提交 `67c7b82e85b08a649dfd4f2bb0c455011a9384fa`。源码 `RSACipher18Implementation.ets` 将 RSA 私钥编码存入 preferences，并未用 HUKS/Asset 托管；不用于本项目真实登录密钥，需另接系统安全存储。尚未添加到应用依赖。
+- SQLite 接入后第二次未签名 HAP 编译成功（87.3 秒）；生成注册器包含 SqflitePlugin。未在真机读写数据库，事务、迁移与异常行为尚待验证。
+- 文件目录最终取自 GitCode 的同名分支，实际提交 `d4e49daa0acbd0bc419d58b1da27d64d44fab54b`（GitHub 镜像提交不同，未采用）。本地只稀疏检出 packages/path_provider；path_provider 2.1.5、path_provider_ohos 2.2.17 以实体本地覆盖接入，解析通过。
+- `scripts/stage-harmony-storage.ps1` 固定上述两个仓库的实际提交，复制四个包及许可证至全新实验工程的 native_plugins。当前实验工程的等价逐步操作已执行，脚本已通过语法检查，尚未全新重跑。
+- 此轮 HAP 为编译探针，未传 KINGCLUB_API_BASE_URL，现有应用会默认选择 MockAuthRepository。它不是可交给用户登录的真实联网版本，不能将“同一份业务源码编译通过”描述成“真实接口已接通”。后续真机包必须显式传入现有环境的配置并核验实际接口请求。
+- 文件目录与 SQLite 同时接入后第三次未签名 HAP 编译成功（114.4 秒），注册器已包含 PathProviderPlugin、SqflitePlugin 和原三个插件。仍未完成真机持久化验证。

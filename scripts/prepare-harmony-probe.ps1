@@ -28,6 +28,10 @@ Push-Location $destinationPath
 try {
     & "$FlutterOhosRoot/bin/flutter.bat" create --platforms=ohos --org com.lingmei --project-name kingclub --no-pub .
     if ($LASTEXITCODE -ne 0) { throw 'Harmony host generation failed.' }
+    $profilePath = Join-Path $destinationPath 'ohos/build-profile.json5'
+    $profile = Get-Content -LiteralPath $profilePath -Raw
+    $profile = $profile.Replace('"runtimeOS": "HarmonyOS",', '"runtimeOS": "HarmonyOS", "buildOption": { "strictMode": { "useNormalizedOHMUrl": true } },')
+    [IO.File]::WriteAllText($profilePath, $profile)
     & "$FlutterOhosRoot/bin/flutter.bat" pub get
     if ($LASTEXITCODE -ne 0) { throw 'Harmony dependency resolution failed.' }
     # Hvigor rejects cross-drive and junction-backed module paths on this host.
@@ -52,5 +56,8 @@ try {
         & "$FlutterOhosRoot/bin/flutter.bat" pub get
         if ($LASTEXITCODE -ne 0) { throw 'Local Harmony plugin resolution failed.' }
     }
+    & (Join-Path $PSScriptRoot 'patch-harmony-ui.ps1') -ProbeRoot $destinationPath
+    & "$FlutterOhosRoot/bin/flutter.bat" pub get
+    if ($LASTEXITCODE -ne 0) { throw 'Harmony UI override resolution failed.' }
 } finally { Pop-Location }
 Write-Host "Prepared experimental application copy at $destinationPath. It is not a releasable or signed application."
