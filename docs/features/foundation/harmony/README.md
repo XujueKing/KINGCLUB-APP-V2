@@ -208,3 +208,9 @@ Dart analyze 无 error/warning，有 2 项 info：OHOS cancel 修复继承当前
 本节点不宣称内嵌拖拽地图和静态预览完成。已检查当前独立宿主未找到agconnect配置；新增华为在线地图服务需核验开发者控制台MapKit开通/应用认证，不以现有定位服务代表具备地图服务资格。接口依据本机API26的@hms.core.map.petalMaps.d.ts，地图坐标参考官方https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V13/map-introduction-V13。
 
 验证完成：2项OHOS平台地图通道测试与9项既有位置页面回归共11项通过。首次模板未在测试结束前恢复debug平台覆盖而失败，修复测试清理后全通过，未修改业务绕过用例。最终默认“导航”走驾车路线、显式view走地点详情的代码已构建，unsigned HAP assembleHap 42.7秒通过（map-build-final.log）。未签名、未真机启动地图/核验落点。主lib/android/ios及后端没有修改；地图节点尚有内嵌视图、静态预览和在线地图服务配置待完成，后续通知/支付/通话未因本次编译而完成。
+
+## 2026-10-10 内嵌地图与快照方案
+
+继续使用原 ChatLocationPickerPage、DeferredChatMap、ChatMapPreviewCache。鸿蒙侧接 Huawei MapComponent 和 staticMap，独立同意状态与说明不能沿用“腾讯地图”授权；默认不调用在线地图，用户在位置页同意后才初始化。接入现有center/status/moving/centerChanged/cancel通道；位置仍需用户明确确认才发送。鸿蒙搜索复用既有系统地理编码，不伪造附近POI；附近仍显示实际中心候选。地图坐标通过 SDK rectifyCoordinate 判断当前地图数据的坐标系，不能按矩形边界盲转。快照只发坐标，不发聊天/姓名/令牌，输出限640×320 JPEG并释放PixelMap。已同意时快照仍受会话缓存失效规则控制。原生认证失败不得标记ready。构建不证明线上地图服务开通。
+
+节点验证：内嵌地图及静态预览源代码已接入隔离probe并构建通过，最终unsigned HAP assembleHap49.9秒（embedded-map-build-final.log）。19项原位置/系统地图回归与3项新快照通道测试通过；新测试覆盖腾讯授权不得代替华为授权、仅发坐标、缓存复用和认证失败后可重试。初次ArkUI编译要求view属性初始值，修正nullable显式初始化后通过。无真机及在线应用认证验收，不宣称地图已线上可用。附近POI列表未实现，系统搜索和实际地图中心候选保留。共享业务工程及安卓/苹果源文件无变化。

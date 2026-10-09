@@ -1,0 +1,55 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/messaging/data/chat_location.dart';
+import 'package:kingclub/src/features/messaging/data/chat_map_preview_cache.dart';
+import 'package:kingclub/src/features/messaging/data/harmony_map_consent.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('kingclub/chat-map-preview');
+  final location = ChatLocation.fromJson({'latitudeE6': 28000001, 'longitudeE6': 113000001,
+    'coordinateSystem': 'wgs84', 'name': '私密名字', 'address': '私密地址'});
+  tearDown(() {
+    ChatMapPreviewCache.evict(location);
+    debugDefaultTargetPlatformOverride = null;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+    ChatMapPreviewCache.evict(location);
+    HarmonyMapConsent.accepted.value = false;
+  });
+  test('Tencent consent does not authorize Huawei snapshots', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.ohos;
+    FlutterSecureStorage.setMockInitialValues({'tencent-chat-map-consent-v1': 'true'});
+    var calls = 0;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (_) async {calls++; return Uint8List(1);});
+    expect(await ChatMapPreviewCache.load(location), isNull);
+    expect(calls, 0);
+  });
+  test('Huawei snapshot sends only coordinates and uses cache', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.ohos;
+    FlutterSecureStorage.setMockInitialValues({HarmonyMapConsent.key: 'true'});
+    var calls = 0;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      calls++;
+      expect(call.method, 'snapshot');
+      expect(call.arguments, {'latitudeE6': 28000001, 'longitudeE6': 113000001,
+        'coordinateSystem': 'wgs84', 'privacyAccepted': true});
+      return Uint8List.fromList([1, 2, 3]);
+    });
+    expect(await ChatMapPreviewCache.load(location), [1, 2, 3]);
+    expect(await ChatMapPreviewCache.load(location), [1, 2, 3]);
+    expect(calls, 1);
+  });
+  test('authentication failure returns no fake map and allows retry', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.ohos;
+    FlutterSecureStorage.setMockInitialValues({HarmonyMapConsent.key: 'true'});
+    var calls = 0;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (_) async {
+      calls++; throw PlatformException(code: 'MAP_UNAVAILABLE');
+    });
+    expect(await ChatMapPreviewCache.load(location), isNull);
+    expect(await ChatMapPreviewCache.load(location), isNull);
+    expect(calls, 2);
+  });
+}

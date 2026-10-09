@@ -151,3 +151,13 @@ not these native runtime cases.
 执行 `scripts/stage-harmony-map.ps1 -ProbeRoot <隔离工程>`，pub get 后注册 kingclub/chat-map。原位置选择页的 mode=view 打开华为地图地点详情，原“导航”入口打开驾车路线，walking打开步行路线。无需修改原业务页面。仅显式点击后传目的坐标与地点名，不传地址、账号或聊天内容。使用本机SDK petalMaps API，坐标类型自API21起可显式指定；API18–20仅接GCJ02，其它明确失败，不能猜测坐标或错误偏移。无地图应用/能力不支持时回传错误，沿用“无法打开地图，可以复制地点信息”。不增加后台定位权限。
 
 验证：复制 map_launch_test.dart.template 到probe/test，配合原chat_location_message_test.dart验证。模板在OHOS平台检查WGS84/GCJ02不被转换、地址不交给地图、重复点击仅一次、原生失败有提示。原生启动、实际落点、路线模式、App返回与系统切换须真机验证。此节点不是内嵌地图：当前仍缺拖拽选点/地图快照适配及在线地图服务认证配置，不能称整个地图已完成。
+
+### 内嵌地图与预览接入
+
+在已完成 `stage-harmony-map.ps1` 的干净 probe 上运行 `python scripts/stage-harmony-embedded-map.py <ProbeRoot>`。脚本检查原页面片段后，只修改隔离probe的3个Dart文件、添加独立Huawei同意说明，并同步本仓库Map插件原生源。不要对已经staged的页面重复执行；代码片段变化须先审阅。主lib/android/ios不修改。
+
+原位置选择页使用OhosView承载MapComponent，复用页面顶部/候选区/确认按钮、拖拽结束350ms去抖。center通过rectifyCoordinate按地图数据修正；搜索走原系统地理编码，当前未接Huawei附近POI接口，候选显示真实中心。程序移动不当成用户选点，账号切换cancel/视图dispose取消迟到结果；地图初始化8秒超时。MapLoad与定位均成功后才显示ready。
+
+快照使用staticMap、640×320、JPEG质量80，保留地图logo，不传名称/地址/会员令牌；PixelMap和打包器释放。Huawei地图同意与Tencent独立，未同意不请求快照；已授权的会话缓存沿用现有24项上限及账号变化清理。服务认证错误返回失败，不伪造地图。
+
+验证：19项位置/系统地图回归、3项快照授权/隐私/缓存/错误测试通过；未签名HAP最终assembleHap49.9秒通过。首次编译的ArkUI属性未初始化已修复。模板为map_preview_test.dart.template，harmony_map_consent.dart.template是隔离业务适配模板。本机未完成在线MapKit应用认证核验，HAP仍未签名，真实地图加载、拖拽、跨坐标区域、地图logo可见性、SDK生命周期和网络重试仍待真机验收。不能把mock与编译当成地图服务已开通。

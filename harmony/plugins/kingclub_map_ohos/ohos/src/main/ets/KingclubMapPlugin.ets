@@ -1,3 +1,5 @@
+import { KingMapSnapshot } from './KingMapSnapshot';
+import { KingMapFactory } from './KingMapView';
 import { AbilityAware, AbilityPluginBinding, FlutterPlugin, FlutterPluginBinding, MethodChannel, MethodCall, MethodCallHandler, MethodResult } from '@ohos/flutter_ohos';
 import { common } from '@kit.AbilityKit';
 import { petalMaps, mapCommon } from '@kit.MapKit';
@@ -6,17 +8,22 @@ import deviceInfo from '@ohos.deviceInfo';
 export default class KingclubMapPlugin implements FlutterPlugin, AbilityAware, MethodCallHandler {
   private channel: MethodChannel | null = null;
   private context: common.UIAbilityContext | null = null;
+  private snapshot: KingMapSnapshot = new KingMapSnapshot();
+  private previewChannel: MethodChannel | null = null;
   private epoch: number = 0;
   private busy: boolean = false;
   getUniqueClassName(): string { return 'KingclubMapPlugin'; }
   onAttachedToEngine(binding: FlutterPluginBinding): void {
     this.channel = new MethodChannel(binding.getBinaryMessenger(), 'kingclub/chat-map');
     this.channel.setMethodCallHandler(this);
+    this.previewChannel = new MethodChannel(binding.getBinaryMessenger(), 'kingclub/chat-map-preview');
+    this.previewChannel.setMethodCallHandler(this.snapshot);
+    binding.getPlatformViewRegistry().registerViewFactory('kingclub/location-picker-map', new KingMapFactory(binding.getBinaryMessenger()));
   }
-  onAttachedToAbility(binding: AbilityPluginBinding): void { this.context = binding.getAbility().context; }
-  onDetachedFromAbility(): void { this.epoch++; this.context = null; }
+  onAttachedToAbility(binding: AbilityPluginBinding): void { this.context = binding.getAbility().context; this.snapshot.context = this.context; }
+  onDetachedFromAbility(): void { this.epoch++; this.context = null; this.snapshot.detach(); }
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
-    this.epoch++; this.context = null; this.channel?.setMethodCallHandler(null); this.channel = null;
+    this.epoch++; this.context = null; this.snapshot.detach(); this.channel?.setMethodCallHandler(null); this.channel = null; this.previewChannel?.setMethodCallHandler(null); this.previewChannel = null;
   }
   async onMethodCall(call: MethodCall, result: MethodResult): Promise<void> {
     if (call.method !== 'open') { result.notImplemented(); return; }

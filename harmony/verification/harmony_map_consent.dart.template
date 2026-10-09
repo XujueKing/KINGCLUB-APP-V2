@@ -1,0 +1,27 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+class HarmonyMapConsent {
+  static const key = 'huawei-chat-map-consent-v1';
+  static final accepted = ValueNotifier(false);
+  static Future<bool> restore() async {
+    try { accepted.value = await const FlutterSecureStorage().read(key: key) == 'true'; } catch (_) {}
+    return accepted.value;
+  }
+  static Future<bool> request(BuildContext context) async {
+    if (await restore()) return true;
+    if (!context.mounted) return false;
+    final agreed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+      title: const Text('使用地图选择位置'),
+      content: const Text('地图由华为地图服务提供，将使用所选坐标加载地图与预览。地点搜索使用系统地理编码。仅在位置页面使用定位，不进行后台定位，不传送聊天内容或会员信息。'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('同意并使用')),
+      ],
+    ));
+    if (agreed != true) return false;
+    await const FlutterSecureStorage().write(key: key, value: 'true');
+    accepted.value = true;
+    return true;
+  }
+}
