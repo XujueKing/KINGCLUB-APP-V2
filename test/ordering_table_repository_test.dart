@@ -32,6 +32,26 @@ Matcher failure(String code) =>
     isA<AuthFailure>().having((error) => error.code, 'code', code);
 
 void main() {
+  test('empty hold exit carries verified scope and does not cross accounts', () async {
+    var saved = session();
+    final calls = <String>[];
+    final repository = OrderingTableRepository(readSession: () async => saved,
+      request: (id, params, _) async {
+        calls.add(id);
+        if (id == 'K261010000817') {
+          expect(params, {'tableId':'table-a','tableSessionRef':'session-table-a'});
+          return {'result': {'released': true}};
+        }
+        return {'result': result()};
+      });
+    final context = await repository.resolve('table-a');
+    await repository.leaveEmptyHold(context);
+    expect(calls.last,'K261010000817');
+    saved = {...saved, 'account': {'userAccount': 'other'}};
+    await repository.leaveEmptyHold(context);
+    expect(calls.length,2);
+  });
+
   test('pending entry requires explicit confirmation and sends rule snapshot', () async {
     final calls = <Map<String, dynamic>>[];
     final repository = OrderingTableRepository(readSession: () async => session(),

@@ -34,6 +34,7 @@ class TableOrderingEntryPage extends StatefulWidget {
     this.readCatalog,
     this.tableManagement,
     this.openWalkIn,
+    this.releaseHold,
     this.onQuoteReady,
     this.onOpenOrders,
     this.previewEnabled = false,
@@ -50,6 +51,7 @@ class TableOrderingEntryPage extends StatefulWidget {
   )?
   openWalkIn;
   final String tableId;
+  final Future<void> Function(OrderingContext)? releaseHold;
   final VoidCallback onBack;
   final ResolveOrderingTable? resolveTable;
   final Stream<Map<String, dynamic>>? events;
@@ -80,6 +82,22 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
   OrderingEntryRequired? _entry;
   String? _openingRequest;
   int? _openingCount;
+  OrderingContext? _openedHold;
+  Future<void>? _leavingHold;
+
+  Future<void> _releaseHold() async {
+    final hold = _openedHold;
+    final release = widget.releaseHold;
+    if (hold == null || release == null) return;
+    await (_leavingHold ??= release(hold).catchError((Object _) {
+      _leavingHold = null; // Server expiry remains the offline fallback.
+    }));
+  }
+
+  Future<void> _back() async {
+    await _releaseHold();
+    if (mounted) widget.onBack();
+  }
 
   @override
   void initState() {
@@ -132,6 +150,10 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused &&
+        ModalRoute.of(context)?.isCurrent == true) {
+      unawaited(_releaseHold());
+    }
     _foreground = state == AppLifecycleState.resumed;
     ++_generation;
     _debounce?.cancel();
@@ -143,6 +165,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
 
   @override
   void dispose() {
+    unawaited(_releaseHold());
     ++_generation;
     WidgetsBinding.instance.removeObserver(this);
     _debounce?.cancel();
@@ -191,6 +214,14 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
     if (resolver == null) return;
     try {
       final result = await (confirmation?.call() ?? resolver(widget.tableId));
+      if (confirmation != null) {
+        _leavingHold = null;
+        _openedHold = result;
+        if (!mounted || !_foreground) {
+          unawaited(_releaseHold());
+          return;
+        }
+      }
       if (!mounted || generation != _generation) return;
       final reader = widget.readCatalog;
       if (reader == null) {
@@ -238,7 +269,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
       return WalkInPartyPage(
         entry: entry,
         locale: widget.locale,
-        onBack: widget.onBack,
+        onBack: _back,
         onRefresh: () => _resolve(),
         onConfirm: (count) async {
           if (_openingCount != count || _openingRequest == null) {
@@ -266,7 +297,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
         key: ValueKey(preview.contextRef),
         locale: widget.locale,
         orderingContext: preview,
-        onBack: widget.onBack,
+        onBack: _back,
         onQuoteReady: (_) => ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('已选商品仅供预览，真实下单尚未开放'))),
       );
@@ -279,7 +310,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
           key: ValueKey('party:${resolved.contextRef}'),
           tableName: resolved.tableName,
           locale: widget.locale,
-          onBack: widget.onBack,
+          onBack: _back,
           read: () => management.readParty(resolved),
           save: (count, revision, requestId) =>
               management.saveParty(resolved, count, revision, requestId),
@@ -294,7 +325,7 @@ class _TableOrderingEntryPageState extends State<TableOrderingEntryPage>
         refreshing: _loading || !_foreground,
         catalog: _catalog,
         locale: widget.locale,
-        onBack: widget.onBack,
+        onBack: _back,
         onQuoteReady: widget.onQuoteReady,
         onOpenOrders: widget.onOpenOrders,
         onOpenTableBill: () {

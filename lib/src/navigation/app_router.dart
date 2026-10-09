@@ -1170,6 +1170,10 @@ class ScanOrderingCartRoute extends GoRouteData with $ScanOrderingCartRoute {
       return TableOrderingEntryPage(
         tableId: tableId,
         tableName: state.uri.queryParameters['tableName'],
+        releaseHold: kingclubCommerceApiBaseUrl.isEmpty
+            ? null
+            : OrderingTableRepository.secure(kingclubCommerceApiBaseUrl)
+                  .leaveEmptyHold,
         resolveTable: kingclubCommerceApiBaseUrl.isEmpty
             ? null
             : (id) =>

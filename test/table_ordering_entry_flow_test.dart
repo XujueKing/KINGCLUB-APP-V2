@@ -1,3 +1,4 @@
+import 'package:kingclub/src/features/commerce/data/ordering_table_repository.dart';
 import 'package:kingclub/src/features/commerce/data/ordering_catalog_repository.dart';
 
 import 'dart:async';
@@ -22,6 +23,24 @@ OrderingContext scope(String id) => OrderingContext(
 );
 
 void main() {
+  testWidgets('leaving during opening releases the late-created hold', (tester) async {
+    final opening = Completer<OrderingContext>();
+    var releases = 0;
+    await tester.pumpWidget(MaterialApp(home: TableOrderingEntryPage(
+      tableId:'T1',onBack:(){},events:const Stream.empty(),
+      resolveTable:(_) async => throw const OrderingEntryRequired(tableName:'T1',businessDate:'2026-10-10',revision:1,minimumPeople:1,staffRequired:false),
+      openWalkIn:(_,_,_) => opening.future,
+      releaseHold:(_) async { releases++; },
+      readCatalog:(c) async => OrderingCatalog(c,const [],const []),
+    )));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('2'));await tester.pump();
+    await tester.tap(find.text('开始点餐'));await tester.pump();
+    await tester.pumpWidget(const MaterialApp(home:SizedBox()));
+    opening.complete(scope('T1'));await tester.pumpAndSettle();
+    expect(releases,1);
+  });
+
   testWidgets('首次扫码等待使用目录占位，保留返回且不显示整页转圈', (tester) async {
     final pending = Completer<OrderingContext>();
     var back = 0;

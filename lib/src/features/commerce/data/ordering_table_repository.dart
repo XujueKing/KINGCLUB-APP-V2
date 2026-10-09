@@ -39,6 +39,20 @@ class OrderingTableRepository {
 
   final OrderingSessionReader readSession;
   final OrderingContextRequest request;
+  Future<void> leaveEmptyHold(OrderingContext context) async {
+    final session = await readSession();
+    final account = session?['account'];
+    if (session == null ||
+        account is! Map ||
+        account['userAccount'] != context.memberRef) {
+      return;
+    }
+    await request('K261010000817', {
+      'tableId': context.tableId,
+      'tableSessionRef': context.tableSessionRef,
+    }, session);
+  }
+
   static final _reference = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
 
   Future<OrderingContext> resolve(
