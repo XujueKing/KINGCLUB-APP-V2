@@ -1,0 +1,59 @@
+import 'dart:async';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:record_ohos/record_ohos.dart';
+import 'package:kingclub/src/features/messaging/data/voice_capture.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  const channel = MethodChannel('com.llfbandit.record/messages');
+  final calls = <MethodCall>[];
+  Completer<void>? cancelGate;
+  bool denied = false;
+  bool failStart = false;
+  setUp(() {
+    KingclubRecordOhos.registerWith();
+    calls.clear(); cancelGate = null; denied = false; failStart = false;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      if (call.method == 'create') {
+        final id = call.arguments['recorderId'];
+        messenger.setMockMethodCallHandler(MethodChannel('com.llfbandit.record/events/$id'), (_) async => null);
+      }
+      if (call.method == 'hasPermission') return !denied;
+      if (call.method == 'cancel') await cancelGate?.future;
+      if (call.method == 'start' && failStart) throw PlatformException(code: 'record', message: 'prepare failed');
+      if (call.method == 'stop') return '/private/voice.m4a';
+      return null;
+    });
+  });
+  test('existing capture sends AAC mono configuration and receives file path', () async {
+    final device = NativeVoiceCaptureDevice();
+    expect(await device.hasPermission(), isTrue);
+    await device.start('/private/voice.m4a');
+    final args = calls.firstWhere((c) => c.method == 'start').arguments as Map;
+    expect(args['encoder'], 'aacLc'); expect(args['sampleRate'], 24000);
+    expect(args['bitRate'], 48000); expect(args['numChannels'], 1);
+    expect(await device.stop(), '/private/voice.m4a');
+    await device.dispose();
+  });
+  test('OHOS cancel does not finish before native cleanup', () async {
+    final device = NativeVoiceCaptureDevice();
+    await device.start('/private/voice.m4a');
+    cancelGate = Completer<void>();
+    var done = false;
+    final cancelling = device.cancel().then((_) => done = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(done, isFalse);
+    cancelGate!.complete(); await cancelling;
+    expect(done, isTrue); await device.dispose();
+  });
+  test('permission denial and native preparation failure remain visible', () async {
+    final device = NativeVoiceCaptureDevice();
+    denied = true; expect(await device.hasPermission(), isFalse);
+    failStart = true;
+    await expectLater(device.start('/private/voice.m4a'), throwsA(isA<PlatformException>()));
+    await device.cancel(); await device.dispose();
+  });
+}

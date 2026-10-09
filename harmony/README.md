@@ -121,3 +121,9 @@ not these native runtime cases.
 本次检查范围是 `NativeChatVoiceOutput` 所用的 DeviceFileSource / 默认 MediaPlayer / 播放、停止、完成、销毁。修复初始化通道不返回、缺省音频上下文缺字段导致错误、源设置与释放缺少 await、原生错误伪装 prepared、本地文件描述符不关闭；补充停止后延迟焦点不得恢复播放以及焦点失败通知。禁用该适配器的后台常驻任务，保持现有聊天页面的前台行为。不改聊天文件授权、下载缓存、账号隔离和删除处理，不上传聊天内容至厂商推送。
 
 此节点不是录音适配，也未验收 SoundPool 低延迟模式、远程音频、所有音频格式、系统中断恢复与扬声器/蓝牙/耳机切换。真机须验证重复切换语音、损坏或丢失缓存、播完清除播放态、停止/退出/切换账号后无残留声音，及文件句柄不随次数增长。Dart mock 通道测试与现有 ChatVoicePlayback 回归不能证明实际听感或原生资源释放有效。
+
+### 前台语音录制
+
+执行 `scripts/stage-harmony-record.ps1 -ProbeRoot <隔离工程>`，使用干净的 CPF-Flutter/fluttertpc_record c719424e0cd869bf57198e71768d11f995cce849 源码（默认 C:/HuaweiTools/harmony-record）。保留 record 7.1.1/interface 2.1.0，仅覆盖鸿蒙默认插件；Dart OHOS 类等待 cancel 完成，不修改其他端接口包。添加前台麦克风使用说明，不增加后台任务权限。验证模板为 harmony/verification/record_contract_test.dart.template，复制到 probe/test 后配合原 voice_capture_test.dart 运行。
+
+原生支持当前聊天 AAC-LC/M4A 文件录音。系统降噪/回声处理未保证，流式录音和其他编码不开放。18 项通道/状态机测试、未签名 HAP 构建通过；实际录音、来电中断、后台切换、短录音删除、重新录制、试听及真实发送须真机验证。该节点未改变安卓/苹果或 shared lib。

@@ -160,3 +160,15 @@ IDE 已恢复启动，用户已在 IDE 登录，自动签名识别湖南领美�
 验证补充：原生设置音源出错时，必须同时返回 MethodChannel 错误和对应播放器 EventChannel 错误，否则 audioplayers 6.8.1 的 Future.wait 仍等待 prepared。通道测试发现该等待问题后已修复。3 项通道契约测试 + 21 项原有 ChatVoicePlayback 回归（共 24 项）全部通过，未改业务代码/原回归测试。首次测试因 C 盘仅余约 5 MB 失败，后以进程级 TEMP/TMP 指向 D:/SDK/harmony-task-temp，并将明确属于本次及前次失败测试的临时目录、上一份未签名 HAP 移到 D 盘保留；未删除用户文件或改全局临时目录配置。补丁在干净源副本 apply --check 通过。
 
 最终未签名 HAP 构建通过（具体耗时见本机 audio-build-verified.log）；中间一次 ArkTS 编译要求焦点回调显式返回类型，修正后通过。当前验证仍是构建+通道/业务回归，不是实际原生播放验收。共享 lib、android、ios、pubspec.yaml、pubspec.lock 对 f4062766 无改动。下一节点可继续录音适配；真实声音、焦点和资源释放等按真机清单验收。
+
+## 2026-10-10 前台语音录制适配
+
+继续保留 record 7.1.1/interface 2.1.0 与现有 VoiceCapture 生命周期。候选来源 CPF-Flutter/fluttertpc_record br_v6.1.2_ohos，固定 c719424e0cd869bf57198e71768d11f995cce849。源码审计发现 start 在原生准备完成前返回成功、权限异常吞掉、取消不等待且不删除文件、所有编码均谎报支持，并默认创建后台录音任务；不可原样接入。仅支持当前业务需要的前台 AAC-LC/M4A，序列化原生操作，等待 prepare/start/stop/release，拒绝不支持的流式录音和编码，不申请后台录音权限。Dart OHOS 适配器覆盖 cancel 的等待行为（现有 interface 默认实现漏 await），不修改 Android/iOS 的公共接口包。采用通道/现有录音回归及原生编译，真机音质和中断待验收。
+
+验证结果：stage-harmony-record.ps1 已实际接入隔离 probe；初次补丁缺少源文件无尾换行标记已修复，并在干净副本 apply --check 通过。3 项真实 NativeVoiceCaptureDevice 的通道 mock 测试和 15 项现有 VoiceCapture 回归共 18 项通过。覆盖 AAC/24kHz/48kbps/单声道配置、原生取消等待、拒绝权限、准备失败、许可弹窗中松手、取消/销毁重叠与短录音丢弃；这些测试不执行原生麦克风。
+
+首次 HAP 编译暴露 ArkTS 构造器属性/泛型 MethodCall/异常类型限制，改为显式字段、类型转换后，最终 unsigned HAP assembleHap 53.3 秒通过（record-build-final.log）。本次明确使用现行 API https://api.wuyexin.cn 构建，修正此前 probe 构建命令使用历史 test 地址的记录；未发起业务写入。主工程 lib/android/ios/pubspec.yaml/pubspec.lock 对 f4062766 无差异。
+
+当前仅提供 AAC-LC 文件录音；PCM 流及其他编码明确拒绝，设备列表不伪造。autoGain/echoCancel/noiseSuppress 不作原生效果保证，音质/系统中断/权限撤回/耳机/实际发送仍需真机验收。应用已有前后台回调结束按住说话，原生 Ability 分离亦排队取消录音；不启动后台录音任务。未签名、未安装。
+
+Dart analyze 无 error/warning，有 2 项 info：OHOS cancel 修复继承当前固定 interface 包的 src 实现类；验证测试导入间接插件依赖。该内部类依赖已固定 interface 2.1.0，升级前必须重审，不将静态分析报告写为零提示。

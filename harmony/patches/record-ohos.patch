@@ -1,0 +1,847 @@
+--- a/ohos/src/main/ets/components/permission/PermissionManager.ets
++++ b/ohos/src/main/ets/components/permission/PermissionManager.ets
+@@ -33,52 +33,14 @@
+     this.ability = ability;
+   }
+ 
+-  async checkPermission() {
+-    try {
+-      let grantStatus = this.isPermissionGranted();
+-      if (grantStatus !== abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
+-        await this.requestNecessaryPermissions(this.permissions);
+-      }
+-    } catch (err) {
+-      console.error(TAG + ` checkAccessToken failed, code is ${err.code}, message is ${err.message}`);
+-    }
++  async granted(request: boolean): Promise<boolean> {
++    if (this.isPermissionGranted() === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) return true;
++    const ability = this.ability;
++    if (!request || !ability) return false;
++    const response = await this.atManager.requestPermissionsFromUser(ability.context, this.permissions);
++    return this.ability === ability && response.authResults.length === 1 &&
++      response.authResults[0] === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED;
+   }
+-
+-  /**
+-   * 申请录音授权
+-   * @param permissions
+-   */
+-  async requestNecessaryPermissions(permissions: Array<Permissions>, result?: MethodResult): Promise<void> {
+-    await this.atManager.requestPermissionsFromUser(this.ability?.context, permissions).then((data) => {
+-      let permissionName: Array<string> = data.permissions;
+-      let grantStatus: Array<number> = data.authResults;
+-      let length: number = grantStatus.length;
+-      for (let i = 0; i < length; i++) {
+-        // 仅当麦克风被授权才返回true
+-        if (permissionName[i] == permissions[0]) {
+-          result?.success(grantStatus[i] === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED);
+-        } else {
+-          return;
+-        }
+-      }
+-    }).catch((err: Error) => {
+-      console.error(TAG + ` requestPermissionsFromUser failed, code is ${err.name}, message is ${err.message}`);
+-    });
+-  }
+-
+-  hasPermission(result: MethodResult) {
+-    if (this.ability == null) {
+-      result.success(false);
+-      return;
+-    }
+-    let grantStatus = this.isPermissionGranted();
+-    if (grantStatus !== abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
+-      this.requestNecessaryPermissions(this.permissions, result)
+-    } else {
+-      result.success(true);
+-    }
+-  }
+-
+   isPermissionGranted(): abilityAccessCtrl.GrantStatus | null {
+     let grantStatus: abilityAccessCtrl.GrantStatus | null = null;
+     let tokenId: number;
+--- a/ohos/src/main/ets/components/plugin/MediaRecorder.ets
++++ b/ohos/src/main/ets/components/plugin/MediaRecorder.ets
+@@ -12,228 +12,95 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-import { BusinessError } from '@kit.BasicServicesKit';
+ import fs from '@ohos.file.fs';
++import { media } from '@kit.MediaKit';
+ import { RecordConfig } from './RecordConfig';
+-import { AudioEncoder } from './AudioEncoder';
++import { RecordState } from './RecordState';
++import { RecorderStateStreamHandler } from './RecorderStateStreamHandler';
+ 
+-import { RecordState } from './RecordState';
+-import { IRecorder } from './IRecorder';
+-import { RecorderStateStreamHandler } from './RecorderStateStreamHandler';
+-import { RecorderRecordStreamHandler } from './RecorderRecordStreamHandler';
+-import { media } from '@kit.MediaKit';
+-import { BackgroundTaskManagerUtil } from './BackgroundTaskManager';
+-
+-export class MediaRecorder implements IRecorder {
+-  private readonly TAG = 'MediaRecorder';
++export class MediaRecorder {
+   private file: fs.File | null = null;
+-  private mAvRecorder: media.AVRecorder | null = null;
+-  private fileMediaPath: string = '';
+-  private fileConfigPath: string = '';
+-  private mMaxAmplitudeCur: number = 0.0001;
+-  private mMaxAmplitude: number = -160.0001
++  private recorder: media.AVRecorder | null = null;
++  private path: string = '';
+   isRecording: boolean = false;
+   isPaused: boolean = false;
+-  private recorderStateStreamHandler: RecorderStateStreamHandler | null = null;
+-
+-  constructor(recorderStateStreamHandler: RecorderStateStreamHandler,
+-    recorderRecordStreamHandler: RecorderRecordStreamHandler) {
+-    this.recorderStateStreamHandler = recorderStateStreamHandler;
+-  }
+-
+-  getAmplitude(): Array<number> {
+-    if (this.mAvRecorder != null || this.mAvRecorder != undefined) {
+-      this.mAvRecorder.getAudioCapturerMaxAmplitude().then((maxAmplitude) => {
+-        this.mMaxAmplitudeCur = maxAmplitude;
++  private events: RecorderStateStreamHandler;
++  constructor(events: RecorderStateStreamHandler) { this.events = events; }
++  async start(config: RecordConfig): Promise<void> {
++    if (config.encoder !== 'aacLc') throw new Error('Only AAC-LC file recording is supported');
++    if (!config.path || !config.path.startsWith('/')) throw new Error('Absolute output path required');
++    await this.cancel();
++    this.path = config.path;
++    try {
++      this.recorder = await media.createAVRecorder();
++      this.recorder.on('stateChange', (state: media.AVRecorderState): void => {
++        if ((state === 'error' || state === 'released') && this.isRecording) {
++          this.setState(RecordState.STOP);
++        }
+       });
+-      let fixedCur = this.mMaxAmplitudeCur + 0.0001;
+-      let fixedMax = this.mMaxAmplitude + 0.0001;
+-      return [fixedCur, fixedMax];
+-    } else {
+-      return [0.0001, 0.0001];
++      this.file = fs.openSync(this.path, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
++      const profile: media.AVRecorderProfile = {
++        audioBitrate: config.bitRate, audioChannels: config.numChannels,
++        audioCodec: media.CodecMimeType.AUDIO_AAC, audioSampleRate: config.sampleRate,
++        fileFormat: media.ContainerFormatType.CFT_MPEG_4A
++      };
++      await this.recorder.prepare({ audioSourceType: media.AudioSourceType.AUDIO_SOURCE_TYPE_MIC,
++        profile: profile, url: 'fd://' + this.file.fd });
++      await this.recorder.start();
++      this.setState(RecordState.RECORD);
++    } catch (error) {
++      await this.cancel();
++      throw error as Error;
+     }
+   }
+-
+-  private createRecorder(config: RecordConfig): void {
+-    media.createAVRecorder((error: BusinessError, recorder: media.AVRecorder) => {
+-      if (recorder != null) {
+-        this.mAvRecorder = recorder;
+-        this.realStartRecording(config);
+-      } else {
+-        console.error(this.TAG + `Failed to create AVRecorder, error message:${error.message}`);
++  async stop(): Promise<string | null> {
++    const output = this.path;
++    const recorder = this.recorder;
++    try {
++      if (recorder && (recorder.state === 'started' || recorder.state === 'paused')) {
++        await recorder.stop();
+       }
+-    });
++    } finally {
++      await this.release();
++    }
++    this.path = '';
++    return output || null;
+   }
+-
+-  start(config: RecordConfig): void {
+-    this.stopRecording();
+-    if (this.mAvRecorder == null || this.mAvRecorder == undefined) {
+-      this.createRecorder(config);
+-    } else {
+-      this.realStartRecording(config);
+-    }
+-
+-  }
+-
+-  private realStartRecording(config: RecordConfig): void {
+-    let avRecorderProfile: media.AVRecorderProfile = {
+-      audioBitrate: config.bitRate,
+-      audioChannels: config.numChannels,
+-      audioCodec: this.getEncoder(config.encoder),
+-      audioSampleRate: config.sampleRate,
+-      fileFormat: this.getFormat(config.encoder)
+-    };
+-    this.fileConfigPath = config.path;
+-    this.fileMediaPath = 'fd://' + this.getFileFD(config.path);
+-    let avRecorderConfig: media.AVRecorderConfig = {
+-      audioSourceType: media.AudioSourceType.AUDIO_SOURCE_TYPE_MIC,
+-      profile: avRecorderProfile,
+-      url: this.fileMediaPath
+-    }
+-    console.info(this.TAG + ' zcyRecordTag _ets realStartRecording  filePath: ' + config.path);
+-    if (this.mAvRecorder != null && this.mAvRecorder != undefined) {
+-      this.mAvRecorder.prepare(avRecorderConfig, (err: BusinessError) => {
+-        if (err) {
+-          console.error(this.TAG + 'Failed to prepare and error is ' + err.message);
+-        } else {
+-          this.startRecordAfterPrepare();
+-        }
+-      })
++  async cancel(): Promise<void> {
++    const output = this.path;
++    try { await this.release(); }
++    finally {
++      this.path = '';
++      if (output && fs.accessSync(output)) fs.unlinkSync(output);
+     }
+   }
+-
+-  startRecordAfterPrepare(): void {
+-    this.mAvRecorder!.start((err: BusinessError) => {
+-      if (err) {
+-        console.error(this.TAG + 'Failed to start AVRecorder and error is ' + err.message);
+-      } else {
+-        this.updateState(RecordState.RECORD);
+-      }
+-    });
+-  }
+-
+-  async stop(callback?: (path: string) => void): Promise<void> {
+-    if (this.mAvRecorder != null) {
+-      if (this.mAvRecorder.state === 'started' || this.mAvRecorder.state === 'paused') {
+-        await this.mAvRecorder.stop();
+-      }
+-      await this.mAvRecorder.reset();
+-      await this.mAvRecorder.release();
+-      this.mAvRecorder = null;
+-      if (this.file != null) {
+-        fs.closeSync(this.file);
+-        this.file = null;
+-      }
+-      this.updateState(RecordState.STOP);
+-    }
+-    if (callback) {
+-      callback(this.fileConfigPath);
++  private async release(): Promise<void> {
++    const recorder = this.recorder;
++    this.recorder = null;
++    try { if (recorder) await recorder.release(); }
++    finally {
++      if (this.file) { fs.closeSync(this.file); this.file = null; }
++      this.setState(RecordState.STOP);
+     }
+   }
+-
+-  cancel() {
+-    this.stopRecording();
+-  }
+-
+   async pause(): Promise<void> {
+-    if (this.mAvRecorder != null && this.mAvRecorder.state === 'started') {
+-      await this.mAvRecorder.pause();
+-      this.updateState(RecordState.PAUSE);
++    if (this.recorder && this.recorder.state === 'started') {
++      await this.recorder.pause(); this.setState(RecordState.PAUSE);
+     }
+   }
+-
+   async resume(): Promise<void> {
+-    if (this.mAvRecorder != null && this.mAvRecorder.state === 'paused') {
+-      await this.mAvRecorder.resume();
+-      this.updateState(RecordState.RECORD);
++    if (this.recorder && this.recorder.state === 'paused') {
++      await this.recorder.resume(); this.setState(RecordState.RECORD);
+     }
+   }
+-
+-  dispose() {
+-    this.stopRecording();
++  async getAmplitude(): Promise<number[]> {
++    const amplitude = this.recorder ? await this.recorder.getAudioCapturerMaxAmplitude() : 0;
++    const db = amplitude > 0 ? 20 * Math.log10(amplitude / 32767) : -160;
++    return [db, db];
+   }
+-
+-  async stopRecording(): Promise<void> {
+-    if (this.mAvRecorder != null) {
+-      try {
+-        if (this.mAvRecorder.state === 'started' || this.mAvRecorder.state === 'paused' || this.isRecording ||
+-        this.isPaused) {
+-          this.mAvRecorder.stop()
+-        }
+-        await this.mAvRecorder.reset();
+-        await this.mAvRecorder.release();
+-        this.mAvRecorder = null;
+-        if (this.file != null) {
+-          fs.closeSync(this.file);
+-          this.file = null;
+-        }
+-      } catch (e) {
+-        console.error(`${this.TAG}: Error during recorder stop: ${JSON.stringify(e)}`);
+-      }
+-    }
+-    this.updateState(RecordState.STOP)
+-    this.mMaxAmplitude = -160.0
++  private setState(state: RecordState): void {
++    this.isRecording = state !== RecordState.STOP;
++    this.isPaused = state === RecordState.PAUSE;
++    this.events.sendStateEvent(state);
+   }
+-
+-  updateState(state: RecordState): void {
+-    switch (state) {
+-      case RecordState.PAUSE:
+-        this.isRecording = true
+-        this.isPaused = true
+-        this.recorderStateStreamHandler!.sendStateEvent(RecordState.PAUSE)
+-        break;
+-      case RecordState.RECORD:
+-        this.isRecording = true
+-        this.isPaused = false
+-        this.recorderStateStreamHandler!.sendStateEvent(RecordState.RECORD)
+-        break;
+-      case RecordState.STOP:
+-        this.isRecording = false
+-        this.isPaused = false
+-        this.recorderStateStreamHandler!.sendStateEvent(RecordState.STOP)
+-        break;
+-      default:
+-        break;
+-    }
+-  }
+-
+-  getEncoder(encoder: string): media.CodecMimeType {
+-    switch (encoder) {
+-      case AudioEncoder.aacLc:
+-        return media.CodecMimeType.AUDIO_AAC;
+-      case AudioEncoder.aacEld:
+-        return media.CodecMimeType.AUDIO_AAC;
+-      case AudioEncoder.aacHe:
+-        return media.CodecMimeType.AUDIO_AAC;
+-      case AudioEncoder.amrNb:
+-      case AudioEncoder.amrWb:
+-        return media.CodecMimeType.AUDIO_AAC;
+-      case AudioEncoder.opus:
+-        return media.CodecMimeType.AUDIO_AAC;
+-      default:
+-        return media.CodecMimeType.AUDIO_AAC;
+-    }
+-  }
+-
+-  getFormat(encoder: string): media.ContainerFormatType {
+-    switch (encoder) {
+-      case AudioEncoder.aacLc:
+-      case AudioEncoder.aacEld:
+-      case AudioEncoder.aacHe:
+-        return media.ContainerFormatType.CFT_MPEG_4A;
+-      case AudioEncoder.amrNb:
+-      case AudioEncoder.amrWb:
+-        return media.ContainerFormatType.CFT_MPEG_4A;
+-      case AudioEncoder.opus:
+-        return media.ContainerFormatType.CFT_MPEG_4A;
+-      default:
+-        return media.ContainerFormatType.CFT_MPEG_4A
+-    }
+-  }
+-
+-  getFileFD(filePath: string): number {
+-    this.file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+-    const fd: number = this.file.fd;
+-    return fd;
+-  }
+-}
+\ No newline at end of file
++}
+--- a/ohos/src/main/ets/components/plugin/MethodCallHandlerImpl.ets
++++ b/ohos/src/main/ets/components/plugin/MethodCallHandlerImpl.ets
+@@ -17,106 +17,69 @@
+ import { RecordConfig } from './RecordConfig';
+ import { Utils } from './Utils';
+ import PermissionManager from '../permission/PermissionManager';
+-import { BackgroundTaskManagerUtil } from './BackgroundTaskManager';
+-
+ export class MethodCallHandlerImpl implements MethodCallHandler {
+-  private readonly TAG = 'MethodCallHandlerImpl';
++  private recorders: Map<string, RecorderWrapper> = new Map();
++  private queue: Promise<void> = Promise.resolve();
++  private detached: boolean = false;
+   private messenger: BinaryMessenger;
+-  private recorders: Map<string, RecorderWrapper> = new Map<string, RecorderWrapper>();
+   private permissionManager: PermissionManager;
+-  private backgroundTaskManager: BackgroundTaskManagerUtil;
+-
+   constructor(messenger: BinaryMessenger, permissionManager: PermissionManager) {
+-    this.messenger = messenger;
+-    this.permissionManager = permissionManager;
+-    this.backgroundTaskManager = BackgroundTaskManagerUtil.getInstance();
++    this.messenger = messenger; this.permissionManager = permissionManager;
+   }
+-
+-  async onMethodCall(call: MethodCall, result: MethodResult): Promise<void> {
+-    const recorderId: string = call.argument('recorderId');
+-    if (recorderId === null || recorderId.trim() === '') {
+-      result.error(this.TAG + ' ARGUMENT_ERROR', 'Call missing mandatory parameter recorderId.', null);
+-      return;
++  onMethodCall(call: MethodCall, result: MethodResult): void {
++    this.queue = this.queue.catch((): void => {}).then(async (): Promise<void> => {
++      try { await this.handle(call, result); }
++      catch (error) { result.error('record', (error as Error).message, null); }
++    });
++  }
++  private async handle(call: MethodCall, result: MethodResult): Promise<void> {
++    if (this.detached) throw new Error('Recorder detached');
++    const id = call.argument('recorderId') as string;
++    if (!id) throw new Error('Recorder ID required');
++    if (call.method === 'create') {
++      if (!this.recorders.has(id)) this.recorders.set(id, new RecorderWrapper(id, this.messenger));
++      result.success(null); return;
+     }
+-    if (call.method == "create") {
+-      try {
+-        this.createRecorder(recorderId);
+-        result.success(null);
+-      } catch (e) {
+-        const error = e as Error;
+-        result.error(this.TAG + " record", "Cannot create recording configuration.", error.message);
+-      }
+-      return;
++    const wrapper = this.recorders.get(id);
++    if (!wrapper) throw new Error('Recorder disposed');
++    const recorder = wrapper.recorder;
++    switch (call.method) {
++      case 'hasPermission':
++        result.success(await this.permissionManager.granted((call.argument('request') as boolean) !== false)); return;
++      case 'start':
++        if (!await this.permissionManager.granted(false)) throw new Error('Microphone permission denied');
++        await recorder.start(this.getRecordConfig(call)); result.success(null); return;
++      case 'startStream': throw new Error('Stream recording is not supported');
++      case 'stop': result.success(await recorder.stop()); return;
++      case 'cancel': await recorder.cancel(); result.success(null); return;
++      case 'pause': await recorder.pause(); result.success(null); return;
++      case 'resume': await recorder.resume(); result.success(null); return;
++      case 'isRecording': result.success(recorder.isRecording); return;
++      case 'isPaused': result.success(recorder.isPaused); return;
++      case 'isEncoderSupported': result.success((call.argument('encoder') as string) === 'aacLc'); return;
++      case 'listInputDevices': result.success([]); return;
++      case 'getAmplitude':
++        const values = await recorder.getAmplitude();
++        const map = new Map<string, number>(); map.set('current', values[0]); map.set('max', values[1]);
++        result.success(map); return;
++      case 'dispose':
++        await wrapper.dispose(); this.recorders.delete(id); result.success(null); return;
++      default: result.notImplemented();
+     }
+-    let recorder = this.recorders.get(recorderId);
+-    if (recorder == null) {
+-      result.error(this.TAG + " record",
+-        "Recorder has not yet been created or has already been disposed.", null
+-      )
+-      return
+-    }
+-    switch (call.method) {
+-      case "start":
+-        this.permissionManager.checkPermission().then(async () => {
+-          let config = this.getRecordConfig(call);
+-          await this.backgroundTaskManager.initializeBackgroundTask();
+-          recorder?.startRecordingToFile(config, result);
+-        })
+-        break;
+-      case "startStream":
+-        try {
+-          this.permissionManager.checkPermission().then(async () => {
+-            let config = this.getRecordConfig(call);
+-            await this.backgroundTaskManager.initializeBackgroundTask();
+-            recorder?.startRecordingToStream(config, result);
+-          })
+-        } catch (e) {
+-          const error = e as Error;
+-          result.error(this.TAG + " record", "Cannot create recording configuration.", error.message)
+-        }
+-        break;
+-      case "stop":
+-        recorder.stop(result);
+-        await this.backgroundTaskManager.releaseBackgroundTask();
+-        break;
+-      case "pause":
+-        recorder.pause(result);
+-        break;
+-      case "resume":
+-        recorder.resume(result);
+-        break;
+-      case "isPaused":
+-        recorder.isPaused(result);
+-        break;
+-      case "isRecording":
+-        recorder.isRecording(result);
+-        break;
+-      case "cancel":
+-        recorder.cancel(result);
+-        await this.backgroundTaskManager.releaseBackgroundTask();
+-        break;
+-      case "hasPermission":
+-        this.permissionManager.hasPermission(result)
+-        break;
+-      case "getAmplitude":
+-        recorder.getAmplitude(result);
+-        break;
+-      case "listInputDevices":
+-        result.success(this.getDeviceMapList());
+-        break;
+-      case "dispose":
+-        this.disposeRecorder(recorder, recorderId);
+-        result.success(null)
+-        break;
+-      case "isEncoderSupported":
+-        result.success(true);
+-        break;
+-      default:
+-        result.notImplemented()
+-        break;
+-    }
+-  };
+-
++  }
++  cancelAll(): Promise<void> {
++    this.queue = this.queue.catch((): void => {}).then(async (): Promise<void> => {
++      await Promise.all(Array.from(this.recorders.values()).map((value: RecorderWrapper): Promise<void> => value.recorder.cancel()));
++    });
++    return this.queue;
++  }
++  async dispose(): Promise<void> {
++    this.detached = true;
++    await this.queue;
++    const values = Array.from(this.recorders.values());
++    this.recorders.clear();
++    await Promise.all(values.map((wrapper: RecorderWrapper): Promise<void> => wrapper.dispose()));
++  }
+   getRecordConfig(call: MethodCall): RecordConfig {
+       let config = call.argument("androidConfig") as Map<string, Object>;
+       const recordConfig = new RecordConfig();
+@@ -141,41 +104,4 @@
+       return recordConfig;
+     }
+ 
+-  createRecorder(recorderId: string): void {
+-    let recorder: RecorderWrapper = new RecorderWrapper(recorderId, this.messenger);
+-    this.recorders.set(recorderId, recorder);
+-  }
+-
+-  getDeviceMapList(): Array<Map<string, string>> {
+-    const deviceInfo = new Map<string, string>();
+-    deviceInfo.set("id", "4");
+-    deviceInfo.set("label", "Microphone (Built-in Microphone)");
+-    const deviceList: Array<Map<string, string>> = [deviceInfo];
+-    return deviceList;
+-  }
+-
+-  async dispose(): Promise<void> {
+-    console.info(`${this.TAG}: Disposing all recorders...`);
+-    const disposePromises: Promise<void>[] = [];
+-    
+-    this.recorders.forEach((value: RecorderWrapper, key: string) => {
+-      disposePromises.push(this.disposeRecorder(value, key));
+-    });
+-    
+-    // 等待所有recorder完成dispose
+-    await Promise.all(disposePromises);
+-    this.recorders.clear();
+-    console.info(`${this.TAG}: All recorders disposed.`);
+-  }
+-
+-  async disposeRecorder(recorder: RecorderWrapper, recorderId: string): Promise<void> {
+-    try {
+-      await recorder.dispose();
+-    } catch (error) {
+-      const err = error as Error;
+-      console.error(`${this.TAG}: Error disposing recorder ${recorderId}: ${err.message}`);
+-    } finally {
+-      this.recorders.delete(recorderId);
+-    }
+-  }
+-}
+\ No newline at end of file
++}
+--- a/ohos/src/main/ets/components/plugin/RecorderWrapper.ets
++++ b/ohos/src/main/ets/components/plugin/RecorderWrapper.ets
+@@ -12,151 +12,20 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-import { BinaryMessenger, MethodResult } from '@ohos/flutter_ohos';
+-import EventChannel from '@ohos/flutter_ohos/src/main/ets/plugin/common/EventChannel';
+-import { RecordConfig } from './RecordConfig';
+-import { IRecorder } from './IRecorder';
+-
++import { BinaryMessenger, EventChannel } from '@ohos/flutter_ohos';
+ import { MediaRecorder } from './MediaRecorder';
+-import { RecorderRecordStreamHandler } from './RecorderRecordStreamHandler';
+-
+ import { RecorderStateStreamHandler } from './RecorderStateStreamHandler';
+-
+ export class RecorderWrapper {
+-  private readonly TAG: string = 'RecorderWrapper';
+-  private readonly EVENTS_STATE_CHANNEL = "com.llfbandit.record/events/"
+-  private readonly EVENTS_RECORD_CHANNEL = "com.llfbandit.record/eventsRecord/"
+-  private recorderId: string | null;
+-  private messenger: BinaryMessenger;
+-  private recorder: IRecorder | null = null;
+-  private recorderStateStreamHandler: RecorderStateStreamHandler = new RecorderStateStreamHandler();
+-  private recorderRecordStreamHandler: RecorderRecordStreamHandler = new RecorderRecordStreamHandler();
+-  private eventChannel: EventChannel | null = null;
+-  private eventRecordChannel: EventChannel | null = null
+-
+-  constructor(recorderId: string, message: BinaryMessenger) {
+-    this.recorderId = recorderId;
+-    this.messenger = message;
+-    this.init();
++  readonly recorder: MediaRecorder;
++  private channel: EventChannel;
++  constructor(id: string, messenger: BinaryMessenger) {
++    const events = new RecorderStateStreamHandler();
++    this.channel = new EventChannel(messenger, 'com.llfbandit.record/events/' + id);
++    this.channel.setStreamHandler(events);
++    this.recorder = new MediaRecorder(events);
+   }
+-
+-  init(): void {
+-    this.eventChannel = new EventChannel(this.messenger, this.EVENTS_STATE_CHANNEL + this.recorderId)
+-    this.eventChannel!.setStreamHandler(this.recorderStateStreamHandler)
+-    this.eventRecordChannel = new EventChannel(this.messenger, this.EVENTS_RECORD_CHANNEL + this.recorderId)
+-    this.eventRecordChannel!.setStreamHandler(this.recorderRecordStreamHandler)
++  async dispose(): Promise<void> {
++    try { await this.recorder.cancel(); }
++    finally { this.channel.setStreamHandler(null); }
+   }
+-
+-  startRecordingToFile(config: RecordConfig, result: MethodResult) {
+-    this.startRecording(config, result)
+-  }
+-
+-  startRecordingToStream(config: RecordConfig, result: MethodResult) {
+-    this.startRecording(config, result)
+-  }
+-
+-  private startRecording(config: RecordConfig, result: MethodResult): void {
+-    try {
+-      if (this.recorder == null) {
+-        this.recorder = this.createRecorder(config)
+-        this.start(config, result)
+-      } else if (this.recorder!.isRecording) {
+-        this.recorder!.stop(() => {
+-          this.start(config, result)
+-        });
+-      } else {
+-        this.start(config, result)
+-      }
+-    } catch (e) {
+-      result.error(this.TAG + " record", e.message, e.cause);
+-    }
+-  }
+-
+-  private start(config: RecordConfig, result: MethodResult): void {
+-    this.recorder!.start(config)
+-    result.success(null)
+-  }
+-
+-  pause(result: MethodResult) {
+-    try {
+-      this.recorder!.pause()
+-      result.success(null)
+-    } catch (e) {
+-      result.error("record", e.message, e.cause)
+-    }
+-  }
+-
+-  isPaused(result: MethodResult) {
+-    result.success(this.recorder!.isPaused)
+-  }
+-
+-  isRecording(result: MethodResult) {
+-    if(this.recorder == null){
+-      result.success(false);
+-    }else{
+-      result.success(this.recorder.isRecording);
+-    }
+-  }
+-
+-  getAmplitude(result: MethodResult) {
+-    if (this.recorder != null) {
+-      let amps = this.recorder!.getAmplitude();
+-      let amp: Map<string, number> = new Map<string, number>();
+-      amp.set("current", amps[0]);
+-      amp.set("max", amps[1]);
+-      result.success(amp)
+-    } else {
+-      result.success(null)
+-    }
+-  }
+-
+-  resume(result: MethodResult) {
+-    try {
+-      this.recorder!.resume()
+-      result.success(null)
+-    } catch (e) {
+-      result.error(this.TAG + " record", e, "")
+-    }
+-  }
+-
+-  stop(result: MethodResult) {
+-    try {
+-      if (this.recorder == null) {
+-        result.success(null)
+-      } else {
+-        this.recorder!.stop((path) => {
+-          result.success(path);
+-        });
+-      }
+-    } catch (e) {
+-      result.error("record", e, "")
+-    }
+-  }
+-
+-  cancel(result: MethodResult) {
+-    try {
+-      this.recorder!.cancel()
+-      result.success(null)
+-    } catch (e) {
+-      result.error(this.TAG + " record", e, "")
+-    }
+-  }
+-
+-  private createRecorder(config: RecordConfig): IRecorder {
+-    return new MediaRecorder(this.recorderStateStreamHandler, this.recorderRecordStreamHandler);
+-  }
+-
+-  public dispose(): void {
+-    try {
+-      this.recorder!.dispose()
+-    } catch (error) {
+-      console.error(this.TAG + ' record' + ' dispose ' + error);
+-    } finally {
+-      this.recorder = null;
+-    }
+-    this.eventChannel!.setStreamHandler(null)
+-    this.eventChannel = null
+-    this.eventRecordChannel!.setStreamHandler(null)
+-    this.eventRecordChannel = null
+-  }
+-}
+\ No newline at end of file
++}
+--- a/ohos/src/main/ets/components/plugin/RecordOhosPlugin.ets
++++ b/ohos/src/main/ets/components/plugin/RecordOhosPlugin.ets
+@@ -12,85 +12,30 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-import {
+-  AbilityAware,
+-  AbilityPluginBinding,
+-  FlutterPlugin,
+-  FlutterPluginBinding,
+-  MethodChannel,
+-} from '@ohos/flutter_ohos';
+-import common from '@ohos.app.ability.common';
++import { AbilityAware, AbilityPluginBinding, FlutterPlugin, FlutterPluginBinding, MethodChannel } from '@ohos/flutter_ohos';
+ import { MethodCallHandlerImpl } from './MethodCallHandlerImpl';
+ import PermissionManager from '../permission/PermissionManager';
+-import { BackgroundTaskManagerUtil } from './BackgroundTaskManager';
+-
+ export default class RecordOhosPlugin implements FlutterPlugin, AbilityAware {
+-  private readonly TAG: string = 'RecordOhosPlugin';
+-  private readonly MESSAGES_CHANNEL = 'com.llfbandit.record/messages';
+   private channel: MethodChannel | null = null;
+-  private methodCallHandler: MethodCallHandlerImpl | null = null;
+-  private permissionManager: PermissionManager;
+-  private abilityBinding: AbilityPluginBinding | null = null;
+-  private backgroundTaskManager: BackgroundTaskManagerUtil;
+-
+-  constructor() {
+-    this.permissionManager = new PermissionManager();
+-    this.backgroundTaskManager = BackgroundTaskManagerUtil.getInstance();
++  private handler: MethodCallHandlerImpl | null = null;
++  private permissions: PermissionManager = new PermissionManager();
++  getUniqueClassName(): string { return 'RecordOhosPlugin'; }
++  onAttachedToEngine(binding: FlutterPluginBinding): void {
++    this.channel = new MethodChannel(binding.getBinaryMessenger(), 'com.llfbandit.record/messages');
++    this.handler = new MethodCallHandlerImpl(binding.getBinaryMessenger(), this.permissions);
++    this.channel.setMethodCallHandler(this.handler);
+   }
+-
+-  /**
+-   * 应用关闭时释放后台任务
+-   */
+-  private async releaseApplicationBackgroundTask(): Promise<void> {
+-    try {
+-      console.info(`${this.TAG}: Starting to release application background recording task...`);
+-      const result = await this.backgroundTaskManager.releaseBackgroundTask();
+-      if (result) {
+-        console.info(`${this.TAG}: Application background recording task released successfully.`);
+-      } else {
+-        console.warn(`${this.TAG}: Failed to release application background recording task.`);
+-      }
+-    } catch (error) {
+-      console.error(`${this.TAG}: Error releasing application background task: ${JSON.stringify(error)}`);
+-    }
++  async onDetachedFromEngine(binding: FlutterPluginBinding): Promise<void> {
++    this.channel?.setMethodCallHandler(null);
++    this.channel = null;
++    try { await this.handler?.dispose(); }
++    finally { this.handler = null; }
+   }
+-
+-  getUniqueClassName(): string {
+-    return "RecordOhosPlugin"
++  onAttachedToAbility(binding: AbilityPluginBinding): void {
++    this.permissions.setUIAbility(binding.getAbility());
+   }
+-
+-  onAttachedToEngine(binding: FlutterPluginBinding): void {
+-    this.channel = new MethodChannel(binding.getBinaryMessenger(), this.MESSAGES_CHANNEL);
+-    this.methodCallHandler = new MethodCallHandlerImpl(binding.getBinaryMessenger(), this.permissionManager);
+-    this.channel.setMethodCallHandler(this.methodCallHandler);
++  onDetachedFromAbility(): void {
++    this.permissions.setUIAbility(null);
++    this.handler?.cancelAll().catch((): void => { console.error('Microphone cleanup failed'); });
+   }
+-
+-  async onDetachedFromEngine(binding: FlutterPluginBinding): Promise<void> {
+-    console.info(`${this.TAG}: Detaching from engine, cleaning up resources...`);
+-    
+-    // 确保释放后台任务（如果有）
+-    await this.releaseApplicationBackgroundTask()
+-    
+-    if (this.methodCallHandler != null) {
+-      await this.methodCallHandler.dispose()
+-      this.methodCallHandler = null;
+-    }
+-    
+-    if (this.channel != null) {
+-      this.channel.setMethodCallHandler(null);
+-      this.channel = null;
+-    }
+-  }
+-
+-  onAttachedToAbility(binding: AbilityPluginBinding): void {
+-    this.abilityBinding = binding;
+-    this.permissionManager.setUIAbility(this.abilityBinding.getAbility());
+-    const context = this.abilityBinding.getAbility().context as common.Context;
+-    BackgroundTaskManagerUtil.setContext(context);
+-  }
+-
+-  onDetachedFromAbility(): void {
+-    console.info(`${this.TAG}: Detaching from ability, performing final cleanup...`);
+-    this.permissionManager.setUIAbility(null);
+-  }
+-}
+\ No newline at end of file
++}
