@@ -20,6 +20,7 @@ class StorageItem {
     this.status = 'available',
     this.canPickup = true,
     this.pickupConfirmed = false,
+    this.bottleMaterial,
   });
   factory StorageItem.fromJson(Map<String, dynamic> j) => StorageItem(
     ref: j['itemRef'] as String,
@@ -37,6 +38,10 @@ class StorageItem {
     status: j['status'] as String,
     canPickup: j['canPickup'] == true,
     pickupConfirmed: j['pickupConfirmed'] == true,
+    bottleMaterial: StorageBottleMaterial.parse(
+      j['bottleMaterial'],
+      j['storeRef'],
+    ),
   );
   final String ref,
       name,
@@ -53,6 +58,7 @@ class StorageItem {
   final double? maximumValue;
   final bool canPickup;
   final bool pickupConfirmed;
+  final StorageBottleMaterial? bottleMaterial;
   String get expiresLabel {
     final date = DateTime.tryParse(expiresAt)?.toLocal();
     return date == null ? '' : date.toString().split('.').first;
@@ -79,6 +85,93 @@ class StorageItem {
       : ['vodka', 'chivas', 'hennessy'].contains(assetKey)
       ? image.replaceFirst('.png', '_mini.png')
       : image;
+}
+
+/// Store-bound, signed source material. Token renewal retains the content cache.
+class StorageBottleMaterial {
+  const StorageBottleMaterial({
+    required this.storeRef,
+    required this.digest,
+    required this.aspectRatio,
+    required this.imageAspectRatio,
+    required this.files,
+  });
+  final String storeRef, digest;
+  final double aspectRatio, imageAspectRatio;
+  final Map<String, String> files;
+  String cacheKey(String role) =>
+      'bottle:$storeRef:png-contour-v1:$digest:$role';
+
+  static StorageBottleMaterial? parse(
+    dynamic raw,
+    dynamic storeRef, {
+    String mediaBaseUrl = kingclubApiBaseUrl,
+  }) {
+    if (raw is! Map ||
+        storeRef is! String ||
+        storeRef.isEmpty ||
+        raw['storeRef'] != storeRef ||
+        raw['version'] != 'png-contour-v1') {
+      return null;
+    }
+    final digest = raw['sourceSha256'],
+        ratio = raw['aspectRatio'],
+        imageRatio = raw['imageAspectRatio'];
+    if (digest is! String ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(digest) ||
+        ratio is! num ||
+        !ratio.isFinite ||
+        ratio <= 0 ||
+        imageRatio is! num ||
+        !imageRatio.isFinite ||
+        imageRatio <= 0) {
+      return null;
+    }
+    final base = Uri.tryParse(mediaBaseUrl);
+    if (base == null ||
+        base.scheme != 'https' ||
+        base.host.isEmpty ||
+        base.hasQuery ||
+        base.hasFragment ||
+        base.userInfo.isNotEmpty) {
+      return null;
+    }
+    final values = raw['files'];
+    if (values is! Map) return null;
+    final files = <String, String>{};
+    for (final role in [
+      'image',
+      'thumbnail',
+      'mask',
+      'outline',
+      'frame',
+      'backFrame',
+    ]) {
+      final link = values[role];
+      if (link is! String) return null;
+      final uri = Uri.tryParse(link);
+      if (uri == null ||
+          uri.hasScheme ||
+          uri.hasAuthority ||
+          uri.hasFragment ||
+          !RegExp(
+            r'^/attachments/[a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$',
+          ).hasMatch(uri.path) ||
+          uri.queryParametersAll.length != 1 ||
+          uri.queryParametersAll['token']?.length != 1 ||
+          (uri.queryParameters['token']?.isEmpty ?? true)) {
+        return null;
+      }
+      files[role] = '${mediaBaseUrl.replaceFirst(RegExp(r'/+$'), '')}$link';
+    }
+    return StorageBottleMaterial(
+      storeRef: storeRef,
+      digest: digest,
+      aspectRatio: ratio.toDouble(),
+      imageAspectRatio: imageRatio.toDouble(),
+      files: Map.unmodifiable(files),
+    );
+  }
 }
 
 abstract class StorageRepository {

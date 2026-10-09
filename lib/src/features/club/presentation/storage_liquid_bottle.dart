@@ -6,6 +6,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../data/storage_repository.dart';
 import '../data/bottle_material_preview.dart';
 import 'bottle_material_image.dart';
+import 'stored_wine_image.dart';
+import '../../../core/media/cached_media_svg.dart';
 
 /// Original bottle silhouettes; only the liquid surface is procedurally animated.
 class StorageLiquidBottle extends StatefulWidget {
@@ -76,9 +78,22 @@ class _StorageLiquidBottleState extends State<StorageLiquidBottle>
     if (preview is LegacyBottleComparisonItem) {
       return _legacyComparison(preview);
     }
-    final key = ['vodka', 'chivas', 'hennessy'].contains(widget.item.assetKey)
-        ? widget.item.assetKey
-        : 'vodka';
+    if (preview.bottleMaterial != null) return _storedBottle(preview);
+    if (!['vodka', 'chivas', 'hennessy'].contains(preview.assetKey)) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            preview.name,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFFC9B69E), fontSize: 20),
+          ),
+          const SizedBox(height: 16),
+          _bottleLabels(preview, MediaQuery.sizeOf(context).width / 750),
+        ],
+      );
+    }
+    final key = widget.item.assetKey;
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -184,39 +199,110 @@ class _StorageLiquidBottleState extends State<StorageLiquidBottle>
     ],
   );
 
-  Widget _materialLiquid(String mask, double level, double u) =>
-      AnimatedBuilder(
-        animation: _wave,
-        builder: (context, _) => Stack(
+  Widget _materialLiquid(
+    String mask,
+    double level,
+    double u, {
+    Widget? maskImage,
+  }) => AnimatedBuilder(
+    animation: _wave,
+    builder: (context, _) => Stack(
+      fit: StackFit.expand,
+      children: [
+        // Old .bottle_progress: radial(circle 240rpx at 50% 100%, #443626, #c9b69e).
+        ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) => RadialGradient(
+            center: Alignment.bottomCenter,
+            radius: 240 * u / bounds.shortestSide,
+            colors: const [Color(0xFF443626), Color(0xFFC9B69E)],
+          ).createShader(bounds),
+          child: maskImage ?? SvgPicture.asset(mask, fit: BoxFit.contain),
+        ),
+        // Old moving dark liquid surface, clipped to the same bottle silhouette.
+        ClipPath(
+          key: const ValueKey('storage-liquid-surface'),
+          clipper: _LegacyMaterialSurface(level / 100, _wave.value),
+          child: ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: (bounds) => RadialGradient(
+              center: Alignment.topCenter,
+              radius: 500 * u / bounds.shortestSide,
+              colors: const [Color(0xFF52412F), Color(0xDD000000)],
+            ).createShader(bounds),
+            child: maskImage ?? SvgPicture.asset(mask, fit: BoxFit.contain),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _storedBottle(StorageItem item) {
+    final material = item.bottleMaterial!,
+        u = MediaQuery.sizeOf(context).width / 750;
+    return LayoutBuilder(
+      builder: (context, box) {
+        final imageHeight = math.min(
+          box.maxHeight,
+          box.maxWidth / material.imageAspectRatio,
+        );
+        final imageWidth = imageHeight * material.imageAspectRatio;
+        return Stack(
+          alignment: Alignment.center,
           fit: StackFit.expand,
           children: [
-            // Old .bottle_progress: radial(circle 240rpx at 50% 100%, #443626, #c9b69e).
-            ShaderMask(
-              blendMode: BlendMode.srcIn,
-              shaderCallback: (bounds) => RadialGradient(
-                center: Alignment.bottomCenter,
-                radius: 240 * u / bounds.shortestSide,
-                colors: const [Color(0xFF443626), Color(0xFFC9B69E)],
-              ).createShader(bounds),
-              child: SvgPicture.asset(mask, fit: BoxFit.contain),
+            StoredWineBacking(
+              item: item,
+              bodyHeight: imageHeight,
+              reverse: true,
             ),
-            // Old moving dark liquid surface, clipped to the same bottle silhouette.
-            ClipPath(
-              key: const ValueKey('storage-liquid-surface'),
-              clipper: _LegacyMaterialSurface(level / 100, _wave.value),
-              child: ShaderMask(
-                blendMode: BlendMode.srcIn,
-                shaderCallback: (bounds) => RadialGradient(
-                  center: Alignment.topCenter,
-                  radius: 500 * u / bounds.shortestSide,
-                  colors: const [Color(0xFF52412F), Color(0xDD000000)],
-                ).createShader(bounds),
-                child: SvgPicture.asset(mask, fit: BoxFit.contain),
+            Center(
+              child: OverflowBox(
+                maxHeight: imageHeight * 1.08,
+                maxWidth: imageHeight * 1.08 * material.aspectRatio,
+                child: SizedBox(
+                  height: imageHeight * 1.08,
+                  width: imageHeight * 1.08 * material.aspectRatio,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _materialLiquid(
+                        '',
+                        item.remainingPercent,
+                        u,
+                        maskImage: CachedMediaSvg(
+                          material.files['mask']!,
+                          contentKey: material.cacheKey('mask'),
+                        ),
+                      ),
+                      CachedMediaSvg(
+                        material.files['outline']!,
+                        contentKey: material.cacheKey('outline'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: (box.maxHeight - imageHeight) / 2 + imageHeight * .66,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: SizedBox(
+                  width: math.max(1, imageWidth - 32 * u),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _bottleLabels(item, u),
+                  ),
+                ),
               ),
             ),
           ],
-        ),
-      );
+        );
+      },
+    );
+  }
 
   Widget _previewBottle(BottlePreviewItem item) {
     final u = MediaQuery.sizeOf(context).width / 750;

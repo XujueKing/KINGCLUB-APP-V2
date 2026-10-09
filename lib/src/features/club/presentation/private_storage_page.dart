@@ -23,6 +23,7 @@ import '../../profile_settings/data/profile_repository.dart';
 import '../../membership_wallet/data/member_balance_snapshot.dart';
 import '../../../core/session/secure_session_store.dart';
 import 'bottle_material_image.dart';
+import 'stored_wine_image.dart';
 import 'real_storage_pickup_page.dart';
 
 const _gold = Color(0xFFC9B69E);
@@ -383,11 +384,11 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                           final item = expired[index];
                           return ListTile(
                             key: ValueKey('expired-item-${item.ref}'),
-                            leading: Image.asset(
-                              item.thumbnail,
+                            leading: StoredWineImage(
+                              item: item,
+                              thumbnail: true,
                               width: 44,
                               height: 60,
-                              fit: BoxFit.contain,
                             ),
                             title: Text(
                               item.name,
@@ -669,15 +670,23 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     _categories.length,
-                    (i) => Container(
-                      width: 15 * u,
-                      height: 15 * u,
-                      margin: EdgeInsets.symmetric(horizontal: 8 * u),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i == _categoryIndex
-                            ? _gold
-                            : const Color(0x30FFFFFF),
+                    (i) => GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _pages.animateToPage(
+                        i,
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOut,
+                      ),
+                      child: Container(
+                        width: 15 * u,
+                        height: 15 * u,
+                        margin: EdgeInsets.symmetric(horizontal: 8 * u),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i == _categoryIndex
+                              ? _gold
+                              : const Color(0x30FFFFFF),
+                        ),
                       ),
                     ),
                   ),
@@ -753,7 +762,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
                               )
                             : item is BottlePreviewItem
                             ? BottleMaterialImage(item: item, thumbnail: true)
-                            : Image.asset(item.thumbnail, fit: BoxFit.contain),
+                            : StoredWineImage(item: item, thumbnail: true),
                       ),
                     ),
                     if (item.category == 'wine')
@@ -919,7 +928,7 @@ class _PrivateStoragePageState extends State<PrivateStoragePage>
       : item.category == 'wine'
       ? (item is BottlePreviewItem
             ? BottleMaterialImage(item: item)
-            : Image.asset(item.image, fit: BoxFit.contain))
+            : StoredWineImage(item: item))
       : Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
