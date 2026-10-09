@@ -77,3 +77,20 @@
 - `scripts/stage-harmony-storage.ps1` 固定上述两个仓库的实际提交，复制四个包及许可证至全新实验工程的 native_plugins。当前实验工程的等价逐步操作已执行，脚本已通过语法检查，尚未全新重跑。
 - 此轮 HAP 为编译探针，未传 KINGCLUB_API_BASE_URL，现有应用会默认选择 MockAuthRepository。它不是可交给用户登录的真实联网版本，不能将“同一份业务源码编译通过”描述成“真实接口已接通”。后续真机包必须显式传入现有环境的配置并核验实际接口请求。
 - 文件目录与 SQLite 同时接入后第三次未签名 HAP 编译成功（114.4 秒），注册器已包含 PathProviderPlugin、SqflitePlugin 和原三个插件。仍未完成真机持久化验证。
+
+### 安全存储实现方案（2026-10-09）
+
+继续沿用 FlutterSecureStorage 11.1.0 接口，独立鸿蒙插件使用 Asset Store Kit 保管随机 AES-256 密钥（首次解锁后可读、禁止同步、卸载不保留）；大于 1 KB 的登录会话使用系统 AES-GCM 加密后保存到独立 preferences 文件。每次写入生成 12 字节随机 nonce，16 字节认证标签，并将业务 key 绑定到 AAD，拒绝篡改和跨 key 替换。不保存明文密钥或登录数据，不因读取失败重新生成密钥、清空数据或返回伪成功。串行处理同引擎读写，未找到与系统故障区分返回。
+
+依据：已安装 API 26 的 Asset/CryptoArchitectureKit 类型定义；https://developer.huawei.com/consumer/en/doc/harmonyos-guides-V14/asset-scenario1-V14 （Asset 短数据小于 1024 字节，因此不直接存整份 session）。实现放在 harmony/plugins，临时构建复制并注册；Android/iOS 不引入此依赖。编译和真机验收分别记录。
+
+### 安全存储与封面播放器构建结果
+
+- 自有 `kingclub_secure_storage_ohos` 使用系统 Asset/AES-GCM，修正 ArkTS 对 throw 类型的要求后，与原真实应用代码一起编译成功（104.1 秒）。未将先前审计不合格的 RSA preferences 插件接入。
+- 播放器沿用应用当前 video_player 2.14.0，仅补 OHOS 默认插件；平台实现来自 CPF-Flutter/flutter_packages 的 br_video_player-v2.11.1_ohos，固定提交 `fadef928861f00e88e5f6b802a2b0145eb54349e`。复制许可证及生成的 Dart/ArkTS 通道，删除副本中仅用于生成的 Pigeon 本地路径依赖。封面视频、随机两首音乐、跨登录页面连续播放的应用逻辑没有重写。
+- 原生注册器现在包含 7 个插件，含新增安全存储、文件目录、SQLite、视频播放。实际登录、GCM认证、落盘恢复、播放、扫码及支付仍须分别真机验收。
+- 验证模板 `harmony/verification/storage_probe.dart.template` 在实验工程单独 Dart 分析通过，尚未在手机执行。不把静态分析当作持久化测试成功。
+- 新增 `scripts/build-harmony-device.ps1`，必须显式指定 HTTPS API，防止默认走 MockAuthRepository；当前依据已有正式包联调记录使用 https://test.wuyexin.cn/kingclub-v2 构建未签名联网实验包，不修改线上服务。宿主图标和名称复用已有 Android KINGCLUB 资源。
+- Windows UI 工具启动了 DevEco，但输入连续返回 active request/unknown screenshotId，重置恢复后仍无法可靠操作。当前停在首次语言选择页，已请求用户完成首次启动设置；浏览器开发者登录不等于 IDE 自动签名已完成。
+
+- 显式 API 配置的联网实验 HAP 构建成功（114.8 秒），产物 263,971,618 字节，2026-10-09 18:55。尚未签名/安装，不能据此认为已请求过真实服务器或通过任何手机验收。

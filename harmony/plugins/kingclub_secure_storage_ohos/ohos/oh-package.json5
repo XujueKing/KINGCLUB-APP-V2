@@ -1,0 +1,7 @@
+{
+  "name": "kingclub_secure_storage_ohos",
+  "version": "0.1.0",
+  "description": "KINGCLUB system-backed credential storage",
+  "main": "index.ets",
+  "dependencies": { "@ohos/flutter_ohos": "file:libs/flutter.har" }
+}

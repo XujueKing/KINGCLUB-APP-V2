@@ -1,0 +1,8 @@
+.dart_tool/
+pubspec.lock
+build/
+ohos/.hvigor/
+ohos/oh_modules/
+ohos/build/
+ohos/libs/
+ohos/oh-package-lock.json5

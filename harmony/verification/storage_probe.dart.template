@@ -1,0 +1,47 @@
+// Copy beside the existing lib/main.dart in the isolated Harmony build only.
+// This starts the real app after checking the real native storage plugin.
+import 'package:flutter/widgets.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'main.dart' as app;
+
+void require(bool condition, String failure) {
+  if (!condition) throw StateError(failure);
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  const storage = FlutterSecureStorage();
+  const marker = 'kingclub.harmony.verification.restart';
+  const phase = String.fromEnvironment('HARMONY_STORAGE_PHASE');
+  if (phase == 'write') {
+    final prefix = 'kingclub.harmony.verification.${DateTime.now().microsecondsSinceEpoch}';
+    final largeValue = List.filled(1024, '中文🎵').join();
+    final keys = ['$prefix.empty', '$prefix.unicode', '$prefix.queue'];
+    try {
+      await storage.write(key: keys[0], value: '');
+      require(await storage.read(key: keys[0]) == '', 'Empty string was lost');
+      require(await storage.containsKey(key: keys[0]), 'Empty value not present');
+      await storage.write(key: keys[1], value: largeValue);
+      require(await storage.read(key: keys[1]) == largeValue, 'Large Unicode value mismatch');
+      await Future.wait(List.generate(8, (i) => storage.write(key: keys[2], value: '$i')));
+      require(await storage.read(key: keys[2]) == '7', 'Write ordering mismatch');
+      await storage.write(key: marker, value: largeValue);
+      // This line deliberately contains no stored key/value or credentials.
+      debugPrint('HARMONY_STORAGE_WRITE_PASS; restart required');
+    } finally {
+      for (final key in keys) {
+        await storage.delete(key: key);
+      }
+    }
+  } else if (phase == 'read') {
+    require(await storage.read(key: marker) == List.filled(1024, '中文🎵').join(), 'Restart persistence mismatch');
+    await storage.delete(key: marker);
+    await storage.delete(key: marker);
+    require(await storage.read(key: marker) == null, 'Deletion failed');
+    require(!await storage.containsKey(key: marker), 'Deleted key is still present');
+    debugPrint('HARMONY_STORAGE_RESTART_PASS');
+  } else {
+    throw StateError('Choose HARMONY_STORAGE_PHASE=write or read explicitly');
+  }
+  await app.main();
+}

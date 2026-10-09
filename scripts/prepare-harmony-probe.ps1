@@ -28,6 +28,14 @@ Push-Location $destinationPath
 try {
     & "$FlutterOhosRoot/bin/flutter.bat" create --platforms=ohos --org com.lingmei --project-name kingclub --no-pub .
     if ($LASTEXITCODE -ne 0) { throw 'Harmony host generation failed.' }
+    $icon = Join-Path $source 'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png'
+    Copy-Item -LiteralPath $icon -Destination 'ohos/AppScope/resources/base/media/app_icon.png'
+    Copy-Item -LiteralPath $icon -Destination 'ohos/entry/src/main/resources/base/media/icon.png'
+    foreach ($stringsFile in @('ohos/AppScope/resources/base/element/string.json', 'ohos/entry/src/main/resources/base/element/string.json')) {
+        $stringsPath = Join-Path $destinationPath $stringsFile
+        $strings = (Get-Content -LiteralPath $stringsPath -Raw).Replace('"value": "kingclub"', '"value": "KINGCLUB"')
+        [IO.File]::WriteAllText($stringsPath, $strings)
+    }
     $profilePath = Join-Path $destinationPath 'ohos/build-profile.json5'
     $profile = Get-Content -LiteralPath $profilePath -Raw
     $profile = $profile.Replace('"runtimeOS": "HarmonyOS",', '"runtimeOS": "HarmonyOS", "buildOption": { "strictMode": { "useNormalizedOHMUrl": true } },')
