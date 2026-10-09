@@ -14,7 +14,7 @@
 - `oh-3.44.9-dev` 提交 `589ff5319af950a72c45dcf07880fbbf3b5a5aaf` 已下载并成功运行 Flutter 工具，实际 Dart 为 3.12.2，不满足当前 APP 的 3.13.1 下限。它是开发分支，不能称为稳定生产工具链；仍须检查 Dart 约束、Flutter API 和插件兼容性。
 - 当前解析依赖中，fluwx、tobias、flutter_image_compress_ohos 已带 ohos 源码，尚未进行鸿蒙编译或支付验证。其余插件不能因为存在 Android/iOS 实现就视为支持鸿蒙。
 - 用户确认已有实名认证华为开发者账号，下载中心页面亦显示已认证。用户已下载 DevEco Studio 26.0.0.851，ZIP 3,295,837,057 字节；解压后 EXE 3,295,943,544 字节，Windows Authenticode 校验 Valid，签发主体 Huawei Technologies Co., Ltd.。
-- D 盘空间不足，安装器移至 `C:/HuaweiTools/deveco-studio-26.0.0.851.exe`，目标 `C:/HuaweiTools/DevEcoStudio`。UAC 后安装进入解压阶段，HDC 和构建工具已可用；IDE 全量安装完成状态另外检查。
+- D 盘空间不足，安装器移至 `C:/HuaweiTools/deveco-studio-26.0.0.851.exe`，安装到 `C:/HuaweiTools/DevEcoStudio`。安装进程已退出，ExitCode=0，IDE 主程序存在；独立环境下 Flutter doctor 的 HarmonyOS toolchain 检查通过。
 - 重连手机后 HDC 和 Flutter doctor 均识别 nova 14 Pro，设备报告 OpenHarmony-6.1.1.120 / API 24（底层标识，不替代用户设置页的 HarmonyOS 版本号）。SDK target 与最低兼容 API 必须分别配置，不能要求手机达到 API 26。
 - 在 `C:/HuaweiTools/kingclub-dependency-probe` 复制 manifest/lock 做隔离解析：原约束明确被 Dart 3.12.2 拒绝；仅在此临时副本降低约束后，又因工具链报告 Flutter `0.0.0-unknown` 被 go_router_builder 拒绝。主工程 manifest/lock 未修改；临时实验不表示依赖已经兼容。
 
