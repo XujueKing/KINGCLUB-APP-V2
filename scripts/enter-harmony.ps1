@@ -1,6 +1,7 @@
 param(
     [string]$DevEcoRoot = 'C:/HuaweiTools/DevEcoStudio',
-    [string]$FlutterOhosRoot = 'D:/SDK/flutter-ohos'
+    [string]$FlutterOhosRoot = 'D:/SDK/flutter-ohos',
+    [string]$HarmonyPubCache = 'C:/HuaweiTools/pub-cache'
 )
 # Dot-source in a dedicated PowerShell: . ./scripts/enter-harmony.ps1
 # Changes apply only to this process; Android/iOS shells remain unchanged.
@@ -16,6 +17,8 @@ foreach ($file in $required) {
     if (!(Test-Path -LiteralPath $file)) { throw "Missing Harmony tool: $file" }
 }
 $env:DEVECO_SDK_HOME = "$DevEcoRoot/sdk"
+if (!(Test-Path -LiteralPath $HarmonyPubCache)) { throw "Missing Harmony pub cache: $HarmonyPubCache" }
+$env:PUB_CACHE = $HarmonyPubCache
 $env:PATH = (@(
     "$FlutterOhosRoot/bin",
     "$DevEcoRoot/tools/node",

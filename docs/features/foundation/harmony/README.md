@@ -20,6 +20,17 @@
 
 ## 实施顺序
 
+### 2026-10-09 第二阶段验证结果
+
+- 独立 SDK 已切到上游发布标签 `3.44.9+ohos-0.0.1-canary1`，提交 `39285df71a97ffe0c23241dcc459d997a9d8b7c6`。版本识别正常，不再是 `0.0.0-unknown`；仍为预览工具链。
+- 实验副本将 Dart 下限改为 3.12.2，并去掉仅用于生成和桌面测试的 build_runner、riverpod_generator、go_router_builder、sqflite_common_ffi。主工程不变；业务数据库 sqflite 仍保留。
+- 实验副本依赖解析通过。426 个应用 Dart 文件 `dart analyze lib --format machine` 返回 0 个 ERROR；这不覆盖所有第三方包的实际目标平台编译。
+- 生成真实 Flutter ohos 宿主、复制原应用 lib/assets，执行 `flutter build hap --debug --no-pub --no-codesign`。当前尚未生成 HAP。
+- Hvigor 拒绝 C 盘工程引用 D 盘插件的绝对模块路径。C 盘 junction 缓存也未被接受。将三个 ohos 插件源码保留许可证复制到实验工程、使用本地 path override 后已跨过该错误，ohpm 已拉取微信/支付宝 SDK。
+- 当前明确编译阻塞：第三方 `material_ui`、`cupertino_ui` 等库对 TargetPlatform 的穷尽 switch 未包含 `TargetPlatform.ohos`。须使用兼容版本或独立适配副本，不能直接修改共享 pub 缓存，不能把静态分析无错当作 HAP 构建成功。
+- 复现入口：在专用终端加载 `scripts/enter-harmony.ps1`，再运行 `scripts/prepare-harmony-probe.ps1 -Destination <全新外部目录>`。它保留源工程，生成宿主、解析依赖并将原生插件放到实验目录；尚不是发布构建脚本。
+- 本机 `C:/HuaweiTools/pub-cache` 是指向 `D:/SDK/pub-cache` 的目录映射，供依赖解析复用；原生模块必须使用实验工程内的实体副本。
+
 1. 安装并验证独立工具链、HDC 真机识别与开发者签名。先验证依赖解析，不盲目降低主工程 Dart 约束。
 2. 在隔离构建目录验证同一份应用代码及鸿蒙插件版本，固定所有来源和提交。确认后添加 ohos 宿主和可重复构建脚本。
 3. 先接通启动、资源、网络、数据库、安全存储和登录；继续扫码、定位、图片、音视频、通知与支付。
