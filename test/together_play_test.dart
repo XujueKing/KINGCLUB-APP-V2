@@ -452,7 +452,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('布局样例 · 非真实活动'), findsNothing);
-      expect(find.text('加入派对'), findsOneWidget);
+      expect(find.text('AA邀请'), findsOneWidget);
       expect(find.text('卡颜AA交友局'), findsOneWidget);
       expect(find.byType(TogetherPartyCard), findsOneWidget);
       expect(find.text('888'), findsOneWidget);

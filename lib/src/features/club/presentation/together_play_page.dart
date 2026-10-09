@@ -406,16 +406,6 @@ class TogetherPartyCard extends StatelessWidget {
               radius: 500 / 232,
               colors: [Color(0xFFAD016A), Color(0xFF5A1E80)],
             ),
-            image: party.backgroundUrl == null
-                ? null
-                : DecorationImage(
-                    image: NetworkImage(party.backgroundUrl!),
-                    fit: BoxFit.cover,
-                    colorFilter: const ColorFilter.mode(
-                      Color(0x66000000),
-                      BlendMode.darken,
-                    ),
-                  ),
           ),
           child: FittedBox(
             fit: BoxFit.contain,
@@ -688,7 +678,6 @@ class TogetherAvailableRow extends StatelessWidget {
     final unit = MediaQuery.sizeOf(context).width / 750;
     TextStyle style(double rpx, Color color) =>
         togetherLegacyDateStyle(rpx * unit, color).copyWith(height: 1.2);
-    final background = party.backgroundUrl?.trim();
     final rules = party.rules.trim().replaceAll(RegExp(r'\s+'), ' ');
     return ClipRRect(
       borderRadius: BorderRadius.circular(20 * unit),
@@ -705,23 +694,6 @@ class TogetherAvailableRow extends StatelessWidget {
               ),
             ),
           ),
-          if (background != null && background.isNotEmpty)
-            Positioned.fill(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CachedMediaImage(
-                    background,
-                    key: ValueKey(
-                      'together-invitation-background-${party.ref}',
-                    ),
-                    placeholder: const SizedBox.shrink(),
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                  ),
-                  const ColoredBox(color: Color(0x99000000)),
-                ],
-              ),
-            ),
           Material(
             color: Colors.transparent,
             child: InkWell(
