@@ -1,0 +1,28 @@
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:get_thumbnail_video/video_thumbnail.dart';
+import 'package:get_thumbnail_video/src/image_format.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  const channel = MethodChannel('video_thumbnail');
+  test('existing poster request retains local path, first frame, size and JPEG quality', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'data');
+      expect(call.arguments['video'], '/private/cache/video.mp4');
+      expect(call.arguments['timeMs'], 0);
+      expect(call.arguments['maxw'], 320);
+      expect(call.arguments['format'], 0);
+      expect(call.arguments['quality'], 80);
+      return Uint8List.fromList([255, 216, 255, 217]);
+    });
+    final bytes = await VideoThumbnail.thumbnailData(video: '/private/cache/video.mp4',
+      imageFormat: ImageFormat.JPEG, maxWidth: 320, quality: 80);
+    expect(bytes, [255, 216, 255, 217]);
+  });
+  test('decoder errors propagate without a fake image', () async {
+    messenger.setMockMethodCallHandler(channel, (_) async => throw PlatformException(code: 'THUMBNAIL_FAILED'));
+    await expectLater(VideoThumbnail.thumbnailData(video: '/private/broken.mp4'), throwsA(isA<PlatformException>()));
+  });
+}

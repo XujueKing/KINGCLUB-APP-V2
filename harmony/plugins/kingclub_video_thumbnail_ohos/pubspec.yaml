@@ -1,0 +1,16 @@
+name: kingclub_video_thumbnail_ohos
+description: Local video thumbnails for KINGCLUB HarmonyOS.
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: ^3.12.2
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    implements: get_thumbnail_video
+    platforms:
+      ohos:
+        package: com.lingmei.kingclub.thumbnail
+        pluginClass: KingclubVideoThumbnailPlugin

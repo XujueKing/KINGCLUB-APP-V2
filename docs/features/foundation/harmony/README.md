@@ -184,3 +184,11 @@ Dart analyze 无 error/warning，有 2 项 info：OHOS cancel 修复继承当前
 本轮没有修改 lib/android/ios/pubspec.yaml/pubspec.lock；工作区期间另出现扫码点单的业务修改，保持原样且不纳入本节点提交。构建使用既有隔离 probe 的业务快照，不把它当成已同步其他并行业务改动的新发布版。
 静态分析最终无提示。额外核对缓存路径碰撞保护后再次编译，最终结果以 file-picker-build-verified.log 为准。
 最终含路径碰撞保护的未签名 HAP 已再次构建成功；未做真机安装及实际发送。
+
+## 2026-10-10 后续补齐顺序（用户批准）
+
+按视频缩略图→版本信息/返回手势→文件导出→地图→通知→支付→音视频通话推进；视频压缩、附近设备/原生直连、签名发布仍保留在总体缺口。每项区分适配、构建和真机验收。第一项保留 get_thumbnail_video 0.7.3 的 video_thumbnail 通道与 CachedVideoPoster 的本地授权缓存，使用系统 AVImageGenerator 提取帧、ImagePacker 输出 JPEG/PNG，现有默认首帧/宽320/JPEG质量80不变。仅处理本地源，不绕过既有鉴权下载；时间毫秒转微秒、等比例缩小、失败传播、句柄/像素/生成器释放须验证。此项不包含视频转码或真实发送。
+
+第二项：版本号读取使用系统自身 BundleInfo 的 versionName/versionCode，保持 InstalledAppVersion 的显示接口，不写死版本。鸿蒙主题加入已有 KingSlidePageTransitionsBuilder，适配仅写到 probe，主 lib 不增加主 SDK 无法识别的 TargetPlatform.ohos。该节点不宣称 AppGallery 更新、发布签名或支付回调已完成。
+
+本批验证完成：缩略图通道、版本读取、设置与会员码页进出动画共6项，另新增鸿蒙左边缘右滑返回测试1项，全部通过。原生未签名 HAP assembleHap 99.2秒通过（platform-thumbnail-build.log），API地址https://api.wuyexin.cn。测试为Flutter/mock验证，不代表真机图像生成或系统手势验收。缩略图先取原尺寸帧再等比缩小，高分辨率内存表现仍需手机测试；仅实现当前data接口，不虚报file接口。未修改主lib/android/ios或业务后端。后续按文件导出/打开→地图→通知→支付→音视频通话继续，视频转码、签名发布等仍未完成。

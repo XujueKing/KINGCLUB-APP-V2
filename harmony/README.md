@@ -133,3 +133,9 @@ not these native runtime cases.
 `scripts/stage-harmony-file-picker.ps1` 在隔离工程保留 file_picker 12.3.0，并注册 `plugins/kingclub_file_picker_ohos`。插件依照本机 API 26 DocumentViewPicker/FileUri/fs 接口编写，只接现有聊天的单文件任意类型选择，不开放目录、另存、多选或媒体压缩。使用系统选择授予的 URI，只读打开原文件，以 64 KiB 分块复制至私有 cacheDir，校验 256 MiB 和拷贝大小；Dart 返回原名和可读取路径，沿用已有账号/会话草稿及发送页面。
 
 取消返回 null；错误回传已有页面提示，重复选择被拒绝，Ability 分离后的结果不进入草稿。成功的中转文件属于系统可回收缓存，未增加永久文件存储或完整临时文件清理接口；原始文件不删除。取消、云端文档、低空间、断开页面、实际预览/发送和缓存回收需真机验收。验证模板 `verification/file_picker_contract_test.dart.template`。
+
+### 视频缩略图、安装版本与返回手势
+
+按顺序执行 `scripts/stage-harmony-video-thumbnail.ps1 -ProbeRoot <隔离工程>` 和 `scripts/stage-harmony-platform.ps1 -ProbeRoot <隔离工程>`，再在鸿蒙环境 pub get。前者保留 get_thumbnail_video 0.7.3，仅接现有 thumbnailData 本地视频调用，不支持网络源或 file API；后者增加安装 BundleInfo 通道，并仅在 probe 的主题平台表加入 OHOS，复用已有 KingSlidePageTransitionsBuilder。
+
+验证模板：thumbnail_contract_test.dart.template、platform_gesture_test.dart.template。另复制原 installed_app_version_test.dart；复制原 native_page_transition_test.dart 时仅将 TargetPlatform.android 替换为 TargetPlatform.ohos。共 7 项通过，覆盖缩略图参数与错误、实际安装信息读取契约、缺失信息不伪造、设置/会员码页动画与左边缘右滑返回。未签名 HAP 编译通过（assembleHap 99.2 秒）。当前宿主版本仍取 BundleInfo，不代表安卓/iOS发布版号。尚待真机验收真实解码、损坏视频、高分辨率内存、系统边缘手势；当前先解码原尺寸再按比例缩小，不能宣称低内存转码。

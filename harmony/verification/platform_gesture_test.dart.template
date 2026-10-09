@@ -1,0 +1,23 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/core/design_system/king_theme.dart';
+
+void main() {
+  testWidgets('OHOS edge swipe returns to previous page', (tester) async {
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(MaterialApp(
+      theme: KingTheme.dark.copyWith(platform: TargetPlatform.ohos),
+      navigatorKey: navigator,
+      home: const Scaffold(body: Text('origin')),
+    ));
+    navigator.currentState!.push(MaterialPageRoute<void>(
+      builder: (_) => const Scaffold(body: Text('detail')),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('detail'), findsOneWidget);
+    await tester.dragFrom(const Offset(2, 200), const Offset(650, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('origin'), findsOneWidget);
+    expect(navigator.currentState!.canPop(), isFalse);
+  });
+}
