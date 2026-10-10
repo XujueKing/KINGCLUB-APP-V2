@@ -214,3 +214,11 @@ Dart analyze 无 error/warning，有 2 项 info：OHOS cancel 修复继承当前
 继续使用原 ChatLocationPickerPage、DeferredChatMap、ChatMapPreviewCache。鸿蒙侧接 Huawei MapComponent 和 staticMap，独立同意状态与说明不能沿用“腾讯地图”授权；默认不调用在线地图，用户在位置页同意后才初始化。接入现有center/status/moving/centerChanged/cancel通道；位置仍需用户明确确认才发送。鸿蒙搜索复用既有系统地理编码，不伪造附近POI；附近仍显示实际中心候选。地图坐标通过 SDK rectifyCoordinate 判断当前地图数据的坐标系，不能按矩形边界盲转。快照只发坐标，不发聊天/姓名/令牌，输出限640×320 JPEG并释放PixelMap。已同意时快照仍受会话缓存失效规则控制。原生认证失败不得标记ready。构建不证明线上地图服务开通。
 
 节点验证：内嵌地图及静态预览源代码已接入隔离probe并构建通过，最终unsigned HAP assembleHap49.9秒（embedded-map-build-final.log）。19项原位置/系统地图回归与3项新快照通道测试通过；新测试覆盖腾讯授权不得代替华为授权、仅发坐标、缓存复用和认证失败后可重试。初次ArkUI编译要求view属性初始值，修正nullable显式初始化后通过。无真机及在线应用认证验收，不宣称地图已线上可用。附近POI列表未实现，系统搜索和实际地图中心候选保留。共享业务工程及安卓/苹果源文件无变化。
+
+## 2026-10-10 通知权限节点
+
+先补系统通知状态、显式授权和应用通知设置入口，沿用 kingclub/push-registration 契约。通知关闭或无法查询不得显示已授权；重复授权合并为 BUSY，页面分离后结果失效。仅在隔离 probe 的设置页增加鸿蒙授权按钮，移除该平台尚未实现的 Android 常驻后台服务开关，避免点击后虚假开启。此节点不注册厂商 token、不发布通知；本地通知、点击冷启动恢复、华为离线推送为后续独立节点。聊天内容不交给厂商。
+
+通知权限：新增 kingclub_notification_ohos 原生桥及 scripts/stage-harmony-notifications.py，只写隔离构建目录。读取真实系统授权状态、用户主动授权和打开系统设置；不启用厂商token注册。鸿蒙设置页不再显示未实现的Android常驻接收开关。8项测试通过（2项鸿蒙设置交互、6项原通道测试），包括拒绝不得显示允许。无鸿蒙真机，系统弹窗和设置跳转尚未实机验收。本地通知发布/点击冷启动恢复、离线推送仍待补齐。
+
+最终通知权限未签名HAP构建通过，assembleHap53.3秒，日志notification-permission-build-final.log。staging脚本已验证拒绝主工程及重复覆盖；主lib/android/ios没有变更。

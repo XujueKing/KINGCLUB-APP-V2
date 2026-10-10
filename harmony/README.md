@@ -161,3 +161,5 @@ not these native runtime cases.
 快照使用staticMap、640×320、JPEG质量80，保留地图logo，不传名称/地址/会员令牌；PixelMap和打包器释放。Huawei地图同意与Tencent独立，未同意不请求快照；已授权的会话缓存沿用现有24项上限及账号变化清理。服务认证错误返回失败，不伪造地图。
 
 验证：19项位置/系统地图回归、3项快照授权/隐私/缓存/错误测试通过；未签名HAP最终assembleHap49.9秒通过。首次编译的ArkUI属性未初始化已修复。模板为map_preview_test.dart.template，harmony_map_consent.dart.template是隔离业务适配模板。本机未完成在线MapKit应用认证核验，HAP仍未签名，真实地图加载、拖拽、跨坐标区域、地图logo可见性、SDK生命周期和网络重试仍待真机验收。不能把mock与编译当成地图服务已开通。
+
+通知权限：新增 kingclub_notification_ohos 原生桥及 scripts/stage-harmony-notifications.py，只写隔离构建目录。读取真实系统授权状态、用户主动授权和打开系统设置；不启用厂商token注册。鸿蒙设置页不再显示未实现的Android常驻接收开关。8项测试通过（2项鸿蒙设置交互、6项原通道测试），包括拒绝不得显示允许。无鸿蒙真机，系统弹窗和设置跳转尚未实机验收。本地通知发布/点击冷启动恢复、离线推送仍待补齐。

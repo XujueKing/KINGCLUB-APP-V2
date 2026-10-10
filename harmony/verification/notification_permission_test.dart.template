@@ -1,0 +1,48 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/core/media/media_cache.dart';
+import 'package:kingclub/src/features/profile_settings/presentation/settings_page.dart';
+
+class _Cache extends MediaCache {
+  @override
+  Future<int> sizeBytes() async => 0;
+}
+
+void main() {
+  const channel = MethodChannel('kingclub/push-registration');
+  for (final allowed in [false, true]) {
+    testWidgets('Harmony permission request reads actual result: $allowed', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.ohos;
+      final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      var enabled = false;
+      var requests = 0;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'notificationStatus') return enabled;
+        if (call.method == 'requestNotificationPermission') {
+          requests++;
+          enabled = allowed;
+          return null;
+        }
+        throw PlatformException(code: 'UNEXPECTED_METHOD');
+      });
+      try {
+        await tester.pumpWidget(MaterialApp(home: SettingsPage(mediaCache: _Cache())));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('settings-notification')));
+        await tester.pumpAndSettle();
+        expect(find.text('后台接收消息和来电'), findsNothing);
+        expect(find.text('系统通知已关闭'), findsOneWidget);
+        await tester.tap(find.text('允许通知'));
+        await tester.pumpAndSettle();
+        expect(requests, 1);
+        expect(find.text(allowed ? '系统通知已允许' : '系统通知已关闭'), findsOneWidget);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        debugDefaultTargetPlatformOverride = null;
+        messenger.setMockMethodCallHandler(channel, null);
+      }
+    });
+  }
+}
