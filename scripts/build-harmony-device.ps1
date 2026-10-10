@@ -16,6 +16,7 @@ foreach ($plugin in @('kingclub_secure_storage_ohos','path_provider_ohos','sqfli
     if (!(Test-Path (Join-Path $root "native_plugins/$plugin/pubspec.yaml"))) { throw "Missing startup adapter: $plugin" }
 }
 & (Join-Path $PSScriptRoot 'stage-harmony-branding.ps1') -ProbeRoot $root
+& (Join-Path $PSScriptRoot 'stage-harmony-call-permissions.ps1') -ProbeRoot $root
 . (Join-Path $PSScriptRoot 'enter-harmony.ps1')
 $argsList = @('build', 'hap', '--debug', "--dart-define=KINGCLUB_API_BASE_URL=$($ApiBaseUrl.AbsoluteUri.TrimEnd('/'))")
 if ($ApiBaseUrl.Host -eq 'api.wuyexin.cn') {
