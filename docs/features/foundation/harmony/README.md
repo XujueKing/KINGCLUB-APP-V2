@@ -258,3 +258,14 @@ unsigned HAP 构建通过，assembleHap 78.1 秒，日志 harmony-webrtc-build2.
 - 原生上游存在 configuration/iceServers 等调试日志，开放实验前需脱敏审计，禁止输出 TURN 凭证或 SDP。
 - CallForegroundLease 尚未接鸿蒙后台通话，系统通话提醒仍关闭；后台保持和系统权限需要真实设备验收。
 - 以上就绪并真机确认前，不能打开 KINGCLUB_HARMONY_CALL_MEDIA；离线厂商唤醒仍是另一未完成能力。
+
+## 2026-10-10 视频画面桥接节点
+
+仅在隔离包扩展 RTCVideoRenderer 和 RTCVideoView，使用原生 PlatformView 的 Surface ID；流先于画面到达时延后绑定，画面重建时重绑，销毁时脱离流，释放时等待排队绑定结束。增加原生 Surface 查询握手防止初始事件早于 Dart handler 丢失。保留镜像、contain/cover 和已有调用接口。以通道测试和 HAP 编译验证，媒体开关仍关闭，真机画面/音频/后台租约未验收。
+
+
+视频桥接实现及验证：stage-harmony-rtc-surface.py 在已完成 WebRTC staging 的隔离工程执行；模板放 harmony/verification。Dart 按每个 PlatformView 独立管理通道；初始 getSurfaceId 查询与事件用版本计数避免旧查询覆盖新画面，widget 退出解绑 handler。原生保存最新 surface，Surface 销毁发送空 ID，仅 PlatformView 真正 dispose 时释放通道，不再在已 dispose 后重建通道。Renderer 串行同步流/track/surface，缺少画面时解绑 native sink，显式 async setter 传播错误，失败不堵塞下一次更新，dispose 等待正在执行的绑定；Android/iOS 保持 texture 契约。视图沿用已有 mirror 和 objectFit 布局，不加入额外背景。
+
+5 项新增渲染通道测试 + 2 项鸿蒙媒体禁用保护通过，涵盖先流后画面、先画面后流、重建、解绑、晚回调、绑定失败恢复、释放等待及 Android 契约；不代表系统 XComponent 或真机画面已验证。最终 unsigned HAP 构建通过，assembleHap 50.4 秒，日志 harmony-rtc-surface-build-final.log。主 lib/android/ios 和主依赖未改，通话默认仍关闭。
+
+音频控制审计：Dart enableSpeakerphone/ selectAudioOutput 与上游方法名匹配，但 AudioMethodHandlers 使用 getExistingInstance()?. 调用后直接 result.success，管理器缺失时可误报成功，必须在后续音频节点修正并验证异步结果。摄像头入口方法名 mediaStreamTrackSwitchCamera 匹配，实际切换结果与资源释放尚需继续核对。上游日志脱敏、后台租约及真机互通仍未完成。

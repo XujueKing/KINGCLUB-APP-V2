@@ -1,0 +1,73 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'rtc_video_renderer_impl.dart';
+
+/// A channel belongs to one platform view, never to a whole call or user.
+class OhosRtcSurface extends StatefulWidget {
+  const OhosRtcSurface({super.key, required this.renderer});
+  final RTCVideoRenderer renderer;
+  @override
+  State<OhosRtcSurface> createState() => _OhosRtcSurfaceState();
+}
+
+class _OhosRtcSurfaceState extends State<OhosRtcSurface> {
+  MethodChannel? _channel;
+  String? _surface;
+  int _events = 0;
+  void _report(Object error, StackTrace stack) {
+    FlutterError.reportError(FlutterErrorDetails(
+      exception: StateError('Harmony video surface binding failed'),
+      library: 'KINGCLUB WebRTC',
+    ));
+  }
+
+  Future<void> _accept(Object? raw) async {
+    if (!mounted || raw is! String) return;
+    _surface = raw.isEmpty ? null : raw;
+    await widget.renderer.bindOhosSurface(_surface);
+  }
+
+  Future<void> _created(int id) async {
+    final channel = MethodChannel('flutter.webrtc.ohos/RTCVideoRender$id');
+    _channel?.setMethodCallHandler(null);
+    _channel = channel;
+    channel.setMethodCallHandler((call) async {
+      if (!mounted || _channel != channel || call.method != 'putSurfaceId') return;
+      _events++;
+      final args = call.arguments;
+      if (args is Map) await _accept(args['surfaceId']);
+    });
+    final version = _events;
+    try {
+      final id = await channel.invokeMethod<String>('getSurfaceId');
+      if (mounted && _channel == channel && version == _events) await _accept(id);
+    } catch (error, stack) {
+      if (mounted) _report(error, stack);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant OhosRtcSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.renderer != widget.renderer) {
+      oldWidget.renderer.bindOhosSurface(null).catchError(_report);
+      widget.renderer.bindOhosSurface(_surface).catchError(_report);
+    }
+  }
+
+  @override
+  void dispose() {
+    _channel?.setMethodCallHandler(null);
+    _channel = null;
+    widget.renderer.bindOhosSurface(null).catchError(_report);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => OhosView(
+    viewType: 'flutter.webrtc.ohos/RTCVideoRender',
+    onPlatformViewCreated: _created,
+    creationParams: const <String, Object>{},
+    creationParamsCodec: const StandardMessageCodec(),
+  );
+}

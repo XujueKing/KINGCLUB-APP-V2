@@ -1,0 +1,34 @@
+  String? _ohosSurface;
+  String? _ohosTrack;
+  Future<void> _ohosPending = Future.value();
+  bool _ohosClosing = false;
+  Future<void> bindOhosSurface(String? surface) {
+    if (_disposed || _ohosClosing) return Future.value();
+    _ohosSurface = surface;
+    return _syncOhosSurface();
+  }
+
+  Future<void> _syncOhosSurface() {
+    final next = _ohosPending.then((_) async {
+      if (_disposed || _ohosClosing || _textureId == null) return;
+      final stream = _srcObject;
+      final surface = _ohosSurface;
+      // Empty stream detaches the native sink, even during surface destruction.
+      await WebRTC.invokeMethod('videoRendererSetSrcObject', <String, dynamic>{
+        'textureId': _textureId,
+        'surfaceId': surface ?? '',
+        'streamId': surface == null ? '' : stream?.id ?? '',
+        'ownerTag': stream?.ownerTag ?? '',
+        'trackId': _ohosTrack ?? '0',
+      });
+      if (!_disposed && !_ohosClosing) {
+        value = stream == null ? RTCVideoValue.empty
+            : value.copyWith(renderVideo: surface != null);
+      }
+    });
+    // Keep future updates usable after a failed native bind; the caller still
+    // receives the original failure through `next`.
+    _ohosPending = next.catchError((Object _) {});
+    return next;
+  }
+

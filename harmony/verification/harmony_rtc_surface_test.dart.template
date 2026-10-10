@@ -1,0 +1,103 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+
+class StreamFixture implements MediaStream {
+  @override String get id => 'test-stream';
+  @override String get ownerTag => 'local';
+  @override dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const method = MethodChannel('FlutterWebRTC.Method');
+  const events = MethodChannel('FlutterWebRTC/Texture7');
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  late List<MethodCall> calls;
+  bool fail = false;
+  Completer<void>? pending;
+  setUp(() {
+    calls = []; fail = false; pending = null;
+    debugDefaultTargetPlatformOverride = TargetPlatform.ohos;
+    messenger.setMockMethodCallHandler(events, (_) async => null);
+    messenger.setMockMethodCallHandler(method, (call) async {
+      calls.add(call);
+      if (call.method == 'createVideoRenderer') return {'textureId': 7};
+      if (call.method == 'videoRendererSetSrcObject') {
+        if (fail) throw PlatformException(code: 'fixture');
+        await pending?.future;
+      }
+      return null;
+    });
+  });
+  tearDown(() {
+    debugDefaultTargetPlatformOverride = null;
+    messenger.setMockMethodCallHandler(method, null);
+    messenger.setMockMethodCallHandler(events, null);
+  });
+  Map lastBind() => calls.lastWhere((c) => c.method == 'videoRendererSetSrcObject').arguments as Map;
+  test('stream before surface defers attachment; rebuild and teardown rebind', () async {
+    final r = RTCVideoRenderer();
+    await r.initialize();
+    await r.setSrcObject(stream: StreamFixture(), trackId: 'video-1');
+    expect(lastBind()['streamId'], '');
+    expect(r.renderVideo, isFalse);
+    await r.bindOhosSurface('surface-1');
+    expect(r.renderVideo, isTrue);
+    expect(lastBind()['streamId'], 'test-stream');
+    expect(lastBind()['trackId'], 'video-1');
+    await r.bindOhosSurface('surface-2');
+    expect(lastBind()['surfaceId'], 'surface-2');
+    await r.bindOhosSurface(null);
+    expect(r.renderVideo, isFalse);
+    expect(lastBind()['streamId'], '');
+    await r.dispose();
+    final count = calls.length;
+    await r.bindOhosSurface('late');
+    expect(calls.length, count);
+  });
+  test('surface before stream attaches when stream arrives; null detaches', () async {
+    final r = RTCVideoRenderer();
+    await r.initialize();
+    await r.bindOhosSurface('surface');
+    await r.setSrcObject(stream: StreamFixture());
+    expect(lastBind()['streamId'], 'test-stream');
+    await r.setSrcObject(stream: null);
+    expect(lastBind()['streamId'], '');
+    await r.dispose();
+  });
+  test('failed native binding is visible and queue recovers', () async {
+    final r = RTCVideoRenderer();
+    await r.initialize();
+    fail = true;
+    await expectLater(r.bindOhosSurface('surface'), throwsA(isA<PlatformException>()));
+    fail = false;
+    await r.setSrcObject(stream: StreamFixture());
+    expect(lastBind()['streamId'], 'test-stream');
+    await r.dispose();
+  });
+  test('dispose waits for native bind and ignores subsequent callbacks', () async {
+    final r = RTCVideoRenderer();
+    await r.initialize();
+    pending = Completer<void>();
+    final bind = r.bindOhosSurface('surface');
+    await Future<void>.delayed(Duration.zero);
+    final dispose = r.dispose();
+    await r.bindOhosSurface('late');
+    expect(calls.where((c) => c.method == 'videoRendererDispose'), isEmpty);
+    pending!.complete();
+    await bind; await dispose;
+    expect(calls.last.method, 'videoRendererDispose');
+  });
+  test('Android binding keeps original texture contract', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    final r = RTCVideoRenderer();
+    await r.initialize();
+    await r.setSrcObject(stream: StreamFixture());
+    expect(lastBind().containsKey('surfaceId'), isFalse);
+    expect(lastBind()['streamId'], 'test-stream');
+    await r.dispose();
+  });
+}
