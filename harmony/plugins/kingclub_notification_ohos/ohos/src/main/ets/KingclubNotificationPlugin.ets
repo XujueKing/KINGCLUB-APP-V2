@@ -2,8 +2,13 @@ import { AbilityAware, AbilityPluginBinding, FlutterPlugin, FlutterPluginBinding
 import { common } from '@kit.AbilityKit';
 import notificationManager from '@ohos.notificationManager';
 
-// Permission bridge only: deliberately does not claim a vendor push token.
+import { LocalNotifications } from './LocalNotifications';
+import { NotificationLifecycle } from './NotificationLifecycle';
+// Native local notifications do not register a vendor push token.
 export default class KingclubNotificationPlugin implements FlutterPlugin, AbilityAware, MethodCallHandler {
+  private local: LocalNotifications = new LocalNotifications();
+  private localChannel: MethodChannel | null = null;
+  private openChannel: MethodChannel | null = null;
   private channel: MethodChannel | null = null;
   private context: common.UIAbilityContext | null = null;
   private epoch: number = 0;
@@ -12,14 +17,32 @@ export default class KingclubNotificationPlugin implements FlutterPlugin, Abilit
   onAttachedToEngine(binding: FlutterPluginBinding): void {
     this.channel = new MethodChannel(binding.getBinaryMessenger(), 'kingclub/push-registration');
     this.channel.setMethodCallHandler(this);
+    this.localChannel = new MethodChannel(binding.getBinaryMessenger(), 'kingclub/local-notifications');
+    this.localChannel.setMethodCallHandler(this.local);
+    this.openChannel = new MethodChannel(binding.getBinaryMessenger(), 'kingclub/push-open');
+    this.openChannel.setMethodCallHandler(this);
+    NotificationLifecycle.changed = () => { this.openChannel?.invokeMethod('changed', null); };
   }
-  onAttachedToAbility(binding: AbilityPluginBinding): void { this.context = binding.getAbility().context; }
-  onDetachedFromAbility(): void { this.epoch++; this.context = null; }
+  onAttachedToAbility(binding: AbilityPluginBinding): void { this.context = binding.getAbility().context; this.local.context = this.context; }
+  onDetachedFromAbility(): void { this.epoch++; this.context = null; this.local.detach(); }
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
-    this.epoch++; this.context = null;
+    this.epoch++; this.context = null; this.local.detach();
+    NotificationLifecycle.changed = null;
+    this.localChannel?.setMethodCallHandler(null); this.localChannel = null;
+    this.openChannel?.setMethodCallHandler(null); this.openChannel = null;
     this.channel?.setMethodCallHandler(null); this.channel = null;
   }
   async onMethodCall(call: MethodCall, result: MethodResult): Promise<void> {
+    if (call.method === 'takePending' || call.method === 'ackPending') {
+      const context = this.context;
+      if (!context) { result.error('NO_ACTIVITY', 'Notification opening requires an active page', null); return; }
+      try {
+        const raw = call.method === 'ackPending' ? call.args as string : null;
+        const pending = await NotificationLifecycle.pending(context, raw);
+        result.success(call.method === 'takePending' ? pending : null);
+      } catch (error) { result.error('PENDING_UNAVAILABLE', 'Unable to read notification opening', null); }
+      return;
+    }
     if (call.method === 'notificationStatus') {
       try { result.success(await notificationManager.isNotificationEnabled()); }
       catch (error) { result.error('NOTIFICATION_STATUS_UNAVAILABLE', 'Unable to read notification permission', null); }
