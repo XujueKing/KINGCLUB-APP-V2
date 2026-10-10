@@ -269,3 +269,10 @@ unsigned HAP 构建通过，assembleHap 78.1 秒，日志 harmony-webrtc-build2.
 5 项新增渲染通道测试 + 2 项鸿蒙媒体禁用保护通过，涵盖先流后画面、先画面后流、重建、解绑、晚回调、绑定失败恢复、释放等待及 Android 契约；不代表系统 XComponent 或真机画面已验证。最终 unsigned HAP 构建通过，assembleHap 50.4 秒，日志 harmony-rtc-surface-build-final.log。主 lib/android/ios 和主依赖未改，通话默认仍关闭。
 
 音频控制审计：Dart enableSpeakerphone/ selectAudioOutput 与上游方法名匹配，但 AudioMethodHandlers 使用 getExistingInstance()?. 调用后直接 result.success，管理器缺失时可误报成功，必须在后续音频节点修正并验证异步结果。摄像头入口方法名 mediaStreamTrackSwitchCamera 匹配，实际切换结果与资源释放尚需继续核对。上游日志脱敏、后台租约及真机互通仍未完成。
+
+## 2026-10-10 鸿蒙桌面图标修正
+真机首次安装发现仍使用 Flutter 默认图标。鸿蒙构建前统一复制现有 iOS KINGCLUB 1024 图标到 AppScope app_icon 和 EntryAbility icon，同时覆盖桌面与启动窗口引用；复用原图不重新设计、不改安卓/iOS。将资源同步加入构建脚本，防止重建隔离工程时遗漏。
+
+
+真机反馈获取验证码 interface not found：首次安装构建错误地传了网关根地址，未带 /kingclub-v2。已通过真实加密客户端只读调用协议目录 K260824000107 验证正确地址返回非空协议列表，未发送短信。构建脚本对生产域强制检查 /kingclub-v2，显式配置 /commerce，统一到现有安卓构建入口。图标与地址一起重打包安装。
+
