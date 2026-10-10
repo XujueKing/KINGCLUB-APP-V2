@@ -16,10 +16,10 @@ function run(source, context) {
     static instance; activeCount=1; audioRoutingManager; devices=[{id:1,deviceType:1},{id:2,deviceType:2}];
     getAudioOutputDevices(){return this.devices;} ${methods}}`,{audio});
   const m = new M(); M.instance = m;
-  let active=false, fail=false, pending, calls=[];
+  let active=false, fail=false, pending, readPending, calls=[];
   m.audioRoutingManager = {
     async setCommunicationDevice(type,value){calls.push([type,value]); if(fail)throw Error('denied'); if(pending)await pending; active=value;},
-    async isCommunicationDeviceActive(){return active;}
+    async isCommunicationDeviceActive(){if(readPending)await readPending;return active;}
   };
   await m.setSpeakerChecked(true); assert.equal(active,true);
   await m.selectOutputChecked(1); assert.deepEqual(calls.at(-1),[2,false]);
@@ -31,6 +31,15 @@ function run(source, context) {
   const first=m.setSpeakerChecked(false); await assert.rejects(m.setSpeakerChecked(true));
   release(); await first; pending=null;
   m.activeCount=0; await assert.rejects(m.setSpeakerChecked(true));
+  m.activeCount=1;readPending=new Promise(r=>release=r);
+  const late=m.setSpeakerChecked(true);
+  await new Promise(r=>setTimeout(r,0));m.activeCount=0;release();
+  await assert.rejects(late,/AUDIO_SESSION_ENDED/);readPending=null;
+  m.activeCount=1;readPending=new Promise(r=>release=r);
+  const replaced=m.setSpeakerChecked(false);
+  await new Promise(r=>setTimeout(r,0));M.instance=new M();release();
+  await assert.rejects(replaced,/AUDIO_SESSION_ENDED/);readPending=null;M.instance=m;
+  await m.setSpeakerChecked(true);
   const cameraSource=fs.readFileSync(base+'/utils/CameraStateManager.ets','utf8');
   const start=cameraSource.indexOf('let cameraEpoch:');
   const releaseStart=cameraSource.indexOf('export async function releaseCamera()');

@@ -298,3 +298,7 @@ unsigned HAP 构建通过，assembleHap 78.1 秒，日志 harmony-webrtc-build2.
 2026-10-10 系统取消回调：使用返回 continuousTaskId 的 VOIP 申请重载，监听 continuousTaskCancel，仅处理当前任务 ID；未知 ID 不影响通话。申请完成前收到取消也应使申请失败。取消事件通过现有租约 MethodChannel 按租约 ID 传回 Flutter，单聊/群聊沿现有失败关闭流程释放采集。
 
 系统取消节点结果：原生 mock 覆盖当前任务取消、无关任务、重复及旧监听回调、开始中取消、取消后再次申请；Flutter 租约/关闭门禁 5 项回归通过。适配脚本重放与实际构建 Dart 源码一致，最终签名 HAP 编译通过（67.8秒）。重建时在 stage-harmony-call-lease.py 后运行 stage-harmony-call-cancellation.py。监听代次与任务 ID 双重过滤；Dart 记录租约丢失，避免迟到成功返回恢复 active。此次仅改隔离鸿蒙适配脚本和模板，Android/iOS 代码及依赖未改。未安装、未进行真实通话；媒体门禁继续关闭，后续仍需双机摄像头、音频路由、后台持续任务与原生二进制日志验收。
+
+2026-10-10 无真机音频就绪审计：发现上游创建 renderer/capturer 的异常仅日志记录，whenReady 在异步完成前检查 initError，可能放行缺失资源或已销毁实例。下一节点在等待结束后核对销毁状态、错误及两项资源；路由读回结束后再次核对活动会话，拒绝挂断后的迟到成功。只修改隔离鸿蒙适配，保持媒体门禁关闭。
+
+音频就绪节点验证：audio-readiness.test.cjs 执行实际适配方法，覆盖 renderer/capturer 缺失、异步失败、初始化中销毁、新实例恢复；rtc-controls.test.cjs 新增路由读回期间挂断与实例替换，旧摄像头/音频用例及后台租约测试通过。最终签名 HAP 编译通过（52.7秒）。重建在 RTC controls/lifecycle 后执行 scripts/stage-harmony-audio-readiness.py；不依赖日志是否已脱敏。用户当前没有鸿蒙手机，本节点未安装、未真机验收，媒体门禁仍关闭。
