@@ -200,7 +200,10 @@ class _RealNameAdultVerificationPageState
     }
     setState(() {
       _checkingOutcome = ['processing', 'unknown'].contains(result['state']);
-      _verificationError = _checkingOutcome
+      _verificationError =
+          result['resultCode'] == 'UnauthorizedOperation.Arrears'
+          ? '腾讯云人脸识别资源耗尽，请稍后重试'
+          : _checkingOutcome
           ? '核验结果确认中，请刷新结果，无需重复拍照。'
           : '核验未通过，请检查姓名、身份证号码并拍摄清晰正面照片。';
     });
