@@ -298,7 +298,8 @@ class SystemNoticesRepository {
         'procurementNotices': 1,
         'partnerMessageNotices': 1,
         'membershipNotices': 1,
-        'contractNotices': 1,
+        if (const bool.fromEnvironment('KINGCLUB_CONTRACT_NOTICES'))
+          'contractNotices': 1,
       }),
     );
   }
@@ -311,7 +312,8 @@ class SystemNoticesRepository {
           'procurementNotices': 1,
           'partnerMessageNotices': 1,
           'membershipNotices': 1,
-          'contractNotices': 1,
+          if (const bool.fromEnvironment('KINGCLUB_CONTRACT_NOTICES'))
+            'contractNotices': 1,
           'partnerApproval': 1,
         }),
       );
@@ -336,7 +338,8 @@ class SystemNoticesRepository {
         'procurementNotices': 1,
         'partnerMessageNotices': 1,
         'membershipNotices': 1,
-        'contractNotices': 1,
+        if (const bool.fromEnvironment('KINGCLUB_CONTRACT_NOTICES'))
+          'contractNotices': 1,
         'noticeRefs': ?ids,
         'throughSequence': ?throughSequence,
       }),

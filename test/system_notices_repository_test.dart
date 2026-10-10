@@ -245,7 +245,6 @@ void main() {
             'procurementNotices': 1,
             'partnerMessageNotices': 1,
             'membershipNotices': 1,
-            'contractNotices': 1,
           });
           expect(s, current);
           return pending.future;
@@ -362,7 +361,6 @@ void main() {
               'procurementNotices': 1,
               'partnerMessageNotices': 1,
               'membershipNotices': 1,
-              'contractNotices': 1,
               'throughSequence': '22',
             });
             return {
@@ -492,7 +490,6 @@ void main() {
           'procurementNotices': 1,
           'partnerMessageNotices': 1,
           'membershipNotices': 1,
-          'contractNotices': 1,
           'throughSequence': '22',
         },
       ]);

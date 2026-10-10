@@ -22,4 +22,10 @@ foreach ($target in $targets) {
         throw 'Harmony brand icon copy failed.'
     }
 }
-Write-Host 'KINGCLUB launcher and launch-window icons synchronized.'
+$colorsPath = Join-Path $root 'ohos/entry/src/main/resources/base/element/color.json'
+$colors = Get-Content -LiteralPath $colorsPath -Raw | ConvertFrom-Json
+$background = @($colors.color | Where-Object { $_.name -eq 'start_window_background' })
+if ($background.Count -ne 1) { throw 'Expected one Harmony launch background resource.' }
+$background[0].value = '#000000'
+[IO.File]::WriteAllText($colorsPath, ($colors | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
+Write-Host 'KINGCLUB icons and black launch-window background synchronized.'
