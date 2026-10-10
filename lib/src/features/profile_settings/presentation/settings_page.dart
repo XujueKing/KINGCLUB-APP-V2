@@ -5,6 +5,7 @@ import '../../../core/app_version.dart';
 import '../../../core/app_update.dart';
 import 'app_update_page.dart';
 import '../../commerce/presentation/procurement_page.dart';
+import '../../commerce/presentation/product_listing_page.dart';
 
 import 'package:kingclub/src/core/design_system/king_components.dart';
 import 'package:kingclub/src/core/design_system/king_notice.dart';
@@ -191,6 +192,24 @@ class _SettingsPageState extends State<SettingsPage>
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => const ProcurementPage(),
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    minTileHeight: 56,
+                    leading: const Icon(Icons.storefront_outlined),
+                    title: Text(
+                      _text([
+                        '商品上架',
+                        'Product listing',
+                        '商品上架',
+                        'จัดการจำหน่าย',
+                      ]),
+                    ),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ProductListingPage(),
                       ),
                     ),
                   ),
