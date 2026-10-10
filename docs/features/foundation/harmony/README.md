@@ -294,3 +294,7 @@ unsigned HAP 构建通过，assembleHap 78.1 秒，日志 harmony-webrtc-build2.
 2026-10-10 后台通话租约：复用 kingclub/call-foreground，隔离包接系统 VOIP 持续任务与 KEEP_BACKGROUND_RUNNING 声明。按租约 ID 幂等，开始/停止串行，停止与 Ability 分离使未完成开始失效，系统拒绝必须回传失败。通知 Want 仅回到 APP，不含对方资料。先验证生命周期与编译，不开放媒体开关、不承诺锁屏视频采集。
 
 后台租约节点结果：原生源码 mock 测试（幂等、系统失败、开始中停止、开始中 detach、无上下文）通过；Flutter 租约及关闭门禁 5 项回归通过；签名 HAP 编译通过（55.5秒）。仅隔离鸿蒙 Dart 副本启用租约支持，主平台代码不变。stage-harmony-call-lease.py 在通知适配完成后运行。尚未真机验证持续任务获准、锁屏语音及系统取消回调处理，媒体门禁继续关闭；不宣称后台通话已可用。
+
+2026-10-10 系统取消回调：使用返回 continuousTaskId 的 VOIP 申请重载，监听 continuousTaskCancel，仅处理当前任务 ID；未知 ID 不影响通话。申请完成前收到取消也应使申请失败。取消事件通过现有租约 MethodChannel 按租约 ID 传回 Flutter，单聊/群聊沿现有失败关闭流程释放采集。
+
+系统取消节点结果：原生 mock 覆盖当前任务取消、无关任务、重复及旧监听回调、开始中取消、取消后再次申请；Flutter 租约/关闭门禁 5 项回归通过。适配脚本重放与实际构建 Dart 源码一致，最终签名 HAP 编译通过（67.8秒）。重建时在 stage-harmony-call-lease.py 后运行 stage-harmony-call-cancellation.py。监听代次与任务 ID 双重过滤；Dart 记录租约丢失，避免迟到成功返回恢复 active。此次仅改隔离鸿蒙适配脚本和模板，Android/iOS 代码及依赖未改。未安装、未进行真实通话；媒体门禁继续关闭，后续仍需双机摄像头、音频路由、后台持续任务与原生二进制日志验收。

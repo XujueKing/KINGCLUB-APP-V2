@@ -10,6 +10,26 @@ export class CallBackgroundLease implements MethodCallHandler {
   private epoch: number = 0;
   private cancelled: Set<string> = new Set();
   private queue: Promise<void> = Promise.resolve();
+  lost: ((id: string) => void) | null = null;
+  private listenerGeneration: number = 0;
+  private taskId: number | null = null;
+  private listener: ((info: backgroundTaskManager.ContinuousTaskCancelInfo) => void) | null = null;
+  private earlyCancellations: Set<number> = new Set();
+
+  private unlisten(): void {
+    this.listenerGeneration++;
+    try { if (this.listener) backgroundTaskManager.off('continuousTaskCancel', this.listener); } catch (_) {}
+    this.listener = null;
+    this.earlyCancellations.clear();
+  }
+
+  private cancelledBySystem(id: string): void {
+    this.activeId = null;
+    this.activeContext = null;
+    this.taskId = null;
+    this.unlisten();
+    this.lost?.(id);
+  }
 
   detach(): void {
     this.epoch++;
@@ -50,9 +70,23 @@ export class CallBackgroundLease implements MethodCallHandler {
       wantAgentFlags: [wantAgent.WantAgentFlags.UPDATE_PRESENT_FLAG]
     });
     if (revision !== this.epoch || this.cancelled.has(id)) throw new Error('cancelled');
-    await backgroundTaskManager.startBackgroundRunning(context, backgroundTaskManager.BackgroundMode.VOIP, agent);
+    const generation = ++this.listenerGeneration;
+    this.listener = (info: backgroundTaskManager.ContinuousTaskCancelInfo): void => {
+      if (revision !== this.epoch || generation !== this.listenerGeneration) return;
+      if (this.taskId === null) { this.earlyCancellations.add(info.id); return; }
+      if (info.id === this.taskId && this.activeId === id) this.cancelledBySystem(id);
+    };
+    backgroundTaskManager.on('continuousTaskCancel', this.listener);
+    let task: backgroundTaskManager.ContinuousTaskNotification;
+    try { task = await backgroundTaskManager.startBackgroundRunning(context, ['voip'], agent); }
+    catch (_) { this.unlisten(); throw new Error('background start failed'); }
     this.activeContext = context;
     this.activeId = id;
+    this.taskId = task.continuousTaskId ?? null;
+    if (this.taskId === null) { await this.stopActive(); throw new Error('task id unavailable'); }
+    if (this.earlyCancellations.has(this.taskId)) {
+      this.cancelledBySystem(id); throw new Error('task cancelled');
+    }
     if (revision !== this.epoch || this.cancelled.has(id)) {
       await this.stopActive();
       throw new Error('cancelled');
@@ -61,9 +95,11 @@ export class CallBackgroundLease implements MethodCallHandler {
 
   private async stopActive(): Promise<void> {
     const context = this.activeContext;
-    if (!context) return;
+    if (!context) { this.unlisten(); return; }
+    this.unlisten();
     await backgroundTaskManager.stopBackgroundRunning(context);
     this.activeContext = null;
     this.activeId = null;
+    this.taskId = null;
   }
 }
