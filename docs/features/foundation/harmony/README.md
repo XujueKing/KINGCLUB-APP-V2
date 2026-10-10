@@ -230,3 +230,13 @@ Dart analyze 无 error/warning，有 2 项 info：OHOS cancel 修复继承当前
 本地消息通知已实现应用级授权/消息槽位检查、会话绑定、前后台竞争校验、发布失败传播、通用文案、到期自动删除和点击进入原鉴权流程。桌面角标接已有总未读数通道，不随每次通知重复累加；初次绑定不抹掉已有角标，退出/切账号清零。通话提醒返回false，未启用华为离线push。冷暖启动通过EntryAbility钩子收集Want，私有Preferences仅存有限路由元数据，无正文/凭证，Dart二次核验账号。应用内横幅与tabbar红点仍沿用既有业务。24项原通知/打开恢复测试通过，另3组直接执行原生源码的逻辑测试通过（信封白名单、持久队列与确认、授权/前后台/会话竞争/角标），这些测试不能证明系统实际展示。
 
 最终隔离HAP构建通过（local-notification-build-verified.log），未签名、无真机。初编译暴露ArkTS静态this、旧新通知枚举类型及不支持的isRemoveAllowed字段，已按本机SDK修正并重编译。系统横幅/角标是否真正显示、点击冷暖启动需设备验证；没有向任何真实用户发送测试消息。
+
+## 2026-10-10 支付适配方案
+
+复用现有fluwx 6.0.4及tobias 5.3.4的鸿蒙实现，限定隔离probe，覆盖点单、AA报名、月签约资金微信入口。补weixin/alipays查询scheme；微信使用独立构建配置开关和AppId，需与服务端签名参数一致，不能假设iOS登记自动覆盖鸿蒙签名。支付宝单独开关。当前没有真机签名及开放平台绑定验证，默认不开放真实付款。SDK返回仅触发原订单查询，不确认已付；原幂等键、恢复与退款逻辑不改。不调用生产下单或扣款接口。插件README与已安装源码作为接口依据；微信鸿蒙调试证书需单独核实，编译通过不表示支付可用。
+
+支付适配节点：stage-harmony-payment.py仅改隔离probe的支付桥与点单/AA/月签约页面，增加weixin/alipays安装检测scheme。沿用现有IosWechatPayment类名以减少业务改动，但鸿蒙使用独立KINGCLUB_HARMONY_WECHAT_PAYMENT、KINGCLUB_HARMONY_WECHAT_APP_ID；支付宝使用KINGCLUB_HARMONY_ALIPAY_PAYMENT。开关默认关闭，微信AppId格式和服务端参数必须一致；核验手工签名证书/开放平台关联后方可用于真实支付。保留服务端签名字符串和signType，不记录或重签。SDK失败/取消仅进入既有状态核对，冷启动由持久订单恢复查询，不依赖SDK回调判已付。支付宝registerApp非支付必需且插件当前实现不返回MethodResult，本节点不调用该可选接口。
+
+验证：42项既有支付回归通过；新增3种鸿蒙通道场景分别在关闭/启用fixture配置下验证，覆盖关闭时无SDK调用、微信返回false与AppId不符、支付宝取消及签名原样传递。所有新配置仅在mock测试启用，未请求真实订单/付款；未签名默认包仍关闭外部付款。
+
+本节点unsigned HAP构建通过，assembleHap79.6秒（harmony-payment-build.log）。安卓/iOS及主lib未改。真实支付尚待签名、开放平台绑定及真机联调，不以mock和编译替代支付成功验收。

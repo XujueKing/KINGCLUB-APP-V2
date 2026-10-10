@@ -165,3 +165,7 @@ not these native runtime cases.
 通知权限：新增 kingclub_notification_ohos 原生桥及 scripts/stage-harmony-notifications.py，只写隔离构建目录。读取真实系统授权状态、用户主动授权和打开系统设置；不启用厂商token注册。鸿蒙设置页不再显示未实现的Android常驻接收开关。8项测试通过（2项鸿蒙设置交互、6项原通道测试），包括拒绝不得显示允许。无鸿蒙真机，系统弹窗和设置跳转尚未实机验收。本地通知发布/点击冷启动恢复、离线推送仍待补齐。
 
 本地消息通知已实现应用级授权/消息槽位检查、会话绑定、前后台竞争校验、发布失败传播、通用文案、到期自动删除和点击进入原鉴权流程。桌面角标接已有总未读数通道，不随每次通知重复累加；初次绑定不抹掉已有角标，退出/切账号清零。通话提醒返回false，未启用华为离线push。冷暖启动通过EntryAbility钩子收集Want，私有Preferences仅存有限路由元数据，无正文/凭证，Dart二次核验账号。应用内横幅与tabbar红点仍沿用既有业务。24项原通知/打开恢复测试通过，另3组直接执行原生源码的逻辑测试通过（信封白名单、持久队列与确认、授权/前后台/会话竞争/角标），这些测试不能证明系统实际展示。
+
+支付适配节点：stage-harmony-payment.py仅改隔离probe的支付桥与点单/AA/月签约页面，增加weixin/alipays安装检测scheme。沿用现有IosWechatPayment类名以减少业务改动，但鸿蒙使用独立KINGCLUB_HARMONY_WECHAT_PAYMENT、KINGCLUB_HARMONY_WECHAT_APP_ID；支付宝使用KINGCLUB_HARMONY_ALIPAY_PAYMENT。开关默认关闭，微信AppId格式和服务端参数必须一致；核验手工签名证书/开放平台关联后方可用于真实支付。保留服务端签名字符串和signType，不记录或重签。SDK失败/取消仅进入既有状态核对，冷启动由持久订单恢复查询，不依赖SDK回调判已付。支付宝registerApp非支付必需且插件当前实现不返回MethodResult，本节点不调用该可选接口。
+
+验证：42项既有支付回归通过；新增3种鸿蒙通道场景分别在关闭/启用fixture配置下验证，覆盖关闭时无SDK调用、微信返回false与AppId不符、支付宝取消及签名原样传递。所有新配置仅在mock测试启用，未请求真实订单/付款；未签名默认包仍关闭外部付款。

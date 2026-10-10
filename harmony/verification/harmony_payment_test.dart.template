@@ -1,0 +1,60 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/commerce/data/ios_wechat_payment.dart';
+import 'package:kingclub/src/features/commerce/data/alipay_app_payment.dart';
+import 'package:kingclub/src/features/commerce/data/harmony_payment_config.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const wx = MethodChannel('com.jarvanmo/fluwx');
+  const ali = MethodChannel('com.jarvanmo/tobias');
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  setUp(() => debugDefaultTargetPlatformOverride = TargetPlatform.ohos);
+  tearDown(() {
+    debugDefaultTargetPlatformOverride = null;
+    messenger.setMockMethodCallHandler(wx, null);
+    messenger.setMockMethodCallHandler(ali, null);
+  });
+  test('unconfigured Harmony cannot start either payment SDK', () async {
+    if (HarmonyPaymentConfig.wechatEnabled || HarmonyPaymentConfig.alipayEnabled) return;
+    var calls = 0;
+    messenger.setMockMethodCallHandler(wx, (_) async { calls++; return true; });
+    messenger.setMockMethodCallHandler(ali, (_) async { calls++; return true; });
+    expect(await IosWechatPayment.prepare(), false);
+    expect(await AlipayAppPayment.prepare(), false);
+    await expectLater(IosWechatPayment.pay({}), throwsA(isA<PlatformException>()));
+    await expectLater(AlipayAppPayment.pay({}), throwsA(isA<PlatformException>()));
+    expect(calls, 0);
+  });
+  test('configured WeChat preserves signature and rejected launch result', () async {
+    if (!HarmonyPaymentConfig.wechatEnabled) return;
+    final calls = <MethodCall>[];
+    messenger.setMockMethodCallHandler(wx, (call) async {
+      calls.add(call);
+      return call.method == 'payWithFluwx' ? false : true;
+    });
+    expect(await IosWechatPayment.prepare(), true);
+    expect(calls.any((c) => c.method == 'attemptToResumeMsgFromWx'), true);
+    final payment = {'appId': HarmonyPaymentConfig.wechatAppId, 'partnerId': 'fixture',
+      'prepayId': 'fixture', 'nonceStr': 'fixture', 'sign': 'unchanged+signature=',
+      'timeStamp': '1780000000', 'packageValue': 'Sign=WXPay', 'signType': 'RSA'};
+    expect(await IosWechatPayment.pay(payment), false);
+    expect((calls.last.arguments as Map)['sign'], payment['sign']);
+    expect((calls.last.arguments as Map)['signType'], 'RSA');
+    expect(() => IosWechatPayment.parse({...payment, 'appId':'wxWrong'}), throwsA(isA<PlatformException>()));
+  });
+  test('Alipay cancellation returns for server reconciliation, signed string untouched', () async {
+    if (!HarmonyPaymentConfig.alipayEnabled) return;
+    const order = 'app_id=fixture&sign=unchanged%2Bsignature%3D';
+    messenger.setMockMethodCallHandler(ali, (call) async {
+      if (call.method == 'isAliPayInstalled') return true;
+      expect(call.method, 'pay');
+      expect((call.arguments as Map)['order'], order);
+      return {'resultStatus': '6001'};
+    });
+    expect(await AlipayAppPayment.prepare(), true);
+    await AlipayAppPayment.pay({'provider':'alipay','orderString':order});
+    await expectLater(AlipayAppPayment.pay({'provider':'wechat','orderString':order}), throwsA(isA<PlatformException>()));
+  });
+}

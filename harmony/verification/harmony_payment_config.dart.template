@@ -1,0 +1,7 @@
+/// Enabled only after the signed Harmony app and provider configuration match.
+class HarmonyPaymentConfig {
+  static const wechatRequested = bool.fromEnvironment('KINGCLUB_HARMONY_WECHAT_PAYMENT');
+  static const wechatAppId = String.fromEnvironment('KINGCLUB_HARMONY_WECHAT_APP_ID');
+  static bool get wechatEnabled => wechatRequested && RegExp(r'^wx[0-9a-fA-F]{16}$').hasMatch(wechatAppId);
+  static const alipayEnabled = bool.fromEnvironment('KINGCLUB_HARMONY_ALIPAY_PAYMENT');
+}
