@@ -1,0 +1,38 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kingclub/src/features/messaging/data/native_call_media.dart';
+import 'package:kingclub/src/features/messaging/data/native_group_call_media.dart';
+import 'native_group_call_media_test.dart' as fixture;
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  tearDown(() => debugDefaultTargetPlatformOverride = null);
+  test('Harmony direct call disabled before capture and peer allocation', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.ohos;
+    var capture = 0, peers = 0;
+    final media = NativeCallMedia(video: false, iceServers: [],
+      capture: (_) async { capture++; throw StateError('capture reached'); },
+      peerFactory: (_) async { peers++; throw StateError('peer reached'); });
+    await expectLater(media.open(), throwsStateError);
+    expect(capture, 0);
+    expect(peers, 0);
+    await media.close();
+  });
+  test('Harmony group call disabled before relay and capture', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.ohos;
+    var capture = 0;
+    final repo = GuardRepo();
+    final media = NativeGroupCallMedia(repository: repo,
+      device: fixture.DeviceFixture(),
+      capture: (_) async { capture++; throw StateError('capture reached'); });
+    await expectLater(media.open(), throwsStateError);
+    expect(capture, 0);
+    expect(repo.relayReads, 0);
+    await media.close();
+  });
+}
+class GuardRepo extends fixture.Repo {
+  int relayReads = 0;
+  @override
+  readRelay() async { relayReads++; return super.readRelay(); }
+}

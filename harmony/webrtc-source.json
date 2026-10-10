@@ -1,0 +1,9 @@
+{
+  "repository": "https://gitcode.com/openharmony-sig/fluttertpc_flutter_webrtc",
+  "commit": "6f4bce691aaa3abb6bf529354745a6b472cc4bb3",
+  "dartBase": "flutter_webrtc 1.6.2+hotfix.1",
+  "sha256": {
+    "ohos/libs/arm64-v8a/libohos_webrtc.so": "f5c26c8a6f37caf662c0e1982aed46ac8721c9eb7864f24ca619cf5661dc42ae",
+    "ohos/libs/arm64-v8a/libc++_shared.so": "cf2ea887af365557f4ad258c62631a4f92f902b4b79203a2185dba10efe19e62"
+  }
+}

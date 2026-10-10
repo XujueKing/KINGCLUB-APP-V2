@@ -240,3 +240,21 @@ Dart analyze 无 error/warning，有 2 项 info：OHOS cancel 修复继承当前
 验证：42项既有支付回归通过；新增3种鸿蒙通道场景分别在关闭/启用fixture配置下验证，覆盖关闭时无SDK调用、微信返回false与AppId不符、支付宝取消及签名原样传递。所有新配置仅在mock测试启用，未请求真实订单/付款；未签名默认包仍关闭外部付款。
 
 本节点unsigned HAP构建通过，assembleHap79.6秒（harmony-payment-build.log）。安卓/iOS及主lib未改。真实支付尚待签名、开放平台绑定及真机联调，不以mock和编译替代支付成功验收。
+
+## 2026-10-10 WebRTC原生依赖接入方案
+
+当前flutter_webrtc 1.6.2+hotfix.1不含ohos。已只读拉取OpenHarmony-SIG官方适配仓库https://gitcode.com/openharmony-sig/fluttertpc_flutter_webrtc，固定6f4bce691aaa3abb6bf529354745a6b472cc4bb3。该项目Dart版本0.9.48+hotfix.1/webrtc_interface1.1.2，不能整体替换当前1.6.2/1.5.1，否则会影响通话接口。先把原生ohos目录接到隔离复制的当前Dart包；原生API兼容性、视频PlatformView、后台音频租约和真机互通分项验证。不得将原生编译成功宣称可以通话；在完成前增加鸿蒙媒体开关，默认禁止采集。绝不降级主工程或修改安卓/iOS。上游二进制需固定哈希和许可证，保持来源可追踪。
+
+
+原生依赖节点验证完成：保留当前 flutter_webrtc 1.6.2+hotfix.1 的 Dart 接口，只复制固定上游 ohos 实现；二进制哈希在 harmony/webrtc-source.json，许可证随隔离副本保留。stage-harmony-webrtc.py 接入并修复新版 embedding 的 viewId 成员可见性冲突，插件自有字段重命名 renderViewId。主 lib/android/ios/pubspec/lock 均未修改。
+
+单人及群通话在 _open 最前面检查 KINGCLUB_HARMONY_CALL_MEDIA（默认 false），阻止鸿蒙采集、Peer 创建及群 relay 请求；此开关仅是实验保护，不是可用性声明，现阶段不得启用。现有通话回归 62 项通过，新增 harmony_call_gate_test.dart.template 两项验证关闭时无采集/Peer/群 relay 操作。模板依赖现有 native_group_call_media_test.dart 的 fixture；复制到隔离 test 后使用鸿蒙 Flutter 执行。未发送真实呼叫。
+
+unsigned HAP 构建通过，assembleHap 78.1 秒，日志 harmony-webrtc-build2.log；首次编译因上游 PlatformView 字段冲突失败，修正后重新构建成功。无鸿蒙真机，未安装或验证互通。
+
+下一阶段未完成项：
+- 当前 Dart 视频视图未连接上游 flutter.webrtc.ohos/RTCVideoRender PlatformView，不能因编译成功认定有画面。
+- 校验当前 Dart 方法/事件与旧版本来源 native 的兼容性，包括音频路由、摄像头切换、关闭及 ICE 重连；群通话另测 mediasoup。
+- 原生上游存在 configuration/iceServers 等调试日志，开放实验前需脱敏审计，禁止输出 TURN 凭证或 SDP。
+- CallForegroundLease 尚未接鸿蒙后台通话，系统通话提醒仍关闭；后台保持和系统权限需要真实设备验收。
+- 以上就绪并真机确认前，不能打开 KINGCLUB_HARMONY_CALL_MEDIA；离线厂商唤醒仍是另一未完成能力。
