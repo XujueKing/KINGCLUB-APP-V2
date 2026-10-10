@@ -306,3 +306,7 @@ unsigned HAP 构建通过，assembleHap 78.1 秒，日志 harmony-webrtc-build2.
 2026-10-10 初始化重试节点：失败的 AudioSwitchManager 单例目前会保留，后续 initialize 再次使用同一失败实例。拟将 native 初始化合并为单次在途请求，失败时仅释放本次仍持有的音频实例，后续调用重新创建；dispose 后的迟到初始化不再挂载采集器。保持鸿蒙媒体门禁关闭。
 
 初始化重试节点结果：native 实际适配方法 mock 覆盖参数失败、并发失败仅初始化一次、失败清理后重试成功、成功幂等、初始化中 dispose、保留新实例；音频就绪回归通过。Flutter 通道测试确认 initialize 失败不执行 getUserMedia、下一请求可重新初始化；与媒体关闭门禁共 3 项通过。签名 HAP 构建通过（67.8秒）。重建时在 audio-readiness 后执行 scripts/stage-harmony-audio-retry.py，自动复制通道测试。未安装、无鸿蒙真机验收；Android/iOS 及主依赖未改，鸿蒙媒体门禁继续关闭。
+
+2026-10-10 音轨开关确认：APP 单聊静音/视频开关走 mediaStreamTrackSetEnable，不走全局麦克风。补原生轨道 live 检查及写入后读回确认，拒绝结束轨道和未生效写入；异常使用固定提示，避免 SDK 错误正文透出。只改隔离鸿蒙，保持媒体门禁关闭。
+
+音轨确认节点验证：实际 TrackControlHandlers 方法的 SDK mock 覆盖音频/视频轨道缺失、参数错误、开关、幂等、写入未生效、SDK 抛错、写入期间结束及已结束；22 项 Flutter 单聊媒体与鸿蒙关闭门禁回归通过。修正 ArkTS 参数显式类型后最终签名 HAP 构建通过（55.8秒）。重建在 RTC staging 后执行 stage-harmony-track-state.py。无鸿蒙手机，未安装、未验证真实静音/停止视频传输；媒体开关仍关闭，主安卓/iOS 代码未改。
