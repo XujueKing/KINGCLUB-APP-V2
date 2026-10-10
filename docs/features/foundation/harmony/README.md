@@ -302,3 +302,7 @@ unsigned HAP 构建通过，assembleHap 78.1 秒，日志 harmony-webrtc-build2.
 2026-10-10 无真机音频就绪审计：发现上游创建 renderer/capturer 的异常仅日志记录，whenReady 在异步完成前检查 initError，可能放行缺失资源或已销毁实例。下一节点在等待结束后核对销毁状态、错误及两项资源；路由读回结束后再次核对活动会话，拒绝挂断后的迟到成功。只修改隔离鸿蒙适配，保持媒体门禁关闭。
 
 音频就绪节点验证：audio-readiness.test.cjs 执行实际适配方法，覆盖 renderer/capturer 缺失、异步失败、初始化中销毁、新实例恢复；rtc-controls.test.cjs 新增路由读回期间挂断与实例替换，旧摄像头/音频用例及后台租约测试通过。最终签名 HAP 编译通过（52.7秒）。重建在 RTC controls/lifecycle 后执行 scripts/stage-harmony-audio-readiness.py；不依赖日志是否已脱敏。用户当前没有鸿蒙手机，本节点未安装、未真机验收，媒体门禁仍关闭。
+
+2026-10-10 初始化重试节点：失败的 AudioSwitchManager 单例目前会保留，后续 initialize 再次使用同一失败实例。拟将 native 初始化合并为单次在途请求，失败时仅释放本次仍持有的音频实例，后续调用重新创建；dispose 后的迟到初始化不再挂载采集器。保持鸿蒙媒体门禁关闭。
+
+初始化重试节点结果：native 实际适配方法 mock 覆盖参数失败、并发失败仅初始化一次、失败清理后重试成功、成功幂等、初始化中 dispose、保留新实例；音频就绪回归通过。Flutter 通道测试确认 initialize 失败不执行 getUserMedia、下一请求可重新初始化；与媒体关闭门禁共 3 项通过。签名 HAP 构建通过（67.8秒）。重建时在 audio-readiness 后执行 scripts/stage-harmony-audio-retry.py，自动复制通道测试。未安装、无鸿蒙真机验收；Android/iOS 及主依赖未改，鸿蒙媒体门禁继续关闭。

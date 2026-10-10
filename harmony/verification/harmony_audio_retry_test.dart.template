@@ -1,0 +1,35 @@
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_webrtc/src/native/utils.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('FlutterWebRTC.Method');
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  tearDown(() {
+    WebRTC.initialized = false;
+    messenger.setMockMethodCallHandler(channel, null);
+  });
+
+  test('native init failure blocks capture but next request can retry', () async {
+    WebRTC.initialized = false;
+    final calls = <String>[];
+    var reject = true;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call.method);
+      if (call.method == 'initialize' && reject) {
+        throw PlatformException(code: 'initialize', message: 'Audio unavailable');
+      }
+      return null;
+    });
+    await expectLater(WebRTC.invokeMethod<void, void>('getUserMedia'), throwsA(isA<PlatformException>()));
+    expect(WebRTC.initialized, false);
+    expect(calls, ['initialize']);
+    reject = false;
+    await WebRTC.invokeMethod<void, void>('getUserMedia');
+    expect(WebRTC.initialized, true);
+    expect(calls, ['initialize', 'initialize', 'getUserMedia']);
+    await WebRTC.initialize();
+    expect(calls.length, 3);
+  });
+}
