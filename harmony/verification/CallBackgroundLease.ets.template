@@ -1,0 +1,69 @@
+import { MethodCall, MethodCallHandler, MethodResult } from '@ohos/flutter_ohos';
+import { common } from '@kit.AbilityKit';
+import backgroundTaskManager from '@ohos.resourceschedule.backgroundTaskManager';
+import wantAgent from '@ohos.app.ability.wantAgent';
+
+export class CallBackgroundLease implements MethodCallHandler {
+  context: common.UIAbilityContext | null = null;
+  private activeContext: common.UIAbilityContext | null = null;
+  private activeId: string | null = null;
+  private epoch: number = 0;
+  private cancelled: Set<string> = new Set();
+  private queue: Promise<void> = Promise.resolve();
+
+  detach(): void {
+    this.epoch++;
+    this.context = null;
+    this.queue = this.queue.then(() => this.stopActive()).catch(() => {});
+  }
+
+  onMethodCall(call: MethodCall, result: MethodResult): void {
+    if (call.method !== 'start' && call.method !== 'stop') { result.notImplemented(); return; }
+    const id = call.argument('id') as string;
+    if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/.test(id)) {
+      result.error('CALL_LEASE_INVALID', 'Invalid call lease', null); return;
+    }
+    if (call.method === 'stop') this.cancelled.add(id);
+    const revision = this.epoch;
+    this.queue = this.queue.then(async () => {
+      try {
+        if (call.method === 'stop') {
+          if (this.activeId === id) await this.stopActive();
+          this.cancelled.delete(id);
+        } else {
+          await this.start(id, revision);
+        }
+        result.success(null);
+      } catch (_) { result.error('CALL_LEASE_UNAVAILABLE', 'Call background service unavailable', null); }
+    });
+  }
+
+  private async start(id: string, revision: number): Promise<void> {
+    const context = this.context;
+    if (!context || revision !== this.epoch || this.cancelled.has(id)) throw new Error('cancelled');
+    if (this.activeId === id) return;
+    if (this.activeId) throw new Error('another call active');
+    const agent = await wantAgent.getWantAgent({
+      wants: [{bundleName: context.abilityInfo.bundleName, abilityName: context.abilityInfo.name}],
+      operationType: wantAgent.OperationType.START_ABILITY,
+      requestCode: 4281,
+      wantAgentFlags: [wantAgent.WantAgentFlags.UPDATE_PRESENT_FLAG]
+    });
+    if (revision !== this.epoch || this.cancelled.has(id)) throw new Error('cancelled');
+    await backgroundTaskManager.startBackgroundRunning(context, backgroundTaskManager.BackgroundMode.VOIP, agent);
+    this.activeContext = context;
+    this.activeId = id;
+    if (revision !== this.epoch || this.cancelled.has(id)) {
+      await this.stopActive();
+      throw new Error('cancelled');
+    }
+  }
+
+  private async stopActive(): Promise<void> {
+    const context = this.activeContext;
+    if (!context) return;
+    await backgroundTaskManager.stopBackgroundRunning(context);
+    this.activeContext = null;
+    this.activeId = null;
+  }
+}
