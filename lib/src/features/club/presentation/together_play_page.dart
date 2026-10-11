@@ -290,7 +290,6 @@ class _TogetherScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final unit = MediaQuery.sizeOf(context).width / 750;
     final safeTop = MediaQuery.paddingOf(context).top;
-    final top = (130 * unit).clamp(safeTop, double.infinity);
     return Scaffold(
       backgroundColor: Colors.black,
       body: DecoratedBox(
@@ -373,12 +372,7 @@ class _TogetherScaffold extends StatelessWidget {
               // Keep content below the shared 56 dp conversation header.
               Column(
                 children: [
-                  SizedBox(
-                    height: (top + 39 * unit).clamp(
-                      safeTop + 56,
-                      double.infinity,
-                    ),
-                  ),
+                  SizedBox(height: safeTop + 56),
                   Expanded(child: child),
                 ],
               ),
@@ -744,6 +738,28 @@ class TogetherAvailableRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: 2,
+                        child: party.detailPosters.isEmpty
+                            ? const ColoredBox(
+                                color: Color(0xFF302A24),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.celebration_outlined,
+                                    color: legacyGold,
+                                    size: 40,
+                                  ),
+                                ),
+                              )
+                            : CachedMediaImage(
+                                party.detailPosters.first,
+                                fit: BoxFit.cover,
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         TogetherStoreLogo(party: party, size: 28),
@@ -818,6 +834,17 @@ class TogetherAvailableRow extends StatelessWidget {
                       style: style(24, Colors.white60),
                     ),
                     const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TogetherParticipants(
+                        party: party,
+                        showCount: false,
+                        seatSize: 42,
+                        seatGap: 7,
+                        iconHeight: 24,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -844,28 +871,8 @@ class TogetherAvailableRow extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        FilledButton(
-                          key: ValueKey(
-                            'together-invitation-action-${party.ref}',
-                          ),
-                          onPressed: party.canAct ? onTap : null,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: legacyGold,
-                            foregroundColor: const Color(0xFF281903),
-                            disabledBackgroundColor: Colors.white12,
-                            disabledForegroundColor: Colors.white38,
-                            minimumSize: Size(180 * unit, 44),
-                            textStyle: style(
-                              26,
-                              const Color(0xFF281903),
-                            ).copyWith(fontWeight: FontWeight.w600),
-                          ),
-                          child: Text(
-                            party.actionState == TogetherJoinState.available
-                                ? '抢位'
-                                : party.actionLabel,
-                          ),
-                        ),
+                        if (party.actionState != TogetherJoinState.available)
+                          Text(party.actionLabel, style: style(24, legacyGold)),
                       ],
                     ),
                   ],
@@ -943,7 +950,7 @@ class TogetherParticipants extends StatelessWidget {
                               'assets/legacy/aa/woman.png',
                             TogetherGender.unspecified => null,
                           };
-                          final fallback = Center(
+                          final genderIcon = Center(
                             child: symbol == null
                                 ? Icon(
                                     Icons.person_outline,
@@ -956,6 +963,25 @@ class TogetherParticipants extends StatelessWidget {
                                     fit: BoxFit.contain,
                                   ),
                           );
+                          final fallback = member == null
+                              ? genderIcon
+                              : Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Icon(
+                                      Icons.person,
+                                      size: slotSize * .78,
+                                      color: const Color(0xFF8A687F),
+                                    ),
+                                    Positioned(
+                                      right: 1,
+                                      bottom: 1,
+                                      width: slotSize * .38,
+                                      height: slotSize * .38,
+                                      child: genderIcon,
+                                    ),
+                                  ],
+                                );
                           final avatar = member?.avatar;
                           return Padding(
                             padding: EdgeInsets.only(

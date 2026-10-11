@@ -487,18 +487,18 @@ void main() {
       expect(find.byType(TogetherPartyCard), findsOneWidget);
       expect(find.text('888'), findsOneWidget);
       expect(find.byType(TogetherAvailableRow), findsNWidgets(2));
-      // Old Choose CSS: top130 + title39 + margin30 + date80 + margin30.
+      // Shared 56dp header + compact 6dp top gap + 40dp dates + 15dp bottom gap.
       final ticket = tester.getRect(
         find.byKey(const ValueKey('together-card-friends')),
       );
       expect(ticket.left, closeTo(30 * .5, .1));
-      expect(ticket.top, closeTo(309 * .5, .1));
+      expect(ticket.top, closeTo(117, .1));
       expect(ticket.width, closeTo(690 * .5, .1));
       expect(ticket.height, closeTo(232 * .5, .1));
       final date = tester.getRect(
         find.byKey(const ValueKey('together-date-box-0')),
       );
-      expect(date.top, closeTo(199 * .5, .1));
+      expect(date.top, closeTo(62, .1));
       final nextRow = tester.getRect(
         find.byKey(const ValueKey('together-card-music')),
       );
@@ -517,7 +517,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('男士AA，女士免票；请按时到场，文明交流。'), findsOneWidget);
-      expect(find.text('抢位'), findsWidgets);
+      expect(find.text('抢位'), findsNothing);
       expect(
         tester
             .getTopLeft(find.byKey(const ValueKey('together-card-friends')))
@@ -655,12 +655,10 @@ void main() {
         final action = find.byKey(
           const ValueKey('together-invitation-action-night'),
         );
-        expect(
-          tester.widget<FilledButton>(action).onPressed != null,
-          state == TogetherJoinState.available,
-        );
+        expect(action, findsNothing);
+        expect(find.byType(TogetherParticipants), findsOneWidget);
         if (state == TogetherJoinState.available) {
-          await tester.tap(action);
+          await tester.tap(find.byKey(const ValueKey('together-card-night')));
           expect(taps, 1);
         }
         expect(tester.takeException(), isNull);

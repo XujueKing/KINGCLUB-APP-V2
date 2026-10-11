@@ -122,7 +122,7 @@ class _TogetherDateStripState extends State<TogetherDateStrip> {
       double.infinity,
     );
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 30 * unit, vertical: 30 * unit),
+      padding: EdgeInsets.fromLTRB(30 * unit, 12 * unit, 30 * unit, 30 * unit),
       child: SizedBox(
         height: height,
         child: Row(
