@@ -753,6 +753,11 @@ class TogetherAvailableRow extends StatelessWidget {
                                   ),
                                 ),
                               )
+                            : party.detailPosters.first.startsWith('assets/')
+                            ? Image.asset(
+                                party.detailPosters.first,
+                                fit: BoxFit.cover,
+                              )
                             : CachedMediaImage(
                                 party.detailPosters.first,
                                 fit: BoxFit.cover,
