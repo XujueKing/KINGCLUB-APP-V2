@@ -51,3 +51,21 @@ flutter run -d 00008140-000C44542E29801C --debug --no-pub \
 真机“我的”页空白排查：API 根路径的 K107 返回 Interface not found，读取会话接口返回 401；`/kingclub-v2` 的 K107 加密调用通过。因此真机调试须保留该业务前缀，经营服务则显式使用 `/commerce`，不能由业务前缀自动拼成 `/kingclub-v2/commerce`。原迁移文档的根路径运行参数已纠正。
 
 修正参数重新安装后，真机 K 接口返回 HTTP 200；调试器确认 `_MyProfilePageState._profile` 已加载且 `_profileError` 为 null。无需清除会话或重新注册。Flutter 原生设备截图命令不支持该 iPhone，但可通过 VM Service 的 `ext.flutter.inspector.screenshot` 获取 App 渲染内容。
+
+## 桌面启动与构建模式
+
+真机 Debug 包在 iOS 14+ 上需要由 Flutter/Xcode 启动；退出调试后从桌面点开会显示 Flutter 的启动限制提示，与证书丢失无关。原 Windows CI 实际构建的是 Release IPA，不能把它与本机 Debug 包直接比较。日常试用使用 Profile，断点和热重载使用 Debug，正式发布另走 Release/Archive 流程。
+
+本地 Profile 配置覆盖 `APS_ENVIRONMENT=development`，配合自动开发签名；Release 的 production 配置保留。日常真机命令：
+
+```sh
+flutter run -d 00008140-000C44542E29801C --profile --no-pub --no-resident \
+  --dart-define=KINGCLUB_API_BASE_URL=https://api.wuyexin.cn/kingclub-v2 \
+  --dart-define=KINGCLUB_COMMERCE_API_BASE_URL=https://api.wuyexin.cn/commerce
+```
+
+Profile 不提供 Debug 模式的热重载和完整 Inspector 能力；性能分析连接需要时使用相同命令并移除 `--no-resident`。
+
+Profile 真机签名构建通过，签名团队为 239E9W6PEN，推送环境 development。已覆盖安装并退出 Flutter 工具，随后通过 devicectl 在未连接调试器的情况下重新启动成功；该测试不等于商店发布或全部业务验收。
+
+用户确认 Profile 版已进入正常页面，不再显示 Debug 桌面启动限制提示。
