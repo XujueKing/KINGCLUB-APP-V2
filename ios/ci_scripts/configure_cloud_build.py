@@ -8,8 +8,14 @@ import re
 
 
 def build_defines(env):
-    if env.get("CI_TEAM_ID") not in (None, "", "239E9W6PEN"):
-        raise ValueError("Xcode Cloud must use the KINGCLUB company team")
+    # Bind the hook to the onboarded cloud product. Its CI_TEAM_ID value need
+    # not match the signing identifier in Runner's DEVELOPMENT_TEAM setting.
+    if env.get("CI_PRODUCT_ID", "").upper() not in (
+        "", "5420A5FE-2D74-4869-BA7D-C1794832C49A"
+    ):
+        raise ValueError("Xcode Cloud must use the KINGCLUB product")
+    if env.get("CI_BUNDLE_ID") not in (None, "", "com.lingmei.kingclub"):
+        raise ValueError("Xcode Cloud must use the KINGCLUB bundle identifier")
     number = env.get("CI_BUILD_NUMBER", "")
     if not re.fullmatch(r"[1-9][0-9]*", number) or int(number) < 180:
         raise ValueError("Set Xcode Cloud Next Build Number to 200 or higher before the first build")

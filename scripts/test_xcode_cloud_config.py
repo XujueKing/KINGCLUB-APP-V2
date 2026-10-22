@@ -17,7 +17,8 @@ class CloudConfigurationTest(unittest.TestCase):
     def settings(self, **updates):
         return {
             "CI_BUILD_NUMBER": "200",
-            "CI_TEAM_ID": "239E9W6PEN",
+            "CI_PRODUCT_ID": "5420A5FE-2D74-4869-BA7D-C1794832C49A",
+            "CI_BUNDLE_ID": "com.lingmei.kingclub",
             "KINGCLUB_TENCENT_MAP_KEY": "test-only-key",
             **updates,
         }
@@ -37,8 +38,13 @@ class CloudConfigurationTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             CONFIG.build_defines(self.settings(KINGCLUB_TENCENT_MAP_KEY=""))
         with self.assertRaises(ValueError) as error:
-            CONFIG.build_defines(self.settings(CI_TEAM_ID="OTHER_TEAM"))
+            CONFIG.build_defines(self.settings(CI_PRODUCT_ID="OTHER_PRODUCT"))
         self.assertNotIn("test-only-key", str(error.exception))
+        with self.assertRaises(ValueError):
+            CONFIG.build_defines(self.settings(CI_BUNDLE_ID="com.other.app"))
+
+    def test_cloud_team_representation_does_not_reject_verified_product(self):
+        self.assertTrue(CONFIG.build_defines(self.settings(CI_TEAM_ID="cloud-team-id")))
 
     def test_rejects_malformed_version_and_call_flag(self):
         for updates in ({"KINGCLUB_BUILD_NAME": "1.2"}, {"KINGCLUB_IOS_SYSTEM_CALLS": "yes"}):
