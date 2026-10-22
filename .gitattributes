@@ -1,2 +1,5 @@
 # Unified patches require LF; context-only lines intentionally contain one space.
 harmony/patches/*.patch text eol=lf whitespace=-blank-at-eol,-blank-at-eof
+
+# Xcode Cloud executes these scripts after Windows contributors push changes.
+*.sh text eol=lf
