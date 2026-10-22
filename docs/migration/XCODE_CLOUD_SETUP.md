@@ -16,7 +16,7 @@ Apple Developer Program 包含每月 25 个 Xcode Cloud 计算小时，未用完
 
 ## 首次接入设置
 
-先将本次源代码和此前 macOS 配置提交推送到 GitHub main；本机未登录 GitHub时不能把本地提交称为已推送。打开 `ios/Runner.xcworkspace`，选择 Product → Xcode Cloud → Create Workflow：
+已通过 GitHub CLI 验证本机登录为 `XujueKing`，本次配置及此前 macOS 配置已推送至 GitHub main（`aa71397d`），并通过 `ls-remote` 核对。尚未完成的是 Apple 侧首次产品/工作流接入。打开 `ios/Runner.xcworkspace`，选择 Product → Xcode Cloud → Create Workflow：
 
 | 项目 | 设置 |
 | --- | --- |
